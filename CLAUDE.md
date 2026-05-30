@@ -105,8 +105,9 @@ metis/
 - Tailwind only — no component CSS files. shadcn-svelte for primitives.
 
 ### Git
-- Branches: `phase-N/short-description` or `task/NNN-short-description`.
-- Commits: conventional commits (`feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`).
+- **Always create a new branch per task before writing any code.** Name it after the task ID and a short slug: `task/NNN-short-description` (e.g. `task/001-repo-skeleton`). Never commit to `main` directly.
+- **Commit message prefix:** start every commit message with either `feature/` (new functionality) or `fix/` (correcting existing code or behavior). Example: `feature/ add DuckDB migration runner` or `fix/ correct off-by-one in season parser`.
+- One PR per Plan.md task, opened from the task branch into `main`.
 - One PR per Plan.md task. PR description references the task ID and checks off acceptance criteria.
 
 ---
