@@ -4,6 +4,10 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[dependencies]
+serde = { workspace = true }
+thiserror = { workspace = true }
+
 [lints.rust]
 unused_imports = "deny"
 unused_variables = "deny"
