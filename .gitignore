@@ -1,0 +1,30 @@
+# Rust
+/target/
+# Cargo.lock is committed (workspace has binaries)
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.mypy_cache/
+.ruff_cache/
+
+# Data — never committed
+/data/
+
+# Node / frontend
+node_modules/
+.svelte-kit/
+/frontend/build/
+/frontend/.svelte-kit/
+
+# Tauri build artifacts
+/src-tauri/target/
+
+# DuckDB
+*.duckdb
+*.duckdb.wal
+
+# OS
+.DS_Store
+Thumbs.db
