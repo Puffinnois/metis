@@ -19,9 +19,6 @@ dist/
 /frontend/build/
 /frontend/.svelte-kit/
 
-# Tauri build artifacts
-/src-tauri/target/
-
 # DuckDB
 *.duckdb
 *.duckdb.wal
