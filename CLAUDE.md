@@ -77,8 +77,8 @@ metis/
 ## Conventions
 
 ### Rust
-- Workspace `Cargo.toml` pins versions; member crates inherit via `workspace = true`.
-- `clippy::pedantic` enabled in `metis-core` and `metis-compute`; `clippy::all -D warnings` everywhere.
+- Workspace `Cargo.toml` pins versions; member crates inherit via `workspace = true` for package metadata and deps.
+- `clippy::pedantic` enabled in `metis-core` and `metis-compute`; `clippy::all -D warnings` everywhere. **Note:** `metis-core` and `metis-compute` declare their lints explicitly (not via `workspace = true`) to allow the pedantic override — if you update workspace lints, update these two crates as well.
 - Errors: `thiserror` for library crates, `anyhow` only in `metis-cli` and `metis-tauri` (binaries).
 - Async runtime: `tokio` (full). HTTP server: `axum`. DB driver: `duckdb` crate.
 - Module naming: snake_case. Types: PascalCase. No `mod.rs` — use `foo.rs` + `foo/`.
@@ -98,6 +98,7 @@ metis/
 - Fact tables are partitioned by `season` where applicable.
 
 ### Frontend
+- Package manager: **pnpm**. Do not use npm or bun.
 - SvelteKit with `adapter-static`. No SSR (Tauri serves static files).
 - Data fetched via Tauri commands (preferred) or local HTTP to `metis-api`. Never directly to DuckDB from JS.
 - Tables use TanStack Table with virtualization. Filters debounced 150ms.
