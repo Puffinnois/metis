@@ -1154,6 +1154,7 @@ name = "metis-db"
 version = "0.1.0"
 dependencies = [
  "duckdb",
+ "metis-core",
  "tempfile",
  "thiserror",
 ]

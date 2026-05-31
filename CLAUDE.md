@@ -180,6 +180,7 @@ The bundled DuckDB (crate `duckdb = "1"`, bundled feature) does not implement ev
 | `FOREIGN KEY` / `REFERENCES` in `CREATE TABLE` | ✅ Parsed and stored | Not enforced at runtime — application layer owns integrity |
 | `CREATE UNIQUE INDEX` | ✅ Works | N/A |
 | `INSERT ... ON CONFLICT DO NOTHING` | ✅ Works | Use for idempotent seed data |
+| `current_timestamp` in `ON CONFLICT DO UPDATE SET` | ❌ Parsed as column name | Use `now()` instead (e.g. `updated_at = now()`) |
 
 **Implication for T012 (repository upsert):** use `INSERT INTO ... ON CONFLICT DO UPDATE SET ...` (upsert) or `ON CONFLICT DO NOTHING` for deduplication. Do not rely on FK enforcement — validate foreign keys in application code before insert.
 

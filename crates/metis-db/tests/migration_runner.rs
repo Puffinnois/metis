@@ -12,7 +12,8 @@ fn real_migrations_apply_cleanly() {
         .join("sql/migrations");
 
     let db = Db::open_with_migrations(":memory:", &migrations_dir).expect("open in-memory db");
-    db.migrate().expect("real migrations must apply without error");
+    db.migrate()
+        .expect("real migrations must apply without error");
 
     let applied = db.applied_migrations().expect("applied_migrations");
     assert_eq!(
@@ -79,4 +80,3 @@ fn multiple_migrations_applied_in_order() {
     let applied = db.applied_migrations().expect("applied_migrations");
     assert_eq!(applied, vec!["0001_first.sql", "0002_second.sql"]);
 }
-

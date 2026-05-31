@@ -3,6 +3,10 @@ use std::path::{Path, PathBuf};
 use duckdb::{params, Connection};
 
 use crate::error::{DbError, Result};
+use crate::repos::{
+    game::GameRepo, player::PlayerRepo, player_game_box::PlayerGameBoxRepo, team::TeamRepo,
+    team_game_box::TeamGameBoxRepo,
+};
 
 /// Handle to an open Metis DuckDB database.
 pub struct Db {
@@ -70,6 +74,36 @@ impl Db {
             .query_map([], |row| row.get(0))?
             .collect::<duckdb::Result<Vec<String>>>()?;
         Ok(names)
+    }
+
+    /// Returns a handle to the player dimension repository.
+    pub fn players(&self) -> PlayerRepo<'_> {
+        PlayerRepo::new(&self.conn)
+    }
+
+    /// Returns a handle to the team dimension repository.
+    pub fn teams(&self) -> TeamRepo<'_> {
+        TeamRepo::new(&self.conn)
+    }
+
+    /// Returns a handle to the game dimension repository.
+    pub fn games(&self) -> GameRepo<'_> {
+        GameRepo::new(&self.conn)
+    }
+
+    /// Returns a handle to the player box score fact repository.
+    pub fn player_game_boxes(&self) -> PlayerGameBoxRepo<'_> {
+        PlayerGameBoxRepo::new(&self.conn)
+    }
+
+    /// Returns a handle to the team box score fact repository.
+    pub fn team_game_boxes(&self) -> TeamGameBoxRepo<'_> {
+        TeamGameBoxRepo::new(&self.conn)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn raw_conn(&self) -> &Connection {
+        &self.conn
     }
 
     fn ensure_migrations_table(&self) -> Result<()> {
