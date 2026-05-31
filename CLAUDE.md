@@ -105,9 +105,40 @@ metis/
 - Tailwind only — no component CSS files. shadcn-svelte for primitives.
 
 ### Git
-- Branches: `phase-N/short-description` or `task/NNN-short-description`.
-- Commits: conventional commits (`feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`).
-- One PR per Plan.md task. PR description references the task ID and checks off acceptance criteria.
+
+**Long-lived branches (protected):**
+- `prod` — production. Only fast-forward merges from `preprod` after sign-off. This is what ships to users.
+- `preprod` — pre-production / staging. Integration branch where completed work is validated together before promotion to `prod`.
+- `main` — active development trunk. Working branches are cut from here and merged back here. Promoted to `preprod` in batches.
+
+**Working branches** are cut from `main` and named by *intent*, not by task number. The slug must be short, kebab-case, and evocative enough that another contributor (human or agent) can guess the scope without opening the PR.
+
+- `feature/<evocative-slug>` — new functionality. Examples: `feature/duckdb-migration-runner`, `feature/nba-box-score-ingest`, `feature/tanstack-player-table`.
+- `fix/<evocative-slug>` — bug fix or patch. Examples: `fix/season-coverage-null-handling`, `fix/bref-rate-limit-backoff`.
+- `chore/<evocative-slug>` — tooling, deps, CI, non-functional. Example: `chore/clippy-pedantic-rollout`.
+- `docs/<evocative-slug>` — docs-only changes. Example: `docs/adr-storage-format`.
+- `refactor/<evocative-slug>` — internal restructure, no behavior change. Example: `refactor/repository-trait-split`.
+
+Bad slugs: `feature/task-12`, `feature/phase-2`, `fix/bug`, `feature/update`. Good slugs name the *thing* being changed.
+
+**Flow:** `feature|fix|...` → PR into `main` → batch promote `main` → `preprod` → validate → fast-forward `preprod` → `prod`.
+
+**Promotion policy:**
+- `main` ← working branches: merged via PR after the task's acceptance criteria pass. Squash-merge preferred (one commit per task = easy revert).
+- `preprod` ← `main`: promoted when a Plan.md phase is complete or a coherent batch of tasks is ready for integration testing. Use a merge commit (no squash) so individual task commits remain visible for bisecting.
+- `prod` ← `preprod`: **only after a full phase has been tested and reviewed.** Fast-forward only — no direct commits, no merges from anywhere except `preprod`. Tag the resulting commit `vX.Y-phaseN` so reverts are trivial (`git reset --hard <previous tag>`).
+
+**Protection rules (enforce when a GitHub remote is added; until then, honor by convention):**
+- `prod`: no direct pushes, no force-push, linear history (fast-forward only), require PR from `preprod`, require passing CI, require one reviewer.
+- `preprod`: no direct pushes, no force-push, require PR from `main`, require passing CI.
+- `main`: no force-push, require PR from working branches, require passing CI.
+- Working branches: no rules — force-push allowed (they're the agent's scratch space).
+
+**Reverting:**
+- A bad task on `main`: revert the squash commit (`git revert <sha>`).
+- A bad phase on `prod`: reset to the previous `vX.Y-phaseN` tag, then fix forward on `main` → `preprod` → `prod`.
+
+**Commits:** conventional commits (`feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`). One PR per Plan.md task. PR description references the task ID and checks off acceptance criteria.
 
 ---
 
@@ -134,6 +165,24 @@ API and UI return `null` (with a `coverage` marker) outside support windows. Nev
 | ESPN | custom (hidden JSON endpoints) | Cross-reference, live (later) | Undocumented, brittle |
 
 **Every source is treated as untrusted.** Disagreements are stored, not resolved at ingest. The reconciliation layer (`metis-compute/src/reconcile/`) picks a canonical value per stat by configurable rules.
+
+---
+
+## DuckDB DDL quirks (discovered T011 — affects T012+)
+
+The bundled DuckDB (crate `duckdb = "1"`, bundled feature) does not implement every SQL standard feature. Known gaps that affect schema and repository work:
+
+| Feature | Status | Workaround |
+|---|---|---|
+| `GENERATED ALWAYS AS IDENTITY` | ❌ Not implemented | Use `CREATE SEQUENCE seq; ... DEFAULT nextval('seq')` |
+| `ALTER TABLE t ADD COLUMN c TEXT NOT NULL` | ❌ Not implemented | Define `NOT NULL` columns in the original `CREATE TABLE` |
+| `ALTER TABLE t ADD COLUMN c TEXT DEFAULT 'x'` | ✅ Works (nullable + default only) | N/A |
+| `FOREIGN KEY` / `REFERENCES` in `CREATE TABLE` | ✅ Parsed and stored | Not enforced at runtime — application layer owns integrity |
+| `CREATE UNIQUE INDEX` | ✅ Works | N/A |
+| `INSERT ... ON CONFLICT DO NOTHING` | ✅ Works | Use for idempotent seed data |
+| `current_timestamp` in `ON CONFLICT DO UPDATE SET` | ❌ Parsed as column name | Use `now()` instead (e.g. `updated_at = now()`) |
+
+**Implication for T012 (repository upsert):** use `INSERT INTO ... ON CONFLICT DO UPDATE SET ...` (upsert) or `ON CONFLICT DO NOTHING` for deduplication. Do not rely on FK enforcement — validate foreign keys in application code before insert.
 
 ---
 
