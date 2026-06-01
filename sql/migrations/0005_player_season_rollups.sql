@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS player_season_totals (
     three_pointers_attempted INTEGER,
     free_throws_made         INTEGER,
     free_throws_attempted    INTEGER,
-    computed_at              TIMESTAMP    NOT NULL DEFAULT current_timestamp
+    computed_at              TIMESTAMP    NOT NULL DEFAULT current_timestamp  -- When the rollup was computed (UTC)
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_player_season_totals
@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS player_season_per_game (
     three_pointers_attempted DECIMAL(6,2),
     free_throws_made         DECIMAL(6,2),
     free_throws_attempted    DECIMAL(6,2),
-    computed_at              TIMESTAMP    NOT NULL DEFAULT current_timestamp
+    computed_at              TIMESTAMP    NOT NULL DEFAULT current_timestamp  -- When the rollup was computed (UTC)
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_player_season_per_game

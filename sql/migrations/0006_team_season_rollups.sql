@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS team_season_totals (
     points_in_paint          INTEGER,
     second_chance_points     INTEGER,
     bench_points             INTEGER,
-    computed_at              TIMESTAMP    NOT NULL DEFAULT current_timestamp
+    computed_at              TIMESTAMP    NOT NULL DEFAULT current_timestamp  -- When the rollup was computed (UTC)
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_team_season_totals
@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS team_season_per_game (
     points_in_paint          DECIMAL(6,2),
     second_chance_points     DECIMAL(6,2),
     bench_points             DECIMAL(6,2),
-    computed_at              TIMESTAMP    NOT NULL DEFAULT current_timestamp
+    computed_at              TIMESTAMP    NOT NULL DEFAULT current_timestamp  -- When the rollup was computed (UTC)
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_team_season_per_game
