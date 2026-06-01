@@ -177,12 +177,13 @@ The bundled DuckDB (crate `duckdb = "1"`, bundled feature) does not implement ev
 | `GENERATED ALWAYS AS IDENTITY` | ❌ Not implemented | Use `CREATE SEQUENCE seq; ... DEFAULT nextval('seq')` |
 | `ALTER TABLE t ADD COLUMN c TEXT NOT NULL` | ❌ Not implemented | Define `NOT NULL` columns in the original `CREATE TABLE` |
 | `ALTER TABLE t ADD COLUMN c TEXT DEFAULT 'x'` | ✅ Works (nullable + default only) | N/A |
-| `FOREIGN KEY` / `REFERENCES` in `CREATE TABLE` | ✅ Parsed and stored | Not enforced at runtime — application layer owns integrity |
+| `FOREIGN KEY` / `REFERENCES` in `CREATE TABLE` | ✅ Parsed, stored, and **enforced** | FK violations raise `Constraint Error` at runtime — callers must insert referenced rows first |
 | `CREATE UNIQUE INDEX` | ✅ Works | N/A |
 | `INSERT ... ON CONFLICT DO NOTHING` | ✅ Works | Use for idempotent seed data |
 | `current_timestamp` in `ON CONFLICT DO UPDATE SET` | ❌ Parsed as column name | Use `now()` instead (e.g. `updated_at = now()`) |
+| `read_parquet(?)` — parameterized glob | ❌ Table function args cannot be bound via `?` | Embed the path string directly in the SQL (escape single quotes) |
 
-**Implication for T012 (repository upsert):** use `INSERT INTO ... ON CONFLICT DO UPDATE SET ...` (upsert) or `ON CONFLICT DO NOTHING` for deduplication. Do not rely on FK enforcement — validate foreign keys in application code before insert.
+**Implication for T012 (repository upsert):** use `INSERT INTO ... ON CONFLICT DO UPDATE SET ...` (upsert) or `ON CONFLICT DO NOTHING` for deduplication. FK constraints **are** enforced — ensure dimension rows (game, player, team) exist before inserting fact rows. This applies to `load_from_parquet` bulk inserts as well.
 
 ---
 

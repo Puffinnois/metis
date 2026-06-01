@@ -34,7 +34,11 @@ impl<'conn> PlayerRepo<'conn> {
     ///
     /// For example, `find_by_external_id("NBA", "2544")` finds player `"NBA_2544"`.
     /// `league_id` is the league prefix (e.g. `"NBA"`), not the ingest adapter name.
-    pub fn find_by_external_id(&self, league_id: &str, external_id: &str) -> Result<Option<Player>> {
+    pub fn find_by_external_id(
+        &self,
+        league_id: &str,
+        external_id: &str,
+    ) -> Result<Option<Player>> {
         let id = format!("{league_id}_{external_id}");
         queries::player::find_by_id(self.conn, &id)
     }

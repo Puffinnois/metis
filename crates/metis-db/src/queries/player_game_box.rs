@@ -185,3 +185,84 @@ pub(crate) fn list_by_season(conn: &Connection, season_id: &str) -> Result<Vec<P
     let rows = stmt.query_map(params![season_id], map_row)?;
     rows.collect::<duckdb::Result<Vec<_>>>().map_err(Into::into)
 }
+
+/// Bulk-loads all rows from Parquet files matching `glob_path` into `player_game_box`.
+///
+/// Uses DuckDB's `read_parquet` table function so the entire copy happens inside
+/// the engine — no row-by-row round-trips. On conflict by `(game_id, player_id,
+/// source)` the stat and provenance columns are updated in place.
+///
+/// Returns the number of rows inserted or updated.
+///
+/// `glob_path` is embedded directly into the SQL statement; single quotes in the
+/// path are escaped to prevent injection.
+pub(crate) fn load_from_parquet(conn: &Connection, glob_path: &str) -> Result<u64> {
+    let safe = glob_path.replace('\'', "''");
+    let sql = format!(
+        "INSERT INTO player_game_box (
+            game_id, player_id, team_id, season_id, season_type, starter,
+            minutes_played, points, rebounds_offensive, rebounds_defensive,
+            rebounds_total, assists, steals, blocks, turnovers, personal_fouls,
+            field_goals_made, field_goals_attempted,
+            three_pointers_made, three_pointers_attempted,
+            free_throws_made, free_throws_attempted,
+            plus_minus, source, source_url, fetched_at, source_payload
+        )
+        SELECT
+            game_id,
+            player_id,
+            team_id,
+            season_id,
+            season_type,
+            starter,
+            CAST(minutes_played AS DECIMAL(5, 2)),
+            CAST(points              AS SMALLINT),
+            CAST(rebounds_offensive  AS SMALLINT),
+            CAST(rebounds_defensive  AS SMALLINT),
+            CAST(rebounds_total      AS SMALLINT),
+            CAST(assists             AS SMALLINT),
+            CAST(steals              AS SMALLINT),
+            CAST(blocks              AS SMALLINT),
+            CAST(turnovers           AS SMALLINT),
+            CAST(personal_fouls      AS SMALLINT),
+            CAST(field_goals_made         AS SMALLINT),
+            CAST(field_goals_attempted    AS SMALLINT),
+            CAST(three_pointers_made      AS SMALLINT),
+            CAST(three_pointers_attempted AS SMALLINT),
+            CAST(free_throws_made         AS SMALLINT),
+            CAST(free_throws_attempted    AS SMALLINT),
+            CAST(plus_minus          AS SMALLINT),
+            source,
+            source_url,
+            CAST(fetched_at AS TIMESTAMP),
+            CAST(source_payload AS JSON)
+        FROM read_parquet('{safe}')
+        ON CONFLICT (game_id, player_id, source) DO UPDATE SET
+            team_id                  = excluded.team_id,
+            season_id                = excluded.season_id,
+            season_type              = excluded.season_type,
+            starter                  = excluded.starter,
+            minutes_played           = excluded.minutes_played,
+            points                   = excluded.points,
+            rebounds_offensive       = excluded.rebounds_offensive,
+            rebounds_defensive       = excluded.rebounds_defensive,
+            rebounds_total           = excluded.rebounds_total,
+            assists                  = excluded.assists,
+            steals                   = excluded.steals,
+            blocks                   = excluded.blocks,
+            turnovers                = excluded.turnovers,
+            personal_fouls           = excluded.personal_fouls,
+            field_goals_made         = excluded.field_goals_made,
+            field_goals_attempted    = excluded.field_goals_attempted,
+            three_pointers_made      = excluded.three_pointers_made,
+            three_pointers_attempted = excluded.three_pointers_attempted,
+            free_throws_made         = excluded.free_throws_made,
+            free_throws_attempted    = excluded.free_throws_attempted,
+            plus_minus               = excluded.plus_minus,
+            source_url               = excluded.source_url,
+            fetched_at               = excluded.fetched_at,
+            source_payload           = excluded.source_payload"
+    );
+    let n = conn.execute(&sql, params![])?;
+    Ok(n as u64)
+}
