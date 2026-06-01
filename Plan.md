@@ -37,13 +37,13 @@ Legend: 🦀 Rust · 🐍 Python · 🖼️ Frontend · 🗄️ SQL/Data · ⚙�
 
 ## Phase 1 — Storage layer
 
-- [ ] **T010 🗄️ Migration runner in `metis-db`.**
+- [x] **T010 🗄️ Migration runner in `metis-db`.**
   - Connect to `data/duckdb/metis.duckdb`, create if missing.
   - Apply `sql/migrations/*.sql` in order, track applied in `_migrations` table.
   - Expose `Db::open(path) -> Result<Db>` and `Db::migrate(&self)`.
   - **Acceptance:** Unit test: empty DB → migrate twice → second is no-op. Integration test with one dummy migration file.
 
-- [ ] **T011 🗄️ Initial schema migrations.**
+- [x] **T011 🗄️ Initial schema migrations.**
   - `0001_core_entities.sql`: `league`, `team`, `player`, `season`, `game`.
   - `0002_box_score.sql`: `player_game_box` (one row per player-game), `team_game_box`.
   - `0003_provenance.sql`: every fact table gets `source TEXT`, `source_url TEXT`, `fetched_at TIMESTAMP`, `source_payload JSON`. Composite uniqueness on (entity keys, source).
@@ -51,7 +51,7 @@ Legend: 🦀 Rust · 🐍 Python · 🖼️ Frontend · 🗄️ SQL/Data · ⚙�
   - Use snake_case, singular table names. Document each column.
   - **Acceptance:** Migrations apply clean. Schema diagram (text) in PR body.
 
-- [ ] **T012 🦀 Repository pattern for core entities in `metis-db`.**
+- [x] **T012 🦀 Repository pattern for core entities in `metis-db`.**
   - `PlayerRepo`, `TeamRepo`, `GameRepo`, `BoxScoreRepo` — each with `upsert`, `find_by_id`, `find_by_*`.
   - Queries live in `src/queries/` as functions, not inline strings.
   - **Acceptance:** Unit tests per repo using an in-memory DuckDB.
@@ -60,19 +60,19 @@ Legend: 🦀 Rust · 🐍 Python · 🖼️ Frontend · 🗄️ SQL/Data · ⚙�
 
 ## Phase 2 — First ingestion pipeline
 
-- [ ] **T020 🐍 Ingestion base: rate limiter, retry, Parquet writer.**
+- [x] **T020 🐍 Ingestion base: rate limiter, retry, Parquet writer.**
   - `python/ingest/_http.py`: shared `requests.Session` with backoff, configurable RPS per host, polite User-Agent.
   - `python/ingest/_parquet.py`: writes to `data/parquet/<source>/<entity>/season=YYYY/part-*.parquet`. Uses `pyarrow`.
   - `python/ingest/base.py`: `Adapter` protocol — `fetch`, `parse`, `write`.
   - **Acceptance:** Unit test hits a local mock server, writes Parquet, reads back identical.
 
-- [ ] **T021 🐍 nba_api adapter — historical box scores for one season.**
+- [x] **T021 🐍 nba_api adapter — historical box scores for one season.**
   - Pull all regular-season games + box scores for a configurable season (default: most recent complete).
   - Normalize into the `player_game_box` and `team_game_box` Parquet schemas (matching SQL columns plus `source_payload`).
   - CLI: `python -m ingest.nba_stats box-scores --season 2024`.
   - **Acceptance:** Running locally produces Parquet files; row counts match known season totals within 0.5%; fixture-based parser test.
 
-- [ ] **T022 🦀 Parquet → DuckDB loader in `metis-cli`.**
+- [x] **T022 🦀 Parquet → DuckDB loader in `metis-cli`.**
   - `metis-cli load box-scores --season 2024` reads Parquet via DuckDB's `read_parquet` and upserts into the typed tables.
   - Idempotent: re-running yields same row count.
   - **Acceptance:** End-to-end test from Parquet fixture to DB rows.
