@@ -193,3 +193,85 @@ pub(crate) fn list_by_season(conn: &Connection, season_id: &str) -> Result<Vec<T
     let rows = stmt.query_map(params![season_id], map_row)?;
     rows.collect::<duckdb::Result<Vec<_>>>().map_err(Into::into)
 }
+
+/// Bulk-loads all rows from Parquet files matching `glob_path` into `team_game_box`.
+///
+/// Uses DuckDB's `read_parquet` table function. On conflict by `(game_id, team_id,
+/// source)` the stat and provenance columns are updated in place.
+///
+/// Returns the number of rows inserted or updated.
+pub(crate) fn load_from_parquet(conn: &Connection, glob_path: &str) -> Result<u64> {
+    let safe = glob_path.replace('\'', "''");
+    let sql = format!(
+        "INSERT INTO team_game_box (
+            game_id, team_id, opponent_team_id, season_id, season_type, is_home,
+            points, rebounds_offensive, rebounds_defensive, rebounds_total,
+            assists, steals, blocks, turnovers, personal_fouls,
+            field_goals_made, field_goals_attempted,
+            three_pointers_made, three_pointers_attempted,
+            free_throws_made, free_throws_attempted,
+            fast_break_points, points_in_paint, second_chance_points, bench_points,
+            source, source_url, fetched_at, source_payload
+        )
+        SELECT
+            game_id,
+            team_id,
+            opponent_team_id,
+            season_id,
+            season_type,
+            is_home,
+            CAST(points              AS SMALLINT),
+            CAST(rebounds_offensive  AS SMALLINT),
+            CAST(rebounds_defensive  AS SMALLINT),
+            CAST(rebounds_total      AS SMALLINT),
+            CAST(assists             AS SMALLINT),
+            CAST(steals              AS SMALLINT),
+            CAST(blocks              AS SMALLINT),
+            CAST(turnovers           AS SMALLINT),
+            CAST(personal_fouls      AS SMALLINT),
+            CAST(field_goals_made         AS SMALLINT),
+            CAST(field_goals_attempted    AS SMALLINT),
+            CAST(three_pointers_made      AS SMALLINT),
+            CAST(three_pointers_attempted AS SMALLINT),
+            CAST(free_throws_made         AS SMALLINT),
+            CAST(free_throws_attempted    AS SMALLINT),
+            CAST(fast_break_points   AS SMALLINT),
+            CAST(points_in_paint     AS SMALLINT),
+            CAST(second_chance_points AS SMALLINT),
+            CAST(bench_points        AS SMALLINT),
+            source,
+            source_url,
+            CAST(fetched_at AS TIMESTAMP),
+            CAST(source_payload AS JSON)
+        FROM read_parquet('{safe}')
+        ON CONFLICT (game_id, team_id, source) DO UPDATE SET
+            opponent_team_id         = excluded.opponent_team_id,
+            season_id                = excluded.season_id,
+            season_type              = excluded.season_type,
+            is_home                  = excluded.is_home,
+            points                   = excluded.points,
+            rebounds_offensive       = excluded.rebounds_offensive,
+            rebounds_defensive       = excluded.rebounds_defensive,
+            rebounds_total           = excluded.rebounds_total,
+            assists                  = excluded.assists,
+            steals                   = excluded.steals,
+            blocks                   = excluded.blocks,
+            turnovers                = excluded.turnovers,
+            personal_fouls           = excluded.personal_fouls,
+            field_goals_made         = excluded.field_goals_made,
+            field_goals_attempted    = excluded.field_goals_attempted,
+            three_pointers_made      = excluded.three_pointers_made,
+            three_pointers_attempted = excluded.three_pointers_attempted,
+            free_throws_made         = excluded.free_throws_made,
+            free_throws_attempted    = excluded.free_throws_attempted,
+            fast_break_points        = excluded.fast_break_points,
+            points_in_paint          = excluded.points_in_paint,
+            second_chance_points     = excluded.second_chance_points,
+            bench_points             = excluded.bench_points,
+            source_url               = excluded.source_url,
+            fetched_at               = excluded.fetched_at,
+            source_payload           = excluded.source_payload"
+    );
+    let n = conn.execute(&sql, params![])?;
+    Ok(n as u64)
+}

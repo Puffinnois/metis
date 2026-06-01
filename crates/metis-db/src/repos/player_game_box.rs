@@ -46,6 +46,16 @@ impl<'conn> PlayerGameBoxRepo<'conn> {
     pub fn list_by_season(&self, season: Season) -> Result<Vec<PlayerGameBox>> {
         queries::player_game_box::list_by_season(self.conn, &season.to_string())
     }
+
+    /// Bulk-loads player box score rows from Parquet files matching `glob_path`.
+    ///
+    /// `glob_path` may use `*` and `**` wildcards understood by DuckDB's
+    /// `read_parquet` (e.g. `"data/parquet/nba_stats/player_game_box/season=2024/*.parquet"`).
+    ///
+    /// Returns the number of rows inserted or updated.
+    pub fn load_from_parquet(&self, glob_path: &str) -> Result<u64> {
+        queries::player_game_box::load_from_parquet(self.conn, glob_path)
+    }
 }
 
 #[cfg(test)]
@@ -190,5 +200,92 @@ mod tests {
         repo.upsert(&box_row()).unwrap();
         let rows = repo.list_by_season(Season(2020)).unwrap();
         assert!(rows.is_empty());
+    }
+
+    // ── load_from_parquet ────────────────────────────────────────────────────
+
+    fn setup_load(db: &crate::Db) {
+        insert_team(db, "NBA_LAL", "NBA");
+        insert_team(db, "NBA_BOS", "NBA");
+        insert_player(db, "NBA_P001", "NBA");
+        insert_season(db, "2024-25", "NBA");
+        insert_game(db, "NBA_G001", "NBA", "2024-25", "NBA_LAL", "NBA_BOS");
+    }
+
+    /// Write a one-row Parquet fixture using DuckDB's COPY … TO, then load it.
+    fn write_player_parquet(dir: &std::path::Path) -> std::path::PathBuf {
+        let path = dir.join("part-fixture.parquet");
+        let conn = duckdb::Connection::open_in_memory().expect("in-memory conn");
+        conn.execute_batch(&format!(
+            "COPY (
+                SELECT
+                    'NBA_G001'                           AS game_id,
+                    'NBA_P001'                           AS player_id,
+                    'NBA_LAL'                            AS team_id,
+                    '2024-25'                            AS season_id,
+                    'Regular'                            AS season_type,
+                    true                                 AS starter,
+                    36.5                                 AS minutes_played,
+                    28                                   AS points,
+                    1                                    AS rebounds_offensive,
+                    6                                    AS rebounds_defensive,
+                    7                                    AS rebounds_total,
+                    8                                    AS assists,
+                    1                                    AS steals,
+                    1                                    AS blocks,
+                    3                                    AS turnovers,
+                    2                                    AS personal_fouls,
+                    11                                   AS field_goals_made,
+                    20                                   AS field_goals_attempted,
+                    2                                    AS three_pointers_made,
+                    5                                    AS three_pointers_attempted,
+                    4                                    AS free_throws_made,
+                    4                                    AS free_throws_attempted,
+                    8                                    AS plus_minus,
+                    'nba_stats'                          AS source,
+                    'https://stats.nba.com/game/001'     AS source_url,
+                    TIMESTAMPTZ '2024-01-15 12:00:00+00' AS fetched_at,
+                    '{{\"test\": true}}'                 AS source_payload
+            ) TO '{}' (FORMAT PARQUET)",
+            path.display()
+        ))
+        .expect("write fixture parquet");
+        path
+    }
+
+    #[test]
+    fn load_from_parquet_inserts_rows() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let parquet = write_player_parquet(tmp.path());
+
+        let db = open_test_db();
+        setup_load(&db);
+        let n = db
+            .player_game_boxes()
+            .load_from_parquet(parquet.to_str().unwrap())
+            .unwrap();
+        assert_eq!(n, 1);
+
+        let rows = db.player_game_boxes().find_by_game("NBA_G001").unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].player_id, "NBA_P001");
+        assert_eq!(rows[0].points, Some(28));
+        assert_eq!(rows[0].assists, Some(8));
+    }
+
+    #[test]
+    fn load_from_parquet_is_idempotent() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let parquet = write_player_parquet(tmp.path());
+        let glob = parquet.to_str().unwrap();
+
+        let db = open_test_db();
+        setup_load(&db);
+        let repo = db.player_game_boxes();
+        repo.load_from_parquet(glob).unwrap();
+        repo.load_from_parquet(glob).unwrap();
+
+        let rows = repo.find_by_game("NBA_G001").unwrap();
+        assert_eq!(rows.len(), 1, "second load must not duplicate rows");
     }
 }

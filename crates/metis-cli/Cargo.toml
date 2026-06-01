@@ -8,5 +8,10 @@ license.workspace = true
 name = "metis-cli"
 path = "src/main.rs"
 
+[dependencies]
+anyhow = { workspace = true }
+clap = { version = "4", features = ["derive"] }
+metis-db = { path = "../metis-db" }
+
 [lints]
 workspace = true
