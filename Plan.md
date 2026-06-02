@@ -81,7 +81,7 @@ Legend: 🦀 Rust · 🐍 Python · 🖼️ Frontend · 🗄️ SQL/Data · ⚙�
 
 ## Phase 3 — Traditional stats compute
 
-- [ ] **T030 🦀 `metis-compute` season rollups.**
+- [x] **T030 🦀 `metis-compute` season rollups.**
   - From `player_game_box`, materialize `player_season_totals` and `player_season_per_game`.
   - Same for teams.
   - Triggered via `metis-cli compute season-rollups --season 2024`.
