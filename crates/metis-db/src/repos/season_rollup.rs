@@ -263,4 +263,127 @@ mod tests {
         let rows = repo.list_player_per_game("2023-24", "nba_stats").unwrap();
         assert_eq!(rows.len(), 1, "re-run must not duplicate rows");
     }
+
+    fn team_box(
+        game_id: &str,
+        team_id: &str,
+        opp_id: &str,
+        points: i16,
+    ) -> crate::model::team_game_box::TeamGameBox {
+        crate::model::team_game_box::TeamGameBox {
+            id: 0,
+            game_id: game_id.to_string(),
+            team_id: team_id.to_string(),
+            opponent_team_id: opp_id.to_string(),
+            season_id: "2023-24".to_string(),
+            season_type: "Regular".to_string(),
+            is_home: team_id == "NBA_LAL",
+            points: Some(points),
+            rebounds_offensive: Some(8),
+            rebounds_defensive: Some(35),
+            rebounds_total: Some(43),
+            assists: Some(25),
+            steals: Some(7),
+            blocks: Some(4),
+            turnovers: Some(13),
+            personal_fouls: Some(20),
+            field_goals_made: Some(42),
+            field_goals_attempted: Some(88),
+            three_pointers_made: Some(12),
+            three_pointers_attempted: Some(35),
+            free_throws_made: Some(10),
+            free_throws_attempted: Some(14),
+            fast_break_points: Some(15),
+            points_in_paint: Some(44),
+            second_chance_points: Some(10),
+            bench_points: Some(30),
+            source: "nba_stats".to_string(),
+            source_url: "https://stats.nba.com/".to_string(),
+            fetched_at: "2024-01-15 12:00:00".to_string(),
+            source_payload: "{}".to_string(),
+            ingested_at: None,
+        }
+    }
+
+    #[test]
+    fn compute_team_totals_sums_correctly() {
+        let db = open_test_db();
+        setup(&db);
+        let boxes = db.team_game_boxes();
+        // LAL: 110 + 105 = 215 pts over 2 games
+        boxes
+            .upsert(&team_box("G001", "NBA_LAL", "NBA_BOS", 110))
+            .unwrap();
+        boxes
+            .upsert(&team_box("G002", "NBA_LAL", "NBA_BOS", 105))
+            .unwrap();
+
+        let repo = db.season_rollups();
+        let n = repo.compute_team_totals("2023-24", "nba_stats").unwrap();
+        assert_eq!(n, 1, "one team → one totals row");
+
+        let rows = repo.list_team_totals("2023-24", "nba_stats").unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].team_id, "NBA_LAL");
+        assert_eq!(rows[0].games_played, 2);
+        assert_eq!(rows[0].points, Some(215));
+        assert_eq!(rows[0].fast_break_points, Some(30)); // 15 + 15
+    }
+
+    #[test]
+    fn compute_team_totals_is_idempotent() {
+        let db = open_test_db();
+        setup(&db);
+        db.team_game_boxes()
+            .upsert(&team_box("G001", "NBA_LAL", "NBA_BOS", 110))
+            .unwrap();
+
+        let repo = db.season_rollups();
+        repo.compute_team_totals("2023-24", "nba_stats").unwrap();
+        repo.compute_team_totals("2023-24", "nba_stats").unwrap();
+
+        let rows = repo.list_team_totals("2023-24", "nba_stats").unwrap();
+        assert_eq!(rows.len(), 1, "re-run must not duplicate rows");
+    }
+
+    #[test]
+    fn compute_team_per_game_divides_correctly() {
+        let db = open_test_db();
+        setup(&db);
+        let boxes = db.team_game_boxes();
+        boxes
+            .upsert(&team_box("G001", "NBA_LAL", "NBA_BOS", 110))
+            .unwrap();
+        boxes
+            .upsert(&team_box("G002", "NBA_LAL", "NBA_BOS", 106))
+            .unwrap();
+        // points: 216 / 2 games = 108.0
+
+        let repo = db.season_rollups();
+        repo.compute_team_totals("2023-24", "nba_stats").unwrap();
+        let n = repo.compute_team_per_game("2023-24", "nba_stats").unwrap();
+        assert_eq!(n, 1);
+
+        let rows = repo.list_team_per_game("2023-24", "nba_stats").unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].games_played, 2);
+        assert_eq!(rows[0].points, Some(108.0));
+    }
+
+    #[test]
+    fn compute_team_per_game_is_idempotent() {
+        let db = open_test_db();
+        setup(&db);
+        db.team_game_boxes()
+            .upsert(&team_box("G001", "NBA_LAL", "NBA_BOS", 110))
+            .unwrap();
+
+        let repo = db.season_rollups();
+        repo.compute_team_totals("2023-24", "nba_stats").unwrap();
+        repo.compute_team_per_game("2023-24", "nba_stats").unwrap();
+        repo.compute_team_per_game("2023-24", "nba_stats").unwrap();
+
+        let rows = repo.list_team_per_game("2023-24", "nba_stats").unwrap();
+        assert_eq!(rows.len(), 1, "re-run must not duplicate rows");
+    }
 }
