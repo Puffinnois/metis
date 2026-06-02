@@ -68,11 +68,7 @@ impl<'conn> SeasonRollupRepo<'conn> {
     }
 
     /// Returns all `team_season_totals` rows for the given season+source.
-    pub fn list_team_totals(
-        &self,
-        season_id: &str,
-        source: &str,
-    ) -> Result<Vec<TeamSeasonTotals>> {
+    pub fn list_team_totals(&self, season_id: &str, source: &str) -> Result<Vec<TeamSeasonTotals>> {
         queries::season_rollup::list_team_totals(self.conn, season_id, source)
     }
 
@@ -89,7 +85,9 @@ impl<'conn> SeasonRollupRepo<'conn> {
 #[cfg(test)]
 mod tests {
     use crate::model::player_game_box::PlayerGameBox;
-    use crate::test_helpers::{insert_game, insert_player, insert_season, insert_team, open_test_db};
+    use crate::test_helpers::{
+        insert_game, insert_player, insert_season, insert_team, open_test_db,
+    };
 
     fn player_box(game_id: &str, player_id: &str, points: i16, minutes: f64) -> PlayerGameBox {
         PlayerGameBox {
@@ -165,8 +163,12 @@ mod tests {
         let db = open_test_db();
         setup(&db);
         let boxes = db.player_game_boxes();
-        boxes.upsert(&player_box("G001", "NBA_P001", 28, 36.0)).unwrap();
-        boxes.upsert(&player_box("G002", "NBA_P001", 22, 32.0)).unwrap();
+        boxes
+            .upsert(&player_box("G001", "NBA_P001", 28, 36.0))
+            .unwrap();
+        boxes
+            .upsert(&player_box("G002", "NBA_P001", 22, 32.0))
+            .unwrap();
 
         let repo = db.season_rollups();
         let n = repo.compute_player_totals("2023-24", "nba_stats").unwrap();
@@ -186,8 +188,12 @@ mod tests {
         let db = open_test_db();
         setup(&db);
         let boxes = db.player_game_boxes();
-        boxes.upsert(&player_box("G001", "NBA_P001", 28, 36.0)).unwrap();
-        boxes.upsert(&player_box("G001", "NBA_P002", 15, 24.0)).unwrap();
+        boxes
+            .upsert(&player_box("G001", "NBA_P001", 28, 36.0))
+            .unwrap();
+        boxes
+            .upsert(&player_box("G001", "NBA_P002", 15, 24.0))
+            .unwrap();
 
         let repo = db.season_rollups();
         let n = repo.compute_player_totals("2023-24", "nba_stats").unwrap();
@@ -218,12 +224,18 @@ mod tests {
         let db = open_test_db();
         setup(&db);
         let boxes = db.player_game_boxes();
-        boxes.upsert(&player_box("G001", "NBA_P001", 28, 36.0)).unwrap();
-        boxes.upsert(&player_box("G002", "NBA_P001", 22, 32.0)).unwrap();
+        boxes
+            .upsert(&player_box("G001", "NBA_P001", 28, 36.0))
+            .unwrap();
+        boxes
+            .upsert(&player_box("G002", "NBA_P001", 22, 32.0))
+            .unwrap();
 
         let repo = db.season_rollups();
         repo.compute_player_totals("2023-24", "nba_stats").unwrap();
-        let n = repo.compute_player_per_game("2023-24", "nba_stats").unwrap();
+        let n = repo
+            .compute_player_per_game("2023-24", "nba_stats")
+            .unwrap();
         assert_eq!(n, 1);
 
         let rows = repo.list_player_per_game("2023-24", "nba_stats").unwrap();
@@ -243,8 +255,10 @@ mod tests {
 
         let repo = db.season_rollups();
         repo.compute_player_totals("2023-24", "nba_stats").unwrap();
-        repo.compute_player_per_game("2023-24", "nba_stats").unwrap();
-        repo.compute_player_per_game("2023-24", "nba_stats").unwrap();
+        repo.compute_player_per_game("2023-24", "nba_stats")
+            .unwrap();
+        repo.compute_player_per_game("2023-24", "nba_stats")
+            .unwrap();
 
         let rows = repo.list_player_per_game("2023-24", "nba_stats").unwrap();
         assert_eq!(rows.len(), 1, "re-run must not duplicate rows");
