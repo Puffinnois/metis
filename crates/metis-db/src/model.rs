@@ -1,5 +1,9 @@
 pub mod game;
 pub mod player;
 pub mod player_game_box;
+pub mod player_season_per_game;
+pub mod player_season_totals;
 pub mod team;
 pub mod team_game_box;
+pub mod team_season_per_game;
+pub mod team_season_totals;
