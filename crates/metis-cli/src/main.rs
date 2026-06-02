@@ -77,7 +77,7 @@ enum ComputeEntity {
     SeasonRollups {
         /// Season start year (e.g. 2024 for the 2024-25 season).
         #[arg(long)]
-        season: u32,
+        season: u16,
 
         /// Ingest source name (must match the source used when loading box scores).
         #[arg(long)]
@@ -146,10 +146,9 @@ fn cmd_load_box_scores(db: &Db, data_root: &Path, season: u32, source: &str) -> 
     Ok(())
 }
 
-fn cmd_compute_season_rollups(db: &Db, season: u32, source: &str) -> Result<()> {
-    let season_typed = Season(season as u16);
-    let summary =
-        compute_season_rollups(db, season_typed, source).map_err(|e| anyhow::anyhow!("{e}"))?;
+fn cmd_compute_season_rollups(db: &Db, season: u16, source: &str) -> Result<()> {
+    let season_typed = Season(season);
+    let summary = compute_season_rollups(db, season_typed, source)?;
     println!(
         "Computed rollups for {} players, {} teams (season={}, source={}).",
         summary.player_rows, summary.team_rows, season_typed, source
