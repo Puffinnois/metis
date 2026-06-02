@@ -12,6 +12,8 @@ path = "src/main.rs"
 anyhow = { workspace = true }
 clap = { version = "4", features = ["derive"] }
 metis-db = { path = "../metis-db" }
+metis-compute = { path = "../metis-compute" }
+metis-core = { path = "../metis-core" }
 
 [lints]
 workspace = true
