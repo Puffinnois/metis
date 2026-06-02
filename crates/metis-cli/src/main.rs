@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
-use metis_compute::compute_season_rollups;
+use metis_compute::{compute_season_rollups, reconcile_season};
 use metis_core::Season;
 use metis_db::Db;
 
@@ -83,6 +83,23 @@ enum ComputeEntity {
         #[arg(long)]
         source: String,
     },
+
+    /// Reconcile player_season_totals across all sources into player_season_canonical.
+    ///
+    /// Reads player_season_totals (written by season-rollups) and writes:
+    ///   player_season_canonical  — one canonical row per player/season/season_type
+    ///   stat_disagreement        — one row per stat that differs between sources
+    ///
+    /// Must be run after season-rollups. Idempotent.
+    Reconcile {
+        /// Season start year (e.g. 2024 for the 2024-25 season).
+        #[arg(long)]
+        season: u16,
+
+        /// Source whose values are used to populate player_season_canonical.
+        #[arg(long, default_value = "nba_stats")]
+        primary_source: String,
+    },
 }
 
 fn main() -> Result<()> {
@@ -102,6 +119,15 @@ fn main() -> Result<()> {
             entity: ComputeEntity::SeasonRollups { season, source },
         }) => {
             cmd_compute_season_rollups(&db, season, &source)?;
+        }
+        Commands::Compute(ComputeArgs {
+            entity:
+                ComputeEntity::Reconcile {
+                    season,
+                    primary_source,
+                },
+        }) => {
+            cmd_reconcile(&db, season, &primary_source)?;
         }
     }
 
@@ -152,6 +178,16 @@ fn cmd_compute_season_rollups(db: &Db, season: u16, source: &str) -> Result<()> 
     println!(
         "Computed rollups for {} players, {} teams (season={}, source={}).",
         summary.player_rows, summary.team_rows, season_typed, source
+    );
+    Ok(())
+}
+
+fn cmd_reconcile(db: &Db, season: u16, primary_source: &str) -> Result<()> {
+    let season_typed = Season(season);
+    let summary = reconcile_season(db, season_typed, primary_source)?;
+    println!(
+        "Reconciled {} canonical rows, {} disagreements logged (season={}, primary_source={}).",
+        summary.canonical_rows, summary.disagreement_rows, season_typed, primary_source
     );
     Ok(())
 }

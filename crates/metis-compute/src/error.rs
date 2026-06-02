@@ -9,6 +9,8 @@ pub enum ComputeError {
         start_year: u16,
         data_source: String,
     },
+    #[error("No player_season_totals rows for season={season}. Did you forget: metis-cli compute season-rollups --season {start_year} --source <source>?")]
+    NoRollupData { season: String, start_year: u16 },
     #[error(transparent)]
     Db(#[from] metis_db::DbError),
 }

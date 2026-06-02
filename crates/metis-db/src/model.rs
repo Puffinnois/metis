@@ -1,8 +1,10 @@
 pub mod game;
 pub mod player;
 pub mod player_game_box;
+pub mod player_season_canonical;
 pub mod player_season_per_game;
 pub mod player_season_totals;
+pub mod stat_disagreement;
 pub mod team;
 pub mod team_game_box;
 pub mod team_season_per_game;
