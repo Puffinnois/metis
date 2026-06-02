@@ -1241,12 +1241,19 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "metis-compute",
+ "metis-core",
  "metis-db",
 ]
 
 [[package]]
 name = "metis-compute"
 version = "0.1.0"
+dependencies = [
+ "metis-core",
+ "metis-db",
+ "thiserror",
+]
 
 [[package]]
 name = "metis-core"
