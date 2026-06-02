@@ -15,16 +15,37 @@ pub struct RollupSummary {
 /// Computes season rollups for all players and teams from the given source.
 ///
 /// Execution order: player totals → player per-game → team totals → team per-game.
+/// Returns [`ComputeError::NoSourceData`] if no `player_game_box` rows exist for the
+/// requested `(season, source)` combination.
 ///
 /// # Errors
 ///
-/// Returns `ComputeError::NoSourceData` if no `player_game_box` rows exist for the
-/// requested `(season, source)` combination. Returns `ComputeError::Db` if a database
-/// operation fails.
+/// Returns [`ComputeError::NoSourceData`] when no box score rows exist.
+/// Returns [`ComputeError::Db`] on database errors.
 pub fn compute_season_rollups(
-    _db: &Db,
-    _season: Season,
-    _source: &str,
+    db: &Db,
+    season: Season,
+    source: &str,
 ) -> Result<RollupSummary, ComputeError> {
-    todo!("implemented in Task 6")
+    let season_id = season.to_string();
+    let repo = db.season_rollups();
+
+    let count = repo.count_player_box_rows(&season_id, source)?;
+    if count == 0 {
+        return Err(ComputeError::NoSourceData {
+            season: season_id,
+            start_year: season.0,
+            data_source: source.to_string(),
+        });
+    }
+
+    let player_rows = repo.compute_player_totals(&season_id, source)?;
+    repo.compute_player_per_game(&season_id, source)?;
+    let team_rows = repo.compute_team_totals(&season_id, source)?;
+    repo.compute_team_per_game(&season_id, source)?;
+
+    Ok(RollupSummary {
+        player_rows,
+        team_rows,
+    })
 }
