@@ -6,6 +6,7 @@ dependencies = [
     "pyarrow>=15.0",
     "nba_api>=1.4",
     "requests>=2.32",
+    "pbpstats>=1.0",
 ]
 
 [dependency-groups]
