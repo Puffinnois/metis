@@ -4,6 +4,11 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[dependencies]
+metis-core = { path = "../metis-core" }
+metis-db = { path = "../metis-db" }
+thiserror = { workspace = true }
+
 [lints.rust]
 unused_imports = "deny"
 unused_variables = "deny"

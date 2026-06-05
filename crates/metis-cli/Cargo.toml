@@ -11,6 +11,8 @@ path = "src/main.rs"
 [dependencies]
 anyhow = { workspace = true }
 clap = { version = "4", features = ["derive"] }
+metis-compute = { path = "../metis-compute" }
+metis-core = { path = "../metis-core" }
 metis-db = { path = "../metis-db" }
 
 [lints]
