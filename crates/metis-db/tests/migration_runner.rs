@@ -23,8 +23,10 @@ fn real_migrations_apply_cleanly() {
             "0002_box_score.sql",
             "0003_provenance.sql",
             "0004_user_views.sql",
+            "0005_possession_lineup.sql",
+            "0006_possession_lineup_indexes.sql",
         ],
-        "all four schema migrations must be applied in order"
+        "all six schema migrations must be applied in order"
     );
 
     // Second run must be a no-op.
