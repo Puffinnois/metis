@@ -1,0 +1,38 @@
+{
+  "_comment": "Synthetic fixture for pbpstats adapter parser tests. Two possessions from a single game period.",
+  "game_id": "0022400001",
+  "season_id": "2024-25",
+  "season_type": "Regular",
+  "teams": {
+    "BOS": 1610612738,
+    "NYK": 1610612752
+  },
+  "lineups": {
+    "BOS": "203500-1628384-1629029-1630567-203952",
+    "NYK": "203944-1629011-1627814-203076-1629627"
+  },
+  "possessions": [
+    {
+      "period": 1,
+      "number": 1,
+      "offense_team_id": 1610612738,
+      "start_clock": "11:45",
+      "end_clock": "11:20",
+      "start_score": {"1610612738": 0, "1610612752": 0},
+      "end_score": {"1610612738": 3, "1610612752": 0},
+      "possession_start_type": "JumpBall",
+      "previous_possession": null
+    },
+    {
+      "period": 1,
+      "number": 2,
+      "offense_team_id": 1610612752,
+      "start_clock": "11:20",
+      "end_clock": "10:55",
+      "start_score": {"1610612738": 3, "1610612752": 0},
+      "end_score": {"1610612738": 3, "1610612752": 2},
+      "possession_start_type": "FGA",
+      "previous_possession": 0
+    }
+  ]
+}

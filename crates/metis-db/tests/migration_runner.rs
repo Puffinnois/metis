@@ -25,8 +25,10 @@ fn real_migrations_apply_cleanly() {
             "0004_user_views.sql",
             "0005_player_season_rollups.sql",
             "0006_team_season_rollups.sql",
+            "0007_possession_lineup.sql",
+            "0008_possession_lineup_indexes.sql",
         ],
-        "all six schema migrations must be applied in order"
+        "all eight schema migrations must be applied in order"
     );
 
     // Second run must be a no-op.

@@ -29,7 +29,7 @@ struct Cli {
 enum Commands {
     /// Load data from Parquet files into the DuckDB database.
     Load(LoadArgs),
-    /// Compute materialized rollup tables.
+    /// Run compute passes to derive stats from ingested data.
     Compute(ComputeArgs),
 }
 
@@ -55,6 +55,23 @@ enum LoadEntity {
 
         /// Ingest source name (must match the source written by the Python adapter).
         #[arg(long, default_value = "nba_stats")]
+        source: String,
+    },
+
+    /// Load possession and lineup stint data for a season.
+    ///
+    /// Reads Parquet files from:
+    ///   <data-root>/parquet/<source>/possession/season=<SEASON>/
+    ///   <data-root>/parquet/<source>/lineup_stint/season=<SEASON>/
+    ///
+    /// Dimension rows (game, player, team) must already exist in the database.
+    PossessionLineup {
+        /// Season start year (e.g. 2024 for the 2024-25 season).
+        #[arg(long)]
+        season: u32,
+
+        /// Ingest source name (must match the source written by the Python adapter).
+        #[arg(long, default_value = "pbpstats")]
         source: String,
     },
 }
@@ -83,6 +100,17 @@ enum ComputeEntity {
         #[arg(long)]
         source: String,
     },
+
+    /// Compute per-player on-off and lineup net ratings for a season.
+    ///
+    /// Reads from `lineup_stint` (all sources) and writes to `player_lineup_stats`.
+    /// All season types present in the data for the given season are computed together.
+    /// Safe to run multiple times — subsequent runs overwrite the previous output.
+    LineupStats {
+        /// Season start year (e.g. 2024 for the 2024-25 season).
+        #[arg(long)]
+        season: u32,
+    },
 }
 
 fn main() -> Result<()> {
@@ -98,10 +126,20 @@ fn main() -> Result<()> {
         }) => {
             cmd_load_box_scores(&db, &cli.data_root, season, &source)?;
         }
+        Commands::Load(LoadArgs {
+            entity: LoadEntity::PossessionLineup { season, source },
+        }) => {
+            cmd_load_possession_lineup(&db, &cli.data_root, season, &source)?;
+        }
         Commands::Compute(ComputeArgs {
             entity: ComputeEntity::SeasonRollups { season, source },
         }) => {
             cmd_compute_season_rollups(&db, season, &source)?;
+        }
+        Commands::Compute(ComputeArgs {
+            entity: ComputeEntity::LineupStats { season },
+        }) => {
+            cmd_compute_lineup_stats(&db, season)?;
         }
     }
 
@@ -146,6 +184,49 @@ fn cmd_load_box_scores(db: &Db, data_root: &Path, season: u32, source: &str) -> 
     Ok(())
 }
 
+fn cmd_load_possession_lineup(
+    db: &Db,
+    data_root: &Path,
+    season: u32,
+    source: &str,
+) -> Result<()> {
+    let parquet_root = data_root.join("parquet");
+
+    let possession_glob = parquet_root
+        .join(source)
+        .join("possession")
+        .join(format!("season={season}"))
+        .join("*.parquet");
+
+    let lineup_glob = parquet_root
+        .join(source)
+        .join("lineup_stint")
+        .join(format!("season={season}"))
+        .join("*.parquet");
+
+    let possession_glob_str = possession_glob
+        .to_str()
+        .context("possession glob path is not valid UTF-8")?;
+    let lineup_glob_str = lineup_glob
+        .to_str()
+        .context("lineup glob path is not valid UTF-8")?;
+
+    let possession_count = db
+        .possessions()
+        .load_from_parquet(possession_glob_str)
+        .with_context(|| format!("failed to load possessions from {possession_glob_str}"))?;
+
+    let lineup_count = db
+        .lineup_stints()
+        .load_from_parquet(lineup_glob_str)
+        .with_context(|| format!("failed to load lineup stints from {lineup_glob_str}"))?;
+
+    println!("Loaded {possession_count} possession row(s) for {source} season={season}.");
+    println!("Loaded {lineup_count} lineup stint row(s) for {source} season={season}.");
+
+    Ok(())
+}
+
 fn cmd_compute_season_rollups(db: &Db, season: u16, source: &str) -> Result<()> {
     let season_typed = Season(season);
     let summary = compute_season_rollups(db, season_typed, source)?;
@@ -153,5 +234,12 @@ fn cmd_compute_season_rollups(db: &Db, season: u16, source: &str) -> Result<()> 
         "Computed rollups for {} players, {} teams (season={}, source={}).",
         summary.player_rows, summary.team_rows, season_typed, source
     );
+    Ok(())
+}
+
+fn cmd_compute_lineup_stats(db: &Db, season: u32) -> Result<()> {
+    let n = metis_compute::on_off::compute_lineup_stats(db, Season(season as u16))
+        .with_context(|| format!("failed to compute lineup stats for season={season}"))?;
+    println!("Computed {n} player lineup stat row(s) for season={season}.");
     Ok(())
 }
