@@ -111,9 +111,9 @@ Legend: 🦀 Rust · 🐍 Python · 🖼️ Frontend · 🗄️ SQL/Data · ⚙�
 
 ## Phase 5 — Play-by-play & lineup
 
-- [ ] **T050 🐍 pbpstats adapter — possessions + lineups for one season.**
-- [ ] **T051 🗄️ Migrations: `possession`, `lineup_stint`, `player_lineup_stats`.**
-- [ ] **T052 🦀 On-off and lineup net rating compute.**
+- [x] **T050 🐍 pbpstats adapter — possessions + lineups for one season.**
+- [x] **T051 🗄️ Migrations: `possession`, `lineup_stint`, `player_lineup_stats`.**
+- [x] **T052 🦀 On-off and lineup net rating compute.**
 - [ ] **T053 🦀 PBP-derived splits: clutch, by-quarter, garbage time.**
 
 *(Detailed acceptance criteria added when phase is reached — supervisor refines based on Phase 4 learnings.)*
