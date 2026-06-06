@@ -6,8 +6,11 @@ license.workspace = true
 
 [dependencies]
 metis-core = { path = "../metis-core" }
+metis-db   = { path = "../metis-db" }
+thiserror  = { workspace = true }
+
+[dev-dependencies]
 metis-db = { path = "../metis-db" }
-thiserror = { workspace = true }
 
 [lints.rust]
 unused_imports = "deny"

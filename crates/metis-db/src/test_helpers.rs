@@ -19,7 +19,7 @@ pub(crate) fn insert_team(db: &Db, id: &str, league_id: &str) {
         .upsert(&crate::model::team::Team {
             id: id.to_string(),
             league_id: league_id.to_string(),
-            abbreviation: id.split('_').last().unwrap_or(id).to_string(),
+            abbreviation: id.split('_').next_back().unwrap_or(id).to_string(),
             full_name: id.to_string(),
             city: "Test City".to_string(),
         })

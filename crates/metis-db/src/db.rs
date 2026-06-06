@@ -4,9 +4,16 @@ use duckdb::{params, Connection};
 
 use crate::error::{DbError, Result};
 use crate::repos::{
-    game::GameRepo, lineup_stint::LineupStintRepo, player::PlayerRepo,
-    player_game_box::PlayerGameBoxRepo, player_lineup_stats::PlayerLineupStatsRepo,
-    possession::PossessionRepo, team::TeamRepo, team_game_box::TeamGameBoxRepo,
+    game::GameRepo,
+    lineup_stint::LineupStintRepo,
+    player::PlayerRepo,
+    player_game_box::PlayerGameBoxRepo,
+    player_lineup_stats::PlayerLineupStatsRepo,
+    possession::PossessionRepo,
+    season::SeasonRepo,
+    season_rollup::SeasonRollupRepo,
+    team::TeamRepo,
+    team_game_box::TeamGameBoxRepo,
 };
 
 /// Handle to an open Metis DuckDB database.
@@ -100,6 +107,16 @@ impl Db {
     /// Returns a handle to the team box score fact repository.
     pub fn team_game_boxes(&self) -> TeamGameBoxRepo<'_> {
         TeamGameBoxRepo::new(&self.conn)
+    }
+
+    /// Returns a handle to the season dimension repository.
+    pub fn seasons(&self) -> SeasonRepo<'_> {
+        SeasonRepo::new(&self.conn)
+    }
+
+    /// Returns a handle to the season rollup compute repository.
+    pub fn season_rollups(&self) -> SeasonRollupRepo<'_> {
+        SeasonRollupRepo::new(&self.conn)
     }
 
     /// Returns a handle to the possession fact repository.
