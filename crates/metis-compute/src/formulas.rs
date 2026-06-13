@@ -119,13 +119,7 @@ pub struct TeamStats {
 /// assert!(usg > 100.0 && usg < 105.0, "got {usg}");
 /// ```
 #[must_use]
-pub fn usage_rate(
-    fga: f64,
-    fta: f64,
-    tov: f64,
-    mp: f64,
-    team: &TeamStats,
-) -> Option<f64> {
+pub fn usage_rate(fga: f64, fta: f64, tov: f64, mp: f64, team: &TeamStats) -> Option<f64> {
     let denom = mp * (team.fga + 0.44 * team.fta + team.tov);
     if denom == 0.0 {
         return None;
@@ -299,7 +293,10 @@ mod tests {
         };
         let usg = usage_rate(400.0, 200.0, 100.0, 1000.0, &team).unwrap();
         let expected = 100.0 * 588.0 * (19680.0 / 5.0) / (1000.0 * 2264.0);
-        assert!((usg - expected).abs() < 1e-6, "got {usg}, expected {expected}");
+        assert!(
+            (usg - expected).abs() < 1e-6,
+            "got {usg}, expected {expected}"
+        );
     }
 
     #[test]
@@ -312,7 +309,10 @@ mod tests {
             mp: 4800.0,
         };
         let usg = usage_rate(400.0, 200.0, 80.0, 700.0, &team).unwrap();
-        assert!(usg > 15.0 && usg < 55.0, "expected realistic USG%, got {usg}");
+        assert!(
+            usg > 15.0 && usg < 55.0,
+            "expected realistic USG%, got {usg}"
+        );
     }
 
     #[test]
