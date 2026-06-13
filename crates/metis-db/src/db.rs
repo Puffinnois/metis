@@ -4,16 +4,10 @@ use duckdb::{params, Connection};
 
 use crate::error::{DbError, Result};
 use crate::repos::{
-    game::GameRepo,
-    lineup_stint::LineupStintRepo,
-    player::PlayerRepo,
-    player_game_box::PlayerGameBoxRepo,
-    player_lineup_stats::PlayerLineupStatsRepo,
-    possession::PossessionRepo,
-    season::SeasonRepo,
-    season_rollup::SeasonRollupRepo,
-    team::TeamRepo,
-    team_game_box::TeamGameBoxRepo,
+    advanced_stats::AdvancedStatsRepo, game::GameRepo, lineup_stint::LineupStintRepo,
+    player::PlayerRepo, player_game_box::PlayerGameBoxRepo,
+    player_lineup_stats::PlayerLineupStatsRepo, possession::PossessionRepo, season::SeasonRepo,
+    season_rollup::SeasonRollupRepo, team::TeamRepo, team_game_box::TeamGameBoxRepo,
 };
 
 /// Handle to an open Metis DuckDB database.
@@ -132,6 +126,14 @@ impl Db {
     /// Returns a handle to the player lineup stats compute-output repository.
     pub fn player_lineup_stats(&self) -> PlayerLineupStatsRepo<'_> {
         PlayerLineupStatsRepo::new(&self.conn)
+    }
+
+    /// Returns a handle to the advanced stats compute-output repository.
+    ///
+    /// Provides access to `player_season_advanced`, `player_season_per_36`, and
+    /// `player_season_per_100`.
+    pub fn advanced_stats(&self) -> AdvancedStatsRepo<'_> {
+        AdvancedStatsRepo::new(&self.conn)
     }
 
     #[cfg(test)]

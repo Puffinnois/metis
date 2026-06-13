@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
-use metis_compute::compute_season_rollups;
+use metis_compute::{compute_advanced_stats, compute_season_rollups};
 use metis_core::Season;
 use metis_db::Db;
 
@@ -111,6 +111,23 @@ enum ComputeEntity {
         #[arg(long)]
         season: u32,
     },
+
+    /// Compute advanced stats (TS%, eFG%, USG%, per-36, per-100) for a season.
+    ///
+    /// Reads from `player_season_totals` and `team_season_totals` (populated by
+    /// `compute season-rollups`) and writes:
+    ///   player_season_advanced, player_season_per_36, player_season_per_100
+    ///
+    /// Run `compute season-rollups` first for the same --season and --source.
+    AdvancedStats {
+        /// Season start year (e.g. 2024 for the 2024-25 season).
+        #[arg(long)]
+        season: u16,
+
+        /// Ingest source name (must match the source used when loading box scores).
+        #[arg(long, default_value = "nba_stats")]
+        source: String,
+    },
 }
 
 fn main() -> Result<()> {
@@ -140,6 +157,11 @@ fn main() -> Result<()> {
             entity: ComputeEntity::LineupStats { season },
         }) => {
             cmd_compute_lineup_stats(&db, season)?;
+        }
+        Commands::Compute(ComputeArgs {
+            entity: ComputeEntity::AdvancedStats { season, source },
+        }) => {
+            cmd_compute_advanced_stats(&db, season, &source)?;
         }
     }
 
@@ -184,12 +206,7 @@ fn cmd_load_box_scores(db: &Db, data_root: &Path, season: u32, source: &str) -> 
     Ok(())
 }
 
-fn cmd_load_possession_lineup(
-    db: &Db,
-    data_root: &Path,
-    season: u32,
-    source: &str,
-) -> Result<()> {
+fn cmd_load_possession_lineup(db: &Db, data_root: &Path, season: u32, source: &str) -> Result<()> {
     let parquet_root = data_root.join("parquet");
 
     let possession_glob = parquet_root
@@ -233,6 +250,17 @@ fn cmd_compute_season_rollups(db: &Db, season: u16, source: &str) -> Result<()> 
     println!(
         "Computed rollups for {} players, {} teams (season={}, source={}).",
         summary.player_rows, summary.team_rows, season_typed, source
+    );
+    Ok(())
+}
+
+fn cmd_compute_advanced_stats(db: &Db, season: u16, source: &str) -> Result<()> {
+    let season_typed = Season(season);
+    let summary = compute_advanced_stats(db, season_typed, source)?;
+    println!(
+        "Computed advanced stats for season={season_typed} source={source}: \
+         {} advanced row(s), {} per-36 row(s), {} per-100 row(s).",
+        summary.player_advanced_rows, summary.player_per_36_rows, summary.player_per_100_rows,
     );
     Ok(())
 }
