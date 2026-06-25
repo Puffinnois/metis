@@ -178,7 +178,7 @@ Legend: 🦀 Rust · 🐍 Python · 🖼️ Frontend · 🗄️ SQL/Data · ⚙�
 
 ## Phase 9 — Historical depth
 
-- [ ] **T090 🐍 Backfill ingestion for all available seasons (1946 → present, per coverage policy).**
+- [x] **T090 🐍 Backfill ingestion for all available seasons (1946 → present, per coverage policy).**
 - [ ] **T091 🦀 Full rollup + reconciliation run; verify coverage markers correct per ADR 008.**
 
 ---
