@@ -256,6 +256,38 @@ impl From<metis_db::PlayerStatsRow> for PlayerStatsRowDto {
     }
 }
 
+/// A saved filter/sort/column combination as returned by `GET /views`.
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct UserViewDto {
+    pub id: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub entity_type: String,
+    pub filters: String,
+    pub sort_config: Option<String>,
+    pub columns: Option<String>,
+    pub is_default: bool,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+impl From<metis_db::UserView> for UserViewDto {
+    fn from(v: metis_db::UserView) -> Self {
+        Self {
+            id: v.id,
+            name: v.name,
+            description: v.description,
+            entity_type: v.entity_type,
+            filters: v.filters,
+            sort_config: v.sort_config,
+            columns: v.columns,
+            is_default: v.is_default,
+            created_at: v.created_at,
+            updated_at: v.updated_at,
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Query param structs
 // ---------------------------------------------------------------------------

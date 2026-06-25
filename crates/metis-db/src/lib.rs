@@ -18,3 +18,4 @@ pub use model::player_stats::{
 };
 pub use model::season::SeasonRow;
 pub use model::team::Team;
+pub use model::user_view::{CreateUserView, UpdateUserView, UserView};

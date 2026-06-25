@@ -171,8 +171,8 @@ Legend: 🦀 Rust · 🐍 Python · 🖼️ Frontend · 🗄️ SQL/Data · ⚙�
 
 ## Phase 8 — Saved views
 
-- [ ] **T080 🦀 Saved-view CRUD endpoints + repository.**
-- [ ] **T081 🖼️ Saved-view UI: save / load / delete / set default.**
+- [x] **T080 🦀 Saved-view CRUD endpoints + repository.**
+- [x] **T081 🖼️ Saved-view UI: save / load / delete / set default.**
 
 ---
 

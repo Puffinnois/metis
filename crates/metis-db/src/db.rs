@@ -10,7 +10,7 @@ use crate::repos::{
     player_lineup_stats::PlayerLineupStatsRepo, player_stats::PlayerStatsRepo,
     player_team_season_rollup::PlayerTeamSeasonRollupRepo, possession::PossessionRepo,
     reconcile::ReconcileRepo, season::SeasonRepo, season_rollup::SeasonRollupRepo, team::TeamRepo,
-    team_game_box::TeamGameBoxRepo,
+    team_game_box::TeamGameBoxRepo, user_view::UserViewRepo,
 };
 
 /// Handle to an open Metis DuckDB database.
@@ -172,6 +172,14 @@ impl Db {
     /// `stat_disagreement`.
     pub fn reconcile(&self) -> ReconcileRepo<'_> {
         ReconcileRepo::new(&self.conn)
+    }
+
+    /// Returns a handle to the saved-view repository.
+    ///
+    /// Provides CRUD over the `user_view` table (saved filter/sort/column
+    /// combinations for the frontend dashboard).
+    pub fn user_views(&self) -> UserViewRepo<'_> {
+        UserViewRepo::new(&self.conn)
     }
 
     #[cfg(test)]

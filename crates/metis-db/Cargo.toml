@@ -6,6 +6,7 @@ license.workspace = true
 
 [dependencies]
 duckdb = { workspace = true }
+serde = { workspace = true }
 thiserror = { workspace = true }
 metis-core = { path = "../metis-core" }
 

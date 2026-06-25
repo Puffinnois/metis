@@ -14,3 +14,4 @@ pub mod season;
 pub mod season_rollup;
 pub mod team;
 pub mod team_game_box;
+pub mod user_view;

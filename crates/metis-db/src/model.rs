@@ -13,5 +13,6 @@ pub mod possession;
 pub mod season;
 pub mod team;
 pub mod team_game_box;
+pub mod user_view;
 pub mod team_season_per_game;
 pub mod team_season_totals;

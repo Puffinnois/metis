@@ -216,3 +216,82 @@ export async function listGames(params?: ListGamesParams): Promise<ListResponse<
 export async function getGame(id: string): Promise<ItemResponse<GameDto>> {
   return httpGet<ItemResponse<GameDto>>(`/games/${encodeURIComponent(id)}`);
 }
+
+// ---------------------------------------------------------------------------
+// Saved views
+// ---------------------------------------------------------------------------
+
+export interface UserView {
+  id: string;
+  name: string;
+  description: string | null;
+  entity_type: string;
+  filters: string;
+  sort_config: string | null;
+  columns: string | null;
+  is_default: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateViewParams {
+  id: string;
+  name: string;
+  description?: string;
+  entity_type: string;
+  filters?: string;
+  sort_config?: string;
+  columns?: string;
+  is_default?: boolean;
+}
+
+export interface UpdateViewParams {
+  name?: string;
+  description?: string | null;
+  filters?: string;
+  sort_config?: string | null;
+  columns?: string | null;
+  is_default?: boolean;
+}
+
+export async function listViews(entity_type?: string): Promise<UserView[]> {
+  try {
+    return await tauriInvoke<UserView[]>("list_views", { entityType: entity_type });
+  } catch {
+    const res = await httpGet<ListResponse<UserView>>("/views", {
+      entity_type,
+    });
+    return res.data;
+  }
+}
+
+export async function createView(params: CreateViewParams): Promise<UserView> {
+  try {
+    return await tauriInvoke<UserView>("create_view", { view: params });
+  } catch {
+    const res = await fetch(`${HTTP_BASE}/views`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(params),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const envelope = (await res.json()) as ItemResponse<UserView>;
+    return envelope.data;
+  }
+}
+
+export async function updateView(id: string, patch: UpdateViewParams): Promise<UserView | null> {
+  try {
+    return await tauriInvoke<UserView | null>("update_view", { id, patch });
+  } catch {
+    return null;
+  }
+}
+
+export async function deleteView(id: string): Promise<boolean> {
+  try {
+    return await tauriInvoke<boolean>("delete_view", { id });
+  } catch {
+    return false;
+  }
+}

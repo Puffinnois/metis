@@ -7,7 +7,10 @@ use std::sync::{Arc, Mutex};
 use serde::{Deserialize, Serialize};
 use tauri::Manager;
 
-use metis_db::{Db, DisplayMode, GameLogFilter, HomeAway, PlayerStatsFilter, SortDir, WinLoss};
+use metis_db::{
+    CreateUserView, Db, DisplayMode, GameLogFilter, HomeAway, PlayerStatsFilter, SortDir,
+    UpdateUserView, UserView, WinLoss,
+};
 
 // ---------------------------------------------------------------------------
 // DTOs — local serializable wrappers around metis-db model types
@@ -373,6 +376,70 @@ fn get_player_game_log(
 }
 
 // ---------------------------------------------------------------------------
+// Saved-view Tauri commands
+// ---------------------------------------------------------------------------
+
+/// Returns all saved views, optionally filtered by entity_type.
+#[tauri::command]
+fn list_views(
+    state: tauri::State<'_, DbState>,
+    entity_type: Option<String>,
+) -> Result<Vec<UserView>, String> {
+    let guard = state.lock().map_err(|e| e.to_string())?;
+    let db = guard.as_ref().ok_or("Database not available")?;
+    db.user_views()
+        .list(entity_type.as_deref())
+        .map_err(|e| e.to_string())
+}
+
+/// Returns a single saved view by id.
+#[tauri::command]
+fn get_view(
+    state: tauri::State<'_, DbState>,
+    id: String,
+) -> Result<Option<UserView>, String> {
+    let guard = state.lock().map_err(|e| e.to_string())?;
+    let db = guard.as_ref().ok_or("Database not available")?;
+    db.user_views().find_by_id(&id).map_err(|e| e.to_string())
+}
+
+/// Creates a new saved view.
+#[tauri::command]
+fn create_view(
+    state: tauri::State<'_, DbState>,
+    view: CreateUserView,
+) -> Result<UserView, String> {
+    let guard = state.lock().map_err(|e| e.to_string())?;
+    let db = guard.as_ref().ok_or("Database not available")?;
+    db.user_views().create(&view).map_err(|e| e.to_string())
+}
+
+/// Partially updates a saved view.
+#[tauri::command]
+fn update_view(
+    state: tauri::State<'_, DbState>,
+    id: String,
+    patch: UpdateUserView,
+) -> Result<Option<UserView>, String> {
+    let guard = state.lock().map_err(|e| e.to_string())?;
+    let db = guard.as_ref().ok_or("Database not available")?;
+    db.user_views()
+        .update(&id, &patch)
+        .map_err(|e| e.to_string())
+}
+
+/// Deletes a saved view. Returns `true` if deleted, `false` if not found.
+#[tauri::command]
+fn delete_view(
+    state: tauri::State<'_, DbState>,
+    id: String,
+) -> Result<bool, String> {
+    let guard = state.lock().map_err(|e| e.to_string())?;
+    let db = guard.as_ref().ok_or("Database not available")?;
+    db.user_views().delete(&id).map_err(|e| e.to_string())
+}
+
+// ---------------------------------------------------------------------------
 // DB path resolution
 // ---------------------------------------------------------------------------
 
@@ -440,7 +507,12 @@ fn main() {
             get_teams,
             get_players,
             get_player_stats,
-            get_player_game_log
+            get_player_game_log,
+            list_views,
+            get_view,
+            create_view,
+            update_view,
+            delete_view,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
