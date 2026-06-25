@@ -2,7 +2,10 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
-use metis_compute::{compute_advanced_stats, compute_season_rollups};
+use metis_compute::{
+    compute_advanced_stats, compute_game_splits, compute_player_team_season_totals,
+    compute_player_team_season_totals_all, compute_season_rollups, reconcile_season, ReconcileConfig,
+};
 use metis_core::Season;
 use metis_db::Db;
 
@@ -128,6 +131,80 @@ enum ComputeEntity {
         #[arg(long, default_value = "nba_stats")]
         source: String,
     },
+
+    /// Compute clutch, by-quarter, and garbage-time splits for each player-game.
+    ///
+    /// Reads from `possession` and `lineup_stint` and writes to `player_game_splits`.
+    /// Run `load possession-lineup` first for the same --season.
+    GameSplits {
+        /// Season start year (e.g. 2024 for the 2024-25 season).
+        #[arg(long)]
+        season: u32,
+    },
+
+    /// Compute per-player team-season rollups from box score data.
+    ///
+    /// Reads from `player_game_box` and writes to `player_team_season_totals`,
+    /// one row per (player, team, season, season_type, source). Enables the
+    /// fast query path for team-filtered player stats.
+    ///
+    /// --season is optional. If omitted, all seasons are (re)computed.
+    /// Run `load box-scores` for the relevant season(s) first.
+    TeamRollups {
+        /// Season start year (e.g. 2024 for the 2024-25 season).
+        /// Omit to compute all seasons at once.
+        #[arg(long)]
+        season: Option<u16>,
+
+        /// Ingest source name.
+        #[arg(long, default_value = "nba_stats")]
+        source: String,
+    },
+
+    /// Reconcile player season stats from multiple sources into canonical rows.
+    ///
+    /// Reads from `player_season_totals` (all sources) and writes:
+    ///   player_season_canonical — one row per (player, season, season_type)
+    ///   stat_disagreement       — one row per stat that exceeds the threshold
+    ///
+    /// Run `compute season-rollups` for each source before reconciling.
+    Reconcile {
+        /// Season start year (e.g. 2024 for the 2024-25 season).
+        #[arg(long)]
+        season: u16,
+
+        /// Most-preferred source. Rows from this source win ties.
+        #[arg(long, default_value = "nba_stats")]
+        primary_source: String,
+
+        /// Percentage difference threshold above which disagreements are logged.
+        #[arg(long, default_value = "5.0")]
+        threshold: f64,
+    },
+
+    /// Run the full compute pipeline for a season.
+    ///
+    /// Equivalent to running, in order:
+    ///   compute season-rollups  --season S --source SOURCE
+    ///   compute advanced-stats  --season S --source SOURCE
+    ///   compute team-rollups    --season S --source SOURCE
+    ///   compute reconcile       --season S --primary-source SOURCE
+    ///
+    /// All steps are required to produce a complete `player_season_canonical`
+    /// output.  Run `load box-scores --season S` first.
+    Pipeline {
+        /// Season start year (e.g. 2024 for the 2024-25 season).
+        #[arg(long)]
+        season: u16,
+
+        /// Source to compute rollups from.
+        #[arg(long, default_value = "nba_stats")]
+        source: String,
+
+        /// Percentage difference threshold for reconciliation disagreements.
+        #[arg(long, default_value = "5.0")]
+        threshold: f64,
+    },
 }
 
 fn main() -> Result<()> {
@@ -159,9 +236,34 @@ fn main() -> Result<()> {
             cmd_compute_lineup_stats(&db, season)?;
         }
         Commands::Compute(ComputeArgs {
+            entity: ComputeEntity::GameSplits { season },
+        }) => {
+            cmd_compute_game_splits(&db, season)?;
+        }
+        Commands::Compute(ComputeArgs {
             entity: ComputeEntity::AdvancedStats { season, source },
         }) => {
             cmd_compute_advanced_stats(&db, season, &source)?;
+        }
+        Commands::Compute(ComputeArgs {
+            entity: ComputeEntity::TeamRollups { season, source },
+        }) => {
+            cmd_compute_team_rollups(&db, season, &source)?;
+        }
+        Commands::Compute(ComputeArgs {
+            entity:
+                ComputeEntity::Reconcile {
+                    season,
+                    primary_source,
+                    threshold,
+                },
+        }) => {
+            cmd_reconcile(&db, season, &primary_source, threshold)?;
+        }
+        Commands::Compute(ComputeArgs {
+            entity: ComputeEntity::Pipeline { season, source, threshold },
+        }) => {
+            cmd_pipeline(&db, season, &source, threshold)?;
         }
     }
 
@@ -269,5 +371,64 @@ fn cmd_compute_lineup_stats(db: &Db, season: u32) -> Result<()> {
     let n = metis_compute::on_off::compute_lineup_stats(db, Season(season as u16))
         .with_context(|| format!("failed to compute lineup stats for season={season}"))?;
     println!("Computed {n} player lineup stat row(s) for season={season}.");
+    Ok(())
+}
+
+fn cmd_compute_game_splits(db: &Db, season: u32) -> Result<()> {
+    let n = compute_game_splits(db, Season(season as u16))
+        .with_context(|| format!("failed to compute game splits for season={season}"))?;
+    println!("Computed {n} player-game split row(s) for season={season}.");
+    Ok(())
+}
+
+fn cmd_compute_team_rollups(db: &Db, season: Option<u16>, source: &str) -> Result<()> {
+    if let Some(s) = season {
+        let season_typed = Season(s);
+        let n = compute_player_team_season_totals(db, season_typed, source).with_context(
+            || format!("failed to compute team rollups for season={season_typed} source={source}"),
+        )?;
+        println!(
+            "Computed team rollups for season={season_typed} source={source}: {n} row(s)."
+        );
+    } else {
+        let n = compute_player_team_season_totals_all(db, source).with_context(|| {
+            format!("failed to compute team rollups for all seasons source={source}")
+        })?;
+        println!("Computed team rollups for all seasons source={source}: {n} row(s).");
+    }
+    Ok(())
+}
+
+fn cmd_reconcile(db: &Db, season: u16, primary_source: &str, threshold: f64) -> Result<()> {
+    let season_typed = Season(season);
+    let config = ReconcileConfig {
+        source_priority: vec![primary_source.to_owned(), "bref".to_owned()],
+        disagreement_threshold_pct: threshold,
+    };
+    let summary = reconcile_season(db, season_typed, &config)
+        .with_context(|| format!("failed to reconcile season={season_typed}"))?;
+    println!(
+        "Reconciled season={season_typed}: {} canonical row(s), {} disagreement(s) logged.",
+        summary.canonical_rows, summary.disagreements_logged,
+    );
+    Ok(())
+}
+
+fn cmd_pipeline(db: &Db, season: u16, source: &str, threshold: f64) -> Result<()> {
+    println!("=== pipeline: season={season} source={source} ===");
+
+    print!("[1/4] season rollups … ");
+    cmd_compute_season_rollups(db, season, source)?;
+
+    print!("[2/4] advanced stats  … ");
+    cmd_compute_advanced_stats(db, season, source)?;
+
+    print!("[3/4] team rollups    … ");
+    cmd_compute_team_rollups(db, Some(season), source)?;
+
+    print!("[4/4] reconcile       … ");
+    cmd_reconcile(db, season, source, threshold)?;
+
+    println!("=== pipeline complete ===");
     Ok(())
 }

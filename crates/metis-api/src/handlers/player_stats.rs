@@ -6,8 +6,50 @@ use metis_db::{DisplayMode, HomeAway, PlayerStatsFilter, SortDir, WinLoss};
 use utoipa::OpenApi;
 
 use crate::error::ApiError;
-use crate::models::{PagedResponse, PlayerStatsQuery, PlayerStatsRowDto};
+use crate::models::{CoverageLabel, PagedResponse, PlayerStatsQuery, PlayerStatsRowDto};
 use crate::AppState;
+
+/// Coverage thresholds from the CLAUDE.md stat coverage policy.
+const NBA_STATS_MIN_SEASON: u16 = 1996;
+const BREF_ADVANCED_MIN_SEASON: u16 = 1979; // per_36 / per_100 require advanced stats
+
+/// Parse the start year from a season label like `"1975-76"` → `1975`.
+/// Returns `None` if the label does not match the expected format.
+fn parse_season_start(label: &str) -> Option<u16> {
+    label.split('-').next()?.parse().ok()
+}
+
+/// Returns `Partial` when all requested seasons fall outside the source/mode
+/// coverage window, signalling to the client that some stats will be `null`.
+fn coverage_for_filter(filter: &PlayerStatsFilter) -> CoverageLabel {
+    if filter.season_ids.is_empty() {
+        // No season restriction → we return only what exists; coverage is full
+        // relative to whatever data is present.
+        return CoverageLabel::Full;
+    }
+
+    let source_min = if filter.source == "nba_stats" {
+        NBA_STATS_MIN_SEASON
+    } else {
+        1946 // bref has data from the founding season
+    };
+
+    let effective_min = match filter.display_mode {
+        // per_36 / per_100 are derived from advanced stats (bref 1979+)
+        DisplayMode::Per36 | DisplayMode::Per100 => source_min.max(BREF_ADVANCED_MIN_SEASON),
+        _ => source_min,
+    };
+
+    let any_before_min = filter.season_ids.iter().any(|id| {
+        parse_season_start(id).is_none_or(|y| y < effective_min)
+    });
+
+    if any_before_min {
+        CoverageLabel::Partial
+    } else {
+        CoverageLabel::Full
+    }
+}
 
 fn parse_display_mode(raw: Option<&str>) -> Result<DisplayMode, ApiError> {
     match raw {
@@ -138,6 +180,7 @@ pub async fn list_player_stats(
     Query(params): Query<PlayerStatsQuery>,
 ) -> Result<Json<PagedResponse<PlayerStatsRowDto>>, ApiError> {
     let filter = build_filter(&params)?;
+    let coverage = coverage_for_filter(&filter);
     let (dtos, page, page_size, total) = {
         let db = state.db.lock().expect("db mutex poisoned");
         let result = db.player_stats().query(&filter)?;
@@ -148,7 +191,13 @@ pub async fn list_player_stats(
             .collect::<Vec<_>>();
         (dtos, filter.page, filter.page_size, result.total)
     };
-    Ok(Json(PagedResponse::full(dtos, page, page_size, total)))
+    Ok(Json(PagedResponse {
+        data: dtos,
+        coverage,
+        page,
+        page_size,
+        total,
+    }))
 }
 
 #[derive(OpenApi)]
