@@ -10,7 +10,7 @@ Legend: 🦀 Rust · 🐍 Python · 🖼️ Frontend · 🗄️ SQL/Data · ⚙�
 
 ## Phase 0 — Foundations  *(must complete before anything else)*
 
-- [ ] **T001 ⚙️ Repo skeleton + tooling.**
+- [x] **T001 ⚙️ Repo skeleton + tooling.**
   - Create directory structure per CLAUDE.md "Repository layout."
   - Init Rust workspace (`Cargo.toml` at root, member crates as empty `lib.rs`/`main.rs`).
   - Init Python project (`python/pyproject.toml` with `uv`, ruff, mypy).
@@ -19,12 +19,12 @@ Legend: 🦀 Rust · 🐍 Python · 🖼️ Frontend · 🗄️ SQL/Data · ⚙�
   - Add `LICENSE` (Apache-2.0) and `README.md` (one paragraph + link to CLAUDE.md).
   - **Acceptance:** `cargo build` succeeds (empty crates), `uv sync && ruff check` succeeds, `cd frontend && npm run build` succeeds. Nothing in `data/` is tracked.
 
-- [ ] **T002 ⚙️ Pre-commit + CI.**
+- [x] **T002 ⚙️ Pre-commit + CI.**
   - `.pre-commit-config.yaml`: `cargo fmt`, `clippy -D warnings`, `ruff`, `ruff format`, `prettier`.
   - `.github/workflows/ci.yml`: matrix runs Rust check/test, Python check/test, frontend build. Linux only for v1.
   - **Acceptance:** Pushing a branch triggers CI and it passes on an empty repo.
 
-- [ ] **T003 🦀 `metis-core` skeleton: `League` trait + NBA impl + stat coverage types.**
+- [x] **T003 🦀 `metis-core` skeleton: `League` trait + NBA impl + stat coverage types.**
   - Define `League` enum (`NBA`, `WNBA`, `NCAAM`, `NCAAW`, `Euroleague` — only `NBA` implemented).
   - Per-league constants: `period_length_min`, `periods_per_game`, `regular_season_games`.
   - Define `Coverage { min_season: Option<Season>, max_season: Option<Season> }` and `StatId` enum stub.
@@ -87,7 +87,7 @@ Legend: 🦀 Rust · 🐍 Python · 🖼️ Frontend · 🗄️ SQL/Data · ⚙�
   - Triggered via `metis-cli compute season-rollups --season 2024`.
   - **Acceptance:** Numbers tie out vs. a known reference (e.g., NBA.com leaders page) for top 10 scorers, within rounding.
 
-- [ ] **T031 🦀 Traditional advanced stats: TS%, eFG%, USG%, per-36, per-100-poss.**
+- [x] **T031 🦀 Traditional advanced stats: TS%, eFG%, USG%, per-36, per-100-poss.**
   - Formulas in `metis-compute/src/formulas/` with citations in doc comments.
   - Unit tests per formula with hand-computed examples.
   - **Acceptance:** Same tie-out as T030 for advanced columns.
@@ -96,12 +96,12 @@ Legend: 🦀 Rust · 🐍 Python · 🖼️ Frontend · 🗄️ SQL/Data · ⚙�
 
 ## Phase 4 — Second source + reconciliation
 
-- [ ] **T040 🐍 Basketball-Reference adapter — season totals.**
+- [x] **T040 🐍 Basketball-Reference adapter — season totals.**
   - Respect robots.txt, ≤1 req/3s, cache responses.
   - Pull player season totals and advanced totals.
   - **Acceptance:** Parquet output for one season; parser test on saved HTML fixture.
 
-- [ ] **T041 🦀 Reconciliation layer.**
+- [x] **T041 🦀 Reconciliation layer.**
   - `metis-compute/src/reconcile/`: per-stat rules — default source, disagreement threshold, action on disagreement.
   - Materializes `player_season_canonical` from multi-source inputs.
   - Disagreements logged into `stat_disagreement` table.
@@ -114,7 +114,7 @@ Legend: 🦀 Rust · 🐍 Python · 🖼️ Frontend · 🗄️ SQL/Data · ⚙�
 - [x] **T050 🐍 pbpstats adapter — possessions + lineups for one season.**
 - [x] **T051 🗄️ Migrations: `possession`, `lineup_stint`, `player_lineup_stats`.**
 - [x] **T052 🦀 On-off and lineup net rating compute.**
-- [ ] **T053 🦀 PBP-derived splits: clutch, by-quarter, garbage time.**
+- [x] **T053 🦀 PBP-derived splits: clutch, by-quarter, garbage time.**
 
 *(Detailed acceptance criteria added when phase is reached — supervisor refines based on Phase 4 learnings.)*
 
@@ -122,19 +122,19 @@ Legend: 🦀 Rust · 🐍 Python · 🖼️ Frontend · 🗄️ SQL/Data · ⚙�
 
 ## Phase 6 — API
 
-- [ ] **T060 🦀 `metis-api` axum server: entity endpoints.**
+- [x] **T060 🦀 `metis-api` axum server: entity endpoints.**
   - `GET /players/:id`, `GET /players` (with filter query params per decisions.md ADR 011).
   - `GET /teams/:id`, `GET /teams`.
   - `GET /seasons`, `GET /games`.
   - JSON response includes `coverage` marker on nullable stats (per ADR 008).
   - **Acceptance:** OpenAPI spec generated; integration tests per endpoint.
 
-- [ ] **T061 🦀 Filter/sort/pagination query layer.**
+- [x] **T061 🦀 Filter/sort/pagination query layer.**
   - All v1 filter dimensions from ADR 011 supported.
   - Pagination + sort spec in query string. Max page size enforced.
   - **Acceptance:** Property tests on filter combinations; p95 query latency <100ms on full-history DB.
 
-- [ ] **T062 🦀 Materialized rollups for filter performance.**
+- [x] **T062 🦀 Materialized rollups for filter performance.**
   - Identify hot filter combos, precompute via DuckDB views/tables.
   - **Acceptance:** p95 <50ms on the 10 most common filter shapes.
 
@@ -142,12 +142,12 @@ Legend: 🦀 Rust · 🐍 Python · 🖼️ Frontend · 🗄️ SQL/Data · ⚙�
 
 ## Phase 7 — Tauri shell + frontend foundation
 
-- [ ] **T070 🦀🖼️ `metis-tauri` shell wiring frontend ↔ api.**
+- [x] **T070 🦀🖼️ `metis-tauri` shell wiring frontend ↔ api.**
   - Tauri 2 setup. Frontend bundled as static assets.
   - Tauri commands proxy to `metis-api` handlers in-process (no localhost HTTP needed).
   - **Acceptance:** `cargo tauri dev` opens a window; a smoke command returns data.
 
-- [ ] **T071 🖼️ Frontend data layer + routing skeleton.**
+- [x] **T071 🖼️ Frontend data layer + routing skeleton.**
   - `src/lib/api.ts` typed client (codegen from OpenAPI).
   - Routes: `/players`, `/players/[id]`, `/teams`, `/teams/[id]`.
   - Tailwind theme, shadcn-svelte primitives installed.

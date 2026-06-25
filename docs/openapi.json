@@ -1,0 +1,514 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Metis NBA Stats API",
+    "description": "Local-first NBA statistics API. All list responses include a `coverage` envelope field indicating whether the requested stats fall within the historical coverage window.",
+    "license": {
+      "name": "Apache-2.0"
+    },
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/games": {
+      "get": {
+        "tags": [
+          "games"
+        ],
+        "summary": "List games with optional filters for `season_id`, `season_type`, and `team_id`.",
+        "operationId": "list_games",
+        "parameters": [
+          {
+            "name": "season_id",
+            "in": "query",
+            "description": "Filter by season label, e.g. 2023-24",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          },
+          {
+            "name": "season_type",
+            "in": "query",
+            "description": "Filter by season type, e.g. Regular",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          },
+          {
+            "name": "team_id",
+            "in": "query",
+            "description": "Filter by team id (home or away)",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of games",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/games/{id}": {
+      "get": {
+        "tags": [
+          "games"
+        ],
+        "summary": "Get a single game by id.",
+        "operationId": "get_game",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Game id, e.g. nba_stats_0022300001",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Game found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameItemResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Game not found"
+          }
+        }
+      }
+    },
+    "/players": {
+      "get": {
+        "tags": [
+          "players"
+        ],
+        "summary": "List all players, with optional `league_id` and `search` filters.",
+        "operationId": "list_players",
+        "parameters": [
+          {
+            "name": "league_id",
+            "in": "query",
+            "description": "Filter by league id",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Case-insensitive name substring search",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of players",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlayerListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/players/{id}": {
+      "get": {
+        "tags": [
+          "players"
+        ],
+        "summary": "Get a single player by id.",
+        "operationId": "get_player",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Player composite id, e.g. NBA_2544",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Player found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlayerItemResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Player not found"
+          }
+        }
+      }
+    },
+    "/seasons": {
+      "get": {
+        "tags": [
+          "seasons"
+        ],
+        "summary": "List all seasons, with an optional `league_id` filter.",
+        "description": "Results are ordered by `start_year` descending (most-recent first).",
+        "operationId": "list_seasons",
+        "parameters": [
+          {
+            "name": "league_id",
+            "in": "query",
+            "description": "Filter by league id",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of seasons",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeasonListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/teams": {
+      "get": {
+        "tags": [
+          "teams"
+        ],
+        "summary": "List all teams, with an optional `league_id` filter.",
+        "operationId": "list_teams",
+        "parameters": [
+          {
+            "name": "league_id",
+            "in": "query",
+            "description": "Filter by league id",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of teams",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/teams/{id}": {
+      "get": {
+        "tags": [
+          "teams"
+        ],
+        "summary": "Get a single team by id.",
+        "operationId": "get_team",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Team composite id, e.g. NBA_BOS",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Team found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamItemResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Team not found"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CoverageLabel": {
+        "type": "string",
+        "description": "Coverage label attached to every response.",
+        "enum": [
+          "full",
+          "partial",
+          "none"
+        ]
+      },
+      "PlayerDto": {
+        "type": "object",
+        "description": "Player entity as returned by the API.",
+        "required": [
+          "id",
+          "league_id",
+          "first_name",
+          "last_name"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Composite key, e.g. `\"NBA_2544\"`."
+          },
+          "league_id": {
+            "type": "string"
+          },
+          "first_name": {
+            "type": "string"
+          },
+          "last_name": {
+            "type": "string"
+          },
+          "birth_date": {
+            "type": "string",
+            "description": "ISO-8601 date string, or `null` when not reported.",
+            "nullable": true
+          }
+        }
+      },
+      "TeamDto": {
+        "type": "object",
+        "description": "Team entity as returned by the API.",
+        "required": [
+          "id",
+          "league_id",
+          "abbreviation",
+          "full_name",
+          "city"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Composite key, e.g. `\"NBA_BOS\"`."
+          },
+          "league_id": {
+            "type": "string"
+          },
+          "abbreviation": {
+            "type": "string"
+          },
+          "full_name": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          }
+        }
+      },
+      "SeasonDto": {
+        "type": "object",
+        "description": "Season entity as returned by the API.",
+        "required": [
+          "id",
+          "league_id",
+          "start_year",
+          "end_year"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Season label, e.g. `\"2023-24\"`."
+          },
+          "league_id": {
+            "type": "string"
+          },
+          "start_year": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "end_year": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "GameDto": {
+        "type": "object",
+        "description": "Game entity as returned by the API.",
+        "required": [
+          "id",
+          "league_id",
+          "season_id",
+          "season_type",
+          "game_date",
+          "home_team_id",
+          "away_team_id",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "league_id": {
+            "type": "string"
+          },
+          "season_id": {
+            "type": "string",
+            "description": "Season label, e.g. `\"2023-24\"`."
+          },
+          "season_type": {
+            "type": "string",
+            "description": "One of `Regular`, `Playoffs`, `PlayIn`, `AllStar`, `Preseason`."
+          },
+          "game_date": {
+            "type": "string",
+            "description": "ISO-8601 date string."
+          },
+          "home_team_id": {
+            "type": "string"
+          },
+          "away_team_id": {
+            "type": "string"
+          },
+          "home_score": {
+            "type": "integer",
+            "format": "int32",
+            "description": "`null` until the game is final.",
+            "nullable": true
+          },
+          "away_score": {
+            "type": "integer",
+            "format": "int32",
+            "description": "`null` until the game is final.",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "description": "One of `scheduled`, `live`, `final`."
+          }
+        }
+      },
+      "PlayerListResponse": {
+        "type": "object",
+        "required": ["data", "total", "coverage"],
+        "properties": {
+          "data": { "type": "array", "items": { "$ref": "#/components/schemas/PlayerDto" } },
+          "total": { "type": "integer", "minimum": 0 },
+          "coverage": { "$ref": "#/components/schemas/CoverageLabel" }
+        }
+      },
+      "PlayerItemResponse": {
+        "type": "object",
+        "required": ["data", "coverage"],
+        "properties": {
+          "data": { "$ref": "#/components/schemas/PlayerDto" },
+          "coverage": { "$ref": "#/components/schemas/CoverageLabel" }
+        }
+      },
+      "TeamListResponse": {
+        "type": "object",
+        "required": ["data", "total", "coverage"],
+        "properties": {
+          "data": { "type": "array", "items": { "$ref": "#/components/schemas/TeamDto" } },
+          "total": { "type": "integer", "minimum": 0 },
+          "coverage": { "$ref": "#/components/schemas/CoverageLabel" }
+        }
+      },
+      "TeamItemResponse": {
+        "type": "object",
+        "required": ["data", "coverage"],
+        "properties": {
+          "data": { "$ref": "#/components/schemas/TeamDto" },
+          "coverage": { "$ref": "#/components/schemas/CoverageLabel" }
+        }
+      },
+      "SeasonListResponse": {
+        "type": "object",
+        "required": ["data", "total", "coverage"],
+        "properties": {
+          "data": { "type": "array", "items": { "$ref": "#/components/schemas/SeasonDto" } },
+          "total": { "type": "integer", "minimum": 0 },
+          "coverage": { "$ref": "#/components/schemas/CoverageLabel" }
+        }
+      },
+      "GameListResponse": {
+        "type": "object",
+        "required": ["data", "total", "coverage"],
+        "properties": {
+          "data": { "type": "array", "items": { "$ref": "#/components/schemas/GameDto" } },
+          "total": { "type": "integer", "minimum": 0 },
+          "coverage": { "$ref": "#/components/schemas/CoverageLabel" }
+        }
+      },
+      "GameItemResponse": {
+        "type": "object",
+        "required": ["data", "coverage"],
+        "properties": {
+          "data": { "$ref": "#/components/schemas/GameDto" },
+          "coverage": { "$ref": "#/components/schemas/CoverageLabel" }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "players",
+      "description": "Player dimension endpoints"
+    },
+    {
+      "name": "teams",
+      "description": "Team dimension endpoints"
+    },
+    {
+      "name": "seasons",
+      "description": "Season dimension endpoints"
+    },
+    {
+      "name": "games",
+      "description": "Game dimension endpoints"
+    }
+  ]
+}
