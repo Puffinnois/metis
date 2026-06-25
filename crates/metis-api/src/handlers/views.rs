@@ -7,7 +7,7 @@ use serde::Deserialize;
 use utoipa::ToSchema;
 
 use crate::error::ApiError;
-use crate::models::{ItemResponse, ListResponse, UserViewDto};
+use crate::models::{CoverageLabel, UserViewDto, ViewItemResponse, ViewListResponse};
 use crate::AppState;
 
 /// Query parameters for `GET /views`.
@@ -25,14 +25,14 @@ pub struct ViewsQuery {
         ("entity_type" = Option<String>, Query, description = "Filter by entity type: player or team"),
     ),
     responses(
-        (status = 200, description = "List of saved views", body = inline(ListResponse<UserViewDto>)),
+        (status = 200, description = "List of saved views", body = ViewListResponse),
     ),
     tag = "views"
 )]
 pub async fn list_views(
     State(state): State<Arc<AppState>>,
     Query(params): Query<ViewsQuery>,
-) -> Result<Json<ListResponse<UserViewDto>>, ApiError> {
+) -> Result<Json<ViewListResponse>, ApiError> {
     let dtos = {
         let db = state.db.lock().expect("db mutex poisoned");
         db.user_views()
@@ -41,7 +41,8 @@ pub async fn list_views(
             .map(UserViewDto::from)
             .collect::<Vec<_>>()
     };
-    Ok(Json(ListResponse::full(dtos)))
+    let total = dtos.len();
+    Ok(Json(ViewListResponse { data: dtos, total, coverage: CoverageLabel::Full }))
 }
 
 /// Retrieve a single saved view by id.
@@ -50,7 +51,7 @@ pub async fn list_views(
     path = "/views/{id}",
     params(("id" = String, Path, description = "Saved view UUID")),
     responses(
-        (status = 200, description = "Saved view", body = inline(ItemResponse<UserViewDto>)),
+        (status = 200, description = "Saved view", body = ViewItemResponse),
         (status = 404, description = "Not found"),
     ),
     tag = "views"
@@ -58,13 +59,13 @@ pub async fn list_views(
 pub async fn get_view(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
-) -> Result<Json<ItemResponse<UserViewDto>>, ApiError> {
+) -> Result<Json<ViewItemResponse>, ApiError> {
     let view = {
         let db = state.db.lock().expect("db mutex poisoned");
         db.user_views().find_by_id(&id)?
     };
     match view {
-        Some(v) => Ok(Json(ItemResponse::full(UserViewDto::from(v)))),
+        Some(v) => Ok(Json(ViewItemResponse { data: UserViewDto::from(v), coverage: CoverageLabel::Full })),
         None => Err(ApiError::not_found("view", &id)),
     }
 }
@@ -75,7 +76,7 @@ pub async fn get_view(
     path = "/views",
     request_body = CreateUserViewDto,
     responses(
-        (status = 201, description = "Created view", body = inline(ItemResponse<UserViewDto>)),
+        (status = 201, description = "Created view", body = ViewItemResponse),
         (status = 422, description = "Validation error"),
     ),
     tag = "views"
@@ -83,13 +84,13 @@ pub async fn get_view(
 pub async fn create_view(
     State(state): State<Arc<AppState>>,
     Json(body): Json<CreateUserViewDto>,
-) -> Result<(StatusCode, Json<ItemResponse<UserViewDto>>), ApiError> {
+) -> Result<(StatusCode, Json<ViewItemResponse>), ApiError> {
     let create = body.into_create()?;
     let view = {
         let db = state.db.lock().expect("db mutex poisoned");
         db.user_views().create(&create)?
     };
-    Ok((StatusCode::CREATED, Json(ItemResponse::full(UserViewDto::from(view)))))
+    Ok((StatusCode::CREATED, Json(ViewItemResponse { data: UserViewDto::from(view), coverage: CoverageLabel::Full })))
 }
 
 /// Update an existing saved view (partial update — only supplied fields change).
@@ -99,7 +100,7 @@ pub async fn create_view(
     params(("id" = String, Path, description = "Saved view UUID")),
     request_body = UpdateUserViewDto,
     responses(
-        (status = 200, description = "Updated view", body = inline(ItemResponse<UserViewDto>)),
+        (status = 200, description = "Updated view", body = ViewItemResponse),
         (status = 404, description = "Not found"),
     ),
     tag = "views"
@@ -108,14 +109,14 @@ pub async fn update_view(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
     Json(body): Json<UpdateUserViewDto>,
-) -> Result<Json<ItemResponse<UserViewDto>>, ApiError> {
+) -> Result<Json<ViewItemResponse>, ApiError> {
     let patch = body.into_patch();
     let view = {
         let db = state.db.lock().expect("db mutex poisoned");
         db.user_views().update(&id, &patch)?
     };
     match view {
-        Some(v) => Ok(Json(ItemResponse::full(UserViewDto::from(v)))),
+        Some(v) => Ok(Json(ViewItemResponse { data: UserViewDto::from(v), coverage: CoverageLabel::Full })),
         None => Err(ApiError::not_found("view", &id)),
     }
 }

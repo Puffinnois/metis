@@ -1,7 +1,12 @@
-// Typed API client. Types are generated from docs/openapi.json via `pnpm gen:api`.
-// In Tauri, commands use invoke(); outside Tauri (browser dev), falls back to HTTP.
+// Typed API client. All response types are generated from docs/openapi.json via
+// `pnpm gen:api`. Do NOT add hand-written response shapes here — add them to the
+// Rust API, regenerate the spec, then run `pnpm gen:api`.
 
 import type { components } from "./openapi.d.ts";
+
+// ---------------------------------------------------------------------------
+// Re-exported entity types (from generated spec)
+// ---------------------------------------------------------------------------
 
 export type CoverageLabel = components["schemas"]["CoverageLabel"];
 export type PlayerDto = components["schemas"]["PlayerDto"];
@@ -9,17 +14,20 @@ export type TeamDto = components["schemas"]["TeamDto"];
 export type SeasonDto = components["schemas"]["SeasonDto"];
 export type GameDto = components["schemas"]["GameDto"];
 export type PlayerStatsRowDto = components["schemas"]["PlayerStatsRowDto"];
+export type UserViewDto = components["schemas"]["UserViewDto"];
 
-export interface ListResponse<T> {
-  data: T[];
-  total: number;
-  coverage: CoverageLabel;
-}
+// Re-export list/item response types for callers that need the envelope.
+export type PlayerListResponse = components["schemas"]["PlayerListResponse"];
+export type TeamListResponse = components["schemas"]["TeamListResponse"];
+export type SeasonListResponse = components["schemas"]["SeasonListResponse"];
+export type GameListResponse = components["schemas"]["GameListResponse"];
+export type PlayerStatsPageResponse = components["schemas"]["PlayerStatsPageResponse"];
+export type ViewListResponse = components["schemas"]["ViewListResponse"];
+export type ViewItemResponse = components["schemas"]["ViewItemResponse"];
 
-export interface ItemResponse<T> {
-  data: T;
-  coverage: CoverageLabel;
-}
+// ---------------------------------------------------------------------------
+// HTTP helpers
+// ---------------------------------------------------------------------------
 
 const HTTP_BASE = "http://127.0.0.1:3000";
 
@@ -49,49 +57,49 @@ export interface ListPlayersParams {
   search?: string;
 }
 
-export async function listPlayers(params?: ListPlayersParams): Promise<ListResponse<PlayerDto>> {
+export async function listPlayers(params?: ListPlayersParams): Promise<PlayerListResponse> {
   try {
-    const rows = await tauriInvoke<PlayerDto[]>("get_players");
-    return { data: rows, total: rows.length, coverage: "full" };
+    const data = await tauriInvoke<PlayerDto[]>("get_players");
+    return { data, total: data.length, coverage: "full" };
   } catch {
-    return httpGet<ListResponse<PlayerDto>>("/players", {
+    return httpGet<PlayerListResponse>("/players", {
       league_id: params?.league_id,
       search: params?.search,
     });
   }
 }
 
-export async function getPlayer(id: string): Promise<ItemResponse<PlayerDto>> {
-  return httpGet<ItemResponse<PlayerDto>>(`/players/${encodeURIComponent(id)}`);
+export async function getPlayer(id: string): Promise<components["schemas"]["PlayerItemResponse"]> {
+  return httpGet(`/players/${encodeURIComponent(id)}`);
 }
 
 // ---------------------------------------------------------------------------
 // Teams
 // ---------------------------------------------------------------------------
 
-export async function listTeams(league_id?: string): Promise<ListResponse<TeamDto>> {
+export async function listTeams(league_id?: string): Promise<TeamListResponse> {
   try {
-    const rows = await tauriInvoke<TeamDto[]>("get_teams");
-    return { data: rows, total: rows.length, coverage: "full" };
+    const data = await tauriInvoke<TeamDto[]>("get_teams");
+    return { data, total: data.length, coverage: "full" };
   } catch {
-    return httpGet<ListResponse<TeamDto>>("/teams", { league_id });
+    return httpGet<TeamListResponse>("/teams", { league_id });
   }
 }
 
-export async function getTeam(id: string): Promise<ItemResponse<TeamDto>> {
-  return httpGet<ItemResponse<TeamDto>>(`/teams/${encodeURIComponent(id)}`);
+export async function getTeam(id: string): Promise<components["schemas"]["TeamItemResponse"]> {
+  return httpGet(`/teams/${encodeURIComponent(id)}`);
 }
 
 // ---------------------------------------------------------------------------
 // Seasons
 // ---------------------------------------------------------------------------
 
-export async function listSeasons(league_id?: string): Promise<ListResponse<SeasonDto>> {
+export async function listSeasons(league_id?: string): Promise<SeasonListResponse> {
   try {
-    const rows = await tauriInvoke<SeasonDto[]>("get_seasons");
-    return { data: rows, total: rows.length, coverage: "full" };
+    const data = await tauriInvoke<SeasonDto[]>("get_seasons");
+    return { data, total: data.length, coverage: "full" };
   } catch {
-    return httpGet<ListResponse<SeasonDto>>("/seasons", { league_id });
+    return httpGet<SeasonListResponse>("/seasons", { league_id });
   }
 }
 
@@ -113,19 +121,11 @@ export interface PlayerStatsParams {
   page_size?: number;
 }
 
-export interface PlayerStatsPage {
-  rows: PlayerStatsRowDto[];
-  total: number;
-  page: number;
-  page_size: number;
-  coverage: CoverageLabel;
-}
-
-export async function listPlayerStats(params?: PlayerStatsParams): Promise<PlayerStatsPage> {
+export async function listPlayerStats(params?: PlayerStatsParams): Promise<PlayerStatsPageResponse> {
   try {
-    return await tauriInvoke<PlayerStatsPage>("get_player_stats", { params: params ?? {} });
+    return await tauriInvoke<PlayerStatsPageResponse>("get_player_stats", { params: params ?? {} });
   } catch {
-    return httpGet<PlayerStatsPage>("/players/stats", {
+    return httpGet<PlayerStatsPageResponse>("/players/stats", {
       season_id: params?.season_id,
       season_type: params?.season_type,
       player_id: params?.player_id,
@@ -145,6 +145,7 @@ export async function listPlayerStats(params?: PlayerStatsParams): Promise<Playe
 // Player game log
 // ---------------------------------------------------------------------------
 
+// Game log is a Tauri-only command with no HTTP endpoint — shape defined here.
 export interface PlayerGameLogRow {
   game_id: string;
   game_date: string;
@@ -205,34 +206,21 @@ export interface ListGamesParams {
   team_id?: string;
 }
 
-export async function listGames(params?: ListGamesParams): Promise<ListResponse<GameDto>> {
-  return httpGet<ListResponse<GameDto>>("/games", {
+export async function listGames(params?: ListGamesParams): Promise<GameListResponse> {
+  return httpGet<GameListResponse>("/games", {
     season_id: params?.season_id,
     season_type: params?.season_type,
     team_id: params?.team_id,
   });
 }
 
-export async function getGame(id: string): Promise<ItemResponse<GameDto>> {
-  return httpGet<ItemResponse<GameDto>>(`/games/${encodeURIComponent(id)}`);
+export async function getGame(id: string): Promise<components["schemas"]["GameItemResponse"]> {
+  return httpGet(`/games/${encodeURIComponent(id)}`);
 }
 
 // ---------------------------------------------------------------------------
 // Saved views
 // ---------------------------------------------------------------------------
-
-export interface UserView {
-  id: string;
-  name: string;
-  description: string | null;
-  entity_type: string;
-  filters: string;
-  sort_config: string | null;
-  columns: string | null;
-  is_default: boolean;
-  created_at: string;
-  updated_at: string;
-}
 
 export interface CreateViewParams {
   id: string;
@@ -254,20 +242,18 @@ export interface UpdateViewParams {
   is_default?: boolean;
 }
 
-export async function listViews(entity_type?: string): Promise<UserView[]> {
+export async function listViews(entity_type?: string): Promise<UserViewDto[]> {
   try {
-    return await tauriInvoke<UserView[]>("list_views", { entityType: entity_type });
+    return await tauriInvoke<UserViewDto[]>("list_views", { entityType: entity_type });
   } catch {
-    const res = await httpGet<ListResponse<UserView>>("/views", {
-      entity_type,
-    });
+    const res = await httpGet<ViewListResponse>("/views", { entity_type });
     return res.data;
   }
 }
 
-export async function createView(params: CreateViewParams): Promise<UserView> {
+export async function createView(params: CreateViewParams): Promise<UserViewDto> {
   try {
-    return await tauriInvoke<UserView>("create_view", { view: params });
+    return await tauriInvoke<UserViewDto>("create_view", { view: params });
   } catch {
     const res = await fetch(`${HTTP_BASE}/views`, {
       method: "POST",
@@ -275,14 +261,14 @@ export async function createView(params: CreateViewParams): Promise<UserView> {
       body: JSON.stringify(params),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const envelope = (await res.json()) as ItemResponse<UserView>;
+    const envelope = (await res.json()) as ViewItemResponse;
     return envelope.data;
   }
 }
 
-export async function updateView(id: string, patch: UpdateViewParams): Promise<UserView | null> {
+export async function updateView(id: string, patch: UpdateViewParams): Promise<UserViewDto | null> {
   try {
-    return await tauriInvoke<UserView | null>("update_view", { id, patch });
+    return await tauriInvoke<UserViewDto | null>("update_view", { id, patch });
   } catch {
     return null;
   }

@@ -140,6 +140,7 @@ struct PlayerStatsPage {
     total: u64,
     page: u32,
     page_size: u32,
+    coverage: &'static str,
 }
 
 // ---------------------------------------------------------------------------
@@ -309,6 +310,7 @@ fn get_player_stats(
         total: result.total,
         page: filter.page,
         page_size: filter.page_size,
+        coverage: "full",
     })
 }
 

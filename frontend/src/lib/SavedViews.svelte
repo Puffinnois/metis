@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { listViews, createView, updateView, deleteView, type UserView } from "./api.js";
+  import { listViews, createView, updateView, deleteView, type UserViewDto } from "./api.js";
 
   interface Props {
     entityType: string;
@@ -16,7 +16,7 @@
 
   let { entityType, onload, getState }: Props = $props();
 
-  let views = $state<UserView[]>([]);
+  let views = $state<UserViewDto[]>([]);
   let open = $state(false);
   let saving = $state(false);
   let saveName = $state("");
@@ -36,7 +36,7 @@
     views = await listViews(entityType);
   }
 
-  function load(view: UserView) {
+  function load(view: UserViewDto) {
     try {
       const filters = JSON.parse(view.filters) as Record<string, string>;
       const sortConfig = view.sort_config ? (JSON.parse(view.sort_config) as Record<string, string>) : null;
@@ -73,12 +73,12 @@
     }
   }
 
-  async function setDefault(view: UserView) {
+  async function setDefault(view: UserViewDto) {
     await updateView(view.id, { is_default: !view.is_default });
     await reload();
   }
 
-  async function remove(view: UserView) {
+  async function remove(view: UserViewDto) {
     await deleteView(view.id);
     await reload();
   }

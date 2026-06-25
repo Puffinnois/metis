@@ -6,7 +6,7 @@ use metis_db::{DisplayMode, HomeAway, PlayerStatsFilter, SortDir, WinLoss};
 use utoipa::OpenApi;
 
 use crate::error::ApiError;
-use crate::models::{CoverageLabel, PagedResponse, PlayerStatsQuery, PlayerStatsRowDto};
+use crate::models::{CoverageLabel, PlayerStatsPageResponse, PlayerStatsQuery, PlayerStatsRowDto};
 use crate::AppState;
 
 /// Coverage thresholds from the CLAUDE.md stat coverage policy.
@@ -170,7 +170,7 @@ fn build_filter(params: &PlayerStatsQuery) -> Result<PlayerStatsFilter, ApiError
         ("page_size" = Option<u32>, Query, description = "Page size, clamped to [1, 200], defaults to 50"),
     ),
     responses(
-        (status = 200, description = "Paginated player season stats", body = inline(PagedResponse<PlayerStatsRowDto>)),
+        (status = 200, description = "Paginated player season stats", body = PlayerStatsPageResponse),
         (status = 400, description = "Invalid filter, sort, or pagination parameter"),
     ),
     tag = "players"
@@ -178,21 +178,21 @@ fn build_filter(params: &PlayerStatsQuery) -> Result<PlayerStatsFilter, ApiError
 pub async fn list_player_stats(
     State(state): State<Arc<AppState>>,
     Query(params): Query<PlayerStatsQuery>,
-) -> Result<Json<PagedResponse<PlayerStatsRowDto>>, ApiError> {
+) -> Result<Json<PlayerStatsPageResponse>, ApiError> {
     let filter = build_filter(&params)?;
     let coverage = coverage_for_filter(&filter);
-    let (dtos, page, page_size, total) = {
+    let (rows, page, page_size, total) = {
         let db = state.db.lock().expect("db mutex poisoned");
         let result = db.player_stats().query(&filter)?;
-        let dtos = result
+        let rows = result
             .rows
             .into_iter()
             .map(PlayerStatsRowDto::from)
             .collect::<Vec<_>>();
-        (dtos, filter.page, filter.page_size, result.total)
+        (rows, filter.page, filter.page_size, result.total)
     };
-    Ok(Json(PagedResponse {
-        data: dtos,
+    Ok(Json(PlayerStatsPageResponse {
+        rows,
         coverage,
         page,
         page_size,
@@ -201,5 +201,8 @@ pub async fn list_player_stats(
 }
 
 #[derive(OpenApi)]
-#[openapi(paths(list_player_stats), components(schemas(PlayerStatsRowDto)))]
+#[openapi(
+    paths(list_player_stats),
+    components(schemas(PlayerStatsRowDto, PlayerStatsPageResponse))
+)]
 pub struct PlayerStatsApi;

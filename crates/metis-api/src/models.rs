@@ -86,6 +86,82 @@ pub enum CoverageLabel {
 }
 
 // ---------------------------------------------------------------------------
+// Concrete list/item response types (one per entity)
+//
+// utoipa cannot resolve generic type parameters inside inline() — it emits
+// `$ref: "#/components/schemas/T"` which is invalid. Each endpoint therefore
+// uses its own concrete response struct so gen_openapi produces a valid spec.
+// ---------------------------------------------------------------------------
+
+/// List of players.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct PlayerListResponse {
+    pub data: Vec<PlayerDto>,
+    pub total: usize,
+    pub coverage: CoverageLabel,
+}
+
+/// Single player.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct PlayerItemResponse {
+    pub data: PlayerDto,
+    pub coverage: CoverageLabel,
+}
+
+/// List of teams.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct TeamListResponse {
+    pub data: Vec<TeamDto>,
+    pub total: usize,
+    pub coverage: CoverageLabel,
+}
+
+/// Single team.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct TeamItemResponse {
+    pub data: TeamDto,
+    pub coverage: CoverageLabel,
+}
+
+/// List of seasons.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct SeasonListResponse {
+    pub data: Vec<SeasonDto>,
+    pub total: usize,
+    pub coverage: CoverageLabel,
+}
+
+/// List of games.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct GameListResponse {
+    pub data: Vec<GameDto>,
+    pub total: usize,
+    pub coverage: CoverageLabel,
+}
+
+/// Single game.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct GameItemResponse {
+    pub data: GameDto,
+    pub coverage: CoverageLabel,
+}
+
+/// List of saved views.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct ViewListResponse {
+    pub data: Vec<UserViewDto>,
+    pub total: usize,
+    pub coverage: CoverageLabel,
+}
+
+/// Single saved view.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct ViewItemResponse {
+    pub data: UserViewDto,
+    pub coverage: CoverageLabel,
+}
+
+// ---------------------------------------------------------------------------
 // Entity response DTOs
 // ---------------------------------------------------------------------------
 
@@ -193,6 +269,19 @@ impl From<metis_db::Game> for GameDto {
             status: g.status,
         }
     }
+}
+
+/// Paginated response envelope for `GET /players/stats`.
+///
+/// Uses `rows` (not the generic `data`) to distinguish stat rows from entity
+/// lists and to match the Tauri command response shape.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct PlayerStatsPageResponse {
+    pub rows: Vec<PlayerStatsRowDto>,
+    pub total: u64,
+    pub page: u32,
+    pub page_size: u32,
+    pub coverage: CoverageLabel,
 }
 
 /// A row of player season statistics as returned by `GET /players/stats`.

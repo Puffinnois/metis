@@ -666,8 +666,8 @@ async fn get_players_stats_no_filters_default_pagination() {
     assert_eq!(json["page_size"], 50);
     assert_eq!(json["total"], 2);
     assert_eq!(json["coverage"], "full");
-    let data = json["data"].as_array().expect("data array");
-    assert_eq!(data.len(), 2);
+    let rows = json["rows"].as_array().expect("rows array");
+    assert_eq!(rows.len(), 2);
 }
 
 #[tokio::test]
@@ -685,9 +685,9 @@ async fn get_players_stats_filter_by_season_narrows_results() {
     assert_eq!(resp.status(), StatusCode::OK);
     let json = body_json(resp.into_body()).await;
     assert_eq!(json["total"], 1);
-    assert_eq!(json["data"][0]["season_id"], "2023-24");
+    assert_eq!(json["rows"][0]["season_id"], "2023-24");
     // Season totals rollup: 20 pts (home win) + 10 pts (away loss) = 30.
-    assert_eq!(json["data"][0]["points"], 30.0);
+    assert_eq!(json["rows"][0]["points"], 30.0);
 }
 
 #[tokio::test]
@@ -708,7 +708,7 @@ async fn get_players_stats_per_36_matches_formula() {
     assert_eq!(resp.status(), StatusCode::OK);
     let json = body_json(resp.into_body()).await;
     assert_eq!(json["total"], 1);
-    let points = json["data"][0]["points"].as_f64().expect("points present");
+    let points = json["rows"][0]["points"].as_f64().expect("points present");
     // total points = 30, total minutes = 55 => per-36 = 30 * 36 / 55
     let expected = 30.0 * 36.0 / 55.0;
     assert!((points - expected).abs() < 1e-9);
@@ -729,8 +729,8 @@ async fn get_players_stats_home_away_filters_to_home_games() {
     assert_eq!(resp.status(), StatusCode::OK);
     let json = body_json(resp.into_body()).await;
     assert_eq!(json["total"], 1);
-    assert_eq!(json["data"][0]["games_played"], 1);
-    assert_eq!(json["data"][0]["points"], 20.0);
+    assert_eq!(json["rows"][0]["games_played"], 1);
+    assert_eq!(json["rows"][0]["points"], 20.0);
 }
 
 #[tokio::test]
@@ -748,7 +748,7 @@ async fn get_players_stats_win_loss_filters_to_wins() {
     assert_eq!(resp.status(), StatusCode::OK);
     let json = body_json(resp.into_body()).await;
     assert_eq!(json["total"], 1);
-    assert_eq!(json["data"][0]["points"], 20.0);
+    assert_eq!(json["rows"][0]["points"], 20.0);
 }
 
 #[tokio::test]
@@ -816,9 +816,9 @@ async fn get_players_stats_pagination_returns_one_row_per_page() {
     assert_eq!(resp.status(), StatusCode::OK);
     let json = body_json(resp.into_body()).await;
     assert_eq!(json["total"], 2);
-    let data = json["data"].as_array().expect("data array");
-    assert_eq!(data.len(), 1);
-    assert_eq!(data[0]["season_id"], "2022-23");
+    let rows = json["rows"].as_array().expect("rows array");
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0]["season_id"], "2022-23");
 }
 
 // ---------------------------------------------------------------------------

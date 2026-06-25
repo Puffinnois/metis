@@ -55,6 +55,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/players/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List player season statistics with filtering, sorting, and pagination.
+         * @description Supports filtering by season(s), season type, team, date range, home/away,
+         *     and win/loss, plus four display modes (totals, per-game, per-36, per-100).
+         *     Date range / home-away / win-loss filters trigger on-the-fly aggregation of
+         *     `player_game_box`; all other combinations read from precomputed season
+         *     rollup tables.
+         */
+        get: operations["list_player_stats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/players/{id}": {
         parameters: {
             query?: never;
@@ -126,6 +150,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/views": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List all saved views, optionally filtered by `entity_type`. */
+        get: operations["list_views"];
+        put?: never;
+        /** Create a new saved view. */
+        post: operations["create_view"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/views/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Retrieve a single saved view by id. */
+        get: operations["get_view"];
+        put?: never;
+        post?: never;
+        /** Delete a saved view. */
+        delete: operations["delete_view"];
+        options?: never;
+        head?: never;
+        /** Update an existing saved view (partial update — only supplied fields change). */
+        patch: operations["update_view"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -135,91 +196,214 @@ export interface components {
          * @enum {string}
          */
         CoverageLabel: "full" | "partial" | "none";
-        /** @description Player entity as returned by the API. */
-        PlayerDto: {
-            /** @description Composite key, e.g. `"NBA_2544"`. */
+        /** @description Request body for `POST /views`. */
+        CreateUserViewDto: {
+            columns?: string | null;
+            description?: string | null;
+            /** @description `"player"` or `"team"`. */
+            entity_type: string;
+            /** @description Serialized filter state; defaults to `{}` if omitted. */
+            filters?: string | null;
+            /** @description Client-generated UUID. */
             id: string;
-            league_id: string;
-            first_name: string;
-            last_name: string;
-            /** @description ISO-8601 date string, or `null` when not reported. */
-            birth_date?: string | null;
-        };
-        /** @description Team entity as returned by the API. */
-        TeamDto: {
-            /** @description Composite key, e.g. `"NBA_BOS"`. */
-            id: string;
-            league_id: string;
-            abbreviation: string;
-            full_name: string;
-            city: string;
-        };
-        /** @description Season entity as returned by the API. */
-        SeasonDto: {
-            /** @description Season label, e.g. `"2023-24"`. */
-            id: string;
-            league_id: string;
-            /** Format: int32 */
-            start_year: number;
-            /** Format: int32 */
-            end_year: number;
+            is_default?: boolean;
+            name: string;
+            sort_config?: string | null;
         };
         /** @description Game entity as returned by the API. */
         GameDto: {
+            /**
+             * Format: int32
+             * @description `null` until the game is final.
+             */
+            away_score?: number | null;
+            away_team_id: string;
+            /** @description ISO-8601 date string. */
+            game_date: string;
+            /**
+             * Format: int32
+             * @description `null` until the game is final.
+             */
+            home_score?: number | null;
+            home_team_id: string;
             id: string;
             league_id: string;
             /** @description Season label, e.g. `"2023-24"`. */
             season_id: string;
             /** @description One of `Regular`, `Playoffs`, `PlayIn`, `AllStar`, `Preseason`. */
             season_type: string;
-            /** @description ISO-8601 date string. */
-            game_date: string;
-            home_team_id: string;
-            away_team_id: string;
-            /**
-             * Format: int32
-             * @description `null` until the game is final.
-             */
-            home_score?: number | null;
-            /**
-             * Format: int32
-             * @description `null` until the game is final.
-             */
-            away_score?: number | null;
             /** @description One of `scheduled`, `live`, `final`. */
             status: string;
         };
-        PlayerListResponse: {
-            data: components["schemas"]["PlayerDto"][];
-            total: number;
+        /** @description Single game. */
+        GameItemResponse: {
             coverage: components["schemas"]["CoverageLabel"];
+            data: components["schemas"]["GameDto"];
         };
-        PlayerItemResponse: {
-            data: components["schemas"]["PlayerDto"];
-            coverage: components["schemas"]["CoverageLabel"];
-        };
-        TeamListResponse: {
-            data: components["schemas"]["TeamDto"][];
-            total: number;
-            coverage: components["schemas"]["CoverageLabel"];
-        };
-        TeamItemResponse: {
-            data: components["schemas"]["TeamDto"];
-            coverage: components["schemas"]["CoverageLabel"];
-        };
-        SeasonListResponse: {
-            data: components["schemas"]["SeasonDto"][];
-            total: number;
-            coverage: components["schemas"]["CoverageLabel"];
-        };
+        /** @description List of games. */
         GameListResponse: {
+            coverage: components["schemas"]["CoverageLabel"];
             data: components["schemas"]["GameDto"][];
             total: number;
-            coverage: components["schemas"]["CoverageLabel"];
         };
-        GameItemResponse: {
-            data: components["schemas"]["GameDto"];
+        /** @description Player entity as returned by the API. */
+        PlayerDto: {
+            /** @description ISO-8601 date string, or `null` when not reported. */
+            birth_date?: string | null;
+            first_name: string;
+            /** @description Composite key, e.g. `"NBA_2544"`. */
+            id: string;
+            last_name: string;
+            league_id: string;
+        };
+        /** @description Single player. */
+        PlayerItemResponse: {
             coverage: components["schemas"]["CoverageLabel"];
+            data: components["schemas"]["PlayerDto"];
+        };
+        /** @description List of players. */
+        PlayerListResponse: {
+            coverage: components["schemas"]["CoverageLabel"];
+            data: components["schemas"]["PlayerDto"][];
+            total: number;
+        };
+        /**
+         * @description Paginated response envelope for `GET /players/stats`.
+         *
+         *     Uses `rows` (not the generic `data`) to distinguish stat rows from entity
+         *     lists and to match the Tauri command response shape.
+         */
+        PlayerStatsPageResponse: {
+            coverage: components["schemas"]["CoverageLabel"];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            page_size: number;
+            rows: components["schemas"]["PlayerStatsRowDto"][];
+            /** Format: int64 */
+            total: number;
+        };
+        /**
+         * @description A row of player season statistics as returned by `GET /players/stats`.
+         *
+         *     Field semantics depend on the requested `display_mode`: for `totals` these
+         *     are season counting-stat sums; for `per_game` / `per_36` / `per_100` they are
+         *     the corresponding rate stats. `null` means the underlying source did not
+         *     report that stat (or, for rate stats, that the denominator was zero).
+         */
+        PlayerStatsRowDto: {
+            /** Format: double */
+            assists?: number | null;
+            /** Format: double */
+            blocks?: number | null;
+            /** Format: double */
+            field_goals_attempted?: number | null;
+            /** Format: double */
+            field_goals_made?: number | null;
+            /** Format: double */
+            free_throws_attempted?: number | null;
+            /** Format: double */
+            free_throws_made?: number | null;
+            /** Format: int32 */
+            games_played: number;
+            /** Format: double */
+            minutes_played?: number | null;
+            /** Format: double */
+            personal_fouls?: number | null;
+            player_id: string;
+            /** Format: double */
+            points?: number | null;
+            /** Format: double */
+            rebounds_defensive?: number | null;
+            /** Format: double */
+            rebounds_offensive?: number | null;
+            /** Format: double */
+            rebounds_total?: number | null;
+            /** @description Season label, e.g. `"2023-24"`. */
+            season_id: string;
+            season_type: string;
+            /** @description Ingest adapter name, e.g. `"nba_stats"`. */
+            source: string;
+            /** Format: double */
+            steals?: number | null;
+            /** Format: double */
+            three_pointers_attempted?: number | null;
+            /** Format: double */
+            three_pointers_made?: number | null;
+            /** Format: double */
+            turnovers?: number | null;
+        };
+        /** @description Season entity as returned by the API. */
+        SeasonDto: {
+            /** Format: int32 */
+            end_year: number;
+            /** @description Season label, e.g. `"2023-24"`. */
+            id: string;
+            league_id: string;
+            /** Format: int32 */
+            start_year: number;
+        };
+        /** @description List of seasons. */
+        SeasonListResponse: {
+            coverage: components["schemas"]["CoverageLabel"];
+            data: components["schemas"]["SeasonDto"][];
+            total: number;
+        };
+        /** @description Team entity as returned by the API. */
+        TeamDto: {
+            abbreviation: string;
+            city: string;
+            full_name: string;
+            /** @description Composite key, e.g. `"NBA_BOS"`. */
+            id: string;
+            league_id: string;
+        };
+        /** @description Single team. */
+        TeamItemResponse: {
+            coverage: components["schemas"]["CoverageLabel"];
+            data: components["schemas"]["TeamDto"];
+        };
+        /** @description List of teams. */
+        TeamListResponse: {
+            coverage: components["schemas"]["CoverageLabel"];
+            data: components["schemas"]["TeamDto"][];
+            total: number;
+        };
+        /** @description Request body for `PATCH /views/:id`. */
+        UpdateUserViewDto: {
+            /** @description Pass `null` explicitly to clear the column config. */
+            columns?: string | null;
+            /** @description Pass `null` explicitly to clear the description. */
+            description?: string | null;
+            filters?: string | null;
+            is_default?: boolean | null;
+            name?: string | null;
+            /** @description Pass `null` explicitly to clear the sort config. */
+            sort_config?: string | null;
+        };
+        /** @description A saved filter/sort/column combination as returned by `GET /views`. */
+        UserViewDto: {
+            columns?: string | null;
+            created_at: string;
+            description?: string | null;
+            entity_type: string;
+            filters: string;
+            id: string;
+            is_default: boolean;
+            name: string;
+            sort_config?: string | null;
+            updated_at: string;
+        };
+        /** @description Single saved view. */
+        ViewItemResponse: {
+            coverage: components["schemas"]["CoverageLabel"];
+            data: components["schemas"]["UserViewDto"];
+        };
+        /** @description List of saved views. */
+        ViewListResponse: {
+            coverage: components["schemas"]["CoverageLabel"];
+            data: components["schemas"]["UserViewDto"][];
+            total: number;
         };
     };
     responses: never;
@@ -309,6 +493,60 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["PlayerListResponse"];
                 };
+            };
+        };
+    };
+    list_player_stats: {
+        parameters: {
+            query?: {
+                /** @description Comma-separated season labels, e.g. 2022-23,2023-24 (OR'd) */
+                season_id?: string | null;
+                /** @description Filter by season type, e.g. Regular */
+                season_type?: string | null;
+                /** @description Filter by player's team for the stint */
+                team_id?: string | null;
+                /** @description Inclusive ISO-8601 lower bound on game date */
+                date_from?: string | null;
+                /** @description Inclusive ISO-8601 upper bound on game date */
+                date_to?: string | null;
+                /** @description "home" or "away" */
+                home_away?: string | null;
+                /** @description "win" or "loss" */
+                win_loss?: string | null;
+                /** @description "totals", "per_game", "per_36", or "per_100" */
+                display_mode?: string | null;
+                /** @description Ingest adapter name, defaults to nba_stats */
+                source?: string | null;
+                /** @description Stat column to sort by, defaults to points */
+                sort_by?: string | null;
+                /** @description "asc" or "desc", defaults to desc */
+                sort_dir?: string | null;
+                /** @description 1-indexed page number, defaults to 1 */
+                page?: number | null;
+                /** @description Page size, clamped to [1, 200], defaults to 50 */
+                page_size?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated player season stats */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlayerStatsPageResponse"];
+                };
+            };
+            /** @description Invalid filter, sort, or pagination parameter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -410,6 +648,152 @@ export interface operations {
                 };
             };
             /** @description Team not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    list_views: {
+        parameters: {
+            query?: {
+                /** @description Filter by entity type: player or team */
+                entity_type?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of saved views */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ViewListResponse"];
+                };
+            };
+        };
+    };
+    create_view: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateUserViewDto"];
+            };
+        };
+        responses: {
+            /** @description Created view */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ViewItemResponse"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_view: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Saved view UUID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Saved view */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ViewItemResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    delete_view: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Saved view UUID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    update_view: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Saved view UUID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateUserViewDto"];
+            };
+        };
+        responses: {
+            /** @description Updated view */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ViewItemResponse"];
+                };
+            };
+            /** @description Not found */
             404: {
                 headers: {
                     [name: string]: unknown;

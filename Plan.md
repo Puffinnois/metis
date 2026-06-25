@@ -183,6 +183,45 @@ Legend: 🦀 Rust · 🐍 Python · 🖼️ Frontend · 🗄️ SQL/Data · ⚙�
 
 ---
 
+## Phase 9.5 — Verification & data integrity  *(blocking — Phases 10+ do not start until this is green)*
+
+**Context.** All Phase 0–9 tasks are marked `[x]`, but the running app shows no data. That means at least one task's unit tests passed in isolation while the end-to-end pipeline broke somewhere between ingest, load, compute, API, and UI. Before any new features, prove the pipeline works end-to-end and add the structural guards that prevent a recurrence.
+
+- [x] **T092 ⚙️ End-to-end pipeline smoke test.**
+  - Write `scripts/smoke.sh` that, against a clean `data/duckdb/metis.duckdb`, runs the full chain for one recent season and asserts row counts at each stage:
+    1. `python -m ingest.nba_stats box-scores --season 2024` → Parquet files exist under `data/parquet/nba_stats/`, total row count within expected bounds (e.g. ~25k player-game rows ± 0.5%).
+    2. `metis-cli load box-scores --season 2024 --source nba_stats` → DuckDB `player_game_box` row count matches Parquet.
+    3. `metis-cli compute season-rollups --season 2024 --source nba_stats` → `player_season_totals` has expected player count (~500 ± 50).
+    4. `metis-cli compute advanced-stats --season 2024 --source nba_stats` → advanced columns populated for the same rows.
+    5. `curl -s localhost:<api-port>/players?season=2024 | jq 'length'` → non-zero.
+  - Script must `set -euo pipefail`, print `[OK] step N` between stages, and exit non-zero at the first failed assertion.
+  - **Acceptance:** Script runs clean against an empty DB. Wired into CI as a separate job (allowed to take several minutes — it's the integration gate).
+
+- [x] **T093 🐛 Diagnose and fix the empty-app bug.**
+  - Use T092 to identify the broken stage. Likely candidates (investigate in order):
+    1. **Backfill never actually ran on this machine.** T090 shipped code but no data was loaded.
+    2. **Tauri vs CLI use different DB paths.** Tauri opens `~/Library/Application Support/...` or similar while CLI writes to `data/duckdb/metis.duckdb`. Pick one canonical resolution function and use it from both.
+    3. **API ↔ frontend shape drift.** API returns `{ players: [...] }` while frontend reads `data` (or similar). Silent empty array in the UI.
+    4. **Filter default mismatch.** API defaults to a `season_type` value no row has (e.g. `'Regular'` vs `'REGULAR_SEASON'`).
+    5. **CORS / Tauri command serialization** silently dropping the payload.
+  - Fix the root cause. Add a regression test at the right layer (DB path resolver test, contract test, etc. — not "another smoke test").
+  - **Acceptance:** T092 passes. App opened locally shows real data on the player index page. PR description names the root cause in one sentence.
+
+- [x] **T094 🦀🖼️ API ↔ frontend contract enforcement.**
+  - The API already emits an OpenAPI spec (T060). Generate TS types from it on every frontend build (`pnpm run build` should regenerate `frontend/src/lib/openapi.d.ts` from `docs/openapi.json`).
+  - Make `frontend/src/lib/api.ts` import *only* from the generated types. Hand-written response shapes are forbidden in the API client layer.
+  - CI fails if the generated file is out of date relative to the spec (commit the generated file; CI re-runs codegen and diffs).
+  - **Acceptance:** Renaming a field in a Rust handler causes a frontend type error in CI, not a silent runtime empty-state.
+
+- [x] **T095 ⚙️ Update CLAUDE.md "Critical rules" with end-to-end verification rule.**
+  - Add rule 13: *A task is not done until it has been verified end-to-end against the running app, not just by its own unit tests. PRs touching user-visible behavior must include a "Verified by:" line describing the manual or scripted check performed. Marking `[x]` in Plan.md without this is forbidden.*
+  - Update `decisions.md` with an ADR (next sequential number) recording the policy and the incident that motivated it.
+  - **Acceptance:** Rule lands in CLAUDE.md; ADR lands in decisions.md; both reference each other.
+
+**Phase exit criteria:** all four tasks `[x]`, smoke script passing in CI, app shows real data in every v1 view (player index, player detail, team index, team detail, saved views).
+
+---
+
 ## Future phases  *(scoped when reached, not before)*
 
 - **Phase 10 — Comparison UI** (player vs player, team vs team).

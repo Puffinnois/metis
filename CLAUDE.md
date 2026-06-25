@@ -71,6 +71,7 @@ metis/
 10. **Tests required for:** every stat formula in `metis-compute`, every repository in `metis-db`, every ingestion adapter's parser (with a checked-in fixture). UI/integration tests not required in v1.
 11. **Never commit anything in `data/`.** Even small files. It's gitignored — keep it that way.
 12. **If you discover a decision needs to be made that isn't in decisions.md, stop and ask the supervisor.** Do not invent architecture.
+13. **A task is not done until it has been verified end-to-end against the running app, not just by its own unit tests.** PRs touching user-visible behavior must include a "Verified by:" line in the PR description describing the manual or scripted check performed (e.g., `scripts/smoke.sh` output, Tauri app screenshot, or `curl` result). Marking `[x]` in Plan.md without this is forbidden. See ADR 015 in `decisions.md`.
 
 ---
 
