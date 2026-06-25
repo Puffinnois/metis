@@ -165,7 +165,7 @@ Legend: 🦀 Rust · 🐍 Python · 🖼️ Frontend · 🗄️ SQL/Data · ⚙�
   - **Acceptance:** `cargo test -p metis-db` passes; Tauri command and HTTP endpoint both support per-player filtering.
 
 - [x] **T073 🖼️ Player detail page: career + season splits + filterable game log.**
-- [ ] **T074 🖼️ Team index + detail pages (mirroring player UX).**
+- [x] **T074 🖼️ Team index + detail pages (mirroring player UX).**
 
 ---
 
