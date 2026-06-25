@@ -153,10 +153,16 @@ Legend: 🦀 Rust · 🐍 Python · 🖼️ Frontend · 🗄️ SQL/Data · ⚙�
   - Tailwind theme, shadcn-svelte primitives installed.
   - **Acceptance:** Empty pages render with shared layout.
 
-- [ ] **T072 🖼️ Player index page: table with all v1 filters + sort + virtualization.**
+- [x] **T072 🖼️ Player index page: table with all v1 filters + sort + virtualization.**
   - TanStack Table headless mode. Virtual scroll. Debounced filters (150ms).
   - Column groups: Traditional / Advanced / Shooting / Lineup.
   - **Acceptance:** Scrolls smoothly on full historical DB; switching column groups is instant (no refetch if data already loaded).
+
+- [x] **T073a 🦀 Player detail backend: per-player stats filter + game log query.**
+  - Add `player_id: Option<String>` to `PlayerStatsFilter` and update the SQL query.
+  - Add `find_by_player` to `PlayerGameBoxRepo` (query + repo method).
+  - Expose both via a new `get_player_game_log` Tauri command and update the `/players/stats` HTTP handler.
+  - **Acceptance:** `cargo test -p metis-db` passes; Tauri command and HTTP endpoint both support per-player filtering.
 
 - [ ] **T073 🖼️ Player detail page: career + season splits + filterable game log.**
 - [ ] **T074 🖼️ Team index + detail pages (mirroring player UX).**

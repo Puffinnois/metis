@@ -6,8 +6,11 @@ use crate::error::{DbError, Result};
 use crate::repos::{
     advanced_stats::AdvancedStatsRepo, game::GameRepo, lineup_stint::LineupStintRepo,
     player::PlayerRepo, player_game_box::PlayerGameBoxRepo,
-    player_lineup_stats::PlayerLineupStatsRepo, possession::PossessionRepo, season::SeasonRepo,
-    season_rollup::SeasonRollupRepo, team::TeamRepo, team_game_box::TeamGameBoxRepo,
+    player_game_log::PlayerGameLogRepo, player_game_splits::PlayerGameSplitsRepo,
+    player_lineup_stats::PlayerLineupStatsRepo, player_stats::PlayerStatsRepo,
+    player_team_season_rollup::PlayerTeamSeasonRollupRepo, possession::PossessionRepo,
+    reconcile::ReconcileRepo, season::SeasonRepo, season_rollup::SeasonRollupRepo, team::TeamRepo,
+    team_game_box::TeamGameBoxRepo,
 };
 
 /// Handle to an open Metis DuckDB database.
@@ -98,6 +101,12 @@ impl Db {
         PlayerGameBoxRepo::new(&self.conn)
     }
 
+    /// Returns a handle to the player game log repository (box scores enriched
+    /// with game context: date, opponent, score).
+    pub fn player_game_log(&self) -> PlayerGameLogRepo<'_> {
+        PlayerGameLogRepo::new(&self.conn)
+    }
+
     /// Returns a handle to the team box score fact repository.
     pub fn team_game_boxes(&self) -> TeamGameBoxRepo<'_> {
         TeamGameBoxRepo::new(&self.conn)
@@ -128,12 +137,41 @@ impl Db {
         PlayerLineupStatsRepo::new(&self.conn)
     }
 
+    /// Returns a handle to the player game splits compute-output repository.
+    ///
+    /// Provides access to `player_game_splits` rows (clutch, by-quarter, garbage time).
+    pub fn player_game_splits(&self) -> PlayerGameSplitsRepo<'_> {
+        PlayerGameSplitsRepo::new(&self.conn)
+    }
+
     /// Returns a handle to the advanced stats compute-output repository.
     ///
     /// Provides access to `player_season_advanced`, `player_season_per_36`, and
     /// `player_season_per_100`.
     pub fn advanced_stats(&self) -> AdvancedStatsRepo<'_> {
         AdvancedStatsRepo::new(&self.conn)
+    }
+
+    /// Returns a handle to the filtered/sorted/paginated player stats query
+    /// repository (T061).
+    pub fn player_stats(&self) -> PlayerStatsRepo<'_> {
+        PlayerStatsRepo::new(&self.conn)
+    }
+
+    /// Returns a handle to the `player_team_season_totals` rollup repository (T062).
+    ///
+    /// Use this to compute and query materialized team-season totals that power
+    /// the team-filtered fast path in [`Db::player_stats`].
+    pub fn player_team_season_rollups(&self) -> PlayerTeamSeasonRollupRepo<'_> {
+        PlayerTeamSeasonRollupRepo::new(&self.conn)
+    }
+
+    /// Returns a handle to the reconciliation repository.
+    ///
+    /// Provides read/write access to `player_season_canonical` and
+    /// `stat_disagreement`.
+    pub fn reconcile(&self) -> ReconcileRepo<'_> {
+        ReconcileRepo::new(&self.conn)
     }
 
     #[cfg(test)]
