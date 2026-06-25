@@ -8,6 +8,7 @@ export type PlayerDto = components["schemas"]["PlayerDto"];
 export type TeamDto = components["schemas"]["TeamDto"];
 export type SeasonDto = components["schemas"]["SeasonDto"];
 export type GameDto = components["schemas"]["GameDto"];
+export type PlayerStatsRowDto = components["schemas"]["PlayerStatsRowDto"];
 
 export interface ListResponse<T> {
   data: T[];
@@ -91,6 +92,106 @@ export async function listSeasons(league_id?: string): Promise<ListResponse<Seas
     return { data: rows, total: rows.length, coverage: "full" };
   } catch {
     return httpGet<ListResponse<SeasonDto>>("/seasons", { league_id });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Player stats
+// ---------------------------------------------------------------------------
+
+export interface PlayerStatsParams {
+  season_id?: string;
+  season_type?: string;
+  player_id?: string;
+  team_id?: string;
+  home_away?: string;
+  win_loss?: string;
+  display_mode?: string;
+  sort_by?: string;
+  sort_dir?: string;
+  page?: number;
+  page_size?: number;
+}
+
+export interface PlayerStatsPage {
+  rows: PlayerStatsRowDto[];
+  total: number;
+  page: number;
+  page_size: number;
+  coverage: CoverageLabel;
+}
+
+export async function listPlayerStats(params?: PlayerStatsParams): Promise<PlayerStatsPage> {
+  try {
+    return await tauriInvoke<PlayerStatsPage>("get_player_stats", { params: params ?? {} });
+  } catch {
+    return httpGet<PlayerStatsPage>("/players/stats", {
+      season_id: params?.season_id,
+      season_type: params?.season_type,
+      player_id: params?.player_id,
+      team_id: params?.team_id,
+      home_away: params?.home_away,
+      win_loss: params?.win_loss,
+      display_mode: params?.display_mode,
+      sort_by: params?.sort_by,
+      sort_dir: params?.sort_dir,
+      page: params?.page?.toString(),
+      page_size: params?.page_size?.toString(),
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Player game log
+// ---------------------------------------------------------------------------
+
+export interface PlayerGameLogRow {
+  game_id: string;
+  game_date: string;
+  season_id: string;
+  season_type: string;
+  home_team_id: string;
+  away_team_id: string;
+  home_score: number | null;
+  away_score: number | null;
+  player_id: string;
+  team_id: string;
+  source: string;
+  starter: boolean | null;
+  minutes_played: number | null;
+  points: number | null;
+  rebounds_offensive: number | null;
+  rebounds_defensive: number | null;
+  rebounds_total: number | null;
+  assists: number | null;
+  steals: number | null;
+  blocks: number | null;
+  turnovers: number | null;
+  personal_fouls: number | null;
+  field_goals_made: number | null;
+  field_goals_attempted: number | null;
+  three_pointers_made: number | null;
+  three_pointers_attempted: number | null;
+  free_throws_made: number | null;
+  free_throws_attempted: number | null;
+  plus_minus: number | null;
+}
+
+export interface GameLogParams {
+  player_id: string;
+  season_id?: string;
+  season_type?: string;
+  source?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export async function getPlayerGameLog(params: GameLogParams): Promise<PlayerGameLogRow[]> {
+  try {
+    return await tauriInvoke<PlayerGameLogRow[]>("get_player_game_log", { params });
+  } catch {
+    // HTTP fallback not yet implemented for game log endpoint
+    return [];
   }
 }
 

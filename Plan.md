@@ -164,7 +164,7 @@ Legend: 🦀 Rust · 🐍 Python · 🖼️ Frontend · 🗄️ SQL/Data · ⚙�
   - Expose both via a new `get_player_game_log` Tauri command and update the `/players/stats` HTTP handler.
   - **Acceptance:** `cargo test -p metis-db` passes; Tauri command and HTTP endpoint both support per-player filtering.
 
-- [ ] **T073 🖼️ Player detail page: career + season splits + filterable game log.**
+- [x] **T073 🖼️ Player detail page: career + season splits + filterable game log.**
 - [ ] **T074 🖼️ Team index + detail pages (mirroring player UX).**
 
 ---
