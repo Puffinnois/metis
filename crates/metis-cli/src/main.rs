@@ -292,6 +292,11 @@ fn cmd_load_box_scores(db: &Db, data_root: &Path, season: u32, source: &str) -> 
         .to_str()
         .context("team glob path is not valid UTF-8")?;
 
+    // Upsert dimension rows first so FK constraints are satisfied.
+    db.upsert_box_score_dimensions(player_glob_str, team_glob_str)
+        .context("failed to upsert dimension rows from box-score Parquet")?;
+    println!("Upserted dimension rows (season, team, player, game) for {source} season={season}.");
+
     let player_count = db
         .player_game_boxes()
         .load_from_parquet(player_glob_str)

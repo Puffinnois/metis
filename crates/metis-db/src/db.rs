@@ -182,6 +182,23 @@ impl Db {
         UserViewRepo::new(&self.conn)
     }
 
+    /// Upsert dimension rows (season, team, player, game) from box-score Parquet
+    /// before loading fact rows.
+    ///
+    /// Call this before [`Self::player_game_boxes`]`().load_from_parquet()` and
+    /// [`Self::team_game_boxes`]`().load_from_parquet()` to satisfy FK constraints.
+    pub fn upsert_box_score_dimensions(
+        &self,
+        player_glob: &str,
+        team_glob: &str,
+    ) -> Result<()> {
+        crate::queries::dimension_upsert::upsert_from_box_score_parquet(
+            &self.conn,
+            player_glob,
+            team_glob,
+        )
+    }
+
     #[cfg(test)]
     pub(crate) fn raw_conn(&self) -> &Connection {
         &self.conn

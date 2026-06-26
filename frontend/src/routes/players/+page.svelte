@@ -125,7 +125,7 @@
     createTable<PlayerStatsRowDto>({
       data: rows,
       columns: colDefs[activeGroup],
-      state: { sorting },
+      state: { sorting, columnPinning: {} },
       // State is managed externally via `sorting` $state; onStateChange is a no-op.
       onStateChange: () => {},
       onSortingChange: (updater) => {

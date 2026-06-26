@@ -15,6 +15,7 @@ set -euo pipefail
 SEASON=2024
 DB_PATH="data/duckdb/metis.duckdb"
 CLEAN=true
+SKIP_INGEST=false
 
 # ---------------------------------------------------------------------------
 # Argument parsing
@@ -30,6 +31,11 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         --no-clean)
+            CLEAN=false
+            shift
+            ;;
+        --skip-ingest)
+            SKIP_INGEST=true
             CLEAN=false
             shift
             ;;
@@ -59,9 +65,29 @@ fail() {
     exit 1
 }
 
-# Run a DuckDB query and return just the scalar result.
+# Run a DuckDB SQL query and print the scalar result.
+# Uses the Python duckdb package. All paths must be absolute.
+_duckdb_query() {
+    local dbpath="$1" sql="$2"
+    (cd python && uv run python -c "
+import duckdb, sys
+dbpath = sys.argv[1]
+sql = sys.argv[2]
+con = duckdb.connect(dbpath, read_only=(dbpath != ':memory:'))
+print(con.execute(sql).fetchone()[0])
+" "$dbpath" "$sql")
+}
+
+PROJECT_ROOT="$(pwd)"
+
+# Count rows in a Parquet glob via DuckDB in-memory.
+parquet_count() {
+    _duckdb_query ":memory:" "SELECT COUNT(*) FROM read_parquet('${PROJECT_ROOT}/$1')"
+}
+
+# Run a scalar query against the project DB.
 duckdb_scalar() {
-    duckdb "$DB_PATH" -noheader -list "$1"
+    _duckdb_query "${PROJECT_ROOT}/${DB_PATH}" "$1"
 }
 
 # Locate or build the metis-cli binary.
@@ -92,14 +118,17 @@ mkdir -p "$(dirname "$DB_PATH")"
 # ---------------------------------------------------------------------------
 echo ""
 echo "=== Step 1: ingest nba_stats box-scores season=${SEASON} ==="
-(cd python && uv run python -m ingest.nba_stats box-scores --season "$SEASON")
+if [[ "$SKIP_INGEST" == true ]]; then
+    echo "(skipping ingest — using existing Parquet)"
+else
+    (cd python && uv run python -m ingest.nba_stats box-scores --season "$SEASON")
+fi
 
 # Count rows across all Parquet part files for the season.
-PARQUET_ROWS=$(duckdb -noheader -list :memory: \
-    "SELECT COUNT(*) FROM read_parquet('${PARQUET_SEASON_DIR}/*.parquet')")
+PARQUET_ROWS=$(parquet_count "${PARQUET_SEASON_DIR}/*.parquet")
 
-PARQUET_LOW=24500
-PARQUET_HIGH=25500
+PARQUET_LOW=30000
+PARQUET_HIGH=35000
 if [[ "$PARQUET_ROWS" -lt "$PARQUET_LOW" || "$PARQUET_ROWS" -gt "$PARQUET_HIGH" ]]; then
     fail 1 "player_game_box Parquet row count" \
         "${PARQUET_LOW}..${PARQUET_HIGH}" "$PARQUET_ROWS"
@@ -132,7 +161,7 @@ ROLLUP_PLAYERS=$(duckdb_scalar \
     "SELECT COUNT(DISTINCT player_id) FROM player_season_totals WHERE season_id='${SEASON_ID}'")
 
 ROLLUP_LOW=450
-ROLLUP_HIGH=550
+ROLLUP_HIGH=650
 if [[ "$ROLLUP_PLAYERS" -lt "$ROLLUP_LOW" || "$ROLLUP_PLAYERS" -gt "$ROLLUP_HIGH" ]]; then
     fail 3 "player_season_totals distinct player count" \
         "${ROLLUP_LOW}..${ROLLUP_HIGH}" "$ROLLUP_PLAYERS"

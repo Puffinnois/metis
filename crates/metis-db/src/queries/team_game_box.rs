@@ -244,6 +244,7 @@ pub(crate) fn load_from_parquet(conn: &Connection, glob_path: &str) -> Result<u6
             CAST(fetched_at AS TIMESTAMP),
             CAST(source_payload AS JSON)
         FROM read_parquet('{safe}')
+        WHERE opponent_team_id NOT LIKE '%None%'
         ON CONFLICT (game_id, team_id, source) DO UPDATE SET
             opponent_team_id         = excluded.opponent_team_id,
             season_id                = excluded.season_id,

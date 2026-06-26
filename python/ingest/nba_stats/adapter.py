@@ -198,9 +198,7 @@ class NbaStatsAdapter:
             extra_headers=_NBA_HEADERS,
         )
 
-    def _get(
-        self, endpoint: str, params: dict[str, Any]
-    ) -> tuple[dict[str, Any], datetime, str]:
+    def _get(self, endpoint: str, params: dict[str, Any]) -> tuple[dict[str, Any], datetime, str]:
         """GET a stats.nba.com endpoint; return (json_body, fetched_at, url)."""
         url = f"{_BASE_URL}/{endpoint}?{urlencode(params)}"
         fetched_at = datetime.now(UTC)
@@ -246,9 +244,7 @@ class NbaStatsAdapter:
 
         return list(games.values())
 
-    def _fetch_box_score(
-        self, raw_game_id: str
-    ) -> tuple[dict[str, Any], datetime, str]:
+    def _fetch_box_score(self, raw_game_id: str) -> tuple[dict[str, Any], datetime, str]:
         """Fetch BoxScoreTraditionalV2 for one game."""
         return self._get(
             "boxscoretraditionalv2",
@@ -301,10 +297,17 @@ class NbaStatsAdapter:
             elif entity == "team_game_box":
                 home_abbr: str | None = meta["home_team_abbr"]
                 away_abbr: str | None = meta["away_team_abbr"]
-                for row in resultset_to_dicts(result_sets["TeamStats"]):
-                    abbr: str = row["TEAM_ABBREVIATION"]
+                team_rows = resultset_to_dicts(result_sets["TeamStats"])
+                # Derive home/away from abbreviations; fall back to the
+                # other team's abbreviation when home_abbr/away_abbr is None.
+                abbrs = [r["TEAM_ABBREVIATION"] for r in team_rows]
+                for row in team_rows:
+                    abbr = row["TEAM_ABBREVIATION"]
                     is_home = abbr == home_abbr
-                    opp_abbr = away_abbr if is_home else home_abbr
+                    opp_abbr: str | None = away_abbr if is_home else home_abbr
+                    if opp_abbr is None:
+                        # Unknown home/away: pick the other team's abbreviation
+                        opp_abbr = next((a for a in abbrs if a != abbr), abbr)
                     records.append(
                         {
                             "_type": "team",
@@ -348,23 +351,17 @@ class NbaStatsAdapter:
 
     def write(self, records: list[NormalizedRecord], season: int) -> Path:
         """Write player_game_box records to Parquet (Adapter protocol)."""
-        return write_parquet(
-            records, source=SOURCE, entity="player_game_box", season=season
-        )
+        return write_parquet(records, source=SOURCE, entity="player_game_box", season=season)
 
     def write_team(self, records: list[NormalizedRecord], season: int) -> Path:
         """Write team_game_box records to Parquet."""
-        return write_parquet(
-            records, source=SOURCE, entity="team_game_box", season=season
-        )
+        return write_parquet(records, source=SOURCE, entity="team_game_box", season=season)
 
     # ------------------------------------------------------------------
     # Orchestrated season pipeline
     # ------------------------------------------------------------------
 
-    def run_season(
-        self, season: int, *, verbose: bool = False
-    ) -> tuple[Path, Path]:
+    def run_season(self, season: int, *, verbose: bool = False) -> tuple[Path, Path]:
         """Fetch all regular-season box scores and write two Parquet files.
 
         Returns:
@@ -423,10 +420,7 @@ class NbaStatsAdapter:
                 )
 
         if verbose:
-            print(
-                f"Writing {len(player_records)} player rows, "
-                f"{len(team_records)} team rows..."
-            )
+            print(f"Writing {len(player_records)} player rows, {len(team_records)} team rows...")
 
         player_path = write_parquet(
             player_records, source=SOURCE, entity="player_game_box", season=season
