@@ -8,8 +8,6 @@ Free, keyless Parquet files on GitHub releases, updated daily during the season.
 
 **Licence:** the repository's licence file is MIT and its README carries a CC BY 4.0 badge. Neither speaks for the upstream data from ESPN or the NBA. Metis downloads to the user's machine and redistributes nothing, but read the terms and add the credit before a public release (Plan T1101).
 
-**Not yet checked:** agreement between the sources in any season but 2025-26 (Plan T409).
-
 Which seasons really hold values, table by table and column by column, is in [nba-coverage.md](nba-coverage.md).
 
 ## Size
@@ -127,20 +125,23 @@ Measured on the full load (Plan T406). A file is skipped only when proven to rep
 
 ## Do the numbers agree?
 
-| Check                                                     | Result                                                           |
-| --------------------------------------------------------- | ---------------------------------------------------------------- |
-| NBA: players sum to the team (points, rebounds, assists)  | 2,644 of 2,644 team-games, all three                             |
-| ESPN: players sum to the team (points, rebounds, assists) | 2,645 / 2,636 / 2,648 of 2,652 (includes All-Star rows)          |
-| ESPN vs NBA, same team and date: points                   | 2,644 of 2,644                                                   |
-| ESPN vs NBA: rebounds, assists, field-goal attempts       | 2,643, 2,636, 2,643 of 2,644                                     |
-| ESPN vs NBA: turnovers                                    | 1,259 of 2,644: compared `total_turnovers`; definitions differ\* |
-| ESPN vs NBA, player-game points and assists               | 28,541 of 28,541 joined (of 28,713 NBA rows)                     |
-| Season table vs summed box score                          | Top 5 scorers: games and points identical                        |
-| Possessions vs box score, team points                     | 2,327 of 2,644 exact; 228 off by 1, one game off by 31           |
+Measured season by season on the full load: the tables are in [nba-agreement.md](nba-agreement.md), written by `scripts/check-agreement.mjs`. In short, over finished seasons:
 
-\* Not investigated yet. ESPN has `turnovers`, `team_turnovers` and `total_turnovers`: compare each.
+| Check                                                             | Result                                                                                                                                                      |
+| ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Regular-season games against the real season lengths              | Every season from 1993-94 matches, including the short ones and the game cancelled in 2013                                                                  |
+| Teams in each season                                              | 27, 29 and 30 in the right seasons                                                                                                                          |
+| NBA: players sum to the team                                      | 99.9–100 % of team-games on points, 100 % on rebounds and assists                                                                                           |
+| ESPN: players sum to the team                                     | 98.6–100 % on points, 98.7–100 % on assists                                                                                                                 |
+| ESPN against the NBA: points, assists, FGM, 3PM, FTA              | 99.7–100 %                                                                                                                                                  |
+| ESPN against the NBA: field-goal attempts                         | 98.8–100 %                                                                                                                                                  |
+| ESPN's players summed against the NBA's team: rebounds, turnovers | 98.6–100 %, 98.9–100 %                                                                                                                                      |
+| Player lines on an NBA id                                         | All but one from 1996-97; 81 %, 89 % and 95 % in the three seasons before, whose other players retired before the NBA's data starts                         |
+| Player lines in both sources                                      | All found; points 100 %, rebounds and assists 99.9–100 %                                                                                                    |
+| Published season totals against summed box scores                 | Games 98.5–100 %, points 97.7–100 %, rebounds 98–100 %, assists 98.2–100 %                                                                                  |
+| Possessions against the box score, team points                    | 1996-97 to 2016-17: 53 % exact, 59 % within 1, 96 % within 5. From 2017-18: 88 % exact, 95 % within 1, 99.9 % within 5. The worst single game is off by 113 |
 
-So the box scores can be trusted, and sources can be cross-checked. **Possessions are a derived table, not an official one** (`lineup_source` is `pbp_fallback` on 99.6 %): use them with a stated tolerance and check them per season.
+So the box scores can be trusted season by season, and the sources cross-check. **Possessions are a derived table, not an official one** (`lineup_source` is `pbp_fallback` on 99.6 % of 2025-26): anything built on them has to state that tolerance.
 
 ## Old seasons
 
@@ -158,13 +159,16 @@ So the box scores can be trusted, and sources can be cross-checked. **Possession
   - NBA schedule: `regular-season` (1,230 games), `playoffs` (85), `play-in` (6), `nba-cup` (1), `all-star` (7), `preseason` (71).
 - **ESPN files All-Star games under regular season** (teams `STARS`, `STRIPES`, `WORLD`): 1,235 "regular" games against the NBA's 1,230. Filter them or league totals are wrong.
 - **The NBA Cup final is not a regular-season game** in the NBA's own count.
-- **Ids differ.** NBA game ids are text with leading zeros (`0022500001`), ESPN's are numeric-looking (`401809234`). `nba_schedule_crosswalk` maps them per season with `match_method` and `match_confidence` (1,415 rows for 2026, 1,392 for 2003, from label 2002). Its match rate is not measured yet. Date and team remain the fallback, and matched on every 2025-26 game above.
-- **The player crosswalk** starts in 2002 and matches on exact names (672 of 673 in 2026), leaving a few rows unjoined. Seasons 1994–2001 need their own identity step; `nba_groups`' `nba_player_aliases` (19,848 rows, with valid-from and valid-to seasons) may help and is not checked.
+- **Ids differ.** NBA game ids are text with leading zeros (`0022500001`), ESPN's are numeric-looking (`401809234`). `nba_schedule_crosswalk` maps them per season from label 2002 (1,415 rows for 2026). With the same teams within a day as a fallback, every regular-season game from 1996-97 links, except 21 that ESPN does not have.
+- **The player crosswalk** starts in 2002 and matches on names, so it misses players spelled differently (Yao Ming is `Ming Yao` at the NBA, Nene is `Nene Hilario`). `nba_player_aliases` comes from the same crosswalk and adds nothing earlier. Matching box-score lines finds them, and the players before 2002: see `player_ids` in [stats-database.md](stats-database.md).
 - **Team codes differ** by source; `nba_team_aliases` (152 rows) lists them over time.
 - **ESPN's 1998-99 lockout season is in two files.** The `_1999` and `_2000` box scores both hold 450 of its games, rightly marked `season` 1999 in each, so read them with `season = file_season`. The schedule files also hold 50 games dated 1999 marked 2000.
 - **ESPN lists postponed games as their own rows** (`status_type_name`: 32 in 2020-21, 4 in 2025-26), and has gaps in old box scores: 1,106 of 1,189 regular-season games in 1995-96.
 - **The NBA's game id prefix is its game type:** `001` preseason, `002` regular season, `003` All-Star, `004` playoffs, `005` play-in, `006` Cup final, on all 42,235 games. Its regular-season counts match the real season lengths. The BOS-IND game cancelled in 2013 is still there, at 0-0.
 - **Lineup `group_id`s do not always match between dashboards:** 76,343 of 277,982 rows in the scoring file are not in the base file. Not investigated yet; player order in the id is the likely cause.
+- **ESPN's team rebounds and turnovers change meaning by era; the sum of its players' lines does not.** `total_rebounds` adds team rebounds until about 2020, and `offensive_rebounds` and `defensive_rebounds` are wrong on most of 2007-08. `turnovers` adds team turnovers from 2001-02 to 2011-12, when `total_turnovers` is just twice it. For team totals, read the NBA's box score, or sum ESPN's players.
+- **The league dashboards hold one row per player per season type,** so a traded player has one row with their whole season: 66 players in 2009-10.
+- **ESPN does not have 21 games from the last two days of 1999-00** (April 18 and 19, 2000), and has no box score for others in old seasons.
 - **`matchup_min` is spelled two ways:** `41:33` in totals and `8.3` in per-game, so the column is text.
 - **`season_type` holds team ids in two tables.** In `nba_stats_coaches` and `nba_stats_rosters` the column holds values such as `1610612755` (read on the 2026 files). Do not read a season type from it.
 - **Minutes differ in type:** text in NBA box scores (with `''` for did not play), a number in ESPN's.
