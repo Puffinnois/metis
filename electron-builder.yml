@@ -1,0 +1,44 @@
+appId: com.yhabie.metis
+productName: Metis
+directories:
+  buildResources: build
+files:
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!tests/*'
+  - '!docs/*'
+  - '!data/*'
+  - '!electron.vite.config.{js,ts,mjs,cjs}'
+  - '!vitest.config.{js,ts,mjs,cjs}'
+  - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md,CLAUDE.md,Plan.md,decisions.md}'
+  - '!{.env,.env.*,.npmrc,pnpm-lock.yaml,.nvmrc,components.json}'
+  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+  # DuckDB ships a musl build beside the glibc one on Linux; the app only loads the glibc one.
+  - '!node_modules/@duckdb/node-bindings-*-musl/**'
+asarUnpack:
+  - resources/**
+  # DuckDB's native binding and library load from disk, not from inside the asar.
+  - node_modules/@duckdb/node-bindings-*/**
+win:
+  executableName: Metis
+  target:
+    - nsis
+nsis:
+  artifactName: ${productName}-Setup-${version}.${ext}
+  shortcutName: ${productName}
+  uninstallDisplayName: ${productName}
+  createDesktopShortcut: always
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+linux:
+  target:
+    - AppImage
+  category: Utility
+appImage:
+  artifactName: ${name}-${version}.${ext}
+npmRebuild: false
+publish:
+  provider: github
+  owner: Puffinnois
+  repo: metis
+  releaseType: draft

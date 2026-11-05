@@ -1,5 +1,12 @@
 # Metis
 
-Metis is a local-first NBA statistics desktop app that ingests data from multiple public sources (stats.nba.com, Basketball-Reference, pbpstats), stores it in an embedded DuckDB + Parquet store, computes traditional and advanced statistics, and serves a Tauri + SvelteKit dashboard for filtering, sorting, and comparing players and teams across any era.
+A local-first NBA statistics desktop app: a very extensive database of player and team stats on your own machine, with a dashboard for filtering, sorting and comparing them.
 
-See [CLAUDE.md](CLAUDE.md) for architecture, tech-stack decisions, and contribution conventions.
+**Status: being rebuilt.** The app shell runs, with no stats yet. The stages are in [Plan.md](Plan.md), the reasoning in [decisions.md](decisions.md). The previous Rust and Tauri implementation is on the [`archive/rust-tauri`](https://github.com/Puffinnois/metis/tree/archive/rust-tauri) branch.
+
+- Stack: Electron, React, TypeScript, DuckDB
+- Data: [sportsdataverse-data](https://github.com/sportsdataverse/sportsdataverse-data), measured in [docs/reference/nba-data-sources.md](docs/reference/nba-data-sources.md)
+- Dev (WSL2, Node 22 through nvm): `npm install && npm run dev`
+- Tests: `npm test`
+- Windows installer, local test build: `npm run build:win`
+- License: Apache-2.0

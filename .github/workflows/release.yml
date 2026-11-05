@@ -1,0 +1,61 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # electron-builder names the release after package.json, not the tag.
+      - name: Check tag matches package.json version
+        shell: bash
+        run: |
+          expected="v$(node -p "require('./package.json').version")"
+          if [ "$GITHUB_REF_NAME" != "$expected" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match package.json version ($expected)" >&2
+            exit 1
+          fi
+
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+
+      # The publish block in electron-builder.yml still makes it write latest.yml and app-update.yml;
+      # the upload itself is done with gh, which is deterministic (electron-builder's own GitHub
+      # publisher raced two publisher instances and exited before the exe finished uploading).
+      - name: Package
+        run: npx electron-builder --win --publish never
+
+      # The packaged app must load DuckDB in its worker (native binding
+      # unpacked from the asar), write, read and round-trip Parquet.
+      - name: Check the stats database in the packaged app
+        shell: bash
+        timeout-minutes: 5
+        run: |
+          ./dist/win-unpacked/Metis.exe --stats-self-test="$RUNNER_TEMP/stats-self-test.json"
+          cat "$RUNNER_TEMP/stats-self-test.json"
+          grep -q '"ok":true' "$RUNNER_TEMP/stats-self-test.json"
+
+      - name: Check release files
+        shell: bash
+        run: ls -l dist/Metis-Setup-*.exe dist/Metis-Setup-*.exe.blockmap dist/latest.yml
+
+      - name: Create draft release
+        shell: bash
+        run: |
+          gh release create "$GITHUB_REF_NAME" --draft --title "$GITHUB_REF_NAME" --generate-notes \
+            dist/Metis-Setup-*.exe dist/Metis-Setup-*.exe.blockmap dist/latest.yml
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
