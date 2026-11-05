@@ -6,47 +6,95 @@ Measured 2026-11-05 against [sportsdataverse-data](https://github.com/sportsdata
 
 Free, keyless Parquet files on GitHub releases, updated daily during the season. It fills the role nflverse fills in the template. It republishes two upstreams, ESPN (`espn_nba_*`) and stats.nba.com (`nba_stats_*`), plus derived tables.
 
+**Licence:** the repository's licence file is MIT and its README carries a CC BY 4.0 badge. Neither speaks for the upstream data from ESPN or the NBA. Metis downloads to the user's machine and redistributes nothing, but read the terms and add the credit before a public release (Plan T1101).
+
 **Not yet checked:**
 
-- The licence and terms of the dataset and its upstreams. Metis downloads to the user's machine and redistributes nothing, but check before a public release.
-- Asset lists for `espn_nba_player_boxscores`, `espn_nba_team_boxscores`, `espn_nba_pbp`, `espn_nba_schedules`, `nba_stats_player_boxscores` and `nba_stats_pbp`: GitHub's anonymous API allowance ran out. The first four do publish Parquet (files read directly). `nba_stats_player_boxscores` publishes at least 2026. `nba_stats_pbp` returned 404 for the one file name tried, so it is unconfirmed.
-- Any season other than 2025-26, 1993-94 and 1996-97.
+- Any season other than 2025-26, 1993-94 and 1996-97, except where stated.
+- Columns of the releases marked "not read" below.
+
+## Size
+
+The whole asset list was read through the GitHub API: 44 NBA releases (WNBA excluded), 3,107 Parquet files, **1,691 MB**. The same data is also published as CSV (9.7 GB) and RDS (1.4 GB), which Metis ignores. The template's whole download was 210 MB and its DuckDB file 350 MB, so its memory settings must be re-checked at this scale (Plan T405).
+
+| Load tier    | Releases                                                                                                          | Files | MB  |
+| ------------ | ----------------------------------------------------------------------------------------------------------------- | ----- | --- |
+| Core         | Schedules, box scores, season tables, rosters, standings, crosswalks, groups, draft, coaches, officials, injuries | 828   | 100 |
+| Published    | League dashboards, tracking, play types, hustle, season matchups, impact, combine, curves, rolling windows        | 2,083 | 394 |
+| Events       | Shots, possessions, lineups, game matchups                                                                        | 139   | 318 |
+| Play by play | Both sources                                                                                                      | 57    | 879 |
+
+The current season (label `2027`) is 124 files and 16.4 MB so far. A finished season, label `2026`, is 84 MB.
+
+## Refreshing
+
+- **GitHub's anonymous API allows 60 calls an hour,** too few to list 44 releases on every machine. File downloads are not counted against it. The app should know the file names and not call the API.
+- **Freshness without the API:** 40 of 44 releases publish `timestamp.json`. `nba_groups`, `nba_stats_game_lineups`, `nba_stats_pbp` and `nba_stats_possessions` do not.
 
 ## Tables
 
-Season ranges are the labels in the file names (see "Traps" for what a label means).
+Seasons are the labels in the file names (see "Traps" for what a label means). A file existing for a season does not prove it holds real values for it (see "Traps").
 
-| Release                         | Seasons   | Parquet MB | Holds                                                             |
-| ------------------------------- | --------- | ---------- | ----------------------------------------------------------------- |
-| `espn_nba_player_boxscores`     | 1994–2027 | ?          | Player-game box score, 57 columns                                 |
-| `espn_nba_team_boxscores`       | 1994–2027 | ?          | Team-game box score, 59 columns (points in the paint, fast break) |
-| `espn_nba_pbp`                  | 2002–2027 | ~22/season | Play by play, 68 columns, coordinates                             |
-| `espn_nba_schedules`            | all       | ?          | Schedule master, 80 columns (venue, attendance, broadcast)        |
-| `espn_nba_shots`                | 2002–2027 | 81         | Shots                                                             |
-| `espn_nba_game_rosters`         | 2002–2027 | 8          | Who dressed                                                       |
-| `nba_stats_player_boxscores`    | 2026+     | ?          | Player-game box score, 37 columns (season range not read)         |
-| `nba_stats_team_boxscores`      | 1997–2027 | 2          | Team-game box score, 29 columns                                   |
-| `nba_stats_player_game_logs`    | 1997–2027 | 2          | **Team** rows despite the name (2,630 rows in 2026), 31 columns   |
-| `nba_stats_schedules`           | 1997–2027 | 1          | Games with their type, 15 columns                                 |
-| `nba_stats_possessions`         | 1997–2027 | 97         | Every possession with the ten players on court, 35 columns        |
-| `nba_stats_game_lineups`        | 1997–2027 | 22         | Five-man units per play                                           |
-| `nba_stats_lineups`             | 2008–2027 | 27         | Lineup tables, 182 columns                                        |
-| `nba_stats_shots`               | 1997–2027 | 106        | Shots, 19 columns                                                 |
-| `nba_stats_player_season_stats` | 1997–2027 | 17         | Player-season, 210 columns, includes `nba_fantasy_pts`, `dd2`     |
-| `nba_stats_team_season_stats`   | 1997–2027 | 3          | Team-season                                                       |
-| `nba_stats_leaguedash`          | 1996–2027 | 306        | League dashboards, 869 files                                      |
-| `nba_player_impact`             | 1997–2027 | 3          | RAPM, SPM, BPM, WAR, DARKO, 28 columns                            |
-| `nba_stats_synergy`             | 2016–2027 | 17         | Play types, 828 files                                             |
-| `nba_stats_hustle`              | 2016–2027 | 2          | Hustle stats                                                      |
-| `nba_stats_matchups`            | 2018–2027 | 35         | Season matchups                                                   |
-| `nba_stats_game_matchups`       | 2018–2027 | 43         | Game matchups                                                     |
-| `nba_stats_injury_report`       | 2019–2027 | 5          | Official injury reports, 376,069 rows in 2026                     |
-| `nba_stats_rosters`             | 1997–2027 | 1          | Bio: height, weight, birth date, school, experience               |
-| `nba_stats_draft_combine`       | 2001–2027 | 2          | Combine                                                           |
-| `nba_crosswalk`                 | 2002–2027 | 2          | ESPN ↔ NBA ids for players and teams, per season                  |
-| Others                          |           | ~14        | Coaches, officials, standings, rolling windows, metric curves     |
+| Release                         | Seasons   | Files | MB    | Holds                                                                                                                           |
+| ------------------------------- | --------- | ----- | ----- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `espn_nba_schedules`            | 1994–2027 | 36    | 9.6   | Schedule master, 80 columns (venue, attendance, broadcast)                                                                      |
+| `espn_nba_player_boxscores`     | 1994–2027 | 34    | 19.1  | Player-game box score, 57 columns                                                                                               |
+| `espn_nba_team_boxscores`       | 1994–2027 | 34    | 4.2   | Team-game box score, 59 columns (points in the paint, fast break)                                                               |
+| `espn_nba_player_core`          | 1994–2027 | 34    | 1.8   | Not read                                                                                                                        |
+| `espn_nba_player_season_stats`  | 1994–2027 | 34    | 3.1   | Not read                                                                                                                        |
+| `espn_nba_team_season_stats`    | 2002–2027 | 26    | 0.7   | Not read                                                                                                                        |
+| `espn_nba_pbp`                  | 2002–2027 | 26    | 419.2 | Play by play, 68 columns, coordinates                                                                                           |
+| `espn_nba_shots`                | 2002–2027 | 26    | 77.7  | Shots                                                                                                                           |
+| `espn_nba_game_rosters`         | 2002–2027 | 26    | 7.5   | Who dressed                                                                                                                     |
+| `espn_nba_standings`            | 2002–2027 | 26    | 0.5   | Not read                                                                                                                        |
+| `espn_nba_officials`            | 2002–2027 | 26    | 0.5   | Not read                                                                                                                        |
+| `espn_nba_draft`                | 2003–2027 | 25    | 0.5   | Not read                                                                                                                        |
+| `espn_nba_rosters`              | 2025–2027 | 3     | 0.2   | Not read                                                                                                                        |
+| `espn_nba_injuries`             | 2027      | 1     | 0.2   | Current only, not read                                                                                                          |
+| `espn_nba_depthcharts`          | 2027      | 1     | 0.1   | Current only, not read                                                                                                          |
+| `nba_stats_schedules`           | 1997–2027 | 31    | 0.7   | Games with their type, 15 columns                                                                                               |
+| `nba_stats_player_boxscores`    | 1997–2027 | 31    | 17.1  | Player-game box score, 37 columns                                                                                               |
+| `nba_stats_team_boxscores`      | 1997–2027 | 31    | 2.0   | Team-game box score, 29 columns                                                                                                 |
+| `nba_stats_player_game_logs`    | 1997–2027 | 31    | 2.2   | **Team** rows despite the name (2,630 rows in 2026), 31 columns                                                                 |
+| `nba_stats_game_rosters`        | 1997–2027 | 31    | 1.3   | Not read                                                                                                                        |
+| `nba_stats_player_season_stats` | 1997–2027 | 31    | 16.4  | Player-season, 210 columns, includes `nba_fantasy_pts`, `dd2`                                                                   |
+| `nba_stats_team_season_stats`   | 1997–2027 | 31    | 2.9   | Team-season                                                                                                                     |
+| `nba_stats_pbp`                 | 1997–2027 | 31    | 460.3 | Play by play, 49 columns, 707,440 rows in 2026, possession number, players on court                                             |
+| `nba_stats_shots`               | 1997–2027 | 31    | 101.0 | Shots, 19 columns                                                                                                               |
+| `nba_stats_possessions`         | 1997–2027 | 31    | 92.5  | Every possession with the ten players on court, 35 columns                                                                      |
+| `nba_stats_game_lineups`        | 1997–2027 | 31    | 21.3  | Five-man units per play                                                                                                         |
+| `nba_stats_lineups`             | 2008–2027 | 20    | 25.8  | Lineup tables, 182 columns                                                                                                      |
+| `nba_stats_leaguedash`          | 1996–2027 | 869   | 292.0 | League dashboards and tracking (below)                                                                                          |
+| `nba_stats_synergy`             | 2016–2027 | 828   | 16.6  | Play types: type, offense or defense, totals or per game, season type                                                           |
+| `nba_stats_hustle`              | 2016–2027 | 92    | 1.9   | Hustle, players and teams, totals or per game, season type                                                                      |
+| `nba_stats_matchups`            | 2018–2027 | 56    | 33.2  | Season pair matchups, and rollups by position                                                                                   |
+| `nba_stats_game_matchups`       | 2018–2027 | 10    | 41.5  | Game matchups, 257,854 rows in 2026                                                                                             |
+| `nba_player_impact`             | 1997–2027 | 31    | 3.0   | RAPM, SPM, BPM, WAR, DARKO, 28 columns (see "Traps")                                                                            |
+| `nba_stats_injury_report`       | 2019–2027 | 9     | 4.3   | Official injury reports, 376,069 rows in 2026                                                                                   |
+| `nba_stats_rosters`             | 1997–2027 | 31    | 0.7   | Bio: height, weight, birth date, school, experience                                                                             |
+| `nba_stats_draft`               | 1997–2027 | 31    | 0.2   | Not read                                                                                                                        |
+| `nba_stats_draft_combine`       | 2001–2027 | 135   | 1.8   | Five combine tables: stats, anthro, drills, spot-up, non-stationary                                                             |
+| `nba_stats_standings`           | 1997–2027 | 31    | 1.1   | Not read                                                                                                                        |
+| `nba_stats_coaches`             | 1997–2027 | 31    | 0.3   | Not read                                                                                                                        |
+| `nba_stats_officials`           | 1997–2027 | 31    | 0.5   | Not read                                                                                                                        |
+| `nba_stats_metric_curves`       | 1997–2027 | 31    | 2.2   | 14 columns, 14,881 rows in 2026. Its `down` and `epa_per_att` columns suggest a schema shared across sports: not understood yet |
+| `nba_stats_rolling_windows`     | 1997–2027 | 31    | 1.5   | 21 columns: a metric over a window against prior, season and career                                                             |
+| `nba_crosswalk`                 | 2002–2027 | 78    | 1.9   | Player, team and **game** ids across ESPN, NBA, Fox and Yahoo, per season                                                       |
+| `nba_groups`                    | 1971–2027 | 63    | 0.4   | Player and team aliases, conference and division by season                                                                      |
 
-The tables with a size add up to about 800 MB. With the unmeasured ones (play by play alone is roughly 500 MB) expect well over 1 GB of downloads; **measure it during the first full load.** The template's whole download was 210 MB and its DuckDB file 350 MB, so its memory settings must be re-checked at this scale.
+### Inside `nba_stats_leaguedash`
+
+| Family                                                                                                                     | Files      | Notes                                                                                                                 |
+| -------------------------------------------------------------------------------------------------------------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------- |
+| `player_stats_{base,advanced,misc,scoring,usage,defense}`                                                                  | 31 each    | 812 rows in 2026, against 581 in the regular-season hustle file: probably both season types, not checked              |
+| `team_stats_{base,advanced,misc,scoring,fourfactors,opponent,defense}`                                                     | 31 each    |                                                                                                                       |
+| `lineups_{base,advanced,misc,scoring,fourfactors,opponent}`                                                                | 20 each    | From label 2008                                                                                                       |
+| `player_tracking_{drives,passing,possessions,rebounding,speeddistance,defense,efficiency,elbowtouch,posttouch,painttouch}` | 14 each    | From label 2014 (2013-14). Players only: no team tracking files                                                       |
+| `player_tracking_{catchshoot,pullupshot}`                                                                                  | 30, 31     | Go back to 1997, before tracking existed. The 1997 pull-up file has 630 rows: whether they hold values is not checked |
+| `player_master`, `team_master`, `lineups_master`                                                                           | 31, 31, 20 | 138 MB. `player_master` has 625 columns and the same rows as its parts, so it looks like a wide join. Not proven      |
+| `player_bio`, `standings`                                                                                                  | 31, 32     |                                                                                                                       |
+
+No files were found for clutch, closest-defender shots, dribble and touch-time shot context, or passing and rebounding breakdowns. That comes from the file names; their columns are not read yet.
 
 ## Do the numbers agree?
 
@@ -81,12 +129,15 @@ So the box scores can be trusted, and sources can be cross-checked. **Possession
   - NBA schedule: `regular-season` (1,230 games), `playoffs` (85), `play-in` (6), `nba-cup` (1), `all-star` (7), `preseason` (71).
 - **ESPN files All-Star games under regular season** (teams `STARS`, `STRIPES`, `WORLD`): 1,235 "regular" games against the NBA's 1,230. Filter them or league totals are wrong.
 - **The NBA Cup final is not a regular-season game** in the NBA's own count.
-- **Ids differ.** NBA game ids are text with leading zeros (`0022500001`), ESPN's are numeric-looking (`401809234`). There is no game crosswalk file: join on date and team.
-- **The player crosswalk** starts in 2002 and matches on exact names (672 of 673 in 2026), leaving a few rows unjoined. Seasons 1994–2001 need their own identity step.
+- **Ids differ.** NBA game ids are text with leading zeros (`0022500001`), ESPN's are numeric-looking (`401809234`). `nba_schedule_crosswalk` maps them per season with `match_method` and `match_confidence` (1,415 rows for 2026, 1,392 for 2003, from label 2002). Its match rate is not measured yet. Date and team remain the fallback, and matched on every 2025-26 game above.
+- **The player crosswalk** starts in 2002 and matches on exact names (672 of 673 in 2026), leaving a few rows unjoined. Seasons 1994–2001 need their own identity step; `nba_groups`' `nba_player_aliases` (19,848 rows, with valid-from and valid-to seasons) may help and is not checked.
+- **Team codes differ** by source; `nba_team_aliases` (152 rows) lists them over time.
 - **Minutes differ in type:** text in NBA box scores (with `''` for did not play), a number in ESPN's.
 - **Positions differ:** NBA `G`, `F`, `C`, `G-F`, `F-C`, `C-F`, `F-G`; ESPN mostly `G`, `F`, `C` with a few `PG`, `PF`, `SF`.
 - **`nba_stats_player_season_stats` is six measure types times two modes per player:** always filter `measure_type` and `per_mode`, or rows multiply.
+- **Some tables have no game grain.** The hustle and play-type files read have no game id: they are season totals, so a date range cannot be answered from them. `nba_stats_game_matchups` does have game ids.
+- **`nba_player_impact` holds the dataset's own calculations,** not the original publishers' values. Its card names `sportsdataverse.nba.nba_rapm`, `nba_bpm` (BPM 2.0), `nba_war` and `nba_darko`. It leaves out play-in games. Its DARKO columns project the next season, and are null until two seasons are available. Label these as SportsDataverse's.
 
 ## stats.nba.com directly
 
-Metis does not call it. It refuses plain clients, and getting past that means imitating a browser. The dataset above covers what is needed.
+Metis does not call it. It refuses plain clients, and getting past that means imitating a browser. The dataset above covers what is needed. The dataset's own pipeline reads it, which is part of why the terms need reading before a release.
