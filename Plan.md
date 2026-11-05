@@ -75,11 +75,11 @@ Measured 2026-11-05. Details are in `docs/reference/nba-data-sources.md`.
 
 ## Stage 3: Clean slate
 
-The owner approved this stage on 2026-11-05. T303 runs last, so its tag includes the rest of the stage.
+Done 2026-11-05, approved by the owner. T303 ran last, so its tag includes the rest of the stage. Gate: no data to load yet; the build, `scripts/drive.mjs` on a clean profile and the self-test passed on the promoted tree.
 
 - [x] **T301 Repository settings (S).** Closed PR 4: its head was `main`, so it had come to carry the restart under its old "Phase 5" title. `main` is the default branch. Checked: GitHub reports `main` as the default, with no open PRs.
 - [x] **T302 Old branches (S).** Tagged under `archive/` every old branch holding commits found nowhere else: `feature/pbpstats-possession-lineup-adapter`, `feature/possession-lineup-migrations`, `feature/season-rollups`, `task/002-pre-commit-ci`, and `preprod-local` for a commit only the local `preprod` held. Deleted the old branches, local and remote, and the old agent worktree that had one checked out (13 GB of Rust build output). Checked: only `main`, `preprod`, `prod` and `archive/rust-tauri` remain. Every old tip is reachable, apart from the two squash-merged ones: their trees are on `main`, and GitHub keeps their commits through PR 5 and PR 6.
-- [ ] **T303 Promote the base (S).** `main` into `preprod` into `prod` (`prod` does not exist on GitHub yet), tag `v0.1-stage3`. Protect the three branches: no force-push, `check` required, for admins too (D25). Check: a test push to `main` is refused, and the tag starts no Release run (D26).
+- [x] **T303 Promote the base (S).** Fast-forwarded `main` into `preprod` into `prod`, which is now on GitHub, and tagged `v0.1-stage3` at `e8570b9`. Protected the three branches: no force-push or deletion, `check` required, for admins too (D25). Checked: a test push to `main` was refused (GH006), and the tag started no Release run (D26). A promotion under protection is first exercised at the end of Stage 4.
 - [x] **T304 Windows check (S).** Pushed a `check/**` branch, since Windows is the real target and had never been built. Checked: run 42116214193 on `273711f` passed the Windows build, all 21 test files and the packaged self-test. It builds the unpacked app; the installer waits for T1103.
 - [x] **T305 Documents (S).** Moved the reference to `docs/reference/nba-statistics.md`, fixed its links, and used they/them where it said he or his. D6 and D13 updated, D20 to D26 added, `CLAUDE.md` brought in line. The Release workflow now ignores stage tags. Checked: `npx prettier --check .`, and every relative link in the changed documents resolves.
 
