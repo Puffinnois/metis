@@ -14,11 +14,11 @@ Short log of decisions and why. Newest last. The previous implementation's log (
 
 **D5. Code is copied when something needs it, not all at once.** The template's screens and query layer are bound to its NFL catalogue; copied now they would be an NFL app under a new name. Each stage brings its files and tests across and rewrites what is football-specific. The copy has no link back and no fantasy-project history.
 
-**D6. Data comes from sportsdataverse-data releases.** Free, keyless, Parquet, updated daily: the nflverse of basketball. Measurements are in `docs/reference/nba-data-sources.md`. Licence terms are not yet checked: do that before a public release.
+**D6. Data comes from sportsdataverse-data releases.** Free, keyless, Parquet, updated daily: the nflverse of basketball. Measurements are in `docs/reference/nba-data-sources.md`. The repository's licence file says MIT and its README shows CC BY 4.0; neither speaks for the upstream data from ESPN or the NBA. Read the terms and add the credit before a public release (Plan T1101).
 
 **D7. No direct calls to stats.nba.com.** It refuses plain clients, and getting past that means imitating a browser (the archived adapter did). If the dataset ever lacks something, raise it with the owner rather than working around the site.
 
-**D8. The extensive-data policy, as in the template:** every table a source publishes, every column as published and typed, zeros kept; rates stored as numerator and denominator; a missing source reads as NULL and never fails a rebuild; computed totals checked against published ones.
+**D8. The extensive-data policy, as in the template:** every table a source publishes, every column as published and typed, zeros kept; rates stored as numerator and denominator; a missing source reads as NULL and never fails a rebuild; computed totals checked against published ones. D23 narrows "every table".
 
 **D9. Every season each table offers,** not a recent window: box scores from 1993-94, play by play from 2001-02. Re-open only if the measured size or build time makes it impractical. Anything before 1993-94 needs another source and is out for now.
 
@@ -28,7 +28,7 @@ Short log of decisions and why. Newest last. The previous implementation's log (
 
 **D12. Season types are one set, mapped from each source:** regular, play-in, playoffs, NBA Cup final, All-Star, preseason. Stats default to the regular season; All-Star and preseason never count toward anything by default.
 
-**D13. NBA ids are the primary keys** (`person_id`, `team_id`, `game_id`) from 1996-97. ESPN ids join through `nba_crosswalk` (players, teams, from 2001-02) and date plus team (games). Identity for the seasons before the crosswalk is a task in Plan.md.
+**D13. NBA ids are the primary keys** (`person_id`, `team_id`, `game_id`) from 1996-97. ESPN ids join through `nba_crosswalk` (players, teams and games, from 2001-02), with date plus team as the fallback for games. Identity for the seasons before the crosswalk is a task in Plan.md.
 
 **D14. Sources are kept side by side, never overwritten.** Which source a metric reads is stated in the catalogue. A disagreement between sources is a measured result to report.
 

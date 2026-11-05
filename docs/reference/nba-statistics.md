@@ -109,7 +109,7 @@ Documented JSON patterns: `https://cdn.nba.com/static/json/liveData/boxscore/box
 
 ### Bulk data and commercial APIs
 
-- **SportsDataverse:** [release repository](https://github.com/sportsdataverse/sportsdataverse-data/releases), [dataset inventory](https://github.com/sportsdataverse/sportsdataverse-data#nba-stats-api). Published assets include Parquet. It mixes upstream data and derived products; a metric name does not establish model authorship. See [this project's earlier audit](docs/reference/nba-data-sources.md).
+- **SportsDataverse:** [release repository](https://github.com/sportsdataverse/sportsdataverse-data/releases), [dataset inventory](https://github.com/sportsdataverse/sportsdataverse-data#nba-stats-api). Published assets include Parquet. It mixes upstream data and derived products; a metric name does not establish model authorship. See [this project's earlier audit](nba-data-sources.md).
 - **Sportradar:** [integration](https://developer.sportradar.com/basketball/docs/nba-ig-api-basics), [statistic inventory](https://developer.sportradar.com/basketball/reference/nba-statistics-summary). Authenticated commercial game, seasonal, split, and related feeds; confirm contracted fields/seasons.
 - **SportsDataIO:** [NBA API](https://sportsdata.io/developers/api-documentation/nba). Authenticated commercial boxes and season data; final-game statistics can receive corrections.
 - **BALLDONTLIE:** [NBA API](https://docs.balldontlie.io/). API-key access with tier-dependent basic/advanced statistics, shots, PBP, and related products. Do not assume every endpoint is free.
@@ -211,7 +211,7 @@ Documented JSON patterns: `https://cdn.nba.com/static/json/liveData/boxscore/box
 - **Symmetric estimated possessions** — `0.5×(simple_estimate_T+simple_estimate_O)`; common game denominator, not exact separate team possessions.
 - **BRef-style estimated possessions** — `0.5×{T_FGA+0.4T_FTA-1.07×[T_ORB/(T_ORB+O_DRB)]×(T_FGA-T_FGM)+T_TOV + O_FGA+0.4O_FTA-1.07×[O_ORB/(O_ORB+T_DRB)]×(O_FGA-O_FGM)+O_TOV}`. A separate approximation with rebound adjustments.
 - **Offensive / defensive possessions** — own/opponent possession counts for the sample. They may differ slightly within a game or stint.
-- **Offensive rating, team/lineup/on-court (`OffRtg`, `OFF_RATING`)** — `100×team points/offensive possessions`. A player's NBA OffRtg measures team scoring while he plays.
+- **Offensive rating, team/lineup/on-court (`OffRtg`, `OFF_RATING`)** — `100×team points/offensive possessions`. A player's NBA OffRtg measures team scoring while that player is on court.
 - **Defensive rating, team/lineup/on-court (`DefRtg`, `DEF_RATING`)** — `100×opponent points/defensive possessions`; lower is better.
 - **Net rating (`NetRtg`, `NET_RATING`)** — `OffRtg-DefRtg`. Different offensive/defensive denominators can make it differ from margin per one common possession count.
 - **Estimated offensive / defensive / net rating (`E_OFF_RATING`, `E_DEF_RATING`, `E_NET_RATING`)** — analogous rates using NBA estimated possessions. Estimated net = estimated offense minus estimated defense. Do not assume the NBA estimate uses the simple formula above.
@@ -413,7 +413,7 @@ Multiple defenders can contest one attempt or multiple players can box out on on
 - **Defended-shot frequency (`FREQ`)** — category defended attempts/all defended attempts in the dashboard sample, times 100.
 - **Defended 2P% / 3P% / distance-category FG%** — the same calculation on the named defended-shot subset. Common defensive dashboard categories include twos, threes, under six feet, under ten feet, and over fifteen feet; these overlap.
 - **Rim defended makes / attempts / FG%** — tracking-attributed at-rim shots and `100rim_makes/rim_attempts`. Game tracking fields include `defendedAtRimFieldGoalsMade`, `...Attempted`, `...Percentage`.
-- **Opponent FGM/FGA/FG%, 3PM/3PA/3P%, FTM/FTA/FT%, OREB/DREB/REB, AST/TOV/STL/BLK/PF/PTS** — the full **Opponent** family of basic stats with the opposing side as subject. Apply standard formulas. On a player dashboard, these can be team results during his court time, not individual matchup concessions.
+- **Opponent FGM/FGA/FG%, 3PM/3PA/3P%, FTM/FTA/FT%, OREB/DREB/REB, AST/TOV/STL/BLK/PF/PTS** — the full **Opponent** family of basic stats with the opposing side as subject. Apply standard formulas. On a player dashboard, these can be team results during the player's court time, not individual matchup concessions.
 
 ### 10.2 Matchup assignment
 
@@ -484,7 +484,7 @@ Foul, free-throw, and and-one categories overlap. Do not sum their percentages a
 - **Five-man lineup counts, shooting, rates, and ratings** — every applicable team statistic restricted to the five-player unit. Standard formulas, using unit exposure.
 - **Two-/three-/four-player combination statistics** — restrict to stints containing all group members, irrespective of remaining teammates. Combinations overlap; summing their minutes overcounts team minutes.
 - **On-court offensive / defensive / net rating** — team rates with the selected player on court.
-- **Off-court offensive / defensive / net rating** — team rates with that player off court. Specify games included: only games he played versus all team games changes the result.
+- **Off-court offensive / defensive / net rating** — team rates with that player off court. Specify games included: only games the player played versus all team games changes the result.
 - **Offensive on-off differential** — `ORtg_on-ORtg_off`; positive indicates better team scoring with the player.
 - **Defensive on-off differential** — `DRtg_on-DRtg_off`; negative indicates fewer points allowed on court. Some sites reverse this sign to make positive mean better defense.
 - **Net on-off differential** — `NetRtg_on-NetRtg_off`. Descriptive, without automatic adjustment for teammate/opponent strength.
@@ -863,7 +863,7 @@ A publicly readable webpage, an open-source wrapper license, and permission to r
 
 ## 21. Mapping to this project's datasets
 
-The existing [NBA data-source audit](docs/reference/nba-data-sources.md) was read for project context. The mappings below use that audit's measured inventory; the Parquet files were **not re-downloaded or re-measured for this document**. Treat this as a retrieval plan, not a new ingestion implementation.
+The existing [NBA data-source audit](nba-data-sources.md) was read for project context. The mappings below use that audit's measured inventory; the Parquet files were **not re-downloaded or re-measured for this document**. Treat this as a retrieval plan, not a new ingestion implementation.
 
 - **Traditional player/team/game statistics:** `espn_nba_player_boxscores`, `espn_nba_team_boxscores`, `nba_stats_player_boxscores`, `nba_stats_team_boxscores`.
 - **Season Base/Advanced/Misc/Scoring/Usage and team summaries:** `nba_stats_player_season_stats`, `nba_stats_team_season_stats`, and `nba_stats_leaguedash`. Inspect actual `measure_type` and `per_mode` before selecting rows; don't assume one player-season row.
@@ -894,7 +894,7 @@ References are attached to the relevant definitions and retrieval families throu
 - **Possession processing:** [PBP Stats documentation](https://pbpstats.readthedocs.io/en/latest/), [public API documentation](https://api.pbpstats.com/docs).
 - **Model authors:** Dunks & Threes, BBall Index, DARKO, Opta, CraftedNBA, Cleaning the Glass, and the original research/archives linked alongside their metrics. These provide model identity and methodology, not universal interchangeable definitions.
 - **Retrieval alternatives:** SportsDataverse, Sportradar, SportsDataIO, and BALLDONTLIE documentation in section 2; verify access, coverage, and terms at integration time.
-- **Project-specific evidence:** [existing measured source audit](docs/reference/nba-data-sources.md), which is distinct from this literature/schema review.
+- **Project-specific evidence:** [existing measured source audit](nba-data-sources.md), which is distinct from this literature/schema review.
 
 **What remains open:** a complete inventory of private vendor metrics; full reproduction of proprietary model parameters; independent verification of every newest NBA component-level column; every historical season's field coverage; live access tests for every listed endpoint; and publisher-specific export/licensing arrangements. These are explicitly outside the verified portion rather than implied to be solved.
 

@@ -8,8 +8,8 @@ The template paths named below are read-only references, in `../fantasy-football
 
 Version 1.0 is done when all of this is true on a clean Windows machine:
 
-1. **The data:** every table and season the dataset publishes is loaded, the current season refreshes daily, and agreement with the source is written down per season.
-2. **The stats:** each of the 443 entries in `nba-statistics-reference.md` (sections 3 to 18) is in the catalogue with its coverage, or listed as unavailable with the reason.
+1. **The data:** every table and season the dataset publishes is loaded, apart from files proven to repeat others (D23); the current season refreshes daily, and agreement with the source is written down per season.
+2. **The stats:** each of the 443 entries in `docs/reference/nba-statistics.md` (sections 3 to 18) is in the catalogue with its coverage, or listed as unavailable with the reason.
 3. **The screens:** Leaderboards, Players, Teams, Explore, Games and Glossary answer from that catalogue, and a gap always says why.
 4. **The release:** an installer with a real icon, signed updates, and credit to the data sources.
 
@@ -48,7 +48,7 @@ Measured 2026-11-05. Details are in `docs/reference/nba-data-sources.md`.
 
 **Order:** 3 → 4 → 5 → 6, then 7 and 8 in either order, then 9 → 10 → 11.
 
-**Every task:** a branch cut from `main`, named by intent; one PR with a "Verified by:" line; squash-merged. Sizes: **S** is a small PR, **M** one full PR, **L** several PRs.
+**Every task:** a branch cut from `main`, named by intent; one PR with a "Verified by:" line; squash-merged once `check` passes. Sizes: **S** is a small PR, **M** one full PR, **L** several PRs.
 
 **Every stage ends with this gate:**
 
@@ -75,13 +75,13 @@ Measured 2026-11-05. Details are in `docs/reference/nba-data-sources.md`.
 
 ## Stage 3: Clean slate
 
-Each step in T301 to T303 changes GitHub, so each waits for the owner's word.
+The owner approved this stage on 2026-11-05. T303 runs last, so its tag includes the rest of the stage.
 
-- [ ] **T301 Repository settings (S).** Close PR 4: its head is `main`, so it now carries the restart under its old "Phase 5" title. Make `main` the default branch (it is still `feature/season-rollups`). Check: the repository page opens on `main`, with no open PRs.
-- [ ] **T302 Old branches (S).** Tag every old branch holding commits found nowhere else as `archive/<name>`: `feature/pbpstats-possession-lineup-adapter`, `feature/possession-lineup-migrations`, `feature/season-rollups`, `task/002-pre-commit-ci` and the local `preprod`. Then delete the old branches, local and remote. Check: only `main`, `preprod`, `prod` and `archive/rust-tauri` remain, and every old tip is still reachable.
-- [ ] **T303 Promote the base (S).** `main` into `preprod` into `prod` (`prod` does not exist on GitHub yet), tag `v0.1-stage3`. Protect the three branches: no force-push, `check` required. Check: a test push to `main` is refused.
-- [ ] **T304 Windows check (S).** Push a `check/**` branch. Windows is the real target and has never been built. Check: the workflow's installer build and self-test pass.
-- [ ] **T305 Documents (S).** Move `nba-statistics-reference.md` to `docs/reference/nba-statistics.md`, fix its links, and use they/them where it says he or his. Update D6 with what the licence files say (the terms still need reading: T1101) and correct D13 (a game crosswalk exists). Add the owner's choices below to `decisions.md`. Check: `npx prettier --check .`, and no broken links.
+- [x] **T301 Repository settings (S).** Closed PR 4: its head was `main`, so it had come to carry the restart under its old "Phase 5" title. `main` is the default branch. Checked: GitHub reports `main` as the default, with no open PRs.
+- [x] **T302 Old branches (S).** Tagged under `archive/` every old branch holding commits found nowhere else: `feature/pbpstats-possession-lineup-adapter`, `feature/possession-lineup-migrations`, `feature/season-rollups`, `task/002-pre-commit-ci`, and `preprod-local` for a commit only the local `preprod` held. Deleted the old branches, local and remote, and the old agent worktree that had one checked out (13 GB of Rust build output). Checked: only `main`, `preprod`, `prod` and `archive/rust-tauri` remain, plus the check branch until T304 ends. Every old tip is reachable, apart from the two squash-merged ones: their trees are on `main`, and GitHub keeps their commits through PR 5 and PR 6.
+- [ ] **T303 Promote the base (S).** `main` into `preprod` into `prod` (`prod` does not exist on GitHub yet), tag `v0.1-stage3`. Protect the three branches: no force-push, `check` required, for admins too (D25). Check: a test push to `main` is refused, and the tag starts no Release run (D26).
+- [ ] **T304 Windows check (S).** Push a `check/**` branch. Windows is the real target and has never been built. Check: the workflow's Windows build, tests and packaged self-test pass. It builds the unpacked app; the installer waits for T1103.
+- [x] **T305 Documents (S).** Moved the reference to `docs/reference/nba-statistics.md`, fixed its links, and used they/them where it said he or his. D6 and D13 updated, D20 to D26 added, `CLAUDE.md` brought in line. The Release workflow now ignores stage tags. Checked: `npx prettier --check .`, and every relative link in the changed documents resolves.
 
 ## Stage 4: Data foundation
 
@@ -93,7 +93,7 @@ Outcome: the app downloads everything, keeps it fresh, survives being quit, and 
 - [ ] **T402 Download and load (M).** Download to temp; one table per source, with every column as published and typed; type widening when a later season changes a column; `season`, season type and team codes normalised. Few downloads at once, retries with backoff, a plain client name. Check: a parser fixture per file shape, then one source of each tier loaded in the real app.
 - [ ] **T403 Sync (L).** Per source and season: old seasons sealed, the prior season weekly, the current one daily; 404 as skipped; one transaction per step; cancellation; the `sync_log`. Freshness from `timestamp.json`, and a conditional request for the four releases without one. Refresh at launch, progress in the nav. Check: quit mid-load, relaunch, it resumes. A second run downloads nothing.
 - [ ] **T404 Load order (S).** Core, then published, events, play by play. Each finished tier can be read while the next loads. Check: a leaderboard-shaped query answers during a play-by-play load, under 500 ms.
-- [ ] **T405 First full load (M).** Everything, once, from nothing. Record per tier: download size, file size, time and peak memory, against the template's 512 MB limit. Stop and raise it with the owner past the limits in choice 3 below. Check: the numbers are in the reference.
+- [ ] **T405 First full load (M).** Everything, once, from nothing. Record per tier: download size, file size, time and peak memory, against the template's 512 MB limit. Stop and raise it with the owner past the limits in D22. Check: the numbers are in the reference.
 - [ ] **T406 Coverage and duplicates (M).** Per family, the first season holding real values, not just rows: a pull-up file exists for 1996-97, years before tracking began. Whether `*_master`, per-game files and `nba_stats_lineups` only repeat other files (choice 4). What `metric_curves` and `rolling_windows` hold. Check: a coverage table in the reference, which later supplies each metric's first season.
 - [ ] **T407 Game types (M).** Map every source to one set (D12), with All-Star and Cup final handled. Check: 1,230 regular-season games in 2025-26 from both sources, and each season's count against its real length, including the short ones (1998-99: 725, 2011-12: 990, 2019-20: 1,059, 2020-21: 1,080).
 - [ ] **T408 Identity (L).** `player`, `team` and `game` tables on NBA ids. ESPN through the player, team and schedule crosswalks, keeping their match confidence. `nba_team_aliases` for team codes (`GS`/`GSW`, `NY`/`NYK`), one franchise across relocations, conference and division by season from `nba_team_group_seasons`. **A method for 1993-94 to 2000-01**, before the crosswalks start, trying `nba_player_aliases` first. 1993-94 to 1995-96 exist only in ESPN, so some players have no NBA id: raise the key to use if the answer is not obvious. Check: match rate per season in the reference.
@@ -212,27 +212,28 @@ How the 443 entries in reference sections 3 to 18 are covered. Some are families
 
 ## Risks
 
-| Risk                                                                   | What would show it                     | Answer                                                                                    |
-| ---------------------------------------------------------------------- | -------------------------------------- | ----------------------------------------------------------------------------------------- |
-| The database is too large or the first load too slow                   | T405's numbers, past choice 3's limits | Load order, duplicates dropped; Parquet kept on disk and read directly                    |
-| 512 MB of DuckDB memory is not enough for play by play                 | T405 fails or spills heavily           | One season at a time, then raise it with the owner                                        |
-| GitHub throttles thousands of downloads from one machine               | Failures during T405                   | Fewer at once, backoff; failed steps retry the next day                                   |
-| One volunteer-run dataset: a pipeline stalls, a column or file changes | "Data through" falls behind in T410    | Last good rows kept; a missing source reads NULL and never fails                          |
-| Rows that are not real data, such as tracking before 2013-14           | T406                                   | First seasons come from the coverage table, not from file names                           |
-| Rights: the upstream data's terms may limit a public release           | T1101                                  | Files are downloaded by each user and nothing is redistributed. Raise it early if unclear |
-| Football left behind in ported code                                    | Review of each port                    | Rule 7 of `CLAUDE.md`; a search for NFL terms in the stage gate                           |
+| Risk                                                                   | What would show it                  | Answer                                                                                    |
+| ---------------------------------------------------------------------- | ----------------------------------- | ----------------------------------------------------------------------------------------- |
+| The database is too large or the first load too slow                   | T405's numbers, past D22's limits   | Load order, duplicates dropped; Parquet kept on disk and read directly                    |
+| 512 MB of DuckDB memory is not enough for play by play                 | T405 fails or spills heavily        | One season at a time, then raise it with the owner                                        |
+| GitHub throttles thousands of downloads from one machine               | Failures during T405                | Fewer at once, backoff; failed steps retry the next day                                   |
+| One volunteer-run dataset: a pipeline stalls, a column or file changes | "Data through" falls behind in T410 | Last good rows kept; a missing source reads NULL and never fails                          |
+| Rows that are not real data, such as tracking before 2013-14           | T406                                | First seasons come from the coverage table, not from file names                           |
+| Rights: the upstream data's terms may limit a public release           | T1101                               | Files are downloaded by each user and nothing is redistributed. Raise it early if unclear |
+| Football left behind in ported code                                    | Review of each port                 | Rule 7 of `CLAUDE.md`; a search for NFL terms in the stage gate                           |
 
-## Choices for the owner
+## Decisions behind this plan
 
-Not yet in `decisions.md`. Each is written as recommended; T305 records the answers.
+The owner accepted these on 2026-11-05. `decisions.md` has them in full.
 
-1. **Stages as slices, as above,** instead of data, then stats, then screens.
-2. **Load in tiers:** core 100 MB, published 394 MB, events 318 MB, play by play 879 MB. Everything still loads by default, so D9 stands, and the app is usable after the first tier.
-3. **Limits that stop the work in T405:** a file over 6 GB, a first load over an hour on the development machine, or more than 4 GB of process memory. Scaling the template gives roughly 2.8 GB for the file, which is an estimate and not a measurement.
-4. **Skip files proven to repeat others:** `*_master` (138 MB) and per-game files, where T406 shows no information is lost. This narrows "every table" in the data policy, so it needs a yes. Totals with denominators are what the policy stores anyway.
-5. **Stats with no free bulk source stay out:** EPM, LEBRON, the NBA's Inside the Game models, Basketball-Reference and paid APIs. They are listed as unavailable with the reason, following D7. Metis does not scrape.
-6. **The repository clean-up in Stage 3:** T301 to T303 change GitHub.
+- **D20:** stages are slices, as above.
+- **D21:** the first load runs in tiers, and the app is usable after the first.
+- **D22:** the limits that stop T405. Scaling the template gives roughly 2.8 GB for the file, which is an estimate and not a measurement.
+- **D23:** a file proven to repeat others is skipped.
+- **D24:** stats with no free bulk source stay out.
+- **D25:** the repository's shape: `main` is the default, old branches are tags, the three long-lived branches are protected.
+- **D26:** a stage tag is not a release.
 
 ## Not in this plan
 
-Fantasy features (D4). Ask and the Claude connection (D16). Seasons before 1993-94 (D9). Other leagues (D15). Calling stats.nba.com (D7). Raw player-tracking coordinates and licensed scouting data.
+Fantasy features (D4). Ask and the Claude connection (D16). Seasons before 1993-94 (D9). Other leagues (D15). Calling stats.nba.com (D7). Stats with no free bulk source (D24). Raw player-tracking coordinates and licensed scouting data.
