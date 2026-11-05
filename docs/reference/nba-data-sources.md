@@ -20,8 +20,8 @@ The whole asset list was read through the GitHub API: 44 NBA releases (WNBA excl
 | Load tier    | Releases                                                                                                          | Files | MB  |
 | ------------ | ----------------------------------------------------------------------------------------------------------------- | ----- | --- |
 | Core         | Schedules, box scores, season tables, rosters, standings, crosswalks, groups, draft, coaches, officials, injuries | 828   | 100 |
-| Published    | League dashboards, tracking, play types, hustle, season matchups, impact, combine, curves, rolling windows        | 2,083 | 394 |
-| Events       | Shots, possessions, lineups, game matchups                                                                        | 139   | 318 |
+| Published    | League dashboards, tracking, play types, hustle, season matchups, impact, combine, curves, rolling windows        | 2,073 | 352 |
+| Events       | Shots, possessions, lineups, game matchups                                                                        | 149   | 360 |
 | Play by play | Both sources                                                                                                      | 57    | 879 |
 
 The current season (label `2027`) is 124 files and 16.4 MB so far. A finished season, label `2026`, is 84 MB.
@@ -29,7 +29,7 @@ The current season (label `2027`) is 124 files and 16.4 MB so far. A finished se
 ## Refreshing
 
 - **GitHub's anonymous API allows 60 calls an hour,** too few to list 44 releases on every machine. File downloads are not counted against it. The app should know the file names and not call the API.
-- **Freshness without the API:** 40 of 44 releases publish `timestamp.json`. `nba_groups`, `nba_stats_game_lineups`, `nba_stats_pbp` and `nba_stats_possessions` do not.
+- **Freshness without the API:** each file's `etag` header. Do not use `timestamp.json`: 40 of 44 releases publish one, but the one in `nba_stats_schedules` said 2026-05-30 when its files had changed on 2026-11-04.
 
 ## Tables
 
@@ -132,6 +132,7 @@ So the box scores can be trusted, and sources can be cross-checked. **Possession
 - **Ids differ.** NBA game ids are text with leading zeros (`0022500001`), ESPN's are numeric-looking (`401809234`). `nba_schedule_crosswalk` maps them per season with `match_method` and `match_confidence` (1,415 rows for 2026, 1,392 for 2003, from label 2002). Its match rate is not measured yet. Date and team remain the fallback, and matched on every 2025-26 game above.
 - **The player crosswalk** starts in 2002 and matches on exact names (672 of 673 in 2026), leaving a few rows unjoined. Seasons 1994–2001 need their own identity step; `nba_groups`' `nba_player_aliases` (19,848 rows, with valid-from and valid-to seasons) may help and is not checked.
 - **Team codes differ** by source; `nba_team_aliases` (152 rows) lists them over time.
+- **`season_type` holds team ids in two tables.** In `nba_stats_coaches` and `nba_stats_rosters` the column holds values such as `1610612755` (read on the 2026 files). Do not read a season type from it.
 - **Minutes differ in type:** text in NBA box scores (with `''` for did not play), a number in ESPN's.
 - **Positions differ:** NBA `G`, `F`, `C`, `G-F`, `F-C`, `C-F`, `F-G`; ESPN mostly `G`, `F`, `C` with a few `PG`, `PF`, `SF`.
 - **`nba_stats_player_season_stats` is six measure types times two modes per player:** always filter `measure_type` and `per_mode`, or rows multiply.

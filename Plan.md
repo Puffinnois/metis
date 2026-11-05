@@ -40,9 +40,9 @@ Measured 2026-11-05. Details are in `docs/reference/nba-data-sources.md`.
 | 4 Data foundation  | Load everything, quit, resume, and read the agreement report  | All 1,691 MB    | `v0.2-stage4`  |
 | 5 First usable app | Rank anyone on any box-score stat, 1993-94 to now             | Core in use     | `v0.3-stage5`  |
 | 6 Dashboards       | Open a player, a team or a game                               | Core in use     | `v0.4-stage6`  |
-| 7 Published depth  | See tracking, hustle, play types, matchups, impact, combine   | 394 MB in use   | `v0.5-stage7`  |
+| 7 Published depth  | See tracking, hustle, play types, matchups, impact, combine   | 352 MB in use   | `v0.5-stage7`  |
 | 8 Explore          | Chart any stat against another, compare, follow a career      |                 | `v0.6-stage8`  |
-| 9 Play level       | Split by clutch or quarter, read shot charts, on/off, lineups | 1,198 MB in use | `v0.7-stage9`  |
+| 9 Play level       | Split by clutch or quarter, read shot charts, on/off, lineups | 1,239 MB in use | `v0.7-stage9`  |
 | 10 Ratings         | See Elo, SRS, playoff odds, PER, Win Shares, stability        |                 | `v0.8-stage10` |
 | 11 Ship            | Install it on any Windows machine                             |                 | `v1.0-stage11` |
 
@@ -89,7 +89,7 @@ Template: `src/main/stats/{sources,download,load,sync,identity}.ts`, `docs/refer
 
 Outcome: the app downloads everything, keeps it fresh, survives being quit, and reports how far the numbers agree.
 
-- [ ] **T401 Source registry (M).** Every release, its file-name pattern, seasons, grain and load tier. `scripts/inventory-sources.mjs` rebuilds the list from the GitHub API at development time; the app itself never calls that API. Check: a test compares the registry with a checked-in inventory, and a real run reports no differences.
+- [x] **T401 Source registry (M).** Every release, its file-name pattern, seasons, grain and load tier. `scripts/inventory-sources.mjs` rebuilds the list from the GitHub API at development time; the app itself never calls that API. Checked: a test compares the registry with `tests/fixtures/nba-inventory.tsv`, and a real run of the script listed 3,107 files in 44 releases, all of them in the registry.
 - [ ] **T402 Download and load (M).** Download to temp; one table per source, with every column as published and typed; type widening when a later season changes a column; `season`, season type and team codes normalised. Few downloads at once, retries with backoff, a plain client name. Check: a parser fixture per file shape, then one source of each tier loaded in the real app.
 - [ ] **T403 Sync (L).** Per source and season: old seasons sealed, the prior season weekly, the current one daily; 404 as skipped; one transaction per step; cancellation; the `sync_log`. Freshness from `timestamp.json`, and a conditional request for the four releases without one. Refresh at launch, progress in the nav. Check: quit mid-load, relaunch, it resumes. A second run downloads nothing.
 - [ ] **T404 Load order (S).** Core, then published, events, play by play. Each finished tier can be read while the next loads. Check: a leaderboard-shaped query answers during a play-by-play load, under 500 ms.
