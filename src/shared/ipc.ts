@@ -46,6 +46,8 @@ export interface Api {
   stats: {
     /** What the database holds, for the nav's status line. */
     status(): Promise<StatsStatus>
+    /** Fires as a refresh progresses and when it ends; returns the unsubscribe function. */
+    onChanged(listener: () => void): () => void
   }
 }
 
@@ -69,5 +71,6 @@ export const IPC = {
   devNotesOpenFolder: 'dev:notesOpenFolder',
   devNotesChooseFolder: 'dev:notesChooseFolder',
   devNotesCopy: 'dev:notesCopy',
-  statsStatus: 'stats:status'
+  statsStatus: 'stats:status',
+  statsChanged: 'stats:changed'
 } as const

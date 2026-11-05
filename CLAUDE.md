@@ -41,6 +41,7 @@ src/renderer/src/  React: screens/stats, components/stats, lib/stats
 src/shared/        Types and IPC, shared by both sides
 tests/             Mirrors src/
 scripts/drive.mjs  Runs the built app and follows steps; how UI work is verified
+scripts/load-report.mjs  Runs a real load and measures it; how data work is verified
 docs/reference/    What the app does and what was measured
 ```
 
@@ -52,7 +53,7 @@ User data: `~/.config/Metis/` in development, `%APPDATA%\Metis\` packaged. `stat
 
 The point of the app is depth. From the template:
 
-1. **Every table a source publishes, every column as published and typed, zeros kept.** Only standard columns are normalised (`season`, season type, team codes). A file proven to repeat others can be skipped (D23).
+1. **Every table a source publishes, every column as published and typed, zeros kept.** `season` is only cast to an integer; season types and team codes are mapped in the `game` and `team` tables (D27). A file proven to repeat others can be skipped (D23).
 2. **Every season each table offers.** Old seasons are fetched once and sealed; the current one refreshes daily.
 3. **Rates are stored as numerator and denominator,** and divided when read, so any date range or group of games is exact. A rate whose parts are published at different times uses sums paired over the same games.
 4. **Coverage is honest.** Outside a stat's seasons the answer is `null` with a reason ("Tracked from 2013-14"), never an error and never a fabricated value. A missing source or column reads as NULL and does not fail a rebuild.
@@ -68,7 +69,7 @@ Data comes from sportsdataverse-data releases: `docs/reference/nba-data-sources.
 ## Rules
 
 1. **Scope.** Plan.md defines tasks. If one needs more, stop and tell the owner. If a decision is needed that is not in `decisions.md`, ask; do not invent architecture.
-2. **Verify on the running app.** A task is not done until checked end to end, not just by its tests. For UI: `npm run build`, then `scripts/drive.mjs`. For data: the real load. PRs touching behaviour carry a "Verified by:" line. Say plainly what could not be checked.
+2. **Verify on the running app.** A task is not done until checked end to end, not just by its tests. For UI: `npm run build`, then `scripts/drive.mjs`. For data: the real load (`scripts/load-report.mjs`). PRs touching behaviour carry a "Verified by:" line. Say plainly what could not be checked.
 3. **Only the worker opens `stats.duckdb`.** Writes run in turn; each read gets its own connection, so a screen never waits behind a refresh.
 4. **Never commit `data/`** or any database file.
 5. **Tests:** every formula, every source parser (with a small checked-in fixture), every engine change, every screen's logic in `lib/`.

@@ -176,7 +176,12 @@ function dashboard(stem: string, grain: string, firstSeason: number): SourceFile
   return source(`src_dash_${stem}`, 'nba_stats_leaguedash', stem, 'published', grain, firstSeason)
 }
 
-const LINEUP_MEASURES = ['advanced', 'base', 'fourfactors', 'master', 'misc', 'opponent', 'scoring']
+/**
+ * `player_master`, `team_master` and `lineups_master` are not loaded (D23). They join the families
+ * below into one wide file, and every column was measured to match, with no differences, so they add
+ * 138 MB and nothing else. At up to 625 columns they are also what a checkpoint struggles with most.
+ */
+const LINEUP_MEASURES = ['advanced', 'base', 'fourfactors', 'misc', 'opponent', 'scoring']
 const PLAYER_MEASURES = ['advanced', 'base', 'defense', 'misc', 'scoring', 'usage']
 const TEAM_MEASURES = ['advanced', 'base', 'defense', 'fourfactors', 'misc', 'opponent', 'scoring']
 /** Tracking began in 2013-14; these two files go back further, whatever they hold (Plan T406). */
@@ -201,8 +206,6 @@ const DASHBOARDS: SourceFile[] = [
   ...TRACKING_FROM_1997.map((m) => dashboard(`player_tracking_${m}`, 'player-season-type', 1997)),
   ...TRACKING_FROM_2014.map((m) => dashboard(`player_tracking_${m}`, 'player-season-type', 2014)),
   dashboard('player_bio', 'player-season-type', 1997),
-  dashboard('player_master', 'player-season-type', 1997),
-  dashboard('team_master', 'team-season-type', 1997),
   dashboard('standings', 'team-season', 1996)
 ]
 

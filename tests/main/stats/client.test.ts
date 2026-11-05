@@ -49,6 +49,14 @@ describe('startStatsWorker', () => {
     await expect(pending).resolves.toEqual(STATUS)
   })
 
+  it('asks for a refresh with its options', async () => {
+    const client = startStatsWorker(INIT, undefined, 'w.js')
+    const pending = client.refresh({ force: true })
+    expect(workers[0].posted).toEqual([{ id: 1, kind: 'refresh', options: { force: true } }])
+    workers[0].emit('message', { kind: 'reply', id: 1, ok: true, result: { steps: [] } })
+    await expect(pending).resolves.toEqual({ steps: [] })
+  })
+
   it('forwards step progress and rejects a failed request', async () => {
     const steps: string[] = []
     const client = startStatsWorker(INIT, (e) => steps.push(e.source), 'w.js')

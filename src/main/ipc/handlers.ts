@@ -16,7 +16,8 @@ export const STATS_OFF: StatsStatus = {
   available: false,
   through: null,
   updatedAt: null,
-  busy: false
+  busy: false,
+  progress: null
 }
 
 export function registerIpcHandlers(ctx: AppContext): void {

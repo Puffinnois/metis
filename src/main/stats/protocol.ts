@@ -11,12 +11,31 @@ export interface StatsLogEntry {
   rowsWritten: number
 }
 
+export interface RefreshOptions {
+  /** Checks recent seasons and files of all seasons even if tried within the day. */
+  force?: boolean
+}
+
+export interface StatsSyncResult {
+  steps: StatsLogEntry[]
+  /** DuckDB invalidated the database, so the refresh stopped; reopening it recovers. */
+  fatal?: string
+}
+
+/** How far a running refresh has got, in files. */
+export interface StatsProgress {
+  done: number
+  total: number
+}
+
 /** What the stats worker is started with. */
 export interface StatsWorkerInit {
   /** `stats.duckdb`. */
   path: string
   /** Downloads and DuckDB's spill files. */
   tempDir: string
+  /** Overrides the default, for scripts measuring another setting. */
+  memoryLimit?: string
 }
 
 export interface SelfTestResult {
@@ -30,12 +49,20 @@ export interface SelfTestResult {
   icu: boolean
 }
 
-/** Requests to the worker. `selfTest` and `close` run one after another; reads run at once. */
+/**
+ * Requests to the worker. `selfTest`, `refresh` and `close` run one after another; reads run at once.
+ * `read` runs one SQL statement, for `scripts/` measuring a real load: the app itself does not expose
+ * it, and the worker stays the only thread that opens the file.
+ */
 export type StatsRequest =
-  { id: number; kind: 'selfTest' } | { id: number; kind: 'close' } | { id: number; kind: 'status' }
+  | { id: number; kind: 'selfTest' }
+  | { id: number; kind: 'close' }
+  | { id: number; kind: 'refresh'; options: RefreshOptions }
+  | { id: number; kind: 'status' }
+  | { id: number; kind: 'read'; sql: string }
 
 /** The kinds that run at once, each on its own connection, instead of in turn. */
-export const READ_REQUESTS: ReadonlySet<StatsRequest['kind']> = new Set(['status'])
+export const READ_REQUESTS: ReadonlySet<StatsRequest['kind']> = new Set(['status', 'read'])
 
 export type StatsReply =
   | { kind: 'reply'; id: number; ok: true; result: unknown }

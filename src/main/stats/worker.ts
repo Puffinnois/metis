@@ -17,10 +17,14 @@ let service: StatsService | null = null
 async function handle(request: StatsRequest): Promise<unknown> {
   if (!service) throw new Error('the stats database is not open')
   switch (request.kind) {
+    case 'refresh':
+      return service.refresh(request.options)
     case 'selfTest':
       return service.selfTest()
     case 'status':
       return service.status()
+    case 'read':
+      return service.read(request.sql)
     case 'close':
       await service.close()
       service = null
@@ -37,7 +41,7 @@ async function answer(request: StatsRequest): Promise<void> {
   }
 }
 
-openStatsService(workerData as StatsWorkerInit).then(
+openStatsService(workerData as StatsWorkerInit, (entry) => post({ kind: 'step', entry })).then(
   (opened) => {
     service = opened
     port.on('message', (request: StatsRequest) => {

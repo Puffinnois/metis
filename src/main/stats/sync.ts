@@ -1,0 +1,320 @@
+import type { StatsDb } from './db'
+import type { Downloads, FetchedFile } from './download'
+import { loadSourceFile } from './load'
+import type {
+  RefreshOptions,
+  StatsLogEntry,
+  StatsProgress,
+  StatsStepStatus,
+  StatsSyncResult
+} from './protocol'
+import { INTERRUPTED_MESSAGE } from './schema'
+import { currentSeason, fileUrl, LOAD_TIERS, seasonsOf, SOURCES, type SourceFile } from './sources'
+
+const HOUR = 60 * 60 * 1000
+const DAY = 24 * HOUR
+/** A step that finished is not tried again within a day. */
+export const ATTEMPT_INTERVAL_MS = DAY
+/** A failed one sooner: a network blip during the first load should not cost a day. */
+export const ERROR_RETRY_MS = HOUR
+/** The prior season is checked weekly. */
+export const PRIOR_SEASON_FRESHNESS_MS = 7 * DAY
+/** Files fetched ahead of the one being loaded; loading itself runs one file at a time. */
+export const PARALLEL_DOWNLOADS = 4
+/** Prefix of every stats step in `sync_log`. */
+export const STATS_LOG_PREFIX = 'stats:'
+
+export interface StatsSyncDeps {
+  db: StatsDb
+  downloads: Downloads
+  now?: () => Date
+  onStep?: (entry: StatsLogEntry) => void
+  onProgress?: (progress: StatsProgress | null) => void
+  /** True once the worker is closing: no step starts after it, and the running one is `interrupted`. */
+  cancelled?: () => boolean
+}
+
+export interface PlannedStep {
+  source: SourceFile
+  season: number
+}
+
+/**
+ * The load order (D21): tier by tier, and inside a tier the files of all seasons, then the newest
+ * season back, so a load cut short leaves the seasons people look at most.
+ */
+export function planSteps(current: number, sources: SourceFile[] = SOURCES): PlannedStep[] {
+  const rank = (season: number): number => (season === 0 ? Infinity : season)
+  const steps = sources.flatMap((source) =>
+    seasonsOf(source, current).map((season) => ({ source, season }))
+  )
+  return steps
+    .map((step, order) => ({ step, order }))
+    .sort(
+      (a, b) =>
+        LOAD_TIERS.indexOf(a.step.source.tier) - LOAD_TIERS.indexOf(b.step.source.tier) ||
+        rank(b.step.season) - rank(a.step.season) ||
+        a.order - b.order
+    )
+    .map(({ step }) => step)
+}
+
+export function stepLogName(step: PlannedStep): string {
+  return step.source.allSeasons
+    ? `${STATS_LOG_PREFIX}${step.source.id}`
+    : `${STATS_LOG_PREFIX}${step.source.id}:${step.season}`
+}
+
+export interface SourceState {
+  version: number
+  fetchedAt: string
+  sealed: boolean
+  rows: number
+  etag: string | null
+  /** The size of the file as downloaded. */
+  bytes: number | null
+}
+
+export interface LastAttempt {
+  startedAt: string
+  status: StatsStepStatus
+}
+
+export interface DueInput {
+  season: number
+  current: number
+  force: boolean
+  now: number
+  attempt: LastAttempt | null
+  version: number
+  state: SourceState | null
+}
+
+/**
+ * Not again soon after the last attempt (unless forced, for recent seasons and files of all
+ * seasons). A new version or no state is due; the current season and files of all seasons daily, the
+ * prior season weekly, older seasons until sealed.
+ */
+export function isDue(input: DueInput): boolean {
+  const { season, current, now, state, attempt } = input
+  const recent = season === 0 || season >= current - 1
+  const wait = attempt?.status === 'error' ? ERROR_RETRY_MS : ATTEMPT_INTERVAL_MS
+  const attempted = attempt !== null && now - Date.parse(attempt.startedAt) < wait
+  if (attempted && !(input.force && recent)) return false
+  if (!state || state.version < input.version) return true
+  if (season === 0 || season === current) return true
+  if (season === current - 1) return now - Date.parse(state.fetchedAt) >= PRIOR_SEASON_FRESHNESS_MS
+  return !state.sealed
+}
+
+/** Every source's state at once: a first load asks about 3,107 files. */
+async function readStates(db: StatsDb): Promise<Map<string, SourceState>> {
+  const rows = await db.all<{
+    source: string
+    season: number
+    version: number
+    fetched_at: string
+    sealed: boolean
+    rows_written: number
+    etag: string | null
+    bytes: number | null
+  }>(
+    'SELECT source, season, version, fetched_at, sealed, rows_written, etag, bytes FROM source_state'
+  )
+  return new Map(
+    rows.map((r) => [
+      `${r.source}:${r.season}`,
+      {
+        version: r.version,
+        fetchedAt: r.fetched_at,
+        sealed: r.sealed,
+        rows: r.rows_written,
+        etag: r.etag,
+        bytes: r.bytes
+      }
+    ])
+  )
+}
+
+/** An interrupted step is not an attempt: the next run tries it again. */
+async function readAttempts(db: StatsDb): Promise<Map<string, LastAttempt>> {
+  const rows = await db.all<{ source: string; started_at: string; status: StatsStepStatus }>(
+    `SELECT source, arg_max(started_at, id) AS started_at, arg_max(status, id) AS status
+     FROM sync_log WHERE status NOT IN ('running', 'interrupted') GROUP BY source`
+  )
+  return new Map(rows.map((r) => [r.source, { startedAt: r.started_at, status: r.status }]))
+}
+
+const nowOf = (deps: StatsSyncDeps): Date => (deps.now ?? (() => new Date()))()
+
+function toEntry(row: Record<string, unknown>): StatsLogEntry {
+  return {
+    id: row.id as number,
+    source: row.source as string,
+    startedAt: row.started_at as string,
+    finishedAt: (row.finished_at as string | null) ?? null,
+    status: row.status as StatsStepStatus,
+    message: (row.message as string | null) ?? null,
+    rowsWritten: row.rows_written as number
+  }
+}
+
+/** Thrown by a step body to log `skipped` instead of `error`. */
+class SkipStep extends Error {}
+
+/** Runs one step under a `sync_log` row; never throws (errors are logged). */
+async function runLogged(
+  deps: StatsSyncDeps,
+  name: string,
+  body: () => Promise<{ rows: number; message: string | null }>
+): Promise<StatsLogEntry> {
+  const db = deps.db
+  const started = await db.get<{ id: number }>(
+    "INSERT INTO sync_log (source, started_at, status) VALUES (?, ?, 'running') RETURNING id",
+    [name, nowOf(deps).toISOString()]
+  )
+  let status: StatsStepStatus = 'ok'
+  let message: string | null = null
+  let rows = 0
+  try {
+    const out = await body()
+    rows = out.rows
+    message = out.message
+  } catch (err) {
+    if (deps.cancelled?.()) {
+      status = 'interrupted'
+      message = INTERRUPTED_MESSAGE
+    } else {
+      status = err instanceof SkipStep ? 'skipped' : 'error'
+      message = err instanceof Error ? err.message : String(err)
+    }
+  }
+  const row = await db.get(
+    `UPDATE sync_log SET finished_at = ?, status = ?, message = ?, rows_written = ?
+     WHERE id = ? RETURNING *`,
+    [nowOf(deps).toISOString(), status, message, rows, started?.id ?? 0]
+  )
+  const entry = toEntry(row ?? {})
+  try {
+    deps.onStep?.(entry)
+  } catch {
+    // progress reporting never affects the sync
+  }
+  return entry
+}
+
+type Settled = { ok: true; file: FetchedFile } | { ok: false; error: unknown }
+
+/**
+ * Every due step, in load order. Files download a few at a time ahead of the one being loaded, and
+ * each load commits on its own, so a quit mid-load resumes on the next run. Never throws.
+ */
+export async function refreshStats(
+  deps: StatsSyncDeps,
+  options: RefreshOptions = {},
+  sources: SourceFile[] = SOURCES
+): Promise<StatsSyncResult> {
+  const { db, downloads } = deps
+  const log: StatsLogEntry[] = []
+  let fatal: string | undefined
+  const today = nowOf(deps)
+  const current = currentSeason(today)
+  const states = await readStates(db)
+  const attempts = await readAttempts(db)
+  const stateOf = (step: PlannedStep): SourceState | null =>
+    states.get(`${step.source.id}:${step.season}`) ?? null
+  const due = planSteps(current, sources).filter((step) =>
+    isDue({
+      season: step.season,
+      current,
+      force: options.force ?? false,
+      now: today.getTime(),
+      attempt: attempts.get(stepLogName(step)) ?? null,
+      version: step.source.version,
+      state: stateOf(step)
+    })
+  )
+
+  const fetches: Promise<Settled>[] = []
+  const fetchUpTo = (limit: number): void => {
+    while (fetches.length < Math.min(limit, due.length)) {
+      const step = due[fetches.length]
+      const state = stateOf(step)
+      // A new version loads the file again even when the file itself has not changed.
+      const etag = state?.version === step.source.version ? state.etag : null
+      fetches.push(
+        downloads.fetchFile(fileUrl(step.source, step.season), etag).then(
+          (file): Settled => ({ ok: true, file }),
+          (error): Settled => ({ ok: false, error })
+        )
+      )
+    }
+  }
+  const saveState = async (
+    step: PlannedStep,
+    rows: number,
+    etag: string | null,
+    bytes: number | null
+  ): Promise<void> => {
+    await db.exec(
+      `INSERT OR REPLACE INTO source_state
+         (source, season, version, rows_written, fetched_at, sealed, etag, bytes)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        step.source.id,
+        step.season,
+        step.source.version,
+        rows,
+        nowOf(deps).toISOString(),
+        step.season !== 0 && step.season <= current - 2,
+        etag,
+        bytes
+      ]
+    )
+  }
+
+  deps.onProgress?.(due.length > 0 ? { done: 0, total: due.length } : null)
+  for (let i = 0; i < due.length; i++) {
+    if (deps.cancelled?.()) break
+    fetchUpTo(i + PARALLEL_DOWNLOADS)
+    const step = due[i]
+    let entry: StatsLogEntry
+    try {
+      entry = await runLogged(deps, stepLogName(step), async () => {
+        const fetched = await fetches[i]
+        if (!fetched.ok) throw fetched.error
+        if (fetched.file.kind === 'missing') throw new SkipStep('not published yet')
+        if (fetched.file.kind === 'unchanged') {
+          const state = stateOf(step)
+          await saveState(step, state?.rows ?? 0, state?.etag ?? null, state?.bytes ?? null)
+          return { rows: 0, message: 'unchanged' }
+        }
+        const file = fetched.file
+        try {
+          const loaded = await loadSourceFile(db, step.source, step.season, file.path)
+          await saveState(step, loaded.rows, file.etag, file.bytes)
+          return { rows: loaded.rows, message: loaded.notes.join('; ') || null }
+        } finally {
+          await downloads.removeFile(file.path)
+        }
+      })
+    } catch (err) {
+      // The log itself cannot be written, so DuckDB has invalidated the database: every further
+      // step would fail too, and only reopening it recovers.
+      fatal = err instanceof Error ? err.message : String(err)
+      break
+    }
+    log.push(entry)
+    deps.onProgress?.({ done: i + 1, total: due.length })
+  }
+  deps.onProgress?.(null)
+  if (fatal !== undefined) return { steps: log, fatal }
+  if (log.some((e) => e.status === 'ok' && e.rowsWritten > 0) && !deps.cancelled?.()) {
+    try {
+      await db.exec('CHECKPOINT')
+    } catch {
+      // A read still running can refuse it; DuckDB checkpoints on its own later.
+    }
+  }
+  return { steps: log }
+}

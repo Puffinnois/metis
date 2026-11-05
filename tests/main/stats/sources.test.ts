@@ -42,9 +42,14 @@ function knownAbsent(path: string): boolean {
   return path.includes('playoffs') || path.includes('leagueseasonmatchups')
 }
 
+/** Published but not loaded: proven to repeat other files (D23). */
+const skipped = (path: string): boolean =>
+  /^nba_stats_leaguedash\/(player|team|lineups)_master_\d{4}\.parquet$/.test(path)
+
 describe('the source registry against the release listing', () => {
-  it('covers every published file', () => {
-    expect([...inventory].filter((path) => !generatedPaths.has(path))).toEqual([])
+  it('covers every published file, apart from those proven to repeat others', () => {
+    expect([...inventory].filter((path) => !generatedPaths.has(path) && !skipped(path))).toEqual([])
+    expect([...inventory].filter(skipped)).toHaveLength(82)
   })
 
   it('generates no file that is not published, apart from the known gaps', () => {
@@ -54,7 +59,7 @@ describe('the source registry against the release listing', () => {
   it('has as many files as the listing', () => {
     expect(inventory.size).toBe(3107)
     expect(generatedPaths.size - [...generatedPaths].filter(knownAbsent).length).toBe(
-      inventory.size
+      inventory.size - [...inventory].filter(skipped).length
     )
   })
 
@@ -63,7 +68,7 @@ describe('the source registry against the release listing', () => {
     const counts = Object.fromEntries(
       LOAD_TIERS.map((tier) => [tier, published.filter((g) => g.source.tier === tier).length])
     )
-    expect(counts).toEqual({ core: 828, published: 2073, events: 149, plays: 57 })
+    expect(counts).toEqual({ core: 828, published: 1991, events: 149, plays: 57 })
   })
 })
 

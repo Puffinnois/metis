@@ -37,10 +37,10 @@ Measured 2026-11-05. Details are in `docs/reference/nba-data-sources.md`.
 | ------------------ | ------------------------------------------------------------- | --------------- | -------------- |
 | 1, 2 Archive, base | Open an empty app (done)                                      |                 |                |
 | 3 Clean slate      | See one clear project on GitHub, with Windows packaging run   |                 | `v0.1-stage3`  |
-| 4 Data foundation  | Load everything, quit, resume, and read the agreement report  | All 1,691 MB    | `v0.2-stage4`  |
+| 4 Data foundation  | Load everything, quit, resume, and read the agreement report  | All 1,554 MB    | `v0.2-stage4`  |
 | 5 First usable app | Rank anyone on any box-score stat, 1993-94 to now             | Core in use     | `v0.3-stage5`  |
 | 6 Dashboards       | Open a player, a team or a game                               | Core in use     | `v0.4-stage6`  |
-| 7 Published depth  | See tracking, hustle, play types, matchups, impact, combine   | 352 MB in use   | `v0.5-stage7`  |
+| 7 Published depth  | See tracking, hustle, play types, matchups, impact, combine   | 214 MB in use   | `v0.5-stage7`  |
 | 8 Explore          | Chart any stat against another, compare, follow a career      |                 | `v0.6-stage8`  |
 | 9 Play level       | Split by clutch or quarter, read shot charts, on/off, lineups | 1,239 MB in use | `v0.7-stage9`  |
 | 10 Ratings         | See Elo, SRS, playoff odds, PER, Win Shares, stability        |                 | `v0.8-stage10` |
@@ -90,11 +90,11 @@ Template: `src/main/stats/{sources,download,load,sync,identity}.ts`, `docs/refer
 Outcome: the app downloads everything, keeps it fresh, survives being quit, and reports how far the numbers agree.
 
 - [x] **T401 Source registry (M).** Every release, its file-name pattern, seasons, grain and load tier. `scripts/inventory-sources.mjs` rebuilds the list from the GitHub API at development time; the app itself never calls that API. Checked: a test compares the registry with `tests/fixtures/nba-inventory.tsv`, and a real run of the script listed 3,107 files in 44 releases, all of them in the registry.
-- [ ] **T402 Download and load (M).** Download to temp; one table per source, with every column as published and typed; type widening when a later season changes a column; `season`, season type and team codes normalised. Few downloads at once, retries with backoff, a plain client name. Check: a parser fixture per file shape, then one source of each tier loaded in the real app.
-- [ ] **T403 Sync (L).** Per source and season: old seasons sealed, the prior season weekly, the current one daily; 404 as skipped; one transaction per step; cancellation; the `sync_log`. Freshness from `timestamp.json`, and a conditional request for the four releases without one. Refresh at launch, progress in the nav. Check: quit mid-load, relaunch, it resumes. A second run downloads nothing.
-- [ ] **T404 Load order (S).** Core, then published, events, play by play. Each finished tier can be read while the next loads. Check: a leaderboard-shaped query answers during a play-by-play load, under 500 ms.
-- [ ] **T405 First full load (M).** Everything, once, from nothing. Record per tier: download size, file size, time and peak memory, against the template's 512 MB limit. Stop and raise it with the owner past the limits in D22. Check: the numbers are in the reference.
-- [ ] **T406 Coverage and duplicates (M).** Per family, the first season holding real values, not just rows: a pull-up file exists for 1996-97, years before tracking began. Whether `*_master`, per-game files and `nba_stats_lineups` only repeat other files (D23). What `metric_curves` and `rolling_windows` hold. Check: a coverage table in the reference, which later supplies each metric's first season.
+- [x] **T402 Download and load (M).** Download to temp; one table per source, with every column as published and typed; type widening when a later season changes a column. `season` stays as published, with `file_season` and `source_file` added; season types and team codes are mapped in T407 and T408 (D27). Few downloads at once, retries with backoff, a plain client name. Checked: a fixture per file shape, and every tier in the full load, with no errors.
+- [x] **T403 Sync (L).** Per source and season: old seasons sealed, the prior season weekly, the current one daily; 404 as skipped; one transaction per step; cancellation; the `sync_log`. Freshness from each file's `etag`, because `timestamp.json` turned out to be stale. Refresh at launch, progress in the nav. Checked: the real window showed "updating 71 of 3,152 files"; killed mid-load, it reopened and carried on with 3,081 left. A second run did nothing, and a forced check of 176 files took 12 seconds, with 132 unchanged and 44 not published.
+- [x] **T404 Load order (S).** Core, then published, events, play by play; inside a tier, the newest season first. Each finished tier can be read while the next loads. Checked: a leaderboard-shaped query answered during the play-by-play load in 14 ms (median of 12), 29 ms at worst.
+- [x] **T405 First full load (M).** Everything, once, from nothing, measured per tier. Checked: 3,025 files with no errors in 19.8 minutes (14.4 on a quieter run), a 4.3 GB file and a 2.2 GB memory peak, all inside D22. The template's 512 MB failed and invalidated the database, so the limit is now 1 GB; 768 MB also passed. The numbers are in `docs/reference/nba-data-sources.md`.
+- [x] **T406 Coverage and duplicates (M).** Per family, the first season holding real values, not just rows: the pull-up file for 1996-97 has only games and minutes, and its stats start in 2013-14. `*_master` is proven to repeat other files and no longer loads (82 files, 138 MB); per-game files and `nba_stats_lineups` are not, and stay (D23). `metric_curves` holds FG% by shot distance, `rolling_windows` FG% and 3P% over recent attempts. Checked: `docs/reference/nba-coverage.md` and `nba-coverage.tsv`, written from the real load, cover 92 tables and 3,513 columns, and later supply each metric's first season.
 - [ ] **T407 Game types (M).** Map every source to one set (D12), with All-Star and Cup final handled. Check: 1,230 regular-season games in 2025-26 from both sources, and each season's count against its real length, including the short ones (1998-99: 725, 2011-12: 990, 2019-20: 1,059, 2020-21: 1,080).
 - [ ] **T408 Identity (L).** `player`, `team` and `game` tables on NBA ids. ESPN through the player, team and schedule crosswalks, keeping their match confidence. `nba_team_aliases` for team codes (`GS`/`GSW`, `NY`/`NYK`), one franchise across relocations, conference and division by season from `nba_team_group_seasons`. **A method for 1993-94 to 2000-01**, before the crosswalks start, trying `nba_player_aliases` first. 1993-94 to 1995-96 exist only in ESPN, so some players have no NBA id: raise the key to use if the answer is not obvious. Check: match rate per season in the reference.
 - [ ] **T409 Agreement checks (M).** The checks in the reference as a repeatable script per season, written back to the reference with tolerances stated. Includes the turnover definitions left open. Check: run on the full load.
@@ -208,19 +208,19 @@ How the 443 entries in reference sections 3 to 18 are covered. Some are families
 | 17  | Measurements, combine                  | 22      | Rosters, draft, combine                                                    | 7                  |
 | 18  | Fantasy, others, availability          | 32      | Combined stats: formulas. Publisher grades, salaries, awards not available | 5, 7, T1201        |
 
-"Not found" means no such file appears in the asset list; T406 confirms it by reading the columns.
+"Not found" means no such column appears in any table, checked on a full load.
 
 ## Risks
 
-| Risk                                                                   | What would show it                  | Answer                                                                                    |
-| ---------------------------------------------------------------------- | ----------------------------------- | ----------------------------------------------------------------------------------------- |
-| The database is too large or the first load too slow                   | T405's numbers, past D22's limits   | Load order, duplicates dropped; Parquet kept on disk and read directly                    |
-| 512 MB of DuckDB memory is not enough for play by play                 | T405 fails or spills heavily        | One season at a time, then raise it with the owner                                        |
-| GitHub throttles thousands of downloads from one machine               | Failures during T405                | Fewer at once, backoff; failed steps retry the next day                                   |
-| One volunteer-run dataset: a pipeline stalls, a column or file changes | "Data through" falls behind in T410 | Last good rows kept; a missing source reads NULL and never fails                          |
-| Rows that are not real data, such as tracking before 2013-14           | T406                                | First seasons come from the coverage table, not from file names                           |
-| Rights: the upstream data's terms may limit a public release           | T1101                               | Files are downloaded by each user and nothing is redistributed. Raise it early if unclear |
-| Football left behind in ported code                                    | Review of each port                 | Rule 7 of `CLAUDE.md`; a search for NFL terms in the stage gate                           |
+| Risk                                                                    | What would show it                  | Answer                                                                                        |
+| ----------------------------------------------------------------------- | ----------------------------------- | --------------------------------------------------------------------------------------------- |
+| The database is too large or the first load too slow                    | T405's numbers, past D22's limits   | Load order, duplicates dropped; Parquet kept on disk and read directly                        |
+| DuckDB's memory limit is too low: a checkpoint invalidates the database | It happened at 512 MB in T405       | Now 1 GB, and 768 MB passed too. If it recurs, the refresh stops and the next launch recovers |
+| GitHub throttles thousands of downloads from one machine                | Failures during T405                | Fewer at once, backoff; failed steps retry the next day                                       |
+| One volunteer-run dataset: a pipeline stalls, a column or file changes  | "Data through" falls behind in T410 | Last good rows kept; a missing source reads NULL and never fails                              |
+| Rows that are not real data, such as tracking before 2013-14            | T406                                | First seasons come from the coverage table, not from file names                               |
+| Rights: the upstream data's terms may limit a public release            | T1101                               | Files are downloaded by each user and nothing is redistributed. Raise it early if unclear     |
+| Football left behind in ported code                                     | Review of each port                 | Rule 7 of `CLAUDE.md`; a search for NFL terms in the stage gate                               |
 
 ## Decisions behind this plan
 
@@ -228,7 +228,7 @@ The owner accepted these on 2026-11-05. `decisions.md` has them in full.
 
 - **D20:** stages are slices, as above.
 - **D21:** the first load runs in tiers, and the app is usable after the first.
-- **D22:** the limits that stop T405. Scaling the template gives roughly 2.8 GB for the file, which is an estimate and not a measurement.
+- **D22:** the limits that stop T405. The load stayed inside them: 4.3 GB, 20 minutes and 2.2 GB of memory.
 - **D23:** a file proven to repeat others is skipped.
 - **D24:** stats with no free bulk source stay out.
 - **D25:** the repository's shape: `main` is the default, old branches are tags, the three long-lived branches are protected.

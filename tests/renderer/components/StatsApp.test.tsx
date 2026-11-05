@@ -6,12 +6,12 @@ import { StatsApp } from '@/screens/stats/StatsApp'
 
 vi.mock('@/lib/api', () => ({
   api: {
-    stats: { status: vi.fn() },
+    stats: { status: vi.fn(), onChanged: vi.fn(() => () => {}) },
     dev: { mode: vi.fn().mockResolvedValue(false), onModeChanged: vi.fn(() => () => {}) }
   }
 }))
 
-const EMPTY = { available: true, through: null, updatedAt: null, busy: false }
+const EMPTY = { available: true, through: null, updatedAt: null, busy: false, progress: null }
 
 function renderApp(onLocation = vi.fn()): void {
   render(
@@ -50,6 +50,22 @@ describe('the shell', () => {
     await waitFor(() =>
       expect(onLocation).toHaveBeenLastCalledWith({ screen: 'games', team: null, player: null })
     )
+  })
+
+  it('reads the status again as a load progresses', async () => {
+    vi.mocked(api.stats.status).mockResolvedValue(EMPTY)
+    renderApp()
+    await screen.findByText('No stats yet')
+    expect(screen.getByText(/NBA data has not been loaded/)).toBeTruthy()
+    vi.mocked(api.stats.status).mockResolvedValue({
+      ...EMPTY,
+      busy: true,
+      progress: { done: 3, total: 3107 }
+    })
+    const changed = vi.mocked(api.stats.onChanged).mock.lastCall?.[0]
+    changed?.()
+    expect(await screen.findByText('Loading the stats · 3 of 3,107 files')).toBeTruthy()
+    expect(screen.getByText('NBA data is loading.')).toBeTruthy()
   })
 
   it('says so when the stats database is off', async () => {

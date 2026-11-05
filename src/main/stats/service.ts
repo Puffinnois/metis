@@ -1,27 +1,48 @@
 import { mkdirSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import type { StatsStatus } from '@shared/stats/types'
-import { sqlString, StatsDb } from './db'
-import type { SelfTestResult, StatsWorkerInit } from './protocol'
+import { sqlString, StatsDb, type Row } from './db'
+import { createDownloads } from './download'
+import type {
+  RefreshOptions,
+  SelfTestResult,
+  StatsLogEntry,
+  StatsProgress,
+  StatsSyncResult,
+  StatsWorkerInit
+} from './protocol'
 import { bootstrapStatsDb } from './schema'
+import { refreshStats } from './sync'
 
-/** The worker's state: the open database. Runnable in-process for tests. */
+/** The table the status line reads the latest game from. */
+const LATEST_GAMES_TABLE = 'src_espn_team_box'
+
+/** The worker's state: the open database and what a refresh needs. Runnable in-process for tests. */
 export interface StatsService {
+  refresh(options: RefreshOptions): Promise<StatsSyncResult>
   selfTest(): Promise<SelfTestResult>
   status(): Promise<StatsStatus>
+  /** One SQL statement on its own connection, for scripts measuring a real load. */
+  read(sql: string): Promise<Row[]>
   /**
-   * Interrupts running statements. A process must not exit while DuckDB runs a statement (Electron
-   * aborts), so closing cancels first.
+   * Stops a refresh now: aborts its downloads, interrupts its statement and starts no other step. A
+   * process must not exit while DuckDB runs a statement (Electron aborts), so closing cancels first.
    */
   cancel(): void
   close(): Promise<void>
 }
 
-export async function openStatsService(init: StatsWorkerInit): Promise<StatsService> {
+export async function openStatsService(
+  init: StatsWorkerInit,
+  onStep: (entry: StatsLogEntry) => void = () => {}
+): Promise<StatsService> {
   // Files a closed app left mid-step are never read again.
   rmSync(init.tempDir, { recursive: true, force: true })
   mkdirSync(init.tempDir, { recursive: true })
-  const db = await StatsDb.open(init.path, { tempDirectory: join(init.tempDir, 'duckdb') })
+  const db = await StatsDb.open(init.path, {
+    tempDirectory: join(init.tempDir, 'duckdb'),
+    memoryLimit: init.memoryLimit
+  })
   await bootstrapStatsDb(db, new Date())
   // Each read gets its own connection, so it runs while a refresh writes, never waits behind another
   // read, and its timeout interrupts only itself.
@@ -43,14 +64,64 @@ export async function openStatsService(init: StatsWorkerInit): Promise<StatsServ
     )
     return run
   }
+  const abort = new AbortController()
+  let cancelled = false
+  let busy = false
+  let progress: StatsProgress | null = null
+  /** Set once DuckDB invalidates the database: nothing more can be read until the next launch. */
+  let invalidated = false
+  const downloads = createDownloads({ dir: init.tempDir, signal: abort.signal })
   return {
-    status: () =>
-      read(async (reader) => {
+    async refresh(options) {
+      busy = true
+      try {
+        const result = await refreshStats(
+          {
+            db,
+            downloads,
+            onStep,
+            onProgress: (p) => {
+              progress = p
+            },
+            cancelled: () => cancelled
+          },
+          options
+        )
+        if (result.fatal !== undefined) invalidated = true
+        return result
+      } finally {
+        busy = false
+        progress = null
+      }
+    },
+    status: async () => {
+      if (invalidated) {
+        return { available: false, through: null, updatedAt: null, busy: false, progress: null }
+      }
+      return read(async (reader) => {
         const updated = await reader.get<{ at: string | null }>(
           "SELECT max(finished_at) AS at FROM sync_log WHERE status = 'ok' AND rows_written > 0"
         )
-        return { available: true, through: null, updatedAt: updated?.at ?? null, busy: false }
-      }),
+        const exists = await reader.get(
+          "SELECT 1 AS yes FROM duckdb_tables() WHERE schema_name = 'main' AND table_name = ?",
+          [LATEST_GAMES_TABLE]
+        )
+        const latest = exists
+          ? await reader.get<{ season: number; date: string | null }>(
+              `SELECT season, max(game_date)::VARCHAR AS date FROM ${LATEST_GAMES_TABLE}
+               GROUP BY season ORDER BY season DESC LIMIT 1`
+            )
+          : null
+        return {
+          available: true,
+          through: latest?.date ? { season: latest.season, date: latest.date } : null,
+          updatedAt: updated?.at ?? null,
+          busy,
+          progress
+        }
+      })
+    },
+    read: (sql) => read((reader) => reader.all(sql)),
     /** Write, read, a Parquet round trip, `read_json` and an ICU time zone, through the real file. */
     async selfTest() {
       await db.exec('CREATE OR REPLACE TABLE self_test AS SELECT range AS x FROM range(1000)')
@@ -76,6 +147,8 @@ export async function openStatsService(init: StatsWorkerInit): Promise<StatsServ
       }
     },
     cancel() {
+      cancelled = true
+      abort.abort()
       db.interrupt()
       for (const conn of reading) conn.interrupt()
     },
