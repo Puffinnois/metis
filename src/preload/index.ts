@@ -44,6 +44,9 @@ const api: Api = {
   },
   stats: {
     status: () => ipcRenderer.invoke(IPC.statsStatus),
+    data: () => ipcRenderer.invoke(IPC.statsData),
+    pause: () => ipcRenderer.invoke(IPC.statsPause),
+    resume: () => ipcRenderer.invoke(IPC.statsResume),
     onChanged: (listener) => {
       const handler = (): void => listener()
       ipcRenderer.on(IPC.statsChanged, handler)

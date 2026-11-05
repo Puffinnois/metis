@@ -65,15 +65,19 @@ export function StatsNav({
         })}
       </div>
       <div className="ml-auto flex items-center gap-3.5 text-[13px] leading-none font-medium text-fg-2">
-        <span
+        <button
+          type="button"
+          title="See what is loaded"
+          aria-current={current === 'data' ? 'page' : undefined}
+          onClick={() => onNavigate('data')}
           className={cn(
-            'flex items-center gap-1.5 text-[12px] font-normal text-fg-3',
-            status && !status.available && 'text-bad'
+            'flex cursor-pointer items-center gap-1.5 text-[12px] font-normal text-fg-3 hover:text-fg',
+            status && (!status.available || status.noRoom) && 'text-bad'
           )}
         >
           {status?.busy && <span className="size-1.5 animate-pulse rounded-full bg-cobalt" />}
           {freshness(status)}
-        </span>
+        </button>
         <UpdatePill state={update} onOpen={onOpenUpdate} />
         <button
           type="button"

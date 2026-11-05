@@ -54,7 +54,7 @@ Built by `src/main/stats/identity.ts`, logged as `stats:identity`, as soon as th
 
 ## Sync
 
-- **When it runs:** at launch, and every 6 hours while the window stays open. One at a time.
+- **When it runs:** at launch, and every 6 hours while the window stays open. One at a time. Not while paused, and a first load does not start without room for it: see the Data panel in [stats-screens.md](stats-screens.md).
 - **Order (D21):** tier by tier: core, published, events, play by play. Inside a tier, files of all seasons first, then the newest season back. So the app is usable after the first tier, and a load cut short keeps the seasons people look at most.
 - **What is due:**
   - A step that finished is not tried again within a day; a failed one after an hour.

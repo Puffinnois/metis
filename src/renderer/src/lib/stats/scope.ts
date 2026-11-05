@@ -20,6 +20,8 @@ function filesDone(status: StatsStatus): string | null {
 export function freshness(status: StatsStatus | null, now = Date.now()): string {
   if (!status) return ''
   if (!status.available) return 'Stats unavailable'
+  if (status.noRoom) return 'Not enough disk space'
+  if (status.paused && !status.through) return 'Loading paused'
   const files = filesDone(status)
   if (!status.through) {
     if (!status.busy) return 'No stats yet'
@@ -27,6 +29,7 @@ export function freshness(status: StatsStatus | null, now = Date.now()): string 
   }
   // A game date has no time of day: read at UTC, so no time zone moves it to the day before.
   const through = `Data through ${DAY.format(new Date(`${status.through.date}T00:00:00Z`))}`
+  if (status.paused) return `${through} · paused`
   if (!status.busy) return `${through} · updated ${relativeTime(status.updatedAt, now)}`
   return files ? `${through} · updating ${files}` : `${through} · updating…`
 }

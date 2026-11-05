@@ -1,8 +1,10 @@
 import { mkdirSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
-import type { StatsStatus } from '@shared/stats/types'
+import type { StatsDataReport, StatsStatus } from '@shared/stats/types'
 import { sqlString, StatsDb, type Row } from './db'
+import { databaseBytes, freeBytes, roomNeeded } from './disk'
 import { createDownloads } from './download'
+import { summariseFamilies, type FileAttempt, type HeldFile } from './families'
 import type {
   RefreshOptions,
   SelfTestResult,
@@ -12,16 +14,23 @@ import type {
   StatsWorkerInit
 } from './protocol'
 import { bootstrapStatsDb } from './schema'
+import { currentSeason, SOURCES } from './sources'
 import { refreshStats } from './sync'
 
 /** The table the status line reads the latest game from. */
 const LATEST_GAMES_TABLE = 'src_espn_team_box'
+const PAUSED_KEY = 'paused'
 
 /** The worker's state: the open database and what a refresh needs. Runnable in-process for tests. */
 export interface StatsService {
   refresh(options: RefreshOptions): Promise<StatsSyncResult>
   selfTest(): Promise<SelfTestResult>
   status(): Promise<StatsStatus>
+  /** What is loaded, for the Data panel. */
+  data(): Promise<StatsDataReport>
+  /** Stops a running load, and holds off any other until `resume`, across launches. */
+  pause(): Promise<void>
+  resume(): Promise<void>
   /** One SQL statement on its own connection, for scripts measuring a real load. */
   read(sql: string): Promise<Row[]>
   /**
@@ -32,9 +41,15 @@ export interface StatsService {
   close(): Promise<void>
 }
 
+export interface StatsServiceDeps {
+  /** Free space beside the database; tests pass their own. */
+  freeBytes?: (path: string) => number | null
+}
+
 export async function openStatsService(
   init: StatsWorkerInit,
-  onStep: (entry: StatsLogEntry) => void = () => {}
+  onStep: (entry: StatsLogEntry) => void = () => {},
+  deps: StatsServiceDeps = {}
 ): Promise<StatsService> {
   // Files a closed app left mid-step are never read again.
   rmSync(init.tempDir, { recursive: true, force: true })
@@ -64,26 +79,50 @@ export async function openStatsService(
     )
     return run
   }
-  const abort = new AbortController()
+  const free = deps.freeBytes ?? freeBytes
+  // A new one for each refresh: a pause aborts one refresh and leaves the next able to run.
+  let abort = new AbortController()
   let cancelled = false
   let busy = false
   let progress: StatsProgress | null = null
   /** Set once DuckDB invalidates the database: nothing more can be read until the next launch. */
   let invalidated = false
-  const downloads = createDownloads({ dir: init.tempDir, signal: abort.signal })
+  let noRoom: StatsStatus['noRoom'] = null
+  const storedPause = await db.get<{ value: string | null }>(
+    'SELECT value FROM stats_settings WHERE key = ?',
+    [PAUSED_KEY]
+  )
+  let paused = storedPause?.value === '1'
+  // On its own connection: the refresh's connection may be inside a transaction.
+  const savePaused = (value: boolean): Promise<void> =>
+    read((conn) =>
+      conn.exec('INSERT OR REPLACE INTO stats_settings VALUES (?, ?)', [
+        PAUSED_KEY,
+        value ? '1' : '0'
+      ])
+    )
   return {
     async refresh(options) {
+      noRoom = null
+      if (paused || cancelled) return { steps: [] }
+      const neededBytes = roomNeeded(databaseBytes(init.path))
+      const available = free(init.path)
+      if (neededBytes > 0 && available !== null && available < neededBytes) {
+        noRoom = { neededBytes, freeBytes: available }
+        return { steps: [] }
+      }
       busy = true
+      abort = new AbortController()
       try {
         const result = await refreshStats(
           {
             db,
-            downloads,
+            downloads: createDownloads({ dir: init.tempDir, signal: abort.signal }),
             onStep,
             onProgress: (p) => {
               progress = p
             },
-            cancelled: () => cancelled
+            cancelled: () => cancelled || paused
           },
           options
         )
@@ -96,7 +135,15 @@ export async function openStatsService(
     },
     status: async () => {
       if (invalidated) {
-        return { available: false, through: null, updatedAt: null, busy: false, progress: null }
+        return {
+          available: false,
+          through: null,
+          updatedAt: null,
+          busy: false,
+          progress: null,
+          paused,
+          noRoom
+        }
       }
       return read(async (reader) => {
         const updated = await reader.get<{ at: string | null }>(
@@ -117,9 +164,55 @@ export async function openStatsService(
           through: latest?.date ? { season: latest.season, date: latest.date } : null,
           updatedAt: updated?.at ?? null,
           busy,
-          progress
+          progress,
+          paused,
+          noRoom
         }
       })
+    },
+    data: () =>
+      read(async (reader) => {
+        const heldRows = await reader.all<{
+          source: string
+          season: number
+          rows_written: number
+          bytes: number | null
+          fetched_at: string
+        }>('SELECT source, season, rows_written, bytes, fetched_at FROM source_state')
+        const held = new Map<string, HeldFile>(
+          heldRows.map((r) => [
+            `${r.source}:${r.season}`,
+            { rows: r.rows_written, bytes: r.bytes, fetchedAt: r.fetched_at }
+          ])
+        )
+        const attemptRows = await reader.all<{
+          source: string
+          status: string
+          message: string | null
+        }>(
+          `SELECT source, arg_max(status, id) AS status, arg_max(message, id) AS message
+           FROM sync_log WHERE status NOT IN ('running', 'interrupted') GROUP BY source`
+        )
+        const attempts = new Map<string, FileAttempt>(
+          attemptRows.map((r) => [r.source, { status: r.status, message: r.message }])
+        )
+        return {
+          families: summariseFamilies(SOURCES, currentSeason(new Date()), held, attempts),
+          databaseBytes: databaseBytes(init.path),
+          freeBytes: free(init.path)
+        }
+      }),
+    async pause() {
+      paused = true
+      await savePaused(true)
+      if (busy) {
+        abort.abort()
+        db.interrupt()
+      }
+    },
+    async resume() {
+      paused = false
+      await savePaused(false)
     },
     read: (sql) => read((reader) => reader.all(sql)),
     /** Write, read, a Parquet round trip, `read_json` and an ICU time zone, through the real file. */

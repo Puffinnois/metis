@@ -1,6 +1,6 @@
 import type { StatsDb } from './db'
 import type { Downloads, FetchedFile } from './download'
-import { buildIdentity, canBuildIdentity, identityStale } from './identity'
+import { buildIdentity, canBuildIdentity, identityStale, markIdentityStale } from './identity'
 import { loadSourceFile } from './load'
 import type {
   RefreshOptions,
@@ -324,6 +324,7 @@ export async function refreshStats(
     }
     log.push(entry)
     if (step.source.tier === 'core' && entry.status === 'ok' && entry.rowsWritten > 0) {
+      if (!coreWrote) await markIdentityStale(db)
       coreWrote = true
     }
     deps.onProgress?.({ done: i + 1, total: due.length })

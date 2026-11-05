@@ -223,6 +223,11 @@ export async function identityStale(db: StatsDb): Promise<boolean> {
   return (row?.version ?? 0) < IDENTITY_VERSION
 }
 
+/** Marks the tables out of date, so a build the app never got to still happens on the next refresh. */
+export async function markIdentityStale(db: StatsDb): Promise<void> {
+  await db.exec("INSERT OR REPLACE INTO derived_state VALUES ('identity', 0)")
+}
+
 /** Rebuilds the tables; each replaces the old one in its own statement. Returns how many games. */
 export async function buildIdentity(db: StatsDb): Promise<number> {
   await db.exec(NAME_KEY)

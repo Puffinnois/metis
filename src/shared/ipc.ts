@@ -1,5 +1,5 @@
 import type { DevNote, NewNote, NoteError, NoteStatus } from './devNotes'
-import type { StatsStatus } from './stats/types'
+import type { StatsDataReport, StatsStatus } from './stats/types'
 import type { UpdateState } from './types'
 
 /** What the preload script exposes to the renderer as `window.api`. */
@@ -46,6 +46,11 @@ export interface Api {
   stats: {
     /** What the database holds, for the nav's status line. */
     status(): Promise<StatsStatus>
+    /** What is loaded, for the Data panel. */
+    data(): Promise<StatsDataReport>
+    /** Stops a running load and holds off any other, across launches, until `resume`. */
+    pause(): Promise<void>
+    resume(): Promise<void>
     /** Fires as a refresh progresses and when it ends; returns the unsubscribe function. */
     onChanged(listener: () => void): () => void
   }
@@ -72,5 +77,8 @@ export const IPC = {
   devNotesChooseFolder: 'dev:notesChooseFolder',
   devNotesCopy: 'dev:notesCopy',
   statsStatus: 'stats:status',
-  statsChanged: 'stats:changed'
+  statsChanged: 'stats:changed',
+  statsData: 'stats:data',
+  statsPause: 'stats:pause',
+  statsResume: 'stats:resume'
 } as const

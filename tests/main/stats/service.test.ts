@@ -24,8 +24,45 @@ describe('the stats service', () => {
       through: null,
       updatedAt: null,
       busy: false,
-      progress: null
+      progress: null,
+      paused: false,
+      noRoom: null
     })
+  })
+
+  it('reports what is loaded for the Data panel, every release included', async () => {
+    const report = await service!.data()
+    expect(report.families).toHaveLength(44)
+    expect(report.families[0]).toMatchObject({ tier: 'core', state: 'waiting', filesLoaded: 0 })
+    expect(report.databaseBytes).toBeGreaterThan(0)
+  })
+
+  it('holds off a refresh while paused, across a reopen, until resumed', async () => {
+    await service!.pause()
+    await expect(service!.status()).resolves.toMatchObject({ paused: true, busy: false })
+    await expect(service!.refresh({})).resolves.toEqual({ steps: [] })
+    await service!.close()
+    service = await openStatsService(
+      { path: join(dir, 'stats.duckdb'), tempDir: join(dir, 'tmp') },
+      () => {},
+      { freeBytes: () => 1 }
+    )
+    await expect(service.status()).resolves.toMatchObject({ paused: true })
+    await service.resume()
+    await expect(service.status()).resolves.toMatchObject({ paused: false })
+  })
+
+  it('does not start a first load without room for it, and says so', async () => {
+    await service!.close()
+    service = await openStatsService(
+      { path: join(dir, 'stats.duckdb'), tempDir: join(dir, 'tmp') },
+      () => {},
+      { freeBytes: () => 1024 }
+    )
+    await expect(service.refresh({})).resolves.toEqual({ steps: [] })
+    const { noRoom } = await service.status()
+    expect(noRoom?.freeBytes).toBe(1024)
+    expect(noRoom?.neededBytes).toBeGreaterThan(5 * 1024 ** 3)
   })
 
   it('names the latest game once box scores are loaded, newest season first', async () => {

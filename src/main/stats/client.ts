@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { Worker } from 'node:worker_threads'
-import type { StatsStatus } from '@shared/stats/types'
+import type { StatsDataReport, StatsStatus } from '@shared/stats/types'
 import type {
   RefreshOptions,
   SelfTestResult,
@@ -16,6 +16,9 @@ export interface StatsClient {
   refresh(options?: RefreshOptions): Promise<StatsSyncResult>
   selfTest(): Promise<SelfTestResult>
   status(): Promise<StatsStatus>
+  data(): Promise<StatsDataReport>
+  pause(): Promise<void>
+  resume(): Promise<void>
   /** Closes the database and ends the worker (after `CLOSE_TIMEOUT_MS` at most). */
   close(): Promise<void>
 }
@@ -71,6 +74,9 @@ export function startStatsWorker(
     refresh: (options = {}) => request<StatsSyncResult>((id) => ({ id, kind: 'refresh', options })),
     selfTest: () => request<SelfTestResult>((id) => ({ id, kind: 'selfTest' })),
     status: () => request<StatsStatus>((id) => ({ id, kind: 'status' })),
+    data: () => request<StatsDataReport>((id) => ({ id, kind: 'data' })),
+    pause: () => request<void>((id) => ({ id, kind: 'pause' })),
+    resume: () => request<void>((id) => ({ id, kind: 'resume' })),
     async close() {
       if (!dead) {
         let timer: NodeJS.Timeout | undefined

@@ -327,6 +327,54 @@ const IDS: SourceFile[] = [
   )
 ]
 
+/** Each release as the Data panel names it. SportsDataverse's are its own calculations. */
+export const RELEASE_LABELS: Record<string, string> = {
+  espn_nba_schedules: 'Schedules (ESPN)',
+  espn_nba_player_boxscores: 'Player box scores (ESPN)',
+  espn_nba_team_boxscores: 'Team box scores (ESPN)',
+  espn_nba_player_core: 'Player details (ESPN)',
+  espn_nba_player_season_stats: 'Player season stats (ESPN)',
+  espn_nba_team_season_stats: 'Team season stats (ESPN)',
+  espn_nba_game_rosters: 'Game rosters (ESPN)',
+  espn_nba_standings: 'Standings (ESPN)',
+  espn_nba_officials: 'Officials (ESPN)',
+  espn_nba_draft: 'Draft (ESPN)',
+  espn_nba_rosters: 'Rosters (ESPN)',
+  espn_nba_injuries: 'Injuries (ESPN)',
+  espn_nba_depthcharts: 'Depth charts (ESPN)',
+  espn_nba_shots: 'Shots (ESPN)',
+  espn_nba_pbp: 'Play by play (ESPN)',
+  nba_stats_schedules: 'Schedules (NBA)',
+  nba_stats_player_boxscores: 'Player box scores (NBA)',
+  nba_stats_team_boxscores: 'Team box scores (NBA)',
+  nba_stats_player_game_logs: 'Team game logs (NBA)',
+  nba_stats_game_rosters: 'Game rosters (NBA)',
+  nba_stats_player_season_stats: 'Player season stats (NBA)',
+  nba_stats_team_season_stats: 'Team season stats (NBA)',
+  nba_stats_rosters: 'Rosters (NBA)',
+  nba_stats_standings: 'Standings (NBA)',
+  nba_stats_coaches: 'Coaches (NBA)',
+  nba_stats_officials: 'Officials (NBA)',
+  nba_stats_draft: 'Draft (NBA)',
+  nba_stats_injury_report: 'Injury reports (NBA)',
+  nba_stats_draft_combine: 'Draft combine (NBA)',
+  nba_stats_leaguedash: 'League dashboards and tracking (NBA)',
+  nba_stats_synergy: 'Play types (NBA)',
+  nba_stats_hustle: 'Hustle (NBA)',
+  nba_stats_matchups: 'Season matchups (NBA)',
+  nba_stats_lineups: 'Lineups (NBA)',
+  nba_stats_game_matchups: 'Game matchups (NBA)',
+  nba_stats_shots: 'Shots (NBA)',
+  nba_stats_pbp: 'Play by play (NBA)',
+  nba_player_impact: 'Impact models (SportsDataverse)',
+  nba_stats_metric_curves: 'Shooting by distance (SportsDataverse)',
+  nba_stats_rolling_windows: 'Recent shooting (SportsDataverse)',
+  nba_stats_possessions: 'Possessions (SportsDataverse)',
+  nba_stats_game_lineups: 'Lineups on court (SportsDataverse)',
+  nba_crosswalk: 'Id crosswalks (SportsDataverse)',
+  nba_groups: 'Aliases and divisions (SportsDataverse)'
+}
+
 export const SOURCES: SourceFile[] = [...IDS, ...ESPN, ...NBA, ...DASHBOARDS, ...SHARED]
 
 /** The file of one season (0 for a file of all seasons). */

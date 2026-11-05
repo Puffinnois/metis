@@ -8,6 +8,7 @@ import { openTestDb, tempDir, writeFixture } from '../../fixtures/stats'
 vi.mock('@main/stats/identity', () => ({
   canBuildIdentity: vi.fn(async () => true),
   identityStale: vi.fn(async () => false),
+  markIdentityStale: vi.fn(async () => undefined),
   buildIdentity: vi.fn(async () => 7)
 }))
 
@@ -62,6 +63,12 @@ describe('the identity step', () => {
     ])
     expect(identity.buildIdentity).toHaveBeenCalledTimes(1)
     expect(steps[1].rowsWritten).toBe(7)
+  })
+
+  it('marks the tables out of date before anything can stop the build', async () => {
+    vi.mocked(identity.markIdentityStale).mockClear()
+    await run([CORE])
+    expect(identity.markIdentityStale).toHaveBeenCalledOnce()
   })
 
   it('runs at the end when only the core tier was due', async () => {

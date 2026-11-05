@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { freshness } from '@/lib/stats/scope'
 
-const base = { available: true, through: null, updatedAt: null, busy: false, progress: null }
+const base = {
+  available: true,
+  through: null,
+  updatedAt: null,
+  busy: false,
+  progress: null,
+  paused: false,
+  noRoom: null
+}
 const NOW = Date.parse('2026-11-05T12:00:00Z')
 const through = { season: 2027, date: '2026-11-04' }
 
@@ -22,6 +30,16 @@ describe('freshness', () => {
     )
     expect(freshness({ ...base, through, busy: true }, NOW)).toBe(
       'Data through Nov 4, 2026 · updating…'
+    )
+  })
+
+  it('says when loading is paused or has no room', () => {
+    expect(freshness({ ...base, paused: true })).toBe('Loading paused')
+    expect(freshness({ ...base, through, paused: true }, NOW)).toBe(
+      'Data through Nov 4, 2026 · paused'
+    )
+    expect(freshness({ ...base, noRoom: { neededBytes: 1, freeBytes: 0 } })).toBe(
+      'Not enough disk space'
     )
   })
 

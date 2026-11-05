@@ -1,9 +1,9 @@
 /**
  * `player` and `team` are the dashboards, `players` and `teams` the leaderboards, `explore` Chart,
- * Compare and Trends, `games` a day's games.
+ * Compare and Trends, `games` a day's games, `data` what is loaded (opened from the status line).
  */
 export type StatsScreen =
-  'home' | 'player' | 'players' | 'team' | 'teams' | 'explore' | 'games' | 'glossary'
+  'home' | 'player' | 'players' | 'team' | 'teams' | 'explore' | 'games' | 'glossary' | 'data'
 
 export const NAV_ITEMS: { id: StatsScreen; label: string }[] = [
   { id: 'home', label: 'Leaderboards' },
