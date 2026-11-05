@@ -1,5 +1,6 @@
 import type { StatsDb } from './db'
 import type { Downloads, FetchedFile } from './download'
+import { buildIdentity, canBuildIdentity, identityStale } from './identity'
 import { loadSourceFile } from './load'
 import type {
   RefreshOptions,
@@ -23,6 +24,8 @@ export const PRIOR_SEASON_FRESHNESS_MS = 7 * DAY
 export const PARALLEL_DOWNLOADS = 4
 /** Prefix of every stats step in `sync_log`. */
 export const STATS_LOG_PREFIX = 'stats:'
+/** Builds `game`, `team_season`, `player_ids` and `player` from the core tier. */
+export const STATS_IDENTITY_STEP = `${STATS_LOG_PREFIX}identity`
 
 export interface StatsSyncDeps {
   db: StatsDb
@@ -217,6 +220,8 @@ export async function refreshStats(
   const { db, downloads } = deps
   const log: StatsLogEntry[] = []
   let fatal: string | undefined
+  let coreWrote = false
+  let identityBuilt = false
   const today = nowOf(deps)
   const current = currentSeason(today)
   const states = await readStates(db)
@@ -273,6 +278,18 @@ export async function refreshStats(
     )
   }
 
+  // Built as soon as the core tier is in, so the app can use it long before the load ends.
+  const runIdentity = async (): Promise<void> => {
+    identityBuilt = true
+    if (!(await canBuildIdentity(db))) return
+    log.push(
+      await runLogged(deps, STATS_IDENTITY_STEP, async () => ({
+        rows: await buildIdentity(db),
+        message: null
+      }))
+    )
+  }
+
   deps.onProgress?.(due.length > 0 ? { done: 0, total: due.length } : null)
   for (let i = 0; i < due.length; i++) {
     if (deps.cancelled?.()) break
@@ -280,6 +297,7 @@ export async function refreshStats(
     const step = due[i]
     let entry: StatsLogEntry
     try {
+      if (coreWrote && !identityBuilt && step.source.tier !== 'core') await runIdentity()
       entry = await runLogged(deps, stepLogName(step), async () => {
         const fetched = await fetches[i]
         if (!fetched.ok) throw fetched.error
@@ -305,10 +323,20 @@ export async function refreshStats(
       break
     }
     log.push(entry)
+    if (step.source.tier === 'core' && entry.status === 'ok' && entry.rowsWritten > 0) {
+      coreWrote = true
+    }
     deps.onProgress?.({ done: i + 1, total: due.length })
   }
   deps.onProgress?.(null)
   if (fatal !== undefined) return { steps: log, fatal }
+  if (!identityBuilt && !deps.cancelled?.()) {
+    try {
+      if (coreWrote || (await identityStale(db))) await runIdentity()
+    } catch (err) {
+      return { steps: log, fatal: err instanceof Error ? err.message : String(err) }
+    }
+  }
   if (log.some((e) => e.status === 'ok' && e.rowsWritten > 0) && !deps.cancelled?.()) {
     try {
       await db.exec('CHECKPOINT')

@@ -27,6 +27,31 @@ Three columns are standard:
 
 Season types and team codes stay as published here. They are mapped in the `game` and `team` tables (D27).
 
+## Identity
+
+Built by `src/main/stats/identity.ts`, logged as `stats:identity`, as soon as the core tier has loaded and whenever it changes after that. A new `IDENTITY_VERSION` rebuilds it with nothing downloaded.
+
+| Table         | One row per        | Holds                                                                                                                                                             |
+| ------------- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `game`        | game of the league | `game_id` (the NBA's id, or `espn:<id>` before 1996-97), `nba_game_id`, `espn_game_id`, `season`, `game_type`, `game_date`, teams on NBA ids, the score, `played` |
+| `team_season` | team in a season   | NBA `team_id`, `espn_team_id`, `code`, `name`, `conference`, `division`                                                                                           |
+| `player_ids`  | ESPN id            | `player_id`, and the `method` that found it                                                                                                                       |
+| `player`      | person             | `player_id`, `name`, `espn_athlete_id`, `method`, `first_season`, `last_season`                                                                                   |
+
+- **Game types** (D12): `regular`, `play-in`, `playoffs`, `cup-final`, `all-star`, `preseason`. From 1996-97 the prefix of the NBA's game id decides. Before it, ESPN's season type, with a game against a touring team counted as `preseason`.
+- **What is a game:** the NBA's schedule from 1996-97, ESPN's before. ESPN's rows for postponed games are left out. `played` is false for a game not played, including the one cancelled in 2013.
+- **Linking the sources:** the crosswalk, then the same teams within a day.
+- **Teams:** `nba_team_aliases` maps ESPN's ids by season, so one NBA id follows a franchise across a move, and ESPN's id 3 is Charlotte through 2001-02 and New Orleans after it.
+- **Players**, first hit wins (D28):
+  1. the crosswalk;
+  2. the same box-score lines in the same games, with at least two lines that are not all zeros and a clear winner;
+  3. the same name in the same season, when only one player has it.
+
+  Anyone left gets the negative of their ESPN id: 200 players, of whom one has a line from 1996-97 on.
+
+- **Reading ESPN's box scores:** add `season = file_season`, or the games of 1998-99 count twice.
+- **Reading team totals:** the NBA's box score, or ESPN's players summed before 1996-97. Never ESPN's team rebound and turnover columns.
+
 ## Sync
 
 - **When it runs:** at launch, and every 6 hours while the window stays open. One at a time.

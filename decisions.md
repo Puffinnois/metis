@@ -28,7 +28,7 @@ Short log of decisions and why. Newest last. The previous implementation's log (
 
 **D12. Season types are one set, mapped from each source:** regular, play-in, playoffs, NBA Cup final, All-Star, preseason. Stats default to the regular season; All-Star and preseason never count toward anything by default.
 
-**D13. NBA ids are the primary keys** (`person_id`, `team_id`, `game_id`) from 1996-97. ESPN ids join through `nba_crosswalk` (players, teams and games, from 2001-02), with date plus team as the fallback for games. Identity for the seasons before the crosswalk is a task in Plan.md.
+**D13. NBA ids are the primary keys** (`person_id`, `team_id`, `game_id`) from 1996-97. ESPN ids join through `nba_crosswalk` (players, teams and games, from 2001-02), with date plus team as the fallback for games. Who has no NBA id is in D28.
 
 **D14. Sources are kept side by side, never overwritten.** Which source a metric reads is stated in the catalogue. A disagreement between sources is a measured result to report.
 
@@ -59,3 +59,5 @@ Short log of decisions and why. Newest last. The previous implementation's log (
 **D26. A stage tag is not a release.** `vX.Y-stageN` marks a finished stage. A version tag such as `v1.0.0` runs the Release workflow, which requires it to match `package.json`. _Why:_ in the template every `v*` tag was a release, and a stage tag would only fail that version check.
 
 **D27. Source tables stay as published.** `season` is only cast to an INTEGER, and `file_season` and `source_file` are added to tell files apart. Season types and team codes are mapped in the `game` and `team` tables (Plan T407, T408). _Why:_ ESPN's 2000 files hold games of 1998-99 rightly marked 1999, which a file's label would overwrite; many files have no season type column at all, so it has to come from the game anyway; and correcting a mapping should never mean downloading the files again.
+
+**D28. Every game and player has a key, whatever the sources know.** NBA ids stay the keys (D13). A game before 1996-97 is `espn:<id>`, and a player the NBA's data does not know gets the negative of their ESPN id. _Why:_ one type of key for every join, no chance of a collision, and those rows stay in the app instead of dropping out: 200 players, nearly all from before 1996-97.

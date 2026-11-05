@@ -42,6 +42,7 @@ src/shared/        Types and IPC, shared by both sides
 tests/             Mirrors src/
 scripts/drive.mjs  Runs the built app and follows steps; how UI work is verified
 scripts/load-report.mjs  Runs a real load and measures it; how data work is verified
+scripts/check-agreement.mjs  Checks a load against the league and across sources, per season
 docs/reference/    What the app does and what was measured
 ```
 
