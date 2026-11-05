@@ -4,6 +4,63 @@ Metis rebuilt in TypeScript on the `fantasy-football-companion` template. See `d
 
 The template paths named below are read-only references, in `../fantasy-football-companion`.
 
+## The goal
+
+Version 1.0 is done when all of this is true on a clean Windows machine:
+
+1. **The data:** every table and season the dataset publishes is loaded, the current season refreshes daily, and agreement with the source is written down per season.
+2. **The stats:** each of the 443 entries in `nba-statistics-reference.md` (sections 3 to 18) is in the catalogue with its coverage, or listed as unavailable with the reason.
+3. **The screens:** Leaderboards, Players, Teams, Explore, Games and Glossary answer from that catalogue, and a gap always says why.
+4. **The release:** an installer with a real icon, signed updates, and credit to the data sources.
+
+No fantasy features at any point (D4).
+
+## What this plan is built on
+
+Measured 2026-11-05. Details are in `docs/reference/nba-data-sources.md`.
+
+| Fact                                                                                       | What it means for the work                                                                              |
+| ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| 44 NBA releases: 3,107 Parquet files, 1,691 MB. The template's whole download was 210 MB   | Eight times the template's scale. Size, memory and first-load time must be measured early, not assumed  |
+| Play by play alone is 879 MB. The core box scores and schedules are 100 MB                 | Load in order of value, so the app is useful long before the load ends                                  |
+| 124 current-season files, 16 MB today. A finished season's files are 84 MB                 | A daily refresh is cheap at first and grows through the season                                          |
+| GitHub's anonymous API allows 60 calls an hour. 40 of 44 releases publish `timestamp.json` | The app must not depend on the GitHub API. File names and freshness files replace it                    |
+| Hustle and play types have no game column                                                  | "Any date range is exact" cannot hold for them: a date range answers `null` with a reason               |
+| The `nba_player_impact` columns are the dataset's own calculations                         | RAPM, BPM, WAR and DARKO must be labelled as SportsDataverse's, not the original publishers'            |
+| The template holds about 29,000 lines of stats code, much of it bound to the NFL           | Porting is mostly rewriting, so it is done a screen at a time, with the data each screen needs in place |
+
+## How the work is organized
+
+**Each stage ends with something the owner can use.** The earlier draft of this plan built in layers, with the data first and every screen last, so nothing could be judged until the end. Now each stage takes a slice from the data through to the screen, then the next one adds depth.
+
+| Stage              | At the end, the owner can…                                    | Data added      | Tag            |
+| ------------------ | ------------------------------------------------------------- | --------------- | -------------- |
+| 1, 2 Archive, base | Open an empty app (done)                                      |                 |                |
+| 3 Clean slate      | See one clear project on GitHub, with Windows packaging run   |                 | `v0.1-stage3`  |
+| 4 Data foundation  | Load everything, quit, resume, and read the agreement report  | All 1,691 MB    | `v0.2-stage4`  |
+| 5 First usable app | Rank anyone on any box-score stat, 1993-94 to now             | Core in use     | `v0.3-stage5`  |
+| 6 Dashboards       | Open a player, a team or a game                               | Core in use     | `v0.4-stage6`  |
+| 7 Published depth  | See tracking, hustle, play types, matchups, impact, combine   | 394 MB in use   | `v0.5-stage7`  |
+| 8 Explore          | Chart any stat against another, compare, follow a career      |                 | `v0.6-stage8`  |
+| 9 Play level       | Split by clutch or quarter, read shot charts, on/off, lineups | 1,198 MB in use | `v0.7-stage9`  |
+| 10 Ratings         | See Elo, SRS, playoff odds, PER, Win Shares, stability        |                 | `v0.8-stage10` |
+| 11 Ship            | Install it on any Windows machine                             |                 | `v1.0-stage11` |
+
+**Order:** 3 → 4 → 5 → 6, then 7 and 8 in either order, then 9 → 10 → 11.
+
+**Every task:** a branch cut from `main`, named by intent; one PR with a "Verified by:" line; squash-merged. Sizes: **S** is a small PR, **M** one full PR, **L** several PRs.
+
+**Every stage ends with this gate:**
+
+- All its boxes ticked, each with its check run.
+- A real load on a clean profile, then `scripts/drive.mjs` through the stage's screens, with no errors in the app log.
+- A `check/**` branch run, so the Windows build and self-test pass.
+- `docs/reference/` updated: `stats-database.md` and `stats-screens.md` start in Stage 4 and 5 and grow from there.
+- Speed held: a screen's queries answer in under 500 ms on the full database, or the reason is written down.
+- The owner tries it. Then `main` into `preprod` into `prod`, and the tag.
+
+**Running tasks at the same time:** Stages 6, 7 and 8 have tasks that can each run in their own worktree. To allow that, T503 splits the catalogue into one file per family, so tasks adding metrics do not collide.
+
 ## Stage 1: Archive the old Metis
 
 - [x] All work in progress committed to `archive/rust-tauri`, tagged `archive/rust-tauri-final`, pushed. Checked: the local branch, remote branch and tag are the same commit.
@@ -11,52 +68,171 @@ The template paths named below are read-only references, in `../fantasy-football
 ## Stage 2: The new base
 
 - [x] Generic code copied from the template with no fantasy features: shell, stats worker, DuckDB access, settings, updater, dev tools, design system.
-- [x] Checked: typecheck, lint, 126 tests, the worker self-test in real Electron, and `scripts/drive.mjs` through the window (nav, Back, theme, dev note). Windows packaging not yet run (the `check/**` workflow does it).
+- [x] Checked: typecheck, lint, 126 tests, the worker self-test in real Electron, and `scripts/drive.mjs` through the window (nav, Back, theme, dev note). Windows packaging not yet run: T304.
 - [x] NBA dataset inspected and cross-checked: `docs/reference/nba-data-sources.md`.
+- [x] Merged to `main` through PR 5.
+- [x] Full asset inventory read: 44 releases, 3,107 Parquet files.
 
-## Stage 3: The data warehouse
+## Stage 3: Clean slate
 
-Template: `src/main/stats/{sources,download,load,sync,views}.ts`, `docs/reference/stats-database.md`.
+Each step in T301 to T303 changes GitHub, so each waits for the owner's word.
 
-- [ ] **T301 Sources and download.** Finish the asset inventory the API allowance cut short, and read the licence terms. A source registry covering every NBA table; download to temp; a table per source with every column as published.
-- [ ] **T302 Sync.** Per source and season: sealed old seasons, daily current season, 404 as skipped, one transaction per step, cancellation, the `sync_log`. Refresh at launch; nav shows progress. Check: quit mid-load, relaunch, it resumes.
-- [ ] **T303 First full load.** Measure download size, file size, build time and peak memory against the template's settings (512 MB limit). Record them in the reference. If impractical, stop and raise it (D9).
-- [ ] **T304 Game types.** Map every source to one set (D12), All-Star and Cup final handled. Check: 1,230 regular-season games in 2025-26 from both sources.
-- [ ] **T305 Identity.** `player` and `team` tables on NBA ids; ESPN through the crosswalk; **a method for 1993-94 to 2000-01**, before the crosswalk starts; relocated franchises as one team. Report the match rate per season.
-- [ ] **T306 Agreement checks.** The checks in the reference, as a repeatable script per season, written to the reference. Includes the turnover definitions left open.
+- [ ] **T301 Repository settings (S).** Close PR 4: its head is `main`, so it now carries the restart under its old "Phase 5" title. Make `main` the default branch (it is still `feature/season-rollups`). Check: the repository page opens on `main`, with no open PRs.
+- [ ] **T302 Old branches (S).** Tag every old branch holding commits found nowhere else as `archive/<name>`: `feature/pbpstats-possession-lineup-adapter`, `feature/possession-lineup-migrations`, `feature/season-rollups`, `task/002-pre-commit-ci` and the local `preprod`. Then delete the old branches, local and remote. Check: only `main`, `preprod`, `prod` and `archive/rust-tauri` remain, and every old tip is still reachable.
+- [ ] **T303 Promote the base (S).** `main` into `preprod` into `prod` (`prod` does not exist on GitHub yet), tag `v0.1-stage3`. Protect the three branches: no force-push, `check` required. Check: a test push to `main` is refused.
+- [ ] **T304 Windows check (S).** Push a `check/**` branch. Windows is the real target and has never been built. Check: the workflow's installer build and self-test pass.
+- [ ] **T305 Documents (S).** Move `nba-statistics-reference.md` to `docs/reference/nba-statistics.md`, fix its links, and use they/them where it says he or his. Update D6 with what the licence files say (the terms still need reading: T1101) and correct D13 (a game crosswalk exists). Add the owner's choices below to `decisions.md`. Check: `npx prettier --check .`, and no broken links.
 
-## Stage 4: The stats
+## Stage 4: Data foundation
 
-Template: `src/main/stats/derived/`, `src/main/stats/engine/`, `src/shared/stats/`.
+Template: `src/main/stats/{sources,download,load,sync,identity}.ts`, `docs/reference/stats-database.md`.
 
-- [ ] **T401 Derived tables.** `player_game`, `team_game`, `player_season`, `team_season`; rates as numerator and denominator; team context for shares.
-- [ ] **T402 Catalogue, traditional.** Every box-score metric, per game and totals, per 36 and per 100 possessions.
-- [ ] **T403 Catalogue, advanced.** TS%, eFG%, USG%, four factors, offensive and defensive rating, net rating, pace. Each with its first season; outside it a `null` with a reason. Formula tests against published values.
-- [ ] **T404 Catalogue, published.** RAPM, BPM, WAR, DARKO, hustle, synergy, matchups, tracking: as the source gives them.
-- [ ] **T405 Query engine.** Port compile, run and registry from weeks to game dates (D11); percentiles and qualification per position group (`G`, `F`, `C`).
-- [ ] **T406 Play-level splits.** Quarter, clutch, score state, shot zone, from play by play. On/off and lineups from possessions, with their stated tolerance.
+Outcome: the app downloads everything, keeps it fresh, survives being quit, and reports how far the numbers agree.
 
-## Stage 5: The screens
+- [ ] **T401 Source registry (M).** Every release, its file-name pattern, seasons, grain and load tier. `scripts/inventory-sources.mjs` rebuilds the list from the GitHub API at development time; the app itself never calls that API. Check: a test compares the registry with a checked-in inventory, and a real run reports no differences.
+- [ ] **T402 Download and load (M).** Download to temp; one table per source, with every column as published and typed; type widening when a later season changes a column; `season`, season type and team codes normalised. Few downloads at once, retries with backoff, a plain client name. Check: a parser fixture per file shape, then one source of each tier loaded in the real app.
+- [ ] **T403 Sync (L).** Per source and season: old seasons sealed, the prior season weekly, the current one daily; 404 as skipped; one transaction per step; cancellation; the `sync_log`. Freshness from `timestamp.json`, and a conditional request for the four releases without one. Refresh at launch, progress in the nav. Check: quit mid-load, relaunch, it resumes. A second run downloads nothing.
+- [ ] **T404 Load order (S).** Core, then published, events, play by play. Each finished tier can be read while the next loads. Check: a leaderboard-shaped query answers during a play-by-play load, under 500 ms.
+- [ ] **T405 First full load (M).** Everything, once, from nothing. Record per tier: download size, file size, time and peak memory, against the template's 512 MB limit. Stop and raise it with the owner past the limits in choice 3 below. Check: the numbers are in the reference.
+- [ ] **T406 Coverage and duplicates (M).** Per family, the first season holding real values, not just rows: a pull-up file exists for 1996-97, years before tracking began. Whether `*_master`, per-game files and `nba_stats_lineups` only repeat other files (choice 4). What `metric_curves` and `rolling_windows` hold. Check: a coverage table in the reference, which later supplies each metric's first season.
+- [ ] **T407 Game types (M).** Map every source to one set (D12), with All-Star and Cup final handled. Check: 1,230 regular-season games in 2025-26 from both sources, and each season's count against its real length, including the short ones (1998-99: 725, 2011-12: 990, 2019-20: 1,059, 2020-21: 1,080).
+- [ ] **T408 Identity (L).** `player`, `team` and `game` tables on NBA ids. ESPN through the player, team and schedule crosswalks, keeping their match confidence. `nba_team_aliases` for team codes (`GS`/`GSW`, `NY`/`NYK`), one franchise across relocations, conference and division by season from `nba_team_group_seasons`. **A method for 1993-94 to 2000-01**, before the crosswalks start, trying `nba_player_aliases` first. 1993-94 to 1995-96 exist only in ESPN, so some players have no NBA id: raise the key to use if the answer is not obvious. Check: match rate per season in the reference.
+- [ ] **T409 Agreement checks (M).** The checks in the reference as a repeatable script per season, written back to the reference with tolerances stated. Includes the turnover definitions left open. Check: run on the full load.
+- [ ] **T410 Data panel (M).** New, since the template has no equivalent, and a 1.7 GB load cannot hide in a status line. Per family: state, data through, size, last error. Disk used, a free-space check before the first load, pause and resume, the data credit. Check: `drive.mjs` through a load on a clean profile.
 
-Template: `src/renderer/src/screens/stats/`, `components/stats/`, `lib/stats/`, `docs/reference/stats-screens.md`.
+## Stage 5: First usable app
 
-- [ ] **T501 Scope bar.** Season, season type, date range, last N games.
-- [ ] **T502 Leaderboards.** Home boards, the full table, column picker, saved views, CSV.
-- [ ] **T503 Player dashboard.** Rail, header, tabs by position group, game log, splits, profile.
-- [ ] **T504 Team dashboard.** Header, offense, defense, lineups, schedule, players.
-- [ ] **T505 Games.** A day's games, box scores.
-- [ ] **T506 Explore.** Chart, Compare, Trends.
-- [ ] **T507 Glossary.**
+Template: `src/main/stats/derived/`, `src/main/stats/engine/`, `src/shared/stats/`, `src/renderer/src/{screens,lib}/stats/`.
 
-## Stage 6: Ratings and packaging
+Outcome: rank any player or team on any box-score stat, any season from 1993-94, any date range.
 
-Template: `src/main/stats/models/`.
+- [ ] **T501 Game tables (L).** `player_game`, `team_game`: numerators and denominators, minutes in seconds from both sources' forms, team and opponent context, starter flag, estimated possessions (named as an estimate). Check: formula tests, then player sums against team totals per season.
+- [ ] **T502 Season tables (M).** `player_season`, `team_season`. A traded player gets a row per team and a season total, never added together. Check: top scorers against `nba_stats_player_season_stats`, with match rates per season.
+- [ ] **T503 Catalogue, core (L).** One file per family. Each metric states the fields of reference section 19.4: grain, kind (recorded, derived, estimated, model), aggregation rule, unit, sample, direction, sources, first season. Reference sections 3, 4, 5 (estimates), 6, and 14.1 (Efficiency, Game Score, PIE). Check: a test per formula, against published values where they exist.
+- [ ] **T504 Query engine (L).** Port compile, run and registry (1,666 lines) from weeks to game dates (D11). Last N, separately for a player's appearances and a team's games; home and road, opponent, conference, division, month, before and after the All-Star break, rest days, starter or bench, wins and losses. Totals, per game, per 36, per 48, per 100. Percentiles and qualification by position group (`G`, `F`, `C`, with hybrids mapped), scaled to team games so short seasons qualify fairly. Check: engine tests, then speed on the full database.
+- [ ] **T505 Scope bar (S).** Season, season type, date range, last N. Check: `drive.mjs`.
+- [ ] **T506 Leaderboards (L).** Home boards, the full table, column picker, saved views, CSV, and a re-read when a refresh ends. Template: `StatsHome`, `StatsLeaderboard`, `lib/stats/{leaderboard,boards}.ts`. Check: `drive.mjs`, with values compared to the source.
+- [ ] **T507 Glossary (S).** Every metric, by family or search, with its coverage. Check: `drive.mjs`.
 
-- [ ] **T601 Team ratings.** Elo, SRS, opponent-adjusted rating, luck, schedule strength.
-- [ ] **T602 Season simulation.** Play-in and best-of-seven series.
-- [ ] **T603 Stability.** Metric stability, shrinkage.
-- [ ] **T604 Packaging.** Real app icon (currently Electron's default), Windows installer, signed-update check, first release.
+## Stage 6: Dashboards
+
+Template: `StatsPlayer`, `StatsTeam`, `StatsGames`, `lib/stats/{player,team,games}.ts`, `docs/reference/stats-screens.md`.
+
+Outcome: open any player, team or game. NBA dashboards are not split by position as the NFL's are, so one set of tabs serves everyone, and later stages add to it.
+
+- [ ] **T601 Player dashboard (L).** Rail, header, Overview, Scoring, Shooting, Playmaking, Rebounding, Defense. Check: `drive.mjs`, including a player with a gap in coverage.
+- [ ] **T602 Game log and splits (M).** Every game; splits from T504. Check: a season's log sums to its total.
+- [ ] **T603 Team dashboard (L).** Header with record and standing, results strip, Overview, Offense, Defense, Players, Schedule. Check: `drive.mjs`, and a relocated franchise across seasons.
+- [ ] **T604 Standings (S).** Conference and division tables, games behind, streaks, from the published standings. Check: against the source on three seasons.
+- [ ] **T605 Games (L).** A day's games on a date rail, in place of the template's weeks; box scores. Check: `drive.mjs`, and box totals against the final score.
+
+## Stage 7: Published depth
+
+Outcome: everything the dataset publishes per season, on the screens. Tasks T702 to T710 can run side by side once T701 is in.
+
+- [ ] **T701 Season-grain metrics (M).** The engine learns metrics with no game grain: under a date range they answer `null` with the reason "Published for whole seasons only." Rates divide by the tracked games and minutes, not the official ones. Check: engine tests.
+- [ ] **T702 NBA advanced, misc, scoring, usage, defense (M).** Reference sections 4 to 6, as published, beside the formula versions (D14). Same-named stats with different definitions keep different ids. Check: the differences are measured and reported.
+- [ ] **T703 Tracking (M).** Twelve families, from 2013-14, players only: speed, touches, drives, passing, rebounding, catch-and-shoot, pull-ups, touches by area, defense. Reference section 8. Check: against source, with a tracking tab on the dashboard.
+- [ ] **T704 Hustle (S).** Reference section 9, players and teams. Check: against source.
+- [ ] **T705 Play types (M).** Eleven types, offense and, where published, defense. Reference section 11. Check: against source, with its own tab.
+- [ ] **T706 Season matchups (M).** Pair matchups and position rollups. Reference section 10.2. Check: against source.
+- [ ] **T707 Impact models (S).** RAPM, adjusted RAPM, SPM, BPM, WAR, DARKO, labelled as SportsDataverse's calculations; play-in games are excluded from them. Its DARKO column projects next season, so it reads as a published value, not advice. Check: the label is on the column head and in the Glossary.
+- [ ] **T708 Profile (M).** Bio, draft, every combine table with percentiles among the same positions. Reference section 17. Missing tests stay blank. Check: `drive.mjs`, including a player who skipped a drill.
+- [ ] **T709 Availability (M).** Status tag from the injury report; games missed, counted by game and not by report; coaches and officials. Check: repeated reports count once.
+- [ ] **T710 Published lineups (M).** Five-man units from 2007-08, on the team dashboard's Lineups tab. Check: against source.
+
+## Stage 8: Explore
+
+Template: `StatsExplore`, `StatsChart`, `StatsCompare`, `StatsTrends`, `lib/stats/{chart,compare,trends}.ts`. Each task can run on its own.
+
+- [ ] **T801 Chart (L).** Any metric against another, with presets, size and colour, and states for too few qualifiers. Check: `drive.mjs`.
+- [ ] **T802 Compare (M).** Three slots, players or teams. Check: `drive.mjs`, and links from the dashboards.
+- [ ] **T803 Trends (L).** A metric by season across a career, with league bands and coverage notes. Each season ranked in its own pool. Check: `drive.mjs`, on a career crossing a coverage start.
+
+## Stage 9: Play level
+
+Template: `src/main/stats/derived/plays.ts`, `engine/compile.ts`. This is the slowest and riskiest data, so it comes after the screens that show it are stable.
+
+- [ ] **T901 Event tables (L).** Both play-by-play sources, shots and possessions; a `plays` view with counting flags. Check: scores and box scores rebuilt from plays, with a match rate per season and a stated tolerance. Possessions are derived, not official: 2,327 of 2,644 team-games exact in 2025-26.
+- [ ] **T902 Splits from plays (L).** Quarter, clutch, score state, last minutes, garbage time, each with its rule stated (reference section 12). Check: clutch totals against a hand count on a sample game.
+- [ ] **T903 Shots (L).** Zones, distance, types, relative to league, and a shot chart. Reference section 7. NBA coordinates and ESPN's are kept apart. Check: zone sums equal shot totals.
+- [ ] **T904 On/off and lineups (L).** From possessions: on and off court, with-or-without, two- to five-man groups, actual on-court rates named apart from the box-score estimates (reference sections 4, 5, 12). Check: against published lineup tables, with the tolerance stated.
+- [ ] **T905 Play-derived stats (L).** Turnover and foul types, and-ones, assisted and unassisted shots, assist networks, runs, droughts, lead changes, a game-flow chart. Reference section 16. Check: validated against box scores before anything is shown.
+- [ ] **T906 Game matchups and officials (M).** Game-grain matchups, and officiating rates stated without implying bias. Check: against the season matchups.
+- [ ] **T907 Speed at full scale (M).** Pre-aggregate where the budget demands it, then measure 31 seasons of plays. Check: speed recorded in `stats-screens.md`.
+
+## Stage 10: Ratings
+
+Template: `src/main/stats/models/`. The template's field-goal model, fantasy tables and player outlook do not come across.
+
+- [ ] **T1001 Team strength (M).** Margin of victory, SRS, Pythagorean wins, the win residual, schedule strength. Check: formula tests, and SRS solved on a past season.
+- [ ] **T1002 Elo (M).** Sequential ratings with home court and between-season regression. Check: Brier score reported.
+- [ ] **T1003 Season simulation (L).** The remaining games, the play-in, best-of-seven series, the NBA's tiebreakers. Check: reproduces the real playoff fields of past seasons.
+- [ ] **T1004 Adjusted ratings (M).** Offense and defense adjusted for opponent, per possession. Check: against SRS, with differences reported.
+- [ ] **T1005 Box-score composites (L).** Oliver's points produced and ratings, PER, Win Shares, VORP, from their published methods, with era limits stated and labelled as computed by Metis. Check: a test per formula, with worked values.
+- [ ] **T1006 Stability (M).** Metric stability, shrinkage and the league indexes (`TS+`). Check: each metric carries its stability, shown on the column head.
+
+## Stage 11: Ship
+
+- [ ] **T1101 Rights and credit (S).** Read the terms of the dataset and its upstreams. The repository's licence file says MIT and its README shows CC BY 4.0; neither speaks for ESPN or the NBA. Credit in the app and the README. Raise anything unclear with the owner before release.
+- [ ] **T1102 App icon (S).** Currently Electron's default. Check: in the installer and the window.
+- [ ] **T1103 Installer and updates (M).** Windows installer, signed-update check. Check: install, update from the previous version.
+- [ ] **T1104 Clean machine (M).** The whole first run on Windows: install, load, quit, resume, refresh. Check: the goal above, item by item.
+- [ ] **T1105 Docs and README (S).** What the app does and what was measured, for someone arriving new.
+- [ ] **T1106 Release (S).** `main` into `preprod` into `prod`, tag `v1.0-stage11`, publish.
 
 ## Optional
 
-- [ ] **T701 Fantasy stats.** Fantasy points on players and teams as ordinary metrics: the source's `nba_fantasy_pts` and standard formulas. Nothing else fantasy (D4).
+- [ ] **T1201 Fantasy stats.** Fantasy points on players and teams as ordinary metrics: the source's `nba_fantasy_pts` and standard formulas. Nothing else fantasy (D4).
+
+## Where each stat comes from
+
+How the 443 entries in reference sections 3 to 18 are covered. Some are families of related metrics.
+
+| §   | Family                                 | Entries | Source                                                                     | Stage              |
+| --- | -------------------------------------- | ------- | -------------------------------------------------------------------------- | ------------------ |
+| 3   | Traditional box scores                 | 42      | Box scores; technicals and such: plays                                     | 5, some 9          |
+| 4   | Shooting efficiency, opportunity rates | 35      | Formulas over box scores; on-court: 9                                      | 5, 7, 9            |
+| 5   | Possessions, pace, ratings             | 19      | Estimates; published; possessions                                          | 5, 7, 9, Oliver 10 |
+| 6   | Scoring composition, shares            | 28      | Team box scores; league dashboards                                         | 5, 7               |
+| 7   | Shot location and context              | 23      | Shots. Some tracked context not found                                      | 9, some 7          |
+| 8   | Player tracking                        | 53      | League dashboards. Pass and rebound detail not found                       | 7                  |
+| 9   | Hustle, box outs                       | 16      | `nba_stats_hustle`                                                         | 7                  |
+| 10  | Defense, matchups                      | 25      | Tracking defense; matchups                                                 | 7, 9               |
+| 11  | Play types                             | 25      | `nba_stats_synergy`                                                        | 7                  |
+| 12  | Lineups, on/off, clutch, splits        | 19      | Game tables; lineups; possessions                                          | 5, 7, 9            |
+| 13  | Team strength, standings, game flow    | 23      | Standings; local models; plays                                             | 6, 9, 10           |
+| 14  | Composite and impact                   | 43      | Formulas; `nba_player_impact`. EPM, LEBRON, RAPTOR not available           | 5, 7, 10           |
+| 15  | NBA's new tracking models              | 14      | Not available: no public export found                                      | Listed only        |
+| 16  | Play-derived                           | 24      | Play by play                                                               | 9                  |
+| 17  | Measurements, combine                  | 22      | Rosters, draft, combine                                                    | 7                  |
+| 18  | Fantasy, others, availability          | 32      | Combined stats: formulas. Publisher grades, salaries, awards not available | 5, 7, T1201        |
+
+"Not found" means no such file appears in the asset list; T406 confirms it by reading the columns.
+
+## Risks
+
+| Risk                                                                   | What would show it                     | Answer                                                                                    |
+| ---------------------------------------------------------------------- | -------------------------------------- | ----------------------------------------------------------------------------------------- |
+| The database is too large or the first load too slow                   | T405's numbers, past choice 3's limits | Load order, duplicates dropped; Parquet kept on disk and read directly                    |
+| 512 MB of DuckDB memory is not enough for play by play                 | T405 fails or spills heavily           | One season at a time, then raise it with the owner                                        |
+| GitHub throttles thousands of downloads from one machine               | Failures during T405                   | Fewer at once, backoff; failed steps retry the next day                                   |
+| One volunteer-run dataset: a pipeline stalls, a column or file changes | "Data through" falls behind in T410    | Last good rows kept; a missing source reads NULL and never fails                          |
+| Rows that are not real data, such as tracking before 2013-14           | T406                                   | First seasons come from the coverage table, not from file names                           |
+| Rights: the upstream data's terms may limit a public release           | T1101                                  | Files are downloaded by each user and nothing is redistributed. Raise it early if unclear |
+| Football left behind in ported code                                    | Review of each port                    | Rule 7 of `CLAUDE.md`; a search for NFL terms in the stage gate                           |
+
+## Choices for the owner
+
+Not yet in `decisions.md`. Each is written as recommended; T305 records the answers.
+
+1. **Stages as slices, as above,** instead of data, then stats, then screens.
+2. **Load in tiers:** core 100 MB, published 394 MB, events 318 MB, play by play 879 MB. Everything still loads by default, so D9 stands, and the app is usable after the first tier.
+3. **Limits that stop the work in T405:** a file over 6 GB, a first load over an hour on the development machine, or more than 4 GB of process memory. Scaling the template gives roughly 2.8 GB for the file, which is an estimate and not a measurement.
+4. **Skip files proven to repeat others:** `*_master` (138 MB) and per-game files, where T406 shows no information is lost. This narrows "every table" in the data policy, so it needs a yes. Totals with denominators are what the policy stores anyway.
+5. **Stats with no free bulk source stay out:** EPM, LEBRON, the NBA's Inside the Game models, Basketball-Reference and paid APIs. They are listed as unavailable with the reason, following D7. Metis does not scrape.
+6. **The repository clean-up in Stage 3:** T301 to T303 change GitHub.
+
+## Not in this plan
+
+Fantasy features (D4). Ask and the Claude connection (D16). Seasons before 1993-94 (D9). Other leagues (D15). Calling stats.nba.com (D7). Raw player-tracking coordinates and licensed scouting data.
