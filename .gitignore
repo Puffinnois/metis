@@ -1,28 +1,17 @@
-# Rust
-/target/
-# Cargo.lock is committed (workspace has binaries)
-
-# Python
-.venv/
-__pycache__/
-*.pyc
-.mypy_cache/
-.ruff_cache/
-
 # Data — never committed
 /data/
-
-# Node / frontend
-node_modules/
-.svelte-kit/
-dist/
-/frontend/build/
-/frontend/.svelte-kit/
-
-# DuckDB
 *.duckdb
 *.duckdb.wal
 
-# OS
+# Node / build
+node_modules
+dist
+out
+.eslintcache
+*.tsbuildinfo
+*.log*
+
+# Editor and agent state
 .DS_Store
 Thumbs.db
+.claude/

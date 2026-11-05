@@ -1,0 +1,19 @@
+[
+  { "size": [1280, 800] },
+  { "wait": 2500 },
+  {
+    "eval": "JSON.stringify({ title: document.title, heading: document.querySelector('h1')?.textContent, status: document.querySelector('nav')?.innerText.includes('No stats yet') })"
+  },
+  { "shot": "home" },
+  { "click": "Games" },
+  { "wait": 300 },
+  { "eval": "document.querySelector('h1')?.textContent" },
+  { "click": "Teams" },
+  { "wait": 300 },
+  { "click": "[aria-label=\"Back\"]" },
+  { "wait": 300 },
+  { "eval": "'after back: ' + document.querySelector('h1')?.textContent" },
+  { "click": "[aria-label=\"Switch theme\"]" },
+  { "wait": 300 },
+  { "shot": "dark" }
+]

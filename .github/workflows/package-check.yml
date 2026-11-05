@@ -1,0 +1,42 @@
+name: Package check
+
+# Builds the Windows app without releasing it and runs the packaged
+# stats self-test. Push any branch named check/** (or run it by hand) to try a change on Windows
+# before tagging a release.
+on:
+  workflow_dispatch:
+  push:
+    branches: ['check/**']
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+
+      - name: Package (unpacked)
+        run: npx electron-builder --win --dir --publish never
+
+      - name: Check the stats database in the packaged app
+        shell: bash
+        timeout-minutes: 5
+        run: |
+          ./dist/win-unpacked/Metis.exe --stats-self-test="$RUNNER_TEMP/stats-self-test.json"
+          cat "$RUNNER_TEMP/stats-self-test.json"
+          grep -q '"ok":true' "$RUNNER_TEMP/stats-self-test.json"
+
+      - name: Keep the unpacked app
+        uses: actions/upload-artifact@v7
+        with:
+          name: Metis-win-unpacked
+          path: dist/win-unpacked
+          retention-days: 3

@@ -1,93 +1,43 @@
-# Decisions log — Metis
+# Decisions
 
-Architect's long-term memory across sessions. Append-only. Each entry: short title, date, decision, why, alternatives considered, and pointers to deeper ADRs if any.
+Short log of decisions and why. Newest last. The previous implementation's log (Rust, Tauri) is in `decisions.md` on the `archive/rust-tauri` branch.
 
-When a decision turns out to be wrong, do **not** delete it. Add a new entry that supersedes it and link back. Past reasoning is useful even when overturned.
+## 2026-11-05: the restart
 
-Format:
-```
-## NNN — Title  (YYYY-MM-DD)
-**Decision:** one sentence.
-**Why:** the reasoning, including what we were optimizing for.
-**Alternatives considered:** what we said no to and why.
-**Supersedes:** (optional) NNN
-**Superseded by:** (optional) NNN
-```
+**D1. Restart Metis as a TypeScript app.** The Rust/Python/Tauri implementation is archived at branch `archive/rust-tauri`, tag `archive/rust-tauri-final`. _Why:_ the owner chose to rebuild on the stack and approach that already worked in `fantasy-football-companion`.
 
----
+**D2. Stack: Electron, React, TypeScript, Tailwind, DuckDB (`@duckdb/node-api`), `node:sqlite` for settings, npm, Vitest.** Same as the template, so its code and patterns carry over.
 
-## 001 — Local-first desktop app, not web service  (2026-05-30)
-**Decision:** Ship Metis as a Tauri desktop app. No hosted backend in v1.
-**Why:** User wants a standalone Windows (+ Mac/Linux) application with a fast, snappy dashboard. Local execution eliminates network latency, hosting cost, and ToS exposure from re-serving scraped data. Tauri gives us cross-platform + small binary while reusing our Rust core as the backend.
-**Alternatives considered:** Electron (heavier, JS backend forces a second language for serving — rejected). Web app + hosted Postgres (network latency, hosting cost, ToS risk — rejected for v1; revisit if multi-user demand emerges).
+**D3. `fantasy-football-companion` is a read-only template for three things:** the user interface, the database structure, and the policy of a very extensive stats database. Nothing is ever changed in that project.
 
-## 002 — DuckDB + Parquet, not Postgres  (2026-05-30)
-**Decision:** DuckDB is the canonical store, embedded in the Tauri binary. Raw ingest lands in Parquet under `data/parquet/`. DuckDB queries Parquet directly for cold data, materializes hot rollups into native tables.
-**Why:** Workload is 100% analytical (scan, aggregate, filter, sort). DuckDB is columnar + vectorized, native Parquet, embedded (no server), excellent Rust + Python bindings. For a local single-user app it outperforms Postgres on every dimension that matters, with no ops cost. Migration path to Postgres later (for hosted multi-user) is realistic because SQL dialects overlap heavily.
-**Alternatives considered:** Postgres (overkill for embedded single-user, requires install/run — rejected). SQLite (row-oriented, slower for OLAP — rejected). ClickHouse (server-based, too heavy — rejected). Polars-only (no SQL, no persistence layer — rejected).
+**D4. No fantasy features.** No leagues, rosters, trades, waivers, lineups, projections or advice. Fantasy-related stats on players and teams are allowed, as ordinary metrics.
 
-## 003 — Rust core + Python ingestion, no FFI  (2026-05-30)
-**Decision:** Rust owns storage, compute, API, and the Tauri shell. Python owns ingestion, ML, and future CV. They communicate exclusively via the filesystem (Parquet) and DuckDB. No PyO3, no FFI.
-**Why:** Each language used where strongest. The NBA scraping ecosystem is entirely Python (`nba_api`, `pbpstats`, `basketball_reference_scraper`); rebuilding in Rust is wasted effort. PyO3 entanglement adds build complexity, cross-language stack traces, and packaging pain. The DuckDB/Parquet boundary is naturally typed, debuggable, and language-independent — Python writes files, Rust reads files.
-**Alternatives considered:** Pure Rust (loses Python's scraping libs — rejected). PyO3 in-process (build/debug pain — rejected). gRPC between processes (network overhead, schema duplication, more moving parts for zero gain on a local app — rejected).
+**D5. Code is copied when something needs it, not all at once.** The template's screens and query layer are bound to its NFL catalogue; copied now they would be an NFL app under a new name. Each stage brings its files and tests across and rewrites what is football-specific. The copy has no link back and no fantasy-project history.
 
-## 004 — Frontend: SvelteKit + TanStack Table + Tailwind + shadcn-svelte  (2026-05-30)
-**Decision:** Tauri shell renders a SvelteKit (static adapter) app. Data grids use TanStack Table. Styling via Tailwind + shadcn-svelte primitives.
-**Why:** User wants visually clean, fast, snappy filtering/sorting over large stat tables. Svelte's compiled runtime is the lightest among major frameworks — matters when rendering tables with thousands of rows + frequent re-renders. TanStack Table is the gold standard for headless sort/filter/virtualization. Tailwind + shadcn give clean defaults without per-component CSS sprawl. Static adapter fits Tauri (no SSR needed).
-**Alternatives considered:** React + Next.js (heavier runtime, SSR not useful here — rejected for runtime weight). SolidJS (great perf but smaller component ecosystem — rejected). Plain Rust egui/iced (no web reuse, harder to make visually polished — rejected).
+**D6. Data comes from sportsdataverse-data releases.** Free, keyless, Parquet, updated daily: the nflverse of basketball. Measurements are in `docs/reference/nba-data-sources.md`. Licence terms are not yet checked: do that before a public release.
 
-## 005 — Provenance over reconciliation at ingest  (2026-05-30)
-**Decision:** Every ingested row stores `source`, `source_url`, `fetched_at`, and the original payload as JSON. Reconciliation between sources happens in a separate compute layer with configurable rules, never destructively at ingest.
-**Why:** Sources disagree (Basketball-Reference vs stats.nba.com often differ on advanced stats). Disagreements are *data*, not errors — we want to surface them, tune which source wins per stat type, and revisit later when one source updates a historical correction. Destructive merging at ingest loses information forever.
-**Alternatives considered:** Pick one source per stat at ingest (loses ability to compare/audit — rejected). Pick "best" source globally (no globally-best source exists — rejected).
+**D7. No direct calls to stats.nba.com.** It refuses plain clients, and getting past that means imitating a browser (the archived adapter did). If the dataset ever lacks something, raise it with the owner rather than working around the site.
 
-## 006 — League abstraction from day one  (2026-05-30)
-**Decision:** A `League` enum/trait in `metis-core` parameterizes period length, periods per game, season structure, roster rules, and available stat coverage. Even NBA-only v1 code goes through `League::NBA`. No hardcoded "48 minutes" or "82 games" anywhere outside that module.
-**Why:** Adding WNBA (40min, 4×10), NCAA (40min, 2×20), Euroleague (40min, 4×10) is on the explicit roadmap. Retrofitting a league abstraction after the schema and stat formulas are written is a major rewrite. Doing it now costs ~one task and saves a phase-sized refactor later.
-**Alternatives considered:** NBA-only now, abstract later (rejected — high refactor cost, easy to do right the first time).
+**D8. The extensive-data policy, as in the template:** every table a source publishes, every column as published and typed, zeros kept; rates stored as numerator and denominator; a missing source reads as NULL and never fails a rebuild; computed totals checked against published ones.
 
-## 007 — Apache-2.0 license  (2026-05-30)
-**Decision:** Project licensed Apache-2.0.
-**Why:** Open source goal. Apache-2.0's explicit patent grant is meaningful in a domain (sports stats) with known IP/licensing friction. Compatible with most ecosystems we'll touch.
-**Alternatives considered:** MIT (simpler but no patent grant — rejected). GPL (would limit downstream use — rejected for this project's goals).
+**D9. Every season each table offers,** not a recent window: box scores from 1993-94, play by play from 2001-02. Re-open only if the measured size or build time makes it impractical. Anything before 1993-94 needs another source and is out for now.
 
-## 008 — Coverage policy: return null outside support window  (2026-05-30)
-**Decision:** Stats with limited historical coverage (advanced stats pre-1979, PBP pre-1996, tracking pre-2013) return `null` with a `coverage` marker in API responses. Never error, never synthesize.
-**Why:** User wants both modern depth and historical breadth. A hard-error policy makes "show LeBron's career TS%" easy but "show Wilt's career TS%" crash. Null + marker lets the UI gracefully show "—" or "not tracked this era" without special-case logic per stat.
-**Alternatives considered:** Compute backfilled estimates for missing data (rejected — invents data, violates provenance principle). Error out (rejected — bad UX).
+**D10. Seasons keep the source's label, the final year** (`2026` = 2025-26), in the data; the screens show `2025-26`.
 
-## 009 — One task per Claude Code session, supervised  (2026-05-30)
-**Decision:** Plan.md is structured as a queue of self-contained, single-session tasks with explicit acceptance criteria. Each task is small enough to complete in one session and large enough to produce a reviewable PR. Claude Code does not start the next task autonomously.
-**Why:** User's workflow: Claude Code writes everything, fresh session per task, user supervises. Cross-session continuity comes entirely through committed files (code, CLAUDE.md, decisions.md, Plan.md). This means every task must be reviewable in isolation, conventions must be locked tight (or each new session drifts), and architectural decisions belong in version control, not in any one session's memory.
-**Alternatives considered:** Long-running session with TODO list (rejected — user wants discrete review checkpoints). Auto-continue (rejected — supervisor needs to gate each step).
+**D11. The grain is the game, not the week.** The NBA has no weeks, so the template's week range becomes a date range and last N games. The nav's status names a date.
 
-## 010 — Stat scope: traditional, four factors, advanced box, lineup/on-off, shooting, PBP-derived  (2026-05-30)
-**Decision:** v1 stat surface covers traditional box, four factors, advanced (TS%, eFG%, USG%, PER, BPM, VORP, WS), shooting splits where available, lineup / on-off, and PBP-derived splits (clutch, by-quarter, garbage time). Tracking stats (speed, touches) included where source provides. Opponent-adjusted ratings deferred to v1.5.
-**Why:** Covers ~95% of what a serious stats consumer wants. Anything beyond requires either paid data (Synergy) or our own CV pipeline (later phase). Opponent-adjustment is methodologically non-trivial and benefits from being designed once the base layer is stable.
-**Alternatives considered:** Minimal traditional-only v1 (rejected — undersells the product). Everything including SRS-style adjustments (rejected — scope creep, design risk).
+**D12. Season types are one set, mapped from each source:** regular, play-in, playoffs, NBA Cup final, All-Star, preseason. Stats default to the regular season; All-Star and preseason never count toward anything by default.
 
-## 011 — Filter dimensions locked for v1  (2026-05-30)
-**Decision:** v1 supports filtering on: season(s), season type (regular/playoffs/play-in/all-star), date range, team(s), opponent(s), home/away, win/loss, days rest, score margin, quarter/half/clutch window, lineup-mate. Granularity: career / multi-season / season / month / game / quarter / possession. Display modes: totals / per-game / per-36 / per-100-poss.
-**Why:** These are the axes that show up in essentially every serious NBA analysis. Locking them now lets us design indexes and materialized rollups correctly the first time. Adding a new filter dimension later requires either a new index or a slow scan — cheaper to plan for them now.
-**Alternatives considered:** Filter on whatever the user types (rejected — DuckDB is fast but not magical; uncontrolled filters mean unpredictable performance). Smaller filter set (rejected — the user explicitly asked for "every filter and sort feature possible").
+**D13. NBA ids are the primary keys** (`person_id`, `team_id`, `game_id`) from 1996-97. ESPN ids join through `nba_crosswalk` (players, teams, from 2001-02) and date plus team (games). Identity for the seasons before the crosswalk is a task in Plan.md.
 
-## 012 — Comparison tool deferred to post-v1 UI, but data layer supports it  (2026-05-30)
-**Decision:** Player-vs-player and team-vs-team comparison is not a v1 UI feature. The data layer and API are designed so adding it later is purely a frontend task.
-**Why:** Comparison is two queries side-by-side over the same indexes — zero foundation cost if the API returns one entity per call cleanly. User wants foundation solid before features pile on; comparison fits naturally on top later.
-**Alternatives considered:** Build it in v1 (rejected — user prioritized foundation). Design a special comparison API (rejected — premature; the per-entity API already supports it).
+**D14. Sources are kept side by side, never overwritten.** Which source a metric reads is stated in the catalogue. A disagreement between sources is a measured result to report.
 
-## 013 — Saved views in v1  (2026-05-30)
-**Decision:** v1 supports user-saved views (named filter + sort + columns combinations). Stored in a local `user_view` table in DuckDB.
-**Why:** Cheap to add (one table, one CRUD endpoint, one modal). High UX value for repeat use. Establishes the pattern for any future user-settings features.
-**Alternatives considered:** Defer (rejected — small enough to do now, and locking the schema for it sooner is better).
+**D15. NBA only, no `League` abstraction.** The old rule against hardcoding league constants existed for a multi-league future that is not planned. Revisit if that changes.
 
-## 014 — `source_payload JSON` column instead of "future stat slots"  (2026-05-30)
-**Decision:** Raw ingestion tables carry a `source_payload JSON` column with the full original row. Typed columns exist only for stats we currently use. New stat types do not require schema migration for ingestion — only when promoting them to typed columns in the normalized layer.
-**Why:** DuckDB migrations are cheap, but the bigger win is decoupling ingestion velocity from schema design. We can backfill a new typed column from `source_payload` later without re-fetching anything. No need to pre-declare slots we may never fill.
-**Alternatives considered:** Pre-declare "extension" columns (rejected — premature). Schema-on-read for everything (rejected — kills query performance on hot paths).
+**D16. Ask and the Claude connection are out of scope** until the owner asks. They were not part of the template brief.
 
-## 015 — End-to-end verification required before marking a task done  (2026-06-25)
-**Decision:** A task is not complete until its user-visible behavior has been verified against the running app or a scripted pipeline check. Unit tests alone do not satisfy the "done" criterion. Every PR that touches user-visible behavior must include a "Verified by:" line naming the specific check performed (e.g., `scripts/smoke.sh`, `curl` against the live API, or a Tauri app screenshot).
-**Why:** During Phase 9 all tasks were marked `[x]` based on passing unit tests, but the running app showed no data. Root-cause analysis (T093) found two bugs — a missing ingest run and an API field-name mismatch — that unit tests could not catch because they operated on isolated layers. The gap between "tests pass" and "app works" cost a full remediation phase (Phase 9.5). The `scripts/smoke.sh` (T092) provides a concrete, repeatable check for the ingest→load→compute→API chain. The `api-contract` CI job (T094) closes the Rust↔TypeScript gap automatically.
-**Alternatives considered:** Relying solely on unit and integration tests (rejected — they cannot detect cross-layer shape drift or missing data). Making the smoke test part of the regular CI gate (deferred — too slow for every push; it is a blocking integration gate run manually or on release branches). Requiring a screenshot for every PR (too heavyweight for backend-only changes — "Verified by:" line is intentionally flexible).
-**See also:** CLAUDE.md rule 13; `scripts/smoke.sh`; `.github/workflows/ci.yml` `api-contract` job.
+**D17. One colour palette.** The template has a fantasy palette and a stats palette, and shared tokens resolve against the first even inside the second. Metis has one palette, the stats one.
+
+**D18. Keep Apache-2.0.** The template's MIT code, by the same author, is compatible.
+
+**D19. Keep the branch model:** working branches into `main`, `main` into `preprod`, `preprod` into `prod`.
