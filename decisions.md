@@ -46,14 +46,16 @@ Short log of decisions and why. Newest last. The previous implementation's log (
 
 **D20. Stages are slices.** Each stage takes a slice from the data through to the screen and ends with something the owner can try, instead of all the data, then all the stats, then all the screens. _Why:_ built in layers, nothing could be judged until the end.
 
-**D21. The first load runs in tiers:** core (100 MB), published (352 MB), events (360 MB), play by play (879 MB). Everything still loads by default, so D9 stands. _Why:_ the app is usable after the first tier, long before 1.7 GB has arrived.
+**D21. The first load runs in tiers:** core (100 MB), published (214 MB), events (360 MB), play by play (879 MB). Everything still loads by default, so D9 stands. _Why:_ the app is usable after the first tier, long before 1.7 GB has arrived.
 
 **D22. Limits that stop the first full load (Plan T405):** a database file over 6 GB, a first load over an hour on the development machine, or more than 4 GB of process memory. Past any of them, the work stops and goes to the owner. _Why:_ the dataset is eight times the template's download, so its cost is unknown until measured.
 
-**D23. A file proven to repeat others is skipped:** `*_master` and per-game files, where Plan T406 shows no information is lost. A file not proven to repeat others is loaded. This narrows "every table" in D8. _Why:_ the `*_master` files alone are 138 MB, and totals with denominators are what the policy stores anyway.
+**D23. A file proven to repeat others is skipped:** `*_master` and per-game files, where Plan T406 shows no information is lost. A file not proven to repeat others is loaded. This narrows "every table" in D8. _Why:_ the `*_master` files alone are 138 MB, and totals with denominators are what the policy stores anyway. Measured in Plan T406: only `*_master` qualifies; per-game files do not scale exactly to totals, so they stay.
 
 **D24. Stats with no free bulk source stay out:** EPM, LEBRON, the NBA's Inside the Game models, Basketball-Reference and paid APIs. They are listed as unavailable with the reason. Metis does not scrape. This follows D7; revisit only if the owner asks.
 
 **D25. The repository's shape:** `main` is the default branch. Old branches live on as tags under `archive/`. `main`, `preprod` and `prod` refuse force-pushes and require CI's `check` to pass, for admins too. A promotion can still fast-forward, because a commit on `main` has already passed `check`. _Why:_ nothing should reach the three branches unchecked.
 
 **D26. A stage tag is not a release.** `vX.Y-stageN` marks a finished stage. A version tag such as `v1.0.0` runs the Release workflow, which requires it to match `package.json`. _Why:_ in the template every `v*` tag was a release, and a stage tag would only fail that version check.
+
+**D27. Source tables stay as published.** `season` is only cast to an INTEGER, and `file_season` and `source_file` are added to tell files apart. Season types and team codes are mapped in the `game` and `team` tables (Plan T407, T408). _Why:_ ESPN's 2000 files hold games of 1998-99 rightly marked 1999, which a file's label would overwrite; many files have no season type column at all, so it has to come from the game anyway; and correcting a mapping should never mean downloading the files again.

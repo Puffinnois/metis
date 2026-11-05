@@ -4,7 +4,10 @@ export type Row = Record<string, unknown>
 export type Params = DuckDBValue[]
 
 export interface StatsDbOptions {
-  /** DuckDB's buffer limit; 512 MB loads every source (smaller fails on play-by-play). */
+  /**
+   * DuckDB's buffer limit. 512 MB failed the first full load, invalidating the database: a checkpoint
+   * pins buffers per column, and these tables run to over 200 columns.
+   */
   memoryLimit?: string
   threads?: number
   /** Where DuckDB spills large sorts and joins; its default is beside the file. */
@@ -31,7 +34,7 @@ export class StatsDb {
 
   static async open(path: string, options: StatsDbOptions = {}): Promise<StatsDb> {
     const config: Record<string, string> = {
-      memory_limit: options.memoryLimit ?? '512MB',
+      memory_limit: options.memoryLimit ?? '1GB',
       threads: String(options.threads ?? 2),
       // Large inserts need not keep the source order, which lets DuckDB stream them in less memory.
       preserve_insertion_order: 'false',

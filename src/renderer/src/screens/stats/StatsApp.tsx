@@ -26,6 +26,13 @@ interface StatsAppProps {
   onBack?: () => void
 }
 
+/** The screens are not built yet; what they can say depends on what has been loaded. */
+function emptyScreenNote(status: StatsStatus | null): string {
+  if (status?.through) return 'NBA data is loaded. This screen is not built yet.'
+  if (status?.busy) return 'NBA data is loading.'
+  return 'No stats yet: NBA data has not been loaded.'
+}
+
 /** The app's shell: the nav, the status of the stats database, and the screen. */
 export function StatsApp({
   update,
@@ -47,10 +54,14 @@ export function StatsApp({
   }
 
   useEffect(() => {
-    void api.stats
-      .status()
-      .then(setStatus)
-      .catch((err) => setError(errorMessage(err)))
+    const read = (): void => {
+      void api.stats
+        .status()
+        .then(setStatus)
+        .catch((err) => setError(errorMessage(err)))
+    }
+    read()
+    return api.stats.onChanged(read)
   }, [])
 
   useEffect(() => {
@@ -82,9 +93,7 @@ export function StatsApp({
         ) : (
           <div className="py-20 text-center">
             <h1 className="text-[15px] font-semibold">{label}</h1>
-            <p className="mt-2 text-[13px] text-fg-3">
-              No stats yet: NBA data has not been loaded.
-            </p>
+            <p className="mt-2 text-[13px] text-fg-3">{emptyScreenNote(status)}</p>
           </div>
         )}
       </main>

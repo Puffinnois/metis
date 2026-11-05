@@ -11,6 +11,7 @@ import { captureMainErrors, createErrorLog } from '@main/dev/errorLog'
 import { registerDevHandlers } from '@main/dev/ipc'
 import { createDevMode } from '@main/dev/mode'
 import { registerIpcHandlers, type AppContext } from '@main/ipc/handlers'
+import { createChangeNotifier } from '@main/stats/changes'
 import { startStatsWorker, type StatsClient } from '@main/stats/client'
 import { installAutoUpdater } from '@main/updater'
 import { IPC } from '@shared/ipc'
@@ -70,17 +71,23 @@ function openAppDatabase(): Db {
 }
 
 /** A failure here turns the stats off and leaves the app running, where it says so. */
-function openStats(): StatsClient | null {
+function openStats(onStep: () => void): StatsClient | null {
   try {
-    return startStatsWorker({
-      path: join(app.getPath('userData'), 'stats.duckdb'),
-      tempDir: join(app.getPath('userData'), 'stats-tmp')
-    })
+    return startStatsWorker(
+      {
+        path: join(app.getPath('userData'), 'stats.duckdb'),
+        tempDir: join(app.getPath('userData'), 'stats-tmp')
+      },
+      onStep
+    )
   } catch (err) {
     console.error('could not start the stats worker; the stats are off', err)
     return null
   }
 }
+
+/** How often a window left open looks for new games; each file still decides if it is due. */
+const REFRESH_INTERVAL_MS = 6 * 60 * 60 * 1000
 
 /**
  * `--stats-self-test=<file>`: the packaged app opens a throwaway stats database in the worker,
@@ -130,8 +137,9 @@ app.whenReady().then(async () => {
   app.on('browser-window-created', (_, window) => optimizer.watchWindowShortcuts(window))
 
   const db = openAppDatabase()
+  const statsChanged = createChangeNotifier(() => mainWindow?.webContents.send(IPC.statsChanged))
   const ctx: AppContext = {
-    stats: openStats(),
+    stats: openStats(statsChanged),
     update: installAutoUpdater({
       enabled: app.isPackaged && process.platform === 'win32',
       updater: autoUpdater,
@@ -146,6 +154,12 @@ app.whenReady().then(async () => {
     getWindow: () => mainWindow
   })
   createWindow()
+
+  const refresh = (): void => {
+    ctx.stats?.refresh().then(statsChanged, (err) => console.error('the stats refresh failed', err))
+  }
+  refresh()
+  setInterval(refresh, REFRESH_INTERVAL_MS)
 
   // The process must not exit while DuckDB runs a statement (Electron aborts), so the first quit
   // closes the stats worker, which interrupts a running refresh, and then quits again.

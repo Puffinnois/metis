@@ -23,8 +23,24 @@ describe('the stats service', () => {
       available: true,
       through: null,
       updatedAt: null,
-      busy: false
+      busy: false,
+      progress: null
     })
+  })
+
+  it('names the latest game once box scores are loaded, newest season first', async () => {
+    await service!.read(
+      `CREATE TABLE src_espn_team_box AS
+       SELECT 2026 AS season, DATE '2026-06-13' AS game_date
+       UNION ALL SELECT 2027, DATE '2026-11-04' UNION ALL SELECT 2027, DATE '2026-10-21'`
+    )
+    await expect(service!.status()).resolves.toMatchObject({
+      through: { season: 2027, date: '2026-11-04' }
+    })
+  })
+
+  it('answers one SQL statement on its own connection', async () => {
+    await expect(service!.read('SELECT 1 + 1 AS two')).resolves.toEqual([{ two: 2 }])
   })
 
   it('passes its self-test: write, read, Parquet, JSON and time zones', async () => {

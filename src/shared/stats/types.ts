@@ -3,9 +3,11 @@ export interface StatsStatus {
   /** The stats worker runs (DuckDB loaded). */
   available: boolean
   /** The latest game with stats; null before the first load. `date` is YYYY-MM-DD. */
-  through: { season: number; seasonType: 'REG' | 'POST'; date: string } | null
+  through: { season: number; date: string } | null
   /** The last step that wrote rows, ISO time. */
   updatedAt: string | null
-  /** A refresh or a rebuild is running. */
+  /** A refresh is running. */
   busy: boolean
+  /** How far it has got, in files; null when none is running. */
+  progress: { done: number; total: number } | null
 }

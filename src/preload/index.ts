@@ -43,7 +43,14 @@ const api: Api = {
     }
   },
   stats: {
-    status: () => ipcRenderer.invoke(IPC.statsStatus)
+    status: () => ipcRenderer.invoke(IPC.statsStatus),
+    onChanged: (listener) => {
+      const handler = (): void => listener()
+      ipcRenderer.on(IPC.statsChanged, handler)
+      return () => {
+        ipcRenderer.removeListener(IPC.statsChanged, handler)
+      }
+    }
   }
 }
 

@@ -2,15 +2,18 @@ import { join } from 'node:path'
 import { Worker } from 'node:worker_threads'
 import type { StatsStatus } from '@shared/stats/types'
 import type {
+  RefreshOptions,
   SelfTestResult,
   StatsLogEntry,
   StatsReply,
   StatsRequest,
+  StatsSyncResult,
   StatsWorkerInit
 } from './protocol'
 
 /** The main process's handle on the stats worker. */
 export interface StatsClient {
+  refresh(options?: RefreshOptions): Promise<StatsSyncResult>
   selfTest(): Promise<SelfTestResult>
   status(): Promise<StatsStatus>
   /** Closes the database and ends the worker (after `CLOSE_TIMEOUT_MS` at most). */
@@ -65,6 +68,7 @@ export function startStatsWorker(
   }
 
   return {
+    refresh: (options = {}) => request<StatsSyncResult>((id) => ({ id, kind: 'refresh', options })),
     selfTest: () => request<SelfTestResult>((id) => ({ id, kind: 'selfTest' })),
     status: () => request<StatsStatus>((id) => ({ id, kind: 'status' })),
     async close() {
