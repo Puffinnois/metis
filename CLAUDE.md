@@ -52,14 +52,14 @@ User data: `~/.config/Metis/` in development, `%APPDATA%\Metis\` packaged. `stat
 
 The point of the app is depth. From the template:
 
-1. **Every table a source publishes, every column as published and typed, zeros kept.** Only standard columns are normalised (`season`, season type, team codes).
+1. **Every table a source publishes, every column as published and typed, zeros kept.** Only standard columns are normalised (`season`, season type, team codes). A file proven to repeat others can be skipped (D23).
 2. **Every season each table offers.** Old seasons are fetched once and sealed; the current one refreshes daily.
 3. **Rates are stored as numerator and denominator,** and divided when read, so any date range or group of games is exact. A rate whose parts are published at different times uses sums paired over the same games.
 4. **Coverage is honest.** Outside a stat's seasons the answer is `null` with a reason ("Tracked from 2013-14"), never an error and never a fabricated value. A missing source or column reads as NULL and does not fail a rebuild.
 5. **Sources sit side by side, never overwritten.** The catalogue says which one each metric reads.
 6. **Numbers are checked against the source,** with match rates written down per season. A tolerance is stated, not assumed.
 
-Data comes from sportsdataverse-data releases: `docs/reference/nba-data-sources.md` lists the tables, the measured agreement and **the traps** (season labels, game types, All-Star games filed as regular season, differing ids). Read it before touching the data layer.
+Data comes from sportsdataverse-data releases: `docs/reference/nba-data-sources.md` lists the tables, the measured agreement and **the traps** (season labels, game types, All-Star games filed as regular season, differing ids). Read it before touching the data layer. `docs/reference/nba-statistics.md` catalogues the statistics: what each means, its formula and where it comes from.
 
 **Metis does not call stats.nba.com,** and never disguises a client to get past a site's checks.
 
@@ -84,12 +84,12 @@ Data comes from sportsdataverse-data releases: `docs/reference/nba-data-sources.
 
 ## Git
 
-- `prod`: what ships. Fast-forward from `preprod` only, after a stage is tested and reviewed; tag `vX.Y-stageN`.
+- `prod`: what ships. Fast-forward from `preprod` only, after a stage is tested and reviewed; tag `vX.Y-stageN`. That tag marks the stage; a version tag such as `v1.0.0` is what runs the Release workflow.
 - `preprod`: integration. Merged from `main` when a stage is complete.
 - `main`: the trunk. Working branches merge here through a PR, squash preferred.
 - Working branches, cut from `main`, named by intent: `feature/`, `fix/`, `chore/`, `docs/`, `refactor/` plus a short slug naming the thing changed (`feature/nba-box-score-load`, not `feature/stage-3`).
-- Conventional commits (`feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`). No force-push on the three long-lived branches.
-- `archive/rust-tauri` is the old implementation: keep it, build nothing on it.
+- Conventional commits (`feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`). The three long-lived branches refuse force-pushes and require CI's `check`, for admins too.
+- `archive/rust-tauri` is the old implementation: keep it, build nothing on it. Other old branches are tags under `archive/`.
 
 ## Running it (WSL)
 
