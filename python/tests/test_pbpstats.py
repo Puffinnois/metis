@@ -19,7 +19,9 @@ from ingest.pbpstats.adapter import (
 _FIXTURE = Path(__file__).parent / "fixtures" / "pbpstats_possessions.json"
 
 _FAKE_FETCHED_AT = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
-_FAKE_URL = "https://data.nba.com/data/v2015/json/mobile_teams/nba/2024/scores/pbp/0022400001_full_pbp.json"
+_FAKE_URL = (
+    "https://data.nba.com/data/v2015/json/mobile_teams/nba/2024/scores/pbp/0022400001_full_pbp.json"
+)
 
 
 # ---------------------------------------------------------------------------
@@ -109,7 +111,7 @@ def _load_possessions() -> tuple[list[_FakePossession], dict]:  # type: ignore[t
     raw_possessions = fixture["possessions"]
 
     built: list[_FakePossession] = []
-    for i, raw in enumerate(raw_possessions):
+    for raw in raw_possessions:
         score_start: dict[int, int] = {int(k): v for k, v in raw["start_score"].items()}
         score_end: dict[int, int] = {int(k): v for k, v in raw["end_score"].items()}
         offense_id = raw["offense_team_id"]
@@ -252,24 +254,53 @@ def test_parse_possession_second_possession() -> None:
 # ---------------------------------------------------------------------------
 
 _EXPECTED_POSSESSION_COLS = {
-    "game_id", "period", "possession_num", "global_possession_num",
-    "offense_team_id", "defense_team_id",
-    "start_time_remaining", "end_time_remaining", "duration_seconds",
-    "score_margin", "possession_start_type", "points_scored",
-    "offense_lineup_id", "defense_lineup_id", "num_events",
-    "season_id", "season_type",
-    "source", "source_url", "fetched_at", "source_payload",
+    "game_id",
+    "period",
+    "possession_num",
+    "global_possession_num",
+    "offense_team_id",
+    "defense_team_id",
+    "start_time_remaining",
+    "end_time_remaining",
+    "duration_seconds",
+    "score_margin",
+    "possession_start_type",
+    "points_scored",
+    "offense_lineup_id",
+    "defense_lineup_id",
+    "num_events",
+    "season_id",
+    "season_type",
+    "source",
+    "source_url",
+    "fetched_at",
+    "source_payload",
 }
 
 _EXPECTED_LINEUP_STINT_COLS = {
-    "game_id", "period", "team_id",
-    "player1_id", "player2_id", "player3_id", "player4_id", "player5_id",
+    "game_id",
+    "period",
+    "team_id",
+    "player1_id",
+    "player2_id",
+    "player3_id",
+    "player4_id",
+    "player5_id",
     "lineup_id",
-    "start_time_remaining", "end_time_remaining", "duration_seconds",
-    "possessions_offense", "possessions_defense",
-    "points_for", "points_against", "plus_minus",
-    "season_id", "season_type",
-    "source", "source_url", "fetched_at", "source_payload",
+    "start_time_remaining",
+    "end_time_remaining",
+    "duration_seconds",
+    "possessions_offense",
+    "possessions_defense",
+    "points_for",
+    "points_against",
+    "plus_minus",
+    "season_id",
+    "season_type",
+    "source",
+    "source_url",
+    "fetched_at",
+    "source_payload",
 }
 
 

@@ -3,6 +3,7 @@
 import json
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any, cast
 
 from pytest import approx as pytest_approx
 
@@ -19,8 +20,8 @@ from ingest.nba_stats.adapter import (
 _FIXTURE = Path(__file__).parent / "fixtures" / "nba_stats_box_score.json"
 
 
-def _load_fixture() -> dict:  # type: ignore[type-arg]
-    return json.loads(_FIXTURE.read_text())
+def _load_fixture() -> dict[str, Any]:
+    return cast(dict[str, Any], json.loads(_FIXTURE.read_text()))
 
 
 def _fake_fetched_at() -> datetime:
@@ -218,24 +219,65 @@ def test_parse_team_row_away() -> None:
 # ---------------------------------------------------------------------------
 
 _EXPECTED_PLAYER_COLS = {
-    "game_id", "player_id", "team_id", "season_id", "season_type",
-    "starter", "minutes_played", "points", "rebounds_offensive",
-    "rebounds_defensive", "rebounds_total", "assists", "steals", "blocks",
-    "turnovers", "personal_fouls", "field_goals_made", "field_goals_attempted",
-    "three_pointers_made", "three_pointers_attempted", "free_throws_made",
-    "free_throws_attempted", "plus_minus",
-    "source", "source_url", "fetched_at", "source_payload",
+    "game_id",
+    "player_id",
+    "team_id",
+    "season_id",
+    "season_type",
+    "starter",
+    "minutes_played",
+    "points",
+    "rebounds_offensive",
+    "rebounds_defensive",
+    "rebounds_total",
+    "assists",
+    "steals",
+    "blocks",
+    "turnovers",
+    "personal_fouls",
+    "field_goals_made",
+    "field_goals_attempted",
+    "three_pointers_made",
+    "three_pointers_attempted",
+    "free_throws_made",
+    "free_throws_attempted",
+    "plus_minus",
+    "source",
+    "source_url",
+    "fetched_at",
+    "source_payload",
 }
 
 _EXPECTED_TEAM_COLS = {
-    "game_id", "team_id", "opponent_team_id", "season_id", "season_type",
-    "is_home", "points", "rebounds_offensive", "rebounds_defensive",
-    "rebounds_total", "assists", "steals", "blocks", "turnovers",
-    "personal_fouls", "field_goals_made", "field_goals_attempted",
-    "three_pointers_made", "three_pointers_attempted", "free_throws_made",
-    "free_throws_attempted", "fast_break_points", "points_in_paint",
-    "second_chance_points", "bench_points",
-    "source", "source_url", "fetched_at", "source_payload",
+    "game_id",
+    "team_id",
+    "opponent_team_id",
+    "season_id",
+    "season_type",
+    "is_home",
+    "points",
+    "rebounds_offensive",
+    "rebounds_defensive",
+    "rebounds_total",
+    "assists",
+    "steals",
+    "blocks",
+    "turnovers",
+    "personal_fouls",
+    "field_goals_made",
+    "field_goals_attempted",
+    "three_pointers_made",
+    "three_pointers_attempted",
+    "free_throws_made",
+    "free_throws_attempted",
+    "fast_break_points",
+    "points_in_paint",
+    "second_chance_points",
+    "bench_points",
+    "source",
+    "source_url",
+    "fetched_at",
+    "source_payload",
 }
 
 

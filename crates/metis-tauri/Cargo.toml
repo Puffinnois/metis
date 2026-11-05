@@ -8,5 +8,16 @@ license.workspace = true
 name = "metis-tauri"
 path = "src/main.rs"
 
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { workspace = true }
+serde_json = "1"
+metis-db = { path = "../metis-db" }
+anyhow = { workspace = true }
+tokio = { workspace = true }
+
 [lints]
 workspace = true

@@ -28,8 +28,11 @@ fn real_migrations_apply_cleanly() {
             "0007_possession_lineup.sql",
             "0008_possession_lineup_indexes.sql",
             "0009_player_season_advanced.sql",
+            "0010_reconcile.sql",
+            "0011_player_game_splits.sql",
+            "0012_player_team_season_rollups.sql",
         ],
-        "all nine schema migrations must be applied in order"
+        "all twelve schema migrations must be applied in order"
     );
 
     // Second run must be a no-op.

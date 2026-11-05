@@ -38,6 +38,13 @@ impl<'conn> TeamRepo<'conn> {
         let id = format!("{league_id}_{external_id}");
         queries::team::find_by_id(self.conn, &id)
     }
+
+    /// Returns all teams, optionally filtered by `league_id`.
+    ///
+    /// Results are ordered by league, full name, then id.
+    pub fn list(&self, league_id: Option<&str>) -> Result<Vec<Team>> {
+        queries::team::list(self.conn, league_id)
+    }
 }
 
 #[cfg(test)]

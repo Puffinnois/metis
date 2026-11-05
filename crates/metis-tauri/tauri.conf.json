@@ -1,0 +1,23 @@
+{
+  "identifier": "com.metis.app",
+  "productName": "Metis",
+  "version": "0.1.0",
+  "build": {
+    "beforeDevCommand": "cd ../frontend && pnpm dev",
+    "devUrl": "http://localhost:5173",
+    "beforeBuildCommand": "cd ../frontend && pnpm build",
+    "frontendDist": "../frontend/build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Metis",
+        "width": 1400,
+        "height": 900
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  }
+}

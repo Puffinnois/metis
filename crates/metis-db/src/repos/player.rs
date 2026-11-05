@@ -42,6 +42,20 @@ impl<'conn> PlayerRepo<'conn> {
         let id = format!("{league_id}_{external_id}");
         queries::player::find_by_id(self.conn, &id)
     }
+
+    /// Returns all players, optionally filtered by `league_id`.
+    ///
+    /// Results are ordered by last name, first name, then id.
+    pub fn list(&self, league_id: Option<&str>) -> Result<Vec<Player>> {
+        queries::player::list(self.conn, league_id)
+    }
+
+    /// Returns players whose full name contains `search` (case-insensitive).
+    ///
+    /// Optionally further filtered by `league_id`. Results are ordered by last name, first name.
+    pub fn search(&self, search: &str, league_id: Option<&str>) -> Result<Vec<Player>> {
+        queries::player::search(self.conn, search, league_id)
+    }
 }
 
 #[cfg(test)]

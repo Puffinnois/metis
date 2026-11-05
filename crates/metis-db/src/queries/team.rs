@@ -19,6 +19,19 @@ const FIND_BY_ID: &str = "
     WHERE id = ?
 ";
 
+const LIST_ALL: &str = "
+    SELECT id, league_id, abbreviation, full_name, city
+    FROM team
+    ORDER BY league_id, full_name, id
+";
+
+const LIST_BY_LEAGUE: &str = "
+    SELECT id, league_id, abbreviation, full_name, city
+    FROM team
+    WHERE league_id = ?
+    ORDER BY full_name, id
+";
+
 fn map_row(row: &duckdb::Row<'_>) -> duckdb::Result<Team> {
     Ok(Team {
         id: row.get(0)?,
@@ -48,5 +61,18 @@ pub(crate) fn find_by_id(conn: &Connection, id: &str) -> Result<Option<Team>> {
         Ok(t) => Ok(Some(t)),
         Err(duckdb::Error::QueryReturnedNoRows) => Ok(None),
         Err(e) => Err(e.into()),
+    }
+}
+
+/// Returns all teams, optionally filtered by `league_id`.
+pub(crate) fn list(conn: &Connection, league_id: Option<&str>) -> Result<Vec<Team>> {
+    if let Some(lid) = league_id {
+        let mut stmt = conn.prepare(LIST_BY_LEAGUE)?;
+        let rows = stmt.query_map(params![lid], map_row)?;
+        rows.collect::<duckdb::Result<Vec<_>>>().map_err(Into::into)
+    } else {
+        let mut stmt = conn.prepare(LIST_ALL)?;
+        let rows = stmt.query_map([], map_row)?;
+        rows.collect::<duckdb::Result<Vec<_>>>().map_err(Into::into)
     }
 }

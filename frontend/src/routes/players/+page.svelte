@@ -360,8 +360,9 @@
           {@const row = table.getRowModel().rows[vRow.index]}
           {#if row}
             <tr
-              class="absolute w-full border-b border-border hover:bg-muted/30 transition-colors"
+              class="absolute w-full border-b border-border hover:bg-muted/30 transition-colors cursor-pointer"
               style="top: {vRow.start}px; height: {ROW_HEIGHT}px; display: flex;"
+              onclick={() => { window.location.href = `/players/${row.original.player_id}`; }}
             >
               {#each row.getVisibleCells() as cell}
                 <td

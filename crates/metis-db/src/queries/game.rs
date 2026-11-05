@@ -81,3 +81,60 @@ pub(crate) fn list_by_season(conn: &Connection, season_id: &str) -> Result<Vec<G
     let rows = stmt.query_map(params![season_id], map_row)?;
     rows.collect::<duckdb::Result<Vec<_>>>().map_err(Into::into)
 }
+
+/// Returns games with optional filters for `season_id`, `season_type`, and `team_id`.
+///
+/// `team_id` matches either `home_team_id` or `away_team_id`.
+pub(crate) fn list_filtered(
+    conn: &Connection,
+    season_id: Option<&str>,
+    season_type: Option<&str>,
+    team_id: Option<&str>,
+) -> Result<Vec<Game>> {
+    // Build the WHERE clause dynamically based on which filters are provided.
+    // DuckDB does not support named parameters, so we build the SQL directly.
+    let mut conditions = Vec::<String>::new();
+    if season_id.is_some() {
+        conditions.push("season_id = ?".to_string());
+    }
+    if season_type.is_some() {
+        conditions.push("season_type = ?".to_string());
+    }
+    if team_id.is_some() {
+        conditions.push("(home_team_id = ? OR away_team_id = ?)".to_string());
+    }
+
+    let where_clause = if conditions.is_empty() {
+        String::new()
+    } else {
+        format!("WHERE {}", conditions.join(" AND "))
+    };
+
+    let sql = format!(
+        "SELECT id, league_id, season_id, season_type,
+                CAST(game_date AS VARCHAR),
+                home_team_id, away_team_id, home_score, away_score, status
+         FROM game
+         {where_clause}
+         ORDER BY game_date, id"
+    );
+
+    let mut stmt = conn.prepare(&sql)?;
+
+    // Collect parameter values in order.
+    let mut param_vals: Vec<Box<dyn duckdb::ToSql>> = Vec::new();
+    if let Some(v) = season_id {
+        param_vals.push(Box::new(v.to_string()));
+    }
+    if let Some(v) = season_type {
+        param_vals.push(Box::new(v.to_string()));
+    }
+    if let Some(v) = team_id {
+        param_vals.push(Box::new(v.to_string()));
+        param_vals.push(Box::new(v.to_string()));
+    }
+
+    let param_refs: Vec<&dyn duckdb::ToSql> = param_vals.iter().map(|b| b.as_ref()).collect();
+    let rows = stmt.query_map(param_refs.as_slice(), map_row)?;
+    rows.collect::<duckdb::Result<Vec<_>>>().map_err(Into::into)
+}

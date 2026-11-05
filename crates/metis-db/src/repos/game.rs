@@ -43,6 +43,22 @@ impl<'conn> GameRepo<'conn> {
     pub fn list_by_season(&self, season: Season) -> Result<Vec<Game>> {
         queries::game::list_by_season(self.conn, &season.to_string())
     }
+
+    /// Returns games with optional filters.
+    ///
+    /// `season_id` filters by season label (e.g. `"2023-24"`).
+    /// `season_type` filters by type (e.g. `"Regular"`, `"Playoffs"`).
+    /// `team_id` matches either `home_team_id` or `away_team_id`.
+    ///
+    /// Results are ordered by `game_date`, then `id`.
+    pub fn list_filtered(
+        &self,
+        season_id: Option<&str>,
+        season_type: Option<&str>,
+        team_id: Option<&str>,
+    ) -> Result<Vec<Game>> {
+        queries::game::list_filtered(self.conn, season_id, season_type, team_id)
+    }
 }
 
 #[cfg(test)]
