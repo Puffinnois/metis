@@ -46,7 +46,7 @@ Short log of decisions and why. Newest last. The previous implementation's log (
 
 **D20. Stages are slices.** Each stage takes a slice from the data through to the screen and ends with something the owner can try, instead of all the data, then all the stats, then all the screens. _Why:_ built in layers, nothing could be judged until the end.
 
-**D21. The first load runs in tiers:** core (100 MB), published (394 MB), events (318 MB), play by play (879 MB). Everything still loads by default, so D9 stands. _Why:_ the app is usable after the first tier, long before 1.7 GB has arrived.
+**D21. The first load runs in tiers:** core (100 MB), published (352 MB), events (360 MB), play by play (879 MB). Everything still loads by default, so D9 stands. _Why:_ the app is usable after the first tier, long before 1.7 GB has arrived.
 
 **D22. Limits that stop the first full load (Plan T405):** a database file over 6 GB, a first load over an hour on the development machine, or more than 4 GB of process memory. Past any of them, the work stops and goes to the owner. _Why:_ the dataset is eight times the template's download, so its cost is unknown until measured.
 
