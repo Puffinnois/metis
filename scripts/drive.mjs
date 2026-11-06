@@ -60,7 +60,10 @@ const send = (method, params = {}) =>
   })
 const evaluate = async (expression) => {
   const r = await send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true })
-  return r.result?.result?.value ?? r.result?.exceptionDetails?.exception?.description
+  // By value, a thrown Error reads as `{}`: a step that fails has to say so.
+  const thrown = r.result?.exceptionDetails
+  if (thrown) return `THREW: ${thrown.exception?.description ?? thrown.text}`
+  return r.result?.result?.value
 }
 const find = (what) => `(() => {
   const want = ${JSON.stringify(what)}

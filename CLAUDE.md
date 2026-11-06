@@ -34,15 +34,18 @@
 ```
 src/main/          Electron main process
   stats/           The stats database: worker, client, service, schema (only the worker opens it)
-  db/              metis.db: app settings and migrations
+    derived/       The game and season tables, built from the sources
+    engine/        The query engine: compile and run
+  db/              metis.db: app settings, saved views and migrations
   dev/             Dev mode and dev notes
 src/preload/       The bridge: exposes window.api
 src/renderer/src/  React: screens/stats, components/stats, lib/stats
-src/shared/        Types and IPC, shared by both sides
+src/shared/        Types, IPC and the metric catalogue (stats/catalogue/), shared by both sides
 tests/             Mirrors src/
 scripts/drive.mjs  Runs the built app and follows steps; how UI work is verified
 scripts/load-report.mjs  Runs a real load and measures it; how data work is verified
 scripts/check-agreement.mjs  Checks a load against the league and across sources, per season
+scripts/engine-speed.mjs  Times the query engine on a real load
 docs/reference/    What the app does and what was measured
 ```
 

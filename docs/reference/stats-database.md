@@ -99,16 +99,18 @@ Measured with `scripts/engine-speed.mjs` on the full database, in the worker, a 
 
 | Query                                 | Rows   | Median ms | Worst ms |
 | ------------------------------------- | ------ | --------- | -------- |
-| A leaderboard: ten columns            | 582    | 116       | 274      |
-| 40 columns                            | 582    | 423       | 452      |
-| A home board                          | 582    | 26        | 31       |
-| A team leaderboard                    | 30     | 27        | 30       |
-| Any one filter (date range, home ...) | ~500   | 47–56     | 87       |
-| By month                              | 3,266  | 158       | 174      |
-| By opponent                           | 12,812 | 265       | 309      |
-| One player by game                    | 60     | 57        | 62       |
-| Every season, one leaderboard         | 3,037  | 195       | 197      |
-| Every season, by season, all players  | 15,808 | 419       | 450      |
+| A leaderboard: ten columns            | 582    | 129       | 279      |
+| 40 columns                            | 582    | 452       | 463      |
+| A home board                          | 582    | 29        | 35       |
+| A team leaderboard                    | 30     | 29        | 30       |
+| Any one filter (date range, home ...) | ~500   | 49–59     | 64       |
+| By month                              | 3,266  | 176       | 184      |
+| By opponent                           | 12,812 | 311       | 317      |
+| One player by game                    | 60     | 62        | 66       |
+| Every season, one leaderboard         | 3,037  | 230       | 234      |
+| Every season, by season, all players  | 15,808 | 486       | 568      |
+
+The last is over the 500 ms a screen is allowed, and no screen asks it. Trends (Plan T803) will, for one position, which is about a third of those rows. Times vary between runs: the same query read 450 ms at worst on another. What a click takes in the window is in [stats-screens.md](stats-screens.md).
 
 ## Sync
 

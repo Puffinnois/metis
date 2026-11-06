@@ -55,6 +55,26 @@ A table per position group (All players, Guards, Forwards, Centers) or end of th
 
 Every metric, players or teams, by family or search, with the same entry as the column hover.
 
+## Speed
+
+Measured in the real window on the full database, from a click to its table on screen, rendering included.
+
+| Click                          | ms      |
+| ------------------------------ | ------- |
+| Leaderboards, all eight boards | 84      |
+| Players, or All players        | 323–325 |
+| Per game, Totals               | 327     |
+| A position tab                 | 234     |
+| Sort by a column               | 313     |
+| Another season                 | 274–291 |
+| Last 10 games                  | 230     |
+| A family of columns            | 252     |
+| Teams                          | 92      |
+| Defense                        | 76      |
+| Glossary                       | 27      |
+
+Five of these clicks took 103 to 389 ms during play by play, the heaviest writes of a first load. The boards were on screen 175 seconds into a first load, and a screen never waits for the rest.
+
 ## Data panel
 
 What is loaded, from `stats.data()`. It reads again as a load goes.
