@@ -1,3 +1,5 @@
+import type { StatsQuery } from '@shared/stats/types'
+
 export type StatsStepStatus = 'ok' | 'error' | 'skipped' | 'running' | 'interrupted'
 
 /** One row of `stats.duckdb`'s own `sync_log`. */
@@ -47,6 +49,8 @@ export interface SelfTestResult {
   json: boolean
   /** ICU time zones: tip-off times are published in Eastern time. */
   icu: boolean
+  /** The engine answers a query: the catalogue, the compiler and DuckDB's window functions. */
+  query: boolean
 }
 
 /**
@@ -63,6 +67,9 @@ export type StatsRequest =
   | { id: number; kind: 'pause' }
   | { id: number; kind: 'resume' }
   | { id: number; kind: 'read'; sql: string }
+  | { id: number; kind: 'query'; query: StatsQuery }
+  | { id: number; kind: 'catalogue' }
+  | { id: number; kind: 'seasons' }
 
 /**
  * The kinds that run at once, each on its own connection, instead of in turn. A pause cannot wait
@@ -73,7 +80,10 @@ export const AT_ONCE_REQUESTS: ReadonlySet<StatsRequest['kind']> = new Set([
   'data',
   'pause',
   'resume',
-  'read'
+  'read',
+  'query',
+  'catalogue',
+  'seasons'
 ])
 
 export type StatsReply =

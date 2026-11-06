@@ -1,11 +1,26 @@
-import { app, ipcMain } from 'electron'
+import { app, dialog, ipcMain, type BrowserWindow } from 'electron'
+import { writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
+import type { Db } from '@main/db/connection'
+import { deleteStatsView, listStatsViews, saveStatsView } from '@main/db/repos/statsViews'
 import type { StatsClient } from '@main/stats/client'
 import type { installAutoUpdater } from '@main/updater'
 import { IPC } from '@shared/ipc'
-import type { StatsDataReport, StatsStatus } from '@shared/stats/types'
+import type {
+  LeaderboardBoard,
+  MetricInfo,
+  StatsDataReport,
+  StatsQuery,
+  StatsResult,
+  StatsSeason,
+  StatsStatus,
+  StatsView
+} from '@shared/stats/types'
 import type { UpdateState } from '@shared/types'
 
 export interface AppContext {
+  db: Db
+  getWindow: () => BrowserWindow | null
   /** Null when the stats worker could not start: the app runs and says so. */
   stats: StatsClient | null
   /** Runs a refresh in the background; each file still decides if it is due. */
@@ -20,18 +35,52 @@ export const STATS_OFF: StatsStatus = {
   available: false,
   through: null,
   updatedAt: null,
+  builtAt: null,
   busy: false,
   progress: null,
   paused: false,
   noRoom: null
 }
 
+const STATS_ARE_OFF = 'The stats are off on this computer.'
+
 export function registerIpcHandlers(ctx: AppContext): void {
   ipcMain.handle(IPC.statsStatus, (): Promise<StatsStatus> =>
     ctx.stats ? ctx.stats.status() : Promise.resolve(STATS_OFF)
   )
   ipcMain.handle(IPC.statsData, (): Promise<StatsDataReport> =>
-    ctx.stats ? ctx.stats.data() : Promise.reject(new Error('The stats are off on this computer.'))
+    ctx.stats ? ctx.stats.data() : Promise.reject(new Error(STATS_ARE_OFF))
+  )
+  ipcMain.handle(IPC.statsQuery, (_event, query: StatsQuery): Promise<StatsResult> =>
+    ctx.stats ? ctx.stats.query(query) : Promise.reject(new Error(STATS_ARE_OFF))
+  )
+  ipcMain.handle(IPC.statsCatalogue, (): Promise<MetricInfo[]> =>
+    ctx.stats ? ctx.stats.catalogue() : Promise.resolve([])
+  )
+  ipcMain.handle(IPC.statsSeasons, (): Promise<StatsSeason[]> =>
+    ctx.stats ? ctx.stats.seasons() : Promise.resolve([])
+  )
+  ipcMain.handle(IPC.statsViews, (): StatsView[] => listStatsViews(ctx.db))
+  ipcMain.handle(IPC.statsSaveView, (_event, name: string, board: LeaderboardBoard): StatsView =>
+    saveStatsView(ctx.db, name, board, new Date().toISOString())
+  )
+  ipcMain.handle(IPC.statsDeleteView, (_event, id: number): void => deleteStatsView(ctx.db, id))
+  ipcMain.handle(
+    IPC.statsExportCsv,
+    async (_event, fileName: string, csv: string): Promise<string | null> => {
+      const window = ctx.getWindow()
+      const options = {
+        defaultPath: join(app.getPath('downloads'), fileName),
+        filters: [{ name: 'CSV', extensions: ['csv'] }]
+      }
+      const picked = window
+        ? await dialog.showSaveDialog(window, options)
+        : await dialog.showSaveDialog(options)
+      if (picked.canceled || !picked.filePath) return null
+      // A byte-order mark so Excel reads the names' accents as UTF-8.
+      await writeFile(picked.filePath, `\uFEFF${csv}`, 'utf8')
+      return picked.filePath
+    }
   )
   ipcMain.handle(IPC.statsPause, async (): Promise<void> => {
     await ctx.stats?.pause()

@@ -5,7 +5,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { openStatsService } from '@main/stats/service'
 
 vi.mock('@main/stats/sync', () => ({
-  refreshStats: vi.fn(async () => ({ steps: [], fatal: 'FATAL Error: invalidated' }))
+  refreshStats: vi.fn(async () => ({ steps: [], fatal: 'FATAL Error: invalidated' })),
+  STATS_DERIVED_STEP: 'stats:derived'
 }))
 
 describe('a database DuckDB has invalidated', () => {
@@ -22,6 +23,7 @@ describe('a database DuckDB has invalidated', () => {
       available: false,
       through: null,
       updatedAt: null,
+      builtAt: null,
       busy: false,
       progress: null,
       paused: false,

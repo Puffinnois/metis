@@ -1,5 +1,14 @@
 import type { DevNote, NewNote, NoteError, NoteStatus } from './devNotes'
-import type { StatsDataReport, StatsStatus } from './stats/types'
+import type {
+  LeaderboardBoard,
+  MetricInfo,
+  StatsDataReport,
+  StatsQuery,
+  StatsResult,
+  StatsSeason,
+  StatsStatus,
+  StatsView
+} from './stats/types'
 import type { UpdateState } from './types'
 
 /** What the preload script exposes to the renderer as `window.api`. */
@@ -51,6 +60,17 @@ export interface Api {
     /** Stops a running load and holds off any other, across launches, until `resume`. */
     pause(): Promise<void>
     resume(): Promise<void>
+    /** One query of the catalogue; rejects with a readable message. */
+    query(query: StatsQuery): Promise<StatsResult>
+    catalogue(): Promise<MetricInfo[]>
+    /** What each season holds, newest first; empty until the first tables are built. */
+    seasons(): Promise<StatsSeason[]>
+    views(): Promise<StatsView[]>
+    /** Saves under a name; the same name, in any case, replaces. Rejects with a readable message. */
+    saveView(name: string, board: LeaderboardBoard): Promise<StatsView>
+    deleteView(id: number): Promise<void>
+    /** Asks where to save; resolves to the path, null if cancelled. */
+    exportCsv(fileName: string, csv: string): Promise<string | null>
     /** Fires as a refresh progresses and when it ends; returns the unsubscribe function. */
     onChanged(listener: () => void): () => void
   }
@@ -80,5 +100,12 @@ export const IPC = {
   statsChanged: 'stats:changed',
   statsData: 'stats:data',
   statsPause: 'stats:pause',
-  statsResume: 'stats:resume'
+  statsResume: 'stats:resume',
+  statsQuery: 'stats:query',
+  statsCatalogue: 'stats:catalogue',
+  statsSeasons: 'stats:seasons',
+  statsViews: 'stats:views',
+  statsSaveView: 'stats:saveView',
+  statsDeleteView: 'stats:deleteView',
+  statsExportCsv: 'stats:exportCsv'
 } as const

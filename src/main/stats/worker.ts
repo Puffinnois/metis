@@ -36,6 +36,12 @@ async function handle(request: StatsRequest): Promise<unknown> {
       return service.resume()
     case 'read':
       return service.read(request.sql)
+    case 'query':
+      return service.query(request.query)
+    case 'catalogue':
+      return service.catalogue()
+    case 'seasons':
+      return service.seasons()
     case 'close':
       await service.close()
       service = null

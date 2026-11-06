@@ -29,7 +29,7 @@ const label = (season) => `${season - 1}-${String(season % 100).padStart(2, '0')
 const COUNT = new Intl.NumberFormat('en-US')
 const pct = (part, whole) => (whole ? ((100 * part) / whole).toFixed(1) : '–')
 
-const { read, close } = openStatsWorker(folder)
+const { read, query, close } = openStatsWorker(folder)
 
 /** The games that count: not All-Star, not preseason, and actually played. */
 const COUNTED = `g.played AND g.game_type IN ('regular', 'playoffs', 'play-in', 'cup-final')`
@@ -529,6 +529,157 @@ out.push(
         t ? pct(t.ast, t.n) : '–'
       ]
     })
+  )
+)
+
+// 9. The catalogue's formulas, through the real engine, against what the NBA publishes per season.
+const EXACT = [
+  ['fg_pct', 'fg_pct', 'base', 'FG%'],
+  ['fg3_pct', 'fg3_pct', 'base', '3P%'],
+  ['ft_pct', 'ft_pct', 'base', 'FT%'],
+  ['efg_pct', 'efg_pct', 'advanced', 'eFG%'],
+  ['ts_pct', 'ts_pct', 'advanced', 'TS%'],
+  ['fg3a_rate', 'pct_fga_3pt', 'scoring', '3PAr'],
+  ['share_pts_3pt', 'pct_pts_3pt', 'scoring', '%PTS 3PT'],
+  ['share_pts_ft', 'pct_pts_ft', 'scoring', '%PTS FT']
+]
+const ESTIMATES = [
+  ['usg_pct', 'usg_pct', 'USG%'],
+  ['ast_pct', 'ast_pct', 'AST%'],
+  ['trb_pct', 'reb_pct', 'TRB%'],
+  ['pie', 'pie', 'PIE']
+]
+const finished = games.map((g) => g.season).filter((s) => s >= 1997 && s !== current)
+const GAME_MINUTES = 48
+const formulaRows = []
+const estimateRows = []
+const teamRows = []
+const median = (xs) => {
+  const sorted = [...xs].sort((a, b) => a - b)
+  return sorted.length ? sorted[Math.floor(sorted.length / 2)] : null
+}
+for (const season of finished) {
+  const ours = await query({
+    entity: 'player',
+    metrics: [...new Set([...EXACT.map((e) => e[0]), ...ESTIMATES.map((e) => e[0]), 'min'])],
+    scope: { seasons: [season] },
+    limit: 5000
+  })
+  const byId = new Map(ours.rows.map((r) => [Number(r.id), r]))
+  const publishedRows =
+    await read(`SELECT player_id, measure_type, fg_pct, fg3_pct, ft_pct, efg_pct,
+      ts_pct, pct_fga_3pt, pct_pts_3pt, pct_pts_ft, usg_pct, ast_pct, reb_pct, pie
+    FROM src_nba_player_season WHERE season = ${season} AND per_mode = 'totals'
+      AND season_type = 'regular-season' AND measure_type IN ('base', 'advanced', 'scoring')`)
+  const row = [label(season)]
+  for (const [id, column, measure] of EXACT) {
+    let same = 0
+    let n = 0
+    for (const p of publishedRows) {
+      const v = byId.get(p.player_id)?.values[id]?.value
+      if (p.measure_type !== measure || p[column] === null || v === null || v === undefined)
+        continue
+      n++
+      // Published to three decimals. The NBA's free-throw share is what its other two leave, so
+      // it can be off by one more in the last place.
+      if (Math.abs(v - p[column]) <= (column === 'pct_pts_ft' ? 0.00101 : 0.00051)) same++
+    }
+    row.push(pct(same, n))
+  }
+  formulaRows.push(row)
+  const estimate = [label(season)]
+  for (const [id, column] of ESTIMATES) {
+    const gaps = []
+    for (const p of publishedRows) {
+      const r = byId.get(p.player_id)
+      const v = r?.values[id]?.value
+      if (p.measure_type !== 'advanced' || p[column] === null || v === null || v === undefined)
+        continue
+      // Enough minutes that a difference is not just a small sample.
+      if (!r.values.usg_pct.qualified) continue
+      gaps.push(Math.abs(v - p[column]))
+    }
+    estimate.push(gaps.length ? (100 * median(gaps)).toFixed(2) : '–')
+  }
+  // The NBA's PIE reads as a share of what happened while the player was on the floor: scaling ours
+  // by their share of the game's minutes brings it most of the way there.
+  const onCourt = publishedRows.flatMap((p) => {
+    const r = byId.get(p.player_id)
+    const v = r?.values.pie?.value
+    const minutes = r?.values.min?.value
+    if (p.measure_type !== 'advanced' || p.pie === null || !v || !minutes) return []
+    if (!r.values.usg_pct.qualified) return []
+    return [Math.abs((v * r.games * GAME_MINUTES) / minutes - p.pie)]
+  })
+  estimate.push(onCourt.length ? (100 * median(onCourt)).toFixed(2) : '–')
+  estimateRows.push(estimate)
+
+  const teams = await query({
+    entity: 'team',
+    metrics: [
+      'team_ortg',
+      'team_drtg',
+      'team_pace',
+      'team_efg_pct',
+      'team_tov_pct',
+      'team_orb_pct'
+    ],
+    scope: { seasons: [season] },
+    limit: 100
+  })
+  const publishedTeams =
+    await read(`SELECT team_id, off_rating, e_off_rating, def_rating, pace, e_pace,
+      efg_pct, tm_tov_pct, oreb_pct
+    FROM src_nba_team_season WHERE season = ${season} AND per_mode = 'totals'
+      AND season_type = 'regular-season' AND measure_type = 'advanced'`)
+  const teamGap = (ours, theirs, toPoints = 1) => {
+    const gaps = publishedTeams.flatMap((p) => {
+      const v = teams.rows.find((r) => Number(r.id) === p.team_id)?.values[ours]?.value
+      return v === null || v === undefined || p[theirs] === null
+        ? []
+        : [toPoints * Math.abs(v - p[theirs])]
+    })
+    return gaps.length ? median(gaps).toFixed(2) : '–'
+  }
+  teamRows.push([
+    label(season),
+    teamGap('team_ortg', 'off_rating'),
+    teamGap('team_ortg', 'e_off_rating'),
+    teamGap('team_drtg', 'def_rating'),
+    teamGap('team_pace', 'pace'),
+    teamGap('team_pace', 'e_pace'),
+    teamGap('team_efg_pct', 'efg_pct', 100),
+    teamGap('team_tov_pct', 'tm_tov_pct', 100),
+    teamGap('team_orb_pct', 'oreb_pct', 100)
+  ])
+}
+out.push(
+  '',
+  '## Formulas against what is published',
+  '',
+  "The catalogue's formulas, read through the query engine over a whole regular season, against `nba_stats_player_season_stats`. The share of players within rounding: the NBA publishes three decimals, and its free-throw share is what its other two leave, so that column allows one more in the last place.",
+  '',
+  table(['Season', ...EXACT.map((e) => `${e[3]} %`)], formulaRows),
+  '',
+  "These are estimates, and the NBA publishes its own measure of the same idea, so they are not meant to match. The median difference in percentage points, among players with 1,000 minutes per 82 games: the estimates guess a player's on-court team totals from their minutes, where the NBA counts them, and the NBA's usage counts plays differently. **PIE** follows the reference: a share of whole games. The NBA's published season figure reads higher, and **PIE, scaled to minutes** shows why: it behaves like a share of what happened while the player was on the floor.",
+  '',
+  table(['Season', ...ESTIMATES.map((e) => `${e[2]}`), 'PIE, scaled to minutes'], estimateRows),
+  '',
+  "Team estimates against `nba_stats_team_season_stats`, as the median difference across the league: points per 100 for the ratings, possessions per 48 for pace, percentage points for the rest. The NBA's ratings count possessions from the play by play; its `e_` columns are its own box-score estimates.",
+  '',
+  table(
+    [
+      'Season',
+      'ORtg, `off_rating`',
+      'ORtg, `e_off_rating`',
+      'DRtg, `def_rating`',
+      'Pace, `pace`',
+      'Pace, `e_pace`',
+      'eFG%',
+      'TOV%, `tm_tov_pct`',
+      'ORB%'
+    ],
+    teamRows
   )
 )
 
