@@ -104,7 +104,7 @@ async function runStatsSelfTest(out: string): Promise<number> {
     const client = startStatsWorker({ path: join(dir, 'stats.duckdb'), tempDir: join(dir, 'tmp') })
     const test = await client.selfTest()
     await client.close()
-    code = test.parquet && test.json && test.icu && test.rows === 1000 ? 0 : 1
+    code = test.parquet && test.json && test.icu && test.query && test.rows === 1000 ? 0 : 1
     result = { ok: code === 0, ...test }
   } catch (err) {
     result = { ok: false, error: err instanceof Error ? err.message : String(err) }
@@ -143,6 +143,8 @@ app.whenReady().then(async () => {
     stats?.refresh().then(statsChanged, (err) => console.error('the stats refresh failed', err))
   }
   const ctx: AppContext = {
+    db,
+    getWindow: () => mainWindow,
     stats,
     refreshStats: refresh,
     statsChanged,

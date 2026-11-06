@@ -35,6 +35,7 @@ export function openStatsWorker(folder, options = {}) {
     })
   return {
     read: (sql) => request((id) => ({ id, kind: 'read', sql })),
+    query: (query) => request((id) => ({ id, kind: 'query', query })),
     close: async () => {
       await request((id) => ({ id, kind: 'close' })).catch(() => undefined)
       await worker.terminate()

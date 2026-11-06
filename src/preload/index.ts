@@ -47,6 +47,13 @@ const api: Api = {
     data: () => ipcRenderer.invoke(IPC.statsData),
     pause: () => ipcRenderer.invoke(IPC.statsPause),
     resume: () => ipcRenderer.invoke(IPC.statsResume),
+    query: (query) => ipcRenderer.invoke(IPC.statsQuery, query),
+    catalogue: () => ipcRenderer.invoke(IPC.statsCatalogue),
+    seasons: () => ipcRenderer.invoke(IPC.statsSeasons),
+    views: () => ipcRenderer.invoke(IPC.statsViews),
+    saveView: (name, board) => ipcRenderer.invoke(IPC.statsSaveView, name, board),
+    deleteView: (id) => ipcRenderer.invoke(IPC.statsDeleteView, id),
+    exportCsv: (fileName, csv) => ipcRenderer.invoke(IPC.statsExportCsv, fileName, csv),
     onChanged: (listener) => {
       const handler = (): void => listener()
       ipcRenderer.on(IPC.statsChanged, handler)

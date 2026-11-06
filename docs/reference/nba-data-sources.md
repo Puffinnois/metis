@@ -143,6 +143,8 @@ Measured season by season on the full load: the tables are in [nba-agreement.md]
 | Season tables against published totals: the top 20 scorers        | 20 of 20, same points and games, every season from 1996-97                                                                                                  |
 | Season tables against published totals: all players               | Games 99.8–100 %, points 97.7–100 %, rebounds 98–100 %, assists 98.2–100 %. Wins and losses 100 % for every team                                            |
 | Plus-minus: a team's players sum to five times the margin         | 96.2–100 %, from 1996-97                                                                                                                                    |
+| The catalogue's formulas against the NBA's published rates        | FG%, 3P%, FT%, eFG%, TS%, 3PAr and scoring shares: 96.6–100 % of players within rounding, 100 % in most seasons from 2007-08                                |
+| Estimates against the NBA's measures, median difference           | USG% 0.4–0.7 points, AST% 0.2–0.3, TRB% about 1. Team ratings and pace about 1 against its counts, 0.7 against its own estimates                            |
 
 So the box scores can be trusted season by season, and the sources cross-check. **Possessions are a derived table, not an official one** (`lineup_source` is `pbp_fallback` on 99.6 % of 2025-26): anything built on them has to state that tolerance.
 
@@ -178,6 +180,9 @@ So the box scores can be trusted season by season, and the sources cross-check. 
 - **The schedule lists All-Star games that were not played:** 1998-99's was cancelled, and 1997-98 has a stray row in April. Read the date from a game that was played.
 - **The NBA's box scores round minutes in two seasons:** 81 % of lines in 2003-04 and 90 % in 2004-05 are whole minutes, so a season's minutes can differ from the published total by up to 39. Other seasons match within one minute on 95.9 % of players or more.
 - **ESPN's points by kind are not all real:** `-1` means not recorded, and each column holds zeros before its first real season. Points in the paint start in 2008-09 (1,673 of 2,630 team-games that season) and are missing in 2017-18. Fast-break points start in 2001-02, and look low until 2004-05: about 5 a game against 11 to 15 after. Points off turnovers start in 1994-95.
+- **The NBA's published PIE is not a share of whole games.** The reference defines PIE over both teams' game totals, and that is what the catalogue computes. The published season figure reads about 4 points higher, and scaling ours by a player's share of the game's minutes brings it within 0.2: it behaves like a share of what happened while they were on the floor. The published one comes with the league dashboards (Plan T702), beside this one.
+- **The NBA's free-throw share of points is what its other two leave:** `pct_pts_ft` equals 1 minus `pct_pts_2pt` and `pct_pts_3pt` on every player read, so it can be off by one more in the last place.
+- **The NBA's team ORB% and TOV% are its own.** Its `oreb_pct` runs 3 to 4.5 points above rebounds over available rebounds in the box score, and `tm_tov_pct` about 2 points above turnovers over estimated plays, so they read as different measures. Same-named stats keep different ids (D14).
 - **`matchup_min` is spelled two ways:** `41:33` in totals and `8.3` in per-game, so the column is text.
 - **`season_type` holds team ids in two tables.** In `nba_stats_coaches` and `nba_stats_rosters` the column holds values such as `1610612755` (read on the 2026 files). Do not read a season type from it.
 - **Minutes differ in type:** text in NBA box scores (with `''` for did not play), a number in ESPN's.

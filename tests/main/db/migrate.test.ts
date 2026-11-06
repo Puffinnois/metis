@@ -6,7 +6,7 @@ import { getSetting, setSetting } from '@main/db/repos/settings'
 describe('migrate', () => {
   it('creates the settings table on an empty database', () => {
     const db = openDatabase(':memory:')
-    expect(migrate(db)).toBe(1)
+    expect(migrate(db)).toBe(2)
     setSetting(db, 'dev_mode', '1')
     setSetting(db, 'dev_mode', '0')
     expect(getSetting(db, 'dev_mode')).toBe('0')
@@ -18,7 +18,7 @@ describe('migrate', () => {
     migrate(db)
     expect(() => migrate(db)).not.toThrow()
     const row = db.prepare('SELECT COUNT(*) AS n FROM schema_version').get() as { n: number }
-    expect(row.n).toBe(1)
+    expect(row.n).toBe(2)
   })
 
   it('rolls back the transaction when the callback throws', () => {

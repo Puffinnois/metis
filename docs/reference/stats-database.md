@@ -4,7 +4,7 @@
 
 ## Engine
 
-- One worker thread (`out/main/statsWorker.js`, `src/main/stats/worker.ts`) owns the file. The main process talks to it through `StatsClient` (`src/main/stats/client.ts`): `refresh`, `status`, `selfTest`, `close`. Scripts also use `read`, which runs one SQL statement; the app does not expose it.
+- One worker thread (`out/main/statsWorker.js`, `src/main/stats/worker.ts`) owns the file. The main process talks to it through `StatsClient` (`src/main/stats/client.ts`): `refresh`, `status`, `query`, `catalogue`, `seasons`, `selfTest`, `close`. Scripts also use `read`, which runs one SQL statement; the app does not expose it.
 - Writes run one after another. Reads run at once, each on its own connection, so a screen never waits behind a refresh.
 - DuckDB `@duckdb/node-api` 1.5.6. Parquet, JSON and ICU are built in, and no extension is ever downloaded.
 - Settings: `memory_limit` 1 GB, 2 threads, `preserve_insertion_order` off, spill files in `<userData>/stats-tmp/duckdb`.
@@ -76,6 +76,37 @@ No rate is stored. Every column is a count or a sum over the same games, divided
 - **`rest_days`:** full days off since the team's last game that season, 0 on a back-to-back, NULL for its first. Preseason games are counted apart.
 - **`after_break`:** against the date of the All-Star Game that was played, or one still to come this season. Before 1996-97 the schedule has none, so those three dates are in the code, each checked against the gap in that February's games. 1998-99's was cancelled, so that season reads NULL.
 - **Plus-minus** is the NBA's, from 1996-97. ESPN's column is zero before then, and is not read.
+
+## The catalogue and the query engine
+
+`src/shared/stats/catalogue/` holds every metric, one file per family: `traditional`, `shooting`, `possessions`, `scoring`, `composite`. Each states the fields of reference section 19.4: entity, kind (recorded, derived, estimated, model), aggregation (a sum or a ratio of sums), unit, sample, direction, sources and first season. Its formula is SQL over component sums (`{fgm} / nullif({fga}, 0)`), so adding a metric needs no engine change. Every formula has a test against a value worked by hand, and the test fails for a metric that has none.
+
+`src/main/stats/engine/` answers a `StatsQuery`: `compile` checks it and writes parameterised SQL, `run` executes it under a five-second timeout on its own connection. Nothing from a query is spliced into SQL.
+
+- **Which table:** `player_season` or `team_season` unless a filter splits a season, then `player_game` or `team_game`. Both give the same numbers. A player's season table is read either as its rows with no team or as those of the teams named, never both, so a trade cannot count twice.
+- **Scope:** seasons, game types (default the regular season; All-Star and preseason only when asked), a date range, last N, position group, team. Then the game's context: opponent, the opponent's conference or division, month, home or road, before or after the All-Star Game, rest days, starter or bench, win or loss.
+- **Last N:** a player's own last N appearances, or their part in their team's last N games, which they may have missed.
+- **Transforms:** totals, per game, per 36, per 48, per 100 possessions. A ratio reads the same in each, and a record stays a total. Per 100 uses estimated possessions: a player's are their team's times their share of its minutes. A team's per-game count divides by its games with a box score.
+- **Qualifying:** a metric's `minSample` is for 82 games and scales to the team games a row covers, so a short season or a date range qualifies fairly. A row per season reads its own season's games. Teams always qualify.
+- **Minimums:** 500 field-goal attempts for field-goal rates, 400 for two-point percentage, 200 three-point attempts, 125 free-throw attempts, 100 turnovers for assist-to-turnover, 1,000 minutes for the rest.
+- **Ranks and percentiles:** among qualified rows of the same position group, and of the same group when grouped.
+- **Coverage:** a metric with no season in scope reads null, and its column says why ("Recorded from 1996-97."). A query never fails over a gap, and a gap is never a zero.
+- **Grouping:** by season, team, opponent, month or game.
+
+Measured with `scripts/engine-speed.mjs` on the full database, in the worker, a season's worth of players:
+
+| Query                                 | Rows   | Median ms | Worst ms |
+| ------------------------------------- | ------ | --------- | -------- |
+| A leaderboard: ten columns            | 582    | 116       | 274      |
+| 40 columns                            | 582    | 423       | 452      |
+| A home board                          | 582    | 26        | 31       |
+| A team leaderboard                    | 30     | 27        | 30       |
+| Any one filter (date range, home ...) | ~500   | 47–56     | 87       |
+| By month                              | 3,266  | 158       | 174      |
+| By opponent                           | 12,812 | 265       | 309      |
+| One player by game                    | 60     | 57        | 62       |
+| Every season, one leaderboard         | 3,037  | 195       | 197      |
+| Every season, by season, all players  | 15,808 | 419       | 450      |
 
 ## Sync
 

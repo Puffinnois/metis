@@ -15,6 +15,7 @@ const EMPTY = {
   available: true,
   through: null,
   updatedAt: null,
+  builtAt: null,
   busy: false,
   progress: null,
   paused: false,

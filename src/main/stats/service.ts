@@ -1,9 +1,20 @@
 import { mkdirSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
-import type { StatsDataReport, StatsStatus } from '@shared/stats/types'
+import type {
+  GameType,
+  MetricInfo,
+  StatsDataReport,
+  StatsQuery,
+  StatsResult,
+  StatsSeason,
+  StatsStatus
+} from '@shared/stats/types'
 import { sqlString, StatsDb, type Row } from './db'
 import { databaseBytes, freeBytes, roomNeeded } from './disk'
 import { createDownloads } from './download'
+import { StatsQueryError } from './engine/compile'
+import { catalogueInfo } from './engine/registry'
+import { runQuery } from './engine/run'
 import { summariseFamilies, type FileAttempt, type HeldFile } from './families'
 import type {
   RefreshOptions,
@@ -15,11 +26,42 @@ import type {
 } from './protocol'
 import { bootstrapStatsDb } from './schema'
 import { currentSeason, SOURCES } from './sources'
-import { refreshStats } from './sync'
+import { refreshStats, STATS_DERIVED_STEP } from './sync'
 
 /** The table the status line reads the latest game from. */
 const LATEST_GAMES_TABLE = 'src_espn_team_box'
 const PAUSED_KEY = 'paused'
+
+/**
+ * The engine answers a team query over a throwaway schema, which proves the catalogue, the compiler and
+ * DuckDB's window functions in the packaged worker.
+ */
+async function selfTestQuery(db: StatsDb): Promise<boolean> {
+  await db.exec('CREATE SCHEMA IF NOT EXISTS self_test')
+  await db.exec('SET search_path = self_test')
+  try {
+    const line = (team: number, wins: number): string =>
+      `SELECT ${team} AS team_id, 2026 AS season, 'regular' AS game_type, DATE '2026-01-10' AS last_date,
+              DATE '2026-01-10' AS game_date, 1 AS games, ${wins} AS wins, ${1 - wins} AS losses`
+    await db.exec(`CREATE OR REPLACE TABLE team_season AS ${line(1, 1)} UNION ALL ${line(2, 0)}`)
+    await db.exec('CREATE OR REPLACE TABLE team_game AS SELECT * FROM team_season')
+    await db.exec(`CREATE OR REPLACE TABLE team AS
+      SELECT 1 AS team_id, 2026 AS season, 'AAA' AS code, 'A' AS name
+      UNION ALL SELECT 2, 2026, 'BBB', 'B'`)
+    const result = await runQuery(
+      db,
+      { entity: 'team', metrics: ['team_win_pct'], scope: { seasons: [2026] } },
+      { currentSeason: 2026 }
+    )
+    return (
+      result.rows.map((r) => `${r.team} ${r.values.team_win_pct.percentile}`).join(',') ===
+      'AAA 100,BBB 0'
+    )
+  } finally {
+    await db.exec('SET search_path = main')
+    await db.exec('DROP SCHEMA self_test CASCADE')
+  }
+}
 
 /** The worker's state: the open database and what a refresh needs. Runnable in-process for tests. */
 export interface StatsService {
@@ -33,6 +75,11 @@ export interface StatsService {
   resume(): Promise<void>
   /** One SQL statement on its own connection, for scripts measuring a real load. */
   read(sql: string): Promise<Row[]>
+  /** One query of the catalogue, on its own connection: it runs while a refresh writes. */
+  query(query: StatsQuery): Promise<StatsResult>
+  catalogue(): Promise<MetricInfo[]>
+  /** What each season holds, newest first, for the scope bar. */
+  seasons(): Promise<StatsSeason[]>
   /**
    * Stops a refresh now: aborts its downloads, interrupts its statement and starts no other step. A
    * process must not exit while DuckDB runs a statement (Electron aborts), so closing cancels first.
@@ -139,6 +186,7 @@ export async function openStatsService(
           available: false,
           through: null,
           updatedAt: null,
+          builtAt: null,
           busy: false,
           progress: null,
           paused,
@@ -148,6 +196,9 @@ export async function openStatsService(
       return read(async (reader) => {
         const updated = await reader.get<{ at: string | null }>(
           "SELECT max(finished_at) AS at FROM sync_log WHERE status = 'ok' AND rows_written > 0"
+        )
+        const built = await reader.get<{ at: string | null }>(
+          `SELECT max(finished_at) AS at FROM sync_log WHERE source = '${STATS_DERIVED_STEP}' AND status = 'ok'`
         )
         const exists = await reader.get(
           "SELECT 1 AS yes FROM duckdb_tables() WHERE schema_name = 'main' AND table_name = ?",
@@ -163,6 +214,7 @@ export async function openStatsService(
           available: true,
           through: latest?.date ? { season: latest.season, date: latest.date } : null,
           updatedAt: updated?.at ?? null,
+          builtAt: built?.at ?? null,
           busy,
           progress,
           paused,
@@ -215,6 +267,64 @@ export async function openStatsService(
       await savePaused(false)
     },
     read: (sql) => read((reader) => reader.all(sql)),
+    query: (query) =>
+      read(async (reader) => {
+        const built = await reader.get(
+          "SELECT 1 AS yes FROM duckdb_tables() WHERE schema_name = 'main' AND table_name = 'player_season'"
+        )
+        if (!built) throw new StatsQueryError('No stats yet: the first load has not got that far.')
+        return runQuery(reader, query, { currentSeason: currentSeason(new Date()) })
+      }),
+    catalogue: async () => catalogueInfo(),
+    seasons: () =>
+      read(async (reader) => {
+        const built = await reader.get(
+          "SELECT 1 AS yes FROM duckdb_tables() WHERE schema_name = 'main' AND table_name = 'team_game'"
+        )
+        if (!built) return []
+        const held = await reader.all<{
+          season: number
+          game_type: GameType
+          first_date: string
+          last_date: string
+          games: number
+        }>(
+          `SELECT season, game_type, min(game_date)::VARCHAR AS first_date,
+                  max(game_date)::VARCHAR AS last_date, sum(box_games)::INTEGER // 2 AS games
+           FROM team_game WHERE box_games > 0 GROUP BY 1, 2`
+        )
+        const teams = await reader.all<{
+          season: number
+          team_id: number
+          code: string
+          name: string
+          conference: string | null
+          division: string | null
+        }>('SELECT season, team_id, code, name, conference, division FROM team ORDER BY code')
+        const bySeason = new Map<number, StatsSeason>()
+        for (const r of held) {
+          const s = bySeason.get(r.season) ?? {
+            season: r.season,
+            firstDate: r.first_date,
+            lastDate: r.last_date,
+            types: [],
+            teams: teams
+              .filter((t) => t.season === r.season)
+              .map((t) => ({
+                id: String(t.team_id),
+                code: t.code,
+                name: t.name,
+                conference: t.conference,
+                division: t.division
+              }))
+          }
+          if (r.first_date < s.firstDate) s.firstDate = r.first_date
+          if (r.last_date > s.lastDate) s.lastDate = r.last_date
+          s.types.push({ type: r.game_type, games: r.games })
+          bySeason.set(r.season, s)
+        }
+        return [...bySeason.values()].sort((a, b) => b.season - a.season)
+      }),
     /** Write, read, a Parquet round trip, `read_json` and an ICU time zone, through the real file. */
     async selfTest() {
       await db.exec('CREATE OR REPLACE TABLE self_test AS SELECT range AS x FROM range(1000)')
@@ -236,7 +346,8 @@ export async function openStatsService(
         rows: back?.n ?? 0,
         parquet: back?.n === 1000,
         json: json?.x === 1,
-        icu: icu?.hour === 21
+        icu: icu?.hour === 21,
+        query: await selfTestQuery(db)
       }
     },
     cancel() {
