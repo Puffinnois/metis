@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import * as derived from '@main/stats/derived/build'
 import type { Downloads } from '@main/stats/download'
 import * as identity from '@main/stats/identity'
 import type { SourceFile } from '@main/stats/sources'
@@ -10,6 +11,13 @@ vi.mock('@main/stats/identity', () => ({
   identityStale: vi.fn(async () => false),
   markIdentityStale: vi.fn(async () => undefined),
   buildIdentity: vi.fn(async () => 7)
+}))
+
+vi.mock('@main/stats/derived/build', () => ({
+  canDerive: vi.fn(async () => true),
+  derivedStale: vi.fn(async () => false),
+  markDerivedStale: vi.fn(async () => undefined),
+  buildDerived: vi.fn(async () => 11)
 }))
 
 const NOW = new Date('2026-11-05T12:00:00Z')
@@ -35,6 +43,9 @@ beforeEach(() => {
   vi.mocked(identity.canBuildIdentity).mockResolvedValue(true)
   vi.mocked(identity.identityStale).mockResolvedValue(false)
   vi.mocked(identity.buildIdentity).mockClear()
+  vi.mocked(derived.canDerive).mockResolvedValue(true)
+  vi.mocked(derived.derivedStale).mockResolvedValue(false)
+  vi.mocked(derived.buildDerived).mockClear()
 })
 
 async function run(
@@ -53,60 +64,82 @@ async function run(
   return refreshStats({ db, downloads, now: () => NOW }, {}, sources)
 }
 
-describe('the identity step', () => {
-  it('runs as soon as the core tier has loaded, not at the end of the whole load', async () => {
+describe('the identity and derived steps', () => {
+  it('run as soon as the core tier has loaded, not at the end of the whole load', async () => {
     const { steps } = await run([CORE, PUBLISHED])
     expect(steps.map((s) => s.source)).toEqual([
       'stats:core_file:2027',
       'stats:identity',
+      'stats:derived',
       'stats:published_file:2027'
     ])
     expect(identity.buildIdentity).toHaveBeenCalledTimes(1)
+    expect(derived.buildDerived).toHaveBeenCalledTimes(1)
     expect(steps[1].rowsWritten).toBe(7)
+    expect(steps[2].rowsWritten).toBe(11)
   })
 
-  it('marks the tables out of date before anything can stop the build', async () => {
+  it('mark the tables out of date before anything can stop the build', async () => {
     vi.mocked(identity.markIdentityStale).mockClear()
+    vi.mocked(derived.markDerivedStale).mockClear()
     await run([CORE])
     expect(identity.markIdentityStale).toHaveBeenCalledOnce()
+    expect(derived.markDerivedStale).toHaveBeenCalledOnce()
   })
 
-  it('runs at the end when only the core tier was due', async () => {
+  it('run at the end when only the core tier was due', async () => {
     const { steps } = await run([CORE])
-    expect(steps.map((s) => s.source)).toEqual(['stats:core_file:2027', 'stats:identity'])
+    expect(steps.map((s) => s.source)).toEqual([
+      'stats:core_file:2027',
+      'stats:identity',
+      'stats:derived'
+    ])
   })
 
-  it('does not run when nothing in the core tier changed', async () => {
+  it('do not run when nothing in the core tier changed', async () => {
     const { steps } = await run([PUBLISHED])
     expect(steps.map((s) => s.source)).toEqual(['stats:published_file:2027'])
     expect(identity.buildIdentity).not.toHaveBeenCalled()
+    expect(derived.buildDerived).not.toHaveBeenCalled()
   })
 
-  it('does not run when the core tier found nothing new', async () => {
+  it('do not run when the core tier found nothing new', async () => {
     const { steps } = await run([CORE], [CORE])
     expect(steps.map((s) => s.status)).toEqual(['skipped'])
     expect(identity.buildIdentity).not.toHaveBeenCalled()
+    expect(derived.buildDerived).not.toHaveBeenCalled()
   })
 
-  it('runs with nothing due when a new version made it stale', async () => {
+  it('rebuild only identity when a new version made only it stale', async () => {
     vi.mocked(identity.identityStale).mockResolvedValue(true)
     const { steps } = await run([])
     expect(steps.map((s) => s.source)).toEqual(['stats:identity'])
   })
 
-  it('waits while a table it reads is not loaded', async () => {
-    vi.mocked(identity.canBuildIdentity).mockResolvedValue(false)
-    const { steps } = await run([CORE])
-    expect(steps.map((s) => s.source)).toEqual(['stats:core_file:2027'])
+  it('rebuild only the derived tables when a new version made only them stale', async () => {
+    vi.mocked(derived.derivedStale).mockResolvedValue(true)
+    const { steps } = await run([])
+    expect(steps.map((s) => s.source)).toEqual(['stats:derived'])
     expect(identity.buildIdentity).not.toHaveBeenCalled()
   })
 
-  it('logs a failure and carries on with the load', async () => {
+  it('wait while a table they read is not loaded', async () => {
+    vi.mocked(identity.canBuildIdentity).mockResolvedValue(false)
+    vi.mocked(derived.canDerive).mockResolvedValue(false)
+    const { steps } = await run([CORE])
+    expect(steps.map((s) => s.source)).toEqual(['stats:core_file:2027'])
+    expect(identity.buildIdentity).not.toHaveBeenCalled()
+    expect(derived.buildDerived).not.toHaveBeenCalled()
+  })
+
+  it('log a failure and carry on with the load', async () => {
     vi.mocked(identity.buildIdentity).mockRejectedValueOnce(new Error('bad join'))
+    vi.mocked(derived.buildDerived).mockRejectedValueOnce(new Error('bad sum'))
     const { steps } = await run([CORE, PUBLISHED])
     expect(steps.map((s) => [s.source, s.status, s.message])).toEqual([
       ['stats:core_file:2027', 'ok', null],
       ['stats:identity', 'error', 'bad join'],
+      ['stats:derived', 'error', 'bad sum'],
       ['stats:published_file:2027', 'ok', null]
     ])
   })

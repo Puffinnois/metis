@@ -140,6 +140,9 @@ Measured season by season on the full load: the tables are in [nba-agreement.md]
 | Player lines in both sources                                      | All found; points 100 %, rebounds and assists 99.9–100 %                                                                                                    |
 | Published season totals against summed box scores                 | Games 98.5–100 %, points 97.7–100 %, rebounds 98–100 %, assists 98.2–100 %                                                                                  |
 | Possessions against the box score, team points                    | 1996-97 to 2016-17: 53 % exact, 59 % within 1, 96 % within 5. From 2017-18: 88 % exact, 95 % within 1, 99.9 % within 5. The worst single game is off by 113 |
+| Season tables against published totals: the top 20 scorers        | 20 of 20, same points and games, every season from 1996-97                                                                                                  |
+| Season tables against published totals: all players               | Games 99.8–100 %, points 97.7–100 %, rebounds 98–100 %, assists 98.2–100 %. Wins and losses 100 % for every team                                            |
+| Plus-minus: a team's players sum to five times the margin         | 96.2–100 %, from 1996-97                                                                                                                                    |
 
 So the box scores can be trusted season by season, and the sources cross-check. **Possessions are a derived table, not an official one** (`lineup_source` is `pbp_fallback` on 99.6 % of 2025-26): anything built on them has to state that tolerance.
 
@@ -169,6 +172,12 @@ So the box scores can be trusted season by season, and the sources cross-check. 
 - **ESPN's team rebounds and turnovers change meaning by era; the sum of its players' lines does not.** `total_rebounds` adds team rebounds until about 2020, and `offensive_rebounds` and `defensive_rebounds` are wrong on most of 2007-08. `turnovers` adds team turnovers from 2001-02 to 2011-12, when `total_turnovers` is just twice it. For team totals, read the NBA's box score, or sum ESPN's players.
 - **The league dashboards hold one row per player per season type,** so a traded player has one row with their whole season: 66 players in 2009-10.
 - **ESPN does not have 21 games from the last two days of 1999-00** (April 18 and 19, 2000), and has no box score for others in old seasons.
+- **Preseason games have no box score in either source,** and the All-Star Game has one only at ESPN, for 17 of 76 games, none before 2012-13. So those two types are not offered as stats.
+- **ESPN flags no starters in some games:** 38 in 2001-02, 91 in 2004-05, 110 in 2005-06, and a few others. Its game rosters do not fill the gap. Before 2017-18 the NBA lists a position for most players, not just starters, so it does not fill it either. Who started in those games is unknown.
+- **ESPN has 34 lines in 1994-95 with no minutes and all zeros** for Darrick Martin, who did play for Minnesota. They are left out, so in those 34 games Minnesota's box score falls short of its score.
+- **The schedule lists All-Star games that were not played:** 1998-99's was cancelled, and 1997-98 has a stray row in April. Read the date from a game that was played.
+- **The NBA's box scores round minutes in two seasons:** 81 % of lines in 2003-04 and 90 % in 2004-05 are whole minutes, so a season's minutes can differ from the published total by up to 39. Other seasons match within one minute on 95.9 % of players or more.
+- **ESPN's points by kind are not all real:** `-1` means not recorded, and each column holds zeros before its first real season. Points in the paint start in 2008-09 (1,673 of 2,630 team-games that season) and are missing in 2017-18. Fast-break points start in 2001-02, and look low until 2004-05: about 5 a game against 11 to 15 after. Points off turnovers start in 1994-95.
 - **`matchup_min` is spelled two ways:** `41:33` in totals and `8.3` in per-game, so the column is text.
 - **`season_type` holds team ids in two tables.** In `nba_stats_coaches` and `nba_stats_rosters` the column holds values such as `1610612755` (read on the 2026 files). Do not read a season type from it.
 - **Minutes differ in type:** text in NBA box scores (with `''` for did not play), a number in ESPN's.

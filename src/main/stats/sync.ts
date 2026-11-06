@@ -1,4 +1,5 @@
 import type { StatsDb } from './db'
+import { buildDerived, canDerive, derivedStale, markDerivedStale } from './derived/build'
 import type { Downloads, FetchedFile } from './download'
 import { buildIdentity, canBuildIdentity, identityStale, markIdentityStale } from './identity'
 import { loadSourceFile } from './load'
@@ -24,8 +25,10 @@ export const PRIOR_SEASON_FRESHNESS_MS = 7 * DAY
 export const PARALLEL_DOWNLOADS = 4
 /** Prefix of every stats step in `sync_log`. */
 export const STATS_LOG_PREFIX = 'stats:'
-/** Builds `game`, `team_season`, `player_ids` and `player` from the core tier. */
+/** Builds `game`, `team`, `player_ids` and `player` from the core tier. */
 export const STATS_IDENTITY_STEP = `${STATS_LOG_PREFIX}identity`
+/** Builds `player_game`, `team_game`, `player_season` and `team_season` from the identity tables. */
+export const STATS_DERIVED_STEP = `${STATS_LOG_PREFIX}derived`
 
 export interface StatsSyncDeps {
   db: StatsDb
@@ -221,7 +224,7 @@ export async function refreshStats(
   const log: StatsLogEntry[] = []
   let fatal: string | undefined
   let coreWrote = false
-  let identityBuilt = false
+  let built = false
   const today = nowOf(deps)
   const current = currentSeason(today)
   const states = await readStates(db)
@@ -278,16 +281,26 @@ export async function refreshStats(
     )
   }
 
-  // Built as soon as the core tier is in, so the app can use it long before the load ends.
-  const runIdentity = async (): Promise<void> => {
-    identityBuilt = true
-    if (!(await canBuildIdentity(db))) return
-    log.push(
-      await runLogged(deps, STATS_IDENTITY_STEP, async () => ({
-        rows: await buildIdentity(db),
-        message: null
-      }))
-    )
+  // Built as soon as the core tier is in, so the app can use them long before the load ends. New
+  // core files rebuild everything; otherwise only a table a new version made stale.
+  const runBuilds = async (): Promise<void> => {
+    built = true
+    if ((coreWrote || (await identityStale(db))) && (await canBuildIdentity(db))) {
+      log.push(
+        await runLogged(deps, STATS_IDENTITY_STEP, async () => ({
+          rows: await buildIdentity(db),
+          message: null
+        }))
+      )
+    }
+    if ((coreWrote || (await derivedStale(db))) && (await canDerive(db))) {
+      log.push(
+        await runLogged(deps, STATS_DERIVED_STEP, async () => ({
+          rows: await buildDerived(db),
+          message: null
+        }))
+      )
+    }
   }
 
   deps.onProgress?.(due.length > 0 ? { done: 0, total: due.length } : null)
@@ -297,7 +310,7 @@ export async function refreshStats(
     const step = due[i]
     let entry: StatsLogEntry
     try {
-      if (coreWrote && !identityBuilt && step.source.tier !== 'core') await runIdentity()
+      if (coreWrote && !built && step.source.tier !== 'core') await runBuilds()
       entry = await runLogged(deps, stepLogName(step), async () => {
         const fetched = await fetches[i]
         if (!fetched.ok) throw fetched.error
@@ -324,16 +337,19 @@ export async function refreshStats(
     }
     log.push(entry)
     if (step.source.tier === 'core' && entry.status === 'ok' && entry.rowsWritten > 0) {
-      if (!coreWrote) await markIdentityStale(db)
+      if (!coreWrote) {
+        await markIdentityStale(db)
+        await markDerivedStale(db)
+      }
       coreWrote = true
     }
     deps.onProgress?.({ done: i + 1, total: due.length })
   }
   deps.onProgress?.(null)
   if (fatal !== undefined) return { steps: log, fatal }
-  if (!identityBuilt && !deps.cancelled?.()) {
+  if (!built && !deps.cancelled?.()) {
     try {
-      if (coreWrote || (await identityStale(db))) await runIdentity()
+      await runBuilds()
     } catch (err) {
       return { steps: log, fatal: err instanceof Error ? err.message : String(err) }
     }

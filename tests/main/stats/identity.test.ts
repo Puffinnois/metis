@@ -46,7 +46,7 @@ async function emptySources(db: StatsDb): Promise<void> {
   await db.exec(`CREATE TABLE src_xwalk_player (espn_athlete_id VARCHAR, nba_player_id VARCHAR)`)
 }
 
-/** Keeps the ESPN schedule from limiting `team_season`, which starts at its first season. */
+/** Keeps the ESPN schedule from limiting `team`, which starts at its first season. */
 const anchorEspn = (db: StatsDb): Promise<void> =>
   db.exec(
     `INSERT INTO src_espn_schedule VALUES (9000, 1994, 1994, 2, DATE '1993-11-05', 1, 2, 100, 90, true)`
@@ -86,12 +86,12 @@ describe('a build the app never got to', () => {
   })
 })
 
-describe('team_season', () => {
+describe('team', () => {
   it('maps ESPN ids to NBA ids by season, across a move', async () => {
     await anchorEspn(db)
     await buildIdentity(db)
     expect(
-      await db.all('SELECT season, team_id FROM team_season WHERE espn_team_id = 3 ORDER BY season')
+      await db.all('SELECT season, team_id FROM team WHERE espn_team_id = 3 ORDER BY season')
     ).toEqual([
       { season: 1994, team_id: HORNETS_OLD },
       { season: 2002, team_id: HORNETS_OLD },
@@ -104,16 +104,16 @@ describe('team_season', () => {
     await anchorEspn(db)
     await buildIdentity(db)
     expect(
-      await db.get('SELECT team_id FROM team_season WHERE season = 1994 AND espn_team_id = 1')
+      await db.get('SELECT team_id FROM team WHERE season = 1994 AND espn_team_id = 1')
     ).toEqual({ team_id: ATL })
   })
 
   it('starts when the games start, and names conference and division plainly', async () => {
     await anchorEspn(db)
     await buildIdentity(db)
-    expect(await db.get('SELECT min(season) AS first FROM team_season')).toEqual({ first: 1994 })
+    expect(await db.get('SELECT min(season) AS first FROM team')).toEqual({ first: 1994 })
     expect(
-      await db.get('SELECT conference, division FROM team_season WHERE season = 2026 LIMIT 1')
+      await db.get('SELECT conference, division FROM team WHERE season = 2026 LIMIT 1')
     ).toEqual({ conference: 'east', division: 'atlantic' })
   })
 
@@ -124,9 +124,7 @@ describe('team_season', () => {
       ('0020100001', 2002, '2001-11-01', ${HORNETS_OLD}, 'CHH', ${ATL}, 100, 90)`)
     await buildIdentity(db)
     expect(
-      await db.all(
-        `SELECT season, code FROM team_season WHERE team_id = ${HORNETS_OLD} ORDER BY season`
-      )
+      await db.all(`SELECT season, code FROM team WHERE team_id = ${HORNETS_OLD} ORDER BY season`)
     ).toEqual([
       { season: 1994, code: 'CHH' },
       { season: 2002, code: 'CHH' }
