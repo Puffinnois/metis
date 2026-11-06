@@ -31,12 +31,12 @@ Season types and team codes stay as published here. They are mapped in the `game
 
 Built by `src/main/stats/identity.ts`, logged as `stats:identity`, as soon as the core tier has loaded and whenever it changes after that. A new `IDENTITY_VERSION` rebuilds it with nothing downloaded.
 
-| Table         | One row per        | Holds                                                                                                                                                             |
-| ------------- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `game`        | game of the league | `game_id` (the NBA's id, or `espn:<id>` before 1996-97), `nba_game_id`, `espn_game_id`, `season`, `game_type`, `game_date`, teams on NBA ids, the score, `played` |
-| `team_season` | team in a season   | NBA `team_id`, `espn_team_id`, `code`, `name`, `conference`, `division`                                                                                           |
-| `player_ids`  | ESPN id            | `player_id`, and the `method` that found it                                                                                                                       |
-| `player`      | person             | `player_id`, `name`, `espn_athlete_id`, `method`, `first_season`, `last_season`                                                                                   |
+| Table        | One row per        | Holds                                                                                                                                                             |
+| ------------ | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `game`       | game of the league | `game_id` (the NBA's id, or `espn:<id>` before 1996-97), `nba_game_id`, `espn_game_id`, `season`, `game_type`, `game_date`, teams on NBA ids, the score, `played` |
+| `team`       | team in a season   | NBA `team_id`, `espn_team_id`, `code`, `name`, `conference`, `division`                                                                                           |
+| `player_ids` | ESPN id            | `player_id`, and the `method` that found it                                                                                                                       |
+| `player`     | person             | `player_id`, `name`, `espn_athlete_id`, `method`, `first_season`, `last_season`                                                                                   |
 
 - **Game types** (D12): `regular`, `play-in`, `playoffs`, `cup-final`, `all-star`, `preseason`. From 1996-97 the prefix of the NBA's game id decides. Before it, ESPN's season type, with a game against a touring team counted as `preseason`.
 - **What is a game:** the NBA's schedule from 1996-97, ESPN's before. ESPN's rows for postponed games are left out. `played` is false for a game not played, including the one cancelled in 2013.
@@ -51,6 +51,31 @@ Built by `src/main/stats/identity.ts`, logged as `stats:identity`, as soon as th
 
 - **Reading ESPN's box scores:** add `season = file_season`, or the games of 1998-99 count twice.
 - **Reading team totals:** the NBA's box score, or ESPN's players summed before 1996-97. Never ESPN's team rebound and turnover columns.
+
+## Game and season tables
+
+Built by `src/main/stats/derived/`, logged as `stats:derived`, right after identity and whenever it runs. A new `DERIVED_VERSION` rebuilds them with nothing downloaded. Each replaces the old table in one statement, so a screen reads the old rows or the new ones. The build takes 14 seconds on the full database.
+
+| Table           | One row per                                     | Holds                                                                                                                 |
+| --------------- | ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `team_game`     | team in a game played                           | Its box score beside the opponent's (`opp_`), the score, estimated possessions, ESPN's points by kind, game context   |
+| `player_game`   | player in a game they appeared in               | Their box score, whether they started, their position group, the team's and opponent's totals, the game context       |
+| `team_season`   | team, season and game type                      | `team_game` summed                                                                                                    |
+| `player_season` | player, season, game type and team, and no team | `player_game` summed. The row with no team is the whole season: a traded player's is never the sum read beside others |
+
+No rate is stored. Every column is a count or a sum over the same games, divided when read, so any date range or group of games is exact.
+
+- **Which box score:** the NBA's wherever it has the game, which is everything counted from 1996-97. ESPN's before that, and for the 17 All-Star games it has. Preseason games have no box score anywhere, so they are in `team_game` with a score and `box_games` 0, and in `player_game` not at all.
+- **Team totals:** the NBA's team box score, which equals its players on every count (one game aside). Before 1996-97 ESPN's players summed, never ESPN's team columns. Those totals have only player-charged turnovers: team turnovers are not in this box score.
+- **A game with no box score** (26 team-games before 1996-97) still counts toward a record: `games` and `box_games` differ, and points for and against come from the schedule.
+- **Appearing:** the NBA's non-empty `minutes`, or an ESPN line with minutes and not marked as not played. `seconds` reads `6:34`, `240:00` and the bare `26` on 88 old lines.
+- **Started:** the NBA's position from 2017-18, when it lists one for starters only; ESPN's flag before it. A team-game without exactly five flagged reads NULL: unknown, not all bench. `starts_known` counts the team-games where it is known, so bench points can be per game of those.
+- **Position group** (`G`, `F`, `C`): the NBA's roster that season, then what its box scores list most, then ESPN's. A hybrid takes the first listed: `G-F` is a guard, `F-C` a forward, `C-F` a center.
+- **Possessions are estimates:** `poss` and `opp_poss` are `FGA + 0.44 FTA - OREB + TOV` for each side, `poss_sym` their mean, `poss_bref` the rebound-adjusted form. See reference section 5.
+- **Estimated on-court totals:** `x_*_den` and `on_poss` are what a player's team did while they played, guessed game by game from their share of its minutes (`5 × seconds / team seconds`), for Basketball-Reference's AST%, ORB%, DRB%, TRB%, STL%, BLK% and USG%.
+- **`rest_days`:** full days off since the team's last game that season, 0 on a back-to-back, NULL for its first. Preseason games are counted apart.
+- **`after_break`:** against the date of the All-Star Game that was played, or one still to come this season. Before 1996-97 the schedule has none, so those three dates are in the code, each checked against the gap in that February's games. 1998-99's was cancelled, so that season reads NULL.
+- **Plus-minus** is the NBA's, from 1996-97. ESPN's column is zero before then, and is not read.
 
 ## Sync
 

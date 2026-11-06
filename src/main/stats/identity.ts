@@ -1,7 +1,7 @@
 import type { StatsDb } from './db'
 
 /** Bump when these tables change, so the next refresh builds them without downloading anything. */
-export const IDENTITY_VERSION = 1
+export const IDENTITY_VERSION = 2
 
 /**
  * What the identity tables read. They are all in the core tier, so the app can use them as soon as
@@ -28,7 +28,7 @@ const NAME_KEY = `CREATE OR REPLACE TEMP MACRO name_key(n) AS trim(regexp_replac
  * before it too: no team moved between 1993-94 and then. A season's code is the NBA's when it has
  * one, else the team's earliest, since ESPN spells some differently (`GS`, `NY`).
  */
-const TEAM_SEASON = `CREATE OR REPLACE TABLE team_season AS
+const TEAM = `CREATE OR REPLACE TABLE team AS
   WITH alias AS (
     SELECT TRY_CAST(team_id AS INTEGER) AS espn_team_id, TRY_CAST(source_id AS BIGINT) AS team_id,
            valid_from, valid_to,
@@ -74,8 +74,8 @@ const GAME = `CREATE OR REPLACE TABLE game AS
   ), espn_teams AS (
     SELECT e.*, h.team_id AS home_team_id, a.team_id AS away_team_id
     FROM espn e
-    LEFT JOIN team_season h ON h.espn_team_id = e.home_id AND h.season = year(e.game_date) + (month(e.game_date) >= 8)::INTEGER
-    LEFT JOIN team_season a ON a.espn_team_id = e.away_id AND a.season = h.season
+    LEFT JOIN team h ON h.espn_team_id = e.home_id AND h.season = year(e.game_date) + (month(e.game_date) >= 8)::INTEGER
+    LEFT JOIN team a ON a.espn_team_id = e.away_id AND a.season = h.season
   ), nba AS (
     SELECT game_id AS nba_game_id, season,
            CASE substr(game_id, 1, 3)
@@ -231,7 +231,7 @@ export async function markIdentityStale(db: StatsDb): Promise<void> {
 /** Rebuilds the tables; each replaces the old one in its own statement. Returns how many games. */
 export async function buildIdentity(db: StatsDb): Promise<number> {
   await db.exec(NAME_KEY)
-  await db.exec(TEAM_SEASON)
+  await db.exec(TEAM)
   await db.exec(GAME)
   await db.exec(PLAYER_IDS)
   await db.exec(PLAYER)

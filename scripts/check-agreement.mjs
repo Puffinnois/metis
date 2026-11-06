@@ -50,7 +50,7 @@ const out = [
 
 // 1. Games and types.
 const games = await read(`WITH teams AS (
-    SELECT season, count(*) AS teams FROM team_season GROUP BY 1
+    SELECT season, count(*) AS teams FROM team GROUP BY 1
   )
   SELECT g.season, any_value(t.teams) AS teams,
     count(*) FILTER (game_type = 'regular' AND played) AS regular,
@@ -115,7 +115,7 @@ const teams = await read(`WITH e AS (
     SELECT b.*, t.team_id AS nba_team, g.nba_game_id, g.season AS game_season
     FROM src_espn_team_box b
     JOIN game g ON g.espn_game_id = b.game_id AND ${COUNTED}
-    JOIN team_season t ON t.espn_team_id = b.team_id AND t.season = g.season
+    JOIN team t ON t.espn_team_id = b.team_id AND t.season = g.season
     WHERE b.season = b.file_season AND g.nba_game_id IS NOT NULL
   ), players AS (
     SELECT game_id, team_id, sum(turnovers) AS tov, sum(rebounds) AS reb
@@ -394,6 +394,141 @@ out.push(
       pct(r.within_5, r.n),
       r.worst
     ])
+  )
+)
+
+// 7. The game tables against their parts and the final score.
+const gameTables = await read(`WITH lines AS (
+    SELECT game_id, team_id, sum(pts) AS pts, sum(reb) AS reb, sum(ast) AS ast, sum(tov) AS tov,
+           sum(fga) AS fga, sum(seconds) AS seconds, sum(plus_minus) AS pm
+    FROM player_game GROUP BY 1, 2
+  )
+  SELECT t.season, count(*) AS n, sum(t.box_games) AS box,
+    count(*) FILTER (l.pts = t.pts) AS pts,
+    count(*) FILTER (l.reb = t.reb) AS reb,
+    count(*) FILTER (l.ast = t.ast) AS ast,
+    count(*) FILTER (l.tov = t.tov) AS tov,
+    count(*) FILTER (l.fga = t.fga) AS fga,
+    count(*) FILTER (abs(l.seconds - t.seconds) <= 60) AS seconds,
+    count(*) FILTER (t.pts = t.points_for) AS score,
+    count(*) FILTER (l.pm = 5 * (t.points_for - t.points_against)) AS pm,
+    sum(t.starts_known) AS starts
+  FROM team_game t LEFT JOIN lines l USING (game_id, team_id)
+  WHERE t.game_type IN ('regular', 'playoffs', 'play-in', 'cup-final')
+  GROUP BY 1 ORDER BY 1`)
+out.push(
+  '',
+  '## The game tables',
+  '',
+  "Rows are team-games in `team_game`. **Players sum** compares each team's players in `player_game` with its total, which from 1996-97 is the NBA's team box score and before it is those same players, so the older rows only show what is missing. **Box points = score** compares that total with the final score. **Seconds** allows a minute either way. **Plus-minus** is the share where the five on the floor add up: the players' sum is five times the margin. **Starters known** is the share with exactly five flagged.",
+  '',
+  table(
+    [
+      'Season',
+      'Team-games',
+      'With a box score %',
+      'Points %',
+      'Rebounds %',
+      'Assists %',
+      'Turnovers %',
+      'FGA %',
+      'Seconds %',
+      'Box points = score %',
+      'Plus-minus %',
+      'Starters known %'
+    ],
+    gameTables.map((r) => [
+      label(r.season),
+      COUNT.format(r.n),
+      pct(r.box, r.n),
+      pct(r.pts, r.box),
+      pct(r.reb, r.box),
+      pct(r.ast, r.box),
+      pct(r.tov, r.box),
+      pct(r.fga, r.box),
+      pct(r.seconds, r.box),
+      pct(r.score, r.box),
+      r.pm ? pct(r.pm, r.box) : '–',
+      pct(r.starts, r.box)
+    ])
+  )
+)
+
+// 8. The season tables against what the source publishes per season.
+const publishedPlayers = await read(`WITH pub AS (
+    SELECT *, row_number() OVER (PARTITION BY season ORDER BY pts DESC) AS place
+    FROM src_nba_player_season
+    WHERE measure_type = 'base' AND per_mode = 'totals' AND season_type = 'regular-season'
+  )
+  SELECT p.season, count(*) AS n, count(s.player_id) AS joined,
+    count(*) FILTER (s.games = p.gp) AS gp,
+    count(*) FILTER (s.pts = p.pts) AS pts,
+    count(*) FILTER (s.reb = p.reb) AS reb,
+    count(*) FILTER (s.ast = p.ast) AS ast,
+    count(*) FILTER (s.fg3m = p.fg3m) AS fg3m,
+    count(*) FILTER (abs(s.minutes - p.min) <= 1) AS min,
+    count(*) FILTER (p.place <= 20) AS top,
+    count(*) FILTER (p.place <= 20 AND s.pts = p.pts AND s.games = p.gp) AS top_same
+  FROM pub p
+  LEFT JOIN player_season s ON s.player_id = p.player_id AND s.season = p.season
+    AND s.game_type = 'regular' AND s.team_id IS NULL
+  GROUP BY 1 ORDER BY 1`)
+const publishedTeams = await read(`SELECT p.season, count(*) AS n,
+    count(*) FILTER (s.wins = p.w) AS w,
+    count(*) FILTER (s.losses = p.l) AS l,
+    count(*) FILTER (s.pts = p.pts) AS pts,
+    count(*) FILTER (s.reb = p.reb) AS reb,
+    count(*) FILTER (s.ast = p.ast) AS ast
+  FROM src_nba_team_season p
+  LEFT JOIN team_season s ON s.team_id = p.team_id AND s.season = p.season AND s.game_type = 'regular'
+  WHERE p.measure_type = 'base' AND p.per_mode = 'totals' AND p.season_type = 'regular-season'
+  GROUP BY 1 ORDER BY 1`)
+out.push(
+  '',
+  '## The season tables against what is published',
+  '',
+  "Regular season, against `nba_stats_player_season_stats` and `nba_stats_team_season_stats`, totals. A traded player's published row has their whole season, so it is compared with the row that has no team. **Top 20** is the season's leading scorers as published, with the same points and games. Minutes allow one either way: the published ones are rounded. The current season can lag, since the two are published at different times.",
+  '',
+  table(
+    [
+      'Season',
+      'Players',
+      'Found %',
+      'Games %',
+      'Points %',
+      'Rebounds %',
+      'Assists %',
+      '3PM %',
+      'Minutes %',
+      'Top 20',
+      'Teams',
+      'Wins %',
+      'Losses %',
+      'Team points %',
+      'Team rebounds %',
+      'Team assists %'
+    ],
+    publishedPlayers.map((r) => {
+      const t = publishedTeams.find((x) => x.season === r.season)
+      return [
+        label(r.season),
+        COUNT.format(r.n),
+        pct(r.joined, r.n),
+        pct(r.gp, r.n),
+        pct(r.pts, r.n),
+        pct(r.reb, r.n),
+        pct(r.ast, r.n),
+        pct(r.fg3m, r.n),
+        pct(r.min, r.n),
+        `${r.top_same} of ${r.top}`,
+        t ? t.n : '–',
+        t ? pct(t.w, t.n) : '–',
+        t ? pct(t.l, t.n) : '–',
+        t ? pct(t.pts, t.n) : '–',
+        t ? pct(t.reb, t.n) : '–',
+        t ? pct(t.ast, t.n) : '–'
+      ]
+    })
   )
 )
 
