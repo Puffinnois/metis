@@ -1,0 +1,20 @@
+[
+  { "size": [1440, 900] },
+  { "wait": 4000 },
+  {
+    "eval": "'saved views after a relaunch: ' + [...document.querySelectorAll('button')].filter((b) => b.textContent === 'Big men').length"
+  },
+  { "click": "Big men" },
+  { "wait": 800 },
+  {
+    "eval": "document.querySelector('h1')?.textContent + ' / sorted: ' + document.querySelector('footer')?.innerText.slice(0, 60)"
+  },
+  { "shot": "view-opened" },
+  { "click": "Views" },
+  { "wait": 300 },
+  { "click": "[aria-label=\"Delete Big men\"]" },
+  { "wait": 300 },
+  {
+    "eval": "'after delete, listed: ' + [...document.querySelectorAll('button')].filter((b) => b.textContent.startsWith('Big men')).length"
+  }
+]

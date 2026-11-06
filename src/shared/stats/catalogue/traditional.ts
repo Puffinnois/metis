@@ -30,6 +30,7 @@ export const TRADITIONAL: MetricDef[] = [
         sample: 'minutes',
         minSample: 1000,
         unit: 'minutes',
+        perGameOnly: true,
         tier: 'core'
       })
     }

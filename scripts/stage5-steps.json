@@ -1,0 +1,275 @@
+[
+  {
+    "size": [1440, 900]
+  },
+  {
+    "wait": 4000
+  },
+  {
+    "eval": "JSON.stringify({ heading: document.querySelector('h1')?.textContent, boards: document.querySelectorAll('section').length, status: document.querySelector('nav')?.innerText.slice(-60), first: document.querySelector('section button:nth-child(1)')?.innerText })"
+  },
+  {
+    "shot": "home"
+  },
+  {
+    "click": "Totals"
+  },
+  {
+    "wait": 500
+  },
+  {
+    "eval": "[...document.querySelectorAll('section')].map((s) => s.querySelector('span[title]')?.textContent + ': ' + s.querySelectorAll('button')[1]?.innerText.replace(/\\n/g, ' ')).join(' | ')"
+  },
+  {
+    "click": "Per game"
+  },
+  {
+    "wait": 500
+  },
+  {
+    "eval": "[...document.querySelectorAll('section')].map((s) => s.querySelector('span[title]')?.textContent + ': ' + s.querySelectorAll('button')[1]?.innerText.replace(/\\n/g, ' ')).join(' | ')"
+  },
+  {
+    "select": ["Season", "1994"]
+  },
+  {
+    "wait": 800
+  },
+  {
+    "eval": "document.querySelector('h1')?.textContent + ' / ' + document.querySelector('header div div:nth-child(2)')?.textContent + ' / ' + [...document.querySelectorAll('section')].map((s) => s.querySelectorAll('button')[1]?.innerText.replace(/\\n/g, ' ')).join(' | ')"
+  },
+  {
+    "shot": "home-1994"
+  },
+  {
+    "select": ["Season", "2026"]
+  },
+  {
+    "wait": 500
+  },
+  {
+    "click": "Players"
+  },
+  {
+    "wait": 800
+  },
+  {
+    "eval": "document.querySelector('h1')?.textContent + ' / ' + [...document.querySelectorAll('tbody tr')].slice(0, 3).map((r) => r.innerText.replace(/\\n/g, ' ')).join(' | ') + ' / ' + document.querySelector('footer')?.innerText.slice(0, 60)"
+  },
+  {
+    "shot": "players"
+  },
+  {
+    "click": "Per game"
+  },
+  {
+    "wait": 600
+  },
+  {
+    "eval": "[...document.querySelectorAll('tbody tr')].slice(0, 3).map((r) => r.innerText.replace(/\\n/g, ' ')).join(' | ')"
+  },
+  {
+    "click": "Centers"
+  },
+  {
+    "wait": 600
+  },
+  {
+    "eval": "document.querySelector('h1')?.textContent + ' / ' + [...document.querySelectorAll('tbody tr')].slice(0, 2).map((r) => r.innerText.replace(/\\n/g, ' ')).join(' | ')"
+  },
+  {
+    "click": "Per 36"
+  },
+  {
+    "wait": 600
+  },
+  {
+    "shot": "centers-per-36"
+  },
+  {
+    "click": "Per 100"
+  },
+  {
+    "wait": 600
+  },
+  {
+    "click": "All players"
+  },
+  {
+    "wait": 600
+  },
+  {
+    "select": ["Range", "last"]
+  },
+  {
+    "wait": 700
+  },
+  {
+    "eval": "document.querySelector('header div div:nth-child(2)')?.textContent + ' / ' + document.querySelector('footer')?.innerText.slice(0, 100) + ' / ' + [...document.querySelectorAll('tbody tr')].slice(0, 2).map((r) => r.innerText.replace(/\\n/g, ' ')).join(' | ')"
+  },
+  {
+    "select": ["Whose games", "team"]
+  },
+  {
+    "wait": 700
+  },
+  {
+    "shot": "last-10-team"
+  },
+  {
+    "select": ["Range", "dates"]
+  },
+  {
+    "wait": 700
+  },
+  {
+    "shot": "dates"
+  },
+  {
+    "eval": "(() => { const q = [...document.querySelectorAll('input[type=date]')].map((i) => i.value + ' [' + i.min + ' to ' + i.max + ']'); return q.join(' / ') })()"
+  },
+  {
+    "select": ["Range", "season"]
+  },
+  {
+    "wait": 500
+  },
+  {
+    "click": "Per game"
+  },
+  {
+    "wait": 300
+  },
+  {
+    "select": ["Metric family", "shooting"]
+  },
+  {
+    "wait": 700
+  },
+  {
+    "shot": "shooting-columns"
+  },
+  {
+    "select": ["Metric family", "default"]
+  },
+  {
+    "wait": 500
+  },
+  {
+    "select": ["Season", "1995"]
+  },
+  {
+    "wait": 800
+  },
+  {
+    "eval": "document.querySelector('h1')?.textContent + ' / plus-minus cell: ' + document.querySelector('tbody tr td[title^=\"Recorded\"]')?.title + ' / text: ' + document.querySelector('tbody tr td[title^=\"Recorded\"]')?.innerText"
+  },
+  {
+    "shot": "gap-1995"
+  },
+  {
+    "select": ["Season", "2026"]
+  },
+  {
+    "wait": 500
+  },
+  {
+    "click": "Teams"
+  },
+  {
+    "wait": 800
+  },
+  {
+    "eval": "document.querySelector('h1')?.textContent + ' / ' + [...document.querySelectorAll('tbody tr')].slice(0, 3).map((r) => r.innerText.replace(/\\n/g, ' ')).join(' | ')"
+  },
+  {
+    "shot": "teams"
+  },
+  {
+    "click": "Defense"
+  },
+  {
+    "wait": 600
+  },
+  {
+    "eval": "document.querySelector('h1')?.textContent + ' / ' + [...document.querySelectorAll('tbody tr')].slice(0, 2).map((r) => r.innerText.replace(/\\n/g, ' ')).join(' | ')"
+  },
+  {
+    "click": "Glossary"
+  },
+  {
+    "wait": 600
+  },
+  {
+    "eval": "document.querySelector('h1')?.textContent + ' / ' + document.querySelector('header div div:nth-child(2)')?.textContent + ' / ' + document.querySelectorAll('article').length"
+  },
+  {
+    "shot": "glossary"
+  },
+  {
+    "click": "[aria-label=\"Switch theme\"]"
+  },
+  {
+    "wait": 300
+  },
+  {
+    "click": "Leaderboards"
+  },
+  {
+    "wait": 700
+  },
+  {
+    "shot": "home-dark"
+  },
+  {
+    "click": "[aria-label=\"Switch theme\"]"
+  },
+  {
+    "wait": 200
+  },
+  {
+    "click": "Players"
+  },
+  {
+    "wait": 700
+  },
+  {
+    "select": ["Metric family", "composite"]
+  },
+  {
+    "wait": 500
+  },
+  {
+    "click": "Views"
+  },
+  {
+    "wait": 300
+  },
+  {
+    "eval": "document.querySelector('[aria-label=\"View name\"]').focus()"
+  },
+  {
+    "type": "Big men"
+  },
+  {
+    "wait": 200
+  },
+  {
+    "click": "Save"
+  },
+  {
+    "wait": 400
+  },
+  {
+    "click": "Leaderboards"
+  },
+  {
+    "wait": 600
+  },
+  {
+    "eval": "'saved views on the home: ' + [...document.querySelectorAll('button')].filter((b) => b.textContent === 'Big men').length"
+  },
+  {
+    "shot": "home-with-view"
+  }
+]

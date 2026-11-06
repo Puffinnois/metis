@@ -152,6 +152,12 @@ describe('totals against rates', () => {
     expect(value(await run({ ...q, transform: 'per48' }), '2')).toBeCloseTo((48 * 41) / 66, 6)
   })
 
+  it('reads minutes per game, but leaves them a total per 36', async () => {
+    const q = { metrics: ['min'], scope: { seasons: [2026], players: ['2'] } }
+    expect(value(await run({ ...q, transform: 'perGame' }), '2', 'min')).toBe(22)
+    expect(value(await run({ ...q, transform: 'per36' }), '2', 'min')).toBe(66)
+  })
+
   it('scales a team by its elapsed minutes, not its players’', async () => {
     const r = await runQuery(
       db,

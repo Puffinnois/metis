@@ -282,6 +282,7 @@ function gameWhere(q: StatsQuery, params: Params): string[] {
 /** What a sum divides by under a transform; null when the transform leaves it a total. */
 function perDivisor(m: MetricDef, transform: Transform, entity: 'player' | 'team'): string | null {
   if (m.aggregation !== 'sum' || m.totalOnly) return null
+  if (m.perGameOnly && transform !== 'perGame') return null
   switch (transform) {
     case 'perGame':
       return `{${m.perGameBy ?? 'games'}}`
