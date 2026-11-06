@@ -35,7 +35,7 @@ Measured 2026-11-05 with `scripts/load-report.mjs`, from nothing, in WSL on 16 c
 | Play by play | 57    | 879         | 6.1     | 4,031                  | 2,169          | 14 / 29                                            |
 | **All**      | 3,025 | 1,554       | 19.8    | 4,265                  | 2,169          |                                                    |
 
-All of it is inside the limits in D22 (6 GB, an hour, 4 GB of memory). Time varies: an earlier run, with the `*_master` files and nothing else on the machine, took 14.4 minutes.
+All of it is inside the limits in D22 (6 GB, an hour, 4 GB of memory). Time varies: an earlier run, with the `*_master` files and nothing else on the machine, took 14.4 minutes, and one through the real window with the Data panel open took 23.8.
 
 **Memory limit:** DuckDB's limit is 1 GB. The template's 512 MB failed at about 1,000 files: a checkpoint could not pin a block, and DuckDB invalidated the database. Reopening it recovered everything, and the load carried on. 768 MB passed a whole load even with the 625-column master files, so 1 GB leaves room.
 
