@@ -49,6 +49,8 @@ Built by `src/main/stats/identity.ts`, logged as `stats:identity`, as soon as th
 
   Anyone left gets the negative of their ESPN id: 200 players, of whom one has a line from 1996-97 on.
 
+- **Names:** the NBA's latest spelling from its box scores, else ESPN's. The box scores split a name into first and family, which gets a few wrong (`Ming Yao`, `Nene Hilario`). The rosters have those right but garble others (`Ha Ha` for Seung-Jin Ha), so a roster's name wins only when it repeats no word and every word is in the box score's. That changes four names of 2,913.
+
 - **Reading ESPN's box scores:** add `season = file_season`, or the games of 1998-99 count twice.
 - **Reading team totals:** the NBA's box score, or ESPN's players summed before 1996-97. Never ESPN's team rebound and turnover columns.
 

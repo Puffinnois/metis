@@ -404,3 +404,81 @@ describe('player', () => {
     ])
   })
 })
+
+describe("a player's name", () => {
+  const line = (person: number, first: string, family: string): Promise<void> =>
+    db.exec('INSERT INTO src_nba_player_box VALUES (?, 2026, ?, ?, ?, 10, 5, 5, 8, 1)', [
+      `g${person}`,
+      person,
+      first,
+      family
+    ])
+
+  const nameOf = async (person: number): Promise<string | undefined> =>
+    (await db.get<{ name: string }>('SELECT name FROM player WHERE player_id = ?', [person]))?.name
+
+  it("takes the box score's when there are no rosters", async () => {
+    await line(1, 'Ming', 'Yao')
+    await buildIdentity(db)
+    expect(await nameOf(1)).toBe('Ming Yao')
+  })
+
+  describe('with rosters', () => {
+    beforeEach(async () => {
+      await db.exec(
+        'CREATE TABLE src_nba_rosters (player_id BIGINT, season INTEGER, player VARCHAR)'
+      )
+    })
+
+    const roster = (person: number, name: string | null, season = 2026): Promise<void> =>
+      db.exec('INSERT INTO src_nba_rosters VALUES (?, ?, ?)', [person, season, name])
+
+    it('takes the same words in the order the player goes by', async () => {
+      await line(1, 'Ming', 'Yao')
+      await roster(1, 'Yao Ming')
+      await buildIdentity(db)
+      expect(await nameOf(1)).toBe('Yao Ming')
+    })
+
+    it('takes the one name a player goes by', async () => {
+      await line(1, 'Nene', 'Hilario')
+      await roster(1, 'Nene')
+      await buildIdentity(db)
+      expect(await nameOf(1)).toBe('Nene')
+    })
+
+    it('reads the latest roster', async () => {
+      await line(1, 'Ming', 'Yao')
+      await roster(1, 'Ming Yao', 2003)
+      await roster(1, 'Yao Ming', 2011)
+      await buildIdentity(db)
+      expect(await nameOf(1)).toBe('Yao Ming')
+    })
+
+    it('refuses a roster name that repeats a word', async () => {
+      await line(1, 'Seung-Jin', 'Ha')
+      await roster(1, 'Ha Ha')
+      await buildIdentity(db)
+      expect(await nameOf(1)).toBe('Seung-Jin Ha')
+    })
+
+    it('refuses a roster name with a word the box score does not have', async () => {
+      await line(1, 'Brandon', 'Boston')
+      await roster(1, 'Brandon Boston Jr.')
+      await line(2, 'Anzejs', 'Pasecniks')
+      await roster(2, 'Anžejs Pasečņiks')
+      await buildIdentity(db)
+      expect(await nameOf(1)).toBe('Brandon Boston')
+      expect(await nameOf(2)).toBe('Anzejs Pasecniks')
+    })
+
+    it('keeps the box score when the player is on no roster, or the roster has no name', async () => {
+      await line(1, 'Cui', 'Yongxi')
+      await line(2, 'Jane', 'Doe')
+      await roster(2, null)
+      await buildIdentity(db)
+      expect(await nameOf(1)).toBe('Cui Yongxi')
+      expect(await nameOf(2)).toBe('Jane Doe')
+    })
+  })
+})

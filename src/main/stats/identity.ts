@@ -1,7 +1,7 @@
 import type { StatsDb } from './db'
 
 /** Bump when these tables change, so the next refresh builds them without downloading anything. */
-export const IDENTITY_VERSION = 2
+export const IDENTITY_VERSION = 3
 
 /**
  * What the identity tables read. They are all in the core tier, so the app can use them as soon as
@@ -187,9 +187,21 @@ const PLAYER_IDS = `CREATE OR REPLACE TABLE player_ids AS
 /**
  * One row per person. The name is the NBA's latest spelling, else ESPN's. A player the NBA's data has
  * and ESPN's does not has no ESPN id; ESPN keeps two ids for a few players, of which this holds one.
+ *
+ * The box scores split a name into first and family, which gets a few wrong: `Ming Yao`, `Nene Hilario`.
+ * The rosters have `Yao Ming` and `Nene`, but they garble others (`Ha Ha` for Seung-Jin Ha, `Sun Sun` for
+ * Yue Sun), so a roster's name wins only when it repeats no word and every word is in the box score's.
+ * That changes four names of 2,913, all of them right.
  */
-const PLAYER = `CREATE OR REPLACE TABLE player AS
-  WITH nba AS (
+const playerTable = (rosters: boolean): string => `CREATE OR REPLACE TABLE player AS
+  WITH roster AS (
+    ${
+      rosters
+        ? `SELECT player_id, string_split(arg_max(player, season), ' ') AS words
+           FROM src_nba_rosters WHERE player IS NOT NULL GROUP BY 1`
+        : 'SELECT NULL::BIGINT AS player_id, NULL::VARCHAR[] AS words'
+    }
+  ), nba AS (
     SELECT person_id AS player_id, arg_max(first_name || ' ' || family_name, season) AS name,
            min(season) AS first_season, max(season) AS last_season
     FROM src_nba_player_box WHERE person_id IS NOT NULL GROUP BY 1
@@ -200,11 +212,16 @@ const PLAYER = `CREATE OR REPLACE TABLE player AS
     FROM player_ids i LEFT JOIN src_espn_player_box b ON b.athlete_id = i.espn_athlete_id
     GROUP BY 1
   )
-  SELECT coalesce(n.player_id, e.player_id) AS player_id, coalesce(n.name, e.name) AS name,
+  SELECT coalesce(n.player_id, e.player_id) AS player_id,
+         CASE WHEN list_has_all(string_split(coalesce(n.name, e.name), ' '), r.words)
+                AND len(list_distinct(r.words)) = len(r.words)
+              THEN array_to_string(r.words, ' ')
+              ELSE coalesce(n.name, e.name) END AS name,
          e.espn_athlete_id, coalesce(e.method, 'nba only') AS method,
          least(n.first_season, e.first_season) AS first_season,
          greatest(n.last_season, e.last_season) AS last_season
-  FROM nba n FULL JOIN espn e USING (player_id)`
+  FROM nba n FULL JOIN espn e USING (player_id)
+  LEFT JOIN roster r ON r.player_id = coalesce(n.player_id, e.player_id)`
 
 async function hasTables(db: StatsDb, tables: string[]): Promise<boolean> {
   const row = await db.get<{ n: number }>(
@@ -234,7 +251,7 @@ export async function buildIdentity(db: StatsDb): Promise<number> {
   await db.exec(TEAM)
   await db.exec(GAME)
   await db.exec(PLAYER_IDS)
-  await db.exec(PLAYER)
+  await db.exec(playerTable(await hasTables(db, ['src_nba_rosters'])))
   await db.exec('INSERT OR REPLACE INTO derived_state VALUES (?, ?)', [
     'identity',
     IDENTITY_VERSION
