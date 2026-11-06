@@ -63,6 +63,8 @@ export interface MetricDef {
   perGameBy?: string
   /** Stays a total under per game, per 36 and the rest: wins per game would read as a win rate. */
   totalOnly?: boolean
+  /** Scales per game, and no other way: minutes per 36 minutes would read 36. */
+  perGameOnly?: boolean
   sources: string[]
   /** The first season holding real values, by final year. */
   firstSeason: number
