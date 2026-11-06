@@ -6,12 +6,20 @@ import { StatsApp } from '@/screens/stats/StatsApp'
 
 vi.mock('@/lib/api', () => ({
   api: {
-    stats: { status: vi.fn(), onChanged: vi.fn(() => () => {}) },
+    stats: { status: vi.fn(), data: vi.fn(), onChanged: vi.fn(() => () => {}) },
     dev: { mode: vi.fn().mockResolvedValue(false), onModeChanged: vi.fn(() => () => {}) }
   }
 }))
 
-const EMPTY = { available: true, through: null, updatedAt: null, busy: false, progress: null }
+const EMPTY = {
+  available: true,
+  through: null,
+  updatedAt: null,
+  busy: false,
+  progress: null,
+  paused: false,
+  noRoom: null
+}
 
 function renderApp(onLocation = vi.fn()): void {
   render(
@@ -50,6 +58,14 @@ describe('the shell', () => {
     await waitFor(() =>
       expect(onLocation).toHaveBeenLastCalledWith({ screen: 'games', team: null, player: null })
     )
+  })
+
+  it('opens the Data panel from the status line', async () => {
+    vi.mocked(api.stats.status).mockResolvedValue(EMPTY)
+    vi.mocked(api.stats.data).mockResolvedValue({ families: [], databaseBytes: 0, freeBytes: null })
+    renderApp()
+    fireEvent.click(await screen.findByRole('button', { name: 'No stats yet' }))
+    expect(await screen.findByRole('heading', { name: 'Data' })).toBeTruthy()
   })
 
   it('reads the status again as a load progresses', async () => {

@@ -1,5 +1,10 @@
 import { parentPort, workerData } from 'node:worker_threads'
-import { READ_REQUESTS, type StatsReply, type StatsRequest, type StatsWorkerInit } from './protocol'
+import {
+  AT_ONCE_REQUESTS,
+  type StatsReply,
+  type StatsRequest,
+  type StatsWorkerInit
+} from './protocol'
 import { openStatsService, type StatsService } from './service'
 
 /**
@@ -23,6 +28,12 @@ async function handle(request: StatsRequest): Promise<unknown> {
       return service.selfTest()
     case 'status':
       return service.status()
+    case 'data':
+      return service.data()
+    case 'pause':
+      return service.pause()
+    case 'resume':
+      return service.resume()
     case 'read':
       return service.read(request.sql)
     case 'close':
@@ -45,7 +56,7 @@ openStatsService(workerData as StatsWorkerInit, (entry) => post({ kind: 'step', 
   (opened) => {
     service = opened
     port.on('message', (request: StatsRequest) => {
-      if (READ_REQUESTS.has(request.kind)) {
+      if (AT_ONCE_REQUESTS.has(request.kind)) {
         void answer(request)
         return
       }

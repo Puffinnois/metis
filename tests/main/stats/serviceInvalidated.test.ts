@@ -11,10 +11,11 @@ vi.mock('@main/stats/sync', () => ({
 describe('a database DuckDB has invalidated', () => {
   it('reports the stats as off, not as an error on every read', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'metis-invalidated-'))
-    const service = await openStatsService({
-      path: join(dir, 'stats.duckdb'),
-      tempDir: join(dir, 'tmp')
-    })
+    const service = await openStatsService(
+      { path: join(dir, 'stats.duckdb'), tempDir: join(dir, 'tmp') },
+      () => {},
+      { freeBytes: () => null }
+    )
     await expect(service.status()).resolves.toMatchObject({ available: true })
     await expect(service.refresh({})).resolves.toMatchObject({ fatal: 'FATAL Error: invalidated' })
     await expect(service.status()).resolves.toEqual({
@@ -22,7 +23,9 @@ describe('a database DuckDB has invalidated', () => {
       through: null,
       updatedAt: null,
       busy: false,
-      progress: null
+      progress: null,
+      paused: false,
+      noRoom: null
     })
     await service.close()
     rmSync(dir, { recursive: true, force: true })

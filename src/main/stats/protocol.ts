@@ -59,10 +59,22 @@ export type StatsRequest =
   | { id: number; kind: 'close' }
   | { id: number; kind: 'refresh'; options: RefreshOptions }
   | { id: number; kind: 'status' }
+  | { id: number; kind: 'data' }
+  | { id: number; kind: 'pause' }
+  | { id: number; kind: 'resume' }
   | { id: number; kind: 'read'; sql: string }
 
-/** The kinds that run at once, each on its own connection, instead of in turn. */
-export const READ_REQUESTS: ReadonlySet<StatsRequest['kind']> = new Set(['status', 'read'])
+/**
+ * The kinds that run at once, each on its own connection, instead of in turn. A pause cannot wait
+ * behind the load it means to stop.
+ */
+export const AT_ONCE_REQUESTS: ReadonlySet<StatsRequest['kind']> = new Set([
+  'status',
+  'data',
+  'pause',
+  'resume',
+  'read'
+])
 
 export type StatsReply =
   | { kind: 'reply'; id: number; ok: true; result: unknown }

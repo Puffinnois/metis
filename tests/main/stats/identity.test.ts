@@ -4,7 +4,8 @@ import {
   buildIdentity,
   canBuildIdentity,
   IDENTITY_VERSION,
-  identityStale
+  identityStale,
+  markIdentityStale
 } from '@main/stats/identity'
 import { openTestDb } from '../../fixtures/stats'
 
@@ -73,6 +74,14 @@ describe('whether identity can be built', () => {
       IDENTITY_VERSION - 1,
       'identity'
     ])
+    expect(await identityStale(db)).toBe(true)
+  })
+})
+
+describe('a build the app never got to', () => {
+  it('is still due on the next refresh', async () => {
+    await buildIdentity(db)
+    await markIdentityStale(db)
     expect(await identityStale(db)).toBe(true)
   })
 })

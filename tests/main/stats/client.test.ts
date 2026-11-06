@@ -57,6 +57,14 @@ describe('startStatsWorker', () => {
     await expect(pending).resolves.toEqual({ steps: [] })
   })
 
+  it('asks for the Data panel, a pause and a resume', () => {
+    const client = startStatsWorker(INIT, undefined, 'w.js')
+    void client.data()
+    void client.pause()
+    void client.resume()
+    expect(workers[0].posted.map((m) => m.kind)).toEqual(['data', 'pause', 'resume'])
+  })
+
   it('forwards step progress and rejects a failed request', async () => {
     const steps: string[] = []
     const client = startStatsWorker(INIT, (e) => steps.push(e.source), 'w.js')

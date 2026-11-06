@@ -138,8 +138,14 @@ app.whenReady().then(async () => {
 
   const db = openAppDatabase()
   const statsChanged = createChangeNotifier(() => mainWindow?.webContents.send(IPC.statsChanged))
+  const stats = openStats(statsChanged)
+  const refresh = (): void => {
+    stats?.refresh().then(statsChanged, (err) => console.error('the stats refresh failed', err))
+  }
   const ctx: AppContext = {
-    stats: openStats(statsChanged),
+    stats,
+    refreshStats: refresh,
+    statsChanged,
     update: installAutoUpdater({
       enabled: app.isPackaged && process.platform === 'win32',
       updater: autoUpdater,
@@ -155,9 +161,6 @@ app.whenReady().then(async () => {
   })
   createWindow()
 
-  const refresh = (): void => {
-    ctx.stats?.refresh().then(statsChanged, (err) => console.error('the stats refresh failed', err))
-  }
   refresh()
   setInterval(refresh, REFRESH_INTERVAL_MS)
 

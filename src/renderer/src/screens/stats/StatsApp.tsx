@@ -5,6 +5,7 @@ import { useNoteScreen } from '@/lib/dev/noteContext'
 import { errorMessage } from '@/lib/format'
 import type { NavLocation } from '@/lib/navHistory'
 import { NAV_ITEMS, type StatsScreen } from '@/lib/stats/screens'
+import { StatsData } from '@/screens/stats/StatsData'
 import type { StatsStatus } from '@shared/stats/types'
 import type { UpdateState } from '@shared/types'
 
@@ -90,6 +91,8 @@ export function StatsApp({
           <div className="py-20 text-center text-[13px] text-bad">
             {error ?? 'The stats database could not be opened on this computer.'}
           </div>
+        ) : screen === 'data' ? (
+          <StatsData status={status} />
         ) : (
           <div className="py-20 text-center">
             <h1 className="text-[15px] font-semibold">{label}</h1>
