@@ -14,7 +14,8 @@ import {
 /** The releases as listed by `scripts/inventory-sources.mjs`. */
 const inventory = new Set(
   readFileSync(join(__dirname, '../../fixtures/nba-inventory.tsv'), 'utf8')
-    .split('\n')
+    // Git checks the file out with CRLF on Windows.
+    .split(/\r?\n/)
     .filter(Boolean)
     .map((line) => line.replace('\t', '/'))
 )
