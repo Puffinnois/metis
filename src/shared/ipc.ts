@@ -3,9 +3,13 @@ import type {
   LeaderboardBoard,
   MetricInfo,
   StatsDataReport,
+  StatsGame,
+  StatsGameDetail,
+  StatsPlayerInfo,
   StatsQuery,
   StatsResult,
   StatsSeason,
+  StatsStanding,
   StatsStatus,
   StatsView
 } from './stats/types'
@@ -65,6 +69,13 @@ export interface Api {
     catalogue(): Promise<MetricInfo[]>
     /** What each season holds, newest first; empty until the first tables are built. */
     seasons(): Promise<StatsSeason[]>
+    /** Who a player is; null for an id nobody has. */
+    player(id: string): Promise<StatsPlayerInfo | null>
+    /** Every game on a season's schedule, by date; empty until the tables are built. */
+    games(season: number): Promise<StatsGame[]>
+    game(id: string): Promise<StatsGameDetail | null>
+    /** The published standings of a season; empty before they start, in 1995-96. */
+    standings(season: number): Promise<StatsStanding[]>
     views(): Promise<StatsView[]>
     /** Saves under a name; the same name, in any case, replaces. Rejects with a readable message. */
     saveView(name: string, board: LeaderboardBoard): Promise<StatsView>
@@ -104,6 +115,10 @@ export const IPC = {
   statsQuery: 'stats:query',
   statsCatalogue: 'stats:catalogue',
   statsSeasons: 'stats:seasons',
+  statsPlayer: 'stats:player',
+  statsGames: 'stats:games',
+  statsGame: 'stats:game',
+  statsStandings: 'stats:standings',
   statsViews: 'stats:views',
   statsSaveView: 'stats:saveView',
   statsDeleteView: 'stats:deleteView',

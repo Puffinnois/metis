@@ -129,7 +129,11 @@ export function queryScope(scope: StatsScope, entity: Entity): StatsQuery['scope
   return base
 }
 
-const shortDay = (date: string): string => SHORT_DAY.format(new Date(`${date}T00:00:00Z`))
+/** "Jan 5". A game date has no time of day: read at UTC, so no time zone moves it. */
+export const shortDay = (date: string): string => SHORT_DAY.format(new Date(`${date}T00:00:00Z`))
+
+/** "Jan 5, 2026". */
+export const fullDay = (date: string): string => DAY.format(new Date(`${date}T00:00:00Z`))
 
 /** "Whole season", "Jan 5 – Feb 1", "Last 10 games", "Team's last 10 games". */
 export function rangeLabel(scope: StatsScope, entity: Entity = 'player'): string {

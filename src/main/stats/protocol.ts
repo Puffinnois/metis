@@ -70,6 +70,10 @@ export type StatsRequest =
   | { id: number; kind: 'query'; query: StatsQuery }
   | { id: number; kind: 'catalogue' }
   | { id: number; kind: 'seasons' }
+  | { id: number; kind: 'player'; player: string }
+  | { id: number; kind: 'games'; season: number }
+  | { id: number; kind: 'game'; game: string }
+  | { id: number; kind: 'standings'; season: number }
 
 /**
  * The kinds that run at once, each on its own connection, instead of in turn. A pause cannot wait
@@ -83,7 +87,11 @@ export const AT_ONCE_REQUESTS: ReadonlySet<StatsRequest['kind']> = new Set([
   'read',
   'query',
   'catalogue',
-  'seasons'
+  'seasons',
+  'player',
+  'games',
+  'game',
+  'standings'
 ])
 
 export type StatsReply =

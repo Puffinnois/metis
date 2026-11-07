@@ -42,6 +42,14 @@ async function handle(request: StatsRequest): Promise<unknown> {
       return service.catalogue()
     case 'seasons':
       return service.seasons()
+    case 'player':
+      return service.player(request.player)
+    case 'games':
+      return service.games(request.season)
+    case 'game':
+      return service.game(request.game)
+    case 'standings':
+      return service.standings(request.season)
     case 'close':
       await service.close()
       service = null

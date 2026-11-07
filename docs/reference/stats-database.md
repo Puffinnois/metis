@@ -86,7 +86,7 @@ No rate is stored. Every column is a count or a sum over the same games, divided
 `src/main/stats/engine/` answers a `StatsQuery`: `compile` checks it and writes parameterised SQL, `run` executes it under a five-second timeout on its own connection. Nothing from a query is spliced into SQL.
 
 - **Which table:** `player_season` or `team_season` unless a filter splits a season, then `player_game` or `team_game`. Both give the same numbers. A player's season table is read either as its rows with no team or as those of the teams named, never both, so a trade cannot count twice.
-- **Scope:** seasons, game types (default the regular season; All-Star and preseason only when asked), a date range, last N, position group, team. Then the game's context: opponent, the opponent's conference or division, month, home or road, before or after the All-Star Game, rest days, starter or bench, win or loss.
+- **Scope:** seasons, game types (default the regular season; All-Star and preseason only when asked), a date range, last N, position group, team, player, one game by its id. Then the game's context: opponent, the opponent's conference or division, month, home or road, before or after the All-Star Game, rest days, starter or bench, win or loss.
 - **Last N:** a player's own last N appearances, or their part in their team's last N games, which they may have missed.
 - **Transforms:** totals, per game, per 36, per 48, per 100 possessions. A ratio reads the same in each, and a record stays a total. Per 100 uses estimated possessions: a player's are their team's times their share of its minutes. A team's per-game count divides by its games with a box score.
 - **Qualifying:** a metric's `minSample` is for 82 games and scales to the team games a row covers, so a short season or a date range qualifies fairly. A row per season reads its own season's games. Teams always qualify.
@@ -111,6 +111,20 @@ Measured with `scripts/engine-speed.mjs` on the full database, in the worker, a 
 | Every season, by season, all players  | 15,808 | 486       | 568      |
 
 The last is over the 500 ms a screen is allowed, and no screen asks it. Trends (Plan T803) will, for one position, which is about a third of those rows. Times vary between runs: the same query read 450 ms at worst on another. What a click takes in the window is in [stats-screens.md](stats-screens.md).
+
+## Reads beside the engine
+
+`src/main/stats/reads.ts`: plain reads a dashboard needs that are not a metric. A table not loaded yet reads as nothing, and a column a source has dropped as NULL.
+
+| Read                | Answers                                                                                                   |
+| ------------------- | --------------------------------------------------------------------------------------------------------- |
+| `player(id)`        | Name, seasons, latest position and team; number, size, birth date and school from the latest roster line  |
+| `games(season)`     | Every game on the schedule, played or not: its type, sides, score, whether a box score is held, overtimes |
+| `game(id)`          | ESPN's venue, city, attendance and note, and the score by period when those add up to the final score     |
+| `standings(season)` | The published standings: `src_nba_standings`, or the dashboards' file for 1995-96                         |
+
+- **A side with no row in `team`** is an All-Star team or a touring club: its name comes from the NBA's schedule, then ESPN's.
+- **Overtime** is read from the team's minutes, 240 in regulation and 25 more per period. It matches ESPN's period on every game of 32 of 34 seasons checked, and in 2001-02 ESPN's undercounts: it has 30 overtime games to the box scores' 70.
 
 ## Sync
 

@@ -25,6 +25,7 @@ describe('compileQuery', () => {
     refuses(scope({ dates: ['February', '2026-01-01'] }), /is not valid/)
     refuses(scope({ positions: ['XX' as 'G'] }), /unknown position "XX"/)
     refuses(scope({ teams: ['1; DROP TABLE game'] }), /is not valid/)
+    refuses(scope({ games: ["x'; DROP TABLE game"] }), /is not valid/)
     refuses(scope({ gameTypes: ['finals' as 'regular'] }), /unknown game type "finals"/)
     refuses(scope({ gameTypes: [] }), 'scope.gameTypes must be a non-empty list')
     refuses(scope({ months: [13] }), 'scope.months must be whole numbers from 1 to 12')

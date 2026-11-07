@@ -124,8 +124,8 @@ Template: `StatsPlayer`, `StatsTeam`, `StatsGames`, `lib/stats/{player,team,game
 
 Outcome: open any player, team or game. NBA dashboards are not split by position as the NFL's are, so one set of tabs serves everyone, and later stages add to it.
 
-- [ ] **T601 Player dashboard (L).** Rail, header, Overview, Scoring, Shooting, Playmaking, Rebounding, Defense. Check: `drive.mjs`, including a player with a gap in coverage.
-- [ ] **T602 Game log and splits (M).** Every game; splits from T504. Check: a season's log sums to its total.
+- [x] **T601 Player dashboard (L).** Rail, header, Overview, Scoring, Shooting, Playmaking, Rebounding, Defense. Checked: `drive.mjs` on the full database through the rail, the header and every tab, with no errors in the log. Michael Jordan in 1994-95 reads his plus-minus as "Recorded from 1996-97.", his career lists 1998-99 to 2000-01 as "No games", 1999-00 says he played no games, and his career plus-minus per game is left out rather than dividing by games it was not recorded in. Players have initials, not photos: Metis fetches none.
+- [x] **T602 Game log and splits (M).** Every game; splits from T504. Checked: in the window, the log of Shawn Marion's 2008-09, traded from Miami to Toronto, adds up to its total line over 69 games on points, rebounds, assists, steals and blocks, and that total equals the raw NBA box scores (891, 589, 139, 88, 66). So does Luka Dončić's 2026-27. Across every season, every player's game rows add up to their season row with no exceptions. The screen says so if a log ever stops adding up.
 - [ ] **T603 Team dashboard (L).** Header with record and standing, results strip, Overview, Offense, Defense, Players, Schedule. Check: `drive.mjs`, and a relocated franchise across seasons.
 - [ ] **T604 Standings (S).** Conference and division tables, games behind, streaks, from the published standings. Check: against the source on three seasons.
 - [ ] **T605 Games (L).** A day's games on a date rail, in place of the template's weeks; box scores. Check: `drive.mjs`, and box totals against the final score.

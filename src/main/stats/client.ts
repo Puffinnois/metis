@@ -3,9 +3,13 @@ import { Worker } from 'node:worker_threads'
 import type {
   MetricInfo,
   StatsDataReport,
+  StatsGame,
+  StatsGameDetail,
+  StatsPlayerInfo,
   StatsQuery,
   StatsResult,
   StatsSeason,
+  StatsStanding,
   StatsStatus
 } from '@shared/stats/types'
 import type {
@@ -29,6 +33,10 @@ export interface StatsClient {
   query(query: StatsQuery): Promise<StatsResult>
   catalogue(): Promise<MetricInfo[]>
   seasons(): Promise<StatsSeason[]>
+  player(id: string): Promise<StatsPlayerInfo | null>
+  games(season: number): Promise<StatsGame[]>
+  game(id: string): Promise<StatsGameDetail | null>
+  standings(season: number): Promise<StatsStanding[]>
   /** Closes the database and ends the worker (after `CLOSE_TIMEOUT_MS` at most). */
   close(): Promise<void>
 }
@@ -90,6 +98,10 @@ export function startStatsWorker(
     query: (query) => request<StatsResult>((id) => ({ id, kind: 'query', query })),
     catalogue: () => request<MetricInfo[]>((id) => ({ id, kind: 'catalogue' })),
     seasons: () => request<StatsSeason[]>((id) => ({ id, kind: 'seasons' })),
+    player: (player) => request<StatsPlayerInfo | null>((id) => ({ id, kind: 'player', player })),
+    games: (season) => request<StatsGame[]>((id) => ({ id, kind: 'games', season })),
+    game: (game) => request<StatsGameDetail | null>((id) => ({ id, kind: 'game', game })),
+    standings: (season) => request<StatsStanding[]>((id) => ({ id, kind: 'standings', season })),
     async close() {
       if (!dead) {
         let timer: NodeJS.Timeout | undefined

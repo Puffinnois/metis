@@ -208,6 +208,21 @@ describe('totals against rates', () => {
 })
 
 describe('splits', () => {
+  it('reads one game, for its box score', async () => {
+    const r = await run({ scope: { seasons: [2026], games: ['c'] }, groupBy: ['team'] })
+    expect(r.grain).toBe('game')
+    expect(r.rows.map((x) => [x.id, x.group.team, x.values.pts.value]).sort()).toEqual([
+      ['1', MIA, 30],
+      ['2', LAL, 13]
+    ])
+    const team = await run({
+      entity: 'team',
+      metrics: ['team_pts'],
+      scope: { seasons: [2026], games: ['c'] }
+    })
+    expect(team.rows.map((x) => x.values.team_pts.value).sort()).toEqual([80, 90])
+  })
+
   it('reads a date range, both ends in', async () => {
     const r = await run({ scope: { seasons: [2026], dates: ['2026-01-05', '2026-01-06'] } })
     expect(r.grain).toBe('game')

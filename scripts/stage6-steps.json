@@ -1,0 +1,25 @@
+[
+  { "size": [1500, 950] },
+  { "wait": 3500 },
+  { "click": "Players" },
+  { "wait": 2500 },
+  {
+    "eval": "JSON.stringify({ h1: document.querySelector('h1')?.innerText.replace(/\\n/g, ' '), rail: document.querySelectorAll('aside button[aria-current]').length, tabs: [...document.querySelectorAll('[role=tab]')].map((t) => t.textContent), tiles: [...document.querySelectorAll('.font-cond')].map((t) => t.textContent), lines: document.querySelectorAll('[data-metric]').length, chart: !!document.querySelector('svg[role=img]') })"
+  },
+  { "shot": "player-overview" },
+  { "click": "Shooting" },
+  { "wait": 900 },
+  { "shot": "player-shooting" },
+  { "click": "Game log" },
+  { "wait": 1200 },
+  {
+    "eval": "(() => { const t = document.querySelector('[aria-label=\"Game log\"]'); const rows = [...t.querySelectorAll('[role=row]')].slice(1); const cell = (r, i) => r.querySelectorAll('[role=cell]')[i]?.textContent; const num = (s) => Number((s ?? '').replace(/,/g, '').replace('−', '-')); const games = rows.filter((r) => cell(r, 0) !== 'Total'); const total = rows.find((r) => cell(r, 0) === 'Total'); const col = { PTS: 5, REB: 6, AST: 7, STL: 8, BLK: 9 }; return JSON.stringify({ games: games.length, sums: Object.fromEntries(Object.entries(col).map(([k, i]) => [k, [games.reduce((a, r) => a + num(cell(r, i)), 0), num(cell(total, i))]])), first: games[0]?.innerText.replace(/\\n/g, ' ') }) })()"
+  },
+  { "shot": "player-log" },
+  { "click": "Splits" },
+  { "wait": 1500 },
+  { "shot": "player-splits" },
+  {
+    "eval": "JSON.stringify([...document.querySelectorAll('h3')].map((h) => h.textContent))"
+  }
+]

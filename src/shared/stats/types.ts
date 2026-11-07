@@ -124,6 +124,8 @@ export interface StatsQuery {
     result?: 'win' | 'loss'
     /** Player ids. */
     players?: string[]
+    /** Game ids: one box score, or the games a screen names. */
+    games?: string[]
     qualifiedOnly?: boolean
   }
   groupBy?: GroupBy[]
@@ -201,6 +203,89 @@ export interface StatsSeason {
   /** The game types with box scores, and how many games. */
   types: { type: GameType; games: number }[]
   teams: StatsTeam[]
+}
+
+/** One team's side of a game. A side not named yet has no id, and a game not played no score. */
+export interface GameSide {
+  id: string | null
+  code: string
+  name: string
+  score: number | null
+}
+
+/** A game on the schedule, played or not. */
+export interface StatsGame {
+  id: string
+  season: number
+  type: GameType
+  /** YYYY-MM-DD. */
+  date: string
+  home: GameSide
+  away: GameSide
+  played: boolean
+  /** A box score is held. Preseason games have none anywhere, and a few old games only a score. */
+  hasBox: boolean
+  /** Overtime periods, from the team's minutes; null without a box score. */
+  overtimes: number | null
+}
+
+/** What ESPN's schedule adds about one game. */
+export interface StatsGameDetail {
+  id: string
+  venue: string | null
+  city: string | null
+  attendance: number | null
+  /** "NBA Finals - Game 5". */
+  note: string | null
+  /** Points by period, when the source has them and they add up to the final score. */
+  periods: { home: number[]; away: number[] } | null
+}
+
+/** Who a player is, for the dashboard's header. The roster fields are null before 1996-97. */
+export interface StatsPlayerInfo {
+  id: string
+  name: string
+  /** `G`, `F` or `C`, from their latest season. */
+  position: string | null
+  /** Their latest team. */
+  team: { id: string; code: string | null } | null
+  /** Seasons with a game that counts, by final year, oldest first. */
+  seasons: number[]
+  number: string | null
+  /** As the NBA publishes them: "6-9", "250", "DEC 30, 1984". */
+  height: string | null
+  weight: string | null
+  birthDate: string | null
+  school: string | null
+}
+
+/** A team's line in the published standings: a season's end, or today in the current one. */
+export interface StatsStanding {
+  teamId: string
+  code: string | null
+  name: string
+  /** As published: `East`, `Pacific`. */
+  conference: string | null
+  division: string | null
+  conferenceRank: number | null
+  divisionRank: number | null
+  wins: number
+  losses: number
+  winPct: number | null
+  conferenceGamesBack: number | null
+  divisionGamesBack: number | null
+  home: string | null
+  road: string | null
+  conferenceRecord: string | null
+  divisionRecord: string | null
+  /** "8-2", from 2001-02. */
+  last10: string | null
+  /** "W 3", from 2001-02. */
+  streak: string | null
+  /** The source's clinch letters: `x`, `e`, `pi`. */
+  clinch: string | null
+  pointsPerGame: number | null
+  allowedPerGame: number | null
 }
 
 /** The totals modes a table offers; a ratio reads the same in each. */

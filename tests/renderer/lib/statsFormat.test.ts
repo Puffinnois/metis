@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
+  amongWords,
   cellTitle,
   familyLabel,
+  fmtClock,
   fmtStat,
+  heatColor,
   heatOf,
   isRescaled,
   kindLabel,
@@ -44,6 +47,30 @@ describe('fmtStat', () => {
     expect(isRescaled({ ...count, totalOnly: true }, 'per36')).toBe(false)
     expect(isRescaled({ ...count, perGameOnly: true }, 'perGame')).toBe(true)
     expect(isRescaled({ ...count, perGameOnly: true }, 'per36')).toBe(false)
+  })
+})
+
+describe('fmtClock', () => {
+  it('writes minutes as a box score does', () => {
+    expect(fmtClock(36.2)).toBe('36:12')
+    expect(fmtClock(9.0)).toBe('9:00')
+    expect(fmtClock(0)).toBe('0:00')
+    expect(fmtClock(null)).toBe('—')
+  })
+})
+
+describe('heatColor', () => {
+  it('runs from red through grey to green, and greys a metric with no better side', () => {
+    expect(heatColor(1, false)).toContain(' 150)')
+    expect(heatColor(0, false)).toContain(' 25)')
+    expect(heatColor(0.9, true)).toBe('var(--fg-3)')
+  })
+})
+
+describe('amongWords', () => {
+  it('names the pool', () => {
+    expect(amongWords('G')).toBe('guards')
+    expect(amongWords(null)).toBe('players')
   })
 })
 

@@ -62,6 +62,7 @@ export function LeaderTable({
   byId,
   selected,
   onSelect,
+  onOpen,
   onSort
 }: {
   rows: StatsRow[]
@@ -72,6 +73,8 @@ export function LeaderTable({
   byId: ReadonlyMap<string, MetricInfo>
   selected: string | null
   onSelect: (id: string) => void
+  /** A name opens its dashboard. */
+  onOpen?: (id: string) => void
   onSort: (by: string) => void
 }): React.JSX.Element {
   const player = board.entity === 'player'
@@ -189,7 +192,23 @@ export function LeaderTable({
                 >
                   <span className="font-mono text-[12px] leading-none text-fg-3">{i + 1}</span>
                   <div className="flex min-w-0 items-center gap-1.5">
-                    <span className="truncate text-[13px] leading-[1.1] font-medium">{r.name}</span>
+                    {onOpen ? (
+                      <button
+                        type="button"
+                        title={`Open ${r.name}’s dashboard`}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onOpen(r.id)
+                        }}
+                        className="cursor-pointer truncate text-left text-[13px] leading-[1.1] font-medium hover:text-cobalt"
+                      >
+                        {r.name}
+                      </button>
+                    ) : (
+                      <span className="truncate text-[13px] leading-[1.1] font-medium">
+                        {r.name}
+                      </span>
+                    )}
                     {!ok && (
                       <span
                         title="Below the qualifying sample"

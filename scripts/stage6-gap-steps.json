@@ -1,0 +1,66 @@
+[
+  { "size": [1500, 950] },
+  { "wait": 3500 },
+  { "click": "Players" },
+  { "wait": 1800 },
+  { "select": ["Season", "1995"] },
+  { "wait": 1200 },
+  { "eval": "document.querySelector('input[aria-label=\"Search players\"]').focus()" },
+  { "type": "Michael Jordan" },
+  { "wait": 500 },
+  { "click": "aside button[aria-current], aside .grid button, aside div button" },
+  { "wait": 300 },
+  {
+    "eval": "(() => { const b = [...document.querySelectorAll('aside button')].find((x) => x.textContent.includes('Michael Jordan')); if (!b) return 'NOT LISTED'; b.click(); return 'opened' })()"
+  },
+  { "wait": 2000 },
+  {
+    "eval": "JSON.stringify({ h1: document.querySelector('h1')?.innerText.replace(/\\n/g, ' '), facts: document.querySelector('header span.text-fg-3')?.textContent, games: document.querySelector('header')?.innerText.split('\\n').slice(0, 5).join(' | ') })"
+  },
+  { "click": "Defense" },
+  { "wait": 900 },
+  {
+    "eval": "document.querySelector('[data-metric=plus_minus]')?.innerText.replace(/\\n/g, ' | ')"
+  },
+  {
+    "eval": "[...document.querySelectorAll('.text-fg-3')].map((e) => e.textContent).filter((t) => /starts in|Recorded/.test(t)).join(' / ')"
+  },
+  { "shot": "gap-defense" },
+  { "click": "Overview" },
+  { "wait": 1500 },
+  {
+    "eval": "[...document.querySelector('[aria-label=\"Career by season\"]').querySelectorAll('[role=row]')].map((r) => r.innerText.replace(/\\n/g, ' ')).join(' // ')"
+  },
+  { "shot": "gap-career" },
+  { "select": ["Season", "2000"] },
+  { "wait": 1500 },
+  {
+    "eval": "[...document.querySelectorAll('.bg-panel-2')].map((e) => e.textContent).filter((t) => /played no games/.test(t)).join(' / ')"
+  },
+  { "shot": "gap-no-games" },
+  { "eval": "document.querySelector('input[aria-label=\"Search players\"]').value" },
+  { "select": ["Season", "2010"] },
+  { "wait": 1000 },
+  {
+    "eval": "(() => { const i = document.querySelector('input[aria-label=\"Search players\"]'); i.focus(); i.select(); return 'focused' })()"
+  },
+  { "type": "Shaquille" },
+  { "wait": 600 },
+  { "select": ["Season", "2009"] },
+  { "wait": 800 },
+  {
+    "eval": "(() => { const i = document.querySelector('input[aria-label=\"Search players\"]'); i.focus(); i.select(); return 'focused' })()"
+  },
+  { "type": "Shawn Marion" },
+  { "wait": 800 },
+  {
+    "eval": "(() => { const b = [...document.querySelectorAll('aside button')].find((x) => x.textContent.includes('Shawn Marion')); if (!b) return 'NOT LISTED'; b.click(); return 'opened' })()"
+  },
+  { "wait": 1500 },
+  { "click": "Game log" },
+  { "wait": 1500 },
+  {
+    "eval": "(() => { const t = document.querySelector('[aria-label=\"Game log\"]'); const rows = [...t.querySelectorAll('[role=row]')].slice(1); const cell = (r, i) => r.querySelectorAll('[role=cell]')[i]?.textContent; const num = (s) => Number((s ?? '').replace(/,/g, '').replace('−', '-')); const games = rows.filter((r) => cell(r, 0) !== 'Total'); const total = rows.find((r) => cell(r, 0) === 'Total'); const col = { PTS: 5, REB: 6, AST: 7, STL: 8, BLK: 9 }; return JSON.stringify({ h1: document.querySelector('h1')?.innerText.replace(/\\n/g, ' '), games: games.length, teams: [...new Set(games.map((r) => cell(r, 2)))], sums: Object.fromEntries(Object.entries(col).map(([k, i]) => [k, [games.reduce((a, r) => a + num(cell(r, i)), 0), num(cell(total, i))]])), note: document.querySelector('section')?.parentElement?.innerText.includes('do not add up') }) })()"
+  },
+  { "shot": "traded-log" }
+]
