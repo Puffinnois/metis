@@ -137,7 +137,7 @@ function Board({
   )
 }
 
-/** The home: eight boards, top six each. A board's "All →" or a row opens the full leaderboard. */
+/** The home: eight boards, top six each. A board's "All →" opens the full leaderboard, a row its dashboard. */
 export function StatsHome({
   data,
   scope,

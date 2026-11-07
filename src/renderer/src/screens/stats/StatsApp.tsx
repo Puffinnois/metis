@@ -6,13 +6,15 @@ import { errorMessage } from '@/lib/format'
 import type { NavLocation } from '@/lib/navHistory'
 import type { BoardDef } from '@/lib/stats/boards'
 import { bestFirst, defaultBoard, normalizeBoard } from '@/lib/stats/leaderboard'
+import { defaultPlayer, railQuery, type PlayerTab } from '@/lib/stats/player'
 import { defaultScope, type StatsScope } from '@/lib/stats/scope'
 import { NAV_ITEMS, type StatsScreen } from '@/lib/stats/screens'
-import { useStatsData } from '@/lib/stats/useStats'
+import { useStatsData, useStatsQuery } from '@/lib/stats/useStats'
 import { StatsData } from '@/screens/stats/StatsData'
 import { StatsGlossary } from '@/screens/stats/StatsGlossary'
 import { StatsHome } from '@/screens/stats/StatsHome'
 import { StatsLeaderboard, type LeaderboardOpen } from '@/screens/stats/StatsLeaderboard'
+import { StatsPlayer } from '@/screens/stats/StatsPlayer'
 import type { LeaderboardBoard, StatsStatus, StatsView } from '@shared/stats/types'
 import type { UpdateState } from '@shared/types'
 
@@ -56,9 +58,13 @@ export function StatsApp({
   const data = useStatsData()
   const [screen, setScreen] = useState<StatsScreen>('home')
   const [focused, setFocused] = useState<number | null>(null)
+  // The player dashboard: the player chosen this session, else the league's leading scorer.
+  const [player, setPlayer] = useState<string | null>(null)
+  const [playerTab, setPlayerTab] = useState<PlayerTab>('overview')
   if (focus && focus.nonce !== focused) {
     setFocused(focus.nonce)
     setScreen(focus.location.screen)
+    if (focus.location.player) setPlayer(focus.location.player.id)
   }
   const [chosen, setChosen] = useState<StatsScope | null>(null)
   const scope = chosen ?? defaultScope(data.seasons, data.status)
@@ -74,9 +80,29 @@ export function StatsApp({
       .catch((err) => setViewsError(errorMessage(err)))
   }, [data.version])
 
+  // The query hook keys on the query's text, so a new object each render runs nothing again.
+  const leaders = useStatsQuery(
+    player === null && screen === 'player' && data.byId.size > 0
+      ? railQuery('ALL', null, 'pts', scope, 'perGame', data.byId)
+      : null,
+    data.version
+  )
+  const shownPlayer = player ?? defaultPlayer(leaders.result)
+  // Once on screen, the default is the player: a new season or range does not switch it.
+  if (player === null && screen === 'player' && shownPlayer !== null) setPlayer(shownPlayer)
+  const openPlayer = (id: string): void => {
+    setPlayer(id)
+    setScreen('player')
+  }
+
+  const locationPlayer = screen === 'player' ? shownPlayer : null
   useEffect(() => {
-    onLocation?.({ screen, team: null, player: null })
-  }, [screen, onLocation])
+    onLocation?.({
+      screen,
+      team: null,
+      player: locationPlayer === null ? null : { id: locationPlayer, position: null }
+    })
+  }, [screen, locationPlayer, onLocation])
 
   useNoteScreen(screen)
 
@@ -85,6 +111,10 @@ export function StatsApp({
     setScreen(board.entity === 'player' ? 'players' : 'teams')
   }
   const openFromHome = (b: BoardDef, rowId: string | null, perGame: boolean): void => {
+    if (b.entity === 'player' && rowId !== null) {
+      openPlayer(rowId)
+      return
+    }
     const base = defaultBoard(b.entity, b.tab, data.byId)
     const columns = base.columns.includes(b.metric) ? base.columns : [b.metric, ...base.columns]
     openBoard(
@@ -122,7 +152,7 @@ export function StatsApp({
       <p className="mt-2 text-[13px] text-fg-3">{emptyScreenNote(data.status)}</p>
     </div>
   )
-  const playerBoard = screen === 'player' || screen === 'players'
+  const playerBoard = screen === 'players'
   const teamBoard = screen === 'team' || screen === 'teams'
   return (
     <div className="flex h-full flex-col bg-paper text-fg">
@@ -155,6 +185,25 @@ export function StatsApp({
             onOpenBoard={openFromHome}
             onOpenView={openView}
           />
+        ) : screen === 'player' ? (
+          shownPlayer !== null ? (
+            <StatsPlayer
+              data={data}
+              scope={scope}
+              onScope={setChosen}
+              player={shownPlayer}
+              onPlayer={setPlayer}
+              tab={playerTab}
+              onTab={setPlayerTab}
+              onOpenTeam={() => setScreen('team')}
+              onOpenGame={() => setScreen('games')}
+              onOpenLeaderboard={() => setScreen('players')}
+            />
+          ) : (
+            <div className="py-20 text-center text-[13px] text-fg-3">
+              {leaders.error ?? (leaders.loading ? 'Loading…' : 'Nobody played in this range.')}
+            </div>
+          )
         ) : playerBoard || teamBoard ? (
           <StatsLeaderboard
             key={playerBoard ? 'player' : 'team'}
@@ -167,6 +216,7 @@ export function StatsApp({
             onSaveView={saveView}
             onDeleteView={deleteView}
             onOpenView={openView}
+            onOpenRow={playerBoard ? openPlayer : undefined}
           />
         ) : screen === 'glossary' ? (
           <StatsGlossary catalogue={data.catalogue} />

@@ -4,7 +4,7 @@ What each screen shows and where its numbers come from. Screens are added here a
 
 ## Shell
 
-- **Nav:** Leaderboards, Players and Teams (their leaderboards, until the dashboards come in Stage 6), Explore and Games (not built yet), Glossary. Until the tables are built, every screen says what is loaded.
+- **Nav:** Leaderboards, Players, Teams, Explore and Games (not built yet), Glossary. Players opens a dashboard, with the leaderboards a click on from it. Until the tables are built, every screen says what is loaded.
 - **Scope** (below): shared by every screen, and kept for the session.
 - **A refresh that rebuilds the tables** (`status.builtAt` changes) re-reads the seasons and runs every query on screen again. A status line ticking through a load does not.
 - **Status line** (`stats.status()`), read again as a load goes, at most once a second:
@@ -29,7 +29,7 @@ The status line opens the Data panel.
 
 ## Leaderboards (home)
 
-Eight boards, the top six of each: points, rebounds, assists, threes made, steals, blocks, true shooting, and team net rating. Per game or totals, per game first. Per game, a count needs 70 % of the most games anyone played in scope: the NBA's own rule is 58 of 82, and reading it from the result holds for a date range too. A rate needs its own sample. "All →" opens the full leaderboard sorted by that metric, in the same mode; a row opens it with that row selected. Saved views are listed above the boards.
+Eight boards, the top six of each: points, rebounds, assists, threes made, steals, blocks, true shooting, and team net rating. Per game or totals, per game first. Per game, a count needs 70 % of the most games anyone played in scope: the NBA's own rule is 58 of 82, and reading it from the result holds for a date range too. A rate needs its own sample. "All →" opens the full leaderboard sorted by that metric, in the same mode. A player's row opens their dashboard; a team's opens the leaderboard with that row selected. Saved views are listed above the boards.
 
 ## Players and Teams
 
@@ -50,6 +50,21 @@ A table per position group (All players, Guards, Forwards, Centers) or end of th
 - **Views:** a named board saved in `metis.db` (`stats_views`): entity, tab, columns, sort, mode, qualified only, team. The season and dates stay the screen's. Saving under an existing name, in any case, replaces it.
 - **CSV:** every row the filters keep, not only the 50 shown: rank, name, team, position and id, games, then each column unformatted, percentages in percent. Saved where the dialog says (Downloads by default), UTF-8 with a byte-order mark so Excel reads accents.
 - **Notes** under the table state what the answer depends on: a stat's first season, estimated possessions, a season with no All-Star Game.
+
+## Player dashboard
+
+Opens on the league's leading scorer per game in scope, and stays on whoever is chosen when the season or range changes. One set of tabs serves every position.
+
+- **Rail:** a position (All, G, F, C), a search, a team and a metric to rank by. Those who qualify, best first, numbered among them, the value shaded by its percentile within their position. A search finds anyone in scope, and the player on screen is listed however far below the sample they are, marked NQ. ↑ and ↓, or J and K, move through it.
+- **Header:** position, team that season (it opens the team), games in scope, "Not qualified" below the sample, the scope bar. Number, height, weight, birth date and school come from the NBA's latest roster line, so a player from before 1996-97 may have none. Initials stand in for a photo: Metis fetches none.
+- **Mode:** Per game, Totals, Per 36, Per 48, Per 100, across the tabs and the rail. It opens per game.
+- **Overview:** four tiles, the percentile rankings, points by game with the average dashed, and the career by season.
+- **Scoring, Shooting, Playmaking, Rebounding, Defense:** titled lists of metrics, each with its value, its percentile bar and its rank among the qualified players of the position. A stat with no value says why ("Recorded from 1996-97."), one below its sample says that. Defense is what the box score has; tracking arrives in Plan T703.
+- **Career:** the scope's game types over every season, whatever its range, on their last team that season. A season inside the career with no games reads "No games". The career line leaves out the average of a stat that started after the career did, since it would divide by games the stat was not recorded in; its total stands, and says from when.
+- **Game log:** every game in scope, newest first, as recorded: date, opponent, team (a traded player's changes), result, minutes as a clock, made and attempted together. A dot marks a game off the bench, or one whose starters the source does not list. The total line is the engine's own, and the screen says so if the games ever stop adding up to it. A row opens the game.
+- **Splits:** one engine query per split: home and road, wins and losses, started or off the bench, before and after the All-Star Game, rest, and the opponent's conference and division as that season had them; then by month and by opponent. A split with no games is left out. No ranks: they would need every player's query per split, and a small split's rank says little. Under Last games, each split reads its own last N.
+
+A player with no games in scope says so, and keeps their career.
 
 ## Glossary
 

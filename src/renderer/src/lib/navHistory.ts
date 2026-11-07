@@ -9,6 +9,8 @@ export interface NavLocation {
   screen: StatsScreen
   team: string | null
   player: { id: string; position: string | null } | null
+  /** The game open on Games. */
+  game?: string | null
 }
 
 /** Pages kept; the oldest go first. */

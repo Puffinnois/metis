@@ -37,6 +37,8 @@ const GROUPS: GroupBy[] = ['season', 'team', 'opponent', 'month', 'game']
 const ID = /^-?[0-9]{1,12}$/
 const WORD = /^[a-z-]{1,20}$/
 const DATE = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/
+/** The NBA's id, or `espn:<id>` before 1996-97. */
+const GAME_ID = /^[a-z0-9:]{1,24}$/
 
 type Value = string | number | boolean
 
@@ -132,6 +134,7 @@ const SCOPE_FIELDS = [
   'starter',
   'result',
   'players',
+  'games',
   'qualifiedOnly'
 ]
 
@@ -219,6 +222,7 @@ function validate(q: StatsQuery, ctx: CompileContext): Checked {
     if (q.entity === 'team') fail('scope.players is for players')
     ids(scope.players, 'scope.players')
   }
+  if (scope.games !== undefined) texts(scope.games, 'scope.games', GAME_ID)
   if (scope.qualifiedOnly !== undefined) flag(scope.qualifiedOnly, 'scope.qualifiedOnly')
   const groupBy = q.groupBy ?? []
   for (const g of groupBy) {
@@ -239,6 +243,7 @@ function validate(q: StatsQuery, ctx: CompileContext): Checked {
   // The season tables answer anything that does not split a season's games.
   const games =
     scope.dates !== undefined ||
+    scope.games !== undefined ||
     scope.lastN !== undefined ||
     scope.opponents !== undefined ||
     scope.conferences !== undefined ||
@@ -266,6 +271,7 @@ function gameWhere(q: StatsQuery, params: Params): string[] {
       `w.game_date BETWEEN ${params.add(s.dates[0])}::DATE AND ${params.add(s.dates[1])}::DATE`
     )
   }
+  if (s.games) where.push(`w.game_id IN ${params.list(s.games)}`)
   if (s.months) where.push(`month(w.game_date) IN ${params.list(s.months)}`)
   if (s.opponents) where.push(`w.opponent_id IN ${params.list(s.opponents.map(Number))}`)
   if (s.conferences) where.push(`w.opp_conference IN ${params.list(s.conferences)}`)

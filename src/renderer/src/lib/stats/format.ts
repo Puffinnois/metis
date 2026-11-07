@@ -49,6 +49,22 @@ export function heatOf(percentile: number | null, direction: MetricInfo['directi
   return 'n'
 }
 
+/** A percentile bar's colour, 0 to 1: red through grey to green; a metric with no better side, grey. */
+export function heatColor(p: number, neutral: boolean): string {
+  if (neutral) return 'var(--fg-3)'
+  const t = Math.min(1, Math.abs(p - 0.5) / 0.5)
+  return p >= 0.5
+    ? `oklch(${(0.66 - 0.06 * t).toFixed(3)} ${(0.02 + 0.13 * t).toFixed(3)} 150)`
+    : `oklch(${(0.66 - 0.04 * t).toFixed(3)} ${(0.02 + 0.17 * t).toFixed(3)} 25)`
+}
+
+/** Minutes as a box score writes them: "36:12". */
+export function fmtClock(minutes: number | null): string {
+  if (minutes === null || !Number.isFinite(minutes)) return '—'
+  const seconds = Math.round(minutes * 60)
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
+}
+
 /** "1st", "22nd", "73rd", "11th". */
 export function ordinal(n: number): string {
   const r = Math.round(n)
@@ -58,6 +74,10 @@ export function ordinal(n: number): string {
 }
 
 const POSITION_WORDS: Record<string, string> = { G: 'guards', F: 'forwards', C: 'centers' }
+
+/** What a player is ranked among: "guards", or "players" when no position is known. */
+export const amongWords = (position: string | null): string =>
+  position ? (POSITION_WORDS[position] ?? `${position}s`) : 'players'
 
 /** A cell's hover: percentile and rank within the position, the sample in words, whether it qualifies. */
 export function cellTitle(

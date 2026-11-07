@@ -4,9 +4,13 @@ import type {
   GameType,
   MetricInfo,
   StatsDataReport,
+  StatsGame,
+  StatsGameDetail,
+  StatsPlayerInfo,
   StatsQuery,
   StatsResult,
   StatsSeason,
+  StatsStanding,
   StatsStatus
 } from '@shared/stats/types'
 import { sqlString, StatsDb, type Row } from './db'
@@ -24,6 +28,7 @@ import type {
   StatsSyncResult,
   StatsWorkerInit
 } from './protocol'
+import { readGame, readGames, readPlayer, readStandings } from './reads'
 import { bootstrapStatsDb } from './schema'
 import { currentSeason, SOURCES } from './sources'
 import { refreshStats, STATS_DERIVED_STEP } from './sync'
@@ -80,6 +85,13 @@ export interface StatsService {
   catalogue(): Promise<MetricInfo[]>
   /** What each season holds, newest first, for the scope bar. */
   seasons(): Promise<StatsSeason[]>
+  /** Who a player is, for the dashboard; null for an id nobody has. */
+  player(id: string): Promise<StatsPlayerInfo | null>
+  /** Every game on a season's schedule, played or not, by date. */
+  games(season: number): Promise<StatsGame[]>
+  game(id: string): Promise<StatsGameDetail | null>
+  /** The published standings of a season; empty before they start. */
+  standings(season: number): Promise<StatsStanding[]>
   /**
    * Stops a refresh now: aborts its downloads, interrupts its statement and starts no other step. A
    * process must not exit while DuckDB runs a statement (Electron aborts), so closing cancels first.
@@ -325,6 +337,10 @@ export async function openStatsService(
         }
         return [...bySeason.values()].sort((a, b) => b.season - a.season)
       }),
+    player: (id) => read((reader) => readPlayer(reader, id)),
+    games: (season) => read((reader) => readGames(reader, season)),
+    game: (id) => read((reader) => readGame(reader, id)),
+    standings: (season) => read((reader) => readStandings(reader, season)),
     /** Write, read, a Parquet round trip, `read_json` and an ICU time zone, through the real file. */
     async selfTest() {
       await db.exec('CREATE OR REPLACE TABLE self_test AS SELECT range AS x FROM range(1000)')

@@ -51,7 +51,8 @@ export function StatsLeaderboard({
   views,
   onSaveView,
   onDeleteView,
-  onOpenView
+  onOpenView,
+  onOpenRow
 }: {
   entity: Entity
   data: StatsData
@@ -62,6 +63,8 @@ export function StatsLeaderboard({
   onSaveView: (name: string, board: LeaderboardBoard) => Promise<void>
   onDeleteView: (view: StatsView) => Promise<void>
   onOpenView: (view: StatsView) => void
+  /** A name opens its dashboard. */
+  onOpenRow?: (id: string) => void
 }): React.JSX.Element {
   // The board on screen: the one opened (until the user changes it), else the default tab's.
   const [own, setOwn] = useState<{ nonce: number | null; board: LeaderboardBoard } | null>(null)
@@ -285,6 +288,7 @@ export function StatsLeaderboard({
             byId={data.byId}
             selected={selected}
             onSelect={(id) => setPicked({ nonce: opened?.nonce ?? null, id })}
+            onOpen={onOpenRow}
             onSort={sortBy}
           />
         )}

@@ -10,9 +10,13 @@ import type {
   LeaderboardBoard,
   MetricInfo,
   StatsDataReport,
+  StatsGame,
+  StatsGameDetail,
+  StatsPlayerInfo,
   StatsQuery,
   StatsResult,
   StatsSeason,
+  StatsStanding,
   StatsStatus,
   StatsView
 } from '@shared/stats/types'
@@ -59,6 +63,18 @@ export function registerIpcHandlers(ctx: AppContext): void {
   )
   ipcMain.handle(IPC.statsSeasons, (): Promise<StatsSeason[]> =>
     ctx.stats ? ctx.stats.seasons() : Promise.resolve([])
+  )
+  ipcMain.handle(IPC.statsPlayer, (_event, id: string): Promise<StatsPlayerInfo | null> =>
+    ctx.stats ? ctx.stats.player(id) : Promise.resolve(null)
+  )
+  ipcMain.handle(IPC.statsGames, (_event, season: number): Promise<StatsGame[]> =>
+    ctx.stats ? ctx.stats.games(season) : Promise.resolve([])
+  )
+  ipcMain.handle(IPC.statsGame, (_event, id: string): Promise<StatsGameDetail | null> =>
+    ctx.stats ? ctx.stats.game(id) : Promise.resolve(null)
+  )
+  ipcMain.handle(IPC.statsStandings, (_event, season: number): Promise<StatsStanding[]> =>
+    ctx.stats ? ctx.stats.standings(season) : Promise.resolve([])
   )
   ipcMain.handle(IPC.statsViews, (): StatsView[] => listStatsViews(ctx.db))
   ipcMain.handle(IPC.statsSaveView, (_event, name: string, board: LeaderboardBoard): StatsView =>

@@ -15,6 +15,8 @@ vi.mock('@/lib/api', () => ({
       catalogue: vi.fn(),
       seasons: vi.fn(),
       query: vi.fn(),
+      player: vi.fn(),
+      games: vi.fn(),
       views: vi.fn(),
       saveView: vi.fn(),
       deleteView: vi.fn(),
@@ -129,6 +131,19 @@ beforeEach(() => {
   vi.mocked(api.stats.views).mockResolvedValue([])
   vi.mocked(api.stats.query).mockReset()
   vi.mocked(api.stats.query).mockImplementation(async (q) => answer(q))
+  vi.mocked(api.stats.games).mockResolvedValue([])
+  vi.mocked(api.stats.player).mockImplementation(async (id) => ({
+    id,
+    name: 'Luka Dončić',
+    position: 'G',
+    team: null,
+    seasons: [2026],
+    number: null,
+    height: null,
+    weight: null,
+    birthDate: null,
+    school: null
+  }))
 })
 
 afterEach(cleanup)
@@ -229,9 +244,15 @@ describe('the scope bar', () => {
 })
 
 describe('the leaderboard', () => {
+  /** Players opens the dashboard; its leaderboards are a click on. */
+  const toLeaderboard = async (): Promise<void> => {
+    fireEvent.click(await screen.findByRole('button', { name: 'Player leaderboards →' }))
+  }
+
   async function openPlayers(): Promise<void> {
     renderApp()
     fireEvent.click(await screen.findByRole('button', { name: 'Players' }))
+    await toLeaderboard()
     await screen.findByText('Luka Dončić')
   }
 
