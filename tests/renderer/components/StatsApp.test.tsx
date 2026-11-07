@@ -82,7 +82,26 @@ describe('the shell', () => {
     const changed = vi.mocked(api.stats.onChanged).mock.lastCall?.[0]
     changed?.()
     expect(await screen.findByText('Loading the stats · 3 of 3,107 files')).toBeTruthy()
-    expect(screen.getByText('NBA data is loading.')).toBeTruthy()
+    expect(screen.getByText(/^NBA data is loading\./)).toBeTruthy()
+  })
+
+  const through = { season: 2027, date: '2026-11-04' }
+  it.each([
+    ['loading, before any box score', { busy: true }, /^NBA data is loading\./],
+    ['loading, with box scores in', { busy: true, through }, /^NBA data is loading\./],
+    ['paused', { paused: true }, /^Loading is paused\./],
+    ['paused, with box scores in', { paused: true, through }, /^Loading is paused\./],
+    ['stopped with no tables', { through }, /^The tables are not built yet\./],
+    [
+      'out of disk space',
+      { noRoom: { neededBytes: 1, freeBytes: 0 } },
+      /^Not enough disk space to load/
+    ]
+  ])('says what is happening when %s', async (_, status, note) => {
+    vi.mocked(api.stats.status).mockResolvedValue({ ...EMPTY, ...status })
+    renderApp()
+    expect(await screen.findByText(note)).toBeTruthy()
+    expect(screen.queryByText(/still being built/)).toBeNull()
   })
 
   it('says so when the stats database is off', async () => {
