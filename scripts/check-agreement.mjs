@@ -745,6 +745,40 @@ out.push(
   )
 )
 
+// What the Games screen shows: the players' lines and the team's box score against the final score.
+const boxes = await read(`WITH lines AS (
+    SELECT game_id, team_id, sum(pts) AS pts, sum(reb) AS reb, sum(ast) AS ast
+    FROM player_game GROUP BY 1, 2
+  )
+  SELECT t.season, count(*) AS sides,
+    count(*) FILTER (t.pts = t.points_for) AS team_same,
+    count(*) FILTER (l.pts = t.points_for) AS lines_same,
+    count(*) FILTER (l.reb = t.reb) AS reb_same,
+    count(*) FILTER (l.ast = t.ast) AS ast_same,
+    coalesce(max(abs(l.pts - t.points_for)), 0) AS worst
+  FROM team_game t LEFT JOIN lines l ON l.game_id = t.game_id AND l.team_id = t.team_id
+  WHERE t.box_games = 1 AND t.game_type IN ('regular', 'play-in', 'playoffs', 'cup-final')
+  GROUP BY 1 ORDER BY 1`)
+out.push(
+  '',
+  '## Box scores against the final score',
+  '',
+  "What the Games screen shows, per team-game with a box score that counts. **Team box:** the team's points against the final score. **Lines:** its players' points summed against the final score, then rebounds and assists against the team's box. **Worst:** the most points a game's lines fall short or over. The screen says so when a game's lines do not add up to its score.",
+  '',
+  table(
+    ['Season', 'Team-games', 'Team box %', 'Lines %', 'Rebounds %', 'Assists %', 'Worst'],
+    boxes.map((r) => [
+      label(r.season),
+      COUNT.format(r.sides),
+      pct(r.team_same, r.sides),
+      pct(r.lines_same, r.sides),
+      pct(r.reb_same, r.sides),
+      pct(r.ast_same, r.sides),
+      r.worst
+    ])
+  )
+)
+
 await close()
 writeFileSync(mdFile, `${out.join('\n')}\n`)
 console.log(`${games.length} seasons, ${wrong} problems with games or teams`)

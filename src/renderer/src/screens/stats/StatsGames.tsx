@@ -1,0 +1,469 @@
+import { useMemo } from 'react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { StatsSelect } from '@/components/stats/controls'
+import { Loading, MiniTable, NavButton, SectionHead } from '@/components/stats/parts'
+import { useNoteContext } from '@/lib/dev/noteContext'
+import {
+  BOX_HEAD,
+  boxQueries,
+  boxSides,
+  compareRows,
+  defaultDay,
+  gameDays,
+  gameHeader,
+  noBoxNote,
+  periodTable,
+  railGames,
+  stepDay,
+  type BoxSide,
+  type GameHeader,
+  type GamesState,
+  type HeaderSide,
+  type RailGame
+} from '@/lib/stats/games'
+import { fullDay, moveToSeason, shortDay, type StatsScope } from '@/lib/stats/scope'
+import {
+  useGameDetail,
+  useSeasonGames,
+  useStatsQueries,
+  type StatsData
+} from '@/lib/stats/useStats'
+import { cn } from '@/lib/utils'
+import { seasonLabel } from '@shared/stats/seasons'
+import type { StatsGame } from '@shared/stats/types'
+
+/** A day's games on a date rail, and a game: its header, scores by period, comparison and box score. */
+export function StatsGames({
+  data,
+  scope,
+  onScope,
+  state,
+  onState,
+  onOpenTeam,
+  onOpenPlayer
+}: {
+  data: StatsData
+  scope: StatsScope
+  onScope: (scope: StatsScope) => void
+  state: GamesState
+  onState: (state: GamesState) => void
+  onOpenTeam: (team: string) => void
+  onOpenPlayer: (id: string) => void
+}): React.JSX.Element {
+  const { value: games, error } = useSeasonGames(scope.season, data.version)
+  const through = data.status?.through?.date ?? null
+  const named = games?.find((g) => g.id === state.game) ?? null
+  const days = useMemo(() => (games ? gameDays(games) : []), [games])
+  const date =
+    state.date !== null && days.includes(state.date)
+      ? state.date
+      : (named?.date ?? (games ? defaultDay(games) : null))
+  const rail = games ? railGames(games, date, through) : []
+  const game: StatsGame | null =
+    named && named.date === date
+      ? named
+      : (games?.find((g) => g.id === rail[0]?.id && g.date === date) ?? null)
+  useNoteContext(
+    'game',
+    game ? { label: `${game.away.code} @ ${game.home.code}`, data: { id: game.id } } : null
+  )
+
+  const goDay = (d: string | null): void => {
+    if (d !== null) onState({ date: d, game: null })
+  }
+  return (
+    <div className="flex min-h-0 flex-1">
+      <aside
+        aria-label="Games"
+        className="flex min-h-0 w-[240px] shrink-0 flex-col border-r border-line"
+      >
+        <div className="flex shrink-0 flex-col gap-[9px] border-b border-line px-3.5 pt-3 pb-2.5">
+          <StatsSelect
+            title="Season"
+            value={scope.season}
+            options={data.seasons.map((s) => ({ value: s.season, label: seasonLabel(s.season) }))}
+            onChange={(s) => {
+              onScope(moveToSeason(scope, s, data.seasons))
+              onState({ date: null, game: null })
+            }}
+            className="w-full"
+          />
+          <div className="flex items-center gap-1.5">
+            <NavButton
+              title="The day before"
+              disabled={stepDay(days, date, -1) === null}
+              onClick={() => goDay(stepDay(days, date, -1))}
+            >
+              <ChevronLeft className="size-3.5" />
+            </NavButton>
+            <StatsSelect
+              title="Day"
+              value={date ?? ''}
+              options={days.map((d) => ({ value: d, label: shortDay(d) }))}
+              onChange={goDay}
+              className="min-w-0 flex-1"
+            />
+            <NavButton
+              title="The day after"
+              disabled={stepDay(days, date, 1) === null}
+              onClick={() => goDay(stepDay(days, date, 1))}
+            >
+              <ChevronRight className="size-3.5" />
+            </NavButton>
+          </div>
+          <span className="font-mono text-[11px] leading-none text-fg-3">
+            {rail.length} {rail.length === 1 ? 'GAME' : 'GAMES'}
+            {date ? ` · ${fullDay(date).toUpperCase()}` : ''}
+          </span>
+        </div>
+        <div
+          role="list"
+          aria-label="The day’s games"
+          className="min-h-0 flex-1 overflow-auto [scrollbar-width:thin]"
+        >
+          {rail.map((r) => (
+            <RailItem
+              key={r.id}
+              game={r}
+              on={r.id === game?.id}
+              onClick={() => onState({ date, game: r.id })}
+            />
+          ))}
+        </div>
+      </aside>
+      <div className="min-w-0 flex-1 overflow-auto [scrollbar-width:thin]">
+        {error || !games ? (
+          <Loading error={error} />
+        ) : !game ? (
+          <div className="py-20 text-center text-[13px] text-fg-3">
+            No games on the schedule for {seasonLabel(scope.season)}.
+          </div>
+        ) : (
+          <GameBody
+            key={game.id}
+            game={game}
+            games={games}
+            data={data}
+            through={through}
+            onOpenTeam={onOpenTeam}
+            onOpenPlayer={onOpenPlayer}
+          />
+        )}
+      </div>
+    </div>
+  )
+}
+
+function RailItem({
+  game: g,
+  on,
+  onClick
+}: {
+  game: RailGame
+  on: boolean
+  onClick: () => void
+}): React.JSX.Element {
+  const line = (team: string, score: string, won: boolean, lost: boolean): React.JSX.Element => (
+    <span
+      className={cn(
+        'flex justify-between gap-2 font-mono text-[12.5px] leading-none tabular-nums',
+        won && 'font-semibold',
+        lost && 'text-fg-3'
+      )}
+    >
+      <span>{team}</span>
+      <span>{score}</span>
+    </span>
+  )
+  return (
+    <button
+      type="button"
+      role="listitem"
+      aria-current={on ? 'true' : undefined}
+      onClick={onClick}
+      className={cn(
+        'flex w-full cursor-pointer flex-col gap-[5px] border-b border-line-2 py-[9px] pr-3.5 pl-4 text-left',
+        on ? 'bg-sel' : 'hover:bg-hover'
+      )}
+    >
+      {line(g.away, g.awayScore, g.awayWon, g.played && !g.awayWon)}
+      {line(g.home, g.homeScore, g.homeWon, g.played && !g.homeWon)}
+      {(g.tag || g.note) && (
+        <span className="font-mono text-[10.5px] leading-none text-fg-3">
+          {[g.tag, g.note].filter(Boolean).join(' · ')}
+        </span>
+      )}
+    </button>
+  )
+}
+
+function GameBody({
+  game,
+  games,
+  data,
+  through,
+  onOpenTeam,
+  onOpenPlayer
+}: {
+  game: StatsGame
+  games: StatsGame[]
+  data: StatsData
+  through: string | null
+  onOpenTeam: (team: string) => void
+  onOpenPlayer: (id: string) => void
+}): React.JSX.Element {
+  const { value: detail } = useGameDetail(game.id, data.version)
+  const queries = useMemo(() => (game.hasBox ? boxQueries(game) : null), [game])
+  const { results, error } = useStatsQueries(queries, data.version)
+  const header = gameHeader(game, games, detail, through)
+  const periods = periodTable(game, detail)
+  const players = results?.get('players')
+  const teams = results?.get('teams')
+  const sides = players && teams ? boxSides(game, players, teams, data.byId) : null
+  const compare = teams ? compareRows(game, teams, data.byId) : []
+  return (
+    <div className="flex flex-col gap-[22px] px-8 pt-[22px] pb-8">
+      <Header view={header} onOpenTeam={onOpenTeam} />
+      {periods && (
+        <section className="flex max-w-[520px] flex-col gap-2 self-center">
+          <MiniTable
+            label="Score by period"
+            columns={`56px ${periods.head.map(() => '34px').join(' ')}`}
+            head={['', ...periods.head]}
+            rows={[
+              { key: 'away', code: game.away.code, cells: periods.away },
+              { key: 'home', code: game.home.code, cells: periods.home }
+            ].map((r) => ({
+              key: r.key,
+              cells: [
+                <span key="c" className="font-semibold">
+                  {r.code}
+                </span>,
+                ...r.cells.map((c, i) => (
+                  <span key={i} className={cn(i === r.cells.length - 1 && 'font-semibold')}>
+                    {c}
+                  </span>
+                ))
+              ]
+            }))}
+          />
+        </section>
+      )}
+      {!game.hasBox ? (
+        <div className="rounded-[8px] bg-panel-2 px-4 py-3 text-[13px] text-fg-2">
+          {noBoxNote(game, through)}
+        </div>
+      ) : !sides ? (
+        <Loading error={error} />
+      ) : (
+        <>
+          {sides.map((s) => (
+            <Box key={s.code} side={s} onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} />
+          ))}
+          <section className="flex max-w-[640px] flex-col gap-2 self-center" aria-label="The teams">
+            <SectionHead title="The teams" />
+            <MiniTable
+              label="The teams"
+              columns="minmax(200px,1fr) 72px 72px 150px"
+              head={['', game.away.code, game.home.code, '']}
+              left={[3]}
+              rows={compare.map((r) => ({
+                key: r.metric,
+                cells: [
+                  <span key="l" className="font-sans text-[12.5px] text-fg-2">
+                    {r.label}
+                  </span>,
+                  <span key="a" className={cn(r.edge === 'away' && 'font-semibold')}>
+                    {r.away}
+                  </span>,
+                  <span key="h" className={cn(r.edge === 'home' && 'font-semibold')}>
+                    {r.home}
+                  </span>,
+                  <span key="m" className="pl-3 font-sans text-[11.5px] text-fg-3">
+                    {r.missing ?? ''}
+                  </span>
+                ]
+              }))}
+            />
+          </section>
+        </>
+      )}
+    </div>
+  )
+}
+
+function Header({
+  view,
+  onOpenTeam
+}: {
+  view: GameHeader
+  onOpenTeam: (team: string) => void
+}): React.JSX.Element {
+  const side = (s: HeaderSide, home: boolean): React.JSX.Element => {
+    const body = (
+      <>
+        <span className={cn('flex flex-col gap-[7px]', home ? 'items-start' : 'items-end')}>
+          <span className="text-[34px] leading-[0.9] font-bold tracking-[-0.04em]">{s.code}</span>
+          <span className="text-[12.5px] leading-none text-fg-2">{s.name}</span>
+          {s.record && (
+            <span className="font-mono text-[11px] leading-none text-fg-3">
+              {s.record} before this game
+            </span>
+          )}
+          {s.form.length > 0 && (
+            <span className="flex gap-[3px]">
+              {s.form.map((f, i) => (
+                <span
+                  key={i}
+                  title={f.title}
+                  className={cn(
+                    'flex size-[17px] items-center justify-center rounded-[4px] font-mono text-[10px] font-semibold',
+                    f.result === 'W' ? 'bg-good-s text-good' : 'bg-bad-s text-bad'
+                  )}
+                >
+                  {f.result}
+                </span>
+              ))}
+            </span>
+          )}
+        </span>
+        {s.score && (
+          <span
+            data-score={s.code}
+            className={cn(
+              'font-cond text-[64px] leading-[0.8] font-extrabold tabular-nums',
+              s.lost && 'text-fg-3'
+            )}
+          >
+            {s.score}
+          </span>
+        )}
+      </>
+    )
+    const style = cn(
+      'flex items-center gap-[22px]',
+      home ? 'flex-row-reverse justify-end text-left' : 'justify-end text-right'
+    )
+    return s.id ? (
+      <button
+        type="button"
+        title={`Open the ${s.name} dashboard`}
+        onClick={() => s.id && onOpenTeam(s.id)}
+        className={cn(style, 'cursor-pointer')}
+      >
+        {body}
+      </button>
+    ) : (
+      <div className={style}>{body}</div>
+    )
+  }
+  return (
+    <header className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-7 border-b border-line pb-5">
+      {side(view.away, false)}
+      <div className="flex min-w-[190px] flex-col items-center gap-2 text-center">
+        <h1 className="m-0 rounded-[5px] bg-panel-2 px-[9px] py-[5px] font-mono text-[11px] leading-none font-semibold text-fg-2">
+          {view.status}
+        </h1>
+        <span className="text-[12px] leading-[1.35] text-fg-3">{view.line}</span>
+        {view.place && <span className="text-[12px] leading-[1.35] text-fg-3">{view.place}</span>}
+      </div>
+      {side(view.home, true)}
+    </header>
+  )
+}
+
+const BOX_COLUMNS = `minmax(190px,1.6fr) ${BOX_HEAD.map((h) =>
+  h === 'FG' || h === '3P' || h === 'FT' ? 'minmax(46px,1fr)' : 'minmax(38px,1fr)'
+).join(' ')}`
+
+function Box({
+  side,
+  onOpenPlayer,
+  onOpenTeam
+}: {
+  side: BoxSide
+  onOpenPlayer: (id: string) => void
+  onOpenTeam: (team: string) => void
+}): React.JSX.Element {
+  const player = (
+    r: BoxSide['starters'][number]
+  ): React.ComponentProps<typeof MiniTable>['rows'][number] => ({
+    key: r.id,
+    title: `Open ${r.name}’s dashboard`,
+    onOpen: () => onOpenPlayer(r.id),
+    cells: [
+      <span key="n" className="flex min-w-0 items-center gap-2 font-sans text-[13px] font-medium">
+        <span className="truncate">{r.name}</span>
+        {r.position && (
+          <span className="shrink-0 font-mono text-[10.5px] font-normal text-fg-3">
+            {r.position}
+          </span>
+        )}
+      </span>,
+      ...r.cells.map((c, i) => (
+        <span key={i} className={cn(i === r.cells.length - 1 && 'font-semibold')}>
+          {c}
+        </span>
+      ))
+    ]
+  })
+  const divider = (
+    key: string,
+    label: string
+  ): React.ComponentProps<typeof MiniTable>['rows'][number] => ({
+    key,
+    cells: [
+      <span
+        key="l"
+        className="font-sans text-[11px] font-semibold tracking-[0.04em] text-fg-3 uppercase"
+      >
+        {label}
+      </span>
+    ]
+  })
+  return (
+    <section className="flex flex-col gap-2" aria-label={`${side.code} box score`}>
+      <div className="flex items-baseline gap-2">
+        {side.id ? (
+          <button
+            type="button"
+            onClick={() => side.id && onOpenTeam(side.id)}
+            className="cursor-pointer text-[15px] leading-none font-semibold tracking-[-0.01em] hover:text-cobalt"
+          >
+            {side.name}
+          </button>
+        ) : (
+          <span className="text-[15px] leading-none font-semibold">{side.name}</span>
+        )}
+        <span className="text-[12px] leading-none text-fg-3">
+          {side.startersKnown ? 'Box score' : 'Box score · who started is not listed'}
+        </span>
+      </div>
+      <div className="overflow-x-auto">
+        <MiniTable
+          label={`${side.code} box score`}
+          columns={BOX_COLUMNS}
+          minWidth={960}
+          head={['Player', ...BOX_HEAD]}
+          rows={[
+            ...(side.startersKnown ? [divider('s', 'Starters')] : []),
+            ...side.starters.map(player),
+            ...(side.bench.length ? [divider('b', 'Bench')] : []),
+            ...side.bench.map(player),
+            {
+              key: 'totals',
+              strong: true,
+              cells: [
+                <span key="t" className="font-sans">
+                  Totals
+                </span>,
+                ...side.totals
+              ]
+            }
+          ]}
+        />
+      </div>
+      {side.shortfall && <div className="text-[12px] text-warn">{side.shortfall}</div>}
+    </section>
+  )
+}

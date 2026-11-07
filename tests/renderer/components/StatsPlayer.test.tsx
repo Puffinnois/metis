@@ -161,6 +161,7 @@ beforeEach(() => {
   vi.mocked(api.stats.seasons).mockResolvedValue(SEASONS)
   vi.mocked(api.stats.views).mockResolvedValue([])
   vi.mocked(api.stats.query).mockImplementation((q) => Promise.resolve(answer(q)))
+  vi.mocked(api.stats.game).mockResolvedValue(null)
   vi.mocked(api.stats.games).mockResolvedValue(GAMES)
   vi.mocked(api.stats.player).mockImplementation((id) =>
     Promise.resolve({
@@ -241,7 +242,7 @@ describe('the player dashboard', () => {
     expect(log.getByText('Total')).toBeTruthy()
     expect(screen.queryByText(/do not add up/)).toBeNull()
     fireEvent.click(log.getByRole('row', { name: /Jan 7/ }))
-    await screen.findByRole('heading', { name: 'Games' })
+    await screen.findByRole('complementary', { name: 'Games' })
   })
 
   it('asks the engine for each split, scoped to the player', async () => {

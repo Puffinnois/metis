@@ -5,6 +5,7 @@ import { useNoteScreen } from '@/lib/dev/noteContext'
 import { errorMessage } from '@/lib/format'
 import type { NavLocation } from '@/lib/navHistory'
 import type { BoardDef } from '@/lib/stats/boards'
+import { DEFAULT_GAMES, type GamesState } from '@/lib/stats/games'
 import { bestFirst, defaultBoard, normalizeBoard } from '@/lib/stats/leaderboard'
 import { defaultPlayer, railQuery, type PlayerTab } from '@/lib/stats/player'
 import { defaultScope, seasonOf, type StatsScope } from '@/lib/stats/scope'
@@ -12,6 +13,7 @@ import { NAV_ITEMS, type StatsScreen } from '@/lib/stats/screens'
 import { defaultTeam, defaultTeamQuery, type TeamTab } from '@/lib/stats/team'
 import { useStatsData, useStatsQuery } from '@/lib/stats/useStats'
 import { StatsData } from '@/screens/stats/StatsData'
+import { StatsGames } from '@/screens/stats/StatsGames'
 import { StatsGlossary } from '@/screens/stats/StatsGlossary'
 import { StatsHome } from '@/screens/stats/StatsHome'
 import { StatsLeaderboard, type LeaderboardOpen } from '@/screens/stats/StatsLeaderboard'
@@ -67,11 +69,14 @@ export function StatsApp({
   // The team dashboard: the team chosen this session, else the best record in scope.
   const [team, setTeam] = useState<string | null>(null)
   const [teamTab, setTeamTab] = useState<TeamTab>('overview')
+  // Games: the day and game chosen, kept for the session.
+  const [games, setGames] = useState<GamesState>(DEFAULT_GAMES)
   if (focus && focus.nonce !== focused) {
     setFocused(focus.nonce)
     setScreen(focus.location.screen)
     if (focus.location.player) setPlayer(focus.location.player.id)
     if (focus.location.team) setTeam(focus.location.team)
+    if (focus.location.game) setGames({ date: null, game: focus.location.game })
   }
   const [chosen, setChosen] = useState<StatsScope | null>(null)
   const scope = chosen ?? defaultScope(data.seasons, data.status)
@@ -115,15 +120,22 @@ export function StatsApp({
     setScreen('team')
   }
 
+  const openGame = (id: string): void => {
+    setGames({ date: null, game: id })
+    setScreen('games')
+  }
+
   const locationPlayer = screen === 'player' ? shownPlayer : null
   const locationTeam = screen === 'team' ? shownTeam : null
+  const locationGame = screen === 'games' ? games.game : null
   useEffect(() => {
     onLocation?.({
       screen,
       team: locationTeam,
-      player: locationPlayer === null ? null : { id: locationPlayer, position: null }
+      player: locationPlayer === null ? null : { id: locationPlayer, position: null },
+      ...(locationGame === null ? {} : { game: locationGame })
     })
-  }, [screen, locationPlayer, locationTeam, onLocation])
+  }, [screen, locationPlayer, locationTeam, locationGame, onLocation])
 
   useNoteScreen(screen)
 
@@ -218,7 +230,7 @@ export function StatsApp({
               tab={playerTab}
               onTab={setPlayerTab}
               onOpenTeam={openTeam}
-              onOpenGame={() => setScreen('games')}
+              onOpenGame={openGame}
               onOpenLeaderboard={() => setScreen('players')}
             />
           ) : (
@@ -238,13 +250,23 @@ export function StatsApp({
               onTab={setTeamTab}
               onOpenLeaderboard={() => setScreen('teams')}
               onOpenPlayer={openPlayer}
-              onOpenGame={() => setScreen('games')}
+              onOpenGame={openGame}
             />
           ) : (
             <div className="py-20 text-center text-[13px] text-fg-3">
               {bestTeam.error ?? 'Loading…'}
             </div>
           )
+        ) : screen === 'games' ? (
+          <StatsGames
+            data={data}
+            scope={scope}
+            onScope={setChosen}
+            state={games}
+            onState={setGames}
+            onOpenTeam={openTeam}
+            onOpenPlayer={openPlayer}
+          />
         ) : screen === 'standings' ? (
           <StatsStandings data={data} scope={scope} onScope={setChosen} onOpenTeam={openTeam} />
         ) : playerBoard || teamBoard ? (

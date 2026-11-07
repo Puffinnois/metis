@@ -124,7 +124,7 @@ The last is over the 500 ms a screen is allowed, and no screen asks it. Trends (
 | `standings(season)` | The published standings: `src_nba_standings`, or the dashboards' file for 1995-96                         |
 
 - **A side with no row in `team`** is an All-Star team or a touring club: its name comes from the NBA's schedule, then ESPN's.
-- **Overtime** is read from the team's minutes, 240 in regulation and 25 more per period. It matches ESPN's period on every game of 32 of 34 seasons checked, and in 2001-02 ESPN's undercounts: it has 30 overtime games to the box scores' 70.
+- **Overtime** is read from the team's minutes, 240 in regulation and 25 more per period. It matches ESPN's period on nearly every game, and in 2001-02 ESPN's undercounts: it has 30 overtime games to the box scores' 70.
 
 ## Sync
 
