@@ -1,0 +1,248 @@
+[
+  {
+    "size": [1500, 950]
+  },
+  {
+    "wait": 3500
+  },
+  {
+    "click": "Games"
+  },
+  {
+    "wait": 1800
+  },
+  {
+    "eval": "JSON.stringify({ status: document.querySelector('h1')?.textContent, rail: document.querySelectorAll('[aria-label=\"The day’s games\"] button').length, day: document.querySelector('aside span.font-mono')?.textContent, header: document.querySelector('header')?.innerText.replace(/\\n/g, ' | ') })"
+  },
+  {
+    "shot": "games-today"
+  },
+  {
+    "select": ["Season", "2026"]
+  },
+  {
+    "wait": 1800
+  },
+  {
+    "eval": "JSON.stringify({ status: document.querySelector('h1')?.textContent, day: document.querySelector('aside span.font-mono')?.textContent, header: document.querySelector('header')?.innerText.replace(/\\n/g, ' | '), periods: [...(document.querySelector('[aria-label=\"Score by period\"]')?.querySelectorAll('[role=row]') ?? [])].map((r) => r.innerText.replace(/\\n/g, ' ')) })"
+  },
+  {
+    "eval": "(() => { const num = (s) => Number((s ?? '').replace(/,/g, '')); return JSON.stringify([...document.querySelectorAll('section[aria-label$=\"box score\"]')].map((s) => { const rows = [...s.querySelectorAll('[role=row]')].slice(1); const cells = (r) => [...r.querySelectorAll('[role=cell]')].map((c) => c.textContent); const players = rows.filter((r) => r.tagName === 'BUTTON').map(cells); const total = cells(rows.find((r) => cells(r)[0] === 'Totals')); const at = (i) => players.reduce((a, c) => a + num(c[i]), 0); return { team: s.getAttribute('aria-label'), lines: players.length, score: document.querySelector('[data-score=\"' + s.getAttribute('aria-label').split(' ')[0] + '\"]')?.textContent, pts: [at(14), num(total[14])], reb: [at(7), num(total[7])], ast: [at(8), num(total[8])], tov: [at(11), num(total[11])], minutes: total[1] } })) })()"
+  },
+  {
+    "shot": "games-final"
+  },
+  {
+    "click": "[title='The day before']"
+  },
+  {
+    "wait": 1200
+  },
+  {
+    "eval": "JSON.stringify({ day: document.querySelector('aside span.font-mono')?.textContent, games: [...document.querySelectorAll('[aria-label=\"The day’s games\"] button')].map((b) => b.innerText.replace(/\\n/g, ' ')) })"
+  },
+  {
+    "select": ["Day", "2026-01-15"]
+  },
+  {
+    "wait": 1200
+  },
+  {
+    "eval": "JSON.stringify({ day: document.querySelector('aside span.font-mono')?.textContent, games: [...document.querySelectorAll('[aria-label=\"The day’s games\"] button')].map((b) => b.innerText.replace(/\\n/g, ' ')), header: document.querySelector('header')?.innerText.replace(/\\n/g, ' | ') })"
+  },
+  {
+    "shot": "games-regular"
+  },
+  {
+    "select": ["Day", "2025-10-02"]
+  },
+  {
+    "wait": 1000
+  },
+  {
+    "eval": "JSON.stringify({ games: [...document.querySelectorAll('[aria-label=\"The day’s games\"] button')].map((b) => b.innerText.replace(/\\n/g, ' ')).slice(0, 2), note: [...document.querySelectorAll('.bg-panel-2')].map((e) => e.textContent).filter((t) => /box score/.test(t)) })"
+  },
+  {
+    "shot": "games-preseason"
+  },
+  {
+    "select": ["Season", "2013"]
+  },
+  {
+    "wait": 1200
+  },
+  {
+    "select": ["Day", "2013-04-16"]
+  },
+  {
+    "wait": 1000
+  },
+  {
+    "eval": "(() => { const b = [...document.querySelectorAll('[aria-label=\"The day’s games\"] button')].find((x) => x.textContent.includes('IND')); if (!b) return 'NOT FOUND'; b.click(); return b.innerText.replace(/\\n/g, ' ') })()"
+  },
+  {
+    "wait": 800
+  },
+  {
+    "eval": "JSON.stringify({ status: document.querySelector('h1')?.textContent, note: [...document.querySelectorAll('.bg-panel-2')].map((e) => e.textContent).filter((t) => /played/.test(t)) })"
+  },
+  {
+    "shot": "games-cancelled"
+  },
+  {
+    "select": ["Season", "1995"]
+  },
+  {
+    "wait": 1200
+  },
+  {
+    "eval": "JSON.stringify({ status: document.querySelector('h1')?.textContent, line: document.querySelector('header')?.innerText.replace(/\\n/g, ' | '), compare: document.querySelector('[aria-label=\"The teams\"]')?.innerText.includes('Recorded from 2008-09.'), plusMinus: [...document.querySelector('section[aria-label$=\"box score\"]')?.querySelectorAll('button[role=row]') ?? []].slice(0, 1).map((r) => r.innerText.replace(/\\n/g, ' ')) })"
+  },
+  {
+    "shot": "games-1995"
+  },
+  {
+    "eval": "document.querySelector('nav button[title=\"Back\"], nav button[aria-label=\"Back\"]')?.getAttribute('aria-label')"
+  },
+  {
+    "select": ["Season", "1995"]
+  },
+  {
+    "wait": 900
+  },
+  {
+    "select": ["Day", "1995-01-10"]
+  },
+  {
+    "wait": 1100
+  },
+  {
+    "eval": "(() => { const num = (s) => Number((s ?? '').replace(/,/g, '')); return JSON.stringify({ day: document.querySelector('aside span.font-mono')?.textContent, sides: [...document.querySelectorAll('section[aria-label$=\"box score\"]')].map((s) => { const rows = [...s.querySelectorAll('[role=row]')].slice(1); const cells = (r) => [...r.querySelectorAll('[role=cell]')].map((c) => c.textContent); const players = rows.filter((r) => r.tagName === 'BUTTON').map(cells); const total = cells(rows.find((r) => cells(r)[0] === 'Totals')); const at = (i) => players.reduce((a, c) => a + num(c[i]), 0); const code = s.getAttribute('aria-label').split(' ')[0]; return [code, document.querySelector('[data-score=\"' + code + '\"]')?.textContent, at(14), total[14], total[1], s.querySelector('.text-warn')?.textContent ?? ''].join(' | ') }) }) })()"
+  },
+  {
+    "select": ["Season", "1995"]
+  },
+  {
+    "wait": 900
+  },
+  {
+    "select": ["Day", "1995-03-26"]
+  },
+  {
+    "wait": 1100
+  },
+  {
+    "eval": "(() => { const num = (s) => Number((s ?? '').replace(/,/g, '')); return JSON.stringify({ day: document.querySelector('aside span.font-mono')?.textContent, sides: [...document.querySelectorAll('section[aria-label$=\"box score\"]')].map((s) => { const rows = [...s.querySelectorAll('[role=row]')].slice(1); const cells = (r) => [...r.querySelectorAll('[role=cell]')].map((c) => c.textContent); const players = rows.filter((r) => r.tagName === 'BUTTON').map(cells); const total = cells(rows.find((r) => cells(r)[0] === 'Totals')); const at = (i) => players.reduce((a, c) => a + num(c[i]), 0); const code = s.getAttribute('aria-label').split(' ')[0]; return [code, document.querySelector('[data-score=\"' + code + '\"]')?.textContent, at(14), total[14], total[1], s.querySelector('.text-warn')?.textContent ?? ''].join(' | ') }) }) })()"
+  },
+  {
+    "select": ["Season", "2004"]
+  },
+  {
+    "wait": 900
+  },
+  {
+    "select": ["Day", "2004-02-03"]
+  },
+  {
+    "wait": 1100
+  },
+  {
+    "eval": "(() => { const num = (s) => Number((s ?? '').replace(/,/g, '')); return JSON.stringify({ day: document.querySelector('aside span.font-mono')?.textContent, sides: [...document.querySelectorAll('section[aria-label$=\"box score\"]')].map((s) => { const rows = [...s.querySelectorAll('[role=row]')].slice(1); const cells = (r) => [...r.querySelectorAll('[role=cell]')].map((c) => c.textContent); const players = rows.filter((r) => r.tagName === 'BUTTON').map(cells); const total = cells(rows.find((r) => cells(r)[0] === 'Totals')); const at = (i) => players.reduce((a, c) => a + num(c[i]), 0); const code = s.getAttribute('aria-label').split(' ')[0]; return [code, document.querySelector('[data-score=\"' + code + '\"]')?.textContent, at(14), total[14], total[1], s.querySelector('.text-warn')?.textContent ?? ''].join(' | ') }) }) })()"
+  },
+  {
+    "select": ["Season", "2020"]
+  },
+  {
+    "wait": 900
+  },
+  {
+    "select": ["Day", "2020-08-05"]
+  },
+  {
+    "wait": 1100
+  },
+  {
+    "eval": "(() => { const num = (s) => Number((s ?? '').replace(/,/g, '')); return JSON.stringify({ day: document.querySelector('aside span.font-mono')?.textContent, sides: [...document.querySelectorAll('section[aria-label$=\"box score\"]')].map((s) => { const rows = [...s.querySelectorAll('[role=row]')].slice(1); const cells = (r) => [...r.querySelectorAll('[role=cell]')].map((c) => c.textContent); const players = rows.filter((r) => r.tagName === 'BUTTON').map(cells); const total = cells(rows.find((r) => cells(r)[0] === 'Totals')); const at = (i) => players.reduce((a, c) => a + num(c[i]), 0); const code = s.getAttribute('aria-label').split(' ')[0]; return [code, document.querySelector('[data-score=\"' + code + '\"]')?.textContent, at(14), total[14], total[1], s.querySelector('.text-warn')?.textContent ?? ''].join(' | ') }) }) })()"
+  },
+  {
+    "select": ["Season", "2000"]
+  },
+  {
+    "wait": 900
+  },
+  {
+    "select": ["Day", "2000-02-15"]
+  },
+  {
+    "wait": 1100
+  },
+  {
+    "eval": "(() => { const num = (s) => Number((s ?? '').replace(/,/g, '')); return JSON.stringify({ day: document.querySelector('aside span.font-mono')?.textContent, sides: [...document.querySelectorAll('section[aria-label$=\"box score\"]')].map((s) => { const rows = [...s.querySelectorAll('[role=row]')].slice(1); const cells = (r) => [...r.querySelectorAll('[role=cell]')].map((c) => c.textContent); const players = rows.filter((r) => r.tagName === 'BUTTON').map(cells); const total = cells(rows.find((r) => cells(r)[0] === 'Totals')); const at = (i) => players.reduce((a, c) => a + num(c[i]), 0); const code = s.getAttribute('aria-label').split(' ')[0]; return [code, document.querySelector('[data-score=\"' + code + '\"]')?.textContent, at(14), total[14], total[1], s.querySelector('.text-warn')?.textContent ?? ''].join(' | ') }) }) })()"
+  },
+  {
+    "select": ["Season", "1995"]
+  },
+  {
+    "wait": 900
+  },
+  {
+    "select": ["Day", "1995-03-26"]
+  },
+  {
+    "wait": 900
+  },
+  {
+    "eval": "(() => { const b = [...document.querySelectorAll('[aria-label=\"The day’s games\"] button')].find((x) => x.textContent.includes('MIN')); if (!b) return 'NOT FOUND'; b.click(); return b.innerText.replace(/\\n/g, ' ') })()"
+  },
+  {
+    "wait": 1200
+  },
+  {
+    "eval": "(() => { const num = (s) => Number((s ?? '').replace(/,/g, '')); return JSON.stringify({ day: document.querySelector('aside span.font-mono')?.textContent, sides: [...document.querySelectorAll('section[aria-label$=\"box score\"]')].map((s) => { const rows = [...s.querySelectorAll('[role=row]')].slice(1); const cells = (r) => [...r.querySelectorAll('[role=cell]')].map((c) => c.textContent); const players = rows.filter((r) => r.tagName === 'BUTTON').map(cells); const total = cells(rows.find((r) => cells(r)[0] === 'Totals')); const at = (i) => players.reduce((a, c) => a + num(c[i]), 0); const code = s.getAttribute('aria-label').split(' ')[0]; return [code, document.querySelector('[data-score=\"' + code + '\"]')?.textContent, at(14), total[14], total[1], s.querySelector('.text-warn')?.textContent ?? ''].join(' | ') }) }) })()"
+  },
+  {
+    "shot": "games-shortfall"
+  },
+  {
+    "select": ["Season", "2025"]
+  },
+  {
+    "wait": 900
+  },
+  {
+    "select": ["Day", "2025-02-16"]
+  },
+  {
+    "wait": 900
+  },
+  {
+    "eval": "(() => { const b = [...document.querySelectorAll('[aria-label=\"The day’s games\"] button')].find((x) => x.textContent.includes('CHK')); if (!b) return 'NOT FOUND'; b.click(); return b.innerText.replace(/\\n/g, ' ') })()"
+  },
+  {
+    "wait": 1200
+  },
+  {
+    "eval": "JSON.stringify({ games: [...document.querySelectorAll('[aria-label=\"The day’s games\"] button')].map((b) => b.innerText.replace(/\\n/g, ' ')), header: document.querySelector('header')?.innerText.replace(/\\n/g, ' | '), boxes: [...document.querySelectorAll('section[aria-label$=\"box score\"]')].map((s) => s.getAttribute('aria-label')) })"
+  },
+  {
+    "eval": "(() => { const num = (s) => Number((s ?? '').replace(/,/g, '')); return JSON.stringify({ day: document.querySelector('aside span.font-mono')?.textContent, sides: [...document.querySelectorAll('section[aria-label$=\"box score\"]')].map((s) => { const rows = [...s.querySelectorAll('[role=row]')].slice(1); const cells = (r) => [...r.querySelectorAll('[role=cell]')].map((c) => c.textContent); const players = rows.filter((r) => r.tagName === 'BUTTON').map(cells); const total = cells(rows.find((r) => cells(r)[0] === 'Totals')); const at = (i) => players.reduce((a, c) => a + num(c[i]), 0); const code = s.getAttribute('aria-label').split(' ')[0]; return [code, document.querySelector('[data-score=\"' + code + '\"]')?.textContent, at(14), total[14], total[1], s.querySelector('.text-warn')?.textContent ?? ''].join(' | ') }) }) })()"
+  },
+  {
+    "shot": "games-all-star"
+  },
+  {
+    "select": ["Season", "2021"]
+  },
+  {
+    "wait": 900
+  },
+  {
+    "select": ["Day", "2021-05-16"]
+  },
+  {
+    "wait": 1200
+  },
+  {
+    "eval": "(() => { const num = (s) => Number((s ?? '').replace(/,/g, '')); return JSON.stringify({ day: document.querySelector('aside span.font-mono')?.textContent, sides: [...document.querySelectorAll('section[aria-label$=\"box score\"]')].map((s) => { const rows = [...s.querySelectorAll('[role=row]')].slice(1); const cells = (r) => [...r.querySelectorAll('[role=cell]')].map((c) => c.textContent); const players = rows.filter((r) => r.tagName === 'BUTTON').map(cells); const total = cells(rows.find((r) => cells(r)[0] === 'Totals')); const at = (i) => players.reduce((a, c) => a + num(c[i]), 0); const code = s.getAttribute('aria-label').split(' ')[0]; return [code, document.querySelector('[data-score=\"' + code + '\"]')?.textContent, at(14), total[14], total[1], s.querySelector('.text-warn')?.textContent ?? ''].join(' | ') }) }) })()"
+  }
+]

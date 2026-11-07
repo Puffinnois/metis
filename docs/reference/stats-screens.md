@@ -4,7 +4,7 @@ What each screen shows and where its numbers come from. Screens are added here a
 
 ## Shell
 
-- **Nav:** Leaderboards, Players, Teams, Standings, Explore and Games (not built yet), Glossary. Players and Teams open a dashboard, with the leaderboards a click on from it. Until the tables are built, every screen says what is loaded.
+- **Nav:** Leaderboards, Players, Teams, Standings, Explore (not built yet), Games, Glossary. Players and Teams open a dashboard, with the leaderboards a click on from it. Until the tables are built, every screen says what is loaded.
 - **Scope** (below): shared by every screen, and kept for the session.
 - **A refresh that rebuilds the tables** (`status.builtAt` changes) re-reads the seasons and runs every query on screen again. A status line ticking through a load does not.
 - **Status line** (`stats.status()`), read again as a load goes, at most once a second:
@@ -92,6 +92,19 @@ The NBA's published standings of a season, regular season only, by conference or
 | PPG, Opp, Diff | As published                                                                             |
 
 Published standings start in 1995-96, so 1993-94 and 1994-95 say that and show no table. Division tables read as four through 2003-04 and six after. The clinch marks are left off: see the traps in [nba-data-sources.md](nba-data-sources.md).
+
+## Games
+
+A day's games on a date rail, in place of the template's weeks. Opens on the latest day a game that counts was played, and a game opened from a log or a schedule opens on its day.
+
+- **Rail:** the season, the day (a list of days with a game, and the day before or after), then that day's games: away over home, the winner in bold, its type if not the regular season, overtime, "Not played".
+- **Header:** each team's name, score, its record and last five results before this game in the same kind of game, then the status (Final, Final/OT, Not played, Scheduled), the date, ESPN's note ("NBA Finals - Game 5"), the arena and the crowd. A team opens its dashboard.
+- **Score by period:** when ESPN has it and it adds up to the final score: through 2000-01 and from 2019-20.
+- **Box score:** one table a team, starters then bench, with minutes as a clock and made and attempted together. A player opens their dashboard. The totals are the team's own box score, and points the final score. With nobody flagged as starting, one list says who started is not listed. When the players' lines do not add up to the final score, the screen says so: 36 of 83,516 team-games.
+- **The teams:** twelve lines side by side, the better side in bold, with the reason where a stat did not exist yet.
+- **No box score:** preseason games have none in either source, and some old games and All-Star games have only a score, so the screen says that. It never fabricates a line.
+
+The engine reads one game by its id. A date and teams would not do: All-Star round robins play more than once a day.
 
 ## Glossary
 

@@ -230,6 +230,7 @@ beforeEach(() => {
   vi.mocked(api.stats.seasons).mockResolvedValue(SEASONS)
   vi.mocked(api.stats.views).mockResolvedValue([])
   vi.mocked(api.stats.query).mockImplementation((q) => Promise.resolve(answer(q)))
+  vi.mocked(api.stats.game).mockResolvedValue(null)
   vi.mocked(api.stats.games).mockImplementation((s) => Promise.resolve(GAMES[s] ?? []))
   vi.mocked(api.stats.standings).mockImplementation((s) =>
     Promise.resolve(s === 2009 ? [STANDING] : [])
@@ -315,7 +316,7 @@ describe('the team dashboard', () => {
     expect(schedule.getByText('1-0')).toBeTruthy()
     expect(schedule.getByText('1-1')).toBeTruthy()
     fireEvent.click(schedule.getByRole('row', { name: /Jan 5/ }))
-    await screen.findByRole('heading', { name: 'Games' })
+    await screen.findByRole('complementary', { name: 'Games' })
   })
 
   it('moves to the next team and to the leaderboards', async () => {
