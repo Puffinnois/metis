@@ -41,11 +41,18 @@ interface StatsAppProps {
   onBack?: () => void
 }
 
-/** What an empty screen says: it depends on what has been loaded. */
+/**
+ * What an empty screen says. A game date appears with the first box score, long before the load is
+ * done, so it does not mean the data is in: what is running decides, and a stopped load says so.
+ */
 function emptyScreenNote(status: StatsStatus | null): string {
   if (status?.builtAt) return 'This screen is not built yet.'
-  if (status?.through) return 'NBA data is loaded. The tables are still being built.'
-  if (status?.busy) return 'NBA data is loading.'
+  if (status?.noRoom) return 'Not enough disk space to load NBA data. See the Data panel.'
+  if (status?.paused) return 'Loading is paused. Resume it in the Data panel.'
+  if (status?.busy) {
+    return 'NBA data is loading. Screens open once the box scores are in and their tables are built.'
+  }
+  if (status?.through) return 'The tables are not built yet. Metis tries again on its next refresh.'
   return 'No stats yet: NBA data has not been loaded.'
 }
 

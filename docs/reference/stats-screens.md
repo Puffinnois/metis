@@ -4,7 +4,7 @@ What each screen shows and where its numbers come from. Screens are added here a
 
 ## Shell
 
-- **Nav:** Leaderboards, Players, Teams, Standings, Explore (not built yet), Games, Glossary. Players and Teams open a dashboard, with the leaderboards a click on from it. Until the tables are built, every screen says what is loaded.
+- **Nav:** Leaderboards, Players, Teams, Standings, Explore (not built yet), Games, Glossary. Players and Teams open a dashboard, with the leaderboards a click on from it. Until the tables are built, every screen says what the load is doing: loading, paused, out of disk space, or stopped until the next refresh.
 - **Scope** (below): shared by every screen, and kept for the session.
 - **A refresh that rebuilds the tables** (`status.builtAt` changes) re-reads the seasons and runs every query on screen again. A status line ticking through a load does not.
 - **Status line** (`stats.status()`), read again as a load goes, at most once a second:
