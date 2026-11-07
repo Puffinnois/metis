@@ -4,7 +4,7 @@ What each screen shows and where its numbers come from. Screens are added here a
 
 ## Shell
 
-- **Nav:** Leaderboards, Players, Teams, Explore and Games (not built yet), Glossary. Players opens a dashboard, with the leaderboards a click on from it. Until the tables are built, every screen says what is loaded.
+- **Nav:** Leaderboards, Players, Teams, Standings, Explore and Games (not built yet), Glossary. Players and Teams open a dashboard, with the leaderboards a click on from it. Until the tables are built, every screen says what is loaded.
 - **Scope** (below): shared by every screen, and kept for the session.
 - **A refresh that rebuilds the tables** (`status.builtAt` changes) re-reads the seasons and runs every query on screen again. A status line ticking through a load does not.
 - **Status line** (`stats.status()`), read again as a load goes, at most once a second:
@@ -29,7 +29,7 @@ The status line opens the Data panel.
 
 ## Leaderboards (home)
 
-Eight boards, the top six of each: points, rebounds, assists, threes made, steals, blocks, true shooting, and team net rating. Per game or totals, per game first. Per game, a count needs 70 % of the most games anyone played in scope: the NBA's own rule is 58 of 82, and reading it from the result holds for a date range too. A rate needs its own sample. "All →" opens the full leaderboard sorted by that metric, in the same mode. A player's row opens their dashboard; a team's opens the leaderboard with that row selected. Saved views are listed above the boards.
+Eight boards, the top six of each: points, rebounds, assists, threes made, steals, blocks, true shooting, and team net rating. Per game or totals, per game first. Per game, a count needs 70 % of the most games anyone played in scope: the NBA's own rule is 58 of 82, and reading it from the result holds for a date range too. A rate needs its own sample. "All →" opens the full leaderboard sorted by that metric, in the same mode. A row opens that player's or team's dashboard. Saved views are listed above the boards.
 
 ## Players and Teams
 
@@ -65,6 +65,33 @@ Opens on the league's leading scorer per game in scope, and stays on whoever is 
 - **Splits:** one engine query per split: home and road, wins and losses, started or off the bench, before and after the All-Star Game, rest, and the opponent's conference and division as that season had them; then by month and by opponent. A split with no games is left out. No ranks: they would need every player's query per split, and a small split's rank says little. Under Last games, each split reads its own last N.
 
 A player with no games in scope says so, and keeps their career.
+
+## Team dashboard
+
+Opens on the best record in scope, and stays on whoever is chosen when the season or range changes. A franchise is one NBA id across its moves, so moving from 2008-09 to 2007-08 turns Oklahoma City into Seattle. A season it did not play says so.
+
+- **Header:** the team, its record, points, points allowed and margin from the final scores of the games in scope, so a game with no box score still counts. Its place in the conference and division, from the published standings, in the regular season.
+- **Results strip:** the latest 15 games played in scope, then the next ones. A card opens the game.
+- **Mode:** Per game, Totals, Per 36, Per 48, Per 100, across the stat tabs.
+- **Overview:** who scores, per game, with their share of the team's points in the games they played, ordered by total points so one big night does not lead the team. The ratings, the next game, the margin by game, and the franchise by season under each season's name; a row opens that season.
+- **Offense, Defense:** titled lists of metrics with their percentile and rank among the teams. A stat with no value says why.
+- **Players:** everyone who played for the team in scope, most minutes first: a traded player's games here, not their season.
+- **Schedule:** every game in the scope's season type, with the result and the record after it. A game past its day with no score reads "Not played", like the one cancelled in 2013. A row opens the game.
+
+## Standings
+
+The NBA's published standings of a season, regular season only, by conference or by division. Nothing is recomputed. A row opens the team.
+
+| Shown          | From                                                                                     |
+| -------------- | ---------------------------------------------------------------------------------------- |
+| Rank           | `playoff_rank` or `division_rank`, as published: ties in old seasons stay ties           |
+| GB             | `conference_games_back` or `division_games_back`; the leader reads as a dash             |
+| Home, Road     | As published                                                                             |
+| Div, Conf      | As published, except 2003-04, whose file repeats the overall record: they read as a dash |
+| L10, Strk      | From 2001-02. Before it they read as a dash, and the screen says so                      |
+| PPG, Opp, Diff | As published                                                                             |
+
+Published standings start in 1995-96, so 1993-94 and 1994-95 say that and show no table. Division tables read as four through 2003-04 and six after. The clinch marks are left off: see the traps in [nba-data-sources.md](nba-data-sources.md).
 
 ## Glossary
 

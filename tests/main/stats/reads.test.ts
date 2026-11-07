@@ -190,14 +190,14 @@ describe('the standings', () => {
     conference VARCHAR, division VARCHAR, playoff_rank BIGINT, division_rank BIGINT, wins BIGINT,
     losses BIGINT, win_pct DOUBLE, conference_games_back DOUBLE, division_games_back DOUBLE,
     home VARCHAR, road VARCHAR, conference_record VARCHAR, division_record VARCHAR, l10 VARCHAR,
-    str_current_streak VARCHAR, clinch_indicator VARCHAR, points_pg DOUBLE, opp_points_pg DOUBLE`
+    str_current_streak VARCHAR, points_pg DOUBLE, opp_points_pg DOUBLE, diff_points_pg DOUBLE`
 
   it('reads the NBA’s file, trimming what it pads', async () => {
     await addSchedule()
     await db.exec(`CREATE TABLE src_nba_standings (${COLUMNS})`)
     await db.exec(`INSERT INTO src_nba_standings VALUES
       (${BOS}, 2026, 'Boston', 'Celtics', 'East', 'Atlantic', 2, 1, 56, 26, 0.683, 4, 0, '30-11',
-       '26-15', '36-16  ', '10-6', '8-2', 'W 2', ' - a', 114.9, 107.2)`)
+       '26-15', '36-16  ', '10-6', '8-2', 'W 2', 114.9, 107.2, 7.7)`)
     await expect(readStandings(db, 2026)).resolves.toEqual([
       {
         teamId: String(BOS),
@@ -218,9 +218,9 @@ describe('the standings', () => {
         divisionRecord: '10-6',
         last10: '8-2',
         streak: 'W 2',
-        clinch: 'a',
         pointsPerGame: 114.9,
-        allowedPerGame: 107.2
+        allowedPerGame: 107.2,
+        differential: 7.7
       }
     ])
   })
@@ -231,15 +231,27 @@ describe('the standings', () => {
     await db.exec(`CREATE TABLE src_dash_standings (${COLUMNS})`)
     await db.exec(`INSERT INTO src_dash_standings VALUES
       (${BOS}, 1996, 'Boston', 'Celtics', 'East', 'Atlantic', 11, 5, 33, 49, 0.402, 39, 27, '18-23',
-       '15-26', '22-32', '10-18', NULL, NULL, '', 107.0, 110.0)`)
+       '15-26', '22-32', '10-18', NULL, NULL, 107.0, 110.0, -3.0)`)
     const rows = await readStandings(db, 1996)
-    expect(rows[0]).toMatchObject({
-      wins: 33,
-      code: null,
-      last10: null,
-      streak: null,
-      clinch: null
+    expect(rows[0]).toMatchObject({ wins: 33, code: null, last10: null, streak: null })
+  })
+
+  it('reads a record that only repeats the overall one, on every team, as not published', async () => {
+    await addSchedule()
+    await db.exec(`CREATE TABLE src_nba_standings (team_id BIGINT, season INTEGER, wins BIGINT,
+      losses BIGINT, record VARCHAR, conference_record VARCHAR, division_record VARCHAR)`)
+    await db.exec(`INSERT INTO src_nba_standings VALUES
+      (${BOS}, 2004, 36, 46, '36-46', '36-46', '36-46'),
+      (${OKC}, 2004, 37, 45, '37-45', '37-45', '37-45'),
+      (${BOS}, 2027, 8, 1, '8-1', '8-1', '2-0'),
+      (${OKC}, 2027, 6, 2, '6-2', '5-2', '3-1')`)
+    expect((await readStandings(db, 2004))[0]).toMatchObject({
+      conferenceRecord: null,
+      divisionRecord: null
     })
+    // Early in a season a team can truly have played only its conference.
+    const now = await readStandings(db, 2027)
+    expect(now.map((r) => r.conferenceRecord).sort()).toEqual(['5-2', '8-1'])
   })
 
   it('is empty before they start, and with no file loaded', async () => {
