@@ -1,4 +1,4 @@
-import { coverageReason, covers } from '@shared/stats/catalogue'
+import { covers } from '@shared/stats/catalogue'
 import type { GroupBy, MetricValue, StatsQuery, StatsResult } from '@shared/stats/types'
 import type { StatsDb } from '../db'
 import { compileQuery, FULL_SEASON, StatsQueryError, type CompileContext } from './compile'
@@ -55,15 +55,15 @@ export async function runQuery(
   const seasons = [...new Set(query.scope.seasons)].sort((a, b) => a - b)
   return {
     grain: compiled.grain,
-    columns: compiled.metrics.map((m) => ({
+    columns: compiled.metrics.map((m, i) => ({
       id: m.id,
       label: m.label,
       short: m.short,
       unit: compiled.transform === 'percentile' ? 'number' : m.unit,
       decimals: m.decimals,
       direction: m.direction,
-      seasons: seasons.filter((s) => covers(m, s)),
-      reason: coverageReason(m, seasons)
+      seasons: compiled.gaps[i] === null ? seasons.filter((s) => covers(m, s)) : [],
+      reason: compiled.gaps[i]
     })),
     rows: rows.map((r) => ({
       id: String(r.id),

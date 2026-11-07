@@ -3,6 +3,11 @@ import type { MetricDef } from './types'
 
 type Coverage = Pick<MetricDef, 'firstSeason' | 'missingSeasons'>
 
+/** Why a metric published per season has no value under a filter that splits a season's games. */
+export const WHOLE_SEASONS_ONLY = 'Published for whole seasons only.'
+/** Why it has none for the play-in, the Cup final and the rest: the dataset publishes only these. */
+export const PUBLISHED_TYPES_ONLY = 'Published for the regular season and playoffs only.'
+
 /** Whether the source has real values for this metric in this season. */
 export const covers = (def: Coverage, season: number): boolean =>
   season >= def.firstSeason && !def.missingSeasons?.includes(season)

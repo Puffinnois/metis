@@ -71,6 +71,12 @@ export interface MetricDef {
   /** Seasons after it that the source does not have. */
   missingSeasons?: number[]
   tier: MetricTier
+  /**
+   * The published table a metric with no game behind it reads, from
+   * `src/main/stats/derived/publishedTables.ts`. Its components are that table's columns, so a rate
+   * divides by the games and minutes tracked, and it can only answer for whole seasons.
+   */
+  published?: string
 }
 
 /** A catalogue entry as the engine serves it: the formula left out, where it can be read added. */

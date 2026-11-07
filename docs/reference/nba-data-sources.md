@@ -195,6 +195,8 @@ So the box scores can be trusted season by season, and the sources cross-check. 
 - **Positions differ:** NBA `G`, `F`, `C`, `G-F`, `F-C`, `C-F`, `F-G`; ESPN mostly `G`, `F`, `C` with a few `PG`, `PF`, `SF`.
 - **`nba_stats_player_season_stats` is six measure types times two modes per player:** always filter `measure_type` and `per_mode`, or rows multiply.
 - **Some tables have no game grain.** The hustle and play-type files read have no game id: they are season totals, so a date range cannot be answered from them. `nba_stats_game_matchups` does have game ids.
+- **Hustle's games and minutes are its own.** They differ from the official games on 2,817 of 5,455 player-seasons from 2016-17 to 2025-26: James Harden's 2025-26 reads 70 in both, Dennis Schröder's 68 against 70. A rate has to divide by the tracked figure.
+- **Hustle's 2015-16 regular season is 2016-17 under the wrong label.** Every row of the 2016 regular-season files equals 2017's, on all 485 players and 30 teams, and 99 of those players did not play in 2015-16, such as Brandon Ingram, a rookie the next year. The 2016 playoff files differ and hold the right players. So the regular season reads from 2016-17 and the playoffs from 2015-16.
 - **`nba_player_impact` holds the dataset's own calculations,** not the original publishers' values. Its card names `sportsdataverse.nba.nba_rapm`, `nba_bpm` (BPM 2.0), `nba_war` and `nba_darko`. It leaves out play-in games. Its DARKO columns project the next season, and are null until two seasons are available. Label these as SportsDataverse's.
 
 ## stats.nba.com directly

@@ -92,8 +92,29 @@ No rate is stored. Every column is a count or a sum over the same games, divided
 - **Qualifying:** a metric's `minSample` is for 82 games and scales to the team games a row covers, so a short season or a date range qualifies fairly. A row per season reads its own season's games. Teams always qualify.
 - **Minimums:** 500 field-goal attempts for field-goal rates, 400 for two-point percentage, 200 three-point attempts, 125 free-throw attempts, 100 turnovers for assist-to-turnover, 1,000 minutes for the rest.
 - **Ranks and percentiles:** among qualified rows of the same position group, and of the same group when grouped.
-- **Coverage:** a metric with no season in scope reads null, and its column says why ("Recorded from 1996-97."). A query never fails over a gap, and a gap is never a zero.
+- **Coverage:** a metric with no season in scope reads null, and its column says why ("Recorded from 1996-97."). A query never fails over a gap, and a gap is never a zero. Sorted on such a column with only the qualified asked for, a table still lists its rows, since nothing could qualify.
 - **Grouping:** by season, team, opponent, month or game.
+- **Published metrics:** see below.
+
+### Metrics with no game behind them
+
+Hustle, tracking, play types and the rest are published per season, so they have only the season grain. A metric says so by naming its table in `published`, and its formula reads that table's columns. Each table is listed in `src/main/stats/derived/publishedTables.ts` and built by `derived/published.ts`: the source's rows of totals, keyed on player or team, season and game type, with `games`, `minutes` and `possessions` beside its own columns. They are created empty on every open, so a query before the published tier has arrived reads null instead of failing, and the `stats:published` step fills them once that tier is in. A family adds its table to the list and its metrics to the catalogue, with no engine change, and bumps `PUBLISHED_VERSION`.
+
+The engine sums a published table apart from the box scores and joins the result by row, so neither multiplies the other. A row's name, team, position and `games` still come from the box scores.
+
+| The query                                              | The metric answers                                                                      |
+| ------------------------------------------------------ | --------------------------------------------------------------------------------------- |
+| Whole seasons, regular season or playoffs              | The published totals, added across the seasons and types in scope                       |
+| A date range, last N, home or road, any game filter    | `null`: "Published for whole seasons only." The box-score columns beside it still read  |
+| Only the play-in, the Cup final, All-Star or preseason | `null`: "Published for the regular season and playoffs only."                           |
+| Per game, per 36, per 48                               | Divided by the games and minutes the source tracked, not the official ones              |
+| A divisor the source does not publish                  | `null`: "Published without games played.", "without minutes." or "without possessions." |
+| One team, for a traded player                          | `null`, with a note: their one row is the whole season, under their last team           |
+| Every team a traded player played for                  | Their whole season                                                                      |
+
+A team's published minutes are elapsed, about 48 a game, and its box-score minutes are all five players', about 240. Per 36 and per 48 read each correctly. A position or team filter holds, because a published row counts only for the seasons and types the row's box scores have in scope. Ranks and percentiles work as they do for any metric, among the players tracked.
+
+Measured on a copy of a full load, with hustle and tracking tables registered only for the check: 29,676 rows built in 62 ms, and ten box-score columns with five published ones from three tables took 152 ms, against 120 ms without them.
 
 Measured with `scripts/engine-speed.mjs` on the full database, in the worker, a season's worth of players:
 

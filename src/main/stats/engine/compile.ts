@@ -1,4 +1,11 @@
-import { componentsOf, covers, METRICS, TOKEN } from '@shared/stats/catalogue'
+import {
+  componentsOf,
+  coverageReason,
+  METRICS,
+  PUBLISHED_TYPES_ONLY,
+  TOKEN,
+  WHOLE_SEASONS_ONLY
+} from '@shared/stats/catalogue'
 import { seasonLabel } from '@shared/stats/seasons'
 import {
   GAME_TYPES,
@@ -10,6 +17,8 @@ import {
   type StatsQuery,
   type Transform
 } from '@shared/stats/types'
+import { publishedTable } from '../derived/published'
+import { PUBLISHED_GAME_TYPES } from '../derived/publishedTables'
 import { grainsOf } from './registry'
 
 /** A query the engine refuses, with a message a person can act on. */
@@ -63,6 +72,8 @@ export interface CompileContext {
 export interface Compiled {
   grain: Grain
   metrics: MetricDef[]
+  /** Per metric: why it has no answer to this query, or null when it has one. */
+  gaps: (string | null)[]
   transform: Transform
   gamesSql: string
   gamesParams: Value[]
@@ -150,6 +161,7 @@ function knownFields(value: unknown, fields: string[], what: string): void {
 
 interface Checked {
   metrics: MetricDef[]
+  gaps: (string | null)[]
   grain: Grain
   gameTypes: GameType[]
   transform: Transform
@@ -257,9 +269,46 @@ function validate(q: StatsQuery, ctx: CompileContext): Checked {
     groupBy.some((g) => g !== 'season')
   const grain: Grain = games ? 'game' : 'season'
   for (const m of metrics) {
-    if (!grainsOf(m).includes(grain)) fail(`"${m.id}" cannot be read at the ${grain} grain`)
+    const grains = grainsOf(m)
+    // A published metric under a filter that splits a season is a gap with a reason, not a refusal.
+    if (m.published && grains.length > 0) continue
+    if (!grains.includes(grain)) fail(`"${m.id}" cannot be read at the ${grain} grain`)
   }
-  return { metrics, grain, gameTypes, transform, groupBy }
+  const gaps = metrics.map((m) => gapOf(m, q, grain, gameTypes, transform))
+  return { metrics, gaps, grain, gameTypes, transform, groupBy }
+}
+
+/** What a published table can leave out, for the transform that needs it. */
+const UNPUBLISHED = {
+  games: 'Published without games played.',
+  minutes: 'Published without minutes.',
+  possessions: 'Published without possessions.'
+}
+
+/**
+ * Why a metric has no answer to this query; null when it has one. A season outside its coverage comes
+ * first, since no change of filter would answer that.
+ */
+function gapOf(
+  m: MetricDef,
+  q: StatsQuery,
+  grain: Grain,
+  gameTypes: GameType[],
+  transform: Transform
+): string | null {
+  const coverage = coverageReason(
+    m,
+    [...new Set(q.scope.seasons)].sort((a, b) => a - b)
+  )
+  if (coverage !== null || !m.published) return coverage
+  if (grain === 'game') return WHOLE_SEASONS_ONLY
+  if (!gameTypes.some((t) => PUBLISHED_GAME_TYPES.includes(t))) return PUBLISHED_TYPES_ONLY
+  const table = publishedTable(m.published)
+  for (const match of (perDivisor(m, transform, q.entity) ?? '').matchAll(TOKEN)) {
+    const part = match[1] as keyof typeof UNPUBLISHED
+    if (part in UNPUBLISHED && !table?.[part]) return UNPUBLISHED[part]
+  }
+  return null
 }
 
 /** The filters on a game, as conditions on `w`: the players' rows and the teams' have them all. */
@@ -289,42 +338,87 @@ function gameWhere(q: StatsQuery, params: Params): string[] {
 function perDivisor(m: MetricDef, transform: Transform, entity: 'player' | 'team'): string | null {
   if (m.aggregation !== 'sum' || m.totalOnly) return null
   if (m.perGameOnly && transform !== 'perGame') return null
+  // A team's published minutes are elapsed; its box-score minutes are all five players'.
+  const fives = entity === 'team' && !m.published ? ' / 5.0' : ''
   switch (transform) {
     case 'perGame':
       return `{${m.perGameBy ?? 'games'}}`
     case 'per36':
-      return entity === 'player' ? '{minutes} / 36.0' : '{minutes} / 5.0 / 36.0'
+      return `{minutes}${fives} / 36.0`
     case 'per48':
-      return entity === 'player' ? '{minutes} / 48.0' : '{minutes} / 5.0 / 48.0'
+      return `{minutes}${fives} / 48.0`
     case 'per100':
+      if (m.published) return '{possessions} / 100.0'
       return entity === 'player' ? '{on_poss} / 100.0' : '{poss_sym} / 100.0'
     default:
       return null
   }
 }
 
-/** A metric's formula, or NULL when no season in scope has it: a gap is never a fabricated zero. */
-function metricColumns(q: StatsQuery, c: Checked, sumOf: (component: string) => string): string[] {
-  const fill = (sql: string): string => sql.replace(TOKEN, (_, name: string) => sumOf(name))
+/**
+ * A metric's formula, or NULL when it has a gap: a gap is never a fabricated zero. `sumOf` reads a
+ * component from where this metric's sums are.
+ */
+function metricColumns(
+  q: StatsQuery,
+  c: Checked,
+  sumOf: (m: MetricDef, component: string) => string
+): string[] {
   return c.metrics.flatMap((m, i) => {
-    if (!q.scope.seasons.some((s) => covers(m, s))) {
-      return [`NULL::DOUBLE AS v${i}`, `NULL::DOUBLE AS s${i}`]
-    }
+    if (c.gaps[i] !== null) return [`NULL::DOUBLE AS v${i}`, `NULL::DOUBLE AS s${i}`]
     const by = perDivisor(m, c.transform, q.entity)
     const value = by ? `(${m.value}) / nullif(${by}, 0)` : m.value
-    return [`(${fill(value)})::DOUBLE AS v${i}`, `(${sumOf(m.sample)})::DOUBLE AS s${i}`]
+    const filled = value.replace(TOKEN, (_, name: string) => sumOf(m, name))
+    return [`(${filled})::DOUBLE AS v${i}`, `(${sumOf(m, m.sample)})::DOUBLE AS s${i}`]
   })
 }
 
-/** Every component a query reads. */
+/** The components a metric reads, in its own table, under this query's transform. */
+function partsOf(m: MetricDef, q: StatsQuery, c: Checked): string[] {
+  const by = perDivisor(m, c.transform, q.entity)
+  return [...componentsOf(m), ...(by ? [...by.matchAll(TOKEN)].map((match) => match[1]) : [])]
+}
+
+/** Every component a query reads from the box-score tables. */
 function neededComponents(q: StatsQuery, c: Checked): Set<string> {
   const needed = new Set(['games'])
   for (const m of c.metrics) {
-    for (const part of componentsOf(m)) needed.add(part)
-    const by = perDivisor(m, c.transform, q.entity)
-    if (by) for (const match of by.matchAll(TOKEN)) needed.add(match[1])
+    if (m.published) continue
+    for (const part of partsOf(m, q, c)) needed.add(part)
   }
   return needed
+}
+
+/**
+ * A published table's sums per output row, apart from the box scores so neither multiplies the other.
+ * It answers only for what the row's box scores have in scope, so a position or team filter holds. A
+ * traded player's row is their whole season: one team's part cannot be read from it, so it counts only
+ * when every team they played for that season is in scope.
+ */
+function publishedCte(
+  name: string,
+  table: string,
+  parts: Set<string>,
+  q: StatsQuery,
+  c: Checked,
+  params: Params
+): string {
+  const key = q.entity === 'player' ? 'player_id' : 'team_id'
+  const bySeason = c.groupBy.includes('season')
+  const whole =
+    q.entity === 'player' && q.scope.teams
+      ? `WHERE NOT EXISTS (
+           SELECT 1 FROM player_season o
+           WHERE o.player_id = w.player_id AND o.season = w.season AND o.game_type = w.game_type
+             AND o.team_id IS NOT NULL AND o.team_id NOT IN ${params.list(q.scope.teams.map(Number))})`
+      : ''
+  return `${name} AS (
+    SELECT w.${key} AS id, ${bySeason ? 'w.season AS g_season, ' : ''}
+           ${[...parts].map((p) => `sum(w.${p}) AS ${p}`).join(', ')}
+    FROM ${table} w
+    SEMI JOIN base b ON b.id = w.${key} AND b.season = w.season AND b.game_type = w.game_type
+    ${whole}
+    GROUP BY w.${key}${bySeason ? ', w.season' : ''})`
 }
 
 /** The rows in scope, summed per output row, with each metric's value and sample. */
@@ -367,7 +461,7 @@ function aggregate(q: StatsQuery, c: Checked, params: Params): string {
   }
   const teamColumn = player && season ? 'w.last_team_id' : 'w.team_id'
   const dimColumns = season
-    ? ''
+    ? 'w.game_type,'
     : `w.team_id AS team, w.opponent_id AS opponent, month(w.game_date) AS month, w.game_id AS game,`
   ctes.push(`base AS (
     SELECT w.${key} AS id, w.season, ${season ? 'w.last_date' : 'w.game_date'} AS ord,
@@ -381,10 +475,31 @@ function aggregate(q: StatsQuery, c: Checked, params: Params): string {
            arg_max(team_id, ord) AS team_id, max(season) AS last_season, mode(position) AS position,
            ${[...needed].map((n) => `sum(${n}) AS ${n}`).join(', ')}
     FROM base GROUP BY id${c.groupBy.map((d) => `, ${d}`).join('')})`)
+
+  // Only the tables some metric can answer from: under a game filter, none.
+  const published = new Map<string, Set<string>>()
+  c.metrics.forEach((m, i) => {
+    if (!m.published || c.gaps[i] !== null) return
+    const parts = published.get(m.published) ?? new Set<string>()
+    for (const part of partsOf(m, q, c)) parts.add(part)
+    published.set(m.published, parts)
+  })
+  const tables = [...published.keys()]
+  const alias = (table: string): string => `pub${tables.indexOf(table)}`
+  for (const [table, parts] of published) {
+    ctes.push(publishedCte(alias(table), table, parts, q, c, params))
+  }
+  const onSeason = (a: string): string =>
+    c.groupBy.includes('season') ? ` AND ${a}.g_season = s.g_season` : ''
+  const joins = tables.map(
+    (t) => `LEFT JOIN ${alias(t)} ON ${alias(t)}.id = s.id${onSeason(alias(t))}`
+  )
+  const sumOf = (m: MetricDef, n: string): string =>
+    m.published ? `${alias(m.published)}.${n}` : `s.${n}`
   ctes.push(`agg AS (
     SELECT s.id, ${c.groupBy.map((d) => `s.g_${d}, `).join('')} s.team_id, s.last_season, s.position,
-           s.games::DOUBLE AS games, ${metricColumns(q, c, (n) => `s.${n}`).join(', ')}
-    FROM sums s)`)
+           s.games::DOUBLE AS games, ${metricColumns(q, c, sumOf).join(', ')}
+    FROM sums s ${joins.join(' ')})`)
   return ctes.join(',\n')
 }
 
@@ -400,6 +515,22 @@ function notesOf(q: StatsQuery, c: Checked): string[] {
     if (gaps.length > 0) {
       notes.add(`${m.label}: not in the source for ${gaps.map(seasonLabel).join(', ')}.`)
     }
+    if (m.published && c.grain === 'game') {
+      notes.add(`${m.label}: published for whole seasons only.`)
+    }
+    if (m.published && c.gameTypes.some((t) => !PUBLISHED_GAME_TYPES.includes(t))) {
+      notes.add(`${m.label}: published for the regular season and playoffs only.`)
+    }
+  }
+  if (
+    q.entity === 'player' &&
+    s.teams &&
+    c.grain === 'season' &&
+    c.metrics.some((m) => m.published)
+  ) {
+    notes.add(
+      "A traded player's published numbers cover their whole season, so one team's part is blank."
+    )
   }
   if (s.allStarBreak) {
     notes.add('A season with no All-Star Game on the schedule has no games before or after one.')
@@ -473,7 +604,7 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
     FROM shaped x
     ${player ? 'LEFT JOIN player pl ON pl.player_id = x.id' : ''}
     LEFT JOIN team tm ON tm.team_id = x.team_id AND tm.season = x.last_season
-    ${q.scope.qualifiedOnly ? `WHERE q${sort}` : ''}
+    ${q.scope.qualifiedOnly && c.gaps[sort] === null ? `WHERE q${sort}` : ''}
     ORDER BY q${sort} DESC, t${sort} ${dir.toUpperCase()} NULLS LAST, name
     LIMIT ${q.limit ?? DEFAULT_LIMIT}`
 
@@ -490,6 +621,7 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
   return {
     grain: c.grain,
     metrics: c.metrics,
+    gaps: c.gaps,
     transform: c.transform,
     // The games a team played in scope, on average: teams can be a game or two apart mid-season.
     gamesSql: `SELECT ${bySeason ? 'w.season, ' : ''}

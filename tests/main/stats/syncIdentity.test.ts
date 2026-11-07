@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as derived from '@main/stats/derived/build'
+import * as published from '@main/stats/derived/published'
 import type { Downloads } from '@main/stats/download'
 import * as identity from '@main/stats/identity'
 import type { SourceFile } from '@main/stats/sources'
@@ -20,6 +21,14 @@ vi.mock('@main/stats/derived/build', () => ({
   buildDerived: vi.fn(async () => 11)
 }))
 
+vi.mock('@main/stats/derived/published', () => ({
+  canBuildPublished: vi.fn(() => true),
+  publishedStale: vi.fn(async () => false),
+  markPublishedStale: vi.fn(async () => undefined),
+  buildPublished: vi.fn(async () => 13),
+  publishedBootstrap: vi.fn(() => [])
+}))
+
 const NOW = new Date('2026-11-05T12:00:00Z')
 const CURRENT = 2027
 
@@ -38,8 +47,13 @@ const source = (id: string, tier: SourceFile['tier']): SourceFile => ({
 
 const CORE = source('core_file', 'core')
 const PUBLISHED = source('published_file', 'published')
+const EVENTS = source('events_file', 'events')
 
 beforeEach(() => {
+  vi.mocked(published.canBuildPublished).mockReturnValue(true)
+  vi.mocked(published.publishedStale).mockResolvedValue(false)
+  vi.mocked(published.markPublishedStale).mockClear()
+  vi.mocked(published.buildPublished).mockClear()
   vi.mocked(identity.canBuildIdentity).mockResolvedValue(true)
   vi.mocked(identity.identityStale).mockResolvedValue(false)
   vi.mocked(identity.buildIdentity).mockClear()
@@ -71,7 +85,8 @@ describe('the identity and derived steps', () => {
       'stats:core_file:2027',
       'stats:identity',
       'stats:derived',
-      'stats:published_file:2027'
+      'stats:published_file:2027',
+      'stats:published'
     ])
     expect(identity.buildIdentity).toHaveBeenCalledTimes(1)
     expect(derived.buildDerived).toHaveBeenCalledTimes(1)
@@ -98,7 +113,7 @@ describe('the identity and derived steps', () => {
 
   it('do not run when nothing in the core tier changed', async () => {
     const { steps } = await run([PUBLISHED])
-    expect(steps.map((s) => s.source)).toEqual(['stats:published_file:2027'])
+    expect(steps.map((s) => s.source)).toEqual(['stats:published_file:2027', 'stats:published'])
     expect(identity.buildIdentity).not.toHaveBeenCalled()
     expect(derived.buildDerived).not.toHaveBeenCalled()
   })
@@ -140,7 +155,58 @@ describe('the identity and derived steps', () => {
       ['stats:core_file:2027', 'ok', null],
       ['stats:identity', 'error', 'bad join'],
       ['stats:derived', 'error', 'bad sum'],
-      ['stats:published_file:2027', 'ok', null]
+      ['stats:published_file:2027', 'ok', null],
+      ['stats:published', 'ok', null]
+    ])
+  })
+})
+
+describe('the published step', () => {
+  it('runs once the published tier has loaded, before the events load', async () => {
+    const { steps } = await run([PUBLISHED, EVENTS])
+    expect(steps.map((s) => s.source)).toEqual([
+      'stats:published_file:2027',
+      'stats:published',
+      'stats:events_file:2027'
+    ])
+    expect(steps[1].rowsWritten).toBe(13)
+    expect(published.buildPublished).toHaveBeenCalledTimes(1)
+  })
+
+  it('marks the tables out of date before anything can stop the build', async () => {
+    await run([PUBLISHED])
+    expect(published.markPublishedStale).toHaveBeenCalledOnce()
+  })
+
+  it('does not run when nothing published changed', async () => {
+    const { steps } = await run([CORE, EVENTS])
+    expect(steps.map((s) => s.source)).not.toContain('stats:published')
+    expect(published.buildPublished).not.toHaveBeenCalled()
+    await run([PUBLISHED], [PUBLISHED])
+    expect(published.buildPublished).not.toHaveBeenCalled()
+  })
+
+  it('runs alone when a new version made the tables stale', async () => {
+    vi.mocked(published.publishedStale).mockResolvedValue(true)
+    const { steps } = await run([])
+    expect(steps.map((s) => s.source)).toEqual(['stats:published'])
+  })
+
+  it('logs nothing while there is no table to build', async () => {
+    vi.mocked(published.canBuildPublished).mockReturnValue(false)
+    vi.mocked(published.publishedStale).mockResolvedValue(true)
+    const { steps } = await run([PUBLISHED])
+    expect(steps.map((s) => s.source)).toEqual(['stats:published_file:2027'])
+    expect(published.markPublishedStale).not.toHaveBeenCalled()
+  })
+
+  it('logs a failure and carries on with the load', async () => {
+    vi.mocked(published.buildPublished).mockRejectedValueOnce(new Error('bad cast'))
+    const { steps } = await run([PUBLISHED, EVENTS])
+    expect(steps.map((s) => [s.source, s.status, s.message])).toEqual([
+      ['stats:published_file:2027', 'ok', null],
+      ['stats:published', 'error', 'bad cast'],
+      ['stats:events_file:2027', 'ok', null]
     ])
   })
 })

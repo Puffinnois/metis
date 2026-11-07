@@ -1,5 +1,11 @@
 import type { StatsDb } from './db'
 import { buildDerived, canDerive, derivedStale, markDerivedStale } from './derived/build'
+import {
+  buildPublished,
+  canBuildPublished,
+  markPublishedStale,
+  publishedStale
+} from './derived/published'
 import type { Downloads, FetchedFile } from './download'
 import { buildIdentity, canBuildIdentity, identityStale, markIdentityStale } from './identity'
 import { loadSourceFile } from './load'
@@ -29,6 +35,7 @@ export const STATS_LOG_PREFIX = 'stats:'
 export const STATS_IDENTITY_STEP = `${STATS_LOG_PREFIX}identity`
 /** Builds `player_game`, `team_game`, `player_season` and `team_season` from the identity tables. */
 export const STATS_DERIVED_STEP = `${STATS_LOG_PREFIX}derived`
+export const STATS_PUBLISHED_STEP = `${STATS_LOG_PREFIX}published`
 
 export interface StatsSyncDeps {
   db: StatsDb
@@ -225,6 +232,8 @@ export async function refreshStats(
   let fatal: string | undefined
   let coreWrote = false
   let built = false
+  let publishedWrote = false
+  let publishedBuilt = false
   const today = nowOf(deps)
   const current = currentSeason(today)
   const states = await readStates(db)
@@ -303,6 +312,19 @@ export async function refreshStats(
     }
   }
 
+  // Built once the published tier is in, so its numbers can be read while the events and plays load.
+  const runPublishedBuild = async (): Promise<void> => {
+    publishedBuilt = true
+    if (canBuildPublished() && (publishedWrote || (await publishedStale(db)))) {
+      log.push(
+        await runLogged(deps, STATS_PUBLISHED_STEP, async () => ({
+          rows: await buildPublished(db),
+          message: null
+        }))
+      )
+    }
+  }
+
   deps.onProgress?.(due.length > 0 ? { done: 0, total: due.length } : null)
   for (let i = 0; i < due.length; i++) {
     if (deps.cancelled?.()) break
@@ -311,6 +333,9 @@ export async function refreshStats(
     let entry: StatsLogEntry
     try {
       if (coreWrote && !built && step.source.tier !== 'core') await runBuilds()
+      if (publishedWrote && !publishedBuilt && step.source.tier !== 'published') {
+        await runPublishedBuild()
+      }
       entry = await runLogged(deps, stepLogName(step), async () => {
         const fetched = await fetches[i]
         if (!fetched.ok) throw fetched.error
@@ -343,13 +368,18 @@ export async function refreshStats(
       }
       coreWrote = true
     }
+    if (step.source.tier === 'published' && entry.status === 'ok' && entry.rowsWritten > 0) {
+      if (!publishedWrote && canBuildPublished()) await markPublishedStale(db)
+      publishedWrote = true
+    }
     deps.onProgress?.({ done: i + 1, total: due.length })
   }
   deps.onProgress?.(null)
   if (fatal !== undefined) return { steps: log, fatal }
-  if (!built && !deps.cancelled?.()) {
+  if ((!built || !publishedBuilt) && !deps.cancelled?.()) {
     try {
-      await runBuilds()
+      if (!built) await runBuilds()
+      if (!publishedBuilt) await runPublishedBuild()
     } catch (err) {
       return { steps: log, fatal: err instanceof Error ? err.message : String(err) }
     }
