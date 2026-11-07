@@ -319,8 +319,13 @@ describe('the metric catalogue', () => {
     expect(CATALOGUE.filter((m) => m.entity === 'team').length).toBeGreaterThan(90)
   })
 
-  it('computes every metric from components the tables hold, at both grains', () => {
+  it('computes every metric from components the tables hold, at the grains it has', () => {
     for (const m of CATALOGUE) {
+      // A published metric has only the season, and `grainsOf` checks its table holds the components.
+      if (m.published) {
+        expect(grainsOf(m), m.id).toEqual(['season'])
+        continue
+      }
       expect(grainsOf(m), m.id).toEqual(['game', 'season'])
       for (const c of componentsOf(m)) expect(COMPONENTS[m.entity], `${m.id}: ${c}`).toContain(c)
     }
