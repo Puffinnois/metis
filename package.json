@@ -1,7 +1,7 @@
 {
   "name": "metis",
   "productName": "Metis",
-  "version": "0.1.0",
+  "version": "0.4.0",
   "description": "Local-first NBA statistics desktop app",
   "main": "./out/main/index.js",
   "author": "yhabie",
