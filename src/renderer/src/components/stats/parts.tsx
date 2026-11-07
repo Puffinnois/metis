@@ -190,7 +190,11 @@ export function TabRow<T extends string>({
 }): React.JSX.Element {
   return (
     <div className="flex items-end justify-between gap-4 border-b border-line">
-      <div role="tablist" aria-label={label} className="flex gap-[22px]">
+      <div
+        role="tablist"
+        aria-label={label}
+        className="flex min-w-0 gap-[22px] overflow-x-auto [scrollbar-width:none]"
+      >
         {tabs.map((t) => (
           <button
             key={t.id}

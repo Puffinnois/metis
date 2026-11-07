@@ -130,6 +130,29 @@ Measured in the real window on the full database, from a click to its table on s
 
 Five of these clicks took 103 to 389 ms during play by play, the heaviest writes of a first load. The boards were on screen 175 seconds into a first load, and a screen never waits for the rest.
 
+The dashboards, measured the same way on a clean load's database with `scripts/stage6-speed-steps.json`. Where a screen has several queries, the time is until all of them are on screen.
+
+| Click                               | ms       |
+| ----------------------------------- | -------- |
+| Players, the dashboard              | 377      |
+| A player from the rail              | 315      |
+| Scoring, Shooting                   | 262, 230 |
+| Playmaking, Rebounding, Defense     | 144–160  |
+| Game log, 8 games and a full season | 154, 383 |
+| Splits, 8 games and a full season   | 302, 353 |
+| Overview, another season            | 295–296  |
+| Teams, the dashboard                | 175      |
+| Offense, Defense, Players           | 148–223  |
+| Schedule                            | 36       |
+| Next team, another season           | 132–172  |
+| Standings, another season           | 62–71    |
+| Games, with a box score             | 217      |
+| The day before, a day of the season | 152–156  |
+| Another of the day's games          | 151      |
+| Another season, Games               | 228      |
+
+The player dashboard was on screen 219 seconds into a first load, on the current season, with a team dashboard and a box score just after.
+
 ## Data panel
 
 What is loaded, from `stats.data()`. It reads again as a load goes.

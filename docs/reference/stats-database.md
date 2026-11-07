@@ -4,7 +4,7 @@
 
 ## Engine
 
-- One worker thread (`out/main/statsWorker.js`, `src/main/stats/worker.ts`) owns the file. The main process talks to it through `StatsClient` (`src/main/stats/client.ts`): `refresh`, `status`, `query`, `catalogue`, `seasons`, `selfTest`, `close`. Scripts also use `read`, which runs one SQL statement; the app does not expose it.
+- One worker thread (`out/main/statsWorker.js`, `src/main/stats/worker.ts`) owns the file. The main process talks to it through `StatsClient` (`src/main/stats/client.ts`): `refresh`, `status`, `query`, `catalogue`, `seasons`, `player`, `games`, `game`, `standings`, `selfTest`, `close`. Scripts also use `read`, which runs one SQL statement; the app does not expose it.
 - Writes run one after another. Reads run at once, each on its own connection, so a screen never waits behind a refresh.
 - DuckDB `@duckdb/node-api` 1.5.6. Parquet, JSON and ICU are built in, and no extension is ever downloaded.
 - Settings: `memory_limit` 1 GB, 2 threads, `preserve_insertion_order` off, spill files in `<userData>/stats-tmp/duckdb`.

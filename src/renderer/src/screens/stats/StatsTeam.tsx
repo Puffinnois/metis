@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Segmented, StatsSelect } from '@/components/stats/controls'
 import { GameChart } from '@/components/stats/GameChart'
@@ -131,7 +131,7 @@ export function StatsTeam({
         <button
           type="button"
           onClick={onOpenLeaderboard}
-          className="mb-2 cursor-pointer text-[12.5px] font-medium whitespace-nowrap text-fg-2 hover:text-cobalt"
+          className="mb-2 shrink-0 cursor-pointer text-[12.5px] font-medium whitespace-nowrap text-fg-2 hover:text-cobalt"
         >
           Team leaderboards →
         </button>
@@ -191,6 +191,12 @@ function Header({
   // Until the team's games arrive, no tile shows another team's record.
   const rec = games ? teamRecord(inScope) : null
   const cards = resultCards(inScope)
+  // The strip reads toward now: where it has to scroll, it starts at the latest games.
+  const strip = useRef<HTMLDivElement | null>(null)
+  const latest = cards.at(-1)?.key
+  useEffect(() => {
+    if (strip.current) strip.current.scrollLeft = strip.current.scrollWidth
+  }, [latest])
   const i = teams.findIndex((t) => t.id === team)
   const step = (d: number): void => {
     if (teams.length) onTeam(teams[(Math.max(i, 0) + d + teams.length) % teams.length].id)
@@ -255,7 +261,12 @@ function Header({
         </div>
       </div>
       {cards.length > 0 && (
-        <div className="flex gap-1.5 overflow-x-auto pb-1" role="list" aria-label="Results">
+        <div
+          ref={strip}
+          className="flex gap-1.5 overflow-x-auto pb-1"
+          role="list"
+          aria-label="Results"
+        >
           {cards.map((c) => (
             <button
               key={c.key}

@@ -1,0 +1,32 @@
+[
+  { "size": [1500, 950] },
+  {
+    "eval": "window.has = (s) => document.querySelector(s) !== null; window.statusText = () => [...document.querySelectorAll('nav button')].find((b) => b.title === 'See what is loaded')?.textContent ?? ''; window.nav = (name) => [...document.querySelectorAll('nav button')].find((b) => b.textContent.trim() === name).click(); window.until = async (ready, limitMin) => { const t0 = Date.now(); while (!ready()) { if (Date.now() - t0 > limitMin * 60000) return false; await new Promise((r) => setTimeout(r, 1000)) } return true }; 'status at launch: ' + statusText()"
+  },
+  { "click": "Players" },
+  {
+    "eval": "(async () => { await until(() => { if (!has('[data-metric=pts]') && !has('aside')) nav('Players'); return has('[data-metric=pts]') }, 20); return 'player dashboard on screen ' + Math.round(performance.now() / 1000) + ' s after launch: ' + statusText() + ' / ' + document.querySelector('h1')?.innerText.replace(/\\n/g, ' ') })()"
+  },
+  { "shot": "load-first-dashboard" },
+  { "click": "Teams" },
+  {
+    "eval": "(async () => { await until(() => has('[data-metric=team_ortg]'), 5); return 'team dashboard during the load: ' + statusText() + ' / ' + document.querySelector('h1')?.textContent })()"
+  },
+  { "click": "Games" },
+  {
+    "eval": "(async () => { await until(() => has('section[aria-label$=\"box score\"] button[role=row]'), 5); return 'a box score during the load: ' + statusText() })()"
+  },
+  {
+    "eval": "(async () => { const done = await until(() => { const m = /updating ([\\d,]+) of ([\\d,]+)/.exec(statusText()); return !m || Number(m[1].replace(/,/g, '')) >= Number(m[2].replace(/,/g, '')) - 50 }, 45); return 'near the end, play by play: ' + done + ' / ' + statusText() })()"
+  },
+  { "click": "Players" },
+  {
+    "eval": "(async () => { const t0 = performance.now(); await until(() => has('[data-metric=pts]') && has('[aria-label=\"Career by season\"]'), 2); return 'Players during play by play: ' + Math.round(performance.now() - t0) + ' ms (polled each second) / ' + statusText() })()"
+  },
+  { "shot": "load-during-plays" },
+  {
+    "eval": "(async () => { const done = await until(() => /updated/.test(statusText()), 45); return 'load finished: ' + done + ' at ' + Math.round(performance.now() / 60000 * 10) / 10 + ' min / ' + statusText() })()"
+  },
+  { "wait": 4000 },
+  { "shot": "load-finished" }
+]
