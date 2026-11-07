@@ -1,0 +1,96 @@
+[
+  { "size": [1500, 950] },
+  { "wait": 3500 },
+  {
+    "eval": "window.has = (s) => document.querySelector(s) !== null; window.tab = (n) => () => document.querySelector(`[role=tablist] [role=tab]:nth-child(${n})`).click(); window.nav = (name) => () => [...document.querySelectorAll('nav button')].find((b) => b.textContent.trim() === name).click(); window.pick = (title, value) => () => { const el = [...document.querySelectorAll('select')].find((x) => x.title === title); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(el, value); el.dispatchEvent(new Event('change', { bubbles: true })) }; window.timed = async (label, click, ready) => { const t0 = performance.now(); click(); await new Promise((r) => setTimeout(r)); while (!ready()) { if (performance.now() > t0 + 15000) return label + ': TIMED OUT'; await new Promise((r) => setTimeout(r, 4)) } await new Promise((r) => requestAnimationFrame(() => setTimeout(r))); return label + ': ' + Math.round(performance.now() - t0) + ' ms' }; 'ready'"
+  },
+  {
+    "eval": "timed('Players, the dashboard', nav('Players'), () => has('[data-metric=pts]') && has('[aria-label=\"Career by season\"]') && has('aside button[aria-current]'))"
+  },
+  { "wait": 300 },
+  {
+    "eval": "timed('A player from the rail', () => [...document.querySelectorAll('aside button')].find((b) => b.textContent.includes('Stephen Curry')).click(), () => has('[data-metric=pts]') && has('[aria-label=\"Career by season\"]'))"
+  },
+  { "wait": 300 },
+  { "eval": "timed('Scoring', tab(2), () => has('[data-metric=share_pts]'))" },
+  { "wait": 200 },
+  { "eval": "timed('Shooting', tab(3), () => has('[data-metric=fg_pts_per_fga]'))" },
+  { "wait": 200 },
+  { "eval": "timed('Playmaking', tab(4), () => has('[data-metric=ast_tov]'))" },
+  { "wait": 200 },
+  { "eval": "timed('Rebounding', tab(5), () => has('[data-metric=trb_pct]'))" },
+  { "wait": 200 },
+  { "eval": "timed('Defense', tab(6), () => has('[data-metric=stl_pct]'))" },
+  { "wait": 200 },
+  {
+    "eval": "timed('Game log', tab(7), () => has('[aria-label=\"Game log\"]') && [...document.querySelectorAll('[aria-label=\"Game log\"] [role=cell]')].some((c) => c.textContent === 'Total'))"
+  },
+  { "wait": 200 },
+  { "eval": "timed('Splits', tab(8), () => has('[aria-label=\"By opponent\"]'))" },
+  { "wait": 200 },
+  {
+    "eval": "timed('Overview', tab(1), () => has('[data-metric=pts]') && has('[aria-label=\"Career by season\"]'))"
+  },
+  { "wait": 200 },
+  {
+    "eval": "timed('Another season, Overview', pick('Season', '2016'), () => has('[data-metric=pts]') && has('[aria-label=\"Career by season\"]') && has('aside button[aria-current]'))"
+  },
+  { "wait": 300 },
+  { "eval": "timed('Splits, a full season', tab(8), () => has('[aria-label=\"By opponent\"]'))" },
+  { "wait": 300 },
+  {
+    "eval": "timed('Game log, a full season', tab(7), () => [...document.querySelectorAll('[aria-label=\"Game log\"] [role=cell]')].some((c) => c.textContent === 'Total'))"
+  },
+  { "wait": 300 },
+  {
+    "eval": "timed('Teams, the dashboard', nav('Teams'), () => has('[data-metric=team_ortg]') && has('[aria-label=\"Who scores\"]') && has('[aria-label=\"Season by season\"]') && has('[aria-label=Results]'))"
+  },
+  { "wait": 300 },
+  { "eval": "timed('Offense', tab(2), () => has('[data-metric=team_share_pts_3pt]'))" },
+  { "wait": 200 },
+  { "eval": "timed('Defense, team', tab(3), () => has('[data-metric=team_pf]'))" },
+  { "wait": 200 },
+  { "eval": "timed('Players, team', tab(4), () => has('[aria-label=Players] button[role=row]'))" },
+  { "wait": 200 },
+  { "eval": "timed('Schedule', tab(5), () => has('[aria-label=Schedule] button[role=row]'))" },
+  { "wait": 200 },
+  {
+    "eval": "timed('Overview, team', tab(1), () => has('[data-metric=team_ortg]') && has('[aria-label=\"Season by season\"]'))"
+  },
+  { "wait": 200 },
+  {
+    "eval": "timed('Next team', () => document.querySelector('[aria-label=\"Next team\"]').click(), () => has('[data-metric=team_ortg]') && has('[aria-label=\"Who scores\"]') && has('[aria-label=\"Season by season\"]'))"
+  },
+  { "wait": 300 },
+  {
+    "eval": "timed('Another season, team', pick('Season', '2008'), () => has('[data-metric=team_ortg]') && has('[aria-label=\"Who scores\"]') && has('[aria-label=\"Season by season\"]'))"
+  },
+  { "wait": 300 },
+  {
+    "eval": "timed('Standings', nav('Standings'), () => has('[aria-label=\"East standings\"] button[role=row]'))"
+  },
+  { "wait": 200 },
+  {
+    "eval": "timed('Another season, standings', pick('Season', '2026'), () => has('[aria-label=\"East standings\"] button[role=row]'))"
+  },
+  { "wait": 200 },
+  {
+    "eval": "timed('Games, a box score', nav('Games'), () => has('[aria-label=\"The day’s games\"] button') && has('[data-score]') && has('section[aria-label$=\"box score\"] button[role=row]') && has('[aria-label=\"The teams\"]'))"
+  },
+  { "wait": 300 },
+  {
+    "eval": "timed('The day before', () => document.querySelector('[aria-label=\"The day before\"]').click(), () => has('section[aria-label$=\"box score\"] button[role=row]') && has('[aria-label=\"The teams\"]'))"
+  },
+  { "wait": 300 },
+  {
+    "eval": "timed('A day of the season', pick('Day', '2026-01-15'), () => document.querySelectorAll('[aria-label=\"The day’s games\"] button').length === 9 && has('section[aria-label$=\"box score\"] button[role=row]'))"
+  },
+  { "wait": 300 },
+  {
+    "eval": "timed('Another of the day’s games', () => document.querySelectorAll('[aria-label=\"The day’s games\"] button')[3].click(), () => document.querySelectorAll('[aria-label=\"The day’s games\"] button')[3].getAttribute('aria-current') === 'true' && has('section[aria-label$=\"box score\"] button[role=row]'))"
+  },
+  { "wait": 300 },
+  {
+    "eval": "timed('Another season, games', pick('Season', '2005'), () => has('section[aria-label$=\"box score\"] button[role=row]'))"
+  }
+]

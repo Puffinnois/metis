@@ -231,6 +231,15 @@ describe('the player dashboard', () => {
     expect(screen.queryByText('Efficiency')).toBeNull()
   })
 
+  it('says so when a career has no games of the type, and draws no empty table', async () => {
+    vi.mocked(api.stats.query).mockImplementation((q) =>
+      Promise.resolve(q.limit === 100 ? { ...answer(q), rows: [] } : answer(q))
+    )
+    await openDashboard()
+    expect(await screen.findByText('No games in regular season in any season.')).toBeTruthy()
+    expect(screen.getByText('Career by season')).toBeTruthy()
+  })
+
   it('reads every game of the log, with its total, and opens a game', async () => {
     await openDashboard()
     fireEvent.click(screen.getByRole('tab', { name: 'Game log' }))

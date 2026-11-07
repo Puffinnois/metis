@@ -168,7 +168,7 @@ export function StatsPlayer({
               <button
                 type="button"
                 onClick={onOpenLeaderboard}
-                className="mb-2 cursor-pointer text-[12.5px] font-medium whitespace-nowrap text-fg-2 hover:text-cobalt"
+                className="mb-2 shrink-0 cursor-pointer text-[12.5px] font-medium whitespace-nowrap text-fg-2 hover:text-cobalt"
               >
                 Player leaderboards →
               </button>
@@ -382,7 +382,7 @@ function Overview({
           <Notes notes={result?.notes ?? []} />
         </>
       )}
-      <Career data={data} scope={scope} player={player} info={info} mode={mode} />
+      <Career data={data} scope={scope} player={player} mode={mode} />
     </div>
   )
 }
@@ -392,9 +392,8 @@ function Career({
   data,
   scope,
   player,
-  info,
   mode
-}: Pick<TabProps, 'data' | 'scope' | 'player' | 'info' | 'mode'>): React.JSX.Element {
+}: Pick<TabProps, 'data' | 'scope' | 'player' | 'mode'>): React.JSX.Element {
   const seasons = useMemo(() => data.seasons.map((s) => s.season), [data.seasons])
   const queries = useMemo(
     () =>
@@ -443,11 +442,14 @@ function Career({
     <section className="flex flex-col gap-2.5">
       <SectionHead
         title="Career by season"
-        note={`${typeLabel(scope.seasonType)} · their last team that season${
-          info?.seasons.length ? '' : ' · nothing in this type'
-        }`}
+        note={`${typeLabel(scope.seasonType)} · their last team that season`}
       />
-      <div className="overflow-x-auto">
+      {rows.length === 0 && (
+        <p className="m-0 text-[12.5px] text-fg-3">
+          No games in {typeLabel(scope.seasonType).toLowerCase()} in any season.
+        </p>
+      )}
+      <div className={cn('overflow-x-auto', rows.length === 0 && 'hidden')}>
         <MiniTable
           label="Career by season"
           columns={`minmax(72px,1fr) 44px 40px ${head.map(() => 'minmax(52px,1fr)').join(' ')}`}
@@ -511,8 +513,11 @@ function GameLog({ data, scope, player, onOpenGame }: TabProps): React.JSX.Eleme
       <div className="overflow-x-auto">
         <MiniTable
           label="Game log"
-          columns={`52px 64px 42px 104px ${LOG_COLUMNS.map((c) => (c.pair ? 'minmax(48px,1fr)' : 'minmax(40px,1fr)')).join(' ')}`}
-          minWidth={1300}
+          columns={`52px 64px 42px 104px ${LOG_COLUMNS.map((c) =>
+            // "100.0%" and "11-23" need more room than a count.
+            c.pair || c.metric?.endsWith('_pct') ? 'minmax(52px,1fr)' : 'minmax(40px,1fr)'
+          ).join(' ')}`}
+          minWidth={1340}
           head={['Date', 'Opp', 'Team', 'Result', ...LOG_COLUMNS.map((c) => c.label)]}
           left={[1, 2, 3]}
           rows={[
