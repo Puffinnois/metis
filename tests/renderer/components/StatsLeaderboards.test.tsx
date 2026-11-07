@@ -17,6 +17,7 @@ vi.mock('@/lib/api', () => ({
       query: vi.fn(),
       player: vi.fn(),
       games: vi.fn(),
+      standings: vi.fn(),
       views: vi.fn(),
       saveView: vi.fn(),
       deleteView: vi.fn(),
@@ -132,6 +133,7 @@ beforeEach(() => {
   vi.mocked(api.stats.query).mockReset()
   vi.mocked(api.stats.query).mockImplementation(async (q) => answer(q))
   vi.mocked(api.stats.games).mockResolvedValue([])
+  vi.mocked(api.stats.standings).mockResolvedValue([])
   vi.mocked(api.stats.player).mockImplementation(async (id) => ({
     id,
     name: 'Luka Dončić',
@@ -333,6 +335,8 @@ describe('the leaderboard', () => {
   it('reads a team table with no qualifier and no player columns', async () => {
     renderApp()
     fireEvent.click(await screen.findByRole('button', { name: 'Teams' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Team leaderboards →' }))
+    await screen.findByRole('heading', { name: /team offense leaderboard/ })
     await screen.findByText('Luka Dončić')
     expect(screen.queryByRole('button', { name: /Qualified only/ })).toBeNull()
     expect(screen.queryByRole('combobox', { name: 'Team' })).toBeNull()

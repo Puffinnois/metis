@@ -683,6 +683,68 @@ out.push(
   )
 )
 
+// The published standings, which the Standings screen and a team's header read.
+const standings = await read(`WITH e AS (
+    SELECT s.season, t.team_id,
+      max(value) FILTER (stat_name = 'wins') AS wins,
+      max(value) FILTER (stat_name = 'losses') AS losses,
+      max(value) FILTER (stat_name = 'gamesBehind') AS gb,
+      max(display_value) FILTER (stat_name = 'streak') AS streak
+    FROM src_espn_standings s JOIN team t ON t.espn_team_id = s.team_id AND t.season = s.season
+    WHERE s.season = s.file_season
+    GROUP BY 1, 2
+  ), leader AS (
+    SELECT season, conference, arg_min(wins, playoff_rank) AS w, arg_min(losses, playoff_rank) AS l
+    FROM src_dash_standings GROUP BY 1, 2
+  )
+  SELECT d.season, count(*) AS teams,
+    count(*) FILTER (d.wins = b.wins AND d.losses = b.losses) AS box,
+    count(n.team_id) AS nba,
+    count(*) FILTER (n.wins = d.wins AND n.losses = d.losses AND n.playoff_rank = d.playoff_rank
+      AND n.conference_games_back = d.conference_games_back
+      AND n.current_streak IS NOT DISTINCT FROM d.current_streak) AS nba_same,
+    count(e.team_id) AS espn,
+    count(*) FILTER (e.wins = d.wins AND e.losses = d.losses) AS espn_record,
+    count(*) FILTER (e.gb = d.conference_games_back) AS espn_gb,
+    count(*) FILTER (replace(d.str_current_streak, ' ', '') = e.streak) AS espn_streak,
+    count(*) FILTER (d.conference_games_back
+      = ((l.w - d.wins) + (d.losses - l.l)) / 2.0) AS arithmetic
+  FROM src_dash_standings d
+  LEFT JOIN team_season b ON b.team_id = d.team_id AND b.season = d.season AND b.game_type = 'regular'
+  LEFT JOIN src_nba_standings n ON n.team_id = d.team_id AND n.season = d.season
+  LEFT JOIN e ON e.team_id = d.team_id AND e.season = d.season
+  LEFT JOIN leader l ON l.season = d.season AND l.conference = d.conference
+  GROUP BY 1 ORDER BY 1`)
+out.push(
+  '',
+  '## The published standings',
+  '',
+  "`nba_stats_standings`, and the league dashboards' file, which alone reaches 1995-96. Percentages are of each season's teams. **Box scores:** wins and losses against `team_season`. **NBA's file:** the same record, rank, games back and streak as the dashboards'. **ESPN:** `espn_nba_standings`, from 2001-02. **By the record:** games back worked out from the conference leader's record. The last ten and the streak start in 2001-02. In 2003-04 the NBA's file repeats the overall record as the conference and division records, so the screen reads those as not published.",
+  '',
+  table(
+    [
+      'Season',
+      'Teams',
+      'Box scores %',
+      "NBA's file %",
+      'ESPN record %',
+      'ESPN games back %',
+      'ESPN streak %',
+      'By the record %'
+    ],
+    standings.map((r) => [
+      label(r.season),
+      r.teams,
+      pct(r.box, r.teams),
+      r.nba ? pct(r.nba_same, r.nba) : '–',
+      r.espn ? pct(r.espn_record, r.espn) : '–',
+      r.espn ? pct(r.espn_gb, r.espn) : '–',
+      r.espn ? pct(r.espn_streak, r.espn) : '–',
+      pct(r.arithmetic, r.teams)
+    ])
+  )
+)
+
 await close()
 writeFileSync(mdFile, `${out.join('\n')}\n`)
 console.log(`${games.length} seasons, ${wrong} problems with games or teams`)

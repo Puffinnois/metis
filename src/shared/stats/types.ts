@@ -282,10 +282,9 @@ export interface StatsStanding {
   last10: string | null
   /** "W 3", from 2001-02. */
   streak: string | null
-  /** The source's clinch letters: `x`, `e`, `pi`. */
-  clinch: string | null
   pointsPerGame: number | null
   allowedPerGame: number | null
+  differential: number | null
 }
 
 /** The totals modes a table offers; a ratio reads the same in each. */

@@ -1,0 +1,104 @@
+[
+  { "size": [1500, 950] },
+  { "wait": 3500 },
+  { "click": "Standings" },
+  { "wait": 1200 },
+  { "select": ["Season", "2026"] },
+  { "wait": 900 },
+  {
+    "eval": "'S2026 ' + JSON.stringify([...document.querySelectorAll('[role=table]')].map((t) => [t.getAttribute('aria-label'), [...t.querySelectorAll('[role=row]')].slice(1).map((r) => [...r.querySelectorAll('[role=cell]')].map((c) => c.textContent).join('|'))]))"
+  },
+  { "shot": "standings-2026" },
+  { "click": "Division" },
+  { "wait": 300 },
+  {
+    "eval": "[...document.querySelectorAll('h2')].map((h) => h.textContent).join(', ')"
+  },
+  { "shot": "standings-division" },
+  { "click": "Conference" },
+  { "select": ["Season", "2004"] },
+  { "wait": 900 },
+  {
+    "eval": "'S2004 ' + JSON.stringify([...document.querySelectorAll('[role=table]')].map((t) => [t.getAttribute('aria-label'), [...t.querySelectorAll('[role=row]')].slice(1).map((r) => [...r.querySelectorAll('[role=cell]')].map((c) => c.textContent).join('|'))]))"
+  },
+  { "click": "Division" },
+  { "wait": 300 },
+  {
+    "eval": "[...document.querySelectorAll('h2')].map((h) => h.textContent).join(', ')"
+  },
+  { "click": "Conference" },
+  { "select": ["Season", "1996"] },
+  { "wait": 900 },
+  {
+    "eval": "'S1996 ' + JSON.stringify([...document.querySelectorAll('[role=table]')].map((t) => [t.getAttribute('aria-label'), [...t.querySelectorAll('[role=row]')].slice(1).map((r) => [...r.querySelectorAll('[role=cell]')].map((c) => c.textContent).join('|'))]))"
+  },
+  { "eval": "document.querySelector('main').innerText.split('\\n').slice(-1)[0]" },
+  { "shot": "standings-1996" },
+  { "select": ["Season", "1995"] },
+  { "wait": 900 },
+  {
+    "eval": "[...document.querySelectorAll('main .text-fg-3')].map((e) => e.textContent).filter((t) => /Published/.test(t)).join(' / ')"
+  },
+  { "select": ["Season", "2009"] },
+  { "wait": 900 },
+  {
+    "eval": "(() => { const b = [...document.querySelectorAll('button[role=row]')].find((x) => x.textContent.includes('Oklahoma City')); if (!b) return 'NOT FOUND'; b.click(); return 'opened' })()"
+  },
+  { "wait": 2000 },
+  {
+    "eval": "JSON.stringify({ h1: document.querySelector('h1')?.textContent, line: document.querySelector('header span.truncate')?.textContent, tiles: [...document.querySelectorAll('header .font-cond')].map((t) => t.textContent), strip: document.querySelectorAll('[aria-label=Results] button').length, lines: document.querySelectorAll('[data-metric]').length })"
+  },
+  { "shot": "team-okc-2009" },
+  {
+    "eval": "[...document.querySelector('[aria-label=\"Season by season\"]').querySelectorAll('[role=row]')].map((r) => r.innerText.replace(/\\n/g, ' ')).filter((t) => /2005-06|2006-07|2007-08|2008-09|2009-10/.test(t)).join(' // ')"
+  },
+  { "select": ["Season", "2008"] },
+  { "wait": 1500 },
+  {
+    "eval": "JSON.stringify({ h1: document.querySelector('h1')?.textContent, line: document.querySelector('header span.truncate')?.textContent, tiles: [...document.querySelectorAll('header .font-cond')].map((t) => t.textContent), scorers: [...document.querySelector('[aria-label=\"Who scores\"]').querySelectorAll('[role=row]')].slice(1, 4).map((r) => r.innerText.replace(/\\n/g, ' ')) })"
+  },
+  { "shot": "team-sea-2008" },
+  { "click": "[role=tablist] [role=tab]:nth-child(2)" },
+  { "wait": 900 },
+  { "shot": "team-offense" },
+  { "click": "[role=tablist] [role=tab]:nth-child(4)" },
+  { "wait": 1000 },
+  { "shot": "team-players" },
+  { "click": "[role=tablist] [role=tab]:nth-child(5)" },
+  { "wait": 500 },
+  { "shot": "team-schedule" },
+  { "select": ["Season", "2013"] },
+  { "wait": 800 },
+  { "select": ["Team", "1610612738"] },
+  { "wait": 1200 },
+  {
+    "eval": "JSON.stringify({ h1: document.querySelector('h1')?.textContent, rows: document.querySelectorAll('[aria-label=Schedule] button[role=row]').length, notPlayed: [...document.querySelectorAll('[aria-label=Schedule] button[role=row]')].filter((r) => r.textContent.includes('Not played')).map((r) => r.innerText.replace(/\\n/g, ' ')), last: [...document.querySelectorAll('[aria-label=Schedule] button[role=row]')].at(-1)?.innerText.replace(/\\n/g, ' ') })"
+  },
+  { "select": ["Season", "2018"] },
+  { "wait": 800 },
+  { "click": "[role=tablist] [role=tab]:nth-child(2)" },
+  { "wait": 900 },
+  {
+    "eval": "document.querySelector('[data-metric=team_paint_pts]')?.innerText.replace(/\\n/g, ' | ')"
+  },
+  { "select": ["Season", "1995"] },
+  { "wait": 1000 },
+  {
+    "eval": "document.querySelector('[data-metric=team_paint_pts]')?.innerText.replace(/\\n/g, ' | ')"
+  },
+  { "select": ["Season", "2002"] },
+  { "wait": 800 },
+  { "select": ["Team", "1610612766"] },
+  { "wait": 1000 },
+  { "select": ["Season", "2003"] },
+  { "wait": 1200 },
+  {
+    "eval": "JSON.stringify({ h1: document.querySelector('h1')?.textContent, note: [...document.querySelectorAll('.bg-panel-2')].map((e) => e.textContent).filter((t) => /did not play|no games/.test(t)) })"
+  },
+  { "shot": "team-gap" },
+  { "click": "[role=tablist] [role=tab]:nth-child(1)" },
+  { "wait": 1300 },
+  {
+    "eval": "[...document.querySelector('[aria-label=\"Season by season\"]').querySelectorAll('[role=row]')].map((r) => r.innerText.replace(/\\n/g, ' ')).filter((t) => /2001-02|2002-03|2003-04|2004-05|2005-06/.test(t)).join(' // ')"
+  }
+]

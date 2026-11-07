@@ -216,8 +216,8 @@ export async function readGame(db: StatsDb, id: string): Promise<StatsGameDetail
 }
 
 /**
- * The published standings. The NBA's file is in the core tier and holds 1996-97 on; the league
- * dashboards' repeats it on every column read, and only it reaches 1995-96.
+ * The published standings. The NBA's file is in the core tier and holds 1996-97 on. The league
+ * dashboards' agrees with it on the record, rank, games back and streak, and only it reaches 1995-96.
  */
 export async function readStandings(db: StatsDb, season: number): Promise<StatsStanding[]> {
   const have = await inspect(db)
@@ -235,6 +235,7 @@ export async function readStandings(db: StatsDb, season: number): Promise<StatsS
       division_rank: number | null
       wins: number
       losses: number
+      record: string | null
       win_pct: number | null
       conference_gb: number | null
       division_gb: number | null
@@ -244,16 +245,16 @@ export async function readStandings(db: StatsDb, season: number): Promise<StatsS
       division_record: string | null
       last10: string | null
       streak: string | null
-      clinch: string | null
       ppg: number | null
       allowed: number | null
+      diff: number | null
     }>(
       `SELECT s.team_id, tm.code,
               coalesce(nullif(trim(concat_ws(' ', ${txt('team_city')}, ${txt('team_name')})), ''), tm.name)
                 AS name,
               ${txt('conference')} AS conference, ${txt('division')} AS division,
               ${num('playoff_rank')} AS conference_rank, ${num('division_rank')} AS division_rank,
-              ${num('wins')} AS wins, ${num('losses')} AS losses,
+              ${num('wins')} AS wins, ${num('losses')} AS losses, ${txt('record')} AS record,
               ${num('win_pct', 'DOUBLE')} AS win_pct,
               ${num('conference_games_back', 'DOUBLE')} AS conference_gb,
               ${num('division_games_back', 'DOUBLE')} AS division_gb,
@@ -261,14 +262,19 @@ export async function readStandings(db: StatsDb, season: number): Promise<StatsS
               ${txt('conference_record')} AS conference_record,
               ${txt('division_record')} AS division_record,
               ${txt('l10')} AS last10, ${txt('str_current_streak')} AS streak,
-              nullif(trim(ltrim(${column(have, t, 's', 'clinch_indicator', 'VARCHAR')}, ' -')), '') AS clinch,
-              ${num('points_pg', 'DOUBLE')} AS ppg, ${num('opp_points_pg', 'DOUBLE')} AS allowed
+              ${num('points_pg', 'DOUBLE')} AS ppg, ${num('opp_points_pg', 'DOUBLE')} AS allowed,
+              ${num('diff_points_pg', 'DOUBLE')} AS diff
        FROM ${t} s LEFT JOIN team tm ON tm.team_id = s.team_id AND tm.season = s.season
        WHERE s.season = ?
        ORDER BY conference, conference_rank`,
       [season]
     )
     if (rows.length > 0) {
+      // In 2003-04 the file repeats the overall record as both of these, for every team.
+      const repeats = (column_: 'conference_record' | 'division_record'): boolean =>
+        rows.length > 1 && rows.every((r) => r[column_] === r.record)
+      const noConference = repeats('conference_record')
+      const noDivision = repeats('division_record')
       return rows.map((r) => ({
         teamId: String(r.team_id),
         code: r.code,
@@ -284,13 +290,13 @@ export async function readStandings(db: StatsDb, season: number): Promise<StatsS
         divisionGamesBack: r.division_gb,
         home: r.home,
         road: r.road,
-        conferenceRecord: r.conference_record,
-        divisionRecord: r.division_record,
+        conferenceRecord: noConference ? null : r.conference_record,
+        divisionRecord: noDivision ? null : r.division_record,
         last10: r.last10,
         streak: r.streak,
-        clinch: r.clinch,
         pointsPerGame: r.ppg,
-        allowedPerGame: r.allowed
+        allowedPerGame: r.allowed,
+        differential: r.diff
       }))
     }
   }
