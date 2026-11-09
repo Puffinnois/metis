@@ -18,7 +18,15 @@ import { queryScope, shortDay, type StatsScope } from './scope'
 /** The player dashboard: a rail to pick from, a header, and one set of tabs for every position. */
 
 export type PlayerTab =
-  'overview' | 'scoring' | 'shooting' | 'playmaking' | 'rebounding' | 'defense' | 'log' | 'splits'
+  | 'overview'
+  | 'scoring'
+  | 'shooting'
+  | 'playmaking'
+  | 'rebounding'
+  | 'defense'
+  | 'tracking'
+  | 'log'
+  | 'splits'
 
 export const PLAYER_DASH_TABS: { id: PlayerTab; label: string }[] = [
   { id: 'overview', label: 'Overview' },
@@ -27,6 +35,7 @@ export const PLAYER_DASH_TABS: { id: PlayerTab; label: string }[] = [
   { id: 'playmaking', label: 'Playmaking' },
   { id: 'rebounding', label: 'Rebounding' },
   { id: 'defense', label: 'Defense' },
+  { id: 'tracking', label: 'Tracking' },
   { id: 'log', label: 'Game log' },
   { id: 'splits', label: 'Splits' }
 ]
@@ -90,6 +99,66 @@ export const TAB_SECTIONS: Record<
     },
     { title: 'Share of the team', metrics: ['share_stl', 'share_blk', 'share_pf'] },
     { title: 'On the floor', metrics: ['plus_minus', 'win_pct', 'w', 'l'] }
+  ],
+  // The NBA's optical tracking, from 2013-14, for whole seasons only.
+  tracking: [
+    {
+      title: 'Movement',
+      note: 'Tracked from 2013-14',
+      metrics: ['dist_miles', 'avg_speed', 'avg_speed_off', 'avg_speed_def']
+    },
+    {
+      title: 'On the ball',
+      metrics: ['touches', 'time_of_poss', 'sec_per_touch', 'drib_per_touch', 'pts_per_touch']
+    },
+    {
+      title: 'Drives',
+      metrics: [
+        'drives',
+        'drive_fg_pct',
+        'drive_pts_per_drive',
+        'drive_ast_pct',
+        'drive_tov_pct',
+        'drive_pf_pct'
+      ]
+    },
+    {
+      title: 'Passing',
+      metrics: ['passes_made', 'potential_ast', 'secondary_ast', 'ast_pts_created', 'ast_per_pass']
+    },
+    {
+      title: 'Shot types',
+      metrics: [
+        'catch_shoot_fga',
+        'catch_shoot_efg_pct',
+        'catch_shoot_fg3_pct',
+        'pull_up_fga',
+        'pull_up_efg_pct',
+        'pull_up_fg3_pct'
+      ]
+    },
+    {
+      title: 'Touches by area',
+      metrics: [
+        'elbow_touches',
+        'elbow_touch_pts_per_touch',
+        'post_touches',
+        'post_touch_pts_per_touch',
+        'paint_touches',
+        'paint_touch_pts_per_touch'
+      ]
+    },
+    {
+      title: 'Rebounding',
+      metrics: [
+        'reb_chances',
+        'reb_chance_pct',
+        'reb_chance_pct_adj',
+        'reb_contest_pct',
+        'avg_reb_dist'
+      ]
+    },
+    { title: 'Rim defense', metrics: ['def_rim_fga', 'def_rim_fg_pct'] }
   ]
 }
 

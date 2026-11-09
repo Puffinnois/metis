@@ -6,7 +6,14 @@ import { familyLabel } from '@/lib/stats/format'
 import { searchKey } from '@/lib/stats/leaderboard'
 import type { MetricFamily, MetricInfo } from '@shared/stats/types'
 
-const FAMILIES: MetricFamily[] = ['traditional', 'shooting', 'possessions', 'scoring', 'composite']
+const FAMILIES: MetricFamily[] = [
+  'traditional',
+  'shooting',
+  'possessions',
+  'scoring',
+  'composite',
+  'tracking'
+]
 
 /** Every metric the screens show, by family or search, with its sample, seasons and source. */
 export function StatsGlossary({ catalogue }: { catalogue: MetricInfo[] }): React.JSX.Element {

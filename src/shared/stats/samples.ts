@@ -29,7 +29,31 @@ export const SAMPLE_LABELS: Readonly<Record<string, string>> = {
   turnover_pts: 'points off turnovers',
   opp_paint_pts: 'points in the paint allowed',
   opp_fast_break_pts: 'fast-break points allowed',
-  opp_turnover_pts: 'points off turnovers allowed'
+  opp_turnover_pts: 'points off turnovers allowed',
+  touches: 'touches',
+  drives: 'drives',
+  drive_fga: 'field-goal attempts on drives',
+  drive_fta: 'free-throw attempts on drives',
+  passes_made: 'passes',
+  potential_ast: 'potential assists',
+  reb_chances: 'rebound chances',
+  oreb_chances: 'offensive rebound chances',
+  dreb_chances: 'defensive rebound chances',
+  catch_shoot_fga: 'catch-and-shoot attempts',
+  catch_shoot_fg3_a: 'catch-and-shoot threes',
+  pull_up_fga: 'pull-up attempts',
+  pull_up_fg3_a: 'pull-up threes',
+  elbow_touches: 'elbow touches',
+  post_touches: 'post touches',
+  paint_touches: 'paint touches',
+  elbow_touch_fga: 'attempts after an elbow touch',
+  post_touch_fga: 'attempts after a post touch',
+  paint_touch_fga: 'attempts after a paint touch',
+  elbow_touch_fta: 'free-throw attempts after an elbow touch',
+  post_touch_fta: 'free-throw attempts after a post touch',
+  paint_touch_fta: 'free-throw attempts after a paint touch',
+  elbow_touch_passes: 'passes after an elbow touch',
+  def_rim_fga: 'rim attempts defended'
 }
 
 /** The words for a sample component; its name, spaced, for one not listed. */

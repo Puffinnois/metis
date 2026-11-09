@@ -16,7 +16,8 @@ export const POSITION_GROUPS = ['G', 'F', 'C'] as const
 export type PositionGroup = (typeof POSITION_GROUPS)[number]
 
 /** The sections of the statistics reference; one file each in `src/shared/stats/catalogue/`. */
-export type MetricFamily = 'traditional' | 'shooting' | 'possessions' | 'scoring' | 'composite'
+export type MetricFamily =
+  'traditional' | 'shooting' | 'possessions' | 'scoring' | 'composite' | 'tracking'
 
 /** `core` shown by default, `extended` in its family and the column picker, `stored` in queries only. */
 export type MetricTier = 'core' | 'extended' | 'stored'
