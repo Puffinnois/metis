@@ -124,6 +124,108 @@ export const MISC_POINTS = [
   'opp_pts_paint'
 ] as const
 
+/** Optical tracking starts in 2013-14; the catch-and-shoot and pull-up files hold zeros before it. */
+export const TRACKING_FIRST_SEASON = 2014
+
+/** The three touch areas, each with its own file of the same columns. */
+export const TOUCH_AREAS = ['elbow', 'post', 'paint'] as const
+
+/** A player tracking file: totals per season, over the games and minutes tracking counted. */
+const tracking = (
+  table: string,
+  file: string,
+  columns: readonly (string | PublishedColumn)[]
+): PublishedTable => ({
+  table,
+  entity: 'player',
+  source: `src_dash_player_tracking_${file}`,
+  firstSeason: TRACKING_FIRST_SEASON,
+  games: 'gp',
+  minutes: 'min',
+  columns
+})
+
+/**
+ * The catch-and-shoot and pull-up files leave a player's threes blank, not 0, when they took none
+ * (measured on every season): a row with attempts reads 0 there, or its eFG% would be blank too.
+ */
+const shotType = (p: string): (string | PublishedColumn)[] => [
+  `${p}_fgm`,
+  `${p}_fga`,
+  `${p}_pts`,
+  ...['fg3_m', 'fg3_a'].map((c) => ({
+    name: `${p}_${c}`,
+    sql: `CASE WHEN {${p}_fga} IS NOT NULL THEN coalesce({${p}_${c}}, 0) END`
+  }))
+]
+
+/**
+ * Reference section 8. A rate the files publish with its parts is rebuilt from them when read; one
+ * published without them is stored times what it was measured over. Measured on every season: seconds
+ * per touch are not rebuilt, since the time of possession is published to a tenth of a minute and
+ * misses on a fifth of rows. The efficiency file is kept only where it differs from the others: its
+ * drive, touch-area and total points repeat them on every row, while its catch-and-shoot and pull-up
+ * figures differ on a third to a half.
+ */
+const TRACKING: PublishedTable[] = [
+  tracking('pub_player_speed', 'speeddistance', [
+    'dist_miles',
+    'dist_miles_off',
+    'dist_miles_def',
+    ...['avg_speed', 'avg_speed_off', 'avg_speed_def'].map((c) => times(c, '{min}'))
+  ]),
+  tracking('pub_player_touches', 'possessions', [
+    'points',
+    'touches',
+    'front_ct_touches',
+    'time_of_poss',
+    times('avg_sec_per_touch', '{touches}'),
+    times('avg_drib_per_touch', '{touches}')
+  ]),
+  tracking('pub_player_drives', 'drives', [
+    'drives',
+    ...['fgm', 'fga', 'ftm', 'fta', 'pts', 'passes', 'ast', 'tov', 'pf'].map((c) => `drive_${c}`)
+  ]),
+  tracking('pub_player_passing', 'passing', [
+    'passes_made',
+    'passes_received',
+    'ast',
+    'ft_ast',
+    'secondary_ast',
+    'potential_ast',
+    'ast_pts_created',
+    'ast_adj'
+  ]),
+  tracking(
+    'pub_player_rebounding',
+    'rebounding',
+    (['oreb', 'dreb', 'reb'] as const).flatMap((r) => [
+      r,
+      `${r}_contest`,
+      `${r}_uncontest`,
+      `${r}_chances`,
+      `${r}_chance_defer`,
+      times(`avg_${r}_dist`, `{${r}}`)
+    ])
+  ),
+  tracking('pub_player_catch_shoot', 'catchshoot', shotType('catch_shoot')),
+  tracking('pub_player_pull_up', 'pullupshot', shotType('pull_up')),
+  ...TOUCH_AREAS.map((a) =>
+    tracking(`pub_player_${a}_touch`, `${a}touch`, [
+      `${a}_touches`,
+      ...['fgm', 'fga', 'ftm', 'fta', 'pts', 'passes', 'ast', 'tov', 'fouls'].map(
+        (c) => `${a}_touch_${c}`
+      )
+    ])
+  ),
+  tracking('pub_player_tracking_efficiency', 'efficiency', [
+    'catch_shoot_pts',
+    'pull_up_pts',
+    ...['catch_shoot_fg_pct', 'pull_up_fg_pct', 'eff_fg_pct'].map((c) => times(c, '{min}'))
+  ]),
+  tracking('pub_player_rim_defense', 'defense', ['def_rim_fgm', 'def_rim_fga'])
+]
+
 /** Every published table. Each family adds its own; bump `PUBLISHED_VERSION` when one changes. */
 export const PUBLISHED_TABLES: readonly PublishedTable[] = [
   {
@@ -209,5 +311,6 @@ export const PUBLISHED_TABLES: readonly PublishedTable[] = [
     games: 'gp',
     minutes: 'min',
     columns: ['def_ws']
-  }
+  },
+  ...TRACKING
 ]

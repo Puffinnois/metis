@@ -79,7 +79,7 @@ Rows are team-games in both sources. The NBA's rebounds and turnovers are the su
 | 2023-24 | 2,638      | 100.0    | 100.0               | 100.0              | 100.0         | 99.9      | 99.9  | 100.0 | 100.0 | 100.0 | 100.0                | 100.0         | 48.1                | 0.0                |
 | 2024-25 | 2,642      | 100.0    | 100.0               | 99.9               | 99.9          | 99.9      | 99.9  | 99.9  | 100.0 | 100.0 | 100.0                | 99.9          | 45.1                | 0.0                |
 | 2025-26 | 2,636      | 100.0    | 99.4                | 100.0              | 100.0         | 99.7      | 100.0 | 100.0 | 100.0 | 100.0 | 99.8                 | 100.0         | 47.6                | 0.0                |
-| 2026-27 | 278        | 100.0    | 98.9                | 99.3               | 99.3          | 99.3      | 98.6  | 100.0 | 100.0 | 100.0 | 99.3                 | 99.3          | 47.1                | 0.0                |
+| 2026-27 | 292        | 100.0    | 99.0                | 99.3               | 99.3          | 99.3      | 98.6  | 100.0 | 100.0 | 100.0 | 99.3                 | 99.3          | 46.9                | 0.0                |
 
 ## Players sum to their team
 
@@ -120,7 +120,7 @@ ESPN's rebounds are compared with its team's offensive plus defensive rebounds, 
 | 2023-24 | 2,638          | 100.0    | 100.0      | 100.0     | 2,638           | 100.0    | 100.0      | 100.0     |
 | 2024-25 | 2,642          | 100.0    | 100.0      | 100.0     | 2,642           | 100.0    | 99.9       | 99.9      |
 | 2025-26 | 2,644          | 100.0    | 100.0      | 100.0     | 2,636           | 99.7     | 99.4       | 99.8      |
-| 2026-27 | 278            | 100.0    | 100.0      | 100.0     | 278             | 100.0    | 99.6       | 100.0     |
+| 2026-27 | 292            | 100.0    | 100.0      | 100.0     | 292             | 100.0    | 99.7       | 100.0     |
 
 ## Player identity and player lines
 
@@ -170,7 +170,7 @@ Rows below are ESPN's lines for players who played. **On an NBA id** is the shar
 | 2023-24 | 28,098     | 100.0          | 28,073       | 25           | 0       | 0         | 100.0     | 100.0    | 100.0      | 100.0     |
 | 2024-25 | 28,154     | 100.0          | 28,150       | 4            | 0       | 0         | 100.0     | 100.0    | 100.0      | 100.0     |
 | 2025-26 | 28,498     | 100.0          | 28,451       | 47           | 0       | 0         | 100.0     | 100.0    | 100.0      | 100.0     |
-| 2026-27 | 3,122      | 100.0          | 3,116        | 6            | 0       | 0         | 100.0     | 99.9     | 99.5       | 99.5      |
+| 2026-27 | 3,283      | 100.0          | 3,277        | 6            | 0       | 0         | 100.0     | 99.9     | 99.5       | 99.5      |
 
 ## Published season totals against summed box scores
 
@@ -208,7 +208,7 @@ Rows are players in the regular season, from the league dashboards, which hold o
 | 2023-24 | 572     | 100.0                 | 98.8    | 100.0    | 99.8       | 99.7      |
 | 2024-25 | 569     | 100.0                 | 99.3    | 100.0    | 100.0      | 100.0     |
 | 2025-26 | 582     | 100.0                 | 99.5    | 100.0    | 99.1       | 100.0     |
-| 2026-27 | 461     | 100.0                 | 65.1    | 68.3     | 67.7       | 72.5      |
+| 2026-27 | 461     | 100.0                 | 100.0   | 99.6     | 96.3       | 97.6      |
 
 ## Possessions against the box score
 
@@ -246,7 +246,7 @@ Points summed from the possessions table against the team's box score. Possessio
 | 2023-24 | 2,638      | 89.7    | 97.5       | 100.0      | 5     |
 | 2024-25 | 2,642      | 89.9    | 97.5       | 100.0      | 5     |
 | 2025-26 | 2,644      | 88.0    | 96.6       | 99.8       | 52    |
-| 2026-27 | 278        | 100.0   | 100.0      | 100.0      | 0     |
+| 2026-27 | 292        | 100.0   | 100.0      | 100.0      | 0     |
 
 ## The game tables
 
@@ -287,7 +287,7 @@ Rows are team-games in `team_game`. **Players sum** compares each team's players
 | 2023-24 | 2,638      | 100.0              | 100.0    | 100.0      | 100.0     | 100.0       | 100.0 | 100.0     | 100.0                | 99.7         | 100.0            |
 | 2024-25 | 2,642      | 100.0              | 100.0    | 100.0      | 100.0     | 100.0       | 100.0 | 100.0     | 100.0                | 100.0        | 100.0            |
 | 2025-26 | 2,644      | 100.0              | 100.0    | 100.0      | 100.0     | 100.0       | 100.0 | 100.0     | 100.0                | 99.9         | 100.0            |
-| 2026-27 | 292        | 95.2               | 100.0    | 100.0      | 100.0     | 100.0       | 100.0 | 100.0     | 100.0                | 99.6         | 100.0            |
+| 2026-27 | 292        | 100.0              | 100.0    | 100.0      | 100.0     | 100.0       | 100.0 | 100.0     | 100.0                | 99.7         | 100.0            |
 
 ## The season tables against what is published
 
@@ -325,7 +325,7 @@ Regular season, against `nba_stats_player_season_stats` and `nba_stats_team_seas
 | 2023-24 | 572     | 100.0   | 100.0   | 100.0    | 99.8       | 99.7      | 100.0 | 100.0     | 20 of 20 | 30    | 100.0  | 100.0    | 100.0         | 96.7            | 96.7           |
 | 2024-25 | 569     | 100.0   | 100.0   | 100.0    | 100.0      | 100.0     | 100.0 | 100.0     | 20 of 20 | 30    | 100.0  | 100.0    | 100.0         | 100.0           | 100.0          |
 | 2025-26 | 582     | 100.0   | 100.0   | 100.0    | 99.1       | 100.0     | 100.0 | 100.0     | 20 of 20 | 30    | 100.0  | 100.0    | 100.0         | 96.7            | 100.0          |
-| 2026-27 | 459     | 100.0   | 100.0   | 99.6     | 96.3       | 97.6      | 100.0 | 98.5      | 20 of 20 | 30    | 76.7   | 76.7     | 100.0         | 90.0            | 96.7           |
+| 2026-27 | 461     | 100.0   | 100.0   | 99.6     | 96.3       | 97.6      | 100.0 | 98.5      | 20 of 20 | 30    | 100.0  | 100.0    | 100.0         | 90.0            | 96.7           |
 
 ## Formulas against what is published
 
@@ -545,6 +545,28 @@ For teams, across the league: percentage points for the rates, and points per ga
 | 2024-25 | -0.00 | 0.01  | 0.01     | -0.05     | 0.00           | 0.24       |
 | 2025-26 | 0.01  | 0.01  | -0.01    | -0.07     | -0.02          | 0.40       |
 
+## The NBA's player tracking, read through the engine
+
+Player tracking (Plan T703) is read through the query engine over a whole regular season, against the raw files (`src_dash_player_tracking_*`), rows of totals: 50 columns from the twelve files. A rate the files publish with its parts is rebuilt from them, so it should match within the published rounding, three decimals; a count, or a rate published without its parts and stored times what it was measured over (speed, seconds and dribbles per touch, rebound distance, the efficiency file's percentages), should match exactly. A row matches when every compared column does. **Over nothing** counts rates the NBA prints as 0 with nothing under them, which the engine leaves blank; they are not counted as values.
+
+| Season  | Players | Rows same % | Values same % | Over nothing |
+| ------- | ------- | ----------- | ------------- | ------------ |
+| 2013-14 | 482     | 100.0       | 100.0         | 949          |
+| 2014-15 | 492     | 100.0       | 100.0         | 924          |
+| 2015-16 | 476     | 100.0       | 100.0         | 831          |
+| 2016-17 | 486     | 100.0       | 100.0         | 954          |
+| 2017-18 | 540     | 100.0       | 100.0         | 1,831        |
+| 2018-19 | 530     | 100.0       | 100.0         | 1,509        |
+| 2019-20 | 529     | 100.0       | 100.0         | 1,706        |
+| 2020-21 | 540     | 100.0       | 100.0         | 1,521        |
+| 2021-22 | 605     | 100.0       | 100.0         | 2,791        |
+| 2022-23 | 539     | 100.0       | 100.0         | 1,929        |
+| 2023-24 | 572     | 100.0       | 100.0         | 2,388        |
+| 2024-25 | 569     | 100.0       | 100.0         | 2,151        |
+| 2025-26 | 582     | 100.0       | 100.0         | 2,192        |
+
+Over two seasons together (2024-25 and 2025-26), drive FG% from summed makes and attempts, speed weighted by minutes and seconds per touch weighted by touches, worked out from the raw files: 687 of 687 players read the same through the engine.
+
 ## The published standings
 
 `nba_stats_standings`, and the league dashboards' file, which alone reaches 1995-96. Percentages are of each season's teams. **Box scores:** wins and losses against `team_season`. **NBA's file:** the same record, rank, games back and streak as the dashboards'. **ESPN:** `espn_nba_standings`, from 2001-02. **By the record:** games back worked out from the conference leader's record. The last ten and the streak start in 2001-02. In 2003-04 the NBA's file repeats the overall record as the conference and division records, so the screen reads those as not published.
@@ -582,7 +604,7 @@ For teams, across the league: percentage points for the rates, and points per ga
 | 2023-24 | 30    | 100.0        | 100.0        | 100.0         | 100.0             | 100.0         | 100.0           |
 | 2024-25 | 30    | 100.0        | 100.0        | 100.0         | 100.0             | 100.0         | 100.0           |
 | 2025-26 | 30    | 100.0        | 100.0        | 100.0         | 100.0             | 100.0         | 100.0           |
-| 2026-27 | 30    | 100.0        | 0.0          | 53.3          | 23.3              | 53.3          | 100.0           |
+| 2026-27 | 30    | 100.0        | 100.0        | 100.0         | 100.0             | 100.0         | 100.0           |
 
 ## Box scores against the final score
 
@@ -623,4 +645,4 @@ What the Games screen shows, per team-game with a box score that counts. **Team 
 | 2023-24 | 2,638      | 100.0      | 100.0   | 100.0      | 100.0     | 0     |
 | 2024-25 | 2,642      | 100.0      | 100.0   | 100.0      | 100.0     | 0     |
 | 2025-26 | 2,644      | 100.0      | 100.0   | 100.0      | 100.0     | 0     |
-| 2026-27 | 278        | 100.0      | 100.0   | 100.0      | 100.0     | 0     |
+| 2026-27 | 292        | 100.0      | 100.0   | 100.0      | 100.0     | 0     |

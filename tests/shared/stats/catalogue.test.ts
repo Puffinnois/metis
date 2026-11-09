@@ -365,25 +365,100 @@ const DASHBOARD_COLUMNS = `
   .map((line) => line.trim().split(/\s+/))
   .filter((parts) => parts.length === 3)
 
+/**
+ * Player tracking (`catalogue/tracking.ts`): each metric, the column it reads and what it divides by,
+ * a tracked count or the minutes. Written out by hand so a formula over the wrong part fails.
+ */
+const TRACKING_COLUMNS = `
+  dist_miles dist_miles -; dist_miles_off dist_miles_off -; dist_miles_def dist_miles_def -
+  avg_speed avg_speed minutes; avg_speed_off avg_speed_off minutes
+  avg_speed_def avg_speed_def minutes
+  touches touches -; front_ct_touches front_ct_touches -; time_of_poss time_of_poss -
+  sec_per_touch avg_sec_per_touch touches; drib_per_touch avg_drib_per_touch touches
+  pts_per_touch points touches
+  drives drives -; drive_fgm drive_fgm -; drive_fga drive_fga -; drive_fg_pct drive_fgm drive_fga
+  drive_ftm drive_ftm -; drive_fta drive_fta -; drive_ft_pct drive_ftm drive_fta
+  drive_pts drive_pts -; drive_pts_per_drive drive_pts drives
+  drive_passes drive_passes -; drive_passes_pct drive_passes drives; drive_ast drive_ast -
+  drive_ast_pct drive_ast drives; drive_tov drive_tov -; drive_tov_pct drive_tov drives
+  drive_pf drive_pf -; drive_pf_pct drive_pf drives
+  passes_made passes_made -; passes_received passes_received -; potential_ast potential_ast -
+  secondary_ast secondary_ast -; ft_ast ft_ast -; ast_pts_created ast_pts_created -
+  ast_adj ast_adj -; ast_per_pass ast passes_made; ast_adj_per_pass ast_adj passes_made
+  potential_ast_conv ast potential_ast
+  catch_shoot_fgm catch_shoot_fgm -; catch_shoot_fga catch_shoot_fga -
+  catch_shoot_fg_pct catch_shoot_fgm catch_shoot_fga; catch_shoot_fg3m catch_shoot_fg3_m -
+  catch_shoot_fg3a catch_shoot_fg3_a -; catch_shoot_fg3_pct catch_shoot_fg3_m catch_shoot_fg3_a
+  catch_shoot_pts catch_shoot_pts -
+  pull_up_fgm pull_up_fgm -; pull_up_fga pull_up_fga -; pull_up_fg_pct pull_up_fgm pull_up_fga
+  pull_up_fg3m pull_up_fg3_m -; pull_up_fg3a pull_up_fg3_a -
+  pull_up_fg3_pct pull_up_fg3_m pull_up_fg3_a; pull_up_pts pull_up_pts -
+  eff_catch_shoot_pts catch_shoot_pts -; eff_pull_up_pts pull_up_pts -
+  eff_catch_shoot_fg_pct catch_shoot_fg_pct minutes; eff_pull_up_fg_pct pull_up_fg_pct minutes
+  eff_efg_pct eff_fg_pct minutes
+  def_rim_fgm def_rim_fgm -; def_rim_fga def_rim_fga -; def_rim_fg_pct def_rim_fgm def_rim_fga
+  ${['reb', 'oreb', 'dreb']
+    .map(
+      (r) =>
+        `${r}_contest ${r}_contest -; ${r}_uncontest ${r}_uncontest -; ${r}_chances ${r}_chances -;` +
+        `${r}_chance_defer ${r}_chance_defer -; ${r}_contest_pct ${r}_contest ${r};` +
+        `${r}_chance_pct ${r} ${r}_chances; avg_${r}_dist avg_${r}_dist ${r}`
+    )
+    .join('\n')}
+  ${['elbow', 'post', 'paint']
+    .map((a) => {
+      const t = `${a}_touch`
+      return (
+        `${a}_touches ${a}_touches -; ${t}_fg_pct ${t}_fgm ${t}_fga; ${t}_ft_pct ${t}_ftm ${t}_fta;` +
+        `${t}_pts_per_touch ${t}_pts ${a}_touches; ${t}_pass_pct ${t}_passes ${a}_touches;` +
+        `${t}_ast_pct ${t}_ast ${a === 'elbow' ? `${t}_passes` : `${a}_touches`};` +
+        `${t}_tov_pct ${t}_tov ${a}_touches; ${t}_foul_pct ${t}_fouls ${a}_touches;` +
+        ['fgm', 'fga', 'ftm', 'fta', 'pts', 'passes', 'ast', 'tov', 'fouls']
+          .map((c) => `${t}_${c} ${t}_${c} -`)
+          .join(';')
+      )
+    })
+    .join('\n')}`
+  .split(/[;\n]/)
+  .map((line) => line.trim().split(/\s+/))
+  .filter((parts) => parts.length === 3)
+
 /** One published row: a different value in every column, so a metric reading the wrong one fails. */
 const PUBLISHED_ROW: Record<string, number> = {
   games: 50,
   minutes: 2000,
   possessions: 4000,
   ...Object.fromEntries(
-    [...new Set(DASHBOARD_COLUMNS.map(([, c]) => c))].map((c, i) => [c, 1000 + 37 * i])
+    [
+      ...new Set(
+        [...DASHBOARD_COLUMNS, ...TRACKING_COLUMNS]
+          .flatMap(([, c, by]) => [c, by])
+          .filter((c) => !['-', 'games', 'minutes', 'possessions'].includes(c))
+      )
+    ].map((c, i) => [c, 1000 + 37 * i])
   )
 }
 
+/** The worked-out ones: eFG% counts a three as one and a half makes, chances leave out deferred ones. */
+const efgOf = (p: string): number =>
+  (PUBLISHED_ROW[`${p}_fgm`] + 0.5 * PUBLISHED_ROW[`${p}_fg3_m`]) / PUBLISHED_ROW[`${p}_fga`]
+const adjChanceOf = (r: string): number =>
+  PUBLISHED_ROW[r] / (PUBLISHED_ROW[`${r}_chances`] - PUBLISHED_ROW[`${r}_chance_defer`])
+
 Object.assign(EXPECTED, {
   ...Object.fromEntries(
-    DASHBOARD_COLUMNS.map(([id, c, by]) => [
+    [...DASHBOARD_COLUMNS, ...TRACKING_COLUMNS].map(([id, c, by]) => [
       id,
       by === '-' ? PUBLISHED_ROW[c] : PUBLISHED_ROW[c] / PUBLISHED_ROW[by]
     ])
   ),
   nba_pace40: (40 * PUBLISHED_ROW.pace) / PUBLISHED_ROW.minutes / 48,
-  team_nba_pace40: (40 * PUBLISHED_ROW.pace) / PUBLISHED_ROW.minutes / 48
+  team_nba_pace40: (40 * PUBLISHED_ROW.pace) / PUBLISHED_ROW.minutes / 48,
+  catch_shoot_efg_pct: efgOf('catch_shoot'),
+  pull_up_efg_pct: efgOf('pull_up'),
+  reb_chance_pct_adj: adjChanceOf('reb'),
+  oreb_chance_pct_adj: adjChanceOf('oreb'),
+  dreb_chance_pct_adj: adjChanceOf('dreb')
 })
 
 const fill = (m: MetricDef, row: Record<string, number>): string =>

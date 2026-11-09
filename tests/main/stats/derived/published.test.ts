@@ -10,29 +10,34 @@ import {
 import { bootstrapStatsDb } from '@main/stats/schema'
 import { openTestDb } from '../../../fixtures/stats'
 
-vi.mock('@main/stats/derived/publishedTables', async (actual) => ({
-  ...(await actual<typeof import('@main/stats/derived/publishedTables')>()),
-  PUBLISHED_TABLES: [
-    {
-      table: 'published_test_widgets',
-      entity: 'player',
-      source: 'src_test_widgets',
-      firstSeason: 2014,
-      games: 'gp',
-      minutes: 'min',
-      columns: ['widgets', 'gone']
-    },
-    {
-      table: 'published_test_teams',
-      entity: 'team',
-      source: 'src_test_teams',
-      games: null,
-      minutes: 'min',
-      possessions: 'poss',
-      columns: ['widgets', { name: 'rated', sql: '{rating} * {poss}' }]
-    }
-  ]
-}))
+vi.mock('@main/stats/derived/publishedTables', async (actual) => {
+  const real = await actual<typeof import('@main/stats/derived/publishedTables')>()
+  return {
+    ...real,
+    PUBLISHED_TABLES: [
+      // A real one: the catch-and-shoot file, whose blank threes need reading as 0.
+      real.PUBLISHED_TABLES.find((t) => t.table === 'pub_player_catch_shoot')!,
+      {
+        table: 'published_test_widgets',
+        entity: 'player',
+        source: 'src_test_widgets',
+        firstSeason: 2014,
+        games: 'gp',
+        minutes: 'min',
+        columns: ['widgets', 'gone']
+      },
+      {
+        table: 'published_test_teams',
+        entity: 'team',
+        source: 'src_test_teams',
+        games: null,
+        minutes: 'min',
+        possessions: 'poss',
+        columns: ['widgets', { name: 'rated', sql: '{rating} * {poss}' }]
+      }
+    ]
+  }
+})
 
 let db: StatsDb
 
@@ -144,6 +149,28 @@ describe('the published tables', () => {
     await db.exec(`INSERT INTO src_test_teams VALUES (7, 2026, 'Regular Season', 3950, 8100)`)
     await buildPublished(db)
     expect(await db.all('SELECT rated FROM published_test_teams')).toEqual([{ rated: null }])
+  })
+
+  it('read blank threes on a row with attempts as 0, and leave a row with none blank', async () => {
+    await db.exec(`CREATE TABLE src_dash_player_tracking_catchshoot (player_id BIGINT,
+      season INTEGER, season_type VARCHAR, per_mode VARCHAR, gp BIGINT, min DOUBLE,
+      catch_shoot_fgm BIGINT, catch_shoot_fga BIGINT, catch_shoot_pts BIGINT,
+      catch_shoot_fg3_m BIGINT, catch_shoot_fg3_a BIGINT)`)
+    // Measured on 2025-26: Charles Bassey made 2 of 5, none of them threes, published as blanks.
+    await db.exec(`INSERT INTO src_dash_player_tracking_catchshoot VALUES
+      (1, 2026, 'Regular Season', 'Totals', 13, 120, 2, 5, 4, NULL, NULL),
+      (2, 2026, 'Regular Season', 'Totals', 60, 1800, 66, 173, 198, 66, 171),
+      (3, 2026, 'Regular Season', 'Totals', 1, 3, NULL, NULL, NULL, NULL, NULL),
+      (4, 2013, 'Regular Season', 'Totals', 80, 2400, 0, 0, 0, 0, 0)`)
+    await buildPublished(db)
+    expect(
+      await db.all(`SELECT player_id, catch_shoot_fga, catch_shoot_fg3_m, catch_shoot_fg3_a
+        FROM pub_player_catch_shoot ORDER BY player_id`)
+    ).toEqual([
+      { player_id: 1, catch_shoot_fga: 5, catch_shoot_fg3_m: 0, catch_shoot_fg3_a: 0 },
+      { player_id: 2, catch_shoot_fga: 173, catch_shoot_fg3_m: 66, catch_shoot_fg3_a: 171 },
+      { player_id: 3, catch_shoot_fga: null, catch_shoot_fg3_m: null, catch_shoot_fg3_a: null }
+    ])
   })
 
   it('build empty, without failing, while a source is not loaded', async () => {

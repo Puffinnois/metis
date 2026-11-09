@@ -881,6 +881,152 @@ out.push(
   table(['Season', ...TEAM_PAIRS.map((p) => p[3])], dashTeamDiffRows)
 )
 
+// Player tracking (Plan T703) through the engine, against the raw files. A rate rebuilt from its
+// parts should match the published one within its rounding (three decimals); a count, or a rate
+// stored times its weight, should match exactly.
+const ROUNDED = 0.0005 + 1e-9
+const TRACKING_CHECKS = [
+  ['speeddistance', 'dist_miles', 'dist_miles', 0],
+  ['speeddistance', 'avg_speed', 'avg_speed', 0],
+  ['speeddistance', 'avg_speed_off', 'avg_speed_off', 0],
+  ['speeddistance', 'avg_speed_def', 'avg_speed_def', 0],
+  ['possessions', 'touches', 'touches', 0],
+  ['possessions', 'time_of_poss', 'time_of_poss', 0],
+  ['possessions', 'sec_per_touch', 'avg_sec_per_touch', 0],
+  ['possessions', 'drib_per_touch', 'avg_drib_per_touch', 0],
+  ['possessions', 'pts_per_touch', 'pts_per_touch', ROUNDED],
+  ['drives', 'drives', 'drives', 0],
+  ['drives', 'drive_fg_pct', 'drive_fg_pct', ROUNDED],
+  ['drives', 'drive_ft_pct', 'drive_ft_pct', ROUNDED],
+  ['drives', 'drive_pts_per_drive', 'drive_pts_pct', ROUNDED],
+  ['drives', 'drive_passes_pct', 'drive_passes_pct', ROUNDED],
+  ['drives', 'drive_ast_pct', 'drive_ast_pct', ROUNDED],
+  ['drives', 'drive_tov_pct', 'drive_tov_pct', ROUNDED],
+  ['drives', 'drive_pf_pct', 'drive_pf_pct', ROUNDED],
+  ['passing', 'potential_ast', 'potential_ast', 0],
+  ['passing', 'ast_per_pass', 'ast_to_pass_pct', ROUNDED],
+  ['passing', 'ast_adj_per_pass', 'ast_to_pass_pct_adj', ROUNDED],
+  ['rebounding', 'reb_chance_pct', 'reb_chance_pct', ROUNDED],
+  ['rebounding', 'oreb_chance_pct_adj', 'oreb_chance_pct_adj', ROUNDED],
+  ['rebounding', 'dreb_contest_pct', 'dreb_contest_pct', ROUNDED],
+  ['rebounding', 'avg_reb_dist', 'avg_reb_dist', 0],
+  ['catchshoot', 'catch_shoot_fg_pct', 'catch_shoot_fg_pct', ROUNDED],
+  ['catchshoot', 'catch_shoot_fg3_pct', 'catch_shoot_fg3_pct', ROUNDED],
+  ['catchshoot', 'catch_shoot_efg_pct', 'catch_shoot_efg_pct', ROUNDED],
+  ['pullupshot', 'pull_up_fg_pct', 'pull_up_fg_pct', ROUNDED],
+  ['pullupshot', 'pull_up_efg_pct', 'pull_up_efg_pct', ROUNDED],
+  ...['elbow', 'post', 'paint'].flatMap((a) => [
+    [`${a}touch`, `${a}_touch_fg_pct`, `${a}_touch_fg_pct`, ROUNDED],
+    [`${a}touch`, `${a}_touch_pts_per_touch`, `${a}_touch_pts_pct`, ROUNDED],
+    [`${a}touch`, `${a}_touch_pass_pct`, `${a}_touch_passes_pct`, ROUNDED],
+    [`${a}touch`, `${a}_touch_ast_pct`, `${a}_touch_ast_pct`, ROUNDED],
+    [`${a}touch`, `${a}_touch_tov_pct`, `${a}_touch_tov_pct`, ROUNDED],
+    [`${a}touch`, `${a}_touch_foul_pct`, `${a}_touch_fouls_pct`, ROUNDED]
+  ]),
+  ['efficiency', 'eff_catch_shoot_fg_pct', 'catch_shoot_fg_pct', 0],
+  ['efficiency', 'eff_efg_pct', 'eff_fg_pct', 0],
+  ['defense', 'def_rim_fg_pct', 'def_rim_fg_pct', ROUNDED]
+]
+const within = (a, b, tolerance) =>
+  tolerance === 0
+    ? same(a, b)
+    : a === b || (a !== null && b !== null && Math.abs(a - b) <= tolerance)
+const trackingRows = []
+for (const season of finished.filter((s) => s >= 2014)) {
+  const ids = TRACKING_CHECKS.map(([, id]) => id)
+  const byPlayer = new Map()
+  for (let i = 0; i < ids.length; i += 40) {
+    const result = await query({
+      entity: 'player',
+      metrics: ids.slice(i, i + 40),
+      scope: { seasons: [season] },
+      limit: 5000
+    })
+    for (const r of result.rows) {
+      const id = Number(r.id)
+      byPlayer.set(id, { ...byPlayer.get(id), ...r.values })
+    }
+  }
+  const raw = new Map()
+  for (const file of new Set(TRACKING_CHECKS.map(([f]) => f))) {
+    const cols = TRACKING_CHECKS.filter(([f]) => f === file)
+    const rows = await read(
+      `SELECT player_id, ${cols.map(([, id, c]) => `${c} AS ${id}`).join(', ')}
+      FROM src_dash_player_tracking_${file} t WHERE ${RAW_FILTER('t').replaceAll('{season}', season)}`
+    )
+    for (const r of rows) raw.set(r.player_id, { ...raw.get(r.player_id), ...r })
+  }
+  let rows = 0
+  let rowsSame = 0
+  let cells = 0
+  let cellsSame = 0
+  let overNothing = 0
+  for (const [player, r] of raw) {
+    const ours = byPlayer.get(player)
+    if (!ours) continue
+    rows++
+    let all = true
+    for (const [, id, , tolerance] of TRACKING_CHECKS) {
+      if (!(id in r)) continue
+      const a = ours[id]?.value ?? null
+      // A rate over nothing: the NBA prints 0, the engine reads no value.
+      if (a === null && r[id] === 0) {
+        overNothing++
+        continue
+      }
+      cells++
+      if (within(a, r[id], tolerance)) cellsSame++
+      else all = false
+    }
+    if (all) rowsSame++
+  }
+  trackingRows.push([
+    label(season),
+    COUNT.format(rows),
+    pct(rowsSame, rows),
+    pct(cellsSame, cells),
+    COUNT.format(overNothing)
+  ])
+}
+
+// Two seasons together: a rate rebuilt from its parts adds them up, a stored one is weighted.
+const trackingTwo = await query({
+  entity: 'player',
+  metrics: ['drive_fg_pct', 'avg_speed', 'sec_per_touch'],
+  scope: { seasons: [2025, 2026] },
+  limit: 5000
+})
+const trackingTwoRaw = await read(`SELECT d.player_id,
+    sum(d.drive_fgm) / nullif(sum(d.drive_fga), 0) AS drive_fg_pct,
+    sum(s.avg_speed * s.min) / nullif(sum(s.min), 0) AS avg_speed,
+    sum(p.avg_sec_per_touch * p.touches) / nullif(sum(p.touches), 0) AS sec_per_touch
+  FROM src_dash_player_tracking_drives d
+  JOIN src_dash_player_tracking_speeddistance s USING (player_id, season, season_type, per_mode)
+  JOIN src_dash_player_tracking_possessions p USING (player_id, season, season_type, per_mode)
+  WHERE d.season IN (2025, 2026) AND d.season_type = 'Regular Season' AND d.per_mode = 'Totals'
+  GROUP BY 1`)
+const trackingTwoById = new Map(trackingTwoRaw.map((w) => [w.player_id, w]))
+let trackingTwoRows = 0
+let trackingTwoSame = 0
+for (const r of trackingTwo.rows) {
+  const w = trackingTwoById.get(Number(r.id))
+  if (!w || r.values.avg_speed.value === null) continue
+  trackingTwoRows++
+  if (['drive_fg_pct', 'avg_speed', 'sec_per_touch'].every((id) => same(r.values[id].value, w[id])))
+    trackingTwoSame++
+}
+
+out.push(
+  '',
+  "## The NBA's player tracking, read through the engine",
+  '',
+  `Player tracking (Plan T703) is read through the query engine over a whole regular season, against the raw files (\`src_dash_player_tracking_*\`), rows of totals: ${TRACKING_CHECKS.length} columns from the twelve files. A rate the files publish with its parts is rebuilt from them, so it should match within the published rounding, three decimals; a count, or a rate published without its parts and stored times what it was measured over (speed, seconds and dribbles per touch, rebound distance, the efficiency file's percentages), should match exactly. A row matches when every compared column does. **Over nothing** counts rates the NBA prints as 0 with nothing under them, which the engine leaves blank; they are not counted as values.`,
+  '',
+  table(['Season', 'Players', 'Rows same %', 'Values same %', 'Over nothing'], trackingRows),
+  '',
+  `Over two seasons together (2024-25 and 2025-26), drive FG% from summed makes and attempts, speed weighted by minutes and seconds per touch weighted by touches, worked out from the raw files: ${COUNT.format(trackingTwoSame)} of ${COUNT.format(trackingTwoRows)} players read the same through the engine.`
+)
+
 // The published standings, which the Standings screen and a team's header read.
 const standings = await read(`WITH e AS (
     SELECT s.season, t.team_id,

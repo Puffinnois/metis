@@ -146,7 +146,14 @@ export function defaultBoard(
   }
 }
 
-const FAMILIES: MetricFamily[] = ['traditional', 'shooting', 'possessions', 'scoring', 'composite']
+const FAMILIES: MetricFamily[] = [
+  'traditional',
+  'shooting',
+  'possessions',
+  'scoring',
+  'composite',
+  'tracking'
+]
 
 /** The games column is the row's own, so a count of games is not offered beside it. */
 const GAMES = new Set(['gp', 'team_gp'])
