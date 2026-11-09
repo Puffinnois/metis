@@ -28,4 +28,4 @@ export function componentsOf(def: Pick<MetricDef, 'value' | 'sample' | 'perGameB
   return [...new Set([...names, def.sample, ...(def.perGameBy ? [def.perGameBy] : [])])]
 }
 
-export { coverageReason, covers } from '../coverage'
+export { coverageReason, covers, PUBLISHED_TYPES_ONLY, WHOLE_SEASONS_ONLY } from '../coverage'

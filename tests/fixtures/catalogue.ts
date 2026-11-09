@@ -10,7 +10,7 @@ export function catalogueFixture(): MetricInfo[] {
     delete info.sample
     return {
       ...(info as Omit<MetricDef, 'value' | 'sample'>),
-      grains: ['game', 'season'],
+      grains: def.published ? ['season'] : ['game', 'season'],
       sampleLabel: sampleLabel(def.sample)
     }
   })

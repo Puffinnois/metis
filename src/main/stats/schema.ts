@@ -1,4 +1,5 @@
 import type { StatsDb } from './db'
+import { publishedBootstrap } from './derived/published'
 
 /**
  * Created on every open, so a new version replaces them. The tables keep their rows across
@@ -39,7 +40,7 @@ export const INTERRUPTED_MESSAGE = 'The app closed during this step'
  * Returns how many rows it marked.
  */
 export async function bootstrapStatsDb(db: StatsDb, now: Date): Promise<number> {
-  for (const sql of BOOTSTRAP) await db.exec(sql)
+  for (const sql of [...BOOTSTRAP, ...publishedBootstrap()]) await db.exec(sql)
   const stale = await db.get<{ n: number }>(
     "SELECT count(*) AS n FROM sync_log WHERE status = 'running'"
   )
