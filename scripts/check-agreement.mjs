@@ -683,6 +683,204 @@ out.push(
   )
 )
 
+// The NBA's league dashboards (Plan T702), read through the engine: first against the raw files, then
+// beside the catalogue's formula for the same idea.
+const DASH_PLAYER = [
+  ['nba_ortg', 'a.off_rating'],
+  ['nba_pace', 'a.pace'],
+  ['nba_usg_pct', 'a.usg_pct'],
+  ['nba_tov_ratio', 'a.tm_tov_pct'],
+  ['nba_pie', 'a.pie'],
+  ['nba_pts_paint', 'm.pts_paint'],
+  ['nba_blka', 'm.blka'],
+  ['nba_share_pts_mid', 's.pct_pts_2_pt_mr'],
+  ['nba_share_ast_fgm', 's.pct_ast_fgm'],
+  ['nba_share_pts', 'u.pct_pts'],
+  ['nba_def_ws', 'd.def_ws']
+]
+const DASH_TEAM = [
+  ['team_nba_ortg', 'a.off_rating'],
+  ['team_nba_pace', 'a.pace'],
+  ['team_nba_tov_pct', 'a.tm_tov_pct'],
+  ['team_nba_fta_rate', 'f.fta_rate'],
+  ['opp_nba_efg_pct', 'f.opp_efg_pct'],
+  ['team_nba_pts_2_nd_chance', 'm.pts_2_nd_chance'],
+  ['opp_nba_pts_paint', 'm.opp_pts_paint'],
+  ['team_nba_share_pts_paint', 's.pct_pts_paint']
+]
+const RAW_FILTER = (alias) =>
+  `${alias}.season = {season} AND ${alias}.season_type = 'Regular Season' AND ${alias}.per_mode = 'Totals'`
+const rawPlayers = (season) =>
+  read(
+    `SELECT a.player_id, ${DASH_PLAYER.map(([id, c]) => `${c} AS ${id}`).join(', ')}
+    FROM src_dash_player_stats_advanced a
+    LEFT JOIN src_dash_player_stats_misc m ON m.player_id = a.player_id AND ${RAW_FILTER('m')}
+    LEFT JOIN src_dash_player_stats_scoring s ON s.player_id = a.player_id AND ${RAW_FILTER('s')}
+    LEFT JOIN src_dash_player_stats_usage u ON u.player_id = a.player_id AND ${RAW_FILTER('u')}
+    LEFT JOIN src_dash_player_stats_defense d ON d.player_id = a.player_id AND ${RAW_FILTER('d')}
+    WHERE ${RAW_FILTER('a')}`.replaceAll('{season}', season)
+  )
+const rawTeams = (season) =>
+  read(
+    `SELECT a.team_id, ${DASH_TEAM.map(([id, c]) => `${c} AS ${id}`).join(', ')}
+    FROM src_dash_team_stats_advanced a
+    LEFT JOIN src_dash_team_stats_fourfactors f ON f.team_id = a.team_id AND ${RAW_FILTER('f')}
+    LEFT JOIN src_dash_team_stats_misc m ON m.team_id = a.team_id AND ${RAW_FILTER('m')}
+    LEFT JOIN src_dash_team_stats_scoring s ON s.team_id = a.team_id AND ${RAW_FILTER('s')}
+    WHERE ${RAW_FILTER('a')}`.replaceAll('{season}', season)
+  )
+/** Stored times a divisor and divided back, so only floating point separates the two. */
+const same = (a, b) =>
+  a === b || (a !== null && b !== null && Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(b)))
+
+// Pairs of the same idea: the catalogue's formula, the NBA's published figure, and a scale to put
+// both in percentage points (or points per game) before the difference.
+const PLAYER_PAIRS = [
+  ['orb_pct', 'nba_oreb_pct', 100, 'ORB%'],
+  ['drb_pct', 'nba_dreb_pct', 100, 'DRB%'],
+  ['ast_ratio', 'nba_ast_ratio', [100, 1], 'AST ratio'],
+  ['tov_pct', 'nba_tov_ratio', [100, 1], 'TOV% against TO ratio'],
+  ['share_pts', 'nba_share_pts', 100, '%PTS'],
+  ['share_reb', 'nba_share_reb', 100, '%REB']
+]
+const TEAM_PAIRS = [
+  ['team_ast_share', 'team_nba_ast_pct', 100, 'AST%'],
+  ['team_fta_rate', 'team_nba_fta_rate', 100, 'FTr'],
+  ['opp_efg_pct', 'opp_nba_efg_pct', 100, 'Opp eFG%'],
+  ['team_paint_pts', 'team_nba_pts_paint', 'perGame', 'Paint PTS'],
+  ['team_fast_break_pts', 'team_nba_pts_fb', 'perGame', 'Fast-break PTS'],
+  ['team_turnover_pts', 'team_nba_pts_off_tov', 'perGame', 'PTS off TO']
+]
+const dashAgreeRows = []
+const dashDiffRows = []
+const dashTeamDiffRows = []
+for (const season of finished) {
+  const players = await query({
+    entity: 'player',
+    metrics: [
+      ...new Set([
+        ...DASH_PLAYER.map(([id]) => id),
+        ...PLAYER_PAIRS.flatMap(([a, b]) => [a, b]),
+        'usg_pct'
+      ])
+    ],
+    scope: { seasons: [season] },
+    limit: 5000
+  })
+  const byPlayer = new Map(players.rows.map((r) => [Number(r.id), r]))
+  let pRows = 0
+  let pSame = 0
+  let pCells = 0
+  let pCellsSame = 0
+  for (const raw of await rawPlayers(season)) {
+    const r = byPlayer.get(raw.player_id)
+    if (!r) continue
+    pRows++
+    let all = true
+    for (const [id] of DASH_PLAYER) {
+      pCells++
+      if (same(r.values[id]?.value ?? null, raw[id])) pCellsSame++
+      else all = false
+    }
+    if (all) pSame++
+  }
+  const teams = await query({
+    entity: 'team',
+    metrics: [
+      ...new Set([...DASH_TEAM.map(([id]) => id), ...TEAM_PAIRS.flatMap(([a, b]) => [a, b])])
+    ],
+    scope: { seasons: [season] },
+    limit: 100
+  })
+  const byTeam = new Map(teams.rows.map((r) => [Number(r.id), r]))
+  let tRows = 0
+  let tSame = 0
+  for (const raw of await rawTeams(season)) {
+    const r = byTeam.get(raw.team_id)
+    if (!r) continue
+    tRows++
+    if (DASH_TEAM.every(([id]) => same(r.values[id]?.value ?? null, raw[id]))) tSame++
+  }
+  dashAgreeRows.push([
+    label(season),
+    COUNT.format(pRows),
+    pct(pSame, pRows),
+    pct(pCellsSame, pCells),
+    tRows,
+    pct(tSame, tRows)
+  ])
+
+  const playerDiff = PLAYER_PAIRS.map(([ours, theirs, scale]) => {
+    const [a, b] = Array.isArray(scale) ? scale : [scale, scale]
+    const gaps = players.rows.flatMap((r) => {
+      const x = r.values[ours]?.value
+      const y = r.values[theirs]?.value
+      if (!r.values.usg_pct?.qualified || x == null || y == null) return []
+      return [a * x - b * y]
+    })
+    return gaps.length ? median(gaps).toFixed(2) : '–'
+  })
+  dashDiffRows.push([label(season), ...playerDiff])
+  const teamDiff = TEAM_PAIRS.map(([ours, theirs, scale]) => {
+    const gaps = teams.rows.flatMap((r) => {
+      const x = r.values[ours]?.value
+      const y = r.values[theirs]?.value
+      if (x == null || y == null) return []
+      return [scale === 'perGame' ? (x - y) / r.games : scale * (x - y)]
+    })
+    return gaps.length ? median(gaps).toFixed(2) : '–'
+  })
+  dashTeamDiffRows.push([label(season), ...teamDiff])
+}
+
+// Two seasons together: each published rate weighted by what it was measured over.
+const twoSeasons = await query({
+  entity: 'player',
+  metrics: ['nba_usg_pct', 'nba_ortg'],
+  scope: { seasons: [2025, 2026] },
+  limit: 5000
+})
+const weightedRaw = await read(`SELECT player_id,
+    sum(usg_pct * gp * min) / nullif(sum(gp * min), 0) AS usg,
+    sum(off_rating * poss) / nullif(sum(poss), 0) AS ortg
+  FROM src_dash_player_stats_advanced
+  WHERE season IN (2025, 2026) AND season_type = 'Regular Season' AND per_mode = 'Totals'
+  GROUP BY 1`)
+const weightedById = new Map(weightedRaw.map((w) => [w.player_id, w]))
+let weightedRows = 0
+let weightedSame = 0
+for (const r of twoSeasons.rows) {
+  const w = weightedById.get(Number(r.id))
+  if (!w || r.values.nba_usg_pct.value === null) continue
+  weightedRows++
+  if (same(r.values.nba_usg_pct.value, w.usg) && same(r.values.nba_ortg.value, w.ortg))
+    weightedSame++
+}
+
+out.push(
+  '',
+  "## The NBA's dashboards, read through the engine",
+  '',
+  "The NBA's league dashboards (Plan T702) are read through the query engine over a whole regular season, against the raw files (`src_dash_*`), rows of totals. A rate the NBA publishes is stored times its minutes, or its possessions for a rating, and divided back when read. So one season should give back exactly what was published, and only floating point should differ. The player columns compared are one or more from each table: ratings, pace, usage, turnover ratio, PIE, paint points, shots blocked, midrange and assisted shares, share of points on court, and defensive win shares. The team columns are ratings, pace, turnovers, the four factors, points by kind and the paint share. A row matches when every compared column does.",
+  '',
+  table(
+    ['Season', 'Players', 'Rows same %', 'Values same %', 'Teams', 'Rows same %'],
+    dashAgreeRows
+  ),
+  '',
+  'The rows that differ are players with 0 minutes or 0 possessions published, such as JamesOn Curry in 2009-10, one game of six seconds. The NBA prints 0 for their rates, and the engine reads no value, as it does for any rate over nothing.',
+  '',
+  `Over two seasons together (2024-25 and 2025-26), usage weighted by minutes and offensive rating weighted by possessions, worked out from the raw files: ${COUNT.format(weightedSame)} of ${COUNT.format(weightedRows)} players read the same through the engine.`,
+  '',
+  "The same idea, by the catalogue's formula and by the NBA, as the median of formula minus published among players with 1,000 minutes per 82 games, in percentage points. **ORB%** and **DRB%**: the formula guesses a player's on-court rebounds from their minutes, and the NBA counts them. **AST ratio**: both are assists per 100 plays used. **TOV% against TO ratio**: the reference's TOV% leaves assists out of the plays, and the NBA's TO ratio counts them, so they are different measures. **%PTS** and **%REB**: the formula is a share of whole games, and the NBA's a share of the minutes the player was on the floor, so the formula reads lower.",
+  '',
+  table(['Season', ...PLAYER_PAIRS.map((p) => p[3])], dashDiffRows),
+  '',
+  "For teams, across the league: percentage points for the rates, and points per game for the points by kind, where the formula's side is ESPN's team box score. ESPN's paint points start in 2008-09 and are missing in 2017-18, its fast-break points look low before 2004-05, and both sources classify these points their own way.",
+  '',
+  table(['Season', ...TEAM_PAIRS.map((p) => p[3])], dashTeamDiffRows)
+)
+
 // The published standings, which the Standings screen and a team's header read.
 const standings = await read(`WITH e AS (
     SELECT s.season, t.team_id,

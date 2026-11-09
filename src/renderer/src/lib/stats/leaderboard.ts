@@ -170,7 +170,10 @@ export function pickable(catalogue: readonly MetricInfo[], tab: TabDef): MetricI
     )
 }
 
-/** A family's metrics on a tab (its end's, for teams), core first; extended fill in up to 12. */
+/**
+ * A family's metrics on a tab (its end's, for teams), core first; extended fill in up to 12, those
+ * read from games before those published per season, since only the first answer any date range.
+ */
 function familyMetrics(
   catalogue: readonly MetricInfo[],
   tab: TabDef,
@@ -180,7 +183,11 @@ function familyMetrics(
     (m) => m.family === family && (!tab.sides || !m.side || tab.sides.includes(m.side))
   )
   const core = of.filter((m) => m.tier === 'core')
-  const fill = of.filter((m) => m.tier !== 'core').slice(0, Math.max(0, 12 - core.length))
+  const extended = of.filter((m) => m.tier !== 'core')
+  const fill = [
+    ...extended.filter((m) => m.grains.includes('game')),
+    ...extended.filter((m) => !m.grains.includes('game'))
+  ].slice(0, Math.max(0, 12 - core.length))
   return [...core, ...fill].map((m) => m.id)
 }
 

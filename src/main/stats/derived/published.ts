@@ -1,9 +1,10 @@
 import type { StatsDb } from '../db'
-import { PUBLISHED_TABLES, type PublishedTable } from './publishedTables'
+import { PUBLISHED_TABLES, type PublishedColumn, type PublishedTable } from './publishedTables'
 import { column, inspect, type Have } from './sql'
+import { TOKEN } from '@shared/stats/catalogue'
 
 /** Bump when a table changes, so the next refresh builds them without downloading anything. */
-export const PUBLISHED_VERSION = 1
+export const PUBLISHED_VERSION = 2
 
 /** What the engine divides a published sum by. A table always has these, NULL when not published. */
 export const PUBLISHED_DIVISORS = ['games', 'minutes', 'possessions'] as const
@@ -11,10 +12,12 @@ export const PUBLISHED_DIVISORS = ['games', 'minutes', 'possessions'] as const
 export const publishedTable = (name: string): PublishedTable | undefined =>
   PUBLISHED_TABLES.find((t) => t.table === name)
 
+const nameOf = (c: string | PublishedColumn): string => (typeof c === 'string' ? c : c.name)
+
 /** The components a published table holds. */
 export const publishedComponents = (t: PublishedTable): string[] => [
   ...PUBLISHED_DIVISORS,
-  ...t.columns
+  ...t.columns.map(nameOf)
 ]
 
 const keyOf = (t: PublishedTable): string => (t.entity === 'player' ? 'player_id' : 'team_id')
@@ -48,8 +51,14 @@ const gameType = (seasonType: string): string =>
  */
 function buildSql(t: PublishedTable, have: Have): string {
   const held = have.columns.get(t.source)
-  const read = (name: string | null | undefined): string =>
-    name ? column(have, t.source, 's', name, 'DOUBLE') : 'NULL::DOUBLE'
+  const one = (name: string): string => column(have, t.source, 's', name, 'DOUBLE')
+  // A bare name is the source's column; anything else is worked out from `{column}`s.
+  const read = (sql: string | null | undefined): string =>
+    !sql
+      ? 'NULL::DOUBLE'
+      : sql.includes('{')
+        ? `(${sql.replace(TOKEN, (_, c: string) => one(c))})`
+        : one(sql)
   const season = column(have, t.source, 's', 'season')
   const type = gameType(column(have, t.source, 's', 'season_type', 'VARCHAR'))
   const where = [`${type} IS NOT NULL`]
@@ -59,7 +68,7 @@ function buildSql(t: PublishedTable, have: Have): string {
     `${read(t.games)} AS games`,
     `${read(t.minutes)} AS minutes`,
     `${read(t.possessions)} AS possessions`,
-    ...t.columns.map((c) => `${read(c)} AS ${c}`)
+    ...t.columns.map((c) => `${read(typeof c === 'string' ? c : c.sql)} AS ${nameOf(c)}`)
   ]
   return `CREATE OR REPLACE TABLE ${t.table} AS
     SELECT ${column(have, t.source, 's', keyOf(t), 'BIGINT')} AS ${keyOf(t)},

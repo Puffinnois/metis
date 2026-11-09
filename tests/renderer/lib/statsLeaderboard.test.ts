@@ -108,6 +108,11 @@ describe('the column picker and presets', () => {
       'composite'
     ])
     const shooting = familyColumns(CATALOGUE, tab, 'shooting')
+    // Published metrics answer whole seasons only, so the preset is what it was without them.
+    const fromGames = CATALOGUE.filter((m) => m.grains.includes('game'))
+    expect(shooting.slice(0, familyColumns(fromGames, tab, 'shooting').length)).toEqual(
+      familyColumns(fromGames, tab, 'shooting')
+    )
     expect(shooting.length).toBeLessThanOrEqual(40)
     expect(shooting).toContain('ts_pct')
     expect(familyOf(board(), CATALOGUE, BY_ID)).toBe('default')

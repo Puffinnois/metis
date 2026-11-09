@@ -29,7 +29,7 @@ vi.mock('@main/stats/derived/publishedTables', async (actual) => ({
       games: null,
       minutes: 'min',
       possessions: 'poss',
-      columns: ['widgets']
+      columns: ['widgets', { name: 'rated', sql: '{rating} * {poss}' }]
     }
   ]
 }))
@@ -67,7 +67,8 @@ describe('the published tables', () => {
       'games',
       'minutes',
       'possessions',
-      'widgets'
+      'widgets',
+      'rated'
     ])
   })
 
@@ -119,13 +120,30 @@ describe('the published tables', () => {
 
   it('read a team by its id, with what it publishes', async () => {
     await db.exec(`CREATE TABLE src_test_teams (team_id BIGINT, season INTEGER,
-      season_type VARCHAR, min DOUBLE, poss DOUBLE, widgets BIGINT)`)
-    await db.exec(`INSERT INTO src_test_teams VALUES (7, 2026, 'Regular Season', 3950, 8100, 12)`)
+      season_type VARCHAR, min DOUBLE, poss DOUBLE, widgets BIGINT, rating DOUBLE)`)
+    await db.exec(
+      `INSERT INTO src_test_teams VALUES (7, 2026, 'Regular Season', 3950, 8100, 12, 110.5)`
+    )
     await buildPublished(db)
     const rows = await db.all('SELECT * FROM published_test_teams')
     expect(rows).toMatchObject([
-      { team_id: 7, games: null, minutes: 3950, possessions: 8100, widgets: 12 }
+      {
+        team_id: 7,
+        games: null,
+        minutes: 3950,
+        possessions: 8100,
+        widgets: 12,
+        rated: 110.5 * 8100
+      }
     ])
+  })
+
+  it('work a column out of the source columns, NULL when one is missing', async () => {
+    await db.exec(`CREATE TABLE src_test_teams (team_id BIGINT, season INTEGER,
+      season_type VARCHAR, min DOUBLE, poss DOUBLE)`)
+    await db.exec(`INSERT INTO src_test_teams VALUES (7, 2026, 'Regular Season', 3950, 8100)`)
+    await buildPublished(db)
+    expect(await db.all('SELECT rated FROM published_test_teams')).toEqual([{ rated: null }])
   })
 
   it('build empty, without failing, while a source is not loaded', async () => {
