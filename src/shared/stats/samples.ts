@@ -4,6 +4,7 @@ export const SAMPLE_LABELS: Readonly<Record<string, string>> = {
   box_games: 'games with a box score',
   starts_known: 'games with the starters known',
   minutes: 'minutes',
+  possessions: 'possessions',
   fga: 'field-goal attempts',
   fgm: 'field goals made',
   fg3a: '3-point attempts',

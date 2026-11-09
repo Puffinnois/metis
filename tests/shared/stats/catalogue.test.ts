@@ -305,6 +305,87 @@ const EXPECTED: Record<string, number> = {
   team_pie: pieOf(TEAM) / PIE_TOTAL
 }
 
+/**
+ * The NBA's dashboards (`catalogue/dashboards.ts`): each metric, the published column it reads, and
+ * what that column is stored over. A rate is stored times its minutes or possessions, so it reads back
+ * as the column over that divisor; a count reads as it is.
+ */
+const DASHBOARD_COLUMNS = `
+  nba_ortg off_rating possessions; nba_drtg def_rating possessions; nba_nrtg net_rating possessions
+  nba_e_ortg e_off_rating possessions; nba_e_drtg e_def_rating possessions
+  nba_e_nrtg e_net_rating possessions; nba_pace pace minutes; nba_e_pace e_pace minutes
+  nba_ast_pct ast_pct minutes; nba_ast_to ast_to minutes; nba_ast_ratio ast_ratio minutes
+  nba_oreb_pct oreb_pct minutes; nba_dreb_pct dreb_pct minutes; nba_reb_pct reb_pct minutes
+  nba_efg_pct efg_pct minutes; nba_ts_pct ts_pct minutes; nba_pie pie minutes
+  nba_tov_ratio tm_tov_pct minutes; nba_e_tov_ratio e_tov_pct minutes
+  nba_usg_pct usg_pct minutes; nba_e_usg_pct e_usg_pct minutes; nba_poss possessions -
+  team_nba_ortg off_rating possessions; team_nba_drtg def_rating possessions
+  team_nba_nrtg net_rating possessions; team_nba_e_ortg e_off_rating possessions
+  team_nba_e_drtg e_def_rating possessions; team_nba_e_nrtg e_net_rating possessions
+  team_nba_pace pace minutes; team_nba_e_pace e_pace minutes; team_nba_ast_pct ast_pct minutes
+  team_nba_ast_to ast_to minutes; team_nba_ast_ratio ast_ratio minutes
+  team_nba_oreb_pct oreb_pct minutes; team_nba_dreb_pct dreb_pct minutes
+  team_nba_reb_pct reb_pct minutes; team_nba_efg_pct efg_pct minutes; team_nba_ts_pct ts_pct minutes
+  team_nba_pie pie minutes; team_nba_tov_pct tm_tov_pct minutes; team_nba_poss possessions -
+  team_nba_fta_rate fta_rate minutes; opp_nba_efg_pct opp_efg_pct minutes
+  opp_nba_fta_rate opp_fta_rate minutes; opp_nba_tov_pct opp_tov_pct minutes
+  opp_nba_oreb_pct opp_oreb_pct minutes
+  nba_pts_off_tov pts_off_tov -; nba_pts_2_nd_chance pts_2_nd_chance -; nba_pts_fb pts_fb -
+  nba_pts_paint pts_paint -; nba_on_opp_pts_off_tov opp_pts_off_tov -
+  nba_on_opp_pts_2_nd_chance opp_pts_2_nd_chance -; nba_on_opp_pts_fb opp_pts_fb -
+  nba_on_opp_pts_paint opp_pts_paint -; nba_blka blka -; nba_pfd pfd -
+  team_nba_pts_off_tov pts_off_tov -; team_nba_pts_2_nd_chance pts_2_nd_chance -
+  team_nba_pts_fb pts_fb -; team_nba_pts_paint pts_paint -; opp_nba_pts_off_tov opp_pts_off_tov -
+  opp_nba_pts_2_nd_chance opp_pts_2_nd_chance -; opp_nba_pts_fb opp_pts_fb -
+  opp_nba_pts_paint opp_pts_paint -
+  nba_share_fga_2pt pct_fga_2_pt minutes; nba_share_fga_3pt pct_fga_3_pt minutes
+  nba_share_pts_2pt pct_pts_2_pt minutes; nba_share_pts_mid pct_pts_2_pt_mr minutes
+  nba_share_pts_3pt pct_pts_3_pt minutes; nba_share_pts_ft pct_pts_ft minutes
+  nba_share_pts_fb pct_pts_fb minutes; nba_share_pts_off_tov pct_pts_off_tov minutes
+  nba_share_pts_paint pct_pts_paint minutes; nba_share_ast_2pm pct_ast_2_pm minutes
+  nba_share_uast_2pm pct_uast_2_pm minutes; nba_share_ast_3pm pct_ast_3_pm minutes
+  nba_share_uast_3pm pct_uast_3_pm minutes; nba_share_ast_fgm pct_ast_fgm minutes
+  nba_share_uast_fgm pct_uast_fgm minutes
+  team_nba_share_fga_2pt pct_fga_2_pt minutes; team_nba_share_fga_3pt pct_fga_3_pt minutes
+  team_nba_share_pts_2pt pct_pts_2_pt minutes; team_nba_share_pts_mid pct_pts_2_pt_mr minutes
+  team_nba_share_pts_3pt pct_pts_3_pt minutes; team_nba_share_pts_ft pct_pts_ft minutes
+  team_nba_share_pts_fb pct_pts_fb minutes; team_nba_share_pts_off_tov pct_pts_off_tov minutes
+  team_nba_share_pts_paint pct_pts_paint minutes; team_nba_share_ast_2pm pct_ast_2_pm minutes
+  team_nba_share_uast_2pm pct_uast_2_pm minutes; team_nba_share_ast_3pm pct_ast_3_pm minutes
+  team_nba_share_uast_3pm pct_uast_3_pm minutes; team_nba_share_ast_fgm pct_ast_fgm minutes
+  team_nba_share_uast_fgm pct_uast_fgm minutes
+  nba_share_fgm pct_fgm minutes; nba_share_fga pct_fga minutes; nba_share_fg3m pct_fg3_m minutes
+  nba_share_fg3a pct_fg3_a minutes; nba_share_ftm pct_ftm minutes; nba_share_fta pct_fta minutes
+  nba_share_oreb pct_oreb minutes; nba_share_dreb pct_dreb minutes; nba_share_reb pct_reb minutes
+  nba_share_ast pct_ast minutes; nba_share_tov pct_tov minutes; nba_share_stl pct_stl minutes
+  nba_share_blk pct_blk minutes; nba_share_blka pct_blka minutes; nba_share_pf pct_pf minutes
+  nba_share_pfd pct_pfd minutes; nba_share_pts pct_pts minutes
+  nba_def_ws def_ws -`
+  .split(/[;\n]/)
+  .map((line) => line.trim().split(/\s+/))
+  .filter((parts) => parts.length === 3)
+
+/** One published row: a different value in every column, so a metric reading the wrong one fails. */
+const PUBLISHED_ROW: Record<string, number> = {
+  games: 50,
+  minutes: 2000,
+  possessions: 4000,
+  ...Object.fromEntries(
+    [...new Set(DASHBOARD_COLUMNS.map(([, c]) => c))].map((c, i) => [c, 1000 + 37 * i])
+  )
+}
+
+Object.assign(EXPECTED, {
+  ...Object.fromEntries(
+    DASHBOARD_COLUMNS.map(([id, c, by]) => [
+      id,
+      by === '-' ? PUBLISHED_ROW[c] : PUBLISHED_ROW[c] / PUBLISHED_ROW[by]
+    ])
+  ),
+  nba_pace40: (40 * PUBLISHED_ROW.pace) / PUBLISHED_ROW.minutes / 48,
+  team_nba_pace40: (40 * PUBLISHED_ROW.pace) / PUBLISHED_ROW.minutes / 48
+})
+
 const fill = (m: MetricDef, row: Record<string, number>): string =>
   m.value.replace(TOKEN, (_, c: string) => {
     if (!(c in row)) throw new Error(`${m.id}: no ${c} in the worked row`)
@@ -389,7 +470,8 @@ describe('every formula, against a value worked by hand', () => {
   beforeAll(async () => {
     db = await openTestDb()
     const columns = CATALOGUE.map(
-      (m) => `(${fill(m, m.entity === 'player' ? PLAYER_ROW : TEAM_ROW)})::DOUBLE AS "${m.id}"`
+      (m) =>
+        `(${fill(m, m.published ? PUBLISHED_ROW : m.entity === 'player' ? PLAYER_ROW : TEAM_ROW)})::DOUBLE AS "${m.id}"`
     )
     values = (await db.get<Record<string, number | null>>(`SELECT ${columns.join(', ')}`)) ?? {}
   })

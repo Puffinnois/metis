@@ -1,5 +1,6 @@
 import type { MetricDef } from '../types'
 import { COMPOSITE } from './composite'
+import { DASHBOARDS } from './dashboards'
 import { POSSESSIONS } from './possessions'
 import { SCORING } from './scoring'
 import { SHOOTING } from './shooting'
@@ -14,7 +15,8 @@ export const CATALOGUE: MetricDef[] = [
   ...SHOOTING,
   ...POSSESSIONS,
   ...SCORING,
-  ...COMPOSITE
+  ...COMPOSITE,
+  ...DASHBOARDS
 ]
 
 export const METRICS: ReadonlyMap<string, MetricDef> = new Map(CATALOGUE.map((m) => [m.id, m]))

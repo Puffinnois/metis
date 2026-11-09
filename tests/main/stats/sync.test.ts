@@ -1,6 +1,6 @@
 import { copyFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { StatsDb } from '@main/stats/db'
 import type { Downloads, FetchedFile } from '@main/stats/download'
 import { INTERRUPTED_MESSAGE } from '@main/stats/schema'
@@ -18,6 +18,13 @@ import {
   type SourceState
 } from '@main/stats/sync'
 import { openTestDb, tempDir, writeFixture } from '../../fixtures/stats'
+
+// These tests follow the file steps alone; the published tables' own step is tested in
+// `syncIdentity.test.ts`, and would otherwise follow every run here.
+vi.mock('@main/stats/derived/publishedTables', async (actual) => ({
+  ...(await actual<typeof import('@main/stats/derived/publishedTables')>()),
+  PUBLISHED_TABLES: []
+}))
 
 const NOW = new Date('2026-11-05T12:00:00Z')
 const CURRENT = 2027

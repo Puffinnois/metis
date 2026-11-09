@@ -41,7 +41,7 @@ From 1996-97 the NBA schedule decides what a game is; before it, ESPN.
 | 2023-24 | 30    | 1,230   | yes          | 1,230        | 6       | 82       | 1         | 4        | 73        | nba  |
 | 2024-25 | 30    | 1,230   | yes          | 1,230        | 6       | 84       | 1         | 6        | 73        | nba  |
 | 2025-26 | 30    | 1,230   | yes          | 1,230        | 6       | 85       | 1         | 7        | 71        | nba  |
-| 2026-27 | 30    | 123     | in progress  | 123          | 0       | 0        | 0         | 0        | 67        | nba  |
+| 2026-27 | 30    | 146     | in progress  | 146          | 0       | 0        | 0         | 0        | 67        | nba  |
 
 ## ESPN against the NBA, team box scores
 
@@ -79,7 +79,7 @@ Rows are team-games in both sources. The NBA's rebounds and turnovers are the su
 | 2023-24 | 2,638      | 100.0    | 100.0               | 100.0              | 100.0         | 99.9      | 99.9  | 100.0 | 100.0 | 100.0 | 100.0                | 100.0         | 48.1                | 0.0                |
 | 2024-25 | 2,642      | 100.0    | 100.0               | 99.9               | 99.9          | 99.9      | 99.9  | 99.9  | 100.0 | 100.0 | 100.0                | 99.9          | 45.1                | 0.0                |
 | 2025-26 | 2,636      | 100.0    | 99.4                | 100.0              | 100.0         | 99.7      | 100.0 | 100.0 | 100.0 | 100.0 | 99.8                 | 100.0         | 47.6                | 0.0                |
-| 2026-27 | 246        | 100.0    | 98.8                | 99.6               | 99.6          | 98.8      | 98.4  | 100.0 | 100.0 | 100.0 | 99.6                 | 99.6          | 46.7                | 0.0                |
+| 2026-27 | 278        | 100.0    | 98.9                | 99.3               | 99.3          | 99.3      | 98.6  | 100.0 | 100.0 | 100.0 | 99.3                 | 99.3          | 47.1                | 0.0                |
 
 ## Players sum to their team
 
@@ -120,7 +120,7 @@ ESPN's rebounds are compared with its team's offensive plus defensive rebounds, 
 | 2023-24 | 2,638          | 100.0    | 100.0      | 100.0     | 2,638           | 100.0    | 100.0      | 100.0     |
 | 2024-25 | 2,642          | 100.0    | 100.0      | 100.0     | 2,642           | 100.0    | 99.9       | 99.9      |
 | 2025-26 | 2,644          | 100.0    | 100.0      | 100.0     | 2,636           | 99.7     | 99.4       | 99.8      |
-| 2026-27 | 246            | 100.0    | 100.0      | 100.0     | 246             | 100.0    | 99.2       | 100.0     |
+| 2026-27 | 278            | 100.0    | 100.0      | 100.0     | 278             | 100.0    | 99.6       | 100.0     |
 
 ## Player identity and player lines
 
@@ -170,7 +170,7 @@ Rows below are ESPN's lines for players who played. **On an NBA id** is the shar
 | 2023-24 | 28,098     | 100.0          | 28,073       | 25           | 0       | 0         | 100.0     | 100.0    | 100.0      | 100.0     |
 | 2024-25 | 28,154     | 100.0          | 28,150       | 4            | 0       | 0         | 100.0     | 100.0    | 100.0      | 100.0     |
 | 2025-26 | 28,498     | 100.0          | 28,451       | 47           | 0       | 0         | 100.0     | 100.0    | 100.0      | 100.0     |
-| 2026-27 | 2,770      | 100.0          | 2,766        | 4            | 0       | 0         | 100.0     | 99.9     | 99.3       | 99.5      |
+| 2026-27 | 3,122      | 100.0          | 3,116        | 6            | 0       | 0         | 100.0     | 99.9     | 99.5       | 99.5      |
 
 ## Published season totals against summed box scores
 
@@ -208,7 +208,7 @@ Rows are players in the regular season, from the league dashboards, which hold o
 | 2023-24 | 572     | 100.0                 | 98.8    | 100.0    | 99.8       | 99.7      |
 | 2024-25 | 569     | 100.0                 | 99.3    | 100.0    | 100.0      | 100.0     |
 | 2025-26 | 582     | 100.0                 | 99.5    | 100.0    | 99.1       | 100.0     |
-| 2026-27 | 452     | 100.0                 | 100.0   | 99.3     | 96.9       | 97.6      |
+| 2026-27 | 461     | 100.0                 | 65.1    | 68.3     | 67.7       | 72.5      |
 
 ## Possessions against the box score
 
@@ -246,7 +246,7 @@ Points summed from the possessions table against the team's box score. Possessio
 | 2023-24 | 2,638      | 89.7    | 97.5       | 100.0      | 5     |
 | 2024-25 | 2,642      | 89.9    | 97.5       | 100.0      | 5     |
 | 2025-26 | 2,644      | 88.0    | 96.6       | 99.8       | 52    |
-| 2026-27 | 246        | 85.4    | 93.5       | 99.2       | 78    |
+| 2026-27 | 278        | 100.0   | 100.0      | 100.0      | 0     |
 
 ## The game tables
 
@@ -287,7 +287,7 @@ Rows are team-games in `team_game`. **Players sum** compares each team's players
 | 2023-24 | 2,638      | 100.0              | 100.0    | 100.0      | 100.0     | 100.0       | 100.0 | 100.0     | 100.0                | 99.7         | 100.0            |
 | 2024-25 | 2,642      | 100.0              | 100.0    | 100.0      | 100.0     | 100.0       | 100.0 | 100.0     | 100.0                | 100.0        | 100.0            |
 | 2025-26 | 2,644      | 100.0              | 100.0    | 100.0      | 100.0     | 100.0       | 100.0 | 100.0     | 100.0                | 99.9         | 100.0            |
-| 2026-27 | 246        | 100.0              | 100.0    | 100.0      | 100.0     | 100.0       | 100.0 | 100.0     | 100.0                | 99.6         | 100.0            |
+| 2026-27 | 292        | 95.2               | 100.0    | 100.0      | 100.0     | 100.0       | 100.0 | 100.0     | 100.0                | 99.6         | 100.0            |
 
 ## The season tables against what is published
 
@@ -325,7 +325,7 @@ Regular season, against `nba_stats_player_season_stats` and `nba_stats_team_seas
 | 2023-24 | 572     | 100.0   | 100.0   | 100.0    | 99.8       | 99.7      | 100.0 | 100.0     | 20 of 20 | 30    | 100.0  | 100.0    | 100.0         | 96.7            | 96.7           |
 | 2024-25 | 569     | 100.0   | 100.0   | 100.0    | 100.0      | 100.0     | 100.0 | 100.0     | 20 of 20 | 30    | 100.0  | 100.0    | 100.0         | 100.0           | 100.0          |
 | 2025-26 | 582     | 100.0   | 100.0   | 100.0    | 99.1       | 100.0     | 100.0 | 100.0     | 20 of 20 | 30    | 100.0  | 100.0    | 100.0         | 96.7            | 100.0          |
-| 2026-27 | 452     | 100.0   | 100.0   | 99.3     | 96.9       | 97.6      | 100.0 | 98.5      | 20 of 20 | 30    | 100.0  | 100.0    | 96.7          | 93.3            | 96.7           |
+| 2026-27 | 459     | 100.0   | 100.0   | 99.6     | 96.3       | 97.6      | 100.0 | 98.5      | 20 of 20 | 30    | 76.7   | 76.7     | 100.0         | 90.0            | 96.7           |
 
 ## Formulas against what is published
 
@@ -434,6 +434,117 @@ Team estimates against `nba_stats_team_season_stats`, as the median difference a
 | 2024-25 | 1.16               | 0.85                 | 1.20               | 1.04         | 0.77           | 0.02 | 2.21               | 4.08 |
 | 2025-26 | 1.18               | 0.72                 | 1.21               | 1.06         | 0.68           | 0.03 | 2.13               | 4.50 |
 
+## The NBA's dashboards, read through the engine
+
+The NBA's league dashboards (Plan T702) are read through the query engine over a whole regular season, against the raw files (`src_dash_*`), rows of totals. A rate the NBA publishes is stored times its minutes, or its possessions for a rating, and divided back when read. So one season should give back exactly what was published, and only floating point should differ. The player columns compared are one or more from each table: ratings, pace, usage, turnover ratio, PIE, paint points, shots blocked, midrange and assisted shares, share of points on court, and defensive win shares. The team columns are ratings, pace, turnovers, the four factors, points by kind and the paint share. A row matches when every compared column does.
+
+| Season  | Players | Rows same % | Values same % | Teams | Rows same % |
+| ------- | ------- | ----------- | ------------- | ----- | ----------- |
+| 1996-97 | 441     | 100.0       | 100.0         | 29    | 100.0       |
+| 1997-98 | 439     | 100.0       | 100.0         | 29    | 100.0       |
+| 1998-99 | 440     | 100.0       | 100.0         | 29    | 100.0       |
+| 1999-00 | 439     | 99.8        | 100.0         | 29    | 100.0       |
+| 2000-01 | 441     | 100.0       | 100.0         | 29    | 100.0       |
+| 2001-02 | 440     | 100.0       | 100.0         | 29    | 100.0       |
+| 2002-03 | 428     | 100.0       | 100.0         | 29    | 100.0       |
+| 2003-04 | 442     | 100.0       | 100.0         | 29    | 100.0       |
+| 2004-05 | 464     | 100.0       | 100.0         | 30    | 100.0       |
+| 2005-06 | 458     | 99.8        | 100.0         | 30    | 100.0       |
+| 2006-07 | 458     | 100.0       | 100.0         | 30    | 100.0       |
+| 2007-08 | 451     | 100.0       | 100.0         | 30    | 100.0       |
+| 2008-09 | 445     | 100.0       | 100.0         | 30    | 100.0       |
+| 2009-10 | 442     | 99.8        | 100.0         | 30    | 100.0       |
+| 2010-11 | 452     | 100.0       | 100.0         | 30    | 100.0       |
+| 2011-12 | 478     | 100.0       | 100.0         | 30    | 100.0       |
+| 2012-13 | 469     | 99.8        | 100.0         | 30    | 100.0       |
+| 2013-14 | 482     | 100.0       | 100.0         | 30    | 100.0       |
+| 2014-15 | 492     | 100.0       | 100.0         | 30    | 100.0       |
+| 2015-16 | 476     | 100.0       | 100.0         | 30    | 100.0       |
+| 2016-17 | 486     | 100.0       | 100.0         | 30    | 100.0       |
+| 2017-18 | 540     | 100.0       | 100.0         | 30    | 100.0       |
+| 2018-19 | 530     | 100.0       | 100.0         | 30    | 100.0       |
+| 2019-20 | 529     | 100.0       | 100.0         | 30    | 100.0       |
+| 2020-21 | 540     | 100.0       | 100.0         | 30    | 100.0       |
+| 2021-22 | 605     | 100.0       | 100.0         | 30    | 100.0       |
+| 2022-23 | 539     | 100.0       | 100.0         | 30    | 100.0       |
+| 2023-24 | 572     | 100.0       | 100.0         | 30    | 100.0       |
+| 2024-25 | 569     | 100.0       | 100.0         | 30    | 100.0       |
+| 2025-26 | 582     | 100.0       | 100.0         | 30    | 100.0       |
+
+The rows that differ are players with 0 minutes or 0 possessions published, such as JamesOn Curry in 2009-10, one game of six seconds. The NBA prints 0 for their rates, and the engine reads no value, as it does for any rate over nothing.
+
+Over two seasons together (2024-25 and 2025-26), usage weighted by minutes and offensive rating weighted by possessions, worked out from the raw files: 687 of 687 players read the same through the engine.
+
+The same idea, by the catalogue's formula and by the NBA, as the median of formula minus published among players with 1,000 minutes per 82 games, in percentage points. **ORB%** and **DRB%**: the formula guesses a player's on-court rebounds from their minutes, and the NBA counts them. **AST ratio**: both are assists per 100 plays used. **TOV% against TO ratio**: the reference's TOV% leaves assists out of the plays, and the NBA's TO ratio counts them, so they are different measures. **%PTS** and **%REB**: the formula is a share of whole games, and the NBA's a share of the minutes the player was on the floor, so the formula reads lower.
+
+| Season  | ORB% | DRB% | AST ratio | TOV% against TO ratio | %PTS  | %REB  |
+| ------- | ---- | ---- | --------- | --------------------- | ----- | ----- |
+| 1996-97 | 0.58 | 1.43 | 0.00      | 1.88                  | -7.00 | -6.83 |
+| 1997-98 | 0.62 | 1.51 | 0.00      | 1.98                  | -7.51 | -7.19 |
+| 1998-99 | 0.57 | 1.53 | 0.01      | 1.70                  | -7.85 | -7.42 |
+| 1999-00 | 0.54 | 1.52 | 0.01      | 1.85                  | -7.64 | -7.27 |
+| 2000-01 | 0.53 | 1.47 | 0.01      | 1.91                  | -7.37 | -7.17 |
+| 2001-02 | 0.57 | 1.52 | -0.00     | 1.68                  | -7.57 | -7.65 |
+| 2002-03 | 0.54 | 1.58 | -0.00     | 1.88                  | -7.48 | -7.18 |
+| 2003-04 | 0.52 | 1.41 | 0.00      | 1.97                  | -7.14 | -7.16 |
+| 2004-05 | 0.54 | 1.54 | 0.00      | 1.80                  | -7.71 | -7.50 |
+| 2005-06 | 0.52 | 1.57 | -0.00     | 1.79                  | -7.36 | -7.43 |
+| 2006-07 | 0.49 | 1.53 | -0.02     | 1.81                  | -7.41 | -7.09 |
+| 2007-08 | 0.43 | 1.48 | -0.00     | 1.77                  | -7.40 | -6.99 |
+| 2008-09 | 0.47 | 1.57 | -0.01     | 1.63                  | -7.31 | -7.32 |
+| 2009-10 | 0.40 | 1.45 | -0.02     | 1.71                  | -7.66 | -7.03 |
+| 2010-11 | 0.45 | 1.52 | -0.02     | 1.61                  | -8.04 | -7.24 |
+| 2011-12 | 0.47 | 1.58 | -0.00     | 1.69                  | -8.12 | -7.48 |
+| 2012-13 | 0.46 | 1.55 | -0.00     | 1.67                  | -8.22 | -7.45 |
+| 2013-14 | 0.37 | 1.50 | -0.00     | 1.79                  | -7.96 | -7.61 |
+| 2014-15 | 0.39 | 1.58 | -0.01     | 1.73                  | -8.37 | -7.73 |
+| 2015-16 | 0.35 | 1.51 | -0.01     | 1.72                  | -8.34 | -7.62 |
+| 2016-17 | 0.36 | 1.54 | -0.02     | 1.64                  | -8.36 | -7.78 |
+| 2017-18 | 0.36 | 1.58 | -0.03     | 1.77                  | -8.37 | -7.88 |
+| 2018-19 | 0.33 | 1.51 | -0.03     | 1.79                  | -8.59 | -7.68 |
+| 2019-20 | 0.37 | 1.57 | -0.04     | 1.68                  | -8.37 | -7.98 |
+| 2020-21 | 0.30 | 1.51 | -0.05     | 1.84                  | -8.31 | -7.90 |
+| 2021-22 | 0.33 | 1.51 | -0.04     | 1.82                  | -8.11 | -7.20 |
+| 2022-23 | 0.39 | 1.47 | -0.05     | 1.82                  | -7.94 | -7.15 |
+| 2023-24 | 0.39 | 1.54 | -0.05     | 1.90                  | -8.10 | -7.47 |
+| 2024-25 | 0.46 | 1.58 | -0.04     | 1.99                  | -8.31 | -7.60 |
+| 2025-26 | 0.48 | 1.75 | -0.03     | 1.91                  | -8.72 | -7.81 |
+
+For teams, across the league: percentage points for the rates, and points per game for the points by kind, where the formula's side is ESPN's team box score. ESPN's paint points start in 2008-09 and are missing in 2017-18, its fast-break points look low before 2004-05, and both sources classify these points their own way.
+
+| Season  | AST%  | FTr   | Opp eFG% | Paint PTS | Fast-break PTS | PTS off TO |
+| ------- | ----- | ----- | -------- | --------- | -------------- | ---------- |
+| 1996-97 | -0.01 | -0.02 | -0.01    | –         | –              | 0.10       |
+| 1997-98 | -0.01 | -0.00 | -0.00    | –         | –              | 0.10       |
+| 1998-99 | -0.01 | -0.02 | 0.00     | –         | –              | 0.12       |
+| 1999-00 | 0.02  | 0.00  | -0.01    | –         | –              | -0.24      |
+| 2000-01 | 0.01  | -0.02 | 0.01     | –         | –              | 0.09       |
+| 2001-02 | 0.01  | -0.01 | 0.00     | –         | -4.46          | 0.12       |
+| 2002-03 | 0.00  | -0.00 | -0.01    | –         | -7.09          | 0.09       |
+| 2003-04 | 0.01  | -0.01 | -0.01    | –         | -7.45          | 0.12       |
+| 2004-05 | -0.00 | -0.02 | -0.01    | –         | -1.29          | -1.24      |
+| 2005-06 | -0.01 | -0.00 | 0.00     | –         | 0.00           | -0.45      |
+| 2006-07 | 0.02  | -0.01 | -0.00    | –         | -0.05          | 0.10       |
+| 2007-08 | 0.00  | -0.00 | 0.02     | –         | 0.00           | 0.00       |
+| 2008-09 | -0.01 | -0.00 | 0.00     | -14.93    | 0.00           | 0.00       |
+| 2009-10 | 0.00  | -0.01 | 0.00     | 0.00      | 0.00           | 0.00       |
+| 2010-11 | 0.02  | -0.01 | 0.02     | 0.00      | 0.00           | 0.00       |
+| 2011-12 | -0.02 | -0.00 | 0.01     | 0.00      | 0.00           | 0.00       |
+| 2012-13 | -0.00 | -0.01 | 0.00     | 0.00      | -0.10          | 0.00       |
+| 2013-14 | -0.01 | -0.01 | -0.01    | 0.00      | 0.00           | -0.11      |
+| 2014-15 | 0.01  | 0.01  | 0.00     | 0.00      | 0.00           | 0.20       |
+| 2015-16 | -0.00 | -0.01 | 0.01     | 0.00      | 0.00           | -0.02      |
+| 2016-17 | 0.02  | -0.01 | 0.02     | 0.00      | 0.00           | 0.46       |
+| 2017-18 | -0.01 | 0.01  | 0.01     | –         | –              | –          |
+| 2018-19 | 0.00  | 0.00  | -0.01    | 0.02      | 0.00           | 0.43       |
+| 2019-20 | -0.01 | -0.01 | 0.01     | 0.03      | 0.00           | 0.22       |
+| 2020-21 | -0.00 | 0.00  | -0.00    | 0.03      | 0.00           | -0.42      |
+| 2021-22 | 0.01  | -0.00 | -0.00    | -0.05     | 0.00           | -0.06      |
+| 2022-23 | 0.01  | -0.01 | -0.00    | -0.02     | 0.00           | -0.16      |
+| 2023-24 | -0.01 | 0.00  | -0.00    | -0.05     | 0.00           | -0.02      |
+| 2024-25 | -0.00 | 0.01  | 0.01     | -0.05     | 0.00           | 0.24       |
+| 2025-26 | 0.01  | 0.01  | -0.01    | -0.07     | -0.02          | 0.40       |
+
 ## The published standings
 
 `nba_stats_standings`, and the league dashboards' file, which alone reaches 1995-96. Percentages are of each season's teams. **Box scores:** wins and losses against `team_season`. **NBA's file:** the same record, rank, games back and streak as the dashboards'. **ESPN:** `espn_nba_standings`, from 2001-02. **By the record:** games back worked out from the conference leader's record. The last ten and the streak start in 2001-02. In 2003-04 the NBA's file repeats the overall record as the conference and division records, so the screen reads those as not published.
@@ -471,7 +582,7 @@ Team estimates against `nba_stats_team_season_stats`, as the median difference a
 | 2023-24 | 30    | 100.0        | 100.0        | 100.0         | 100.0             | 100.0         | 100.0           |
 | 2024-25 | 30    | 100.0        | 100.0        | 100.0         | 100.0             | 100.0         | 100.0           |
 | 2025-26 | 30    | 100.0        | 100.0        | 100.0         | 100.0             | 100.0         | 100.0           |
-| 2026-27 | 30    | 100.0        | 100.0        | 100.0         | 100.0             | 100.0         | 100.0           |
+| 2026-27 | 30    | 100.0        | 0.0          | 53.3          | 23.3              | 53.3          | 100.0           |
 
 ## Box scores against the final score
 
@@ -512,4 +623,4 @@ What the Games screen shows, per team-game with a box score that counts. **Team 
 | 2023-24 | 2,638      | 100.0      | 100.0   | 100.0      | 100.0     | 0     |
 | 2024-25 | 2,642      | 100.0      | 100.0   | 100.0      | 100.0     | 0     |
 | 2025-26 | 2,644      | 100.0      | 100.0   | 100.0      | 100.0     | 0     |
-| 2026-27 | 246        | 100.0      | 100.0   | 100.0      | 100.0     | 0     |
+| 2026-27 | 278        | 100.0      | 100.0   | 100.0      | 100.0     | 0     |
