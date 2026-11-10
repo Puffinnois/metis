@@ -742,10 +742,12 @@ Combine missingness can mean the player did not attend, declined a drill, or the
 ### 18.3 Availability, awards, and other metadata
 
 - **Games available / missed / started / inactive / DNP** — count roster/game statuses under a stated eligibility rule. Retrieve NBA rosters, injury reports, game boxes, or commercial feeds. Injury-report entries can repeat; count distinct relevant games rather than reports.
+  - _In Metis (Plan T709):_ **games missed to injury or illness** and **games out for other reasons** are available from 2019-20 (`games_out_injury`, `games_out_other`), counted by game from the official injury reports: the last report that lists the player decides, only an Out counts, and only for players with a box-score line that season. **Not available:** games started and games not played for any reason are in the box scores, not these counts; inactive and DNP are not read; before 2019-20 the reports are incomplete.
 - **Minutes share / games-played share** — `100P_MP/(T_MP/5)` and `100P_GP/T_GP`. Specify tenure for traded players.
 - **Awards, All-Star selections, All-NBA selections, titles, MVP voting share** — recorded results/counts; voting share = awarded vote points/maximum possible points under that award's rules. Retrieve NBA award releases, BRef awards, or commercial award feeds. These are not box-score performance formulas.
 - **Salary / cap hit / payroll / cost per modeled win** — financial context. Cost per win = selected dollar measure/selected value metric, but salary and cap hit are not interchangeable. Retrieve a licensed salary source and current contract records; no salary database was audited for this document.
 - **Referee foul/FT/challenge tendencies** — event counts or rates conditional on officiating crew. Retrieve officials plus PBP/commercial game data. A difference in raw rates is not evidence of referee bias without accounting for game context.
+  - _In Metis (Plan T709):_ **not available.** The Games screen names a game's officials from the NBA's file; rates by crew are Plan T906, and any tendency needs the game context this entry asks for.
 - **Season highs / career highs / consecutive-game streaks / threshold games** — max, ordered run length, or count above a threshold over eligible game logs. Any count statistic can generate these variants.
 
 ## 19. Retrieval examples and implementation notes

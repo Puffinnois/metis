@@ -714,6 +714,126 @@ The impact models (Plan T707) are read through the query engine over a whole sea
 
 In the playoffs, DARKO reads blank with the reason "Published for the regular season only." in 28 of the 28 seasons from 1998-99, where every DARKO column has values. Over two regular seasons together (2024-25 and 2025-26), RAPM weighted by possessions, BPM by minutes and WAR added up: 687 of 687 players read the same through the engine, and DARKO's projection reads blank with the reason "Published for one season at a time."
 
+## Games out, from the NBA's injury reports
+
+Games out (Plan T709) are read through the query engine, for the players with a box-score line in the season and type, against a count worked out again from the raw report rows (`src_nba_injury_report`) in JavaScript, apart from the SQL that builds the table: for each game and player the report with the latest timestamp, then, when its status is Out, one game, for an injury or illness or for another reason (the same rule, written out again). **Not in the box scores** counts players the reports list who have no line that season and type, so the engine does not list them. **Extra** counts players the engine gives games out that the raw rows do not: it should be 0.
+
+| Season  | Type           | Players | Not in the box scores | Rows same % | Games out, injury | Games out, other | Extra |
+| ------- | -------------- | ------- | --------------------- | ----------- | ----------------- | ---------------- | ----- |
+| 2019-20 | Regular season | 475     | 14                    | 100.0       | 4,209             | 3,356            | 0     |
+| 2019-20 | Playoffs       | 54      | 23                    | 100.0       | 53                | 11               | 0     |
+| 2020-21 | Regular season | 469     | 7                     | 100.0       | 5,038             | 1,882            | 0     |
+| 2020-21 | Playoffs       | 54      | 13                    | 100.0       | 148               | 4                | 0     |
+| 2021-22 | Regular season | 554     | 21                    | 100.0       | 5,518             | 4,046            | 0     |
+| 2021-22 | Playoffs       | 58      | 16                    | 100.0       | 117               | 11               | 0     |
+| 2022-23 | Regular season | 498     | 9                     | 100.0       | 5,627             | 3,220            | 0     |
+| 2022-23 | Playoffs       | 53      | 15                    | 100.0       | 95                | 2                | 0     |
+| 2023-24 | Regular season | 530     | 16                    | 100.0       | 5,858             | 3,803            | 0     |
+| 2023-24 | Playoffs       | 50      | 17                    | 100.0       | 102               | 3                | 0     |
+| 2024-25 | Regular season | 533     | 10                    | 100.0       | 6,973             | 3,973            | 0     |
+| 2024-25 | Playoffs       | 50      | 13                    | 100.0       | 63                | 2                | 0     |
+| 2025-26 | Regular season | 541     | 11                    | 100.0       | 7,054             | 3,564            | 0     |
+| 2025-26 | Playoffs       | 49      | 19                    | 100.0       | 79                | 1                | 0     |
+| 2026-27 | Regular season | 215     | 62                    | 100.0       | 408               | 101              | 0     |
+
+Out, then in the box score. Each game a player was listed Out on the last report, against a line with minutes in the box score for that game and player: a published listing is not a statement that the player did not play. **Of whom played** counts the games the player has minutes in.
+
+| Season  | Type           | Listed Out | Of whom played | Listed Out, injury | Of whom played |
+| ------- | -------------- | ---------- | -------------- | ------------------ | -------------- |
+| 2019-20 | Regular season | 8,072      | 8              | 4,603              | 2              |
+| 2019-20 | Playoffs       | 222        | 0              | 201                | 0              |
+| 2020-21 | Regular season | 7,162      | 0              | 5,273              | 0              |
+| 2020-21 | Playoffs       | 245        | 0              | 241                | 0              |
+| 2021-22 | Regular season | 10,522     | 2              | 6,371              | 0              |
+| 2021-22 | Playoffs       | 261        | 0              | 250                | 0              |
+| 2022-23 | Regular season | 9,321      | 4              | 6,013              | 0              |
+| 2022-23 | Playoffs       | 204        | 0              | 202                | 0              |
+| 2023-24 | Regular season | 10,245     | 2              | 6,286              | 0              |
+| 2023-24 | Playoffs       | 223        | 0              | 220                | 0              |
+| 2024-25 | Regular season | 11,335     | 1              | 7,269              | 0              |
+| 2024-25 | Playoffs       | 169        | 0              | 162                | 0              |
+| 2025-26 | Regular season | 11,237     | 3              | 7,549              | 1              |
+| 2025-26 | Playoffs       | 158        | 0              | 151                | 0              |
+| 2026-27 | Regular season | 1,010      | 0              | 743                | 0              |
+
+Over 15 seasons and types together: 70,386 games listed Out, 20 of them with minutes (0.03 %); for injury or illness 45,534, 3 with minutes. The last report's statuses over those games: Available 15,445, Out 70,386, Questionable 386, Probable 323, Doubtful 88.
+
+Before the first complete season the metric reads blank with the reason "Recorded from 2019-20.". Regular-season games with a report listing at least one player, by season: 2018-19 788 of 1,230; 2019-20 1,058 of 1,059; 2020-21 1,080 of 1,080; 2021-22 1,230 of 1,230; 2022-23 1,230 of 1,230; 2023-24 1,229 of 1,230; 2024-25 1,230 of 1,230; 2025-26 1,230 of 1,230; 2026-27 146 of 146.
+
+## The injury report and ESPN's injuries
+
+ESPN's file (`src_espn_injuries`) is a snapshot per day of the current season only. The official report's latest date is 2026-11-10 and ESPN's is 2026-11-09. On ESPN's last date it lists 103 players (Out 68, Day-To-Day 28), 96 of them with an NBA id. Of the 68 ESPN lists as Out, the official report's latest status is Out for 68, another status for 0, and the player is not on the latest report for 0. Of the 84 players the official report lists Out for an injury or illness, 75 are on ESPN's list.
+
+## Coaches and officials
+
+A team's staff (`src_nba_coaches`) as the team dashboard reads it, against the raw rows: the head coach (or coaches, when it changed: the file has no dates) and the assistants, with trainers and strength staff left out. ESPN has no coach file, so there is no twin to compare. **With a head coach** counts the teams the file has a head coach row for; the rest read as no coach listed, not as a team without one.
+
+| Season  | Teams | With a head coach | Head same % | Assistants same % |
+| ------- | ----- | ----------------- | ----------- | ----------------- |
+| 1999-00 | 29    | 29                | 100.0       | 100.0             |
+| 2000-01 | 29    | 17                | 100.0       | 100.0             |
+| 2001-02 | 29    | 17                | 100.0       | 100.0             |
+| 2002-03 | 29    | 23                | 100.0       | 100.0             |
+| 2003-04 | 29    | 29                | 100.0       | 100.0             |
+| 2004-05 | 30    | 30                | 100.0       | 100.0             |
+| 2005-06 | 30    | 30                | 100.0       | 100.0             |
+| 2006-07 | 30    | 30                | 100.0       | 100.0             |
+| 2007-08 | 30    | 30                | 100.0       | 100.0             |
+| 2008-09 | 30    | 30                | 100.0       | 100.0             |
+| 2009-10 | 30    | 30                | 100.0       | 100.0             |
+| 2010-11 | 30    | 30                | 100.0       | 100.0             |
+| 2011-12 | 30    | 30                | 100.0       | 100.0             |
+| 2012-13 | 30    | 28                | 100.0       | 100.0             |
+| 2013-14 | 30    | 30                | 100.0       | 100.0             |
+| 2014-15 | 30    | 28                | 100.0       | 100.0             |
+| 2015-16 | 30    | 28                | 100.0       | 100.0             |
+| 2016-17 | 30    | 30                | 100.0       | 100.0             |
+| 2017-18 | 30    | 30                | 100.0       | 100.0             |
+| 2018-19 | 30    | 27                | 100.0       | 100.0             |
+| 2019-20 | 30    | 28                | 100.0       | 100.0             |
+| 2020-21 | 30    | 29                | 100.0       | 100.0             |
+| 2021-22 | 30    | 28                | 100.0       | 100.0             |
+| 2022-23 | 30    | 28                | 100.0       | 100.0             |
+| 2023-24 | 30    | 27                | 100.0       | 100.0             |
+| 2024-25 | 30    | 27                | 100.0       | 100.0             |
+| 2025-26 | 30    | 27                | 100.0       | 100.0             |
+| 2026-27 | 30    | 30                | 100.0       | 100.0             |
+
+Officials (`src_nba_officials`) against ESPN's twin (`src_espn_officials`), played regular-season and playoff games from 1999-00 with an NBA id: the share of games each file has a crew for, and, where both do, the share whose crews hold the same names (case, accents and spaces ignored). The sources are not merged: the Games screen shows the NBA's.
+
+| Season  | Games | NBA has crew % | ESPN has crew % | Both  | Same crew % |
+| ------- | ----- | -------------- | --------------- | ----- | ----------- |
+| 1999-00 | 1,264 | 1.8            | 0.0             | 0     | –           |
+| 2000-01 | 1,260 | 3.3            | 0.0             | 0     | –           |
+| 2001-02 | 1,260 | 8.6            | 100.0           | 108   | 79.6        |
+| 2002-03 | 1,277 | 1.7            | 100.0           | 22    | 90.9        |
+| 2003-04 | 1,271 | 100.0          | 99.9            | 1,270 | 84.4        |
+| 2004-05 | 1,314 | 100.0          | 100.0           | 1,314 | 80.8        |
+| 2005-06 | 1,319 | 100.0          | 100.0           | 1,319 | 81.7        |
+| 2006-07 | 1,309 | 100.0          | 100.0           | 1,309 | 81.7        |
+| 2007-08 | 1,316 | 99.8           | 100.0           | 1,314 | 81.6        |
+| 2008-09 | 1,315 | 100.0          | 92.9            | 1,222 | 84.9        |
+| 2009-10 | 1,312 | 100.0          | 93.8            | 1,230 | 87.9        |
+| 2010-11 | 1,311 | 100.0          | 86.7            | 1,137 | 95.0        |
+| 2011-12 | 1,074 | 100.0          | 100.0           | 1,074 | 90.5        |
+| 2012-13 | 1,314 | 100.0          | 100.0           | 1,314 | 97.6        |
+| 2013-14 | 1,319 | 100.0          | 99.8            | 1,317 | 93.8        |
+| 2014-15 | 1,311 | 100.0          | 99.9            | 1,310 | 94.1        |
+| 2015-16 | 1,316 | 100.0          | 100.0           | 1,316 | 96.0        |
+| 2016-17 | 1,309 | 100.0          | 100.0           | 1,309 | 94.4        |
+| 2017-18 | 1,312 | 100.0          | 99.9            | 1,311 | 96.2        |
+| 2018-19 | 1,312 | 100.0          | 100.0           | 1,312 | 95.4        |
+| 2019-20 | 1,142 | 100.0          | 100.0           | 1,142 | 99.1        |
+| 2020-21 | 1,165 | 100.0          | 96.9            | 1,129 | 97.1        |
+| 2021-22 | 1,317 | 100.0          | 98.9            | 1,303 | 98.8        |
+| 2022-23 | 1,314 | 100.0          | 98.8            | 1,298 | 97.1        |
+| 2023-24 | 1,312 | 100.0          | 98.6            | 1,294 | 96.6        |
+| 2024-25 | 1,314 | 100.0          | 100.0           | 1,314 | 99.9        |
+| 2025-26 | 1,315 | 99.8           | 99.7            | 1,308 | 99.9        |
+| 2026-27 | 146   | 99.3           | 100.0           | 145   | 99.3        |
+
+The Games screen's read of a crew (`readGame`), on every 15th game of 2004-05, 2012-13, 2019-20 and 2025-26: 341 of 341 match the raw file, 1 of them games with no crew in the file, which read as none.
+
 ## The published standings
 
 `nba_stats_standings`, and the league dashboards' file, which alone reaches 1995-96. Percentages are of each season's teams. **Box scores:** wins and losses against `team_season`. **NBA's file:** the same record, rank, games back and streak as the dashboards'. **ESPN:** `espn_nba_standings`, from 2001-02. **By the record:** games back worked out from the conference leader's record. The last ten and the streak start in 2001-02. In 2003-04 the NBA's file repeats the overall record as the conference and division records, so the screen reads those as not published.
