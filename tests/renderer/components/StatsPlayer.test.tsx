@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { api } from '@/lib/api'
 import { StatsApp } from '@/screens/stats/StatsApp'
+import { seasonLabel } from '@shared/stats/seasons'
 import type { StatsGame, StatsQuery, StatsResult, StatsSeason } from '@shared/stats/types'
 import { catalogueFixture } from '../../fixtures/catalogue'
 
@@ -83,7 +84,7 @@ const GAMES: StatsGame[] = [
 
 const NAMES = ['Luka Dončić', 'Jayson Tatum']
 const reasons = (season: number, m: { firstSeason: number }): string | null =>
-  season < m.firstSeason ? 'Recorded from 1996-97.' : null
+  season < m.firstSeason ? `Recorded from ${seasonLabel(m.firstSeason)}.` : null
 
 /** Two players, one line a game. A player filter narrows them; a 1994-95 scope has no plus-minus. */
 function answer(q: StatsQuery): StatsResult {
@@ -213,8 +214,11 @@ describe('the player dashboard', () => {
       target: { value: '1995' }
     })
     fireEvent.click(await screen.findByRole('tab', { name: 'Defense' }))
-    expect(await screen.findByText('Recorded from 1996-97.')).toBeTruthy()
+    expect((await screen.findAllByText('Recorded from 1996-97.')).length).toBeGreaterThan(0)
     expect(screen.getByText('Plus-minus: starts in 1996-97.')).toBeTruthy()
+    // The Hustle section is tagged from 2016-17, and its box outs from 2017-18.
+    expect(screen.getAllByText('Recorded from 2016-17.')).toHaveLength(5)
+    expect(screen.getAllByText('Recorded from 2017-18.')).toHaveLength(1)
   })
 
   it('says so when the player did not play in the scope, and keeps their career', async () => {

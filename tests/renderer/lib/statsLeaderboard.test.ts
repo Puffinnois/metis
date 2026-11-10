@@ -106,7 +106,8 @@ describe('the column picker and presets', () => {
       'possessions',
       'scoring',
       'composite',
-      'tracking'
+      'tracking',
+      'hustle'
     ])
     // Tracking is a family of its own, with one or two metrics from each file as its preset.
     expect([...familyColumns(CATALOGUE, tab, 'tracking')].sort()).toEqual(
@@ -126,6 +127,7 @@ describe('the column picker and presets', () => {
       ].sort()
     )
     expect(familiesOf(CATALOGUE, tabOf('team', 'ALL'))).not.toContain('tracking')
+    expect(familiesOf(CATALOGUE, tabOf('team', 'defense'))).toContain('hustle')
     const shooting = familyColumns(CATALOGUE, tab, 'shooting')
     // Published metrics answer whole seasons only, so the preset is what it was without them.
     const fromGames = CATALOGUE.filter((m) => m.grains.includes('game'))

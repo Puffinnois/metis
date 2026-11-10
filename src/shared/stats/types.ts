@@ -17,7 +17,7 @@ export type PositionGroup = (typeof POSITION_GROUPS)[number]
 
 /** The sections of the statistics reference; one file each in `src/shared/stats/catalogue/`. */
 export type MetricFamily =
-  'traditional' | 'shooting' | 'possessions' | 'scoring' | 'composite' | 'tracking'
+  'traditional' | 'shooting' | 'possessions' | 'scoring' | 'composite' | 'tracking' | 'hustle'
 
 /** `core` shown by default, `extended` in its family and the column picker, `stored` in queries only. */
 export type MetricTier = 'core' | 'extended' | 'stored'
