@@ -6,12 +6,14 @@ import { deleteStatsView, listStatsViews, saveStatsView } from '@main/db/repos/s
 import type { StatsClient } from '@main/stats/client'
 import type { installAutoUpdater } from '@main/updater'
 import { IPC } from '@shared/ipc'
+import type { LineupGroup } from '@shared/stats/lineups'
 import type {
   LeaderboardBoard,
   MetricInfo,
   StatsDataReport,
   StatsGame,
   StatsGameDetail,
+  StatsLineups,
   StatsMatchups,
   StatsProfile,
   StatsPlayerInfo,
@@ -84,6 +86,19 @@ export function registerIpcHandlers(ctx: AppContext): void {
       ctx.stats
         ? ctx.stats.matchups(player, season)
         : Promise.resolve({ guarded: [], guardedBy: [] })
+  )
+  ipcMain.handle(
+    IPC.statsLineups,
+    (
+      _event,
+      team: string,
+      season: number,
+      gameType: string,
+      group: LineupGroup
+    ): Promise<StatsLineups> =>
+      ctx.stats
+        ? ctx.stats.lineups(team, season, gameType, group)
+        : Promise.resolve({ units: [], floorMinutes: null })
   )
   ipcMain.handle(IPC.statsProfile, (_event, player: string): Promise<StatsProfile> =>
     ctx.stats

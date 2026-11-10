@@ -4,6 +4,7 @@ import {
   parsePeriods,
   readGame,
   readGames,
+  readLineups,
   readMatchups,
   readPlayer,
   readStandings
@@ -324,5 +325,75 @@ describe('a player’s matchups', () => {
   it('is empty in a season without the pair file, and for an id that is not one', async () => {
     await expect(readMatchups(db, '2544', 2017)).resolves.toEqual({ guarded: [], guardedBy: [] })
     await expect(readMatchups(db, 'x; DROP', 2026)).resolves.toEqual({ guarded: [], guardedBy: [] })
+  })
+})
+
+describe('a team’s lineups', () => {
+  /** A unit of the table: the group columns are the ones the read asks for. */
+  const unit = (
+    team: number,
+    ids: number[],
+    minutes: number,
+    extra = '',
+    season = 2026,
+    type = 'regular'
+  ): string =>
+    `INSERT INTO pub_lineups (season, game_type, team_id, p1, p2, p3, p4, p5, names, games, minutes,
+       fgm, fga, w, possessions${extra ? ', adv_off_rating' : ''})
+     VALUES (${season}, '${type}', ${team}, ${ids.join(', ')}, 'A - B - C - D - E', 5, ${minutes},
+       ${minutes}, ${minutes * 2}, 3, 100${extra ? `, ${extra}` : ''})`
+
+  beforeEach(async () => {
+    await db.exec('CREATE TABLE IF NOT EXISTS player (player_id BIGINT, name VARCHAR)')
+    await db.exec(`INSERT INTO player VALUES (1, 'Jayson Tatum'), (2, 'Jaylen Brown'),
+      (3, 'Derrick White'), (4, 'Jrue Holiday')`)
+    await db.exec(unit(BOS, [1, 2, 3, 4, 5], 50))
+    await db.exec(unit(BOS, [1, 2, 3, 4, 6], 80, '121.5'))
+    await db.exec(unit(BOS, [1, 2, 3, 4, 5], 10, '', 2026, 'playoffs'))
+    await db.exec(unit(OKC, [1, 2, 3, 4, 7], 400))
+    await db.exec(unit(BOS, [1, 2, 3, 4, 5], 600, '', 2025))
+  })
+
+  it('lists a team’s units for a season and type, most minutes first, with the group’s columns', async () => {
+    const r = await readLineups(db, String(BOS), 2026, 'regular', 'base')
+    expect(r.units.map((u) => [u.players.at(-1)?.id, u.minutes])).toEqual([
+      ['6', 80],
+      ['5', 50]
+    ])
+    expect(r.units[0]).toMatchObject({
+      games: 5,
+      values: { fgm: 80, fga: 160, w: 3, possessions: 100 }
+    })
+    // The advanced group asks for its own columns, and the base ones stay out.
+    const adv = await readLineups(db, String(BOS), 2026, 'regular', 'advanced')
+    expect(adv.units[0].values).toMatchObject({ adv_off_rating: 121.5, possessions: 100 })
+    expect(adv.units[0].values.fgm).toBeUndefined()
+    expect(adv.units[1].values.adv_off_rating).toBeNull()
+  })
+
+  it('names the players from the player table, and from the NBA’s own file for one it lacks', async () => {
+    const [top] = (await readLineups(db, String(BOS), 2026, 'regular', 'base')).units
+    expect(top.players.map((p) => p.name)).toEqual([
+      'Jayson Tatum',
+      'Jaylen Brown',
+      'Derrick White',
+      'Jrue Holiday',
+      'E'
+    ])
+  })
+
+  it('reads the playoffs apart, and says where the league’s list floors', async () => {
+    const r = await readLineups(db, String(BOS), 2026, 'playoffs', 'base')
+    expect(r.units.map((u) => u.minutes)).toEqual([10])
+    const regular = await readLineups(db, String(OKC), 2026, 'regular', 'base')
+    expect(regular.floorMinutes).toBe(50)
+  })
+
+  it('is empty for a team with no units, a season without them, and anything that is not an id', async () => {
+    const none = { units: [], floorMinutes: null }
+    await expect(readLineups(db, '99', 2026, 'regular', 'base')).resolves.toEqual(none)
+    await expect(readLineups(db, String(BOS), 2007, 'regular', 'base')).resolves.toEqual(none)
+    await expect(readLineups(db, 'x; DROP', 2026, 'regular', 'base')).resolves.toEqual(none)
+    await expect(readLineups(db, String(BOS), 2026, 'play-in', 'base')).resolves.toEqual(none)
   })
 })

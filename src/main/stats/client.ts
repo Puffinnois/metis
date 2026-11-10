@@ -1,10 +1,12 @@
 import { join } from 'node:path'
+import type { LineupGroup } from '@shared/stats/lineups'
 import { Worker } from 'node:worker_threads'
 import type {
   MetricInfo,
   StatsDataReport,
   StatsGame,
   StatsGameDetail,
+  StatsLineups,
   StatsMatchups,
   StatsProfile,
   StatsPlayerInfo,
@@ -40,6 +42,7 @@ export interface StatsClient {
   game(id: string): Promise<StatsGameDetail | null>
   standings(season: number): Promise<StatsStanding[]>
   matchups(player: string, season: number): Promise<StatsMatchups>
+  lineups(team: string, season: number, gameType: string, group: LineupGroup): Promise<StatsLineups>
   profile(player: string): Promise<StatsProfile>
   /** Closes the database and ends the worker (after `CLOSE_TIMEOUT_MS` at most). */
   close(): Promise<void>
@@ -109,6 +112,8 @@ export function startStatsWorker(
     matchups: (player, season) =>
       request<StatsMatchups>((id) => ({ id, kind: 'matchups', player, season })),
     profile: (player) => request<StatsProfile>((id) => ({ id, kind: 'profile', player })),
+    lineups: (team, season, gameType, group) =>
+      request<StatsLineups>((id) => ({ id, kind: 'lineups', team, season, gameType, group })),
     async close() {
       if (!dead) {
         let timer: NodeJS.Timeout | undefined

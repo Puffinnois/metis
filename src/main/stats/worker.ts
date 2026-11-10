@@ -54,6 +54,8 @@ async function handle(request: StatsRequest): Promise<unknown> {
       return service.matchups(request.player, request.season)
     case 'profile':
       return service.profile(request.player)
+    case 'lineups':
+      return service.lineups(request.team, request.season, request.gameType, request.group)
     case 'close':
       await service.close()
       service = null

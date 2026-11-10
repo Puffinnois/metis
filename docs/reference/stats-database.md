@@ -147,18 +147,21 @@ Measured with `scripts/engine-speed.mjs` on the full database, in the worker, a 
 
 The last is over the 500 ms a screen is allowed, and no screen asks it. Trends (Plan T803) will, for one position, which is about a third of those rows. Times vary between runs: the same query read 450 ms at worst on another. What a click takes in the window is in [stats-screens.md](stats-screens.md).
 
+Lineups (Plan T710) are one more table that is not a metric: `pub_lineups`, one row per team, season, season type and set of five players, 83,277 rows from 2007-08. It is built by the `stats:published` step from the six lineup dashboards and read by its own call, `lineups`; the engine never sees it, and it has no lineup subject. The five ids are sorted ascending (`p1` to `p5`), which is the order the sources write them, so a unit's key never depends on a file's habit. Each of the 89 stored columns is read from its own dashboard, in `src/shared/stats/lineups.ts`, and the NBA's `nba_stats_lineups` is not read. The table holds every unit any dashboard lists: each file is cut to its first 2,000 regular-season rows by its own sort, so the files list different units and a measure a file does not list reads NULL (`nba-data-sources.md`). Games come from whichever file lists the unit, in the order base, advanced, misc, opponent, four factors, scoring, and minutes from `sum_time_played / 3000`. Counts are stored as published and the rates as published, since a unit is a whole season and nothing adds them up across seasons; the seven percentages of makes over attempts are worked out on read. A team-season reads in 22 ms at the median and 70 ms at most over all 5,244 reads of 2007-08 to 2025-26 (`scripts/check-lineups.mjs`).
+
 ## Reads beside the engine
 
 `src/main/stats/reads.ts`: plain reads a dashboard needs that are not a metric. A table not loaded yet reads as nothing, and a column a source has dropped as NULL.
 
-| Read                   | Answers                                                                                                                              |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `player(id)`           | Name, seasons, latest position and team; number, size, birth date and school from the latest roster line                             |
-| `games(season)`        | Every game on the schedule, played or not: its type, sides, score, whether a box score is held, overtimes                            |
-| `game(id)`             | ESPN's venue, city, attendance and note, and the score by period when those add up to the final score                                |
-| `standings(season)`    | The published standings: `src_nba_standings`, or the dashboards' file for 1995-96                                                    |
-| `matchups(id, season)` | Who a defender guarded and who guarded them, from `pub_matchup_pairs`                                                                |
-| `profile(id)`          | The latest roster line, the draft pick, and every combine the player went to, each measure with its percentile in its position group |
+| Read                                 | Answers                                                                                                                                         |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `player(id)`                         | Name, seasons, latest position and team; number, size, birth date and school from the latest roster line                                        |
+| `games(season)`                      | Every game on the schedule, played or not: its type, sides, score, whether a box score is held, overtimes                                       |
+| `game(id)`                           | ESPN's venue, city, attendance and note, and the score by period when those add up to the final score                                           |
+| `standings(season)`                  | The published standings: `src_nba_standings`, or the dashboards' file for 1995-96                                                               |
+| `matchups(id, season)`               | Who a defender guarded and who guarded them, from `pub_matchup_pairs`                                                                           |
+| `lineups(team, season, type, group)` | A team's five-man units for a season and season type with one dashboard's columns, most minutes first, from `pub_lineups`; empty before 2007-08 |
+| `profile(id)`                        | The latest roster line, the draft pick, and every combine the player went to, each measure with its percentile in its position group            |
 
 - **A side with no row in `team`** is an All-Star team or a touring club: its name comes from the NBA's schedule, then ESPN's.
 - **Overtime** is read from the team's minutes, 240 in regulation and 25 more per period. It matches ESPN's period on nearly every game, and in 2001-02 ESPN's undercounts: it has 30 overtime games to the box scores' 70.

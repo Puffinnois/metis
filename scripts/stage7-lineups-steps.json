@@ -1,0 +1,308 @@
+[
+  {
+    "size": [1500, 950]
+  },
+  {
+    "wait": 4000
+  },
+  {
+    "click": "Standings"
+  },
+  {
+    "wait": 1200
+  },
+  {
+    "select": ["Season", "2026"]
+  },
+  {
+    "wait": 900
+  },
+  {
+    "eval": "(() => { const b = [...document.querySelectorAll('button[role=row]')].find((x) => x.textContent.includes(\"Oklahoma City\")); if (!b) return 'NOT FOUND'; b.click(); return 'opened' })()"
+  },
+  {
+    "wait": 2500
+  },
+  {
+    "eval": "document.querySelector('[role=tablist]').innerText.replace(/\n/g,' | ')"
+  },
+  {
+    "click": "[role=tablist] [role=tab]:nth-child(5)"
+  },
+  {
+    "wait": 2000
+  },
+  {
+    "eval": "(() => { const t = document.querySelector('[role=table][aria-label=Lineups]'); const note = [...document.querySelectorAll('main p, main .text-fg-3')].map((e) => e.textContent).filter((x) => /unit|Published|Recorded|NBA/.test(x)).slice(0, 4); if (!t) return JSON.stringify({ label: \"OKC 2025-26 regular, per game, base\", none: true, note }); const rows = [...t.querySelectorAll('[role=row]')]; return JSON.stringify({ label: \"OKC 2025-26 regular, per game, base\", note, head: rows[0].innerText.split(String.fromCharCode(10)).join(' '), n: rows.length - 1, rows: rows.slice(1, 5).map((r) => [...r.querySelectorAll('[role=cell]')].map((c) => { const b = [...c.querySelectorAll('button')]; return b.length ? b.map((x) => x.textContent).join(' / ') : c.textContent }).join('|')) }) })()"
+  },
+  {
+    "shot": "lineups-okc-pergame"
+  },
+  {
+    "click": "Totals"
+  },
+  {
+    "wait": 600
+  },
+  {
+    "eval": "(() => { const t = document.querySelector('[role=table][aria-label=Lineups]'); const note = [...document.querySelectorAll('main p, main .text-fg-3')].map((e) => e.textContent).filter((x) => /unit|Published|Recorded|NBA/.test(x)).slice(0, 4); if (!t) return JSON.stringify({ label: \"totals base\", none: true, note }); const rows = [...t.querySelectorAll('[role=row]')]; return JSON.stringify({ label: \"totals base\", note, head: rows[0].innerText.split(String.fromCharCode(10)).join(' '), n: rows.length - 1, rows: rows.slice(1, 5).map((r) => [...r.querySelectorAll('[role=cell]')].map((c) => { const b = [...c.querySelectorAll('button')]; return b.length ? b.map((x) => x.textContent).join(' / ') : c.textContent }).join('|')) }) })()"
+  },
+  {
+    "shot": "lineups-okc-totals"
+  },
+  {
+    "click": "button[title=Points]"
+  },
+  {
+    "wait": 300
+  },
+  {
+    "eval": "(() => { const t = document.querySelector('[role=table][aria-label=Lineups]'); const note = [...document.querySelectorAll('main p, main .text-fg-3')].map((e) => e.textContent).filter((x) => /unit|Published|Recorded|NBA/.test(x)).slice(0, 4); if (!t) return JSON.stringify({ label: \"sorted by PTS desc\", none: true, note }); const rows = [...t.querySelectorAll('[role=row]')]; return JSON.stringify({ label: \"sorted by PTS desc\", note, head: rows[0].innerText.split(String.fromCharCode(10)).join(' '), n: rows.length - 1, rows: rows.slice(1, 4).map((r) => [...r.querySelectorAll('[role=cell]')].map((c) => { const b = [...c.querySelectorAll('button')]; return b.length ? b.map((x) => x.textContent).join(' / ') : c.textContent }).join('|')) }) })()"
+  },
+  {
+    "click": "button[title=Points]"
+  },
+  {
+    "wait": 300
+  },
+  {
+    "eval": "(() => { const t = document.querySelector('[role=table][aria-label=Lineups]'); const note = [...document.querySelectorAll('main p, main .text-fg-3')].map((e) => e.textContent).filter((x) => /unit|Published|Recorded|NBA/.test(x)).slice(0, 4); if (!t) return JSON.stringify({ label: \"sorted by PTS asc (min 25)\", none: true, note }); const rows = [...t.querySelectorAll('[role=row]')]; return JSON.stringify({ label: \"sorted by PTS asc (min 25)\", note, head: rows[0].innerText.split(String.fromCharCode(10)).join(' '), n: rows.length - 1, rows: rows.slice(1, 4).map((r) => [...r.querySelectorAll('[role=cell]')].map((c) => { const b = [...c.querySelectorAll('button')]; return b.length ? b.map((x) => x.textContent).join(' / ') : c.textContent }).join('|')) }) })()"
+  },
+  {
+    "click": "button[title='Minutes together']"
+  },
+  {
+    "wait": 300
+  },
+  {
+    "click": "Per 48"
+  },
+  {
+    "wait": 500
+  },
+  {
+    "eval": "(() => { const t = document.querySelector('[role=table][aria-label=Lineups]'); const note = [...document.querySelectorAll('main p, main .text-fg-3')].map((e) => e.textContent).filter((x) => /unit|Published|Recorded|NBA/.test(x)).slice(0, 4); if (!t) return JSON.stringify({ label: \"per 48\", none: true, note }); const rows = [...t.querySelectorAll('[role=row]')]; return JSON.stringify({ label: \"per 48\", note, head: rows[0].innerText.split(String.fromCharCode(10)).join(' '), n: rows.length - 1, rows: rows.slice(1, 3).map((r) => [...r.querySelectorAll('[role=cell]')].map((c) => { const b = [...c.querySelectorAll('button')]; return b.length ? b.map((x) => x.textContent).join(' / ') : c.textContent }).join('|')) }) })()"
+  },
+  {
+    "click": "Per 100"
+  },
+  {
+    "wait": 500
+  },
+  {
+    "eval": "(() => { const t = document.querySelector('[role=table][aria-label=Lineups]'); const note = [...document.querySelectorAll('main p, main .text-fg-3')].map((e) => e.textContent).filter((x) => /unit|Published|Recorded|NBA/.test(x)).slice(0, 4); if (!t) return JSON.stringify({ label: \"per 100\", none: true, note }); const rows = [...t.querySelectorAll('[role=row]')]; return JSON.stringify({ label: \"per 100\", note, head: rows[0].innerText.split(String.fromCharCode(10)).join(' '), n: rows.length - 1, rows: rows.slice(1, 3).map((r) => [...r.querySelectorAll('[role=cell]')].map((c) => { const b = [...c.querySelectorAll('button')]; return b.length ? b.map((x) => x.textContent).join(' / ') : c.textContent }).join('|')) }) })()"
+  },
+  {
+    "click": "Per game"
+  },
+  {
+    "wait": 500
+  },
+  {
+    "eval": "(() => { const t = document.querySelector('[role=table][aria-label=Lineups]'); const note = [...document.querySelectorAll('main p, main .text-fg-3')].map((e) => e.textContent).filter((x) => /unit|Published|Recorded|NBA/.test(x)).slice(0, 4); if (!t) return JSON.stringify({ label: \"per game again\", none: true, note }); const rows = [...t.querySelectorAll('[role=row]')]; return JSON.stringify({ label: \"per game again\", note, head: rows[0].innerText.split(String.fromCharCode(10)).join(' '), n: rows.length - 1, rows: rows.slice(1, 3).map((r) => [...r.querySelectorAll('[role=cell]')].map((c) => { const b = [...c.querySelectorAll('button')]; return b.length ? b.map((x) => x.textContent).join(' / ') : c.textContent }).join('|')) }) })()"
+  },
+  {
+    "click": "Advanced"
+  },
+  {
+    "wait": 1200
+  },
+  {
+    "eval": "(() => { const t = document.querySelector('[role=table][aria-label=Lineups]'); const note = [...document.querySelectorAll('main p, main .text-fg-3')].map((e) => e.textContent).filter((x) => /unit|Published|Recorded|NBA/.test(x)).slice(0, 4); if (!t) return JSON.stringify({ label: \"advanced\", none: true, note }); const rows = [...t.querySelectorAll('[role=row]')]; return JSON.stringify({ label: \"advanced\", note, head: rows[0].innerText.split(String.fromCharCode(10)).join(' '), n: rows.length - 1, rows: rows.slice(1, 4).map((r) => [...r.querySelectorAll('[role=cell]')].map((c) => { const b = [...c.querySelectorAll('button')]; return b.length ? b.map((x) => x.textContent).join(' / ') : c.textContent }).join('|')) }) })()"
+  },
+  {
+    "shot": "lineups-okc-advanced"
+  },
+  {
+    "click": "Four factors"
+  },
+  {
+    "wait": 1000
+  },
+  {
+    "eval": "(() => { const t = document.querySelector('[role=table][aria-label=Lineups]'); const note = [...document.querySelectorAll('main p, main .text-fg-3')].map((e) => e.textContent).filter((x) => /unit|Published|Recorded|NBA/.test(x)).slice(0, 4); if (!t) return JSON.stringify({ label: \"fourfactors\", none: true, note }); const rows = [...t.querySelectorAll('[role=row]')]; return JSON.stringify({ label: \"fourfactors\", note, head: rows[0].innerText.split(String.fromCharCode(10)).join(' '), n: rows.length - 1, rows: rows.slice(1, 3).map((r) => [...r.querySelectorAll('[role=cell]')].map((c) => { const b = [...c.querySelectorAll('button')]; return b.length ? b.map((x) => x.textContent).join(' / ') : c.textContent }).join('|')) }) })()"
+  },
+  {
+    "click": "Misc"
+  },
+  {
+    "wait": 1000
+  },
+  {
+    "eval": "(() => { const t = document.querySelector('[role=table][aria-label=Lineups]'); const note = [...document.querySelectorAll('main p, main .text-fg-3')].map((e) => e.textContent).filter((x) => /unit|Published|Recorded|NBA/.test(x)).slice(0, 4); if (!t) return JSON.stringify({ label: \"misc\", none: true, note }); const rows = [...t.querySelectorAll('[role=row]')]; return JSON.stringify({ label: \"misc\", note, head: rows[0].innerText.split(String.fromCharCode(10)).join(' '), n: rows.length - 1, rows: rows.slice(1, 3).map((r) => [...r.querySelectorAll('[role=cell]')].map((c) => { const b = [...c.querySelectorAll('button')]; return b.length ? b.map((x) => x.textContent).join(' / ') : c.textContent }).join('|')) }) })()"
+  },
+  {
+    "click": "Scoring"
+  },
+  {
+    "wait": 1000
+  },
+  {
+    "eval": "(() => { const t = document.querySelector('[role=table][aria-label=Lineups]'); const note = [...document.querySelectorAll('main p, main .text-fg-3')].map((e) => e.textContent).filter((x) => /unit|Published|Recorded|NBA/.test(x)).slice(0, 4); if (!t) return JSON.stringify({ label: \"scoring\", none: true, note }); const rows = [...t.querySelectorAll('[role=row]')]; return JSON.stringify({ label: \"scoring\", note, head: rows[0].innerText.split(String.fromCharCode(10)).join(' '), n: rows.length - 1, rows: rows.slice(1, 3).map((r) => [...r.querySelectorAll('[role=cell]')].map((c) => { const b = [...c.querySelectorAll('button')]; return b.length ? b.map((x) => x.textContent).join(' / ') : c.textContent }).join('|')) }) })()"
+  },
+  {
+    "click": "Opponent"
+  },
+  {
+    "wait": 1000
+  },
+  {
+    "eval": "(() => { const t = document.querySelector('[role=table][aria-label=Lineups]'); const note = [...document.querySelectorAll('main p, main .text-fg-3')].map((e) => e.textContent).filter((x) => /unit|Published|Recorded|NBA/.test(x)).slice(0, 4); if (!t) return JSON.stringify({ label: \"opponent\", none: true, note }); const rows = [...t.querySelectorAll('[role=row]')]; return JSON.stringify({ label: \"opponent\", note, head: rows[0].innerText.split(String.fromCharCode(10)).join(' '), n: rows.length - 1, rows: rows.slice(1, 3).map((r) => [...r.querySelectorAll('[role=cell]')].map((c) => { const b = [...c.querySelectorAll('button')]; return b.length ? b.map((x) => x.textContent).join(' / ') : c.textContent }).join('|')) }) })()"
+  },
+  {
+    "click": "Base"
+  },
+  {
+    "wait": 1000
+  },
+  {
+    "click": "Totals"
+  },
+  {
+    "wait": 400
+  },
+  {
+    "select": ["Minimum minutes", "100"]
+  },
+  {
+    "wait": 500
+  },
+  {
+    "eval": "JSON.stringify({min100: [...document.querySelectorAll('main p')].map((e) => e.textContent).filter((x) => /unit/.test(x))})"
+  },
+  {
+    "select": ["Minimum minutes", "0"]
+  },
+  {
+    "wait": 500
+  },
+  {
+    "eval": "JSON.stringify({any: [...document.querySelectorAll('main p')].map((e) => e.textContent).filter((x) => /unit/.test(x)), show: [...document.querySelectorAll('button')].map((b) => b.textContent).filter((x) => /Show/.test(x))})"
+  },
+  {
+    "eval": "(() => { const b = [...document.querySelectorAll('button')].find((x) => /^Show all/.test(x.textContent)); if (!b) return 'NO BUTTON'; b.click(); return 'clicked' })()"
+  },
+  {
+    "wait": 600
+  },
+  {
+    "eval": "JSON.stringify({rows: document.querySelectorAll('[role=table][aria-label=Lineups] [role=row]').length - 1, units: [...document.querySelectorAll('main p')].map((e) => e.textContent).filter((x) => /unit/.test(x))})"
+  },
+  {
+    "select": ["Minimum minutes", "25"]
+  },
+  {
+    "wait": 300
+  },
+  {
+    "click": "button[title^='Open Shai Gilgeous']"
+  },
+  {
+    "wait": 2500
+  },
+  {
+    "eval": "JSON.stringify({h1: document.querySelector('h1')?.textContent})"
+  },
+  {
+    "shot": "lineups-player-opened"
+  },
+  {
+    "click": "Standings"
+  },
+  {
+    "wait": 1200
+  },
+  {
+    "select": ["Season", "2026"]
+  },
+  {
+    "wait": 900
+  },
+  {
+    "eval": "(() => { const b = [...document.querySelectorAll('button[role=row]')].find((x) => x.textContent.includes(\"Oklahoma City\")); if (!b) return 'NOT FOUND'; b.click(); return 'opened' })()"
+  },
+  {
+    "wait": 2500
+  },
+  {
+    "click": "[role=tablist] [role=tab]:nth-child(5)"
+  },
+  {
+    "wait": 1500
+  },
+  {
+    "select": ["Season type", "playoffs"]
+  },
+  {
+    "wait": 1500
+  },
+  {
+    "click": "Totals"
+  },
+  {
+    "wait": 500
+  },
+  {
+    "eval": "(() => { const t = document.querySelector('[role=table][aria-label=Lineups]'); const note = [...document.querySelectorAll('main p, main .text-fg-3')].map((e) => e.textContent).filter((x) => /unit|Published|Recorded|NBA/.test(x)).slice(0, 4); if (!t) return JSON.stringify({ label: \"OKC 2025-26 playoffs totals\", none: true, note }); const rows = [...t.querySelectorAll('[role=row]')]; return JSON.stringify({ label: \"OKC 2025-26 playoffs totals\", note, head: rows[0].innerText.split(String.fromCharCode(10)).join(' '), n: rows.length - 1, rows: rows.slice(1, 4).map((r) => [...r.querySelectorAll('[role=cell]')].map((c) => { const b = [...c.querySelectorAll('button')]; return b.length ? b.map((x) => x.textContent).join(' / ') : c.textContent }).join('|')) }) })()"
+  },
+  {
+    "shot": "lineups-okc-playoffs"
+  },
+  {
+    "select": ["Season type", "regular"]
+  },
+  {
+    "wait": 800
+  },
+  {
+    "select": ["Range", "last"]
+  },
+  {
+    "wait": 1200
+  },
+  {
+    "eval": "(() => { const t = document.querySelector('[role=table][aria-label=Lineups]'); const note = [...document.querySelectorAll('main p, main .text-fg-3')].map((e) => e.textContent).filter((x) => /unit|Published|Recorded|NBA/.test(x)).slice(0, 4); if (!t) return JSON.stringify({ label: \"last games\", none: true, note }); const rows = [...t.querySelectorAll('[role=row]')]; return JSON.stringify({ label: \"last games\", note, head: rows[0].innerText.split(String.fromCharCode(10)).join(' '), n: rows.length - 1, rows: rows.slice(1, 2).map((r) => [...r.querySelectorAll('[role=cell]')].map((c) => { const b = [...c.querySelectorAll('button')]; return b.length ? b.map((x) => x.textContent).join(' / ') : c.textContent }).join('|')) }) })()"
+  },
+  {
+    "shot": "lineups-last-games"
+  },
+  {
+    "select": ["Range", "dates"]
+  },
+  {
+    "wait": 1200
+  },
+  {
+    "eval": "(() => { const t = document.querySelector('[role=table][aria-label=Lineups]'); const note = [...document.querySelectorAll('main p, main .text-fg-3')].map((e) => e.textContent).filter((x) => /unit|Published|Recorded|NBA/.test(x)).slice(0, 4); if (!t) return JSON.stringify({ label: \"dates\", none: true, note }); const rows = [...t.querySelectorAll('[role=row]')]; return JSON.stringify({ label: \"dates\", note, head: rows[0].innerText.split(String.fromCharCode(10)).join(' '), n: rows.length - 1, rows: rows.slice(1, 2).map((r) => [...r.querySelectorAll('[role=cell]')].map((c) => { const b = [...c.querySelectorAll('button')]; return b.length ? b.map((x) => x.textContent).join(' / ') : c.textContent }).join('|')) }) })()"
+  },
+  {
+    "select": ["Range", "season"]
+  },
+  {
+    "wait": 800
+  },
+  {
+    "select": ["Season", "2007"]
+  },
+  {
+    "wait": 1800
+  },
+  {
+    "eval": "(() => { const t = document.querySelector('[role=table][aria-label=Lineups]'); const note = [...document.querySelectorAll('main p, main .text-fg-3')].map((e) => e.textContent).filter((x) => /unit|Published|Recorded|NBA/.test(x)).slice(0, 4); if (!t) return JSON.stringify({ label: \"2006-07\", none: true, note }); const rows = [...t.querySelectorAll('[role=row]')]; return JSON.stringify({ label: \"2006-07\", note, head: rows[0].innerText.split(String.fromCharCode(10)).join(' '), n: rows.length - 1, rows: rows.slice(1, 2).map((r) => [...r.querySelectorAll('[role=cell]')].map((c) => { const b = [...c.querySelectorAll('button')]; return b.length ? b.map((x) => x.textContent).join(' / ') : c.textContent }).join('|')) }) })()"
+  },
+  {
+    "shot": "lineups-2007"
+  },
+  {
+    "select": ["Season", "2008"]
+  },
+  {
+    "wait": 1800
+  },
+  {
+    "eval": "(() => { const t = document.querySelector('[role=table][aria-label=Lineups]'); const note = [...document.querySelectorAll('main p, main .text-fg-3')].map((e) => e.textContent).filter((x) => /unit|Published|Recorded|NBA/.test(x)).slice(0, 4); if (!t) return JSON.stringify({ label: \"2007-08 (Seattle or OKC franchise)\", none: true, note }); const rows = [...t.querySelectorAll('[role=row]')]; return JSON.stringify({ label: \"2007-08 (Seattle or OKC franchise)\", note, head: rows[0].innerText.split(String.fromCharCode(10)).join(' '), n: rows.length - 1, rows: rows.slice(1, 4).map((r) => [...r.querySelectorAll('[role=cell]')].map((c) => { const b = [...c.querySelectorAll('button')]; return b.length ? b.map((x) => x.textContent).join(' / ') : c.textContent }).join('|')) }) })()"
+  },
+  {
+    "shot": "lineups-2008"
+  }
+]

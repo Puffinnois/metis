@@ -38,3 +38,8 @@ export function column(
 
 /** `{a} / {b}` in SQL, NULL when the denominator is 0: DuckDB would divide to Infinity. */
 export const per = (a: string, b: string): string => `(${a}) / nullif(${b}, 0)`
+
+/** A season type, as either spelling the sources use, in the one set (D12). */
+export const gameType = (seasonType: string): string =>
+  `CASE lower(replace(${seasonType}, ' ', '-'))
+     WHEN 'regular-season' THEN 'regular' WHEN 'playoffs' THEN 'playoffs' END`

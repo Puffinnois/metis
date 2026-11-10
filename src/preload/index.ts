@@ -56,6 +56,8 @@ const api: Api = {
     standings: (season) => ipcRenderer.invoke(IPC.statsStandings, season),
     matchups: (player, season) => ipcRenderer.invoke(IPC.statsMatchups, player, season),
     profile: (player) => ipcRenderer.invoke(IPC.statsProfile, player),
+    lineups: (team, season, gameType, group) =>
+      ipcRenderer.invoke(IPC.statsLineups, team, season, gameType, group),
     views: () => ipcRenderer.invoke(IPC.statsViews),
     saveView: (name, board) => ipcRenderer.invoke(IPC.statsSaveView, name, board),
     deleteView: (id) => ipcRenderer.invoke(IPC.statsDeleteView, id),

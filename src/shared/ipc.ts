@@ -1,10 +1,12 @@
 import type { DevNote, NewNote, NoteError, NoteStatus } from './devNotes'
+import type { LineupGroup } from './stats/lineups'
 import type {
   LeaderboardBoard,
   MetricInfo,
   StatsDataReport,
   StatsGame,
   StatsGameDetail,
+  StatsLineups,
   StatsMatchups,
   StatsProfile,
   StatsPlayerInfo,
@@ -80,6 +82,13 @@ export interface Api {
     standings(season: number): Promise<StatsStanding[]>
     /** A player's season matchups: regular season only, from 2017-18; empty lists outside them. */
     matchups(player: string, season: number): Promise<StatsMatchups>
+    /** A team's published five-man units, from 2007-08; empty outside them. */
+    lineups(
+      team: string,
+      season: number,
+      gameType: string,
+      group: LineupGroup
+    ): Promise<StatsLineups>
     /** A player's bio, draft and combines; what the data does not hold reads as null or empty. */
     profile(player: string): Promise<StatsProfile>
     views(): Promise<StatsView[]>
@@ -126,6 +135,7 @@ export const IPC = {
   statsGame: 'stats:game',
   statsStandings: 'stats:standings',
   statsMatchups: 'stats:matchups',
+  statsLineups: 'stats:lineups',
   statsProfile: 'stats:profile',
   statsViews: 'stats:views',
   statsSaveView: 'stats:saveView',
