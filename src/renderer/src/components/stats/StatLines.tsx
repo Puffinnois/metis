@@ -76,7 +76,7 @@ function Line({ line }: { line: StatLine }): React.JSX.Element {
           <div className="px-[13px]">
             <PercentileBar
               percentile={line.percentile}
-              neutral={line.info?.direction === 'neutral'}
+              neutral={line.neutral ?? line.info?.direction === 'neutral'}
             />
           </div>
           <span className="text-right text-[11.5px] whitespace-nowrap text-fg-2">

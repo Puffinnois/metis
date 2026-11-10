@@ -51,10 +51,21 @@ import {
   type RailPosition
 } from '@/lib/stats/player'
 import { pairCount, pairGap, pairRows, PAIR_HEAD, PAIR_LIMIT } from '@/lib/stats/matchups'
+import {
+  bioFacts,
+  combineNote,
+  combineSections,
+  combineYears,
+  draftView,
+  noCombine,
+  type Fact
+} from '@/lib/stats/profile'
 import { rangeLabel, scopeLabel, seasonOf, typeLabel, type StatsScope } from '@/lib/stats/scope'
+import { seasonLabel } from '@shared/stats/seasons'
 import {
   useMatchups,
   usePlayerInfo,
+  useProfile,
   useSeasonGames,
   useStatsQueries,
   useStatsQuery,
@@ -176,12 +187,12 @@ export function StatsPlayer({
                 Player leaderboards →
               </button>
             </TabRow>
-            {row === null && (
+            {row === null && tab !== 'profile' && (
               <div className="rounded-[8px] bg-panel-2 px-4 py-3 text-[13px] text-fg-2">
                 {info.name} played no games in {scopeLabel(scope)}.
               </div>
             )}
-            {tab !== 'log' && (row !== null || tab === 'overview') && (
+            {tab !== 'log' && tab !== 'profile' && (row !== null || tab === 'overview') && (
               <div className="self-start">
                 <Segmented
                   label="Totals or rates"
@@ -217,11 +228,104 @@ function TabBody({
   ...props
 }: TabProps & { tab: PlayerTab; played: boolean }): React.JSX.Element | null {
   if (tab === 'overview') return <Overview {...props} played={played} />
+  // The profile is about the player, not a season: it shows whatever is in scope.
+  if (tab === 'profile') return <Profile {...props} />
   if (!played) return null
   if (tab === 'log') return <GameLog {...props} />
   if (tab === 'splits') return <Splits {...props} />
   if (tab === 'matchups') return <Matchups {...props} />
   return <LinesTab {...props} tab={tab} />
+}
+
+/** Bio, draft and combine, side by side, then the combine's sections with their percentiles. */
+function Profile({ data, player }: TabProps): React.JSX.Element {
+  const { value, error } = useProfile(player, data.version)
+  const [picked, setPicked] = useState<number | null>(null)
+  if (!value) return <Loading error={error} />
+  const draft = draftView(value)
+  const years = combineYears(value)
+  const combine = value.combines.find((c) => c.year === picked) ?? value.combines[0] ?? null
+  const parts = combine ? combineSections(combine, years) : []
+  return (
+    <div className="flex flex-col gap-7">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] items-start gap-x-10 gap-y-7">
+        <FactList
+          title="Bio"
+          note={value.bio ? `NBA roster, ${seasonLabel(value.bio.season)}` : undefined}
+          facts={value.bio ? bioFacts(value.bio) : []}
+          empty="No NBA roster lists them."
+        />
+        <FactList title="Draft" facts={draft.facts} empty={draft.note ?? ''} />
+      </div>
+      <section className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <SectionHead
+            title="Draft combine"
+            note={
+              combine ? `${combine.year} · ${combine.position ?? 'No position listed'}` : undefined
+            }
+          />
+          {value.combines.length > 1 && combine && (
+            <Segmented
+              label="Combine year"
+              value={String(combine.year)}
+              options={value.combines.map((c) => ({
+                value: String(c.year),
+                label: String(c.year)
+              }))}
+              onChange={(y) => setPicked(Number(y))}
+            />
+          )}
+        </div>
+        {combine ? (
+          <>
+            <StatSections sections={parts.flatMap((p) => (p.section ? [p.section] : []))} />
+            <Notes
+              notes={[
+                combineNote(combine, years),
+                ...parts.flatMap((p) => (p.absent ? [p.absent] : []))
+              ]}
+            />
+          </>
+        ) : (
+          <p className="m-0 text-[12.5px] text-fg-3">{noCombine(value)}</p>
+        )}
+      </section>
+    </div>
+  )
+}
+
+function FactList({
+  title,
+  note,
+  facts,
+  empty
+}: {
+  title: string
+  note?: string
+  facts: Fact[]
+  empty: string
+}): React.JSX.Element {
+  return (
+    <section className="flex flex-col gap-2">
+      <SectionHead title={title} note={note} />
+      {facts.length === 0 ? (
+        <p className="m-0 text-[12.5px] text-fg-3">{empty}</p>
+      ) : (
+        <dl className="m-0 flex flex-col border-b border-line-2">
+          {facts.map((f) => (
+            <div
+              key={f.label}
+              className="grid min-h-[34px] grid-cols-[110px_minmax(0,1fr)] items-center gap-3.5 border-t border-line-2"
+            >
+              <dt className="text-[12.5px] text-fg-2">{f.label}</dt>
+              <dd className="m-0 text-[12.5px] font-medium">{f.value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+    </section>
+  )
 }
 
 /** The defender's totals, then the pairs behind them: who they guarded, and who guarded them. */
