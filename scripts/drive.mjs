@@ -11,7 +11,8 @@ import { join, resolve } from 'node:path'
 const [profile, stepsFile, shots] = process.argv.slice(2).map((p) => resolve(p))
 const APP = resolve(process.env.APP ?? '.')
 mkdirSync(shots, { recursive: true })
-const port = 9333
+// Two sessions can drive an app at once, each on its own port (DRIVE_PORT).
+const port = Number(process.env.DRIVE_PORT ?? 9333)
 const args = [
   APP,
   `--user-data-dir=${profile}`,
