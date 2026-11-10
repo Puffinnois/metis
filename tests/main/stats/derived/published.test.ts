@@ -318,14 +318,15 @@ describe('the published tables', () => {
         def_poss BIGINT, o_adj_rapm DOUBLE, d_adj_rapm DOUBLE, adj_rapm DOUBLE, ospm DOUBLE,
         dspm DOUBLE, spm DOUBLE, min DOUBLE, gp BIGINT, obpm DOUBLE, dbpm DOUBLE, bpm DOUBLE,
         war DOUBLE, darko_filtered_skill DOUBLE, darko_projected_rating DOUBLE,
-        darko_projected_sd DOUBLE, boban_filtered_skill DOUBLE)`)
+        darko_projected_sd DOUBLE, boban_filtered_skill DOUBLE, boban_projected_rating DOUBLE,
+        boban_projected_sd DOUBLE)`)
       // LeBron James's 2025-26, rounded from the source. DARKO's playoff row repeats the regular
       // season's, as on every player.
       await db.exec(`INSERT INTO src_nba_impact VALUES
         (2544, 2026, 'Regular Season', -0.24, 0.97, 0.74, 4105, 4101, 10.85, -10.11, 0.74,
-         1.24, 0.04, 1.28, 1988, 60, 1.07, 4.18, 5.24, 5.93, 2.1, 1.9, 1.94, NULL),
+         1.24, 0.04, 1.28, 1988, 60, 1.07, 4.18, 5.24, 5.93, 2.1, 1.9, 1.94, NULL, NULL, NULL),
         (2544, 2026, 'Playoffs', -0.33, -0.13, -0.46, 732, 732, 10.73, -10.02, 0.71,
-         1.0, -0.15, 0.86, 382, 10, -5.04, 3.73, -1.31, 0.59, 2.1, 1.9, 1.94, NULL)`)
+         1.0, -0.15, 0.86, 382, 10, -5.04, 3.73, -1.31, 0.59, 2.1, 1.9, 1.94, NULL, NULL, NULL)`)
     })
 
     it('store each model value times what it was fitted on', async () => {
@@ -347,6 +348,19 @@ describe('the published tables', () => {
       )
       expect(r.rapm).toBeCloseTo((0.74 * 8206 - 0.46 * 1464) / (8206 + 1464), 9)
       expect(r.war).toBeCloseTo(6.52, 9)
+    })
+
+    it('read DARKO under the name the file now gives it', async () => {
+      // A fresh download: the darko_* columns are empty and the values sit in boban_*.
+      await db.exec(`UPDATE src_nba_impact SET darko_filtered_skill = NULL,
+        darko_projected_rating = NULL, darko_projected_sd = NULL, boban_filtered_skill = 2.2,
+        boban_projected_rating = 1.9, boban_projected_sd = 1.94`)
+      await buildPublished(db)
+      expect(
+        await db.all(`SELECT games, darko_filtered_skill / games AS skill,
+          darko_projected_rating / games AS next, darko_projected_sd / games AS sd
+          FROM pub_player_darko`)
+      ).toEqual([{ games: 60, skill: 2.2, next: 1.9, sd: 1.94 }])
     })
 
     it('read DARKO from the regular season only', async () => {
