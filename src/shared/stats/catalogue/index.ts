@@ -3,6 +3,7 @@ import { COMPOSITE } from './composite'
 import { DASHBOARDS } from './dashboards'
 import { TRACKING } from './tracking'
 import { HUSTLE } from './hustle'
+import { IMPACT } from './impact'
 import { MATCHUPS } from './matchups'
 import { PLAY_TYPES } from './playTypes'
 import { POSSESSIONS } from './possessions'
@@ -24,7 +25,8 @@ export const CATALOGUE: MetricDef[] = [
   ...TRACKING,
   ...HUSTLE,
   ...PLAY_TYPES,
-  ...MATCHUPS
+  ...MATCHUPS,
+  ...IMPACT
 ]
 
 export const METRICS: ReadonlyMap<string, MetricDef> = new Map(CATALOGUE.map((m) => [m.id, m]))
@@ -38,4 +40,11 @@ export function componentsOf(def: Pick<MetricDef, 'value' | 'sample' | 'perGameB
   return [...new Set([...names, def.sample, ...(def.perGameBy ? [def.perGameBy] : [])])]
 }
 
-export { coverageReason, covers, PUBLISHED_TYPES_ONLY, WHOLE_SEASONS_ONLY } from '../coverage'
+export {
+  coverageReason,
+  covers,
+  ONE_SEASON_ONLY,
+  PUBLISHED_TYPES_ONLY,
+  REGULAR_SEASON_ONLY,
+  WHOLE_SEASONS_ONLY
+} from '../coverage'

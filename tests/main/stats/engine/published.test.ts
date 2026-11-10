@@ -76,6 +76,12 @@ vi.mock('@shared/stats/catalogue', async (actual) => {
       entity: 'team',
       published: 'published_test_team_widgets'
     }),
+    def('widget_state', {
+      value: '{widgets} / nullif({games}, 0)',
+      sample: 'games',
+      aggregation: 'ratio',
+      oneSeason: true
+    }),
     def('broken', { value: '{nope}', sample: 'games' })
   ]
   return {
@@ -330,6 +336,38 @@ describe('under a filter that splits a season', () => {
   it('says a season outside its coverage first, which no filter would answer', async () => {
     const r = await run({ scope: { seasons: [2020], dates: ['2020-01-01', '2020-02-01'] } })
     expect(r.columns[0].reason).toBe('Recorded from 2024-25.')
+  })
+})
+
+describe('a value that is one season’s state', () => {
+  const state = (
+    scope: StatsQuery['scope'],
+    groupBy?: StatsQuery['groupBy']
+  ): Promise<StatsResult> => run({ metrics: ['widget_state'], scope, groupBy })
+
+  it('reads one regular season as published', async () => {
+    const r = await state({ seasons: [2026] })
+    expect(r.columns[0].reason).toBeNull()
+    expect(row(r, '1').values.widget_state.value).toBe(10)
+  })
+
+  it('answers null with a reason over several seasons, since an average would mean nothing', async () => {
+    const r = await state({ seasons: [2025, 2026] })
+    expect(r.columns[0].reason).toBe('Published for one season at a time.')
+    expect(row(r, '1').values.widget_state.value).toBeNull()
+  })
+
+  it('answers each season when grouped by season', async () => {
+    const r = await state({ seasons: [2025, 2026] }, ['season'])
+    expect(r.columns[0].reason).toBeNull()
+    expect(row(r, '1', 2025).values.widget_state.value).toBe(7)
+    expect(row(r, '1', 2026).values.widget_state.value).toBe(10)
+  })
+
+  it('answers null with a reason in the playoffs alone', async () => {
+    const r = await state({ seasons: [2026], gameTypes: ['playoffs'] })
+    expect(r.columns[0].reason).toBe('Published for the regular season only.')
+    expect(row(r, '1').values.widget_state.value).toBeNull()
   })
 })
 

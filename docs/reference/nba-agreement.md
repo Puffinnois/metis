@@ -645,6 +645,75 @@ The time on guards, forwards and centers against the rollup’s published percen
 
 Over two seasons together (2024-25 and 2025-26), points and FG% allowed from the pair file added up over both: 687 of 687 defenders read the same through the engine.
 
+## SportsDataverse's impact models, read through the engine
+
+The impact models (Plan T707) are read through the query engine over a whole season, against the raw file (`src_nba_impact`): 16 columns, RAPM, adjusted RAPM, SPM and BPM with their parts, WAR and DARKO. Each is stored times what it was fitted on (possessions for the RAPM family, minutes for SPM and BPM, games for DARKO) and divided back, so a season should read exactly as published. DARKO is compared in the regular season only, since its playoff rows repeat the regular season's. **Not in the box scores** counts players the file has and the engine does not list; **not compared** counts values over nothing (0 minutes or possessions) and DARKO in 1996-97 and its projection spread in 1997-98, before they start, which the engine leaves blank.
+
+| Season  | Type           | Players | Not in the box scores | Rows same % | Values same % | Not compared |
+| ------- | -------------- | ------- | --------------------- | ----------- | ------------- | ------------ |
+| 1996-97 | Regular season | 441     | 1                     | 100.0       | 100.0         | 1,323        |
+| 1996-97 | Playoffs       | 189     | 0                     | 100.0       | 100.0         | 0            |
+| 1997-98 | Regular season | 439     | 0                     | 100.0       | 100.0         | 439          |
+| 1997-98 | Playoffs       | 190     | 0                     | 100.0       | 100.0         | 14           |
+| 1998-99 | Regular season | 440     | 0                     | 100.0       | 100.0         | 0            |
+| 1998-99 | Playoffs       | 189     | 0                     | 100.0       | 100.0         | 20           |
+| 1999-00 | Regular season | 439     | 0                     | 100.0       | 100.0         | 6            |
+| 1999-00 | Playoffs       | 181     | 0                     | 100.0       | 100.0         | 18           |
+| 2000-01 | Regular season | 441     | 0                     | 100.0       | 100.0         | 2            |
+| 2000-01 | Playoffs       | 189     | 0                     | 100.0       | 100.0         | 0            |
+| 2001-02 | Regular season | 440     | 0                     | 100.0       | 100.0         | 0            |
+| 2001-02 | Playoffs       | 185     | 0                     | 100.0       | 100.0         | 8            |
+| 2002-03 | Regular season | 428     | 0                     | 100.0       | 100.0         | 0            |
+| 2002-03 | Playoffs       | 187     | 0                     | 100.0       | 100.0         | 0            |
+| 2003-04 | Regular season | 442     | 0                     | 100.0       | 100.0         | 0            |
+| 2003-04 | Playoffs       | 189     | 0                     | 100.0       | 100.0         | 0            |
+| 2004-05 | Regular season | 464     | 0                     | 100.0       | 100.0         | 0            |
+| 2004-05 | Playoffs       | 187     | 0                     | 100.0       | 100.0         | 0            |
+| 2005-06 | Regular season | 457     | 0                     | 100.0       | 100.0         | 0            |
+| 2005-06 | Playoffs       | 195     | 0                     | 100.0       | 100.0         | 0            |
+| 2006-07 | Regular season | 458     | 0                     | 100.0       | 100.0         | 0            |
+| 2006-07 | Playoffs       | 191     | 0                     | 100.0       | 100.0         | 10           |
+| 2007-08 | Regular season | 451     | 0                     | 100.0       | 100.0         | 0            |
+| 2007-08 | Playoffs       | 202     | 0                     | 100.0       | 100.0         | 0            |
+| 2008-09 | Regular season | 445     | 0                     | 100.0       | 100.0         | 0            |
+| 2008-09 | Playoffs       | 199     | 0                     | 100.0       | 100.0         | 0            |
+| 2009-10 | Regular season | 441     | 0                     | 100.0       | 100.0         | 0            |
+| 2009-10 | Playoffs       | 199     | 0                     | 100.0       | 100.0         | 0            |
+| 2010-11 | Regular season | 452     | 0                     | 100.0       | 100.0         | 0            |
+| 2010-11 | Playoffs       | 192     | 0                     | 100.0       | 100.0         | 0            |
+| 2011-12 | Regular season | 478     | 0                     | 100.0       | 100.0         | 0            |
+| 2011-12 | Playoffs       | 203     | 0                     | 100.0       | 100.0         | 0            |
+| 2012-13 | Regular season | 469     | 0                     | 100.0       | 100.0         | 8            |
+| 2012-13 | Playoffs       | 209     | 0                     | 100.0       | 100.0         | 0            |
+| 2013-14 | Regular season | 482     | 0                     | 100.0       | 100.0         | 0            |
+| 2013-14 | Playoffs       | 204     | 0                     | 100.0       | 100.0         | 8            |
+| 2014-15 | Regular season | 492     | 0                     | 100.0       | 100.0         | 0            |
+| 2014-15 | Playoffs       | 208     | 0                     | 100.0       | 100.0         | 0            |
+| 2015-16 | Regular season | 476     | 0                     | 100.0       | 100.0         | 0            |
+| 2015-16 | Playoffs       | 215     | 0                     | 100.0       | 100.0         | 0            |
+| 2016-17 | Regular season | 486     | 0                     | 100.0       | 100.0         | 2            |
+| 2016-17 | Playoffs       | 215     | 0                     | 100.0       | 100.0         | 0            |
+| 2017-18 | Regular season | 540     | 2                     | 100.0       | 100.0         | 0            |
+| 2017-18 | Playoffs       | 210     | 0                     | 100.0       | 100.0         | 0            |
+| 2018-19 | Regular season | 530     | 0                     | 100.0       | 100.0         | 4            |
+| 2018-19 | Playoffs       | 212     | 0                     | 100.0       | 100.0         | 0            |
+| 2019-20 | Regular season | 529     | 0                     | 100.0       | 100.0         | 2            |
+| 2019-20 | Playoffs       | 215     | 0                     | 100.0       | 100.0         | 8            |
+| 2020-21 | Regular season | 540     | 0                     | 100.0       | 100.0         | 0            |
+| 2020-21 | Playoffs       | 239     | 0                     | 100.0       | 100.0         | 0            |
+| 2021-22 | Regular season | 605     | 0                     | 100.0       | 100.0         | 0            |
+| 2021-22 | Playoffs       | 215     | 0                     | 100.0       | 100.0         | 0            |
+| 2022-23 | Regular season | 539     | 0                     | 100.0       | 100.0         | 0            |
+| 2022-23 | Playoffs       | 217     | 0                     | 100.0       | 100.0         | 14           |
+| 2023-24 | Regular season | 572     | 0                     | 100.0       | 100.0         | 10           |
+| 2023-24 | Playoffs       | 214     | 0                     | 100.0       | 100.0         | 0            |
+| 2024-25 | Regular season | 569     | 0                     | 100.0       | 100.0         | 0            |
+| 2024-25 | Playoffs       | 219     | 0                     | 100.0       | 100.0         | 0            |
+| 2025-26 | Regular season | 582     | 0                     | 100.0       | 100.0         | 0            |
+| 2025-26 | Playoffs       | 230     | 0                     | 100.0       | 100.0         | 0            |
+
+In the playoffs, DARKO reads blank with the reason "Published for the regular season only." in 28 of the 28 seasons from 1998-99, where every DARKO column has values. Over two regular seasons together (2024-25 and 2025-26), RAPM weighted by possessions, BPM by minutes and WAR added up: 687 of 687 players read the same through the engine, and DARKO's projection reads blank with the reason "Published for one season at a time."
+
 ## The published standings
 
 `nba_stats_standings`, and the league dashboards' file, which alone reaches 1995-96. Percentages are of each season's teams. **Box scores:** wins and losses against `team_season`. **NBA's file:** the same record, rank, games back and streak as the dashboards'. **ESPN:** `espn_nba_standings`, from 2001-02. **By the record:** games back worked out from the conference leader's record. The last ten and the streak start in 2001-02. In 2003-04 the NBA's file repeats the overall record as the conference and division records, so the screen reads those as not published.

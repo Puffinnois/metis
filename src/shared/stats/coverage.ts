@@ -7,6 +7,10 @@ type Coverage = Pick<MetricDef, 'firstSeason' | 'missingSeasons'>
 export const WHOLE_SEASONS_ONLY = 'Published for whole seasons only.'
 /** Why it has none for the play-in, the Cup final and the rest: the dataset publishes only these. */
 export const PUBLISHED_TYPES_ONLY = 'Published for the regular season and playoffs only.'
+/** Why a metric that is one season's state, such as a projection, has none over several seasons. */
+export const ONE_SEASON_ONLY = 'Published for one season at a time.'
+/** Why it has none in the playoffs: its playoff rows repeat the regular season's. */
+export const REGULAR_SEASON_ONLY = 'Published for the regular season only.'
 
 /** Whether the source has real values for this metric in this season. */
 export const covers = (def: Coverage, season: number): boolean =>

@@ -220,6 +220,11 @@ So the box scores can be trusted season by season, and the sources cross-check. 
 - **The help columns of the pair file are zeros on every row** of every season: help blocks, help makes and help attempts. They are left out rather than read as a real 0.
 - **The 2017-18 rollup has a fifth position, `P`,** on 42 defenders, about a tenth of a percent of their time. It counts in the total, so the three shares can add to just under 100 %.
 - **`nba_player_impact` holds the dataset's own calculations,** not the original publishers' values. Its card names `sportsdataverse.nba.nba_rapm`, `nba_bpm` (BPM 2.0), `nba_war` and `nba_darko`. It leaves out play-in games. Its DARKO columns project the next season, and are null until two seasons are available. Label these as SportsDataverse's.
+- **DARKO's playoff rows repeat the regular season's.** Filtered skill and projection are the same in both rows of every player who played in the playoffs, in every season from 1997-98, so DARKO is read from the regular season only. It is also null for the whole of 1996-97 and for the season under way.
+- **DARKO's projection spread is 0 for 352 players in 1997-98,** and 10 for the other 87: the first season has no history to measure uncertainty from. From 1998-99 it is about 2 for most players and about 10 for those with little history. It is read from 1998-99.
+- **Adjusted RAPM's two halves are not centred on zero.** Over the regular season the offensive part averages +8.6 in 1997-98 and +9.8 in 2025-26, and the defensive part about as far below zero, while their sum averages 0 like RAPM. Only the sum compares with RAPM; it differs from it by 2.7 points per 100 possessions on average in the regular seasons of 2019-20 to 2025-26. RAPM's, SPM's and BPM's parts add up to their totals on every row.
+- **The `boban_*` columns are empty on every row** of every season (filtered skill, projected rating and spread). They are left out.
+- **The impact file's games are the box scores', its minutes are rounded.** Games played match the official regular-season games on 99 % of players (2015-16 to 2025-26, play-in left out); minutes are whole numbers, within about 3 of the box scores for 80 % of players. Each value is weighted by the file's own minutes or possessions.
 
 ## stats.nba.com directly
 
