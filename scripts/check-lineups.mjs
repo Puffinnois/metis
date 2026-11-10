@@ -62,8 +62,6 @@ const LAST = 2026
 
 const PCT_TOLERANCE = 0.0005 + 1e-9
 
-const TYPES = { regular: 'Regular Season', playoffs: 'Playoffs' }
-
 /** A BIGINT may arrive as text. */
 
 const num = (x) => (x === null || x === undefined ? null : Number(x))
