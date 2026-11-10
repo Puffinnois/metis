@@ -82,6 +82,12 @@ vi.mock('@shared/stats/catalogue', async (actual) => {
       aggregation: 'ratio',
       oneSeason: true
     }),
+    def('gone', {
+      value: '{widgets}',
+      sample: 'games',
+      aggregation: 'sum',
+      unavailable: 'The dataset no longer publishes widgets.'
+    }),
     def('broken', { value: '{nope}', sample: 'games' })
   ]
   return {
@@ -92,6 +98,7 @@ vi.mock('@shared/stats/catalogue', async (actual) => {
 })
 
 const CTX = { currentSeason: 2027 }
+const GONE = 'The dataset no longer publishes widgets.'
 let db: StatsDb
 
 const run = (q: Partial<StatsQuery> & { scope: StatsQuery['scope'] }): Promise<StatsResult> =>
@@ -336,6 +343,31 @@ describe('under a filter that splits a season', () => {
   it('says a season outside its coverage first, which no filter would answer', async () => {
     const r = await run({ scope: { seasons: [2020], dates: ['2020-01-01', '2020-02-01'] } })
     expect(r.columns[0].reason).toBe('Recorded from 2024-25.')
+  })
+})
+
+describe('a metric the dataset no longer publishes', () => {
+  const reasons = async (scope: StatsQuery['scope']): Promise<(string | null)[]> =>
+    (await run({ metrics: ['gone', 'widgets'], scope })).columns.map((c) => c.reason)
+
+  it('answers null with its own reason for a season it covers', async () => {
+    const r = await run({ metrics: ['gone'], scope: { seasons: [2026] } })
+    expect(r.columns[0].reason).toBe(GONE)
+    for (const x of r.rows) expect(x.values.gone.value).toBeNull()
+  })
+
+  it('puts that reason before "Recorded from" for a season before its coverage', async () => {
+    expect(await reasons({ seasons: [2020] })).toEqual([GONE, 'Recorded from 2024-25.'])
+  })
+
+  it('keeps it under a last-games scope, where a published metric says whole seasons only', async () => {
+    expect(await reasons({ seasons: [2026], lastN: 2 })).toEqual([GONE, WHOLE])
+  })
+
+  it('leaves a metric without it unaffected', async () => {
+    const r = await run({ metrics: ['widgets'], scope: { seasons: [2026] } })
+    expect(r.columns[0].reason).toBeNull()
+    expect(row(r, '2').values.widgets.value).not.toBeNull()
   })
 })
 
