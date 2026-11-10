@@ -12,6 +12,7 @@ import type {
   StatsDataReport,
   StatsGame,
   StatsGameDetail,
+  StatsMatchups,
   StatsPlayerInfo,
   StatsQuery,
   StatsResult,
@@ -75,6 +76,13 @@ export function registerIpcHandlers(ctx: AppContext): void {
   )
   ipcMain.handle(IPC.statsStandings, (_event, season: number): Promise<StatsStanding[]> =>
     ctx.stats ? ctx.stats.standings(season) : Promise.resolve([])
+  )
+  ipcMain.handle(
+    IPC.statsMatchups,
+    (_event, player: string, season: number): Promise<StatsMatchups> =>
+      ctx.stats
+        ? ctx.stats.matchups(player, season)
+        : Promise.resolve({ guarded: [], guardedBy: [] })
   )
   ipcMain.handle(IPC.statsViews, (): StatsView[] => listStatsViews(ctx.db))
   ipcMain.handle(IPC.statsSaveView, (_event, name: string, board: LeaderboardBoard): StatsView =>

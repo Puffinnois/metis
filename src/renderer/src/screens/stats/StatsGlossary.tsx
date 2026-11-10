@@ -14,7 +14,8 @@ const FAMILIES: MetricFamily[] = [
   'composite',
   'tracking',
   'hustle',
-  'play_types'
+  'play_types',
+  'matchups'
 ]
 
 /** Every metric the screens show, by family or search, with its sample, seasons and source. */

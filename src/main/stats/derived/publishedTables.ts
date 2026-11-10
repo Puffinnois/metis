@@ -18,6 +18,8 @@ export interface PublishedTable {
    * case (`{ play_type: 'isolation' }`).
    */
   match?: Readonly<Record<string, string>>
+  /** The source's column holding the player or team id, when it is not `player_id` or `team_id`. */
+  key?: string
   /**
    * The source's columns for its own tracked games and minutes: they can differ from the official
    * ones, and a rate must divide by what was tracked. Null when it does not publish them. A team's
@@ -31,6 +33,20 @@ export interface PublishedTable {
    * them. A divisor can be worked out too. In either, `{name}` is the source's column.
    */
   columns: readonly (string | PublishedColumn)[]
+  /**
+   * Another source that takes over some components wherever it holds the season and season type. Its
+   * rows are added to the table, and this source's values of those components read NULL there; the
+   * rest, the games among them, still come from this source.
+   */
+  replacedBy?: PublishedReplacement
+}
+
+/** See `PublishedTable.replacedBy`. */
+export interface PublishedReplacement {
+  source: string
+  key?: string
+  /** Each component it takes over, from its own columns: a bare column or `{column}`s worked out. */
+  columns: Readonly<Record<string, string>>
 }
 
 /** A component worked out from the source's columns: `{off_rating} * {poss}`. */
@@ -335,6 +351,95 @@ const PLAY_TYPE_TABLES: PublishedTable[] = PLAY_TYPE_SIDES.map(({ type, side, ke
   ]
 }))
 
+/** Matchups start in 2017-18. */
+export const MATCHUPS_FIRST_SEASON = 2018
+
+/** A source's minutes as published in its rows of totals, `41:33`, as minutes. */
+const clockMinutes = (c: string): string =>
+  `TRY_CAST(split_part({${c}:text}, ':', 1) AS DOUBLE) + TRY_CAST(split_part({${c}:text}, ':', 2) AS DOUBLE) / 60`
+
+/** What a defender's matchups add up: what the players they guarded did against them. */
+export const MATCHUP_COUNTS = [
+  'player_pts',
+  'team_pts',
+  'matchup_fgm',
+  'matchup_fga',
+  'matchup_fg3_m',
+  'matchup_fg3_a',
+  'matchup_ftm',
+  'matchup_fta',
+  'matchup_ast',
+  'matchup_tov',
+  'matchup_blk',
+  'sfl'
+] as const
+
+/** The positions the rollup splits a defender's matchups by. */
+export const MATCHUP_POSITIONS = ['g', 'f', 'c'] as const
+
+/**
+ * Reference section 10.2, for defenders. The rollup file gives a defender's season for the regular
+ * season and the playoffs, and the current season before its pair file is out. In the regular season
+ * the pair file, added up per defender, takes over: it matches the game matchups on every defender of
+ * every season, while the 2025-26 rollup reads about 5 % less time than both (measured). The games
+ * still come from the rollup, since the pair file's are per pair. The help columns are left out: the
+ * pair file publishes them as zeros on every row.
+ */
+const MATCHUP_TABLES: PublishedTable[] = [
+  {
+    table: 'pub_player_matchups',
+    entity: 'player',
+    source: 'src_nba_matchup_rollups',
+    key: 'def_player_id',
+    firstSeason: MATCHUPS_FIRST_SEASON,
+    match: { position: 'total' },
+    games: 'gp',
+    // Matchup minutes are time guarding someone, not minutes played: no per 36 is read from them.
+    minutes: null,
+    possessions: 'partial_poss',
+    columns: [{ name: 'matchup_minutes', sql: clockMinutes('matchup_min') }, ...MATCHUP_COUNTS],
+    replacedBy: {
+      source: 'src_nba_season_matchups',
+      key: 'def_player_id',
+      columns: {
+        possessions: 'partial_poss',
+        matchup_minutes: '{matchup_time_sec} / 60',
+        ...Object.fromEntries(MATCHUP_COUNTS.map((c) => [c, c]))
+      }
+    }
+  },
+  {
+    // Shares of the rollup's own time, so a season reads as the NBA's percent of time.
+    table: 'pub_player_matchup_positions',
+    entity: 'player',
+    source: 'src_nba_matchup_rollups',
+    key: 'def_player_id',
+    firstSeason: MATCHUPS_FIRST_SEASON,
+    games: null,
+    minutes: null,
+    columns: [
+      {
+        name: 'pos_all_minutes',
+        sql: `CASE WHEN lower({position:text}) = 'total' THEN ${clockMinutes('matchup_min')} END`
+      },
+      ...MATCHUP_POSITIONS.flatMap((p) =>
+        (
+          [
+            ['minutes', clockMinutes('matchup_min')],
+            ['poss', '{partial_poss}'],
+            ['pts', '{player_pts}'],
+            ['fgm', '{matchup_fgm}'],
+            ['fga', '{matchup_fga}']
+          ] as const
+        ).map(([name, sql]) => ({
+          name: `pos_${p}_${name}`,
+          sql: `CASE WHEN lower({position:text}) = '${p}' THEN ${sql} END`
+        }))
+      )
+    ]
+  }
+]
+
 /** Every published table. Each family adds its own; bump `PUBLISHED_VERSION` when one changes. */
 export const PUBLISHED_TABLES: readonly PublishedTable[] = [
   {
@@ -423,5 +528,6 @@ export const PUBLISHED_TABLES: readonly PublishedTable[] = [
   },
   ...TRACKING,
   ...HUSTLE,
-  ...PLAY_TYPE_TABLES
+  ...PLAY_TYPE_TABLES,
+  ...MATCHUP_TABLES
 ]

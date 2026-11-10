@@ -28,6 +28,7 @@ export type PlayerTab =
   | 'defense'
   | 'tracking'
   | 'play_types'
+  | 'matchups'
   | 'log'
   | 'splits'
 
@@ -40,6 +41,7 @@ export const PLAYER_DASH_TABS: { id: PlayerTab; label: string }[] = [
   { id: 'defense', label: 'Defense' },
   { id: 'tracking', label: 'Tracking' },
   { id: 'play_types', label: 'Play types' },
+  { id: 'matchups', label: 'Matchups' },
   { id: 'log', label: 'Game log' },
   { id: 'splits', label: 'Splits' }
 ]
@@ -206,6 +208,41 @@ export const TAB_SECTIONS: Record<
       metrics: PLAY_TYPE_SIDES.filter((s) => s.side === 'defense').map((s) =>
         playTypeMetricId(s.key, 'ppp')
       )
+    }
+  ],
+  // The NBA's matchups, from 2017-18: what the players they were assigned to did against them.
+  matchups: [
+    {
+      title: 'Guarding',
+      note: 'Tracked from 2017-18',
+      metrics: [
+        'matchup_min',
+        'matchup_poss',
+        'matchup_pts',
+        'matchup_pts_per_100',
+        'matchup_fg_pct',
+        'matchup_fg3_pct'
+      ]
+    },
+    {
+      title: 'What the players guarded did',
+      metrics: ['matchup_ast', 'matchup_tov', 'matchup_blk', 'matchup_sfl', 'matchup_fta']
+    },
+    {
+      title: 'Who they guarded',
+      note: 'By the position the NBA lists',
+      metrics: ['matchup_g_time_pct', 'matchup_f_time_pct', 'matchup_c_time_pct']
+    },
+    {
+      title: 'Against each position',
+      metrics: [
+        'matchup_g_pts_per_100',
+        'matchup_f_pts_per_100',
+        'matchup_c_pts_per_100',
+        'matchup_g_fg_pct',
+        'matchup_f_fg_pct',
+        'matchup_c_fg_pct'
+      ]
     }
   ]
 }

@@ -5,6 +5,7 @@ import type {
   MetricInfo,
   StatsGame,
   StatsGameDetail,
+  StatsMatchups,
   StatsPlayerInfo,
   StatsQuery,
   StatsResult,
@@ -192,3 +193,13 @@ export const useGameDetail = (
 
 export const useStandings = (season: number, version: string | null): ReadState<StatsStanding[]> =>
   useRead(`${version}|${season}`, () => api.stats.standings(season))
+
+/** A player's season matchups; null as the key when there is nothing to read. */
+export const useMatchups = (
+  player: string | null,
+  season: number,
+  version: string | null
+): ReadState<StatsMatchups> =>
+  useRead(player === null ? null : `${version}|${player}|${season}`, () =>
+    api.stats.matchups(player ?? '', season)
+  )

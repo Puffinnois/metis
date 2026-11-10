@@ -3,10 +3,13 @@ import type {
   GameType,
   StatsGame,
   StatsGameDetail,
+  StatsMatchupPair,
+  StatsMatchups,
   StatsPlayerInfo,
   StatsStanding
 } from '@shared/stats/types'
 import type { StatsDb } from './db'
+import { MATCHUP_PAIRS } from './derived/matchupPairs'
 import { column, inspect, type Have } from './derived/sql'
 
 /**
@@ -301,4 +304,77 @@ export async function readStandings(db: StatsDb, season: number): Promise<StatsS
     }
   }
   return []
+}
+
+/**
+ * A player's matchups in a season, from the NBA's pair file, each list longest first: the players
+ * they guarded and the players who guarded them. The pair file is published for the regular season
+ * only, from 2017-18; outside it both lists are empty.
+ */
+export async function readMatchups(
+  db: StatsDb,
+  id: string,
+  season: number
+): Promise<StatsMatchups> {
+  const none: StatsMatchups = { guarded: [], guardedBy: [] }
+  const have = await inspect(db)
+  if (!have.tables.has(MATCHUP_PAIRS) || !/^-?[0-9]{1,12}$/.test(id) || !Number.isInteger(season)) {
+    return none
+  }
+  const key = Number(id)
+  const named = have.tables.has('player')
+  const rows = await db.all<{
+    guarded: boolean
+    other: string
+    name: string | null
+    games: number | null
+    minutes: number | null
+    partial_poss: number | null
+    pts: number | null
+    fgm: number | null
+    fga: number | null
+    fg3m: number | null
+    fg3a: number | null
+    ftm: number | null
+    fta: number | null
+    ast: number | null
+    tov: number | null
+    blk: number | null
+  }>(
+    `WITH p AS (
+       SELECT p.*, p.def_player_id = $1 AS guarded,
+              CASE WHEN p.def_player_id = $1 THEN p.off_player_id ELSE p.def_player_id END AS other
+       FROM ${MATCHUP_PAIRS} p
+       WHERE p.season = $2 AND (p.def_player_id = $1 OR p.off_player_id = $1)
+     )
+     SELECT p.guarded, p.other::VARCHAR AS other, ${named ? 'pl.name' : 'NULL::VARCHAR'} AS name,
+            p.games, p.minutes, p.partial_poss, p.player_pts AS pts, p.matchup_fgm AS fgm,
+            p.matchup_fga AS fga, p.matchup_fg3_m AS fg3m, p.matchup_fg3_a AS fg3a,
+            p.matchup_ftm AS ftm, p.matchup_fta AS fta, p.matchup_ast AS ast,
+            p.matchup_tov AS tov, p.matchup_blk AS blk
+     FROM p ${named ? 'LEFT JOIN player pl ON pl.player_id = p.other' : ''}
+     ORDER BY p.minutes DESC NULLS LAST, p.other`,
+    [key, season]
+  )
+  const pair = (r: (typeof rows)[number]): StatsMatchupPair => ({
+    id: r.other,
+    name: r.name ?? `Player ${r.other}`,
+    games: r.games,
+    minutes: r.minutes,
+    partialPoss: r.partial_poss,
+    pts: r.pts,
+    fgm: r.fgm,
+    fga: r.fga,
+    fg3m: r.fg3m,
+    fg3a: r.fg3a,
+    ftm: r.ftm,
+    fta: r.fta,
+    ast: r.ast,
+    tov: r.tov,
+    blk: r.blk
+  })
+  return {
+    guarded: rows.filter((r) => r.guarded).map(pair),
+    guardedBy: rows.filter((r) => !r.guarded).map(pair)
+  }
 }

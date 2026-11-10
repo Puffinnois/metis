@@ -50,8 +50,10 @@ import {
   type PlayerTab,
   type RailPosition
 } from '@/lib/stats/player'
+import { pairCount, pairGap, pairRows, PAIR_HEAD, PAIR_LIMIT } from '@/lib/stats/matchups'
 import { rangeLabel, scopeLabel, seasonOf, typeLabel, type StatsScope } from '@/lib/stats/scope'
 import {
+  useMatchups,
   usePlayerInfo,
   useSeasonGames,
   useStatsQueries,
@@ -59,7 +61,7 @@ import {
   type StatsData
 } from '@/lib/stats/useStats'
 import { cn } from '@/lib/utils'
-import type { BoardMode, StatsPlayerInfo, StatsRow } from '@shared/stats/types'
+import type { BoardMode, StatsMatchupPair, StatsPlayerInfo, StatsRow } from '@shared/stats/types'
 
 /** The dashboard is about one player: never another player's answers while their own load. */
 const FRESH = { keepLast: false }
@@ -73,6 +75,7 @@ interface TabProps {
   info: StatsPlayerInfo | null
   mode: BoardMode
   onOpenGame: (game: string) => void
+  onOpenPlayer: (player: string) => void
 }
 
 /** Rail, header, and one set of tabs for every position. */
@@ -199,6 +202,7 @@ export function StatsPlayer({
               info={info}
               mode={mode}
               onOpenGame={onOpenGame}
+              onOpenPlayer={onPlayer}
             />
           </div>
         )}
@@ -216,7 +220,100 @@ function TabBody({
   if (!played) return null
   if (tab === 'log') return <GameLog {...props} />
   if (tab === 'splits') return <Splits {...props} />
+  if (tab === 'matchups') return <Matchups {...props} />
   return <LinesTab {...props} tab={tab} />
+}
+
+/** The defender's totals, then the pairs behind them: who they guarded, and who guarded them. */
+function Matchups(props: TabProps): React.JSX.Element {
+  const { data, scope, player, onOpenPlayer } = props
+  const gap = pairGap(scope)
+  const { value, error } = useMatchups(gap ? null : player, scope.season, data.version)
+  return (
+    <div className="flex flex-col gap-7">
+      <LinesTab {...props} tab="matchups" />
+      {gap ? (
+        <section className="flex flex-col gap-2.5">
+          <SectionHead title="Pairs" />
+          <p className="m-0 text-[12.5px] text-fg-3">{gap}</p>
+        </section>
+      ) : !value ? (
+        <Loading error={error} />
+      ) : (
+        <>
+          <PairTable
+            title="Who they guarded most"
+            pairs={value.guarded}
+            empty="No matchups as a defender this season."
+            onOpenPlayer={onOpenPlayer}
+          />
+          <PairTable
+            title="Who guarded them most"
+            pairs={value.guardedBy}
+            empty="No matchups on offense this season."
+            onOpenPlayer={onOpenPlayer}
+          />
+          <Notes
+            notes={[
+              'From the NBA’s pair file, regular season only. PTS, FG and the rest are what the player on offense did while that defender was assigned.'
+            ]}
+          />
+        </>
+      )}
+    </div>
+  )
+}
+
+function PairTable({
+  title,
+  pairs,
+  empty,
+  onOpenPlayer
+}: {
+  title: string
+  pairs: StatsMatchupPair[]
+  empty: string
+  onOpenPlayer: (player: string) => void
+}): React.JSX.Element {
+  const [all, setAll] = useState(false)
+  const rows = pairRows(pairs, all ? null : PAIR_LIMIT)
+  return (
+    <section className="flex flex-col gap-2.5">
+      <SectionHead title={title} note={pairCount(rows.length, pairs.length)} />
+      {pairs.length === 0 ? (
+        <p className="m-0 text-[12.5px] text-fg-3">{empty}</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <MiniTable
+            label={title}
+            columns={`minmax(150px,1.6fr) 32px repeat(${PAIR_HEAD.length - 2}, minmax(52px,1fr))`}
+            minWidth={760}
+            head={PAIR_HEAD}
+            rows={rows.map((r) => ({
+              key: r.key,
+              title: `Open ${r.name}’s dashboard`,
+              onOpen: () => onOpenPlayer(r.key),
+              cells: [
+                <span key="n" className="font-sans text-[13px] font-medium">
+                  {r.name}
+                </span>,
+                ...r.cells
+              ]
+            }))}
+          />
+        </div>
+      )}
+      {pairs.length > PAIR_LIMIT && (
+        <button
+          type="button"
+          onClick={() => setAll(!all)}
+          className="cursor-pointer self-start text-[12.5px] font-medium text-fg-2 hover:text-cobalt"
+        >
+          {all ? 'Show fewer' : `Show all ${pairs.length}`}
+        </button>
+      )}
+    </section>
+  )
 }
 
 function Header({
