@@ -85,6 +85,8 @@ export type StatsRequest =
       gameType: string
       group: LineupGroup
     }
+  | { id: number; kind: 'availability'; players: string[] }
+  | { id: number; kind: 'coaches'; team: string; season: number }
 
 /**
  * The kinds that run at once, each on its own connection, instead of in turn. A pause cannot wait
@@ -105,7 +107,9 @@ export const AT_ONCE_REQUESTS: ReadonlySet<StatsRequest['kind']> = new Set([
   'standings',
   'matchups',
   'profile',
-  'lineups'
+  'lineups',
+  'availability',
+  'coaches'
 ])
 
 export type StatsReply =

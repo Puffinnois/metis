@@ -25,7 +25,9 @@ vi.mock('@/lib/api', () => ({
       player: vi.fn(),
       games: vi.fn(),
       game: vi.fn(),
-      standings: vi.fn()
+      standings: vi.fn(),
+      availability: vi.fn(() => Promise.resolve([])),
+      coaches: vi.fn(() => Promise.resolve([]))
     },
     dev: { mode: vi.fn().mockResolvedValue(false), onModeChanged: vi.fn(() => () => {}) }
   }

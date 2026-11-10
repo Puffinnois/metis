@@ -38,6 +38,8 @@ export function openStatsWorker(folder, options = {}) {
     query: (query) => request((id) => ({ id, kind: 'query', query })),
     lineups: (team, season, gameType, group) =>
       request((id) => ({ id, kind: 'lineups', team, season, gameType, group })),
+    // Any other request the worker serves: `call('coaches', { team, season })`.
+    call: (kind, args) => request((id) => ({ id, kind, ...args })),
     close: async () => {
       await request((id) => ({ id, kind: 'close' })).catch(() => undefined)
       await worker.terminate()

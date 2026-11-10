@@ -14,6 +14,8 @@ import type {
   StatsLineups,
   StatsMatchups,
   StatsProfile,
+  StatsAvailability,
+  StatsCoach,
   StatsStatus
 } from '@shared/stats/types'
 import { sqlString, StatsDb, type Row } from './db'
@@ -31,6 +33,7 @@ import type {
   StatsSyncResult,
   StatsWorkerInit
 } from './protocol'
+import { readAvailability, readCoaches } from './availabilityReads'
 import type { LineupGroup } from '@shared/stats/lineups'
 import {
   readGame,
@@ -110,6 +113,8 @@ export interface StatsService {
   lineups(team: string, season: number, gameType: string, group: LineupGroup): Promise<StatsLineups>
   /** A player's bio, draft and combines, each combine measure ranked within its position group. */
   profile(player: string): Promise<StatsProfile>
+  availability(players: string[]): Promise<StatsAvailability[]>
+  coaches(team: string, season: number): Promise<StatsCoach[]>
   /**
    * Stops a refresh now: aborts its downloads, interrupts its statement and starts no other step. A
    * process must not exit while DuckDB runs a statement (Electron aborts), so closing cancels first.
@@ -363,6 +368,8 @@ export async function openStatsService(
     profile: (player) => read((reader) => readProfile(reader, player)),
     lineups: (team, season, gameType, group) =>
       read((reader) => readLineups(reader, team, season, gameType, group)),
+    availability: (players) => read((reader) => readAvailability(reader, players)),
+    coaches: (team, season) => read((reader) => readCoaches(reader, team, season)),
     /** Write, read, a Parquet round trip, `read_json` and an ICU time zone, through the real file. */
     async selfTest() {
       await db.exec('CREATE OR REPLACE TABLE self_test AS SELECT range AS x FROM range(1000)')

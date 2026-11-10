@@ -27,6 +27,7 @@ import { lineupReadIds, LINEUP_GROUPS, type LineupGroup } from '@shared/stats/li
 import { LINEUPS } from './derived/lineups'
 import { MATCHUP_PAIRS } from './derived/matchupPairs'
 import { column, inspect, per, type Have } from './derived/sql'
+import { readOfficials } from './availabilityReads'
 
 /**
  * What the dashboards read beside the query engine: who a player is, the schedule, a game's facts and
@@ -518,7 +519,19 @@ const sum = (xs: number[]): number => xs.reduce((a, b) => a + b, 0)
 export async function readGame(db: StatsDb, id: string): Promise<StatsGameDetail | null> {
   const have = await inspect(db)
   const e = 'src_espn_schedule'
-  if (!have.tables.has('game') || !have.tables.has(e)) return null
+  if (!have.tables.has('game')) return null
+  const officials = await readOfficials(db, id)
+  // The crew comes from the NBA's file, so a game ESPN's schedule lacks can still have one.
+  const bare: StatsGameDetail = {
+    id,
+    venue: null,
+    city: null,
+    attendance: null,
+    note: null,
+    periods: null,
+    officials
+  }
+  if (!have.tables.has(e)) return officials.length ? bare : null
   const r = await db.get<{
     venue: string | null
     city: string | null
@@ -540,7 +553,7 @@ export async function readGame(db: StatsDb, id: string): Promise<StatsGameDetail
      WHERE g.game_id = ? LIMIT 1`,
     [id]
   )
-  if (!r) return null
+  if (!r) return officials.length ? bare : null
   const home = parsePeriods(r.home_lines)
   const away = parsePeriods(r.away_lines)
   // Periods that do not add up to the score would contradict the header, so they are not shown.
@@ -551,7 +564,8 @@ export async function readGame(db: StatsDb, id: string): Promise<StatsGameDetail
     city: r.city,
     attendance: r.attendance && r.attendance > 0 ? r.attendance : null,
     note: r.note,
-    periods: agree ? { home, away } : null
+    periods: agree ? { home, away } : null,
+    officials
   }
 }
 

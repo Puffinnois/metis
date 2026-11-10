@@ -516,6 +516,12 @@ const IMPACT_COLUMNS = `
   .map((line) => line.trim().split(/\s+/))
   .filter((parts) => parts.length === 3)
 
+/** Games out (`catalogue/availability.ts`): counts of games, summed as published. */
+const AVAILABILITY_COLUMNS = [
+  ['games_out_injury', 'games_out_injury', '-'],
+  ['games_out_other', 'games_out_other', '-']
+]
+
 /** One published row: a different value in every column, so a metric reading the wrong one fails. */
 const PUBLISHED_ROW: Record<string, number> = {
   games: 50,
@@ -531,7 +537,8 @@ const PUBLISHED_ROW: Record<string, number> = {
           ...PLAY_TYPE_COLUMNS,
           ...MATCHUP_COLUMNS,
           ...MATCHUP_PER_100,
-          ...IMPACT_COLUMNS
+          ...IMPACT_COLUMNS,
+          ...AVAILABILITY_COLUMNS
         ]
           .flatMap(([, c, by]) => [c, by])
           .filter((c) => !['-', 'games', 'minutes', 'possessions'].includes(c))
@@ -554,7 +561,8 @@ Object.assign(EXPECTED, {
       ...HUSTLE_COLUMNS,
       ...PLAY_TYPE_COLUMNS,
       ...MATCHUP_COLUMNS,
-      ...IMPACT_COLUMNS
+      ...IMPACT_COLUMNS,
+      ...AVAILABILITY_COLUMNS
     ].map(([id, c, by]) => [
       id,
       by === '-' ? PUBLISHED_ROW[c] : PUBLISHED_ROW[c] / PUBLISHED_ROW[by]

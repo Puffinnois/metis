@@ -156,7 +156,8 @@ const FAMILIES: MetricFamily[] = [
   'hustle',
   'play_types',
   'matchups',
-  'impact'
+  'impact',
+  'availability'
 ]
 
 /** The games column is the row's own, so a count of games is not offered beside it. */

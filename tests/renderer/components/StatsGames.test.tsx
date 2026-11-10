@@ -19,7 +19,9 @@ vi.mock('@/lib/api', () => ({
       player: vi.fn(),
       games: vi.fn(),
       game: vi.fn(),
-      standings: vi.fn()
+      standings: vi.fn(),
+      availability: vi.fn(() => Promise.resolve([])),
+      coaches: vi.fn(() => Promise.resolve([]))
     },
     dev: { mode: vi.fn().mockResolvedValue(false), onModeChanged: vi.fn(() => () => {}) }
   }
@@ -171,7 +173,8 @@ beforeEach(() => {
       city: 'Boston',
       attendance: 19156,
       note: null,
-      periods: { home: [30, 30, 25, 25], away: [25, 25, 26, 26] }
+      periods: { home: [30, 30, 25, 25], away: [25, 25, 26, 26] },
+      officials: []
     })
   )
 })

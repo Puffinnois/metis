@@ -176,7 +176,8 @@ describe('the header', () => {
       city: 'Boston',
       attendance: 18984,
       note: 'NBA Cup',
-      periods: null
+      periods: null,
+      officials: []
     }
     const v = gameHeader(games[3], games, detail, null)
     expect(v.line).toBe('Jan 5, 2026 · NBA Cup')
@@ -204,7 +205,8 @@ describe('the score by period', () => {
     city: null,
     attendance: null,
     note: null,
-    periods: { home, away }
+    periods: { home, away },
+    officials: []
   })
 
   it('names the periods and ends on the final', () => {
@@ -226,7 +228,8 @@ describe('the score by period', () => {
         city: null,
         attendance: null,
         note: null,
-        periods: null
+        periods: null,
+        officials: []
       })
     ).toBeNull()
   })

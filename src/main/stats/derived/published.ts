@@ -95,6 +95,7 @@ function rowsOf(
  * (`nba-data-sources.md`), and a total can be added across seasons. What is missing reads as NULL.
  */
 function buildSql(t: PublishedTable, have: Have): string {
+  if (t.sql) return t.sql(have)
   const key = keyOf(t)
   const main = rowsOf(t, have)
   const r = t.replacedBy

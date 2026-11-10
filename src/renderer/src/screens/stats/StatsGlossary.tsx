@@ -16,7 +16,8 @@ const FAMILIES: MetricFamily[] = [
   'hustle',
   'play_types',
   'matchups',
-  'impact'
+  'impact',
+  'availability'
 ]
 
 /** Every metric the screens show, by family or search, with its sample, seasons and source. */

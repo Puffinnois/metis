@@ -11,6 +11,8 @@ import {
   TabRow
 } from '@/components/stats/parts'
 import { PlayerRail } from '@/components/stats/PlayerRail'
+import { StatusChip } from '@/components/stats/StatusChip'
+import { statusTag } from '@/lib/stats/availability'
 import { ScopeBar } from '@/components/stats/ScopeBar'
 import { StatSection, StatSections } from '@/components/stats/StatLines'
 import { useNoteContext } from '@/lib/dev/noteContext'
@@ -63,6 +65,7 @@ import {
 import { rangeLabel, scopeLabel, seasonOf, typeLabel, type StatsScope } from '@/lib/stats/scope'
 import { seasonLabel } from '@shared/stats/seasons'
 import {
+  useAvailability,
   useMatchups,
   usePlayerInfo,
   useProfile,
@@ -443,6 +446,9 @@ function Header({
     (row ? null : (info.team?.id ?? null))
   const position = row?.position ?? info.position
   const qualified = row ? qualifies(row, tabOf('player', 'ALL')) : true
+  const ids = useMemo(() => [info.id], [info.id])
+  const { value: availability } = useAvailability(ids, data.version)
+  const tag = statusTag(availability?.[0])
   return (
     <header className="flex items-end justify-between gap-6">
       <div className="flex min-w-0 items-end gap-4">
@@ -480,6 +486,7 @@ function Header({
                 Not qualified
               </span>
             )}
+            {tag && <StatusChip tag={tag} />}
           </div>
           <h1 className="m-0 flex flex-col gap-0.5">
             {first && (

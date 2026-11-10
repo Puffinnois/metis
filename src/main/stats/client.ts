@@ -9,6 +9,8 @@ import type {
   StatsLineups,
   StatsMatchups,
   StatsProfile,
+  StatsAvailability,
+  StatsCoach,
   StatsPlayerInfo,
   StatsQuery,
   StatsResult,
@@ -44,6 +46,8 @@ export interface StatsClient {
   matchups(player: string, season: number): Promise<StatsMatchups>
   lineups(team: string, season: number, gameType: string, group: LineupGroup): Promise<StatsLineups>
   profile(player: string): Promise<StatsProfile>
+  availability(players: string[]): Promise<StatsAvailability[]>
+  coaches(team: string, season: number): Promise<StatsCoach[]>
   /** Closes the database and ends the worker (after `CLOSE_TIMEOUT_MS` at most). */
   close(): Promise<void>
 }
@@ -114,6 +118,10 @@ export function startStatsWorker(
     profile: (player) => request<StatsProfile>((id) => ({ id, kind: 'profile', player })),
     lineups: (team, season, gameType, group) =>
       request<StatsLineups>((id) => ({ id, kind: 'lineups', team, season, gameType, group })),
+    availability: (players) =>
+      request<StatsAvailability[]>((id) => ({ id, kind: 'availability', players })),
+    coaches: (team, season) =>
+      request<StatsCoach[]>((id) => ({ id, kind: 'coaches', team, season })),
     async close() {
       if (!dead) {
         let timer: NodeJS.Timeout | undefined
