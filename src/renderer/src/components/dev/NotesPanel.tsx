@@ -66,7 +66,7 @@ interface NotesPanelProps {
 
 /**
  * The notes panel: docked bottom-right, draggable by its header, collapsible;
- * the app stays usable around it. Every capture hides it first (§2.1).
+ * the app stays usable around it. Every capture hides it first.
  */
 export function NotesPanel({
   view,
