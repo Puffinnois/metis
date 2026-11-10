@@ -17,6 +17,8 @@ vi.mock('@main/stats/derived/publishedTables', async (actual) => {
     PUBLISHED_TABLES: [
       // A real one: the catch-and-shoot file, whose blank threes need reading as 0.
       real.PUBLISHED_TABLES.find((t) => t.table === 'pub_player_catch_shoot')!,
+      // A play type, read from the one file of them all.
+      real.PUBLISHED_TABLES.find((t) => t.table === 'pub_player_pt_d_iso')!,
       {
         table: 'published_test_widgets',
         entity: 'player',
@@ -170,6 +172,57 @@ describe('the published tables', () => {
       { player_id: 1, catch_shoot_fga: 5, catch_shoot_fg3_m: 0, catch_shoot_fg3_a: 0 },
       { player_id: 2, catch_shoot_fga: 173, catch_shoot_fg3_m: 66, catch_shoot_fg3_a: 171 },
       { player_id: 3, catch_shoot_fga: null, catch_shoot_fg3_m: null, catch_shoot_fg3_a: null }
+    ])
+  })
+
+  it('read one play type and side out of the file of them all, a row per team', async () => {
+    await db.exec(`CREATE TABLE src_nba_play_types (player_id BIGINT, team_id BIGINT,
+      play_type VARCHAR, type_grouping VARCHAR, gp BIGINT, poss_pct DOUBLE, efg_pct DOUBLE,
+      ft_poss_pct DOUBLE, tov_poss_pct DOUBLE, sf_poss_pct DOUBLE, plusone_poss_pct DOUBLE,
+      score_poss_pct DOUBLE, poss DOUBLE, pts DOUBLE, fgm DOUBLE, fga DOUBLE, season INTEGER,
+      season_type VARCHAR, per_mode VARCHAR)`)
+    // Nikola Jokić's isolations defended in 2025-26, as published, and rows to leave out: their own
+    // isolations, the per-game file, another type and a season before the first. A traded player
+    // keeps a row per team, and a share rounded to 0 leaves the frequency's parts blank.
+    await db.exec(`INSERT INTO src_nba_play_types VALUES
+      (1, 10, 'Isolation', 'Defensive', 61, 0.042, 0.549, 0.146, 0.083, 0.146, 0.083, 0.5,
+        48, 53, 21, 41, 2026, 'regular-season', 'totals'),
+      (1, 10, 'Isolation', 'Offensive', 63, 0.067, 0.571, 0.106, 0.125, 0.096, 0.048, 0.51,
+        104, 112, 47, 85, 2026, 'regular-season', 'totals'),
+      (1, 10, 'Isolation', 'Defensive', 61, 0.042, 0.549, 0.146, 0.083, 0.146, 0.083, 0.5,
+        0.8, 0.9, 0.3, 0.7, 2026, 'regular-season', 'pergame'),
+      (1, 10, 'PRRollMan', 'Defensive', 61, 0.147, 0.623, 0.089, 0.083, 0.089, 0.036, 0.544,
+        169, 200, 84, 146, 2026, 'regular-season', 'totals'),
+      (2, 10, 'Isolation', 'Defensive', 20, 0.05, 0.5, 0.1, 0.1, 0.1, 0, 0.4,
+        20, 18, 8, 16, 2016, 'regular-season', 'totals'),
+      (2, 11, 'Isolation', 'Defensive', 30, 0, 0.5, 0, 0, 0, 0, 0.5,
+        2, 2, 1, 2, 2016, 'regular-season', 'totals'),
+      (3, 10, 'Isolation', 'Defensive', 9, 0.05, 0.5, 0.1, 0.1, 0.1, 0, 0.4,
+        5, 4, 2, 4, 2015, 'regular-season', 'totals')`)
+    await buildPublished(db)
+    const rows = await db.all<Record<string, number>>(
+      'SELECT * FROM pub_player_pt_d_iso ORDER BY player_id, d_iso_poss DESC'
+    )
+    expect(rows).toHaveLength(3)
+    expect(rows[0]).toMatchObject({
+      player_id: 1,
+      season: 2026,
+      game_type: 'regular',
+      games: 61,
+      minutes: null,
+      d_iso_poss: 48,
+      d_iso_pts: 53,
+      d_iso_fgm: 21,
+      d_iso_fga: 41,
+      d_iso_freq_poss: 48
+    })
+    expect(rows[0].d_iso_all_poss).toBeCloseTo(48 / 0.042, 6)
+    expect(rows[0].d_iso_efg_w).toBeCloseTo(0.549 * 41, 6)
+    expect(rows[0].d_iso_tov_w).toBeCloseTo(0.083 * 48, 6)
+    expect(rows[0].d_iso_score_w).toBeCloseTo(0.5 * 48, 6)
+    expect(rows.slice(1)).toMatchObject([
+      { player_id: 2, games: 20, d_iso_poss: 20, d_iso_freq_poss: 20 },
+      { player_id: 2, games: 30, d_iso_poss: 2, d_iso_freq_poss: null, d_iso_all_poss: null }
     ])
   })
 

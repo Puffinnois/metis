@@ -1125,6 +1125,181 @@ out.push(
   )
 )
 
+// Play types (Plan T705) through the engine, against the raw files, rows of totals. A traded player
+// has a row per team, so the raw side is added up per player the way the engine does: counts summed,
+// rates published without their parts weighted by what they divide by, and the frequency over the
+// possessions its share implies. Those should match exactly. Points per possession and FG% are rebuilt
+// from their parts, so they are compared with the published rates of one-team players, within the
+// published rounding: three places from 2023-24, two before.
+const PLAY_TYPE_KEYS = {
+  isolation: 'iso',
+  transition: 'transition',
+  prballhandler: 'pnr_bh',
+  prrollman: 'pnr_roll',
+  postup: 'post_up',
+  spotup: 'spot_up',
+  handoff: 'handoff',
+  cut: 'cut',
+  offscreen: 'off_screen',
+  offrebound: 'putback',
+  misc: 'misc'
+}
+const PLAY_TYPE_DEFENSE = [
+  'iso',
+  'pnr_bh',
+  'pnr_roll',
+  'post_up',
+  'spot_up',
+  'handoff',
+  'off_screen'
+]
+const PLAY_TYPE_SIDES = [
+  ...Object.values(PLAY_TYPE_KEYS),
+  ...PLAY_TYPE_DEFENSE.map((k) => `d_${k}`)
+]
+const PLAY_TYPE_EXACT = [
+  'poss',
+  'pts',
+  'fgm',
+  'fga',
+  'freq',
+  'efg_pct',
+  'ft_freq',
+  'tov_freq',
+  'sf_freq',
+  'and1_freq',
+  'score_freq'
+]
+const playTypeRaw = (seasons) =>
+  read(`SELECT player_id, lower(play_type) AS play_type, lower(type_grouping) AS side,
+      count(*)::INTEGER AS teams, sum(poss) AS poss, sum(pts) AS pts, sum(fgm) AS fgm,
+      sum(fga) AS fga,
+      sum(poss) FILTER (WHERE poss_pct > 0)
+        / nullif(sum(poss / poss_pct) FILTER (WHERE poss_pct > 0), 0) AS freq,
+      sum(efg_pct * fga) / nullif(sum(fga), 0) AS efg_pct,
+      sum(ft_poss_pct * poss) / nullif(sum(poss), 0) AS ft_freq,
+      sum(tov_poss_pct * poss) / nullif(sum(poss), 0) AS tov_freq,
+      sum(sf_poss_pct * poss) / nullif(sum(poss), 0) AS sf_freq,
+      sum(plusone_poss_pct * poss) / nullif(sum(poss), 0) AS and1_freq,
+      sum(score_poss_pct * poss) / nullif(sum(poss), 0) AS score_freq,
+      sum(pts) / nullif(sum(poss), 0) AS ppp_parts, max(ppp) AS ppp,
+      max(fg_pct) AS fg_pct
+    FROM src_nba_play_types
+    WHERE season IN (${seasons.join(', ')}) AND season_type = 'regular-season'
+      AND per_mode = 'totals'
+    GROUP BY ALL`)
+const playTypeKey = (r) => `${r.side === 'defensive' ? 'd_' : ''}${PLAY_TYPE_KEYS[r.play_type]}`
+
+async function playTypeValues(seasons, measures) {
+  const ids = PLAY_TYPE_SIDES.flatMap((k) => measures.map((m) => `pt_${k}_${m}`))
+  const byPlayer = new Map()
+  for (let i = 0; i < ids.length; i += 40) {
+    const result = await query({
+      entity: 'player',
+      metrics: ids.slice(i, i + 40),
+      scope: { seasons },
+      limit: 5000
+    })
+    for (const r of result.rows) {
+      const values = byPlayer.get(Number(r.id)) ?? {}
+      for (const [id, v] of Object.entries(r.values)) values[id] = v.value
+      byPlayer.set(Number(r.id), values)
+    }
+  }
+  return byPlayer
+}
+
+const playTypeRows = []
+for (const season of finished.filter((s) => s >= 2016)) {
+  const ours = await playTypeValues([season], [...PLAY_TYPE_EXACT, 'ppp', 'fg_pct'])
+  const raw = await playTypeRaw([season])
+  const rounding = season >= 2024 ? ROUNDED : 0.005 + 1e-9
+  const players = new Set()
+  const wrong = new Set()
+  let cells = 0
+  let cellsSame = 0
+  let traded = 0
+  const published = { ppp: [0, 0], fg_pct: [0, 0] }
+  for (const r of raw) {
+    const o = ours.get(Number(r.player_id))
+    if (!o) continue
+    players.add(r.player_id)
+    const key = playTypeKey(r)
+    for (const m of PLAY_TYPE_EXACT) {
+      cells++
+      if (same(o[`pt_${key}_${m}`] ?? null, r[m])) cellsSame++
+      else wrong.add(r.player_id)
+    }
+    // Rebuilt from the parts: the same as the raw parts give, and near the published rate.
+    for (const m of ['ppp', 'fg_pct']) {
+      const parts = m === 'ppp' ? r.ppp_parts : r.fga ? r.fgm / r.fga : null
+      cells++
+      if (same(o[`pt_${key}_${m}`] ?? null, parts)) cellsSame++
+      else wrong.add(r.player_id)
+    }
+    if (r.teams > 1) {
+      traded++
+      continue
+    }
+    for (const m of ['ppp', 'fg_pct']) {
+      const a = o[`pt_${key}_${m}`] ?? null
+      if (a === null) continue
+      published[m][0]++
+      if (within(a, r[m], rounding)) published[m][1]++
+    }
+  }
+  playTypeRows.push([
+    label(season),
+    COUNT.format(players.size),
+    pct(players.size - wrong.size, players.size),
+    pct(cellsSame, cells),
+    COUNT.format(traded),
+    pct(published.ppp[1], published.ppp[0]),
+    pct(published.fg_pct[1], published.fg_pct[0])
+  ])
+}
+
+// Two seasons together: points per possession from summed parts, the rest weighted.
+const playTypeTwoOurs = await playTypeValues([2025, 2026], ['ppp', 'freq', 'tov_freq'])
+const playTypeTwoRaw = (await playTypeRaw([2025, 2026])).filter(
+  (r) => r.play_type === 'spotup' && r.side === 'offensive'
+)
+let playTypeTwoRows = 0
+let playTypeTwoSame = 0
+for (const r of playTypeTwoRaw) {
+  const o = playTypeTwoOurs.get(Number(r.player_id))
+  if (!o) continue
+  playTypeTwoRows++
+  if (
+    same(o.pt_spot_up_ppp ?? null, r.ppp_parts) &&
+    same(o.pt_spot_up_freq ?? null, r.freq) &&
+    same(o.pt_spot_up_tov_freq ?? null, r.tov_freq)
+  )
+    playTypeTwoSame++
+}
+
+out.push(
+  '',
+  "## The NBA's play types, read through the engine",
+  '',
+  `Play types (Plan T705) are read through the query engine over a whole regular season, against the raw file (\`src_nba_play_types\`), rows of totals: ${PLAY_TYPE_SIDES.length} types and sides, ${PLAY_TYPE_EXACT.length + 2} measures each. A traded player has a row per team, so the raw rows are added up per player as the engine does: counts summed, rates published without their parts weighted by possessions (eFG% by attempts), and the frequency over the possessions its published share implies. A row matches when every type and measure does. **PPP** and **FG%** are rebuilt from their parts; the last two columns compare them with the published rates of players with one team, within the published rounding: three places from 2023-24, two before. The file prints points per possession as a whole number on 248 regular-season rows of 2015-16, and on about a quarter of the playoff rows of 2015-16 to 2017-18: those are the misses, and the rate rebuilt from the parts is the right one.`,
+  '',
+  table(
+    [
+      'Season',
+      'Players',
+      'Rows same %',
+      'Values same %',
+      'Traded rows',
+      'PPP as published %',
+      'FG% as published %'
+    ],
+    playTypeRows
+  ),
+  '',
+  `Over two seasons together (2024-25 and 2025-26), spot-up points per possession from summed parts, frequency over the implied possessions and turnover frequency weighted by possessions, worked out from the raw file: ${COUNT.format(playTypeTwoSame)} of ${COUNT.format(playTypeTwoRows)} players read the same through the engine.`
+)
+
 // The published standings, which the Standings screen and a team's header read.
 const standings = await read(`WITH e AS (
     SELECT s.season, t.team_id,

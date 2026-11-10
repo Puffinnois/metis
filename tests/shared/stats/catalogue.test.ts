@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import { COMPONENTS, grainsOf } from '@main/stats/engine/registry'
 import { CATALOGUE, componentsOf, coverageReason, covers, TOKEN } from '@shared/stats/catalogue'
+import { PLAY_TYPE_SIDES } from '@shared/stats/playTypes'
 import { SAMPLE_LABELS } from '@shared/stats/samples'
 import { seasonLabel } from '@shared/stats/seasons'
 import type { StatsDb } from '@main/stats/db'
@@ -451,6 +452,28 @@ const HUSTLE_COLUMNS = `
   .map((line) => line.trim().split(/\s+/))
   .filter((parts) => parts.length === 3)
 
+/**
+ * Play types (`catalogue/playTypes.ts`): for each type and side, every measure and the columns it
+ * divides. Written out per measure, so a formula over the wrong part fails.
+ */
+const PLAY_TYPE_COLUMNS = PLAY_TYPE_SIDES.flatMap(({ key: k }) =>
+  [
+    ['poss', `${k}_poss`, '-'],
+    ['freq', `${k}_freq_poss`, `${k}_all_poss`],
+    ['pts', `${k}_pts`, '-'],
+    ['ppp', `${k}_pts`, `${k}_poss`],
+    ['fgm', `${k}_fgm`, '-'],
+    ['fga', `${k}_fga`, '-'],
+    ['fg_pct', `${k}_fgm`, `${k}_fga`],
+    ['efg_pct', `${k}_efg_w`, `${k}_fga`],
+    ['ft_freq', `${k}_ft_w`, `${k}_poss`],
+    ['tov_freq', `${k}_tov_w`, `${k}_poss`],
+    ['sf_freq', `${k}_sf_w`, `${k}_poss`],
+    ['and1_freq', `${k}_and1_w`, `${k}_poss`],
+    ['score_freq', `${k}_score_w`, `${k}_poss`]
+  ].map(([m, c, by]) => [`pt_${k}_${m}`, c, by])
+)
+
 /** One published row: a different value in every column, so a metric reading the wrong one fails. */
 const PUBLISHED_ROW: Record<string, number> = {
   games: 50,
@@ -459,7 +482,7 @@ const PUBLISHED_ROW: Record<string, number> = {
   ...Object.fromEntries(
     [
       ...new Set(
-        [...DASHBOARD_COLUMNS, ...TRACKING_COLUMNS, ...HUSTLE_COLUMNS]
+        [...DASHBOARD_COLUMNS, ...TRACKING_COLUMNS, ...HUSTLE_COLUMNS, ...PLAY_TYPE_COLUMNS]
           .flatMap(([, c, by]) => [c, by])
           .filter((c) => !['-', 'games', 'minutes', 'possessions'].includes(c))
       )
@@ -475,10 +498,9 @@ const adjChanceOf = (r: string): number =>
 
 Object.assign(EXPECTED, {
   ...Object.fromEntries(
-    [...DASHBOARD_COLUMNS, ...TRACKING_COLUMNS, ...HUSTLE_COLUMNS].map(([id, c, by]) => [
-      id,
-      by === '-' ? PUBLISHED_ROW[c] : PUBLISHED_ROW[c] / PUBLISHED_ROW[by]
-    ])
+    [...DASHBOARD_COLUMNS, ...TRACKING_COLUMNS, ...HUSTLE_COLUMNS, ...PLAY_TYPE_COLUMNS].map(
+      ([id, c, by]) => [id, by === '-' ? PUBLISHED_ROW[c] : PUBLISHED_ROW[c] / PUBLISHED_ROW[by]]
+    )
   ),
   nba_pace40: (40 * PUBLISHED_ROW.pace) / PUBLISHED_ROW.minutes / 48,
   team_nba_pace40: (40 * PUBLISHED_ROW.pace) / PUBLISHED_ROW.minutes / 48,
@@ -563,6 +585,24 @@ describe('the metric catalogue', () => {
     expect(m('team_ast').perGameBy).toBe('box_games')
     expect(m('team_pts').perGameBy).toBeUndefined()
     expect(m('team_bench_pts').perGameBy).toBe('starts_known')
+  })
+
+  it('reads a play type on defense from the defender’s side', () => {
+    const m = (id: string): MetricDef => CATALOGUE.find((x) => x.id === id)!
+    expect(m('pt_iso_ppp')).toMatchObject({ direction: 'higher', published: 'pub_player_pt_iso' })
+    expect(m('pt_d_iso_ppp')).toMatchObject({
+      direction: 'lower',
+      label: 'Isolation defense points per possession',
+      published: 'pub_player_pt_d_iso',
+      sample: 'd_iso_poss'
+    })
+    expect(m('pt_iso_tov_freq').direction).toBe('lower')
+    expect(m('pt_d_iso_tov_freq').direction).toBe('higher')
+    expect(m('pt_d_iso_freq').direction).toBe('neutral')
+    // Seven types are published on defense, eleven on offense, each with thirteen measures.
+    const ppp = CATALOGUE.filter((x) => x.family === 'play_types' && x.id.endsWith('_ppp'))
+    expect(ppp.filter((x) => x.id.startsWith('pt_d_'))).toHaveLength(7)
+    expect(CATALOGUE.filter((x) => x.family === 'play_types')).toHaveLength(18 * 13)
   })
 })
 

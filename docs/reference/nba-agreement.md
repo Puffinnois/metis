@@ -584,6 +584,26 @@ Hustle (Plan T704) is read through the query engine over a whole regular season,
 | 2024-25 | 567     | 100.0       | 100.0         | 167          | 30    | 100.0       | 100.0         | 0            |
 | 2025-26 | 581     | 100.0       | 100.0         | 191          | 30    | 100.0       | 100.0         | 0            |
 
+## The NBA's play types, read through the engine
+
+Play types (Plan T705) are read through the query engine over a whole regular season, against the raw file (`src_nba_play_types`), rows of totals: 18 types and sides, 13 measures each. A traded player has a row per team, so the raw rows are added up per player as the engine does: counts summed, rates published without their parts weighted by possessions (eFG% by attempts), and the frequency over the possessions its published share implies. A row matches when every type and measure does. **PPP** and **FG%** are rebuilt from their parts; the last two columns compare them with the published rates of players with one team, within the published rounding: three places from 2023-24, two before. In 2015-16 to 2017-18 some rows print points per possession as a whole number.
+
+| Season  | Players | Rows same % | Values same % | Traded rows | PPP as published % | FG% as published % |
+| ------- | ------- | ----------- | ------------- | ----------- | ------------------ | ------------------ |
+| 2015-16 | 396     | 100.0       | 100.0         | 230         | 95.5               | 100.0              |
+| 2016-17 | 390     | 100.0       | 100.0         | 280         | 100.0              | 100.0              |
+| 2017-18 | 422     | 100.0       | 100.0         | 299         | 100.0              | 100.0              |
+| 2018-19 | 429     | 100.0       | 100.0         | 519         | 100.0              | 100.0              |
+| 2019-20 | 438     | 100.0       | 100.0         | 278         | 100.0              | 100.0              |
+| 2020-21 | 445     | 100.0       | 100.0         | 385         | 100.0              | 100.0              |
+| 2021-22 | 477     | 100.0       | 100.0         | 410         | 100.0              | 100.0              |
+| 2022-23 | 448     | 100.0       | 100.0         | 383         | 100.0              | 100.0              |
+| 2023-24 | 441     | 100.0       | 100.0         | 308         | 100.0              | 100.0              |
+| 2024-25 | 441     | 100.0       | 100.0         | 118         | 100.0              | 100.0              |
+| 2025-26 | 444     | 100.0       | 100.0         | 89          | 100.0              | 100.0              |
+
+Over two seasons together (2024-25 and 2025-26), spot-up points per possession from summed parts, frequency over the implied possessions and turnover frequency weighted by possessions, worked out from the raw file: 483 of 483 players read the same through the engine.
+
 ## The published standings
 
 `nba_stats_standings`, and the league dashboards' file, which alone reaches 1995-96. Percentages are of each season's teams. **Box scores:** wins and losses against `team_season`. **NBA's file:** the same record, rank, games back and streak as the dashboards'. **ESPN:** `espn_nba_standings`, from 2001-02. **By the record:** games back worked out from the conference leader's record. The last ten and the streak start in 2001-02. In 2003-04 the NBA's file repeats the overall record as the conference and division records, so the screen reads those as not published.

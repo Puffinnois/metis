@@ -1,8 +1,10 @@
+import { PLAY_TYPE_SIDES, PLAY_TYPES_FIRST_SEASON } from '@shared/stats/playTypes'
 import type { Entity, GameType } from '@shared/stats/types'
 
 /**
  * A table the dataset publishes per season, with no game behind it. A traded player has one row for
- * their whole season, under their last team (measured on the league dashboards and hustle).
+ * their whole season, under their last team (measured on the league dashboards and hustle), except in
+ * the play types, which have a row per team. The engine adds a player's rows up either way.
  */
 export interface PublishedTable {
   /** The table built from the source, and what a metric's `published` names. */
@@ -11,6 +13,11 @@ export interface PublishedTable {
   source: string
   /** The first season holding real values: some files have earlier rows with only games and minutes. */
   firstSeason?: number
+  /**
+   * The rows to read when a source holds several tables in one: each column's value, compared without
+   * case (`{ play_type: 'isolation' }`).
+   */
+  match?: Readonly<Record<string, string>>
   /**
    * The source's columns for its own tracked games and minutes: they can differ from the official
    * ones, and a rate must divide by what was tracked. Null when it does not publish them. A team's
@@ -285,6 +292,49 @@ const HUSTLE: PublishedTable[] = [
   }
 ]
 
+/**
+ * Reference section 11: one table per play type and side, from the one source file of them all. A
+ * traded player has a row per team, which the engine adds up. The games are the player's games on that
+ * side of the ball, the same for every type of it.
+ *
+ * Points per possession and field-goal percentage are rebuilt from their parts: before 2023-24 the
+ * published rates are often rounded to two places, and to whole points per possession on some rows of
+ * 2015-16 to 2017-18 (measured). The rest come without their parts and are stored times what they
+ * divide by. A type's frequency divides by all the player's possessions with a play type on that side,
+ * worked out from its published share; a row whose share rounds to 0 is left out of both sides.
+ */
+const PLAY_TYPE_TABLES: PublishedTable[] = PLAY_TYPE_SIDES.map(({ type, side, key }) => ({
+  table: `pub_player_pt_${key}`,
+  entity: 'player',
+  source: 'src_nba_play_types',
+  firstSeason: PLAY_TYPES_FIRST_SEASON,
+  match: {
+    play_type: type.source.toLowerCase(),
+    type_grouping: side === 'offense' ? 'offensive' : 'defensive'
+  },
+  games: 'gp',
+  // The play-type files publish no minutes.
+  minutes: null,
+  columns: [
+    { name: `${key}_poss`, sql: '{poss}' },
+    { name: `${key}_pts`, sql: '{pts}' },
+    { name: `${key}_fgm`, sql: '{fgm}' },
+    { name: `${key}_fga`, sql: '{fga}' },
+    { name: `${key}_freq_poss`, sql: 'CASE WHEN {poss_pct} > 0 THEN {poss} END' },
+    { name: `${key}_all_poss`, sql: 'CASE WHEN {poss_pct} > 0 THEN {poss} / {poss_pct} END' },
+    { name: `${key}_efg_w`, sql: '{efg_pct} * {fga}' },
+    ...(
+      [
+        ['ft', 'ft_poss_pct'],
+        ['tov', 'tov_poss_pct'],
+        ['sf', 'sf_poss_pct'],
+        ['and1', 'plusone_poss_pct'],
+        ['score', 'score_poss_pct']
+      ] as const
+    ).map(([name, c]) => ({ name: `${key}_${name}_w`, sql: `{${c}} * {poss}` }))
+  ]
+}))
+
 /** Every published table. Each family adds its own; bump `PUBLISHED_VERSION` when one changes. */
 export const PUBLISHED_TABLES: readonly PublishedTable[] = [
   {
@@ -372,5 +422,6 @@ export const PUBLISHED_TABLES: readonly PublishedTable[] = [
     columns: ['def_ws']
   },
   ...TRACKING,
-  ...HUSTLE
+  ...HUSTLE,
+  ...PLAY_TYPE_TABLES
 ]

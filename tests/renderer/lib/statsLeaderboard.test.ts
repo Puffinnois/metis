@@ -107,8 +107,15 @@ describe('the column picker and presets', () => {
       'scoring',
       'composite',
       'tracking',
-      'hustle'
+      'hustle',
+      'play_types'
     ])
+    // Play types preset to how often and how well, for the six commonest offensive types.
+    expect([...familyColumns(CATALOGUE, tab, 'play_types')].sort()).toEqual(
+      ['iso', 'pnr_bh', 'pnr_roll', 'post_up', 'spot_up', 'transition']
+        .flatMap((k) => [`pt_${k}_freq`, `pt_${k}_ppp`])
+        .sort()
+    )
     // Tracking is a family of its own, with one or two metrics from each file as its preset.
     expect([...familyColumns(CATALOGUE, tab, 'tracking')].sort()).toEqual(
       [
@@ -127,6 +134,7 @@ describe('the column picker and presets', () => {
       ].sort()
     )
     expect(familiesOf(CATALOGUE, tabOf('team', 'ALL'))).not.toContain('tracking')
+    expect(familiesOf(CATALOGUE, tabOf('team', 'ALL'))).not.toContain('play_types')
     expect(familiesOf(CATALOGUE, tabOf('team', 'defense'))).toContain('hustle')
     const shooting = familyColumns(CATALOGUE, tab, 'shooting')
     // Published metrics answer whole seasons only, so the preset is what it was without them.
