@@ -13,6 +13,7 @@ import {
 } from '@/components/stats/parts'
 import { ScopeBar } from '@/components/stats/ScopeBar'
 import { StatSection, StatSections } from '@/components/stats/StatLines'
+import { LineupsTab } from './StatsLineups'
 import { useNoteContext } from '@/lib/dev/noteContext'
 import { DASHBOARD_MODES, sectionMetrics, sectionViews } from '@/lib/stats/dashboard'
 import { fmtStat } from '@/lib/stats/format'
@@ -142,7 +143,11 @@ export function StatsTeam({
           {noGamesNote(name, exists, scope)}
         </div>
       )}
-      {(tab === 'overview' || tab === 'offense' || tab === 'defense' || tab === 'players') &&
+      {(tab === 'overview' ||
+        tab === 'offense' ||
+        tab === 'defense' ||
+        tab === 'players' ||
+        tab === 'lineups') &&
         (anyPlayed || !games) && (
           <div className="self-start">
             <Segmented
@@ -158,6 +163,9 @@ export function StatsTeam({
         <LinesTab key={tab} {...props} tab={tab} />
       )}
       {tab === 'players' && anyPlayed && <Players {...props} />}
+      {tab === 'lineups' && (anyPlayed || !games) && (
+        <LineupsTab data={data} scope={scope} team={team} mode={mode} onOpenPlayer={onOpenPlayer} />
+      )}
       {tab === 'schedule' && <Schedule {...props} />}
     </div>
   )

@@ -11,6 +11,7 @@ import type {
   StatsResult,
   StatsSeason,
   StatsStanding,
+  StatsLineups,
   StatsMatchups,
   StatsProfile,
   StatsStatus
@@ -30,7 +31,16 @@ import type {
   StatsSyncResult,
   StatsWorkerInit
 } from './protocol'
-import { readGame, readGames, readMatchups, readPlayer, readProfile, readStandings } from './reads'
+import type { LineupGroup } from '@shared/stats/lineups'
+import {
+  readGame,
+  readGames,
+  readLineups,
+  readMatchups,
+  readPlayer,
+  readProfile,
+  readStandings
+} from './reads'
 import { bootstrapStatsDb } from './schema'
 import { currentSeason, SOURCES } from './sources'
 import { refreshStats, STATS_DERIVED_STEP } from './sync'
@@ -96,6 +106,8 @@ export interface StatsService {
   standings(season: number): Promise<StatsStanding[]>
   /** A player's season matchups, from the pair file: regular season only. */
   matchups(player: string, season: number): Promise<StatsMatchups>
+  /** A team's five-man units for a season and season type, with one dashboard's measures. */
+  lineups(team: string, season: number, gameType: string, group: LineupGroup): Promise<StatsLineups>
   /** A player's bio, draft and combines, each combine measure ranked within its position group. */
   profile(player: string): Promise<StatsProfile>
   /**
@@ -349,6 +361,8 @@ export async function openStatsService(
     standings: (season) => read((reader) => readStandings(reader, season)),
     matchups: (player, season) => read((reader) => readMatchups(reader, player, season)),
     profile: (player) => read((reader) => readProfile(reader, player)),
+    lineups: (team, season, gameType, group) =>
+      read((reader) => readLineups(reader, team, season, gameType, group)),
     /** Write, read, a Parquet round trip, `read_json` and an ICU time zone, through the real file. */
     async selfTest() {
       await db.exec('CREATE OR REPLACE TABLE self_test AS SELECT range AS x FROM range(1000)')

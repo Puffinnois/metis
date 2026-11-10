@@ -36,6 +36,8 @@ export function openStatsWorker(folder, options = {}) {
   return {
     read: (sql) => request((id) => ({ id, kind: 'read', sql })),
     query: (query) => request((id) => ({ id, kind: 'query', query })),
+    lineups: (team, season, gameType, group) =>
+      request((id) => ({ id, kind: 'lineups', team, season, gameType, group })),
     close: async () => {
       await request((id) => ({ id, kind: 'close' })).catch(() => undefined)
       await worker.terminate()

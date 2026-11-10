@@ -1,10 +1,11 @@
 import type { StatsDb } from '../db'
 import { PUBLISHED_TABLES, type PublishedColumn, type PublishedTable } from './publishedTables'
-import { column, inspect, type Have } from './sql'
+import { column, gameType, inspect, type Have } from './sql'
+import { LINEUPS, lineupsBootstrap, lineupsSql } from './lineups'
 import { MATCHUP_PAIRS, matchupPairsBootstrap, matchupPairsSql } from './matchupPairs'
 
 /** Bump when a table changes, so the next refresh builds them without downloading anything. */
-export const PUBLISHED_VERSION = 7
+export const PUBLISHED_VERSION = 8
 
 /** What the engine divides a published sum by. A table always has these, NULL when not published. */
 export const PUBLISHED_DIVISORS = ['games', 'minutes', 'possessions'] as const
@@ -30,6 +31,7 @@ const keyOf = (t: PublishedTable): string => (t.entity === 'player' ? 'player_id
 export function publishedBootstrap(): string[] {
   return [
     ...matchupPairsBootstrap(),
+    ...lineupsBootstrap(),
     ...PUBLISHED_TABLES.flatMap((t) => [
       `CREATE TABLE IF NOT EXISTS ${t.table} (
        ${keyOf(t)} BIGINT, season INTEGER, game_type VARCHAR,
@@ -42,11 +44,6 @@ export function publishedBootstrap(): string[] {
     ])
   ]
 }
-
-/** A season type, as either spelling the sources use, in the one set (D12). */
-const gameType = (seasonType: string): string =>
-  `CASE lower(replace(${seasonType}, ' ', '-'))
-     WHEN 'regular-season' THEN 'regular' WHEN 'playoffs' THEN 'playoffs' END`
 
 /** A source's column in a worked-out component: `{min}` as a number, `{min:text}` as published. */
 const SOURCE_TOKEN = /\{([a-z0-9_]+)(:text)?\}/g
@@ -172,6 +169,9 @@ export async function buildPublished(db: StatsDb): Promise<number> {
   await db.exec(matchupPairsSql(have))
   const pairs = await db.get<{ n: number }>(`SELECT count(*)::INTEGER AS n FROM ${MATCHUP_PAIRS}`)
   rows += pairs?.n ?? 0
+  await db.exec(lineupsSql(have))
+  const units = await db.get<{ n: number }>(`SELECT count(*)::INTEGER AS n FROM ${LINEUPS}`)
+  rows += units?.n ?? 0
   await db.exec('INSERT OR REPLACE INTO derived_state VALUES (?, ?)', [
     'published',
     PUBLISHED_VERSION

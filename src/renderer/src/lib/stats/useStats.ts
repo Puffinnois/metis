@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '@/lib/api'
 import { errorMessage } from '@/lib/format'
+import type { LineupGroup } from '@shared/stats/lineups'
 import type {
   MetricInfo,
   StatsGame,
   StatsGameDetail,
+  StatsLineups,
   StatsMatchups,
   StatsProfile,
   StatsPlayerInfo,
@@ -203,6 +205,18 @@ export const useMatchups = (
 ): ReadState<StatsMatchups> =>
   useRead(player === null ? null : `${version}|${player}|${season}`, () =>
     api.stats.matchups(player ?? '', season)
+  )
+
+/** A team's five-man units with one dashboard's measures; null as the team when there is nothing to read. */
+export const useLineups = (
+  team: string | null,
+  season: number,
+  gameType: string,
+  group: LineupGroup,
+  version: string | null
+): ReadState<StatsLineups> =>
+  useRead(team === null ? null : `${version}|${team}|${season}|${gameType}|${group}`, () =>
+    api.stats.lineups(team ?? '', season, gameType, group)
   )
 
 /** A player's bio, draft and combines. */

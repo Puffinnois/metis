@@ -3,6 +3,8 @@ import type {
   GameType,
   StatsGame,
   StatsGameDetail,
+  StatsLineups,
+  StatsLineupUnit,
   StatsMatchupPair,
   StatsMatchups,
   PositionGroup,
@@ -21,6 +23,8 @@ import {
   type CombineTable
 } from '@shared/stats/profile'
 import type { StatsDb } from './db'
+import { lineupReadIds, LINEUP_GROUPS, type LineupGroup } from '@shared/stats/lineups'
+import { LINEUPS } from './derived/lineups'
 import { MATCHUP_PAIRS } from './derived/matchupPairs'
 import { column, inspect, per, type Have } from './derived/sql'
 
@@ -710,4 +714,73 @@ export async function readMatchups(
     guarded: rows.filter((r) => r.guarded).map(pair),
     guardedBy: rows.filter((r) => !r.guarded).map(pair)
   }
+}
+
+/** The names of a unit's five players in the NBA's own file: "D. Sabonis - D. Acuff Jr.". */
+const sourceNames = (names: string | null): string[] => {
+  const parts = names?.split(' - ') ?? []
+  return parts.length === 5 ? parts : []
+}
+
+/**
+ * A team's five-man units for a season and season type, most minutes first, with the measures of one
+ * of the NBA's dashboards. Published for whole seasons only, from 2007-08; outside that, or for
+ * anything but the regular season and the playoffs, the list is empty. A name comes from the player
+ * table, and from the NBA's own file for a player the table does not know.
+ */
+export async function readLineups(
+  db: StatsDb,
+  team: string,
+  season: number,
+  gameType: string,
+  group: LineupGroup
+): Promise<StatsLineups> {
+  const none: StatsLineups = { units: [], floorMinutes: null }
+  const have = await inspect(db)
+  const held = have.columns.get(LINEUPS)
+  if (
+    !held ||
+    !/^-?[0-9]{1,12}$/.test(team) ||
+    !Number.isInteger(season) ||
+    !['regular', 'playoffs'].includes(gameType) ||
+    !LINEUP_GROUPS.some((g) => g.id === group)
+  ) {
+    return none
+  }
+  const ids = [...new Set([...lineupReadIds(group), 'possessions'])].filter((id) => held.has(id))
+  const rows = await db.all<Record<string, number | string | null>>(
+    `SELECT p1, p2, p3, p4, p5, names, games, minutes${ids.map((id) => `, ${id}`).join('')}
+     FROM ${LINEUPS}
+     WHERE season = $1 AND game_type = $2 AND team_id = $3
+     ORDER BY minutes DESC NULLS LAST, p1, p2, p3, p4, p5`,
+    [season, gameType, Number(team)]
+  )
+  if (rows.length === 0) return none
+  const floor = await db.get<{ floor: number | null }>(
+    `SELECT min(minutes) AS floor FROM ${LINEUPS}
+     WHERE season = $1 AND game_type = $2 AND fgm IS NOT NULL`,
+    [season, gameType]
+  )
+  const slots = ['p1', 'p2', 'p3', 'p4', 'p5']
+  const wanted = [...new Set(rows.flatMap((r) => slots.map((s) => String(r[s]))))]
+  const known = new Map<string, string>()
+  if (have.tables.has('player') && wanted.length) {
+    const named = await db.all<{ id: string; name: string | null }>(
+      `SELECT player_id::VARCHAR AS id, name FROM player WHERE player_id IN (${wanted.join(', ')})`
+    )
+    for (const p of named) if (p.name) known.set(p.id, p.name)
+  }
+  const units = rows.map((r): StatsLineupUnit => {
+    const fallback = sourceNames(r.names as string | null)
+    return {
+      players: slots.map((s, i) => {
+        const id = String(r[s])
+        return { id, name: known.get(id) ?? fallback[i] ?? `Player ${id}` }
+      }),
+      games: r.games as number | null,
+      minutes: r.minutes as number | null,
+      values: Object.fromEntries(ids.map((id) => [id, r[id] as number | null]))
+    }
+  })
+  return { units, floorMinutes: floor?.floor ?? null }
 }

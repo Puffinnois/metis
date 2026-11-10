@@ -1,3 +1,4 @@
+import type { LineupGroup } from '@shared/stats/lineups'
 import type { StatsQuery } from '@shared/stats/types'
 
 export type StatsStepStatus = 'ok' | 'error' | 'skipped' | 'running' | 'interrupted'
@@ -76,6 +77,14 @@ export type StatsRequest =
   | { id: number; kind: 'standings'; season: number }
   | { id: number; kind: 'matchups'; player: string; season: number }
   | { id: number; kind: 'profile'; player: string }
+  | {
+      id: number
+      kind: 'lineups'
+      team: string
+      season: number
+      gameType: string
+      group: LineupGroup
+    }
 
 /**
  * The kinds that run at once, each on its own connection, instead of in turn. A pause cannot wait
@@ -95,7 +104,8 @@ export const AT_ONCE_REQUESTS: ReadonlySet<StatsRequest['kind']> = new Set([
   'game',
   'standings',
   'matchups',
-  'profile'
+  'profile',
+  'lineups'
 ])
 
 export type StatsReply =

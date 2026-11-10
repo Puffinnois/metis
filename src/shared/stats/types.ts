@@ -404,6 +404,26 @@ export interface StatsMatchups {
   guardedBy: StatsMatchupPair[]
 }
 
+/**
+ * One five-man unit of a team's season, as the NBA publishes it. `values` holds the columns of the
+ * group asked for (`shared/stats/lineups.ts`) and the possessions; a measure the NBA's file for it
+ * does not list for this unit is null.
+ */
+export interface StatsLineupUnit {
+  /** The five players, by id. */
+  players: { id: string; name: string }[]
+  games: number | null
+  minutes: number | null
+  values: Record<string, number | null>
+}
+
+/** A team's published units for a season and season type, most minutes first. */
+export interface StatsLineups {
+  units: StatsLineupUnit[]
+  /** The fewest minutes among the units the NBA's base file lists for the season, league-wide. */
+  floorMinutes: number | null
+}
+
 /** The totals modes a table offers; a ratio reads the same in each. */
 export type BoardMode = 'raw' | 'perGame' | 'per36' | 'per48' | 'per100'
 
