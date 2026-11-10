@@ -29,6 +29,8 @@ export interface StatLine {
   missing: string | null
   title: string
   info: MetricInfo | undefined
+  /** Shaded as having no better side, for a line with no metric behind it. */
+  neutral?: boolean
 }
 
 export interface SectionView {

@@ -6,6 +6,7 @@ import type {
   StatsGame,
   StatsGameDetail,
   StatsMatchups,
+  StatsProfile,
   StatsPlayerInfo,
   StatsQuery,
   StatsResult,
@@ -203,3 +204,7 @@ export const useMatchups = (
   useRead(player === null ? null : `${version}|${player}|${season}`, () =>
     api.stats.matchups(player ?? '', season)
   )
+
+/** A player's bio, draft and combines. */
+export const useProfile = (player: string, version: string | null): ReadState<StatsProfile> =>
+  useRead(`${version}|${player}`, () => api.stats.profile(player))

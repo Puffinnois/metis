@@ -280,6 +280,71 @@ export interface StatsPlayerInfo {
   school: string | null
 }
 
+/** The NBA's roster line for a player, from the latest season that lists them; text as published. */
+export interface StatsBio {
+  season: number
+  team: { id: string; code: string | null } | null
+  number: string | null
+  /** The roster's own label: `G`, `F-C`. */
+  position: string | null
+  height: string | null
+  weight: string | null
+  birthDate: string | null
+  /** At the roster's date, as published. */
+  age: number | null
+  /** Seasons credited, `R` for a rookie. */
+  experience: string | null
+  school: string | null
+  howAcquired: string | null
+}
+
+export interface StatsDraft {
+  /** The draft's year: the file's label less one. */
+  year: number
+  round: number | null
+  roundPick: number | null
+  overallPick: number | null
+  team: { id: string; code: string | null; name: string | null } | null
+  /** Where they were drafted from, and what kind of place it is. */
+  organization: string | null
+  organizationType: string | null
+}
+
+export interface StatsCombineValue {
+  /** Shooting reads made over attempted; null when not measured. */
+  value: number | null
+  made: number | null
+  attempts: number | null
+  /** 0–100 among the same position group at every combine, the better side higher. */
+  percentile: number | null
+  /** 1 for the best; null for a measurement with no better side. */
+  rank: number | null
+  /** How many players of the group have the measure. */
+  pool: number
+  /** Whether anyone has a result at this combine: if not, the test was not held. */
+  held: boolean
+}
+
+export interface StatsCombine {
+  /** The combine's year. */
+  year: number
+  /** As listed at the combine: `PG-SG`. */
+  position: string | null
+  group: PositionGroup | null
+  /** By `COMBINE_MEASURES` id. */
+  values: Record<string, StatsCombineValue>
+}
+
+export interface StatsProfile {
+  bio: StatsBio | null
+  draft: StatsDraft | null
+  /** The years the draft files hold, so a player outside them is not called undrafted. */
+  draftYears: { first: number; last: number } | null
+  /** Newest first: a few players went to more than one. */
+  combines: StatsCombine[]
+  combineYears: { first: number; last: number } | null
+}
+
 /** A team's line in the published standings: a season's end, or today in the current one. */
 export interface StatsStanding {
   teamId: string

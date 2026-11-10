@@ -151,15 +151,18 @@ The last is over the 500 ms a screen is allowed, and no screen asks it. Trends (
 
 `src/main/stats/reads.ts`: plain reads a dashboard needs that are not a metric. A table not loaded yet reads as nothing, and a column a source has dropped as NULL.
 
-| Read                | Answers                                                                                                   |
-| ------------------- | --------------------------------------------------------------------------------------------------------- |
-| `player(id)`        | Name, seasons, latest position and team; number, size, birth date and school from the latest roster line  |
-| `games(season)`     | Every game on the schedule, played or not: its type, sides, score, whether a box score is held, overtimes |
-| `game(id)`          | ESPN's venue, city, attendance and note, and the score by period when those add up to the final score     |
-| `standings(season)` | The published standings: `src_nba_standings`, or the dashboards' file for 1995-96                         |
+| Read                   | Answers                                                                                                                              |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `player(id)`           | Name, seasons, latest position and team; number, size, birth date and school from the latest roster line                             |
+| `games(season)`        | Every game on the schedule, played or not: its type, sides, score, whether a box score is held, overtimes                            |
+| `game(id)`             | ESPN's venue, city, attendance and note, and the score by period when those add up to the final score                                |
+| `standings(season)`    | The published standings: `src_nba_standings`, or the dashboards' file for 1995-96                                                    |
+| `matchups(id, season)` | Who a defender guarded and who guarded them, from `pub_matchup_pairs`                                                                |
+| `profile(id)`          | The latest roster line, the draft pick, and every combine the player went to, each measure with its percentile in its position group |
 
 - **A side with no row in `team`** is an All-Star team or a touring club: its name comes from the NBA's schedule, then ESPN's.
 - **Overtime** is read from the team's minutes, 240 in regulation and 25 more per period. It matches ESPN's period on nearly every game, and in 2001-02 ESPN's undercounts: it has 30 overtime games to the box scores' 70.
+- **The combine** (Plan T708) is read from four of its five tables, joined on season, id and name (`-1` stands for several players without an id). `draftcombinestats` repeats them column for column. The 46 measures are listed in `src/shared/stats/profile.ts`: measurements, four proportions worked out from them (wingspan and standing reach over barefoot height, and standing reach plus each vertical), athletic testing, and the shooting drills, each spot with makes and attempts and a total per distance. A percentile ranks a measure among every attendee of the same position group at every combine in the data, linked to an NBA player or not: the first listed position (`SG-SF` is a guard, as in Plan T504), mid-rank so tied players share the middle of their ranks, the faster time higher. Measurements have no better side, so they get a percentile but no rank. A test is held at a combine when anyone has a result in it; a player with no result in a held test reads blank, never 0. Shooting is made over attempted, rebuilt from its parts; the published percentage agrees on every row compared. The read takes about 80 ms.
 
 ## Sync
 

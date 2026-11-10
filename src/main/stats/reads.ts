@@ -5,12 +5,24 @@ import type {
   StatsGameDetail,
   StatsMatchupPair,
   StatsMatchups,
+  PositionGroup,
+  StatsBio,
+  StatsCombine,
   StatsPlayerInfo,
+  StatsProfile,
   StatsStanding
 } from '@shared/stats/types'
+import {
+  COMBINE_BY_ID,
+  COMBINE_MEASURES,
+  COMBINE_TABLES,
+  eventYear,
+  type CombineMeasure,
+  type CombineTable
+} from '@shared/stats/profile'
 import type { StatsDb } from './db'
 import { MATCHUP_PAIRS } from './derived/matchupPairs'
-import { column, inspect, type Have } from './derived/sql'
+import { column, inspect, per, type Have } from './derived/sql'
 
 /**
  * What the dashboards read beside the query engine: who a player is, the schedule, a game's facts and
@@ -79,6 +91,327 @@ export async function readPlayer(db: StatsDb, id: string): Promise<StatsPlayerIn
     birthDate: roster?.birth_date ?? null,
     school: roster?.school ?? null
   }
+}
+
+/**
+ * A player's profile: the roster's bio from the latest season that lists them, their draft, and every
+ * combine they went to, each measure ranked within its position group. A table not loaded reads as
+ * nothing, and a test a player has no result for stays null: the combine prints a blank for one not
+ * taken, never a 0.
+ */
+export async function readProfile(db: StatsDb, id: string): Promise<StatsProfile> {
+  const none: StatsProfile = {
+    bio: null,
+    draft: null,
+    draftYears: null,
+    combines: [],
+    combineYears: null
+  }
+  if (!/^-?[0-9]{1,12}$/.test(id)) return none
+  const have = await inspect(db)
+  const key = Number(id)
+  const [bio, draft, combine] = await Promise.all([
+    readBio(db, have, key),
+    readDraft(db, have, key),
+    readCombines(db, have, key)
+  ])
+  return { ...none, bio, ...draft, ...combine }
+}
+
+async function readBio(db: StatsDb, have: Have, key: number): Promise<StatsBio | null> {
+  const r = 'src_nba_rosters'
+  if (!have.tables.has(r)) return null
+  const named = have.tables.has('team')
+  const row = await db.get<{
+    season: number
+    team_id: number | null
+    code: string | null
+    number: string | null
+    position: string | null
+    height: string | null
+    weight: string | null
+    birth_date: string | null
+    age: number | null
+    exp: string | null
+    school: string | null
+    how_acquired: string | null
+  }>(
+    `SELECT r.season, ${column(have, r, 'r', 'team_id', 'BIGINT')} AS team_id,
+            ${named ? 't.code' : 'NULL::VARCHAR'} AS code,
+            ${text(have, r, 'r', 'num')} AS number, ${text(have, r, 'r', 'position')} AS position,
+            ${text(have, r, 'r', 'height')} AS height, ${text(have, r, 'r', 'weight')} AS weight,
+            ${text(have, r, 'r', 'birth_date')} AS birth_date,
+            ${column(have, r, 'r', 'age', 'DOUBLE')} AS age, ${text(have, r, 'r', 'exp')} AS exp,
+            ${text(have, r, 'r', 'school')} AS school,
+            ${text(have, r, 'r', 'how_acquired')} AS how_acquired
+     FROM ${r} r
+     ${named ? 'LEFT JOIN team t ON t.team_id = r.team_id AND t.season = r.season' : ''}
+     WHERE r.player_id = ?
+     ORDER BY r.season DESC LIMIT 1`,
+    [key]
+  )
+  if (!row) return null
+  return {
+    season: row.season,
+    team: row.team_id ? { id: String(row.team_id), code: row.code } : null,
+    number: row.number,
+    position: row.position,
+    height: row.height,
+    weight: row.weight,
+    birthDate: row.birth_date,
+    age: row.age,
+    experience: row.exp,
+    school: row.school,
+    howAcquired: row.how_acquired
+  }
+}
+
+async function readDraft(
+  db: StatsDb,
+  have: Have,
+  key: number
+): Promise<Pick<StatsProfile, 'draft' | 'draftYears'>> {
+  const d = 'src_nba_draft'
+  if (!have.tables.has(d)) return { draft: null, draftYears: null }
+  const years = await db.get<{ first: number | null; last: number | null }>(
+    `SELECT min(season) AS first, max(season) AS last FROM ${d}`
+  )
+  const row = await db.get<{
+    season: number
+    round: number | null
+    round_pick: number | null
+    overall_pick: number | null
+    team_id: number | null
+    code: string | null
+    team_name: string | null
+    organization: string | null
+    organization_type: string | null
+  }>(
+    `SELECT d.season, ${column(have, d, 'd', 'round_number')} AS round,
+            ${column(have, d, 'd', 'round_pick')} AS round_pick,
+            ${column(have, d, 'd', 'overall_pick')} AS overall_pick,
+            ${column(have, d, 'd', 'team_id', 'BIGINT')} AS team_id,
+            ${text(have, d, 'd', 'team_abbreviation')} AS code,
+            nullif(trim(concat_ws(' ', ${text(have, d, 'd', 'team_city')},
+                                       ${text(have, d, 'd', 'team_name')})), '') AS team_name,
+            ${text(have, d, 'd', 'organization')} AS organization,
+            ${text(have, d, 'd', 'organization_type')} AS organization_type
+     FROM ${d} d WHERE d.person_id = ?
+     ORDER BY d.season DESC LIMIT 1`,
+    [key]
+  )
+  return {
+    draftYears:
+      years?.first && years.last
+        ? { first: eventYear(years.first), last: eventYear(years.last) }
+        : null,
+    draft: row
+      ? {
+          year: eventYear(row.season),
+          round: row.round,
+          roundPick: row.round_pick,
+          overallPick: row.overall_pick,
+          team: row.team_id
+            ? { id: String(row.team_id), code: row.code, name: row.team_name }
+            : null,
+          organization: row.organization,
+          organizationType: row.organization_type
+        }
+      : null
+  }
+}
+
+const COMBINE_ALIAS: Record<CombineTable, string> = {
+  anthro: 'a',
+  drills: 'd',
+  spot_up: 's',
+  on_the_move: 'o'
+}
+
+/** A measure's value, makes and attempts in the wide row, before the ratios and sums. */
+function combineParts(
+  have: Have,
+  m: CombineMeasure
+): { value: string; made: string; attempts: string } | null {
+  const s = m.source
+  if (!('table' in s)) return null
+  const t = COMBINE_TABLES[s.table]
+  const at = COMBINE_ALIAS[s.table]
+  const num = (name: string): string => column(have, t, at, name, 'DOUBLE')
+  if ('spots' in s) {
+    // A drill's total counts the spots shot; with none shot it has no total, not 0 of 0.
+    const add = (part: string): string =>
+      `list_sum(list_filter([${s.spots.map((c) => num(`${c}_${part}`)).join(', ')}], x -> x IS NOT NULL))`
+    const made = add('made')
+    const attempts = add('attempt')
+    return { value: per(made, attempts), made, attempts }
+  }
+  if (m.unit === 'shots') {
+    const made = num(`${s.column}_made`)
+    const attempts = num(`${s.column}_attempt`)
+    return { value: per(made, attempts), made, attempts }
+  }
+  return { value: num(s.column), made: 'NULL::DOUBLE', attempts: 'NULL::DOUBLE' }
+}
+
+/** A combine position's group: the first listed, as in `position_group` (Plan T504). */
+const combineGroup = (p: string): string => `CASE split_part(${p}, '-', 1)
+    WHEN 'PG' THEN 'G' WHEN 'SG' THEN 'G' WHEN 'G' THEN 'G'
+    WHEN 'SF' THEN 'F' WHEN 'PF' THEN 'F' WHEN 'F' THEN 'F'
+    WHEN 'C' THEN 'C' END`
+
+async function readCombines(
+  db: StatsDb,
+  have: Have,
+  key: number
+): Promise<Pick<StatsProfile, 'combines' | 'combineYears'>> {
+  const parts = (Object.keys(COMBINE_TABLES) as CombineTable[]).filter((t) =>
+    have.tables.has(COMBINE_TABLES[t])
+  )
+  if (parts.length === 0) return { combines: [], combineYears: null }
+  // Every attendee once, from whichever tables are loaded; `-1` stands for several without an id, so
+  // the name is part of the key.
+  const keys = parts
+    .map(
+      (t) =>
+        `SELECT season, player_id, player_name,
+                ${text(have, COMBINE_TABLES[t], 'x', 'position')} AS position
+         FROM ${COMBINE_TABLES[t]} x`
+    )
+    .join(' UNION ALL ')
+  const years = await db.get<{ first: number | null; last: number | null }>(
+    `SELECT min(season) AS first, max(season) AS last FROM (${keys})`
+  )
+  const combineYears =
+    years?.first && years.last
+      ? { first: eventYear(years.first), last: eventYear(years.last) }
+      : null
+  if (key <= 0) return { combines: [], combineYears }
+  const joins = parts
+    .map((t) => {
+      const at = COMBINE_ALIAS[t]
+      return `LEFT JOIN ${COMBINE_TABLES[t]} ${at} ON ${at}.season = k.season
+        AND ${at}.player_id = k.player_id AND ${at}.player_name = k.player_name`
+    })
+    .join('\n')
+  const base = COMBINE_MEASURES.flatMap((m) => {
+    const p = combineParts(have, m)
+    return p
+      ? [`${p.value} AS "v:${m.id}"`, `${p.made} AS "m:${m.id}"`, `${p.attempts} AS "a:${m.id}"`]
+      : []
+  })
+  const derived = COMBINE_MEASURES.flatMap((m) => {
+    const s = m.source
+    if ('ratio' in s) return [`${per(`"v:${s.ratio[0]}"`, `"v:${s.ratio[1]}"`)} AS "v:${m.id}"`]
+    if ('sum' in s) return [`"v:${s.sum[0]}" + "v:${s.sum[1]}" AS "v:${m.id}"`]
+    return []
+  })
+  // From the 2021 combine on, a shooting drill is published as one total under its first spot's
+  // columns, with the other spots empty for everyone: then it is the drill's total, not that spot.
+  const drills = COMBINE_MEASURES.flatMap((m) =>
+    'spots' in m.source
+      ? [{ id: m.id, first: m.source.spots[0], rest: m.source.spots.slice(1) }]
+      : []
+  )
+  const shapes = drills.map(
+    (d) =>
+      `count("a:${d.first}") > 0 AND ${d.rest.map((c) => `count("a:${c}")`).join(' + ')} = 0
+         AS "w:${d.id}"`
+  )
+  const firsts = drills.flatMap((d) =>
+    ['v', 'm', 'a'].map(
+      (part) =>
+        `CASE WHEN sh."w:${d.id}" THEN NULL ELSE w."${part}:${d.first}" END AS "${part}:${d.first}"`
+    )
+  )
+  const values = COMBINE_MEASURES.map((m) => {
+    const shots = m.unit === 'shots'
+    return `{'id': '${m.id}', 'value': "v:${m.id}"::DOUBLE,
+             'made': ${shots ? `"m:${m.id}"` : 'NULL'}::DOUBLE,
+             'attempts': ${shots ? `"a:${m.id}"` : 'NULL'}::DOUBLE,
+             'low': ${m.better === 'lower'}}`
+  })
+  const rows = await db.all<{
+    season: number
+    position: string | null
+    grp: PositionGroup | null
+    measure: string
+    value: number | null
+    made: number | null
+    attempts: number | null
+    held: boolean
+    percentile: number | null
+    rank: number | null
+    pool: number
+  }>(
+    `WITH k AS (
+       SELECT season, player_id, player_name, any_value(position) AS position
+       FROM (${keys}) GROUP BY 1, 2, 3
+     ), wide AS (
+       SELECT k.season, k.player_id, k.player_name, k.position, ${combineGroup('k.position')} AS grp,
+              ${base.join(',\n')}
+       FROM k ${joins}
+     ), shape AS (
+       SELECT season${shapes.length ? `, ${shapes.join(', ')}` : ''} FROM wide GROUP BY 1
+     ), spots AS (
+       SELECT w.*${firsts.length ? ` REPLACE (${firsts.join(', ')})` : ''}
+       FROM wide w JOIN shape sh ON sh.season = w.season
+     ), whole AS (
+       SELECT *${derived.length ? `, ${derived.join(', ')}` : ''} FROM spots
+     ), long AS (
+       SELECT season, player_id, player_name, position, grp, unnest([${values.join(',\n')}]) AS u
+       FROM whole
+     ), flat AS (
+       SELECT season, player_id, player_name, position, grp, u.id AS measure, u.value, u.made,
+              u.attempts, u.low
+       FROM long
+     ), held AS (
+       SELECT season, measure, bool_or(value IS NOT NULL) AS held FROM flat GROUP BY 1, 2
+     ), measured AS (
+       -- The better side sorts high, so a fast time is a high percentile.
+       SELECT *, CASE WHEN low THEN -value ELSE value END AS sort FROM flat
+       WHERE value IS NOT NULL AND grp IS NOT NULL
+     ), ranked AS (
+       -- Mid-rank: tied players share the middle of their ranks.
+       SELECT season, player_id, player_name, measure,
+              100 * (rank() OVER (PARTITION BY measure, grp ORDER BY sort) - 1
+                     + (count(*) OVER (PARTITION BY measure, grp, sort) - 1) / 2)
+                / nullif(count(*) OVER (PARTITION BY measure, grp) - 1, 0) AS percentile,
+              rank() OVER (PARTITION BY measure, grp ORDER BY sort DESC) AS rank
+       FROM measured
+     ), pools AS (
+       SELECT measure, grp, count(*) AS pool FROM measured GROUP BY 1, 2
+     )
+     SELECT f.season, f.position, f.grp, f.measure, f.value, f.made, f.attempts, h.held,
+            r.percentile, r.rank::INTEGER AS rank, coalesce(p.pool, 0)::INTEGER AS pool
+     FROM flat f
+     JOIN held h ON h.season = f.season AND h.measure = f.measure
+     LEFT JOIN ranked r ON r.season = f.season AND r.player_id = f.player_id
+       AND r.player_name = f.player_name AND r.measure = f.measure
+     LEFT JOIN pools p ON p.measure = f.measure AND p.grp = f.grp
+     WHERE f.player_id = $1
+     ORDER BY f.season DESC`,
+    [key]
+  )
+  const combines = new Map<number, StatsCombine>()
+  for (const r of rows) {
+    let c = combines.get(r.season)
+    if (!c) {
+      c = { year: eventYear(r.season), position: r.position, group: r.grp, values: {} }
+      combines.set(r.season, c)
+    }
+    const better = COMBINE_BY_ID.get(r.measure)?.better ?? null
+    c.values[r.measure] = {
+      value: r.value,
+      made: r.made,
+      attempts: r.attempts,
+      percentile: r.percentile,
+      rank: better === null ? null : r.rank,
+      pool: r.pool,
+      held: r.held
+    }
+  }
+  return { combines: [...combines.values()], combineYears }
 }
 
 interface GameRow {

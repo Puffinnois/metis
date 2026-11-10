@@ -31,6 +31,7 @@ export type PlayerTab =
   | 'matchups'
   | 'log'
   | 'splits'
+  | 'profile'
 
 export const PLAYER_DASH_TABS: { id: PlayerTab; label: string }[] = [
   { id: 'overview', label: 'Overview' },
@@ -43,11 +44,12 @@ export const PLAYER_DASH_TABS: { id: PlayerTab; label: string }[] = [
   { id: 'play_types', label: 'Play types' },
   { id: 'matchups', label: 'Matchups' },
   { id: 'log', label: 'Game log' },
-  { id: 'splits', label: 'Splits' }
+  { id: 'splits', label: 'Splits' },
+  { id: 'profile', label: 'Profile' }
 ]
 
 export const TAB_SECTIONS: Record<
-  Exclude<PlayerTab, 'overview' | 'log' | 'splits'>,
+  Exclude<PlayerTab, 'overview' | 'log' | 'splits' | 'profile'>,
   SectionDef[]
 > = {
   scoring: [
