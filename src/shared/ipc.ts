@@ -9,6 +9,8 @@ import type {
   StatsLineups,
   StatsMatchups,
   StatsProfile,
+  StatsAvailability,
+  StatsCoach,
   StatsPlayerInfo,
   StatsQuery,
   StatsResult,
@@ -91,6 +93,10 @@ export interface Api {
     ): Promise<StatsLineups>
     /** A player's bio, draft and combines; what the data does not hold reads as null or empty. */
     profile(player: string): Promise<StatsProfile>
+    /** Players' status on the latest official injury report; those it does not list are left out. */
+    availability(players: string[]): Promise<StatsAvailability[]>
+    /** A team's head and assistant coaches for a season; empty when the file has none. */
+    coaches(team: string, season: number): Promise<StatsCoach[]>
     views(): Promise<StatsView[]>
     /** Saves under a name; the same name, in any case, replaces. Rejects with a readable message. */
     saveView(name: string, board: LeaderboardBoard): Promise<StatsView>
@@ -137,6 +143,8 @@ export const IPC = {
   statsMatchups: 'stats:matchups',
   statsLineups: 'stats:lineups',
   statsProfile: 'stats:profile',
+  statsAvailability: 'stats:availability',
+  statsCoaches: 'stats:coaches',
   statsViews: 'stats:views',
   statsSaveView: 'stats:saveView',
   statsDeleteView: 'stats:deleteView',

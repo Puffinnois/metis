@@ -51,7 +51,16 @@ import {
   type TeamGame,
   type TeamTab
 } from '@/lib/stats/team'
-import { useSeasonGames, useStandings, useStatsQuery, type StatsData } from '@/lib/stats/useStats'
+import {
+  useAvailability,
+  useCoaches,
+  useSeasonGames,
+  useStandings,
+  useStatsQuery,
+  type StatsData
+} from '@/lib/stats/useStats'
+import { StatusChip } from '@/components/stats/StatusChip'
+import { coachLines, tagsById } from '@/lib/stats/availability'
 import { cn } from '@/lib/utils'
 import type { BoardMode } from '@shared/stats/types'
 
@@ -198,6 +207,8 @@ function Header({
   const inScope = games ? gamesInScope(games, scope) : []
   // Until the team's games arrive, no tile shows another team's record.
   const rec = games ? teamRecord(inScope) : null
+  const { value: staff } = useCoaches(team, scope.season, data.version)
+  const coaches = coachLines(staff)
   const cards = resultCards(inScope)
   // The strip reads toward now: where it has to scroll, it starts at the latest games.
   const strip = useRef<HTMLDivElement | null>(null)
@@ -263,6 +274,12 @@ function Header({
               ))}
             </div>
           </div>
+          {staff && (
+            <span className="max-w-[760px] text-[12px] leading-[1.4] text-fg-3">
+              {coaches.head ? `Head coach ${coaches.head}` : 'No head coach listed'}
+              {coaches.assistants ? ` · Assistants ${coaches.assistants}` : ''}
+            </span>
+          )}
         </div>
         <div className="shrink-0">
           <ScopeBar scope={scope} seasons={data.seasons} entity="team" onChange={onScope} />
@@ -493,6 +510,11 @@ function LinesTab({
 function Players({ data, scope, team, mode, onOpenPlayer }: TabProps): React.JSX.Element {
   const q = useMemo(() => rosterQuery(team, scope, mode), [team, scope, mode])
   const { result, error } = useStatsQuery(q, data.version, FRESH)
+  const ids = useMemo(() => (result?.rows ?? []).map((r) => r.id), [result])
+  // The latest report is about now, so only the newest season carries it.
+  const current = scope.season === data.seasons[0]?.season
+  const { value: listed } = useAvailability(current ? ids : [], data.version)
+  const tags = tagsById(listed)
   if (!result) return <Loading error={error} />
   const head = ROSTER_METRICS.map((id) => data.byId.get(id)?.short ?? id)
   return (
@@ -510,8 +532,11 @@ function Players({ data, scope, team, mode, onOpenPlayer }: TabProps): React.JSX
             title: `Open ${r.name}’s dashboard`,
             onOpen: () => onOpenPlayer(r.id),
             cells: [
-              <span key="n" className="font-sans text-[13px] font-medium">
+              <span key="n" className="flex items-center gap-2 font-sans text-[13px] font-medium">
                 {r.name}
+                {tags.get(r.id) && tags.get(r.id)?.status !== 'Available' && (
+                  <StatusChip tag={tags.get(r.id)!} compact />
+                )}
               </span>,
               <span key="p" className="font-semibold text-fg-2">
                 {r.position ?? ''}

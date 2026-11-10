@@ -27,6 +27,7 @@ export type MetricFamily =
   | 'play_types'
   | 'matchups'
   | 'impact'
+  | 'availability'
 
 /** `core` shown by default, `extended` in its family and the column picker, `stored` in queries only. */
 export type MetricTier = 'core' | 'extended' | 'stored'
@@ -260,6 +261,42 @@ export interface StatsGameDetail {
   note: string | null
   /** Points by period, when the source has them and they add up to the final score. */
   periods: { home: number[]; away: number[] } | null
+  /** The crew, from the NBA's officials file; empty when the file has no row for the game. */
+  officials: StatsOfficial[]
+}
+
+/** An official of a game, as the NBA's file names them. */
+export interface StatsOfficial {
+  id: string
+  name: string
+}
+
+/**
+ * A player's status on the latest official injury report of the current season, as published: not a
+ * forecast of whether they play.
+ */
+export interface StatsAvailability {
+  playerId: string
+  /** `Out`, `Doubtful`, `Questionable`, `Probable` or `Available`. */
+  status: string
+  /** As the report words it ("Injury/Illness - Left Ankle; Sprain"); null when none is given. */
+  reason: string | null
+  /** Whether the reason is an injury or an illness rather than a G League assignment, rest and the like. */
+  injury: boolean
+  /** The report's date, YYYY-MM-DD. */
+  reportDate: string
+  /** The date of the game the report is for. */
+  gameDate: string | null
+  gameId: string | null
+}
+
+/** One member of a team's staff for a season, from the NBA's coach file. */
+export interface StatsCoach {
+  id: string
+  name: string
+  /** As the file words it: "Head Coach", "Assistant Coach". */
+  title: string
+  role: 'head' | 'assistant'
 }
 
 /** Who a player is, for the dashboard's header. The roster fields are null before 1996-97. */

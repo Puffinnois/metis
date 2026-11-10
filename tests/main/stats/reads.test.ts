@@ -123,7 +123,26 @@ describe('a game’s facts', () => {
       city: 'Boston',
       attendance: 18984,
       note: 'NBA Cup',
-      periods: { home: [60, 40], away: [50, 40] }
+      periods: { home: [60, 40], away: [50, 40] },
+      officials: []
+    })
+  })
+
+  it('adds the crew from the NBA officials file, and gives one to a game ESPN lacks', async () => {
+    await addSchedule()
+    await addEspn(`[{'value': 60.0} {'value': 40.0}]`, `[{'value': 50.0} {'value': 40.0}]`)
+    await db.exec(`CREATE TABLE src_nba_officials (official_id BIGINT, first_name VARCHAR,
+      last_name VARCHAR, jersey_num VARCHAR, season INTEGER, game_id VARCHAR, season_type_id VARCHAR)`)
+    await db.exec(`INSERT INTO src_nba_officials VALUES
+      (2, 'Eric', 'Dalen', '37  ', 2026, 'late', '2'), (1, 'Zach', 'Zarba', '15  ', 2026, 'late', '2')`)
+    expect((await readGame(db, 'late'))?.officials).toEqual([
+      { id: '2', name: 'Eric Dalen' },
+      { id: '1', name: 'Zach Zarba' }
+    ])
+    await db.exec('DROP TABLE src_espn_schedule')
+    expect(await readGame(db, 'late')).toMatchObject({
+      venue: null,
+      officials: [{ id: '2' }, { id: '1' }]
     })
   })
 

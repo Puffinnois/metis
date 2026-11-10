@@ -3,6 +3,7 @@ import { COMPOSITE } from './composite'
 import { DASHBOARDS } from './dashboards'
 import { TRACKING } from './tracking'
 import { HUSTLE } from './hustle'
+import { AVAILABILITY } from './availability'
 import { IMPACT } from './impact'
 import { MATCHUPS } from './matchups'
 import { PLAY_TYPES } from './playTypes'
@@ -26,7 +27,8 @@ export const CATALOGUE: MetricDef[] = [
   ...HUSTLE,
   ...PLAY_TYPES,
   ...MATCHUPS,
-  ...IMPACT
+  ...IMPACT,
+  ...AVAILABILITY
 ]
 
 export const METRICS: ReadonlyMap<string, MetricDef> = new Map(CATALOGUE.map((m) => [m.id, m]))

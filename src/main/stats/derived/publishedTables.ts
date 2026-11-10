@@ -1,5 +1,8 @@
 import { PLAY_TYPE_SIDES, PLAY_TYPES_FIRST_SEASON } from '@shared/stats/playTypes'
+import { AVAILABILITY_FIRST_SEASON } from '@shared/stats/availability'
 import type { Entity, GameType } from '@shared/stats/types'
+import { AVAILABILITY_COUNTS, AVAILABILITY_TABLE, availabilitySql } from './availability'
+import type { Have } from './sql'
 
 /**
  * A table the dataset publishes per season, with no game behind it. A traded player has one row for
@@ -39,6 +42,8 @@ export interface PublishedTable {
    * rest, the games among them, still come from this source.
    */
   replacedBy?: PublishedReplacement
+  /** A table that is not the source's totals but built from its rows: the statement that builds it. */
+  sql?: (have: Have) => string
 }
 
 /** See `PublishedTable.replacedBy`. */
@@ -587,5 +592,16 @@ export const PUBLISHED_TABLES: readonly PublishedTable[] = [
   ...HUSTLE,
   ...PLAY_TYPE_TABLES,
   ...MATCHUP_TABLES,
-  ...IMPACT_TABLES
+  ...IMPACT_TABLES,
+  {
+    // Games listed Out, counted by game from the injury reports (`derived/availability.ts`).
+    table: AVAILABILITY_TABLE,
+    entity: 'player',
+    source: 'src_nba_injury_report',
+    firstSeason: AVAILABILITY_FIRST_SEASON,
+    games: null,
+    minutes: null,
+    columns: [...AVAILABILITY_COUNTS],
+    sql: availabilitySql
+  }
 ]

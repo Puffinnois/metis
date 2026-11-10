@@ -1,4 +1,5 @@
 import { MATCHUP_SAMPLE_LABELS } from './catalogue/matchups'
+import { AVAILABILITY_SAMPLE_LABELS } from './availability'
 import { IMPACT_SAMPLE_LABELS } from './catalogue/impact'
 import { playTypeSampleLabels } from './playTypes'
 
@@ -62,7 +63,8 @@ export const SAMPLE_LABELS: Readonly<Record<string, string>> = {
   box_outs: 'box outs',
   ...playTypeSampleLabels(),
   ...MATCHUP_SAMPLE_LABELS,
-  ...IMPACT_SAMPLE_LABELS
+  ...IMPACT_SAMPLE_LABELS,
+  ...AVAILABILITY_SAMPLE_LABELS
 }
 
 /** The words for a sample component; its name, spaced, for one not listed. */

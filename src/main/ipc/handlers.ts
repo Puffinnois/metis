@@ -16,6 +16,8 @@ import type {
   StatsLineups,
   StatsMatchups,
   StatsProfile,
+  StatsAvailability,
+  StatsCoach,
   StatsPlayerInfo,
   StatsQuery,
   StatsResult,
@@ -99,6 +101,14 @@ export function registerIpcHandlers(ctx: AppContext): void {
       ctx.stats
         ? ctx.stats.lineups(team, season, gameType, group)
         : Promise.resolve({ units: [], floorMinutes: null })
+  )
+  ipcMain.handle(
+    IPC.statsAvailability,
+    (_event, players: string[]): Promise<StatsAvailability[]> =>
+      ctx.stats ? ctx.stats.availability(players) : Promise.resolve([])
+  )
+  ipcMain.handle(IPC.statsCoaches, (_event, team: string, season: number): Promise<StatsCoach[]> =>
+    ctx.stats ? ctx.stats.coaches(team, season) : Promise.resolve([])
   )
   ipcMain.handle(IPC.statsProfile, (_event, player: string): Promise<StatsProfile> =>
     ctx.stats

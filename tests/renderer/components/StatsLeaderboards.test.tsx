@@ -18,6 +18,8 @@ vi.mock('@/lib/api', () => ({
       player: vi.fn(),
       games: vi.fn(),
       standings: vi.fn(),
+      availability: vi.fn(() => Promise.resolve([])),
+      coaches: vi.fn(() => Promise.resolve([])),
       views: vi.fn(),
       saveView: vi.fn(),
       deleteView: vi.fn(),

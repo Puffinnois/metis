@@ -65,6 +65,7 @@ Opens on the league's leading scorer per game in scope, and stays on whoever is 
 - **Splits:** one engine query per split: home and road, wins and losses, started or off the bench, before and after the All-Star Game, rest, and the opponent's conference and division as that season had them; then by month and by opponent. A split with no games is left out. No ranks: they would need every player's query per split, and a small split's rank says little. Under Last games, each split reads its own last N.
 
 - **Profile:** the same whatever the scope, so it has no mode. The bio from the NBA's latest roster line that lists the player (born, age as that roster prints it, size, position, number, school, experience, how acquired), the draft (year, round and pick, team, where from), then the draft combine. Each combine measure has its value, a percentile bar among the same position group at every combine from 2000, and a rank where it has a better side; a measurement is shaded as having none. A test the player has no result in reads blank with "No result at the 2018 combine.", one not held that year "Not held at the 2018 combine.", and a part of the combine not held, or with no result at all, is one sentence under it. A player who went to more than one combine picks the year, newest first. The draft files begin with 1996, so a player not in them is "Not in the drafts of 1996 to 2026.", never undrafted.
+- **Injury report tag:** in the header, the player's status on the newest official report of the newest season that lists their team's players: "Out · right hip strain · report of Nov 9", coloured by status. A player that report does not list has no tag. It is a published status, never a forecast; the hover says so, with the date of the game the report is for.
 
 A player with no games in scope says so, and keeps their career.
 
@@ -73,6 +74,7 @@ A player with no games in scope says so, and keeps their career.
 Opens on the best record in scope, and stays on whoever is chosen when the season or range changes. A franchise is one NBA id across its moves, so moving from 2008-09 to 2007-08 turns Oklahoma City into Seattle. A season it did not play says so.
 
 - **Header:** the team, its record, points, points allowed and margin from the final scores of the games in scope, so a game with no box score still counts. Its place in the conference and division, from the published standings, in the regular season.
+- **Coaches:** under the record, the head coach (both, with "and", in a season it changed, since the file has no dates) and the assistants for the season in scope, or "No head coach listed" where the NBA's file has no row. The Players tab marks a player the latest report lists as anything but Available, with the status and the full line on hover, in the newest season only.
 - **Results strip:** the latest 15 games played in scope, then the next ones. A card opens the game.
 - **Mode:** Per game, Totals, Per 36, Per 48, Per 100, across the stat tabs.
 - **Overview:** who scores, per game, with their share of the team's points in the games they played, ordered by total points so one big night does not lead the team. The ratings, the next game, the margin by game, and the franchise by season under each season's name; a row opens that season.
@@ -102,6 +104,7 @@ A day's games on a date rail, in place of the template's weeks. Opens on the lat
 
 - **Rail:** the season, the day (a list of days with a game, and the day before or after), then that day's games: away over home, the winner in bold, its type if not the regular season, overtime, "Not played".
 - **Header:** each team's name, score, its record and last five results before this game in the same kind of game, then the status (Final, Final/OT, Not played, Scheduled), the date, ESPN's note ("NBA Finals - Game 5"), the arena and the crowd. A team opens its dashboard.
+- **Officials:** under the header, "Officials: …" from the NBA's file, or "The NBA's file lists no officials for this game." (before 2003-04 most games).
 - **Score by period:** when ESPN has it and it adds up to the final score: through 2000-01 and from 2019-20.
 - **Box score:** one table a team, starters then bench, with minutes as a clock and made and attempted together. A player opens their dashboard. The totals are the team's own box score, and points the final score. With nobody flagged as starting, one list says who started is not listed. When the players' lines do not add up to the final score, the screen says so: 36 of 83,516 team-games.
 - **The teams:** twelve lines side by side, the better side in bold, with the reason where a stat did not exist yet.

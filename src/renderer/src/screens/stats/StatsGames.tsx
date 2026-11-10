@@ -21,6 +21,7 @@ import {
   type HeaderSide,
   type RailGame
 } from '@/lib/stats/games'
+import { officialsText } from '@/lib/stats/availability'
 import { fullDay, moveToSeason, shortDay, type StatsScope } from '@/lib/stats/scope'
 import {
   useGameDetail,
@@ -224,6 +225,13 @@ function GameBody({
   return (
     <div className="flex flex-col gap-[22px] px-8 pt-[22px] pb-8">
       <Header view={header} onOpenTeam={onOpenTeam} />
+      {detail && game.played && (
+        <p className="m-0 text-center text-[12px] text-fg-3">
+          {officialsText(detail.officials)
+            ? `Officials: ${officialsText(detail.officials)}`
+            : 'The NBA’s file lists no officials for this game.'}
+        </p>
+      )}
       {periods && (
         <section className="flex max-w-[520px] flex-col gap-2 self-center">
           <MiniTable

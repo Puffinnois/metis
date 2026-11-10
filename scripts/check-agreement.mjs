@@ -29,7 +29,7 @@ const label = (season) => `${season - 1}-${String(season % 100).padStart(2, '0')
 const COUNT = new Intl.NumberFormat('en-US')
 const pct = (part, whole) => (whole ? ((100 * part) / whole).toFixed(1) : '–')
 
-const { read, query, close } = openStatsWorker(folder)
+const { read, query, call, close } = openStatsWorker(folder)
 
 /** The games that count: not All-Star, not preseason, and actually played. */
 const COUNTED = `g.played AND g.game_type IN ('regular', 'playoffs', 'play-in', 'cup-final')`
@@ -1646,6 +1646,417 @@ out.push(
   ),
   '',
   `In the playoffs, DARKO reads blank with the reason "Published for the regular season only." in ${darkoPlayoffReasons} of the ${darkoSeasons} seasons from 1998-99, where every DARKO column has values. Over two regular seasons together (2024-25 and 2025-26), RAPM weighted by possessions, BPM by minutes and WAR added up: ${COUNT.format(impactTwoSame)} of ${COUNT.format(impactTwoRows)} players read the same through the engine, and DARKO's projection reads blank with the reason "${darkoTwoReason}"`
+)
+
+// Availability (Plan T709) through the engine and the worker's reads, against the raw files. Games out
+// are worked out here again from the raw report rows, in JavaScript and not in the SQL that builds the
+// table: the last report that lists a player for a game, by timestamp, then a count per player.
+const NOT_INJURY =
+  /^(-|g league|not with team|personal|rest|coach|league suspension|team suspension|trade pending|health and safety|return to competition|ineligible)/i
+const wasInjury = (category, reason) =>
+  category !== null ? category === 'Injury/Illness' : !NOT_INJURY.test((reason ?? '').trim() || '-')
+const AVAILABILITY_FIRST = 2020
+const availabilityGames = new Map(
+  (
+    await read(
+      "SELECT game_id, season, game_type FROM game WHERE played AND game_type IN ('regular', 'playoffs') AND season >= " +
+        AVAILABILITY_FIRST
+    )
+  ).map((g) => [g.game_id, g])
+)
+const reportRows = await read(
+  'SELECT game_id, person_id AS id, team_id, CAST(report_datetime AS VARCHAR) AS at, current_status AS status, category, reason FROM src_nba_injury_report WHERE game_id IS NOT NULL AND person_id IS NOT NULL AND report_datetime IS NOT NULL'
+)
+const lastReport = new Map()
+for (const r of reportRows) {
+  const key = r.game_id + '|' + r.id
+  const cur = lastReport.get(key)
+  if (!cur || r.at > cur.at || (r.at === cur.at && Number(r.team_id) < Number(cur.team_id))) {
+    lastReport.set(key, r)
+  }
+}
+const playedLines = new Set(
+  (
+    await read(
+      'SELECT game_id, player_id FROM player_game WHERE seconds > 0 AND season >= ' +
+        AVAILABILITY_FIRST
+    )
+  ).map((r) => r.game_id + '|' + r.player_id)
+)
+const workedOut = new Map() // season|type -> Map(player -> [injury, other])
+const outPlayed = new Map() // season|type -> [listed out, of whom played, injury listed, injury played]
+const statusTotals = new Map()
+for (const [key, r] of lastReport) {
+  const g = availabilityGames.get(r.game_id)
+  if (!g) continue
+  const bucket = g.season + '|' + g.game_type
+  const players = workedOut.get(bucket) ?? new Map()
+  const counts = players.get(Number(r.id)) ?? [0, 0]
+  players.set(Number(r.id), counts)
+  workedOut.set(bucket, players)
+  statusTotals.set(r.status, (statusTotals.get(r.status) ?? 0) + 1)
+  if (r.status !== 'Out') continue
+  const injury = wasInjury(r.category, r.reason)
+  counts[injury ? 0 : 1]++
+  const o = outPlayed.get(bucket) ?? [0, 0, 0, 0]
+  const played = playedLines.has(key)
+  o[0]++
+  if (played) o[1]++
+  if (injury) {
+    o[2]++
+    if (played) o[3]++
+  }
+  outPlayed.set(bucket, o)
+}
+const availabilityRows = []
+const outPlayedRows = []
+const outPlayedAll = [0, 0, 0, 0]
+let availabilitySeasons = 0
+for (const season of finished.filter((s) => s >= AVAILABILITY_FIRST).concat(current)) {
+  for (const type of ['regular', 'playoffs']) {
+    const bucket = season + '|' + type
+    const worked = workedOut.get(bucket)
+    if (!worked) continue
+    const result = await query({
+      entity: 'player',
+      metrics: ['games_out_injury', 'games_out_other'],
+      scope: { seasons: [season], gameTypes: [type] },
+      limit: 5000
+    })
+    const ours = new Map(result.rows.map((r) => [Number(r.id), r.values]))
+    let listed = 0
+    let noBox = 0
+    let rowsSame = 0
+    let injuryGames = 0
+    let otherGames = 0
+    for (const [id, [injury, other]] of worked) {
+      const o = ours.get(id)
+      if (!o) {
+        noBox++
+        continue
+      }
+      listed++
+      injuryGames += injury
+      otherGames += other
+      if ((o.games_out_injury.value ?? 0) === injury && (o.games_out_other.value ?? 0) === other)
+        rowsSame++
+    }
+    // Players the engine gives games out that the raw rows do not.
+    let extra = 0
+    for (const [id, o] of ours) {
+      if (
+        !worked.has(id) &&
+        ((o.games_out_injury.value ?? 0) > 0 || (o.games_out_other.value ?? 0) > 0)
+      )
+        extra++
+    }
+    availabilityRows.push([
+      label(season),
+      type === 'regular' ? 'Regular season' : 'Playoffs',
+      COUNT.format(listed),
+      COUNT.format(noBox),
+      pct(rowsSame, listed),
+      COUNT.format(injuryGames),
+      COUNT.format(otherGames),
+      COUNT.format(extra)
+    ])
+    const o = outPlayed.get(bucket) ?? [0, 0, 0, 0]
+    for (let i = 0; i < 4; i++) outPlayedAll[i] += o[i]
+    outPlayedRows.push([
+      label(season),
+      type === 'regular' ? 'Regular season' : 'Playoffs',
+      COUNT.format(o[0]),
+      COUNT.format(o[1]),
+      COUNT.format(o[2]),
+      COUNT.format(o[3])
+    ])
+    availabilitySeasons++
+  }
+}
+const earlier = await query({
+  entity: 'player',
+  metrics: ['games_out_injury'],
+  scope: { seasons: [2019] },
+  limit: 5
+})
+const earlierReason = earlier.columns[0]?.reason
+const coveredGames = await read(
+  "SELECT g.season, count(*) AS games, count(*) FILTER (WHERE EXISTS (SELECT 1 FROM src_nba_injury_report r WHERE r.game_id = g.game_id AND r.person_id IS NOT NULL)) AS reported FROM game g WHERE g.played AND g.game_type = 'regular' AND g.season >= 2019 GROUP BY 1 ORDER BY 1"
+)
+
+out.push(
+  '',
+  "## Games out, from the NBA's injury reports",
+  '',
+  'Games out (Plan T709) are read through the query engine, for the players with a box-score line in the season and type, against a count worked out again from the raw report rows (`src_nba_injury_report`) in JavaScript, apart from the SQL that builds the table: for each game and player the report with the latest timestamp, then, when its status is Out, one game, for an injury or illness or for another reason (the same rule, written out again). **Not in the box scores** counts players the reports list who have no line that season and type, so the engine does not list them. **Extra** counts players the engine gives games out that the raw rows do not: it should be 0.',
+  '',
+  table(
+    [
+      'Season',
+      'Type',
+      'Players',
+      'Not in the box scores',
+      'Rows same %',
+      'Games out, injury',
+      'Games out, other',
+      'Extra'
+    ],
+    availabilityRows
+  ),
+  '',
+  'Out, then in the box score. Each game a player was listed Out on the last report, against a line with minutes in the box score for that game and player: a published listing is not a statement that the player did not play. **Of whom played** counts the games the player has minutes in.',
+  '',
+  table(
+    ['Season', 'Type', 'Listed Out', 'Of whom played', 'Listed Out, injury', 'Of whom played'],
+    outPlayedRows
+  ),
+  '',
+  'Over ' +
+    availabilitySeasons +
+    ' seasons and types together: ' +
+    COUNT.format(outPlayedAll[0]) +
+    ' games listed Out, ' +
+    COUNT.format(outPlayedAll[1]) +
+    ' of them with minutes (' +
+    (outPlayedAll[0] ? ((100 * outPlayedAll[1]) / outPlayedAll[0]).toFixed(2) : '–') +
+    ' %); for injury or illness ' +
+    COUNT.format(outPlayedAll[2]) +
+    ', ' +
+    COUNT.format(outPlayedAll[3]) +
+    " with minutes. The last report's statuses over those games: " +
+    [...statusTotals].map(([s, n]) => s + ' ' + COUNT.format(n)).join(', ') +
+    '.',
+  '',
+  'Before the first complete season the metric reads blank with the reason "' +
+    earlierReason +
+    '". Regular-season games with a report listing at least one player, by season: ' +
+    coveredGames
+      .map((c) => label(c.season) + ' ' + COUNT.format(c.reported) + ' of ' + COUNT.format(c.games))
+      .join('; ') +
+    '.'
+)
+
+// The status on the latest report, and ESPN's current injuries beside it. ESPN's file is a daily
+// snapshot of the current season only; they are compared on ESPN's last date, by NBA player id.
+const latestEspn =
+  (await read('SELECT max(as_of_date)::VARCHAR AS d FROM src_espn_injuries'))[0]?.d ?? null
+const espnList = latestEspn
+  ? await read(
+      "SELECT i.player_id AS id, e.status, e.detail_type, e.injury_date FROM src_espn_injuries e JOIN player_ids i ON i.espn_athlete_id = e.athlete_id WHERE e.as_of_date = DATE '" +
+        latestEspn +
+        "' AND i.player_id IS NOT NULL"
+    )
+  : []
+const espnTotal = latestEspn
+  ? (
+      await read(
+        "SELECT count(*) AS n FROM src_espn_injuries WHERE as_of_date = DATE '" + latestEspn + "'"
+      )
+    )[0].n
+  : 0
+const officialSeason = (
+  await read('SELECT max(season) AS s FROM src_nba_injury_report WHERE person_id IS NOT NULL')
+)[0].s
+const officialIds = (
+  await read(
+    'SELECT DISTINCT person_id AS id FROM src_nba_injury_report WHERE person_id IS NOT NULL AND season = ' +
+      officialSeason
+  )
+).map((r) => String(r.id))
+const officialLatest = await call('availability', { players: officialIds })
+const officialById = new Map(officialLatest.map((a) => [a.playerId, a]))
+const latestOfficial = (
+  await read(
+    'SELECT max(report_datetime)::DATE::VARCHAR AS d FROM src_nba_injury_report WHERE person_id IS NOT NULL'
+  )
+)[0].d
+const espnOut = espnList.filter((e) => e.status === 'Out')
+const espnByStatus = new Map()
+for (const e of espnList) espnByStatus.set(e.status, (espnByStatus.get(e.status) ?? 0) + 1)
+let espnOutOfficialOut = 0
+let espnOutOfficialOther = 0
+let espnOutNotListed = 0
+for (const e of espnOut) {
+  const a = officialById.get(String(e.id))
+  if (!a) espnOutNotListed++
+  else if (a.status === 'Out') espnOutOfficialOut++
+  else espnOutOfficialOther++
+}
+const officialOut = officialLatest.filter((a) => a.status === 'Out' && a.injury)
+const espnIds = new Set(espnList.map((e) => String(e.id)))
+const officialOutOnEspn = officialOut.filter((a) => espnIds.has(a.playerId)).length
+
+out.push(
+  '',
+  "## The injury report and ESPN's injuries",
+  '',
+  "ESPN's file (`src_espn_injuries`) is a snapshot per day of the current season only. The official report's latest date is " +
+    latestOfficial +
+    " and ESPN's is " +
+    latestEspn +
+    ". On ESPN's last date it lists " +
+    COUNT.format(espnTotal) +
+    ' players (' +
+    [...espnByStatus].map(([s, n]) => s + ' ' + n).join(', ') +
+    '), ' +
+    COUNT.format(espnList.length) +
+    ' of them with an NBA id. Of the ' +
+    COUNT.format(espnOut.length) +
+    " ESPN lists as Out, the official report's latest status is Out for " +
+    COUNT.format(espnOutOfficialOut) +
+    ', another status for ' +
+    COUNT.format(espnOutOfficialOther) +
+    ', and the player is not on the latest report for ' +
+    COUNT.format(espnOutNotListed) +
+    '. Of the ' +
+    COUNT.format(officialOut.length) +
+    ' players the official report lists Out for an injury or illness, ' +
+    COUNT.format(officialOutOnEspn) +
+    " are on ESPN's list."
+)
+
+// Coaches and officials against the raw files, each with its ESPN twin where one exists. ESPN has no
+// coach file, so the coaches have none. The head coach and the assistants are read as the screens do.
+const HEAD = /^(interim )?head coach$/i
+const staff = (title) =>
+  !title
+    ? null
+    : HEAD.test(title)
+      ? 'head'
+      : /trainer|strength|conditioning|director/i.test(title)
+        ? null
+        : /coach/i.test(title)
+          ? 'assistant'
+          : null
+const coachRaw = await read(
+  'SELECT team_id, season, coach_name AS name, coach_type AS title FROM src_nba_coaches'
+)
+const rawStaff = new Map()
+for (const c of coachRaw) {
+  const role = staff(c.title)
+  if (!role || !c.name) continue
+  const key = c.team_id + '|' + c.season
+  const s = rawStaff.get(key) ?? { head: new Set(), assistant: new Set() }
+  s[role].add(c.name.trim())
+  rawStaff.set(key, s)
+}
+const seasonTeams = await read(
+  'SELECT season, team_id FROM team WHERE season >= 2000 ORDER BY season, team_id'
+)
+const coachRows = []
+for (const season of [...new Set(seasonTeams.map((t) => t.season))]) {
+  let teams = 0
+  let withHead = 0
+  let headSame = 0
+  let assistSame = 0
+  for (const t of seasonTeams.filter((x) => x.season === season)) {
+    teams++
+    const ours = await call('coaches', { team: String(t.team_id), season })
+    const raw = rawStaff.get(t.team_id + '|' + season)
+    const names = (role) => new Set(ours.filter((c) => c.role === role).map((c) => c.name))
+    const same = (a, b) => a.size === b.size && [...a].every((x) => b.has(x))
+    const rawHead = raw?.head ?? new Set()
+    const rawAssist = raw?.assistant ?? new Set()
+    if (rawHead.size) withHead++
+    if (same(names('head'), rawHead)) headSame++
+    if (same(names('assistant'), rawAssist)) assistSame++
+  }
+  coachRows.push([
+    label(season),
+    COUNT.format(teams),
+    COUNT.format(withHead),
+    pct(headSame, teams),
+    pct(assistSame, teams)
+  ])
+}
+
+const normalName = (s) =>
+  s
+    .normalize('NFKD')
+    .replace(/[^a-z]/gi, '')
+    .toLowerCase()
+const crews = await read(
+  "SELECT g.season, g.game_id, g.nba_game_id, g.espn_game_id FROM game g WHERE g.played AND g.game_type IN ('regular', 'playoffs') AND g.nba_game_id IS NOT NULL AND g.season >= 2000"
+)
+const nbaCrew = new Map()
+for (const o of await read('SELECT game_id, first_name, last_name FROM src_nba_officials')) {
+  const set = nbaCrew.get(o.game_id) ?? new Set()
+  set.add(normalName(String(o.first_name ?? '') + String(o.last_name ?? '')))
+  nbaCrew.set(o.game_id, set)
+}
+const espnCrew = new Map()
+for (const o of await read('SELECT game_id, official_full_name AS name FROM src_espn_officials')) {
+  const set = espnCrew.get(Number(o.game_id)) ?? new Set()
+  set.add(normalName(String(o.name ?? '')))
+  espnCrew.set(Number(o.game_id), set)
+}
+const officialRows = []
+const seasonsWithCrews = [...new Set(crews.map((c) => c.season))].sort((a, b) => a - b)
+for (const season of seasonsWithCrews) {
+  const games = crews.filter((c) => c.season === season)
+  let withNba = 0
+  let withEspn = 0
+  let both = 0
+  let sameCrew = 0
+  for (const g of games) {
+    const n = nbaCrew.get(g.nba_game_id)
+    const e = espnCrew.get(Number(g.espn_game_id))
+    if (n) withNba++
+    if (e) withEspn++
+    if (n && e) {
+      both++
+      if (n.size === e.size && [...n].every((x) => e.has(x))) sameCrew++
+    }
+  }
+  officialRows.push([
+    label(season),
+    COUNT.format(games.length),
+    pct(withNba, games.length),
+    pct(withEspn, games.length),
+    COUNT.format(both),
+    pct(sameCrew, both)
+  ])
+}
+// The screens' read of a crew, against the raw file, on a spread of games in four seasons.
+let readGames = 0
+let readSame = 0
+let readEmpty = 0
+for (const season of [2005, 2013, 2020, 2026]) {
+  const games = crews.filter((c) => c.season === season)
+  for (const g of games.filter((_, i) => i % 15 === 0)) {
+    const detail = await call('game', { game: g.game_id })
+    const raw = nbaCrew.get(g.nba_game_id)
+    readGames++
+    const ours = new Set((detail?.officials ?? []).map((o) => normalName(o.name)))
+    if (!raw) {
+      if (ours.size === 0) readSame++
+      readEmpty++
+    } else if (ours.size === raw.size && [...ours].every((x) => raw.has(x))) readSame++
+  }
+}
+
+out.push(
+  '',
+  '## Coaches and officials',
+  '',
+  "A team's staff (`src_nba_coaches`) as the team dashboard reads it, against the raw rows: the head coach (or coaches, when it changed: the file has no dates) and the assistants, with trainers and strength staff left out. ESPN has no coach file, so there is no twin to compare. **With a head coach** counts the teams the file has a head coach row for; the rest read as no coach listed, not as a team without one.",
+  '',
+  table(['Season', 'Teams', 'With a head coach', 'Head same %', 'Assistants same %'], coachRows),
+  '',
+  "Officials (`src_nba_officials`) against ESPN's twin (`src_espn_officials`), played regular-season and playoff games from 1999-00 with an NBA id: the share of games each file has a crew for, and, where both do, the share whose crews hold the same names (case, accents and spaces ignored). The sources are not merged: the Games screen shows the NBA's.",
+  '',
+  table(
+    ['Season', 'Games', 'NBA has crew %', 'ESPN has crew %', 'Both', 'Same crew %'],
+    officialRows
+  ),
+  '',
+  "The Games screen's read of a crew (`readGame`), on every 15th game of 2004-05, 2012-13, 2019-20 and 2025-26: " +
+    COUNT.format(readSame) +
+    ' of ' +
+    COUNT.format(readGames) +
+    ' match the raw file, ' +
+    COUNT.format(readEmpty) +
+    ' of them games with no crew in the file, which read as none.'
 )
 
 // The published standings, which the Standings screen and a team's header read.

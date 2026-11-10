@@ -9,6 +9,8 @@ import type {
   StatsLineups,
   StatsMatchups,
   StatsProfile,
+  StatsAvailability,
+  StatsCoach,
   StatsPlayerInfo,
   StatsQuery,
   StatsResult,
@@ -218,6 +220,23 @@ export const useLineups = (
   useRead(team === null ? null : `${version}|${team}|${season}|${gameType}|${group}`, () =>
     api.stats.lineups(team ?? '', season, gameType, group)
   )
+
+/** Players' status on the latest injury report; none to read is a key of null. */
+export const useAvailability = (
+  players: string[],
+  version: string | null
+): ReadState<StatsAvailability[]> =>
+  useRead(players.length === 0 ? null : `${version}|${players.join(',')}`, () =>
+    api.stats.availability(players)
+  )
+
+/** A team's coaches for a season. */
+export const useCoaches = (
+  team: string,
+  season: number,
+  version: string | null
+): ReadState<StatsCoach[]> =>
+  useRead(`${version}|${team}|${season}`, () => api.stats.coaches(team, season))
 
 /** A player's bio, draft and combines. */
 export const useProfile = (player: string, version: string | null): ReadState<StatsProfile> =>
