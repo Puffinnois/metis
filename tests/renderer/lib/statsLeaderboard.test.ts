@@ -109,7 +109,8 @@ describe('the column picker and presets', () => {
       'tracking',
       'hustle',
       'play_types',
-      'matchups'
+      'matchups',
+      'impact'
     ])
     // Play types preset to how often and how well, for the six commonest offensive types.
     expect([...familyColumns(CATALOGUE, tab, 'play_types')].sort()).toEqual(
@@ -135,6 +136,22 @@ describe('the column picker and presets', () => {
       ].sort()
     )
     expect(familiesOf(CATALOGUE, tabOf('team', 'ALL'))).not.toContain('tracking')
+    // Impact leads with each model's total and parts, WAR and DARKO, before the adjusted RAPM.
+    expect(familyColumns(CATALOGUE, tab, 'impact').slice(0, 10).sort()).toEqual(
+      [
+        'sdv_rapm',
+        'sdv_o_rapm',
+        'sdv_d_rapm',
+        'sdv_bpm',
+        'sdv_obpm',
+        'sdv_dbpm',
+        'sdv_spm',
+        'sdv_war',
+        'sdv_darko_skill',
+        'sdv_darko_next'
+      ].sort()
+    )
+    expect(familiesOf(CATALOGUE, tabOf('team', 'ALL'))).not.toContain('impact')
     expect(familiesOf(CATALOGUE, tabOf('team', 'ALL'))).not.toContain('play_types')
     expect(familiesOf(CATALOGUE, tabOf('team', 'defense'))).toContain('hustle')
     const shooting = familyColumns(CATALOGUE, tab, 'shooting')

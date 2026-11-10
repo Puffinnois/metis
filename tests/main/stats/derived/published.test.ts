@@ -23,6 +23,9 @@ vi.mock('@main/stats/derived/publishedTables', async (actual) => {
       // The defenders' matchups: the rollup, with the pair file taking over where it is out.
       real.PUBLISHED_TABLES.find((t) => t.table === 'pub_player_matchups')!,
       real.PUBLISHED_TABLES.find((t) => t.table === 'pub_player_matchup_positions')!,
+      // SportsDataverse's impact models, and DARKO from the regular season alone.
+      real.PUBLISHED_TABLES.find((t) => t.table === 'pub_player_impact')!,
+      real.PUBLISHED_TABLES.find((t) => t.table === 'pub_player_darko')!,
       {
         table: 'published_test_widgets',
         entity: 'player',
@@ -305,6 +308,53 @@ describe('the published tables', () => {
         { off_player_id: 1, games: 3, minutes: 30, partial_poss: 150, player_pts: 6 },
         { off_player_id: 2, games: 2, minutes: 599.5 / 60, partial_poss: 60, player_pts: 5 }
       ])
+    })
+  })
+
+  describe('impact models', () => {
+    beforeEach(async () => {
+      await db.exec(`CREATE TABLE src_nba_impact (player_id BIGINT, season INTEGER,
+        season_type VARCHAR, o_rapm DOUBLE, d_rapm DOUBLE, rapm DOUBLE, off_poss BIGINT,
+        def_poss BIGINT, o_adj_rapm DOUBLE, d_adj_rapm DOUBLE, adj_rapm DOUBLE, ospm DOUBLE,
+        dspm DOUBLE, spm DOUBLE, min DOUBLE, gp BIGINT, obpm DOUBLE, dbpm DOUBLE, bpm DOUBLE,
+        war DOUBLE, darko_filtered_skill DOUBLE, darko_projected_rating DOUBLE,
+        darko_projected_sd DOUBLE, boban_filtered_skill DOUBLE)`)
+      // LeBron James's 2025-26, rounded from the source. DARKO's playoff row repeats the regular
+      // season's, as on every player.
+      await db.exec(`INSERT INTO src_nba_impact VALUES
+        (2544, 2026, 'Regular Season', -0.24, 0.97, 0.74, 4105, 4101, 10.85, -10.11, 0.74,
+         1.24, 0.04, 1.28, 1988, 60, 1.07, 4.18, 5.24, 5.93, 2.1, 1.9, 1.94, NULL),
+        (2544, 2026, 'Playoffs', -0.33, -0.13, -0.46, 732, 732, 10.73, -10.02, 0.71,
+         1.0, -0.15, 0.86, 382, 10, -5.04, 3.73, -1.31, 0.59, 2.1, 1.9, 1.94, NULL)`)
+    })
+
+    it('store each model value times what it was fitted on', async () => {
+      await buildPublished(db)
+      const [r] = await db.all<Record<string, number>>(
+        `SELECT * FROM pub_player_impact WHERE game_type = 'regular'`
+      )
+      expect(r.rapm / r.impact_poss).toBeCloseTo(0.74, 9)
+      expect(r.o_rapm / r.off_poss).toBeCloseTo(-0.24, 9)
+      expect(r.d_adj_rapm / r.def_poss).toBeCloseTo(-10.11, 9)
+      expect(r.bpm / r.minutes).toBeCloseTo(5.24, 9)
+      expect(r).toMatchObject({ games: 60, minutes: 1988, impact_poss: 8206, war: 5.93 })
+    })
+
+    it('weight two season types by what each was fitted on', async () => {
+      await buildPublished(db)
+      const [r] = await db.all<Record<string, number>>(
+        `SELECT sum(rapm) / sum(impact_poss) AS rapm, sum(war) AS war FROM pub_player_impact`
+      )
+      expect(r.rapm).toBeCloseTo((0.74 * 8206 - 0.46 * 1464) / (8206 + 1464), 9)
+      expect(r.war).toBeCloseTo(6.52, 9)
+    })
+
+    it('read DARKO from the regular season only', async () => {
+      await buildPublished(db)
+      expect(
+        await db.all(`SELECT game_type, games, darko_projected_rating / games AS next
+          FROM pub_player_darko`)
+      ).toEqual([{ game_type: 'regular', games: 60, next: 1.9 }])
     })
   })
 

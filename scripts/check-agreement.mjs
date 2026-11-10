@@ -1507,6 +1507,147 @@ out.push(
   `Over two seasons together (2024-25 and 2025-26), points and FG% allowed from the pair file added up over both: ${COUNT.format(matchupTwoSame)} of ${COUNT.format(matchupTwoRows)} defenders read the same through the engine.`
 )
 
+// SportsDataverse's impact models (Plan T707) through the engine, against the raw file. Each value is
+// stored times what it was fitted on and divided back, so one season should read as published,
+// exactly. DARKO reads the regular season only, and over one season at a time.
+const IMPACT_CHECKS = [
+  ['sdv_rapm', 'rapm', 'off_poss + def_poss'],
+  ['sdv_o_rapm', 'o_rapm', 'off_poss'],
+  ['sdv_d_rapm', 'd_rapm', 'def_poss'],
+  ['sdv_adj_rapm', 'adj_rapm', 'off_poss + def_poss'],
+  ['sdv_o_adj_rapm', 'o_adj_rapm', 'off_poss'],
+  ['sdv_d_adj_rapm', 'd_adj_rapm', 'def_poss'],
+  ['sdv_spm', 'spm', 'min'],
+  ['sdv_ospm', 'ospm', 'min'],
+  ['sdv_dspm', 'dspm', 'min'],
+  ['sdv_bpm', 'bpm', 'min'],
+  ['sdv_obpm', 'obpm', 'min'],
+  ['sdv_dbpm', 'dbpm', 'min'],
+  ['sdv_war', 'war', '1'],
+  ['sdv_darko_skill', 'darko_filtered_skill', 'gp', 1998],
+  ['sdv_darko_next', 'darko_projected_rating', 'gp', 1998],
+  ['sdv_darko_sd', 'darko_projected_sd', 'gp', 1999]
+]
+const IMPACT_TYPES = [
+  ['regular', 'Regular Season'],
+  ['playoffs', 'Playoffs']
+]
+const impactRows = []
+let darkoPlayoffReasons = 0
+let darkoSeasons = 0
+for (const season of finished) {
+  for (const [type, published] of IMPACT_TYPES) {
+    const result = await query({
+      entity: 'player',
+      metrics: IMPACT_CHECKS.map(([id]) => id),
+      scope: { seasons: [season], gameTypes: [type] },
+      limit: 5000
+    })
+    const reasons = new Map(result.columns.map((c) => [c.id, c.reason]))
+    const ours = new Map(result.rows.map((r) => [Number(r.id), r.values]))
+    const checks = IMPACT_CHECKS.filter(([id]) => type === 'regular' || !id.includes('darko'))
+    // Before every DARKO column covers the season, its coverage is the reason given instead.
+    if (type === 'playoffs' && season >= 1999) {
+      darkoSeasons++
+      const darko = IMPACT_CHECKS.filter(([id]) => id.includes('darko'))
+      if (darko.every(([id]) => reasons.get(id) === 'Published for the regular season only.')) {
+        darkoPlayoffReasons++
+      }
+    }
+    const raw = await read(
+      `SELECT player_id AS id, ${checks.map(([id, c, by]) => `${c} AS ${id}, (${by}) AS ${id}_by`).join(', ')}
+      FROM src_nba_impact WHERE season = ${season} AND season_type = '${published}'`
+    )
+    let rows = 0
+    let missing = 0
+    let rowsSame = 0
+    let cells = 0
+    let cellsSame = 0
+    let overNothing = 0
+    for (const r of raw) {
+      const o = ours.get(Number(r.id))
+      if (!o) {
+        missing++
+        continue
+      }
+      rows++
+      let all = true
+      for (const [id, , , first] of checks) {
+        const a = o[id]?.value ?? null
+        // A value over nothing, or before the model's first season, reads blank.
+        if (a === null && (r[`${id}_by`] === 0 || r[id] === null || season < (first ?? 0))) {
+          overNothing++
+          continue
+        }
+        cells++
+        if (same(a, r[id])) cellsSame++
+        else all = false
+      }
+      if (all) rowsSame++
+    }
+    impactRows.push([
+      label(season),
+      type === 'regular' ? 'Regular season' : 'Playoffs',
+      COUNT.format(rows),
+      COUNT.format(missing),
+      pct(rowsSame, rows),
+      pct(cellsSame, cells),
+      COUNT.format(overNothing)
+    ])
+  }
+}
+
+// Two seasons together: each value weighted by what it was fitted on; DARKO has no answer.
+const impactTwo = await query({
+  entity: 'player',
+  metrics: ['sdv_rapm', 'sdv_bpm', 'sdv_war', 'sdv_darko_next'],
+  scope: { seasons: [2025, 2026], gameTypes: ['regular'] },
+  limit: 5000
+})
+const impactTwoRaw = await read(`SELECT player_id,
+    sum(rapm * (off_poss + def_poss)) / nullif(sum(off_poss + def_poss), 0) AS rapm,
+    sum(bpm * min) / nullif(sum(min), 0) AS bpm, sum(war) AS war
+  FROM src_nba_impact WHERE season IN (2025, 2026) AND season_type = 'Regular Season' GROUP BY 1`)
+const impactTwoById = new Map(impactTwoRaw.map((w) => [Number(w.player_id), w]))
+let impactTwoRows = 0
+let impactTwoSame = 0
+for (const r of impactTwo.rows) {
+  const w = impactTwoById.get(Number(r.id))
+  if (!w || w.rapm === null || w.bpm === null) continue
+  impactTwoRows++
+  const v = r.values
+  if (
+    same(v.sdv_rapm.value, w.rapm) &&
+    same(v.sdv_bpm.value, w.bpm) &&
+    same(v.sdv_war.value, w.war)
+  ) {
+    impactTwoSame++
+  }
+}
+const darkoTwoReason = impactTwo.columns.find((c) => c.id === 'sdv_darko_next')?.reason
+
+out.push(
+  '',
+  "## SportsDataverse's impact models, read through the engine",
+  '',
+  `The impact models (Plan T707) are read through the query engine over a whole season, against the raw file (\`src_nba_impact\`): ${IMPACT_CHECKS.length} columns, RAPM, adjusted RAPM, SPM and BPM with their parts, WAR and DARKO. Each is stored times what it was fitted on (possessions for the RAPM family, minutes for SPM and BPM, games for DARKO) and divided back, so a season should read exactly as published. DARKO is compared in the regular season only, since its playoff rows repeat the regular season's. **Not in the box scores** counts players the file has and the engine does not list; **not compared** counts values over nothing (0 minutes or possessions) and DARKO in 1996-97 and its projection spread in 1997-98, before they start, which the engine leaves blank.`,
+  '',
+  table(
+    [
+      'Season',
+      'Type',
+      'Players',
+      'Not in the box scores',
+      'Rows same %',
+      'Values same %',
+      'Not compared'
+    ],
+    impactRows
+  ),
+  '',
+  `In the playoffs, DARKO reads blank with the reason "Published for the regular season only." in ${darkoPlayoffReasons} of the ${darkoSeasons} seasons from 1998-99, where every DARKO column has values. Over two regular seasons together (2024-25 and 2025-26), RAPM weighted by possessions, BPM by minutes and WAR added up: ${COUNT.format(impactTwoSame)} of ${COUNT.format(impactTwoRows)} players read the same through the engine, and DARKO's projection reads blank with the reason "${darkoTwoReason}"`
+)
+
 // The published standings, which the Standings screen and a team's header read.
 const standings = await read(`WITH e AS (
     SELECT s.season, t.team_id,

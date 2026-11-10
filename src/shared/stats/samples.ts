@@ -1,4 +1,5 @@
 import { MATCHUP_SAMPLE_LABELS } from './catalogue/matchups'
+import { IMPACT_SAMPLE_LABELS } from './catalogue/impact'
 import { playTypeSampleLabels } from './playTypes'
 
 /** What each metric's sample counts, in words: "412 field-goal attempts". */
@@ -60,7 +61,8 @@ export const SAMPLE_LABELS: Readonly<Record<string, string>> = {
   loose_balls_recovered: 'loose balls recovered',
   box_outs: 'box outs',
   ...playTypeSampleLabels(),
-  ...MATCHUP_SAMPLE_LABELS
+  ...MATCHUP_SAMPLE_LABELS,
+  ...IMPACT_SAMPLE_LABELS
 }
 
 /** The words for a sample component; its name, spaced, for one not listed. */

@@ -107,7 +107,8 @@ const FAMILY_LABELS: Record<MetricInfo['family'], string> = {
   tracking: 'Tracking',
   hustle: 'Hustle',
   play_types: 'Play types',
-  matchups: 'Matchups'
+  matchups: 'Matchups',
+  impact: 'Impact (SportsDataverse)'
 }
 
 export function familyLabel(family: MetricInfo['family']): string {

@@ -501,6 +501,21 @@ const MATCHUP_PER_100 = [
   ...['g', 'f', 'c'].map((p) => [`matchup_${p}_pts_per_100`, `pos_${p}_pts`, `pos_${p}_poss`])
 ]
 
+/**
+ * SportsDataverse's impact models (`catalogue/impact.ts`): each stored times what it was fitted on, so
+ * it reads back over that; WAR is added up; DARKO is stored times games.
+ */
+const IMPACT_COLUMNS = `
+  sdv_rapm rapm impact_poss; sdv_o_rapm o_rapm off_poss; sdv_d_rapm d_rapm def_poss
+  sdv_adj_rapm adj_rapm impact_poss; sdv_o_adj_rapm o_adj_rapm off_poss
+  sdv_d_adj_rapm d_adj_rapm def_poss; sdv_spm spm minutes; sdv_ospm ospm minutes
+  sdv_dspm dspm minutes; sdv_bpm bpm minutes; sdv_obpm obpm minutes; sdv_dbpm dbpm minutes
+  sdv_war war -; sdv_darko_skill darko_filtered_skill games
+  sdv_darko_next darko_projected_rating games; sdv_darko_sd darko_projected_sd games`
+  .split(/[;\n]/)
+  .map((line) => line.trim().split(/\s+/))
+  .filter((parts) => parts.length === 3)
+
 /** One published row: a different value in every column, so a metric reading the wrong one fails. */
 const PUBLISHED_ROW: Record<string, number> = {
   games: 50,
@@ -515,7 +530,8 @@ const PUBLISHED_ROW: Record<string, number> = {
           ...HUSTLE_COLUMNS,
           ...PLAY_TYPE_COLUMNS,
           ...MATCHUP_COLUMNS,
-          ...MATCHUP_PER_100
+          ...MATCHUP_PER_100,
+          ...IMPACT_COLUMNS
         ]
           .flatMap(([, c, by]) => [c, by])
           .filter((c) => !['-', 'games', 'minutes', 'possessions'].includes(c))
@@ -537,7 +553,8 @@ Object.assign(EXPECTED, {
       ...TRACKING_COLUMNS,
       ...HUSTLE_COLUMNS,
       ...PLAY_TYPE_COLUMNS,
-      ...MATCHUP_COLUMNS
+      ...MATCHUP_COLUMNS,
+      ...IMPACT_COLUMNS
     ].map(([id, c, by]) => [
       id,
       by === '-' ? PUBLISHED_ROW[c] : PUBLISHED_ROW[c] / PUBLISHED_ROW[by]
@@ -629,6 +646,26 @@ describe('the metric catalogue', () => {
     expect(m('team_ast').perGameBy).toBe('box_games')
     expect(m('team_pts').perGameBy).toBeUndefined()
     expect(m('team_bench_pts').perGameBy).toBe('starts_known')
+  })
+
+  it('says on every impact model’s column head and label that it is SportsDataverse’s', () => {
+    const impact = CATALOGUE.filter((m) => m.family === 'impact')
+    expect(impact).toHaveLength(16)
+    for (const m of impact) {
+      expect(m.short, m.id).toMatch(/ SDV$/)
+      expect(m.label, m.id).toMatch(/\(SportsDataverse\)$/)
+      expect(m.description, m.id).toContain('SportsDataverse’s own calculation')
+      expect(m.sources, m.id).toEqual(["SportsDataverse's impact models"])
+    }
+    // DARKO is one regular season's state, so it answers for one season at a time.
+    expect(impact.filter((m) => m.oneSeason).map((m) => m.id)).toEqual([
+      'sdv_darko_skill',
+      'sdv_darko_next',
+      'sdv_darko_sd'
+    ])
+    expect(impact.filter((m) => m.oneSeason).every((m) => m.published === 'pub_player_darko')).toBe(
+      true
+    )
   })
 
   it('reads a play type on defense from the defender’s side', () => {

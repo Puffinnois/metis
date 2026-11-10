@@ -26,6 +26,7 @@ export type MetricFamily =
   | 'hustle'
   | 'play_types'
   | 'matchups'
+  | 'impact'
 
 /** `core` shown by default, `extended` in its family and the column picker, `stored` in queries only. */
 export type MetricTier = 'core' | 'extended' | 'stored'
@@ -86,6 +87,11 @@ export interface MetricDef {
    * divides by the games and minutes tracked, and it can only answer for whole seasons.
    */
   published?: string
+  /**
+   * A published value that is one regular season's state, not a total or a rate: a projection. It
+   * answers for one regular season at a time, since an average of several would mean nothing.
+   */
+  oneSeason?: boolean
 }
 
 /** A catalogue entry as the engine serves it: the formula left out, where it can be read added. */

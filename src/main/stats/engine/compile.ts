@@ -2,7 +2,9 @@ import {
   componentsOf,
   coverageReason,
   METRICS,
+  ONE_SEASON_ONLY,
   PUBLISHED_TYPES_ONLY,
+  REGULAR_SEASON_ONLY,
   TOKEN,
   WHOLE_SEASONS_ONLY
 } from '@shared/stats/catalogue'
@@ -303,6 +305,11 @@ function gapOf(
   if (coverage !== null || !m.published) return coverage
   if (grain === 'game') return WHOLE_SEASONS_ONLY
   if (!gameTypes.some((t) => PUBLISHED_GAME_TYPES.includes(t))) return PUBLISHED_TYPES_ONLY
+  if (m.oneSeason) {
+    if (!gameTypes.includes('regular')) return REGULAR_SEASON_ONLY
+    const bySeason = q.groupBy?.includes('season') ?? false
+    if (!bySeason && new Set(q.scope.seasons).size > 1) return ONE_SEASON_ONLY
+  }
   const table = publishedTable(m.published)
   for (const match of (perDivisor(m, transform, q.entity) ?? '').matchAll(TOKEN)) {
     const part = match[1] as keyof typeof UNPUBLISHED

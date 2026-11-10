@@ -440,6 +440,63 @@ const MATCHUP_TABLES: PublishedTable[] = [
   }
 ]
 
+/** The impact models' first season, and DARKO's: it needs a season before it (measured). */
+export const IMPACT_FIRST_SEASON = 1997
+export const DARKO_FIRST_SEASON = 1998
+
+/** The RAPM-style models, each part weighted by the possessions it was fitted on. */
+export const IMPACT_BY_POSSESSIONS = [
+  ['o_rapm', '{off_poss}'],
+  ['d_rapm', '{def_poss}'],
+  ['rapm', '({off_poss} + {def_poss})'],
+  ['o_adj_rapm', '{off_poss}'],
+  ['d_adj_rapm', '{def_poss}'],
+  ['adj_rapm', '({off_poss} + {def_poss})']
+] as const
+/** The box-score models, weighted by minutes. */
+export const IMPACT_BY_MINUTES = ['ospm', 'dspm', 'spm', 'obpm', 'dbpm', 'bpm'] as const
+export const DARKO_COLUMNS = [
+  'darko_filtered_skill',
+  'darko_projected_rating',
+  'darko_projected_sd'
+] as const
+
+/**
+ * Reference section 14: the dataset's own impact models, not the original publishers' values. It
+ * leaves out play-in games. Each model value is stored times what it was fitted on, so a season reads
+ * as published and seasons together are weighted. The `boban_*` columns are empty on every row.
+ */
+const IMPACT_TABLES: PublishedTable[] = [
+  {
+    table: 'pub_player_impact',
+    entity: 'player',
+    source: 'src_nba_impact',
+    firstSeason: IMPACT_FIRST_SEASON,
+    games: 'gp',
+    minutes: 'min',
+    columns: [
+      ...IMPACT_BY_POSSESSIONS.map(([c, by]) => times(c, by)),
+      ...IMPACT_BY_MINUTES.map((c) => times(c, '{min}')),
+      'war',
+      'off_poss',
+      'def_poss',
+      { name: 'impact_poss', sql: '{off_poss} + {def_poss}' }
+    ]
+  },
+  {
+    // DARKO is the player's state at the season's end and a projection of the next one. Its playoff
+    // rows repeat the regular season's on every player, so only the regular season is read.
+    table: 'pub_player_darko',
+    entity: 'player',
+    source: 'src_nba_impact',
+    firstSeason: DARKO_FIRST_SEASON,
+    match: { season_type: 'regular season' },
+    games: 'gp',
+    minutes: 'min',
+    columns: DARKO_COLUMNS.map((c) => times(c, '{gp}'))
+  }
+]
+
 /** Every published table. Each family adds its own; bump `PUBLISHED_VERSION` when one changes. */
 export const PUBLISHED_TABLES: readonly PublishedTable[] = [
   {
@@ -529,5 +586,6 @@ export const PUBLISHED_TABLES: readonly PublishedTable[] = [
   ...TRACKING,
   ...HUSTLE,
   ...PLAY_TYPE_TABLES,
-  ...MATCHUP_TABLES
+  ...MATCHUP_TABLES,
+  ...IMPACT_TABLES
 ]
