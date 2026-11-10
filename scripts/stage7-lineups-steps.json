@@ -24,7 +24,7 @@
     "wait": 2500
   },
   {
-    "eval": "document.querySelector('[role=tablist]').innerText.replace(/\n/g,' | ')"
+    "eval": "document.querySelector('[role=tablist]').innerText.replace(/\\n/g,' | ')"
   },
   {
     "click": "[role=tablist] [role=tab]:nth-child(5)"

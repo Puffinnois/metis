@@ -1509,7 +1509,8 @@ out.push(
 
 // SportsDataverse's impact models (Plan T707) through the engine, against the raw file. Each value is
 // stored times what it was fitted on and divided back, so one season should read as published,
-// exactly. DARKO reads the regular season only, and over one season at a time.
+// exactly. DARKO reads the regular season only, and over one season at a time. The raw file gives its
+// columns as boban_* (the dataset renamed them; see nba-data-sources.md).
 const IMPACT_CHECKS = [
   ['sdv_rapm', 'rapm', 'off_poss + def_poss'],
   ['sdv_o_rapm', 'o_rapm', 'off_poss'],
@@ -1524,9 +1525,9 @@ const IMPACT_CHECKS = [
   ['sdv_obpm', 'obpm', 'min'],
   ['sdv_dbpm', 'dbpm', 'min'],
   ['sdv_war', 'war', '1'],
-  ['sdv_darko_skill', 'darko_filtered_skill', 'gp', 1998],
-  ['sdv_darko_next', 'darko_projected_rating', 'gp', 1998],
-  ['sdv_darko_sd', 'darko_projected_sd', 'gp', 1999]
+  ['sdv_darko_skill', 'boban_filtered_skill', 'gp', 1998],
+  ['sdv_darko_next', 'boban_projected_rating', 'gp', 1998],
+  ['sdv_darko_sd', 'boban_projected_sd', 'gp', 1999]
 ]
 const IMPACT_TYPES = [
   ['regular', 'Regular Season'],
