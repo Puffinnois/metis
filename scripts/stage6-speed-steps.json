@@ -23,10 +23,10 @@
   { "eval": "timed('Defense', tab(6), () => has('[data-metric=stl_pct]'))" },
   { "wait": 200 },
   {
-    "eval": "timed('Game log', tab(7), () => has('[aria-label=\"Game log\"]') && [...document.querySelectorAll('[aria-label=\"Game log\"] [role=cell]')].some((c) => c.textContent === 'Total'))"
+    "eval": "timed('Game log', tab(10), () => has('[aria-label=\"Game log\"]') && [...document.querySelectorAll('[aria-label=\"Game log\"] [role=cell]')].some((c) => c.textContent === 'Total'))"
   },
   { "wait": 200 },
-  { "eval": "timed('Splits', tab(8), () => has('[aria-label=\"By opponent\"]'))" },
+  { "eval": "timed('Splits', tab(11), () => has('[aria-label=\"By opponent\"]'))" },
   { "wait": 200 },
   {
     "eval": "timed('Overview', tab(1), () => has('[data-metric=pts]') && has('[aria-label=\"Career by season\"]'))"
@@ -36,10 +36,10 @@
     "eval": "timed('Another season, Overview', pick('Season', '2016'), () => has('[data-metric=pts]') && has('[aria-label=\"Career by season\"]') && has('aside button[aria-current]'))"
   },
   { "wait": 300 },
-  { "eval": "timed('Splits, a full season', tab(8), () => has('[aria-label=\"By opponent\"]'))" },
+  { "eval": "timed('Splits, a full season', tab(11), () => has('[aria-label=\"By opponent\"]'))" },
   { "wait": 300 },
   {
-    "eval": "timed('Game log, a full season', tab(7), () => [...document.querySelectorAll('[aria-label=\"Game log\"] [role=cell]')].some((c) => c.textContent === 'Total'))"
+    "eval": "timed('Game log, a full season', tab(10), () => [...document.querySelectorAll('[aria-label=\"Game log\"] [role=cell]')].some((c) => c.textContent === 'Total'))"
   },
   { "wait": 300 },
   {
@@ -52,7 +52,7 @@
   { "wait": 200 },
   { "eval": "timed('Players, team', tab(4), () => has('[aria-label=Players] button[role=row]'))" },
   { "wait": 200 },
-  { "eval": "timed('Schedule', tab(5), () => has('[aria-label=Schedule] button[role=row]'))" },
+  { "eval": "timed('Schedule', tab(6), () => has('[aria-label=Schedule] button[role=row]'))" },
   { "wait": 200 },
   {
     "eval": "timed('Overview, team', tab(1), () => has('[data-metric=team_ortg]') && has('[aria-label=\"Season by season\"]'))"

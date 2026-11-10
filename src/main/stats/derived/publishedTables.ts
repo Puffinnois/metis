@@ -469,7 +469,8 @@ export const DARKO_COLUMNS = [
 /**
  * Reference section 14: the dataset's own impact models, not the original publishers' values. It
  * leaves out play-in games. Each model value is stored times what it was fitted on, so a season reads
- * as published and seasons together are weighted. The `boban_*` columns are empty on every row.
+ * as published and seasons together are weighted. A fresh download has no `darko_*` columns and fills
+ * `boban_*` with other values (measured against the old file: none equal), so DARKO reads blank.
  */
 const IMPACT_TABLES: PublishedTable[] = [
   {

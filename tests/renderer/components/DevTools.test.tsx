@@ -47,8 +47,8 @@ function note(over: Partial<DevNote> = {}): DevNote {
     status: 'open',
     created: '2026-10-22T14:03:11+02:00',
     images: [],
-    title: 'Trade card cuts names',
-    text: 'Trade card cuts names',
+    title: 'Table cuts names',
+    text: 'Table cuts names',
     where: 'Player',
     context: null,
     ...over
@@ -148,7 +148,7 @@ describe('writing a note', () => {
     press('KeyN')
     const text = await screen.findByRole('textbox', { name: 'Note' })
     expect(await screen.findByText(/Players · Nikola Jokić/)).toBeTruthy()
-    fireEvent.change(text, { target: { value: 'Trade card cuts names\nmore' } })
+    fireEvent.change(text, { target: { value: 'Table cuts names\nmore' } })
     fireEvent.click(screen.getByRole('radio', { name: 'Bug' }))
     expect(await screen.findByText('Include recent errors (1)')).toBeTruthy()
     const tick = screen.getByRole('checkbox')
@@ -160,7 +160,7 @@ describe('writing a note', () => {
     await waitFor(() => expect(api.dev.notes.save).toHaveBeenCalledTimes(1))
     const saved = vi.mocked(api.dev.notes.save).mock.calls[0][0]
     expect(saved).toMatchObject({
-      text: 'Trade card cuts names\nmore',
+      text: 'Table cuts names\nmore',
       tag: 'bug',
       errors: [ERROR],
       images: [],
@@ -273,7 +273,7 @@ describe('final review fixes', () => {
 
 describe('all notes', () => {
   it('filters, marks done, copies, deletes and goes there', async () => {
-    const context = { screen: 'trade', parts: {} } as never
+    const context = { screen: 'team', parts: {} } as never
     vi.mocked(api.dev.notes.list).mockResolvedValue([
       note({ id: 'N-002', title: 'Second', context }),
       note({ id: 'N-001', title: 'Done one', status: 'done' })

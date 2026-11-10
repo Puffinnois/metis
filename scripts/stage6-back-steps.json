@@ -9,7 +9,7 @@
   { "eval": "nav('Players')" },
   { "wait": 1500 },
   { "eval": "where()" },
-  { "eval": "document.querySelector('[role=tablist] [role=tab]:nth-child(7)').click()" },
+  { "eval": "document.querySelector('[role=tablist] [role=tab]:nth-child(10)').click()" },
   { "wait": 1200 },
   {
     "eval": "(() => { const rows = document.querySelectorAll('[aria-label=\"Game log\"] button[role=row]'); rows[3].click(); return rows.length + ' games, opened the fourth' })()"

@@ -298,6 +298,7 @@ function gapOf(
   gameTypes: GameType[],
   transform: Transform
 ): string | null {
+  if (m.unavailable) return m.unavailable
   const coverage = coverageReason(
     m,
     [...new Set(q.scope.seasons)].sort((a, b) => a - b)

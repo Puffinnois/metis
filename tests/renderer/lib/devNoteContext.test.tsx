@@ -31,30 +31,30 @@ describe('what the screens say is open', () => {
     const { rerender } = render(
       tree(
         <>
-          <Part k="week" label="wk 8" />
+          <Part k="game" label="game 8" />
           <Part k="player" label="Nikola Jokić" />
         </>
       )
     )
-    expect(registry.snapshot('lineup')).toEqual({
-      screen: 'lineup',
+    expect(registry.snapshot('box')).toEqual({
+      screen: 'box',
       parts: {
-        week: { label: 'wk 8', data: { label: 'wk 8' } },
+        game: { label: 'game 8', data: { label: 'game 8' } },
         player: { label: 'Nikola Jokić', data: { label: 'Nikola Jokić' } }
       }
     })
     rerender(
       tree(
         <>
-          <Part k="week" label="wk 9" />
+          <Part k="game" label="game 9" />
           <Part k="player" label={null} />
         </>
       )
     )
-    expect(Object.keys(registry.snapshot('lineup').parts)).toEqual(['week'])
-    expect(registry.snapshot('lineup').parts.week.label).toBe('wk 9')
+    expect(Object.keys(registry.snapshot('box').parts)).toEqual(['game'])
+    expect(registry.snapshot('box').parts.game.label).toBe('game 9')
     rerender(tree(null))
-    expect(registry.snapshot('lineup').parts).toEqual({})
+    expect(registry.snapshot('box').parts).toEqual({})
   })
 
   it('takes a product’s own screen over the app’s while it is mounted', () => {
@@ -74,6 +74,6 @@ describe('what the screens say is open', () => {
   })
 
   it('does nothing outside the dev tools', () => {
-    expect(() => render(<Part k="week" label="wk 1" />)).not.toThrow()
+    expect(() => render(<Part k="game" label="game 1" />)).not.toThrow()
   })
 })

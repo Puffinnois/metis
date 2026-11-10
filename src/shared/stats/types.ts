@@ -81,6 +81,8 @@ export interface MetricDef {
   firstSeason: number
   /** Seasons after it that the source does not have. */
   missingSeasons?: number[]
+  /** Why the source no longer has this metric at all; every query answers with it. */
+  unavailable?: string
   tier: MetricTier
   /**
    * The published table a metric with no game behind it reads, from

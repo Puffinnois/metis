@@ -64,7 +64,7 @@
   { "click": "[role=tablist] [role=tab]:nth-child(4)" },
   { "wait": 1000 },
   { "shot": "team-players" },
-  { "click": "[role=tablist] [role=tab]:nth-child(5)" },
+  { "click": "[role=tablist] [role=tab]:nth-child(6)" },
   { "wait": 500 },
   { "shot": "team-schedule" },
   { "select": ["Season", "2013"] },
