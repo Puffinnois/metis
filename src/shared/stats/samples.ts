@@ -53,7 +53,9 @@ export const SAMPLE_LABELS: Readonly<Record<string, string>> = {
   post_touch_fta: 'free-throw attempts after a post touch',
   paint_touch_fta: 'free-throw attempts after a paint touch',
   elbow_touch_passes: 'passes after an elbow touch',
-  def_rim_fga: 'rim attempts defended'
+  def_rim_fga: 'rim attempts defended',
+  loose_balls_recovered: 'loose balls recovered',
+  box_outs: 'box outs'
 }
 
 /** The words for a sample component; its name, spaced, for one not listed. */

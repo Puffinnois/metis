@@ -12,7 +12,8 @@ const FAMILIES: MetricFamily[] = [
   'possessions',
   'scoring',
   'composite',
-  'tracking'
+  'tracking',
+  'hustle'
 ]
 
 /** Every metric the screens show, by family or search, with its sample, seasons and source. */

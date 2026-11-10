@@ -567,6 +567,23 @@ Player tracking (Plan T703) is read through the query engine over a whole regula
 
 Over two seasons together (2024-25 and 2025-26), drive FG% from summed makes and attempts, speed weighted by minutes and seconds per touch weighted by touches, worked out from the raw files: 687 of 687 players read the same through the engine.
 
+## The NBA's hustle stats, read through the engine
+
+Hustle (Plan T704) is read through the query engine over a whole regular season, against the raw files (`src_nba_hustle_player`, `src_nba_hustle_team`), rows of totals: 19 columns for players and 15 for teams. Counts, and the two box-out rebound rates, which are stored times the box outs, should match exactly; the offensive shares of loose balls and box outs are rebuilt from their parts, within the published rounding. It starts in 2016-17, since the 2015-16 regular-season file is 2016-17's under the wrong label, and box outs in 2017-18. **Not compared** counts box outs before 2017-18 and rates with nothing under them, which the engine leaves blank.
+
+| Season  | Players | Rows same % | Values same % | Not compared | Teams | Rows same % | Values same % | Not compared |
+| ------- | ------- | ----------- | ------------- | ------------ | ----- | ----------- | ------------- | ------------ |
+| 2016-17 | 485     | 100.0       | 100.0         | 3,898        | 30    | 100.0       | 100.0         | 120          |
+| 2017-18 | 536     | 100.0       | 100.0         | 107          | 30    | 100.0       | 100.0         | 0            |
+| 2018-19 | 525     | 100.0       | 100.0         | 71           | 30    | 100.0       | 100.0         | 0            |
+| 2019-20 | 525     | 100.0       | 100.0         | 102          | 30    | 100.0       | 100.0         | 0            |
+| 2020-21 | 538     | 100.0       | 100.0         | 71           | 30    | 100.0       | 100.0         | 0            |
+| 2021-22 | 596     | 100.0       | 100.0         | 238          | 30    | 100.0       | 100.0         | 0            |
+| 2022-23 | 535     | 100.0       | 100.0         | 157          | 30    | 100.0       | 100.0         | 0            |
+| 2023-24 | 567     | 100.0       | 100.0         | 189          | 30    | 100.0       | 100.0         | 0            |
+| 2024-25 | 567     | 100.0       | 100.0         | 167          | 30    | 100.0       | 100.0         | 0            |
+| 2025-26 | 581     | 100.0       | 100.0         | 191          | 30    | 100.0       | 100.0         | 0            |
+
 ## The published standings
 
 `nba_stats_standings`, and the league dashboards' file, which alone reaches 1995-96. Percentages are of each season's teams. **Box scores:** wins and losses against `team_season`. **NBA's file:** the same record, rank, games back and streak as the dashboards'. **ESPN:** `espn_nba_standings`, from 2001-02. **By the record:** games back worked out from the conference leader's record. The last ten and the streak start in 2001-02. In 2003-04 the NBA's file repeats the overall record as the conference and division records, so the screen reads those as not published.

@@ -98,7 +98,19 @@ export const TAB_SECTIONS: Record<
       metrics: ['stl_pct', 'blk_pct']
     },
     { title: 'Share of the team', metrics: ['share_stl', 'share_blk', 'share_pf'] },
-    { title: 'On the floor', metrics: ['plus_minus', 'win_pct', 'w', 'l'] }
+    { title: 'On the floor', metrics: ['plus_minus', 'win_pct', 'w', 'l'] },
+    {
+      title: 'Hustle',
+      note: 'Tagged from 2016-17',
+      metrics: [
+        'deflections',
+        'contested_shots',
+        'charges_drawn',
+        'loose_balls',
+        'box_outs',
+        'screen_assists'
+      ]
+    }
   ],
   // The NBA's optical tracking, from 2013-14, for whole seasons only.
   tracking: [

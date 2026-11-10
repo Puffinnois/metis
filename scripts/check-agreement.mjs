@@ -1027,6 +1027,104 @@ out.push(
   `Over two seasons together (2024-25 and 2025-26), drive FG% from summed makes and attempts, speed weighted by minutes and seconds per touch weighted by touches, worked out from the raw files: ${COUNT.format(trackingTwoSame)} of ${COUNT.format(trackingTwoRows)} players read the same through the engine.`
 )
 
+// Hustle (Plan T704) through the engine, against the raw files, players and teams. Counts and the
+// box-out rates stored times the box outs should match exactly; the shares of loose balls and box
+// outs on offense are rebuilt from their parts, within the published rounding.
+const HUSTLE_SHARED = [
+  ['contested_shots', 'contested_shots', 0],
+  ['contested_shots_2pt', 'contested_shots_2_pt', 0],
+  ['contested_shots_3pt', 'contested_shots_3_pt', 0],
+  ['deflections', 'deflections', 0],
+  ['charges_drawn', 'charges_drawn', 0],
+  ['screen_assists', 'screen_assists', 0],
+  ['screen_ast_pts', 'screen_ast_pts', 0],
+  ['loose_balls', 'loose_balls_recovered', 0],
+  ['off_loose_balls', 'off_loose_balls_recovered', 0],
+  ['def_loose_balls', 'def_loose_balls_recovered', 0],
+  ['box_outs', 'box_outs', 0],
+  ['off_box_outs', 'off_boxouts', 0],
+  ['def_box_outs', 'def_boxouts', 0],
+  ['off_loose_balls_pct', 'pct_loose_balls_recovered_off', ROUNDED],
+  ['off_box_outs_pct', 'pct_box_outs_off', ROUNDED]
+]
+const HUSTLE_PLAYER = [
+  ...HUSTLE_SHARED,
+  ['box_out_team_rebs', 'box_out_player_team_rebs', 0],
+  ['box_out_rebs', 'box_out_player_rebs', 0],
+  ['box_out_team_reb_pct', 'pct_box_outs_team_reb', 0],
+  ['box_out_reb_pct', 'pct_box_outs_reb', 0]
+]
+const HUSTLE_TEAM = HUSTLE_SHARED.map(([id, c, t]) => [`team_${id}`, c, t])
+async function hustleSeason(entity, season, checks) {
+  const result = await query({
+    entity,
+    metrics: checks.map(([id]) => id),
+    scope: { seasons: [season] },
+    limit: 5000
+  })
+  const ours = new Map(result.rows.map((r) => [Number(r.id), r.values]))
+  const key = entity === 'player' ? 'player_id' : 'team_id'
+  const raw = await read(
+    `SELECT ${key} AS id, ${checks.map(([id, c]) => `${c} AS ${id}`).join(', ')}
+    FROM src_nba_hustle_${entity}
+    WHERE season = ${season} AND season_type = 'regular-season' AND per_mode = 'totals'`
+  )
+  let rows = 0
+  let rowsSame = 0
+  let cells = 0
+  let cellsSame = 0
+  let overNothing = 0
+  for (const r of raw) {
+    const o = ours.get(Number(r.id))
+    if (!o) continue
+    rows++
+    let all = true
+    for (const [id, , tolerance] of checks) {
+      const a = o[id]?.value ?? null
+      // Box outs hold zeros before 2017-18, where the engine reads no value.
+      if (a === null && (r[id] === 0 || season < 2018)) {
+        overNothing++
+        continue
+      }
+      cells++
+      if (within(a, r[id], tolerance)) cellsSame++
+      else all = false
+    }
+    if (all) rowsSame++
+  }
+  return [COUNT.format(rows), pct(rowsSame, rows), pct(cellsSame, cells), COUNT.format(overNothing)]
+}
+const hustleRows = []
+for (const season of finished.filter((s) => s >= 2017)) {
+  hustleRows.push([
+    label(season),
+    ...(await hustleSeason('player', season, HUSTLE_PLAYER)),
+    ...(await hustleSeason('team', season, HUSTLE_TEAM))
+  ])
+}
+
+out.push(
+  '',
+  "## The NBA's hustle stats, read through the engine",
+  '',
+  `Hustle (Plan T704) is read through the query engine over a whole regular season, against the raw files (\`src_nba_hustle_player\`, \`src_nba_hustle_team\`), rows of totals: ${HUSTLE_PLAYER.length} columns for players and ${HUSTLE_TEAM.length} for teams. Counts, and the two box-out rebound rates, which are stored times the box outs, should match exactly; the offensive shares of loose balls and box outs are rebuilt from their parts, within the published rounding. It starts in 2016-17, since the 2015-16 regular-season file is 2016-17's under the wrong label, and box outs in 2017-18. **Not compared** counts box outs before 2017-18 and rates with nothing under them, which the engine leaves blank.`,
+  '',
+  table(
+    [
+      'Season',
+      'Players',
+      'Rows same %',
+      'Values same %',
+      'Not compared',
+      'Teams',
+      'Rows same %',
+      'Values same %',
+      'Not compared'
+    ],
+    hustleRows
+  )
+)
+
 // The published standings, which the Standings screen and a team's header read.
 const standings = await read(`WITH e AS (
     SELECT s.season, t.team_id,

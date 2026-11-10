@@ -226,6 +226,65 @@ const TRACKING: PublishedTable[] = [
   tracking('pub_player_rim_defense', 'defense', ['def_rim_fgm', 'def_rim_fga'])
 ]
 
+/**
+ * Hustle starts in 2016-17: the 2015-16 regular-season file is 2016-17's under the wrong label, and
+ * coverage is per season, so that season's playoffs are left out with it.
+ */
+export const HUSTLE_FIRST_SEASON = 2017
+
+/** Box outs hold zeros before 2017-18. */
+export const BOX_OUTS_FIRST_SEASON = 2018
+
+/** What the player and team hustle files share. */
+export const HUSTLE_COUNTS = [
+  'contested_shots',
+  'contested_shots_2_pt',
+  'contested_shots_3_pt',
+  'deflections',
+  'charges_drawn',
+  'screen_assists',
+  'screen_ast_pts',
+  'off_loose_balls_recovered',
+  'def_loose_balls_recovered',
+  'loose_balls_recovered',
+  'off_boxouts',
+  'def_boxouts',
+  'box_outs'
+] as const
+
+/**
+ * Reference section 9. The two box-out rebound rates divide by the box outs on nearly every row only
+ * from 2024-25; before, what they divide by is not published, so they are stored times the box outs
+ * (measured).
+ */
+const HUSTLE: PublishedTable[] = [
+  {
+    table: 'pub_player_hustle',
+    entity: 'player',
+    source: 'src_nba_hustle_player',
+    firstSeason: HUSTLE_FIRST_SEASON,
+    games: 'g',
+    minutes: 'min',
+    columns: [
+      ...HUSTLE_COUNTS,
+      'box_out_player_team_rebs',
+      'box_out_player_rebs',
+      times('pct_box_outs_team_reb', '{box_outs}'),
+      times('pct_box_outs_reb', '{box_outs}')
+    ]
+  },
+  {
+    table: 'pub_team_hustle',
+    entity: 'team',
+    source: 'src_nba_hustle_team',
+    firstSeason: HUSTLE_FIRST_SEASON,
+    // The team file publishes no games.
+    games: null,
+    minutes: 'min',
+    columns: HUSTLE_COUNTS
+  }
+]
+
 /** Every published table. Each family adds its own; bump `PUBLISHED_VERSION` when one changes. */
 export const PUBLISHED_TABLES: readonly PublishedTable[] = [
   {
@@ -312,5 +371,6 @@ export const PUBLISHED_TABLES: readonly PublishedTable[] = [
     minutes: 'min',
     columns: ['def_ws']
   },
-  ...TRACKING
+  ...TRACKING,
+  ...HUSTLE
 ]

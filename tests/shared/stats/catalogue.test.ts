@@ -423,6 +423,34 @@ const TRACKING_COLUMNS = `
   .map((line) => line.trim().split(/\s+/))
   .filter((parts) => parts.length === 3)
 
+/** Hustle (`catalogue/hustle.ts`): players' and teams' counts read the same columns. */
+const HUSTLE_COLUMNS = `
+  ${[
+    ['contested_shots', 'contested_shots'],
+    ['contested_shots_2pt', 'contested_shots_2_pt'],
+    ['contested_shots_3pt', 'contested_shots_3_pt'],
+    ['deflections', 'deflections'],
+    ['charges_drawn', 'charges_drawn'],
+    ['screen_assists', 'screen_assists'],
+    ['screen_ast_pts', 'screen_ast_pts'],
+    ['loose_balls', 'loose_balls_recovered'],
+    ['off_loose_balls', 'off_loose_balls_recovered'],
+    ['def_loose_balls', 'def_loose_balls_recovered'],
+    ['box_outs', 'box_outs'],
+    ['off_box_outs', 'off_boxouts'],
+    ['def_box_outs', 'def_boxouts']
+  ]
+    .map(([id, c]) => `${id} ${c} -; team_${id} ${c} -`)
+    .join(';')}
+  off_loose_balls_pct off_loose_balls_recovered loose_balls_recovered
+  team_off_loose_balls_pct off_loose_balls_recovered loose_balls_recovered
+  off_box_outs_pct off_boxouts box_outs; team_off_box_outs_pct off_boxouts box_outs
+  box_out_team_rebs box_out_player_team_rebs -; box_out_rebs box_out_player_rebs -
+  box_out_team_reb_pct pct_box_outs_team_reb box_outs; box_out_reb_pct pct_box_outs_reb box_outs`
+  .split(/[;\n]/)
+  .map((line) => line.trim().split(/\s+/))
+  .filter((parts) => parts.length === 3)
+
 /** One published row: a different value in every column, so a metric reading the wrong one fails. */
 const PUBLISHED_ROW: Record<string, number> = {
   games: 50,
@@ -431,7 +459,7 @@ const PUBLISHED_ROW: Record<string, number> = {
   ...Object.fromEntries(
     [
       ...new Set(
-        [...DASHBOARD_COLUMNS, ...TRACKING_COLUMNS]
+        [...DASHBOARD_COLUMNS, ...TRACKING_COLUMNS, ...HUSTLE_COLUMNS]
           .flatMap(([, c, by]) => [c, by])
           .filter((c) => !['-', 'games', 'minutes', 'possessions'].includes(c))
       )
@@ -447,7 +475,7 @@ const adjChanceOf = (r: string): number =>
 
 Object.assign(EXPECTED, {
   ...Object.fromEntries(
-    [...DASHBOARD_COLUMNS, ...TRACKING_COLUMNS].map(([id, c, by]) => [
+    [...DASHBOARD_COLUMNS, ...TRACKING_COLUMNS, ...HUSTLE_COLUMNS].map(([id, c, by]) => [
       id,
       by === '-' ? PUBLISHED_ROW[c] : PUBLISHED_ROW[c] / PUBLISHED_ROW[by]
     ])
