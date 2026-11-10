@@ -674,6 +674,11 @@ describe('the metric catalogue', () => {
     expect(impact.filter((m) => m.oneSeason).every((m) => m.published === 'pub_player_darko')).toBe(
       true
     )
+    // The dataset dropped DARKO's columns in November 2026: the three answer with that reason.
+    for (const m of impact.filter((x) => x.oneSeason)) {
+      expect(m.unavailable, m.id).toBe('The dataset no longer publishes DARKO.')
+      expect(m.description, m.id).toContain('November 2026')
+    }
   })
 
   it('reads a play type on defense from the defender’s side', () => {

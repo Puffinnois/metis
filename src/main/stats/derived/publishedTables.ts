@@ -469,8 +469,8 @@ export const DARKO_COLUMNS = [
 /**
  * Reference section 14: the dataset's own impact models, not the original publishers' values. It
  * leaves out play-in games. Each model value is stored times what it was fitted on, so a season reads
- * as published and seasons together are weighted. The file once called DARKO’s columns `darko_*` and
- * now calls them `boban_*`, with the other name empty: DARKO reads whichever one is filled.
+ * as published and seasons together are weighted. A fresh download has no `darko_*` columns and fills
+ * `boban_*` with other values (measured against the old file: none equal), so DARKO reads blank.
  */
 const IMPACT_TABLES: PublishedTable[] = [
   {
@@ -499,10 +499,7 @@ const IMPACT_TABLES: PublishedTable[] = [
     match: { season_type: 'regular season' },
     games: 'gp',
     minutes: 'min',
-    columns: DARKO_COLUMNS.map((c) => ({
-      name: c,
-      sql: `coalesce({${c}}, {${c.replace('darko_', 'boban_')}}) * {gp}`
-    }))
+    columns: DARKO_COLUMNS.map((c) => times(c, '{gp}'))
   }
 ]
 

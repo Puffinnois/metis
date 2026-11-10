@@ -160,11 +160,12 @@ const darko = (column: string, o: Partial<Opts> = {}): Opts => ({
   firstSeason: DARKO_FIRST,
   published: DARKO,
   oneSeason: true,
+  unavailable: GONE,
   ...o
 })
 
-const DARKO_NOTE =
-  'It reads for one regular season at a time, and is blank in the season under way.'
+const GONE = 'The dataset no longer publishes DARKO.'
+const DARKO_NOTE = `It reads for one regular season at a time. ${GONE} Its file has had no \`darko_*\` columns since the November 2026 load; the \`boban_*\` columns it has instead hold other values, so they are not read.`
 
 const DARKO_METRICS: MetricDef[] = [
   metric(

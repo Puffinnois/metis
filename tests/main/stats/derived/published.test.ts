@@ -350,8 +350,9 @@ describe('the published tables', () => {
       expect(r.war).toBeCloseTo(6.52, 9)
     })
 
-    it('read DARKO under the name the file now gives it', async () => {
-      // A fresh download: the darko_* columns are empty and the values sit in boban_*.
+    it('do not read boban_* as DARKO', async () => {
+      // A fresh download has no darko_* values; boban_* holds another model's (not equal to DARKO's
+      // on any of 20,016 player-seasons the two files share).
       await db.exec(`UPDATE src_nba_impact SET darko_filtered_skill = NULL,
         darko_projected_rating = NULL, darko_projected_sd = NULL, boban_filtered_skill = 2.2,
         boban_projected_rating = 1.9, boban_projected_sd = 1.94`)
@@ -360,7 +361,7 @@ describe('the published tables', () => {
         await db.all(`SELECT games, darko_filtered_skill / games AS skill,
           darko_projected_rating / games AS next, darko_projected_sd / games AS sd
           FROM pub_player_darko`)
-      ).toEqual([{ games: 60, skill: 2.2, next: 1.9, sd: 1.94 }])
+      ).toEqual([{ games: 60, skill: null, next: null, sd: null }])
     })
 
     it('read DARKO from the regular season only', async () => {
