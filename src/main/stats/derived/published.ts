@@ -4,7 +4,7 @@ import { column, inspect, type Have } from './sql'
 import { TOKEN } from '@shared/stats/catalogue'
 
 /** Bump when a table changes, so the next refresh builds them without downloading anything. */
-export const PUBLISHED_VERSION = 4
+export const PUBLISHED_VERSION = 5
 
 /** What the engine divides a published sum by. A table always has these, NULL when not published. */
 export const PUBLISHED_DIVISORS = ['games', 'minutes', 'possessions'] as const
@@ -64,6 +64,11 @@ function buildSql(t: PublishedTable, have: Have): string {
   const where = [`${type} IS NOT NULL`]
   if (held?.has('per_mode')) where.push("lower(s.per_mode) = 'totals'")
   if (t.firstSeason !== undefined) where.push(`${season} >= ${t.firstSeason}`)
+  for (const [name, value] of Object.entries(t.match ?? {})) {
+    where.push(
+      `lower(${column(have, t.source, 's', name, 'VARCHAR')}) = '${value.toLowerCase().replaceAll("'", "''")}'`
+    )
+  }
   const columns = [
     `${read(t.games)} AS games`,
     `${read(t.minutes)} AS minutes`,

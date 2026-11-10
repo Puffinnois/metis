@@ -1,4 +1,6 @@
+import { playTypeMetricId } from '@shared/stats/catalogue/playTypes'
 import { coverageReason } from '@shared/stats/coverage'
+import { PLAY_TYPE_SIDES } from '@shared/stats/playTypes'
 import { seasonLabel } from '@shared/stats/seasons'
 import type {
   BoardMode,
@@ -25,6 +27,7 @@ export type PlayerTab =
   | 'rebounding'
   | 'defense'
   | 'tracking'
+  | 'play_types'
   | 'log'
   | 'splits'
 
@@ -36,6 +39,7 @@ export const PLAYER_DASH_TABS: { id: PlayerTab; label: string }[] = [
   { id: 'rebounding', label: 'Rebounding' },
   { id: 'defense', label: 'Defense' },
   { id: 'tracking', label: 'Tracking' },
+  { id: 'play_types', label: 'Play types' },
   { id: 'log', label: 'Game log' },
   { id: 'splits', label: 'Splits' }
 ]
@@ -171,6 +175,38 @@ export const TAB_SECTIONS: Record<
       ]
     },
     { title: 'Rim defense', metrics: ['def_rim_fga', 'def_rim_fg_pct'] }
+  ],
+  // The NBA's play types, from 2015-16, for whole seasons only: how often each type ends a play, and
+  // how well it goes. The leaderboards hold every other measure.
+  play_types: [
+    {
+      title: 'How often, on offense',
+      note: 'Tagged from 2015-16',
+      metrics: PLAY_TYPE_SIDES.filter((s) => s.side === 'offense').map((s) =>
+        playTypeMetricId(s.key, 'freq')
+      )
+    },
+    {
+      title: 'Points per possession, on offense',
+      // From 2023-24 the NBA leaves out a type with fewer than 10 possessions.
+      note: 'Blank under 10 plays, from 2023-24',
+      metrics: PLAY_TYPE_SIDES.filter((s) => s.side === 'offense').map((s) =>
+        playTypeMetricId(s.key, 'ppp')
+      )
+    },
+    {
+      title: 'How often, on defense',
+      note: 'The plays they defended',
+      metrics: PLAY_TYPE_SIDES.filter((s) => s.side === 'defense').map((s) =>
+        playTypeMetricId(s.key, 'freq')
+      )
+    },
+    {
+      title: 'Points allowed per possession, on defense',
+      metrics: PLAY_TYPE_SIDES.filter((s) => s.side === 'defense').map((s) =>
+        playTypeMetricId(s.key, 'ppp')
+      )
+    }
   ]
 }
 

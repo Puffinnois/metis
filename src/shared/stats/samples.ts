@@ -1,3 +1,5 @@
+import { playTypeSampleLabels } from './playTypes'
+
 /** What each metric's sample counts, in words: "412 field-goal attempts". */
 export const SAMPLE_LABELS: Readonly<Record<string, string>> = {
   games: 'games',
@@ -55,7 +57,8 @@ export const SAMPLE_LABELS: Readonly<Record<string, string>> = {
   elbow_touch_passes: 'passes after an elbow touch',
   def_rim_fga: 'rim attempts defended',
   loose_balls_recovered: 'loose balls recovered',
-  box_outs: 'box outs'
+  box_outs: 'box outs',
+  ...playTypeSampleLabels()
 }
 
 /** The words for a sample component; its name, spaced, for one not listed. */
