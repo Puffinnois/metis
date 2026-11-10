@@ -474,6 +474,33 @@ const PLAY_TYPE_COLUMNS = PLAY_TYPE_SIDES.flatMap(({ key: k }) =>
   ].map(([m, c, by]) => [`pt_${k}_${m}`, c, by])
 )
 
+/**
+ * Matchups (`catalogue/matchups.ts`): a defender's counts, their rates, and the shares by position. The
+ * points per 100 are worked out below.
+ */
+const MATCHUP_COLUMNS = `
+  matchup_min matchup_minutes -; matchup_poss possessions -; matchup_pts player_pts -
+  matchup_team_pts team_pts -; matchup_fgm matchup_fgm -; matchup_fga matchup_fga -
+  matchup_fg_pct matchup_fgm matchup_fga; matchup_fg3m matchup_fg3_m -; matchup_fg3a matchup_fg3_a -
+  matchup_fg3_pct matchup_fg3_m matchup_fg3_a; matchup_ftm matchup_ftm -; matchup_fta matchup_fta -
+  matchup_ast matchup_ast -; matchup_tov matchup_tov -; matchup_blk matchup_blk -; matchup_sfl sfl -
+  ${['g', 'f', 'c']
+    .map(
+      (p) =>
+        `matchup_${p}_time_pct pos_${p}_minutes pos_all_minutes;` +
+        `matchup_${p}_fg_pct pos_${p}_fgm pos_${p}_fga`
+    )
+    .join(';')}`
+  .split(/[;\n]/)
+  .map((line) => line.trim().split(/\s+/))
+  .filter((parts) => parts.length === 3)
+
+/** The matchup points per 100 partial possessions, and the columns they divide. */
+const MATCHUP_PER_100 = [
+  ['matchup_pts_per_100', 'player_pts', 'possessions'],
+  ...['g', 'f', 'c'].map((p) => [`matchup_${p}_pts_per_100`, `pos_${p}_pts`, `pos_${p}_poss`])
+]
+
 /** One published row: a different value in every column, so a metric reading the wrong one fails. */
 const PUBLISHED_ROW: Record<string, number> = {
   games: 50,
@@ -482,7 +509,14 @@ const PUBLISHED_ROW: Record<string, number> = {
   ...Object.fromEntries(
     [
       ...new Set(
-        [...DASHBOARD_COLUMNS, ...TRACKING_COLUMNS, ...HUSTLE_COLUMNS, ...PLAY_TYPE_COLUMNS]
+        [
+          ...DASHBOARD_COLUMNS,
+          ...TRACKING_COLUMNS,
+          ...HUSTLE_COLUMNS,
+          ...PLAY_TYPE_COLUMNS,
+          ...MATCHUP_COLUMNS,
+          ...MATCHUP_PER_100
+        ]
           .flatMap(([, c, by]) => [c, by])
           .filter((c) => !['-', 'games', 'minutes', 'possessions'].includes(c))
       )
@@ -498,9 +532,19 @@ const adjChanceOf = (r: string): number =>
 
 Object.assign(EXPECTED, {
   ...Object.fromEntries(
-    [...DASHBOARD_COLUMNS, ...TRACKING_COLUMNS, ...HUSTLE_COLUMNS, ...PLAY_TYPE_COLUMNS].map(
-      ([id, c, by]) => [id, by === '-' ? PUBLISHED_ROW[c] : PUBLISHED_ROW[c] / PUBLISHED_ROW[by]]
-    )
+    [
+      ...DASHBOARD_COLUMNS,
+      ...TRACKING_COLUMNS,
+      ...HUSTLE_COLUMNS,
+      ...PLAY_TYPE_COLUMNS,
+      ...MATCHUP_COLUMNS
+    ].map(([id, c, by]) => [
+      id,
+      by === '-' ? PUBLISHED_ROW[c] : PUBLISHED_ROW[c] / PUBLISHED_ROW[by]
+    ])
+  ),
+  ...Object.fromEntries(
+    MATCHUP_PER_100.map(([id, c, by]) => [id, (100 * PUBLISHED_ROW[c]) / PUBLISHED_ROW[by]])
   ),
   nba_pace40: (40 * PUBLISHED_ROW.pace) / PUBLISHED_ROW.minutes / 48,
   team_nba_pace40: (40 * PUBLISHED_ROW.pace) / PUBLISHED_ROW.minutes / 48,

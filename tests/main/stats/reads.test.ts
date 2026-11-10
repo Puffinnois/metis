@@ -1,6 +1,13 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { StatsDb } from '@main/stats/db'
-import { parsePeriods, readGame, readGames, readPlayer, readStandings } from '@main/stats/reads'
+import {
+  parsePeriods,
+  readGame,
+  readGames,
+  readMatchups,
+  readPlayer,
+  readStandings
+} from '@main/stats/reads'
 import { openTestDb } from '../../fixtures/stats'
 
 const BOS = 1610612738
@@ -268,5 +275,54 @@ describe('the standings', () => {
     await db.exec(`INSERT INTO src_nba_standings VALUES (${BOS}, 2026, 1, 2, 'Boston', 'Celtics')`)
     const rows = await readStandings(db, 2026)
     expect(rows[0]).toMatchObject({ wins: 1, losses: 2, streak: null, conferenceGamesBack: null })
+  })
+})
+
+describe('a player’s matchups', () => {
+  /** A pair's row: the counts are the minutes over ten, so each pair's line is plain to check. */
+  const pair = (off: number, def: number, minutes: number, season = 2026): string =>
+    `(${season}, ${off}, ${def}, 3, ${minutes}, ${minutes * 5}, ${minutes / 10}, ${minutes},
+      1, 2, 0, 1, 0, 0, 1, 0, 0, 0)`
+
+  beforeEach(async () => {
+    await db.exec('CREATE TABLE IF NOT EXISTS player (player_id BIGINT, name VARCHAR)')
+    await db.exec(`INSERT INTO player VALUES (2544, 'LeBron James'), (203999, 'Nikola Jokić')`)
+    // LeBron James guarding two players and guarded by one; a pair of 2024-25 and one between two
+    // others stay out. Player 77 is in no other table.
+    await db.exec(`INSERT INTO pub_matchup_pairs VALUES
+      ${pair(203999, 2544, 30)}, ${pair(77, 2544, 50)}, ${pair(2544, 203999, 20)},
+      ${pair(203999, 2544, 99, 2025)}, ${pair(77, 203999, 40)}`)
+  })
+
+  it('lists who they guarded and who guarded them, longest first', async () => {
+    const m = await readMatchups(db, '2544', 2026)
+    expect(m.guarded.map((p) => [p.id, p.name, p.minutes])).toEqual([
+      ['77', 'Player 77', 50],
+      ['203999', 'Nikola Jokić', 30]
+    ])
+    expect(m.guardedBy).toEqual([
+      {
+        id: '203999',
+        name: 'Nikola Jokić',
+        games: 3,
+        minutes: 20,
+        partialPoss: 100,
+        pts: 2,
+        fgm: 1,
+        fga: 2,
+        fg3m: 0,
+        fg3a: 1,
+        ftm: 0,
+        fta: 0,
+        ast: 1,
+        tov: 0,
+        blk: 0
+      }
+    ])
+  })
+
+  it('is empty in a season without the pair file, and for an id that is not one', async () => {
+    await expect(readMatchups(db, '2544', 2017)).resolves.toEqual({ guarded: [], guardedBy: [] })
+    await expect(readMatchups(db, 'x; DROP', 2026)).resolves.toEqual({ guarded: [], guardedBy: [] })
   })
 })

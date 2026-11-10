@@ -586,7 +586,7 @@ Hustle (Plan T704) is read through the query engine over a whole regular season,
 
 ## The NBA's play types, read through the engine
 
-Play types (Plan T705) are read through the query engine over a whole regular season, against the raw file (`src_nba_play_types`), rows of totals: 18 types and sides, 13 measures each. A traded player has a row per team, so the raw rows are added up per player as the engine does: counts summed, rates published without their parts weighted by possessions (eFG% by attempts), and the frequency over the possessions its published share implies. A row matches when every type and measure does. **PPP** and **FG%** are rebuilt from their parts; the last two columns compare them with the published rates of players with one team, within the published rounding: three places from 2023-24, two before. In 2015-16 to 2017-18 some rows print points per possession as a whole number.
+Play types (Plan T705) are read through the query engine over a whole regular season, against the raw file (`src_nba_play_types`), rows of totals: 18 types and sides, 13 measures each. A traded player has a row per team, so the raw rows are added up per player as the engine does: counts summed, rates published without their parts weighted by possessions (eFG% by attempts), and the frequency over the possessions its published share implies. A row matches when every type and measure does. **PPP** and **FG%** are rebuilt from their parts; the last two columns compare them with the published rates of players with one team, within the published rounding: three places from 2023-24, two before. The file prints points per possession as a whole number on 248 regular-season rows of 2015-16, and on about a quarter of the playoff rows of 2015-16 to 2017-18: those are the misses, and the rate rebuilt from the parts is the right one.
 
 | Season  | Players | Rows same % | Values same % | Traded rows | PPP as published % | FG% as published % |
 | ------- | ------- | ----------- | ------------- | ----------- | ------------------ | ------------------ |
@@ -603,6 +603,47 @@ Play types (Plan T705) are read through the query engine over a whole regular se
 | 2025-26 | 444     | 100.0       | 100.0         | 89          | 100.0              | 100.0              |
 
 Over two seasons together (2024-25 and 2025-26), spot-up points per possession from summed parts, frequency over the implied possessions and turnover frequency weighted by possessions, worked out from the raw file: 483 of 483 players read the same through the engine.
+
+## The NBA's matchups, read through the engine
+
+Matchups (Plan T706) are read through the query engine over a whole regular season. In the regular season a defender's totals add up the pair file (`src_nba_season_matchups`), rows of totals; a row matches when all 11 measures do (matchup minutes, partial possessions, points, team points, FGM, FGA, 3PA, FTA, turnovers, shooting fouls, FG%). The next two check the pair file against the game matchups (`src_nba_game_matchups`, regular-season games): the share of defenders with the same points, makes and attempts, and how far the game files' matchup time differs in all. The last two compare the rollup by defender (`src_nba_matchup_rollups`) with the pair file: the share of defenders with the same points and attempts, and how far its matchup time differs from the pair file's in all. The 2025-26 rollup reads about 5 % less time and matches almost no defender; the pair file and the game matchups agree, so the regular-season totals read the pair file.
+
+| Season  | Defenders | Rows same % | Pairs = games % | Games time vs pairs % | Rollup = pairs % | Rollup time vs pairs % |
+| ------- | --------- | ----------- | --------------- | --------------------- | ---------------- | ---------------------- |
+| 2017-18 | 540       | 100.0       | 100.0           | 0.00                  | 96.7             | 0.0                    |
+| 2018-19 | 529       | 100.0       | 100.0           | 0.00                  | 93.8             | 0.0                    |
+| 2019-20 | 529       | 100.0       | 100.0           | 0.00                  | 99.4             | 0.0                    |
+| 2020-21 | 540       | 100.0       | 100.0           | 0.00                  | 99.4             | 0.0                    |
+| 2021-22 | 605       | 100.0       | 100.0           | 0.00                  | 98.8             | 0.0                    |
+| 2022-23 | 539       | 100.0       | 100.0           | 0.00                  | 99.4             | 0.0                    |
+| 2023-24 | 572       | 100.0       | 100.0           | 0.00                  | 98.8             | 0.0                    |
+| 2024-25 | 569       | 100.0       | 100.0           | 0.00                  | 99.6             | 0.0                    |
+| 2025-26 | 582       | 100.0       | 100.0           | 0.00                  | 0.7              | -5.5                   |
+
+The time on guards, forwards and centers against the rollup’s published percent of time, all three within 0.1 and within 1 percentage point. The NBA works the share out from unrounded time while the file prints it to the second, so a share rebuilt from the printed time is off by rounding, most on the smallest samples; from 2025-26 the two agree more closely. In the playoffs, which only the rollup has, its points and partial possessions should read back exactly.
+
+| Season  | Type           | Defenders | Shares within 0.1 pt % | Within 1 pt % | Playoff totals same % |
+| ------- | -------------- | --------- | ---------------------- | ------------- | --------------------- |
+| 2017-18 | Regular season | 540       | 94.3                   | 99.6          | –                     |
+| 2017-18 | Playoffs       | 210       | 87.6                   | 99.0          | 100.0                 |
+| 2018-19 | Regular season | 529       | 96.2                   | 99.8          | –                     |
+| 2018-19 | Playoffs       | 212       | 89.2                   | 99.1          | 100.0                 |
+| 2019-20 | Regular season | 529       | 97.4                   | 99.8          | –                     |
+| 2019-20 | Playoffs       | 216       | 84.3                   | 99.5          | 100.0                 |
+| 2020-21 | Regular season | 540       | 97.8                   | 100.0         | –                     |
+| 2020-21 | Playoffs       | 239       | 82.4                   | 100.0         | 100.0                 |
+| 2021-22 | Regular season | 605       | 94.9                   | 99.8          | –                     |
+| 2021-22 | Playoffs       | 217       | 85.7                   | 98.2          | 100.0                 |
+| 2022-23 | Regular season | 539       | 97.6                   | 99.8          | –                     |
+| 2022-23 | Playoffs       | 217       | 83.9                   | 99.1          | 100.0                 |
+| 2023-24 | Regular season | 572       | 96.5                   | 99.8          | –                     |
+| 2023-24 | Playoffs       | 214       | 84.6                   | 99.5          | 100.0                 |
+| 2024-25 | Regular season | 569       | 96.5                   | 100.0         | –                     |
+| 2024-25 | Playoffs       | 219       | 86.8                   | 100.0         | 100.0                 |
+| 2025-26 | Regular season | 582       | 100.0                  | 100.0         | –                     |
+| 2025-26 | Playoffs       | 230       | 98.7                   | 100.0         | 100.0                 |
+
+Over two seasons together (2024-25 and 2025-26), points and FG% allowed from the pair file added up over both: 687 of 687 defenders read the same through the engine.
 
 ## The published standings
 

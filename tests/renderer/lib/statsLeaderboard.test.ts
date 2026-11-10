@@ -108,7 +108,8 @@ describe('the column picker and presets', () => {
       'composite',
       'tracking',
       'hustle',
-      'play_types'
+      'play_types',
+      'matchups'
     ])
     // Play types preset to how often and how well, for the six commonest offensive types.
     expect([...familyColumns(CATALOGUE, tab, 'play_types')].sort()).toEqual(

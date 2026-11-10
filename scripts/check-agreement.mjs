@@ -1300,6 +1300,213 @@ out.push(
   `Over two seasons together (2024-25 and 2025-26), spot-up points per possession from summed parts, frequency over the implied possessions and turnover frequency weighted by possessions, worked out from the raw file: ${COUNT.format(playTypeTwoSame)} of ${COUNT.format(playTypeTwoRows)} players read the same through the engine.`
 )
 
+// Matchups (Plan T706) through the engine, against the raw files. In the regular season a defender's
+// totals add up the pair file, which is checked against the game matchups too; the rollup by defender
+// is compared with both. Its split by position should read back as its published percent of time,
+// and the playoffs, which only the rollup has, as the rollup.
+const MATCHUP_CHECKS = [
+  ['matchup_min', 'minutes'],
+  ['matchup_poss', 'poss'],
+  ['matchup_pts', 'pts'],
+  ['matchup_team_pts', 'team_pts'],
+  ['matchup_fgm', 'fgm'],
+  ['matchup_fga', 'fga'],
+  ['matchup_fg3a', 'fg3a'],
+  ['matchup_fta', 'fta'],
+  ['matchup_tov', 'tov'],
+  ['matchup_sfl', 'sfl'],
+  ['matchup_fg_pct', 'fg_pct']
+]
+const MATCHUP_SUMS = `sum(partial_poss) AS poss, sum(player_pts) AS pts, sum(team_pts) AS team_pts,
+  sum(matchup_fgm) AS fgm, sum(matchup_fga) AS fga, sum(matchup_fg3_a) AS fg3a,
+  sum(matchup_fta) AS fta, sum(matchup_tov) AS tov, sum(sfl) AS sfl,
+  sum(matchup_fgm) / nullif(sum(matchup_fga), 0) AS fg_pct`
+const CLOCK = `(TRY_CAST(split_part(matchup_min, ':', 1) AS DOUBLE)
+  + TRY_CAST(split_part(matchup_min, ':', 2) AS DOUBLE) / 60)`
+
+async function matchupValues(seasons, gameTypes, metrics) {
+  const result = await query({
+    entity: 'player',
+    metrics,
+    scope: { seasons, gameTypes },
+    limit: 5000
+  })
+  return new Map(
+    result.rows.map((r) => [
+      Number(r.id),
+      Object.fromEntries(Object.entries(r.values).map(([id, v]) => [id, v.value]))
+    ])
+  )
+}
+
+const matchupRows = []
+const matchupSeasons = finished.filter((s) => s >= 2018)
+for (const season of matchupSeasons) {
+  const ours = await matchupValues(
+    [season],
+    ['regular'],
+    MATCHUP_CHECKS.map(([id]) => id)
+  )
+  const pairs =
+    await read(`SELECT def_player_id, sum(matchup_time_sec) / 60 AS minutes, ${MATCHUP_SUMS}
+    FROM src_nba_season_matchups
+    WHERE season = ${season} AND per_mode = 'totals' GROUP BY 1`)
+  const gameFile = new Map(
+    (
+      await read(`SELECT def_person_id AS id, sum(player_points) AS pts,
+          sum(matchup_field_goals_made) AS fgm, sum(matchup_field_goals_attempted) AS fga,
+          sum(matchup_minutes_sort) / 60 AS minutes
+        FROM src_nba_game_matchups WHERE season = ${season} AND game_id LIKE '002%' GROUP BY 1`)
+    ).map((r) => [Number(r.id), r])
+  )
+  const rollup = new Map(
+    (
+      await read(`SELECT def_player_id AS id, ${CLOCK} AS minutes, player_pts AS pts,
+          matchup_fga AS fga
+        FROM src_nba_matchup_rollups
+        WHERE season = ${season} AND season_type = 'regular-season' AND per_mode = 'totals'
+          AND position = 'TOTAL'`)
+    ).map((r) => [Number(r.id), r])
+  )
+  let rows = 0
+  let rowsSame = 0
+  let gameSame = 0
+  let rollupSame = 0
+  let rollupMinutes = 0
+  let pairMinutes = 0
+  let gameMinutes = 0
+  for (const r of pairs) {
+    const o = ours.get(Number(r.def_player_id))
+    if (!o) continue
+    rows++
+    if (MATCHUP_CHECKS.every(([id, c]) => same(o[id] ?? null, r[c]))) rowsSame++
+    const g = gameFile.get(Number(r.def_player_id))
+    if (g && g.pts === r.pts && g.fgm === r.fgm && g.fga === r.fga) gameSame++
+    gameMinutes += g?.minutes ?? 0
+    const u = rollup.get(Number(r.def_player_id))
+    if (u && u.pts === r.pts && u.fga === r.fga) rollupSame++
+    rollupMinutes += u?.minutes ?? 0
+    pairMinutes += r.minutes
+  }
+  matchupRows.push([
+    label(season),
+    COUNT.format(rows),
+    pct(rowsSame, rows),
+    pct(gameSame, rows),
+    (100 * (gameMinutes / pairMinutes - 1)).toFixed(2).replace(/^-0\.00$/, '0.00'),
+    pct(rollupSame, rows),
+    (100 * (rollupMinutes / pairMinutes - 1)).toFixed(1)
+  ])
+}
+
+// The split by position, and the playoffs, against the rollup as published.
+const positionRows = []
+for (const season of matchupSeasons) {
+  for (const type of ['regular', 'playoffs']) {
+    const ours = await matchupValues(
+      [season],
+      [type],
+      [
+        'matchup_g_time_pct',
+        'matchup_f_time_pct',
+        'matchup_c_time_pct',
+        'matchup_pts',
+        'matchup_poss'
+      ]
+    )
+    const raw = await read(`SELECT def_player_id AS id,
+        max(percent_of_time) FILTER (WHERE position = 'G') AS g,
+        max(percent_of_time) FILTER (WHERE position = 'F') AS f,
+        max(percent_of_time) FILTER (WHERE position = 'C') AS c,
+        max(player_pts) FILTER (WHERE position = 'TOTAL') AS pts,
+        max(partial_poss) FILTER (WHERE position = 'TOTAL') AS poss
+      FROM src_nba_matchup_rollups
+      WHERE season = ${season} AND per_mode = 'totals'
+        AND season_type = '${type === 'regular' ? 'regular-season' : 'playoffs'}'
+      GROUP BY 1`)
+    let rows = 0
+    let shares = 0
+    let sharesNear = 0
+    let totals = 0
+    for (const r of raw) {
+      const o = ours.get(Number(r.id))
+      if (!o) continue
+      rows++
+      // A share the rollup leaves out is no time there: the engine reads it as 0 of the total.
+      const near = (tolerance) =>
+        within(o.matchup_g_time_pct ?? 0, r.g ?? 0, tolerance) &&
+        within(o.matchup_f_time_pct ?? 0, r.f ?? 0, tolerance) &&
+        within(o.matchup_c_time_pct ?? 0, r.c ?? 0, tolerance)
+      if (near(0.001)) shares++
+      if (near(0.01)) sharesNear++
+      if (same(o.matchup_pts ?? null, r.pts) && same(o.matchup_poss ?? null, r.poss)) totals++
+    }
+    positionRows.push([
+      label(season),
+      type === 'regular' ? 'Regular season' : 'Playoffs',
+      COUNT.format(rows),
+      pct(shares, rows),
+      pct(sharesNear, rows),
+      type === 'playoffs' ? pct(totals, rows) : '–'
+    ])
+  }
+}
+
+// Two seasons together: the pair file added up over both.
+const matchupTwoOurs = await matchupValues(
+  [2025, 2026],
+  ['regular'],
+  ['matchup_pts', 'matchup_fg_pct']
+)
+const matchupTwoRaw = await read(`SELECT def_player_id, ${MATCHUP_SUMS}
+  FROM src_nba_season_matchups WHERE season IN (2025, 2026) AND per_mode = 'totals' GROUP BY 1`)
+let matchupTwoRows = 0
+let matchupTwoSame = 0
+for (const r of matchupTwoRaw) {
+  const o = matchupTwoOurs.get(Number(r.def_player_id))
+  if (!o) continue
+  matchupTwoRows++
+  if (same(o.matchup_pts ?? null, r.pts) && same(o.matchup_fg_pct ?? null, r.fg_pct)) {
+    matchupTwoSame++
+  }
+}
+
+out.push(
+  '',
+  "## The NBA's matchups, read through the engine",
+  '',
+  `Matchups (Plan T706) are read through the query engine over a whole regular season. In the regular season a defender's totals add up the pair file (\`src_nba_season_matchups\`), rows of totals; a row matches when all ${MATCHUP_CHECKS.length} measures do (matchup minutes, partial possessions, points, team points, FGM, FGA, 3PA, FTA, turnovers, shooting fouls, FG%). The next two check the pair file against the game matchups (\`src_nba_game_matchups\`, regular-season games): the share of defenders with the same points, makes and attempts, and how far the game files' matchup time differs in all. The last two compare the rollup by defender (\`src_nba_matchup_rollups\`) with the pair file: the share of defenders with the same points and attempts, and how far its matchup time differs from the pair file's in all. The 2025-26 rollup reads about 5 % less time and matches almost no defender; the pair file and the game matchups agree, so the regular-season totals read the pair file.`,
+  '',
+  table(
+    [
+      'Season',
+      'Defenders',
+      'Rows same %',
+      'Pairs = games %',
+      'Games time vs pairs %',
+      'Rollup = pairs %',
+      'Rollup time vs pairs %'
+    ],
+    matchupRows
+  ),
+  '',
+  'The time on guards, forwards and centers against the rollup’s published percent of time, all three within 0.1 and within 1 percentage point. The NBA works the share out from unrounded time while the file prints it to the second, so a share rebuilt from the printed time is off by rounding, most on the smallest samples; from 2025-26 the two agree more closely. In the playoffs, which only the rollup has, its points and partial possessions should read back exactly.',
+  '',
+  table(
+    [
+      'Season',
+      'Type',
+      'Defenders',
+      'Shares within 0.1 pt %',
+      'Within 1 pt %',
+      'Playoff totals same %'
+    ],
+    positionRows
+  ),
+  '',
+  `Over two seasons together (2024-25 and 2025-26), points and FG% allowed from the pair file added up over both: ${COUNT.format(matchupTwoSame)} of ${COUNT.format(matchupTwoRows)} defenders read the same through the engine.`
+)
+
 // The published standings, which the Standings screen and a team's header read.
 const standings = await read(`WITH e AS (
     SELECT s.season, t.team_id,

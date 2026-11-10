@@ -5,6 +5,7 @@ import type {
   StatsDataReport,
   StatsGame,
   StatsGameDetail,
+  StatsMatchups,
   StatsPlayerInfo,
   StatsQuery,
   StatsResult,
@@ -76,6 +77,8 @@ export interface Api {
     game(id: string): Promise<StatsGameDetail | null>
     /** The published standings of a season; empty before they start, in 1995-96. */
     standings(season: number): Promise<StatsStanding[]>
+    /** A player's season matchups: regular season only, from 2017-18; empty lists outside them. */
+    matchups(player: string, season: number): Promise<StatsMatchups>
     views(): Promise<StatsView[]>
     /** Saves under a name; the same name, in any case, replaces. Rejects with a readable message. */
     saveView(name: string, board: LeaderboardBoard): Promise<StatsView>
@@ -119,6 +122,7 @@ export const IPC = {
   statsGames: 'stats:games',
   statsGame: 'stats:game',
   statsStandings: 'stats:standings',
+  statsMatchups: 'stats:matchups',
   statsViews: 'stats:views',
   statsSaveView: 'stats:saveView',
   statsDeleteView: 'stats:deleteView',

@@ -5,6 +5,7 @@ import type {
   StatsDataReport,
   StatsGame,
   StatsGameDetail,
+  StatsMatchups,
   StatsPlayerInfo,
   StatsQuery,
   StatsResult,
@@ -37,6 +38,7 @@ export interface StatsClient {
   games(season: number): Promise<StatsGame[]>
   game(id: string): Promise<StatsGameDetail | null>
   standings(season: number): Promise<StatsStanding[]>
+  matchups(player: string, season: number): Promise<StatsMatchups>
   /** Closes the database and ends the worker (after `CLOSE_TIMEOUT_MS` at most). */
   close(): Promise<void>
 }
@@ -102,6 +104,8 @@ export function startStatsWorker(
     games: (season) => request<StatsGame[]>((id) => ({ id, kind: 'games', season })),
     game: (game) => request<StatsGameDetail | null>((id) => ({ id, kind: 'game', game })),
     standings: (season) => request<StatsStanding[]>((id) => ({ id, kind: 'standings', season })),
+    matchups: (player, season) =>
+      request<StatsMatchups>((id) => ({ id, kind: 'matchups', player, season })),
     async close() {
       if (!dead) {
         let timer: NodeJS.Timeout | undefined

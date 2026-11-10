@@ -25,6 +25,7 @@ export type MetricFamily =
   | 'tracking'
   | 'hustle'
   | 'play_types'
+  | 'matchups'
 
 /** `core` shown by default, `extended` in its family and the column picker, `stored` in queries only. */
 export type MetricTier = 'core' | 'extended' | 'stored'
@@ -299,6 +300,37 @@ export interface StatsStanding {
   pointsPerGame: number | null
   allowedPerGame: number | null
   differential: number | null
+}
+
+/**
+ * One pair of a player's season matchups: the other player, and what the offensive player did while
+ * that defender was assigned to them. Regular season only, as published.
+ */
+export interface StatsMatchupPair {
+  /** The other player: the one guarded, or the one guarding. */
+  id: string
+  name: string
+  games: number | null
+  minutes: number | null
+  partialPoss: number | null
+  pts: number | null
+  fgm: number | null
+  fga: number | null
+  fg3m: number | null
+  fg3a: number | null
+  ftm: number | null
+  fta: number | null
+  ast: number | null
+  tov: number | null
+  blk: number | null
+}
+
+/** A player's season matchups, each list longest first. */
+export interface StatsMatchups {
+  /** The players they guarded. */
+  guarded: StatsMatchupPair[]
+  /** The players who guarded them. */
+  guardedBy: StatsMatchupPair[]
 }
 
 /** The totals modes a table offers; a ratio reads the same in each. */

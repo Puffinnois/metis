@@ -1,10 +1,10 @@
 import type { StatsDb } from '../db'
 import { PUBLISHED_TABLES, type PublishedColumn, type PublishedTable } from './publishedTables'
 import { column, inspect, type Have } from './sql'
-import { TOKEN } from '@shared/stats/catalogue'
+import { MATCHUP_PAIRS, matchupPairsBootstrap, matchupPairsSql } from './matchupPairs'
 
 /** Bump when a table changes, so the next refresh builds them without downloading anything. */
-export const PUBLISHED_VERSION = 5
+export const PUBLISHED_VERSION = 6
 
 /** What the engine divides a published sum by. A table always has these, NULL when not published. */
 export const PUBLISHED_DIVISORS = ['games', 'minutes', 'possessions'] as const
@@ -28,16 +28,19 @@ const keyOf = (t: PublishedTable): string => (t.entity === 'player' ? 'player_id
  * null with a reason there, not a missing table.
  */
 export function publishedBootstrap(): string[] {
-  return PUBLISHED_TABLES.flatMap((t) => [
-    `CREATE TABLE IF NOT EXISTS ${t.table} (
+  return [
+    ...matchupPairsBootstrap(),
+    ...PUBLISHED_TABLES.flatMap((t) => [
+      `CREATE TABLE IF NOT EXISTS ${t.table} (
        ${keyOf(t)} BIGINT, season INTEGER, game_type VARCHAR,
        ${publishedComponents(t)
          .map((c) => `${c} DOUBLE`)
          .join(', ')})`,
-    ...publishedComponents(t).map(
-      (c) => `ALTER TABLE ${t.table} ADD COLUMN IF NOT EXISTS ${c} DOUBLE`
-    )
-  ])
+      ...publishedComponents(t).map(
+        (c) => `ALTER TABLE ${t.table} ADD COLUMN IF NOT EXISTS ${c} DOUBLE`
+      )
+    ])
+  ]
 }
 
 /** A season type, as either spelling the sources use, in the one set (D12). */
@@ -45,41 +48,95 @@ const gameType = (seasonType: string): string =>
   `CASE lower(replace(${seasonType}, ' ', '-'))
      WHEN 'regular-season' THEN 'regular' WHEN 'playoffs' THEN 'playoffs' END`
 
-/**
- * One table, from the source's rows of totals. The per-game files are not simply totals over games
- * (`nba-data-sources.md`), and a total can be added across seasons. What is missing reads as NULL.
- */
-function buildSql(t: PublishedTable, have: Have): string {
-  const held = have.columns.get(t.source)
-  const one = (name: string): string => column(have, t.source, 's', name, 'DOUBLE')
+/** A source's column in a worked-out component: `{min}` as a number, `{min:text}` as published. */
+const SOURCE_TOKEN = /\{([a-z0-9_]+)(:text)?\}/g
+
+/** Where a source's rows of totals come from, and which of them to read. */
+interface Rows {
+  source: string
+  match?: Readonly<Record<string, string>>
+  firstSeason?: number
+}
+
+/** The pieces of a SELECT over one source's rows of totals: what to read, and how. */
+function rowsOf(
+  r: Rows,
+  have: Have
+): {
+  source: string
+  read: (sql: string | null | undefined) => string
+  season: string
+  type: string
+  from: string
+  where: string[]
+} {
+  const held = have.columns.get(r.source)
   // A bare name is the source's column; anything else is worked out from `{column}`s.
   const read = (sql: string | null | undefined): string =>
     !sql
       ? 'NULL::DOUBLE'
       : sql.includes('{')
-        ? `(${sql.replace(TOKEN, (_, c: string) => one(c))})`
-        : one(sql)
-  const season = column(have, t.source, 's', 'season')
-  const type = gameType(column(have, t.source, 's', 'season_type', 'VARCHAR'))
+        ? `(${sql.replace(SOURCE_TOKEN, (_, c: string, text?: string) =>
+            column(have, r.source, 's', c, text ? 'VARCHAR' : 'DOUBLE')
+          )})`
+        : column(have, r.source, 's', sql, 'DOUBLE')
+  const season = column(have, r.source, 's', 'season')
+  const type = gameType(column(have, r.source, 's', 'season_type', 'VARCHAR'))
   const where = [`${type} IS NOT NULL`]
   if (held?.has('per_mode')) where.push("lower(s.per_mode) = 'totals'")
-  if (t.firstSeason !== undefined) where.push(`${season} >= ${t.firstSeason}`)
-  for (const [name, value] of Object.entries(t.match ?? {})) {
+  if (r.firstSeason !== undefined) where.push(`${season} >= ${r.firstSeason}`)
+  for (const [name, value] of Object.entries(r.match ?? {})) {
     where.push(
-      `lower(${column(have, t.source, 's', name, 'VARCHAR')}) = '${value.toLowerCase().replaceAll("'", "''")}'`
+      `lower(${column(have, r.source, 's', name, 'VARCHAR')}) = '${value.toLowerCase().replaceAll("'", "''")}'`
     )
   }
-  const columns = [
-    `${read(t.games)} AS games`,
-    `${read(t.minutes)} AS minutes`,
-    `${read(t.possessions)} AS possessions`,
-    ...t.columns.map((c) => `${read(typeof c === 'string' ? c : c.sql)} AS ${nameOf(c)}`)
+  return { source: r.source, read, season, type, from: held ? r.source : '(SELECT 1)', where }
+}
+
+/**
+ * One table, from the source's rows of totals. The per-game files are not simply totals over games
+ * (`nba-data-sources.md`), and a total can be added across seasons. What is missing reads as NULL.
+ */
+function buildSql(t: PublishedTable, have: Have): string {
+  const key = keyOf(t)
+  const main = rowsOf(t, have)
+  const r = t.replacedBy
+  const taken = new Set(Object.keys(r?.columns ?? {}))
+  const named = [
+    { name: 'games', sql: t.games },
+    { name: 'minutes', sql: t.minutes },
+    { name: 'possessions', sql: t.possessions },
+    ...t.columns.map((c) => ({ name: nameOf(c), sql: typeof c === 'string' ? c : c.sql }))
   ]
+  // Where the replacement holds the season and type, this source's values of what it takes over are
+  // left out; its rows still give the rest.
+  const mine = (name: string, sql: string | null | undefined): string =>
+    taken.has(name) ? `CASE WHEN c.season IS NULL THEN ${main.read(sql)} END` : main.read(sql)
+  const select = (
+    rows: ReturnType<typeof rowsOf>,
+    keyColumn: string,
+    value: (name: string, sql: string | null | undefined) => string,
+    join = ''
+  ): string => `
+    SELECT ${column(have, rows.source, 's', keyColumn, 'BIGINT')} AS ${key},
+           ${rows.season} AS season, ${rows.type} AS game_type,
+           ${named.map((n) => `${value(n.name, n.sql)} AS ${n.name}`).join(', ')}
+    FROM ${rows.from} s ${join}
+    WHERE ${rows.where.join(' AND ')}`
+  if (!r) {
+    return `CREATE OR REPLACE TABLE ${t.table} AS ${select(main, t.key ?? key, (_, sql) => main.read(sql))}`
+  }
+  const other = rowsOf({ source: r.source, firstSeason: t.firstSeason }, have)
+  // The replacement's rows are added up per player or team first: the engine would add them anyway,
+  // and the pair file has hundreds of rows for each defender.
   return `CREATE OR REPLACE TABLE ${t.table} AS
-    SELECT ${column(have, t.source, 's', keyOf(t), 'BIGINT')} AS ${keyOf(t)},
-           ${season} AS season, ${type} AS game_type, ${columns.join(', ')}
-    FROM ${held ? t.source : '(SELECT 1)'} s
-    WHERE ${where.join(' AND ')}`
+    WITH c AS (SELECT DISTINCT ${other.season} AS season, ${other.type} AS game_type
+               FROM ${other.from} s WHERE ${other.where.join(' AND ')})
+    ${select(main, t.key ?? key, mine, `LEFT JOIN c ON c.season = ${main.season} AND c.game_type = ${main.type}`)}
+    UNION ALL
+    SELECT ${key}, season, game_type, ${named.map((n) => `sum(${n.name}) AS ${n.name}`).join(', ')}
+    FROM (${select(other, r.key ?? key, (name) => other.read(r.columns[name]))})
+    GROUP BY ${key}, season, game_type`
 }
 
 /** With no table to build, there is no step to log. */
@@ -112,6 +169,9 @@ export async function buildPublished(db: StatsDb): Promise<number> {
     const row = await db.get<{ n: number }>(`SELECT count(*)::INTEGER AS n FROM ${t.table}`)
     rows += row?.n ?? 0
   }
+  await db.exec(matchupPairsSql(have))
+  const pairs = await db.get<{ n: number }>(`SELECT count(*)::INTEGER AS n FROM ${MATCHUP_PAIRS}`)
+  rows += pairs?.n ?? 0
   await db.exec('INSERT OR REPLACE INTO derived_state VALUES (?, ?)', [
     'published',
     PUBLISHED_VERSION

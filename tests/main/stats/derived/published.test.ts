@@ -7,6 +7,7 @@ import {
   PUBLISHED_VERSION,
   publishedStale
 } from '@main/stats/derived/published'
+import { MATCHUP_COUNTS } from '@main/stats/derived/publishedTables'
 import { bootstrapStatsDb } from '@main/stats/schema'
 import { openTestDb } from '../../../fixtures/stats'
 
@@ -19,6 +20,9 @@ vi.mock('@main/stats/derived/publishedTables', async (actual) => {
       real.PUBLISHED_TABLES.find((t) => t.table === 'pub_player_catch_shoot')!,
       // A play type, read from the one file of them all.
       real.PUBLISHED_TABLES.find((t) => t.table === 'pub_player_pt_d_iso')!,
+      // The defenders' matchups: the rollup, with the pair file taking over where it is out.
+      real.PUBLISHED_TABLES.find((t) => t.table === 'pub_player_matchups')!,
+      real.PUBLISHED_TABLES.find((t) => t.table === 'pub_player_matchup_positions')!,
       {
         table: 'published_test_widgets',
         entity: 'player',
@@ -224,6 +228,84 @@ describe('the published tables', () => {
       { player_id: 2, games: 20, d_iso_poss: 20, d_iso_freq_poss: 20 },
       { player_id: 2, games: 30, d_iso_poss: 2, d_iso_freq_poss: null, d_iso_all_poss: null }
     ])
+  })
+
+  describe('matchups', () => {
+    const COUNTS = MATCHUP_COUNTS.map((c) => `${c} DOUBLE`).join(', ')
+    /** A row of the rollup or the pair file: every count is `n`, so each row's share is plain. */
+    const counts = (n: number): string => MATCHUP_COUNTS.map(() => n).join(', ')
+
+    beforeEach(async () => {
+      await db.exec(`CREATE TABLE src_nba_matchup_rollups (def_player_id BIGINT, position VARCHAR,
+        gp BIGINT, matchup_min VARCHAR, partial_poss DOUBLE, ${COUNTS}, season INTEGER,
+        season_type VARCHAR, per_mode VARCHAR)`)
+      await db.exec(`CREATE TABLE src_nba_season_matchups (off_player_id BIGINT,
+        def_player_id BIGINT, gp BIGINT, matchup_min VARCHAR, partial_poss DOUBLE, ${COUNTS},
+        season INTEGER, season_type VARCHAR, per_mode VARCHAR, matchup_time_sec DOUBLE)`)
+      // LeBron James (2544) guarding in 2025-26 and 2026-27. The 2025-26 rollup reads short of the
+      // pair file, as measured; 2026-27 has no pair file yet. `9:60` is how the source writes a
+      // clock it rounded up.
+      await db.exec(`INSERT INTO src_nba_matchup_rollups VALUES
+        (2544, 'TOTAL', 60, '749:48', 3861.3, ${counts(10)}, 2026, 'regular-season', 'totals'),
+        (2544, 'G', 60, '315:04', 1616.7, ${counts(4)}, 2026, 'regular-season', 'totals'),
+        (2544, 'F', 60, '356:37', 1823, ${counts(5)}, 2026, 'regular-season', 'totals'),
+        (2544, 'C', 50, '78:07', 421.6, ${counts(1)}, 2026, 'regular-season', 'totals'),
+        (2544, 'TOTAL', 60, '12.5', 64.4, ${counts(1)}, 2026, 'regular-season', 'pergame'),
+        (2544, 'TOTAL', 5, '9:60', 60, ${counts(2)}, 2026, 'playoffs', 'totals'),
+        (2544, 'G', 5, '9:60', 60, ${counts(2)}, 2026, 'playoffs', 'totals'),
+        (2544, 'TOTAL', 7, '80:30', 410, ${counts(3)}, 2027, 'regular-season', 'totals'),
+        (2544, 'TOTAL', 70, '800:00', 4000, ${counts(9)}, 2017, 'regular-season', 'totals')`)
+      await db.exec(`INSERT INTO src_nba_season_matchups VALUES
+        (1, 2544, 3, '30:00', 150, ${counts(6)}, 2026, 'regular-season', 'totals', 1800),
+        (2, 2544, 2, '9:60', 60, ${counts(5)}, 2026, 'regular-season', 'totals', 599.5),
+        (2, 2544, 2, '5.0', 30, ${counts(2)}, 2026, 'regular-season', 'pergame', 300)`)
+    })
+
+    it('add up the pair file in its seasons, and keep the rollup for the games and the rest', async () => {
+      await buildPublished(db)
+      const sums = await db.all<Record<string, number>>(
+        `SELECT season, game_type, sum(games) AS games, sum(possessions) AS poss,
+                sum(matchup_minutes) AS minutes, sum(player_pts) AS pts, sum(sfl) AS sfl
+         FROM pub_player_matchups WHERE player_id = 2544 GROUP BY ALL ORDER BY ALL`
+      )
+      expect(sums).toEqual([
+        // The pair file's two pairs, over the rollup's 60 games.
+        { season: 2026, game_type: 'playoffs', games: 5, poss: 60, minutes: 10, pts: 2, sfl: 2 },
+        {
+          season: 2026,
+          game_type: 'regular',
+          games: 60,
+          poss: 210,
+          minutes: (1800 + 599.5) / 60,
+          pts: 11,
+          sfl: 11
+        },
+        { season: 2027, game_type: 'regular', games: 7, poss: 410, minutes: 80.5, pts: 3, sfl: 3 }
+      ])
+    })
+
+    it('split the rollup by the position guarded, over its own total', async () => {
+      await buildPublished(db)
+      const [row] = await db.all<Record<string, number>>(
+        `SELECT sum(pos_all_minutes) AS all_min, sum(pos_g_minutes) AS g_min,
+                sum(pos_c_poss) AS c_poss, sum(pos_f_pts) AS f_pts, sum(pos_g_fga) AS g_fga
+         FROM pub_player_matchup_positions
+         WHERE player_id = 2544 AND season = 2026 AND game_type = 'regular'`
+      )
+      expect(row.g_min / row.all_min).toBeCloseTo(0.4202009424735, 9)
+      expect(row).toMatchObject({ c_poss: 421.6, f_pts: 5, g_fga: 4 })
+    })
+
+    it('list each pair of a season, from the pair file’s totals', async () => {
+      await buildPublished(db)
+      expect(
+        await db.all(`SELECT off_player_id, games, minutes, partial_poss, player_pts
+          FROM pub_matchup_pairs ORDER BY off_player_id`)
+      ).toEqual([
+        { off_player_id: 1, games: 3, minutes: 30, partial_poss: 150, player_pts: 6 },
+        { off_player_id: 2, games: 2, minutes: 599.5 / 60, partial_poss: 60, player_pts: 5 }
+      ])
+    })
   })
 
   it('build empty, without failing, while a source is not loaded', async () => {
