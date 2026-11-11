@@ -79,6 +79,33 @@ No rate is stored. Every column is a count or a sum over the same games, divided
 - **`after_break`:** against the date of the All-Star Game that was played, or one still to come this season. Before 1996-97 the schedule has none, so those three dates are in the code, each checked against the gap in that February's games. 1998-99's was cancelled, so that season reads NULL.
 - **Plus-minus** is the NBA's, from 1996-97. ESPN's column is zero before then, and is not read.
 
+## Plays, shots and possessions
+
+Built by `src/main/stats/derived/plays.ts` and `events.ts`, logged as `stats:plays`, once at the end of a refresh in which a file of the events or plays tier (or of the core tier) wrote rows, or when a new `PLAYS_VERSION` made them stale. They are keyed to `game` and `team`, so season types, team codes and the All-Star games ESPN files as regular season come from there (D27). Each source has its own table or view and they are never merged (data policy 5). How well they agree with the box scores is in [nba-plays-agreement.md](nba-plays-agreement.md), and the traps behind each rule in [nba-data-sources.md](nba-data-sources.md), "Plays".
+
+| Object       | Kind  | One row per                                  | Holds                                                                                    |
+| ------------ | ----- | -------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `play_nba`   | table | row of the NBA's play by play, 1996-97 on    | The play keyed to the game, its clock, the score after, who acted and the counting flags |
+| `play_espn`  | table | row of ESPN's play by play, 2001-02 on       | The same columns                                                                         |
+| `plays`      | view  | row of either, with `source` (`nba`, `espn`) | Both tables, plus `elapsed` and the score before                                         |
+| `shot_nba`   | view  | shot in the NBA's shot chart                 | Made, value, distance and the NBA's coordinates (tenths of a foot from the basket)       |
+| `shot_espn`  | view  | shot or free throw in ESPN's file            | Made, the value of a make, the second athlete and ESPN's coordinates                     |
+| `possession` | view  | possession in SportsDataverse's derived file | Offense, defense, the plays it spans, points, its counts and the ten players on court    |
+
+**What later work can rely on.** Sum flags; do not parse text.
+
+- **Keys:** `game_id` with `seq`, the order within the game and the source's own row key (the NBA's `order_index`, ESPN's `game_play_number`). `possession.start_seq` and `end_seq` are `seq` in `play_nba`.
+- **Time:** `period`, `clock` (seconds left in it) and, in `plays`, `elapsed` (seconds since the tip-off: 720 a quarter, 300 an overtime).
+- **Score:** `home_after`, `away_after` stored; `home_before`, `away_before` in `plays`, the score after less the play's points.
+- **Who:** `team_id` and `player_id` act; `opponent_id` is the other side, `home` whether `team_id` is at home. A row with a team and no player is the team's own (a team rebound, a shot-clock turnover).
+- **Flags** (`UTINYINT`, 0 or 1, `pts` 0 to 3): `fga`, `fgm`, `fg3a`, `fg3m`, `fta`, `ftm`, `pts`, `oreb`, `dreb`, `tov`, `pf` belong to the actor; `ast` to `assist_id`, of the same team; `stl` and `blk` to `steal_id` and `block_id`, of `opponent_id`. They sit on the turnover, the make or the miss they belong to, in both sources.
+- **A box-score line** is those sums, with rebounds and turnovers of rows that have a player: the box score leaves team rebounds and team turnovers out. That is how `scripts/check-plays.mjs` rebuilds it.
+- **`kind`** is one set for both sources: `field_goal`, `heave`, `free_throw`, `rebound`, `turnover`, `foul`, `steal`, `block`, `violation`, `jump_ball`, `substitution`, `timeout`, `period`, `replay`, `ejection`, `other`. `action` and `subtype` keep the source's own type text, for turnover and foul types.
+- **`possession`** is the NBA's possession number in `play_nba`; ESPN has none.
+- **Default source: the NBA's** (`DEFAULT_PLAY_SOURCE`). It starts five seasons earlier, carries possessions and the players on court, is the feed behind the box scores the app trusts, and matches them better: see the agreement report. A metric reads ESPN's only for what the NBA's lacks.
+
+**View or table, measured** on the full Stage 8 load, warm, a season's scan grouped by player or team-game: `play_nba` as a table answers in 10 to 31 ms; as a view it would redo its window functions, about 6 seconds a season. The shots and possessions answer in 15 to 38 ms as views and 4 to 15 ms as tables, and copies would cost about 540 MB and 11 seconds of build, so they stay views. Deeper pre-aggregation is T907's.
+
 ## The catalogue and the query engine
 
 `src/shared/stats/catalogue/` holds every metric, one file per family: `traditional`, `shooting`, `possessions`, `scoring`, `composite`. Each states the fields of reference section 19.4: entity, kind (recorded, derived, estimated, model), aggregation (a sum or a ratio of sums), unit, sample, direction, sources and first season. Its formula is SQL over component sums (`{fgm} / nullif({fga}, 0)`), so adding a metric needs no engine change. Every formula has a test against a value worked by hand, and the test fails for a metric that has none.
