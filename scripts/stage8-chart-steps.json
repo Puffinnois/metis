@@ -46,7 +46,7 @@
   },
   { "shot": "chart-picks" },
   {
-    "eval": "(async () => { button(/Compare these/); await sleep(800); return 'compare ' + JSON.stringify({ tab: document.querySelector('[role=tab][aria-selected=true]')?.textContent, subjects: document.querySelector('[data-subjects]')?.getAttribute('data-subjects') ?? null, h1: document.querySelector('main h1')?.innerText ?? null }) })()"
+    "eval": "(async () => { button(/Compare these/); await sleep(800); return 'compare ' + JSON.stringify({ tab: document.querySelector('[role=tab][aria-selected=true]')?.textContent, h1: document.querySelector('main h1')?.innerText ?? null, names: ['Amen Thompson', 'Kevin Durant', 'Tyrese Maxey'].filter((n) => document.querySelector('main').innerText.includes(n)) }) })()"
   },
   { "shot": "chart-to-compare" },
   {
