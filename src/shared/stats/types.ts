@@ -150,6 +150,11 @@ export interface StatsQuery {
     players?: string[]
     /** Game ids: one box score, or the games a screen names. */
     games?: string[]
+    /**
+     * A split of each game counted from the play by play (`src/shared/stats/splits.ts`): a quarter,
+     * clutch, the score, the last minutes, garbage time. Only the moments in it count.
+     */
+    split?: string
     qualifiedOnly?: boolean
   }
   groupBy?: GroupBy[]
