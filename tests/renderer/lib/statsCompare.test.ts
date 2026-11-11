@@ -375,6 +375,12 @@ describe('compareView', () => {
     expect(line('fg3_pct').sub).toBe('')
   })
 
+  it('does not call a slot missing from a cut-off answer gameless', () => {
+    const cut = { ...result([row('a', { pts: value(20) })], [column('pts')]), total: 5000 }
+    const v = compareView(cut, ['a', 'z', null], ['pts'], byId, 'perGame', 'player')
+    expect(v.groups[0].rows[0].cells[1]!.title).toBe('Beyond the rows the query returned.')
+  })
+
   it('leaves an open slot empty', () => {
     const v = compareView(res, ['a', null, 'c'], ['pts'], byId, 'perGame', 'player')
     expect(v.groups[0].rows[0].cells[1]).toBeNull()
@@ -435,6 +441,7 @@ describe('blankReason', () => {
   it('says when there were no games, or no sample', () => {
     expect(blankReason(info, undefined, null)).toBe('No games in scope.')
     expect(blankReason(info, row('a', {}), null)).toBe('No 3-point attempts in scope.')
+    expect(blankReason(info, undefined, null, true)).toBe('Beyond the rows the query returned.')
   })
 })
 

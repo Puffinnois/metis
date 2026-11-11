@@ -389,9 +389,11 @@ function partialFrom(info: MetricInfo, seasons: readonly number[] | null): strin
 export function blankReason(
   info: MetricInfo,
   row: StatsRow | undefined,
-  seasons: readonly number[] | null
+  seasons: readonly number[] | null,
+  /** The answer stopped at its row limit, so a missing row may only be beyond it. */
+  truncated = false
 ): string {
-  if (!row) return 'No games in scope.'
+  if (!row) return truncated ? 'Beyond the rows the query returned.' : 'No games in scope.'
   if (seasons && seasons.length > 0 && !seasons.some((s) => covers(info, s))) {
     return seasons.some((s) => s < info.firstSeason)
       ? `Recorded from ${seasonLabel(info.firstSeason)}.`
@@ -417,6 +419,7 @@ export function compareView(
 ): CompareView {
   const leads = slots.map(() => 0)
   let counted = 0
+  const truncated = result !== null && result.total > result.rows.length
   const rowOf = (id: string | null): StatsRow | undefined =>
     id ? result?.rows.find((r) => r.id === id) : undefined
   const rows = slots.map(rowOf)
@@ -467,7 +470,7 @@ export function compareView(
           percentile: null,
           rank: null,
           lead: false,
-          title: info ? blankReason(info, row, slotSeasons[k] ?? null) : ''
+          title: info ? blankReason(info, row, slotSeasons[k] ?? null, truncated) : ''
         }
       }
       const from = partialFrom(info, slotSeasons[k] ?? null)
