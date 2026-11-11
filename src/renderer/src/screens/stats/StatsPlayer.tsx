@@ -17,6 +17,7 @@ import { ScopeBar } from '@/components/stats/ScopeBar'
 import { StatSection, StatSections } from '@/components/stats/StatLines'
 import { useNoteContext } from '@/lib/dev/noteContext'
 import { DASHBOARD_MODES, sectionMetrics, sectionViews } from '@/lib/stats/dashboard'
+import type { ExploreSubject } from '@/lib/stats/explore'
 import { amongWords, fmtStat } from '@/lib/stats/format'
 import { qualifies, tabOf } from '@/lib/stats/leaderboard'
 import {
@@ -115,6 +116,10 @@ export function StatsPlayer({
   onOpenTeam: (team: string) => void
   onOpenGame: (game: string) => void
   onOpenLeaderboard: () => void
+  /** Compare with these players or teams: Explore's Compare tab (its link arrives with T802). */
+  onCompare?: (subjects: ExploreSubject[]) => void
+  /** This dashboard's player or team over their seasons, on a metric (its link arrives with T803). */
+  onTrend?: (metric?: string) => void
 }): React.JSX.Element {
   const {
     value: info,
