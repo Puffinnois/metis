@@ -76,8 +76,6 @@ describe('Explore', () => {
   it('hands Trends the last dashboard shown when nobody is picked', () => {
     render(<Harness fallback={{ entity: 'team', id: '13' }} />)
     fireEvent.click(screen.getByRole('tab', { name: 'Trends' }))
-    expect(screen.getByText('Trends arrives with T803.').getAttribute('data-subject')).toBe(
-      'team:13'
-    )
+    expect(document.querySelector('[data-subject]')?.getAttribute('data-subject')).toBe('team:13')
   })
 })

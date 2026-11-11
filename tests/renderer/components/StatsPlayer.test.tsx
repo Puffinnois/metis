@@ -294,4 +294,15 @@ describe('the player dashboard', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Jayson Tatum' }))
     expect(await screen.findByRole('heading', { level: 1, name: /Tatum/ })).toBeTruthy()
   })
+
+  it("opens Trends on the dashboard's player", async () => {
+    await openDashboard()
+    fireEvent.click(screen.getByRole('button', { name: 'Trends →' }))
+    await waitFor(() =>
+      expect(screen.getByRole('tab', { name: 'Trends' }).getAttribute('aria-selected')).toBe('true')
+    )
+    expect(document.querySelector('[data-subject]')?.getAttribute('data-subject')).toMatch(
+      /^player:/
+    )
+  })
 })

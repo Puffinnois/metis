@@ -328,6 +328,15 @@ describe('the team dashboard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Team leaderboards →' }))
     expect(await screen.findByRole('heading', { name: /team offense leaderboard/ })).toBeTruthy()
   })
+
+  it("opens Trends on the dashboard's team", async () => {
+    await openTeams()
+    fireEvent.click(screen.getByRole('button', { name: 'Trends →' }))
+    await waitFor(() =>
+      expect(screen.getByRole('tab', { name: 'Trends' }).getAttribute('aria-selected')).toBe('true')
+    )
+    expect(document.querySelector('[data-subject]')?.getAttribute('data-subject')).toMatch(/^team:/)
+  })
 })
 
 describe('the standings', () => {

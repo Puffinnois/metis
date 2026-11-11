@@ -94,7 +94,8 @@ export function StatsTeam({
   onOpenLeaderboard,
   onOpenPlayer,
   onOpenGame,
-  onCompare
+  onCompare,
+  onTrend
 }: {
   data: StatsData
   scope: StatsScope
@@ -108,7 +109,7 @@ export function StatsTeam({
   onOpenGame: (id: string) => void
   /** Compare with these players or teams: Explore's Compare tab. */
   onCompare?: (subjects: ExploreSubject[]) => void
-  /** This dashboard's player or team over their seasons, on a metric (its link arrives with T803). */
+  /** This dashboard's player or team over their seasons in Trends, on a metric or the one shown. */
   onTrend?: (metric?: string) => void
 }): React.JSX.Element {
   const { value: all, error: gamesError } = useSeasonGames(scope.season, data.version)
@@ -146,13 +147,24 @@ export function StatsTeam({
         onCompare={onCompare && (() => onCompare([{ entity: 'team', id: team }]))}
       />
       <TabRow label="Team dashboard" tabs={TEAM_DASH_TABS} value={tab} onChange={onTab}>
-        <button
-          type="button"
-          onClick={onOpenLeaderboard}
-          className="mb-2 shrink-0 cursor-pointer text-[12.5px] font-medium whitespace-nowrap text-fg-2 hover:text-cobalt"
-        >
-          Team leaderboards →
-        </button>
+        <div className="mb-2 flex shrink-0 items-center gap-4">
+          {onTrend && (
+            <button
+              type="button"
+              onClick={() => onTrend()}
+              className="cursor-pointer text-[12.5px] font-medium whitespace-nowrap text-fg-2 hover:text-cobalt"
+            >
+              Trends →
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onOpenLeaderboard}
+            className="cursor-pointer text-[12.5px] font-medium whitespace-nowrap text-fg-2 hover:text-cobalt"
+          >
+            Team leaderboards →
+          </button>
+        </div>
       </TabRow>
       {gamesError && <div className="text-[12.5px] text-bad">{gamesError}</div>}
       {games && !anyPlayed && (

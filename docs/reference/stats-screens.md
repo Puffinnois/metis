@@ -131,6 +131,21 @@ Three slots side by side, all players or all teams, one row per metric and one c
 - **Blanks:** never a zero. A metric with no value in scope for any slot reads its reason across the row ("Recorded from 2013-14.", "Published for whole seasons only."). Over several seasons a slot whose own seasons all predate a metric reads blank with "Recorded from 2013-14." on hover; one whose seasons start before it shows the value over the covered seasons with "Recorded from 2013-14 only.", except a game-level count in a rate mode, which would divide by games it was not recorded in and reads blank with that reason. A slot with no games, or no sample, says so.
 - **Queries:** one engine query for the three slots, plus one for the search over several seasons while it is open. On the full database, inside the worker (median of five): a 2025-26 league of players with the default rows 269 ms, the same with a date range 154 ms, last 10 games 166 ms, with tracking, play-type and impact rows 267 ms; three players over 5 seasons 199 ms, over every season 256 ms; 2025-26 teams 177 ms, three teams over every season 173 ms; the search over every season 44 ms.
 
+### Trends
+
+One metric by season across a player's career or a team's history in the data, 1993-94 on, against the league each season.
+
+- **Who:** a search over every player with a game since 1993-94 ("LeBron James · LAL") or every franchise under its latest name. With nobody picked, the player or team a dashboard showed last; a choice here keeps them even when the dashboards move on. The header links to their dashboard.
+- **What:** any catalogue metric read per season, by family, except a published projection (one season's state, meaningless across several). Points per game for players and net rating for teams by default.
+- **Scope:** the scope bar's season type applies (regular season, playoffs and the rest); its season and range do not, since a career is every season, and the screen says so. The scope bar offers the season types of the season it shows, so the playoffs are offered once a season that has them is picked.
+- **Mode:** the dashboards' Totals or rates control (Per game, Totals, Per 36, Per 48, Per 100), shown only for a total the mode rescales. The scope bar has no mode, so Trends keeps its own.
+- **The line:** a point a season. A traded player's season is one point, their whole season, with their teams named in the order they played for them. A season not played is a gap, never a line drawn across it. Before a metric is recorded the seasons read blank, never zero, and a rule marks the start with the metric's own reason ("Recorded from 2013-14."). A season below the qualifier is a hollow point with no rank, as the leaderboards leave it unranked. A lower-is-better metric runs upside down, so up is always better.
+- **The league:** behind the line, each season's qualified pool: its 10th–90th and 25th–75th percentiles and its median, interpolated as DuckDB's `quantile_cont`. The pool is the leaderboard's: players the minutes qualifier admits (1,000 minutes over 82 games, scaled to that season's games) whose sample also qualifies for the metric (three-point attempts for 3P%, field-goal attempts for FG%, scaled the same way), or every team. Both rules are the engine's own `qualified` flags, read as the leaderboard's `rankWithinTab` reads them. The hover reads the band as numbers.
+- **Rank:** each season in its own pool, the better side first, ties sharing a rank, the percentile as `percent_rank`: "7th of 143". On the hover and in the table under the chart, newest first, with the teams, games and minutes.
+- **Notes:** where the metric starts, seasons the source lacks, why it has no answer (a published metric in the play-in), and a total for the season under way ("2026-27 is in progress."). Lockout and shortened seasons need nothing for rates.
+- **Queries:** the subject by season, their teams by season, team and month, and the pool by season. A season has about 260 qualified players and the engine returns 5,000 rows at most, so the pool is asked for in parts of 14 seasons, run together. A part cut off at the limit is asked for again in halves, down to one season; a single season still cut off reads "Too many players to read the league in 2014-15: no band or rank." and has neither, rather than wrong ones. The search is one query of every player's minutes.
+- **Left out from the template:** the two comparison lines, the "Career at a glance" cards, ages under the seasons and team marks on the axis (the teams are on the hover and in the table).
+
 ## Glossary
 
 Every metric, players or teams, by family or search, with the same entry as the column hover.
@@ -177,6 +192,21 @@ The dashboards, measured the same way on a clean load's database with `scripts/s
 | Another season, Games               | 228      |
 
 The player dashboard was on screen 219 seconds into a first load, on the current season, with a team dashboard and a box score just after.
+
+Trends' queries, timed from the window (`window.api.stats.query`, round trip) on the full Stage 7 load with `scripts/stage8-trends-steps.json`. The pool's parts run together, so the screen waits for the slowest.
+
+| Trends                                          | Rows                | ms           |
+| ----------------------------------------------- | ------------------- | ------------ |
+| LeBron's pool, first of the session (cold)      | 3,648, 2,730        | 179, 118     |
+| The same again (warm)                           | 3,648, 2,730        | 148, 111     |
+| Every season, 1993-94 on, in 3 parts            | 3,423, 3,746, 1,616 | 127, 160, 79 |
+| LeBron James, points per game: his seasons      | 24                  | 57           |
+| His teams by season, team and month             | 156                 | 41           |
+| The pool, 2003-04 to 2016-17 and 2017-18 on     | 3,648, 2,730        | 140, 161     |
+| Drives: the pool, two parts                     | 3,648, 2,730        | 125, 96      |
+| Playoffs, points per game: the pool, two parts  | 1,543, 766          | 85, 49       |
+| Lakers, defensive rating: the history, the pool | 34, 1,005           | 21, 34       |
+| The player search                               | 3,091               | 71           |
 
 ## Data panel
 
