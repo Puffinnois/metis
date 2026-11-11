@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Segmented, StatsSelect } from '@/components/stats/controls'
 import { GameChart } from '@/components/stats/GameChart'
+import { CompareButton } from '@/screens/stats/StatsCompare'
 import {
   Loading,
   MiniTable,
@@ -92,7 +93,8 @@ export function StatsTeam({
   onTab,
   onOpenLeaderboard,
   onOpenPlayer,
-  onOpenGame
+  onOpenGame,
+  onCompare
 }: {
   data: StatsData
   scope: StatsScope
@@ -104,7 +106,7 @@ export function StatsTeam({
   onOpenLeaderboard: () => void
   onOpenPlayer: (id: string) => void
   onOpenGame: (id: string) => void
-  /** Compare with these players or teams: Explore's Compare tab (its link arrives with T802). */
+  /** Compare with these players or teams: Explore's Compare tab. */
   onCompare?: (subjects: ExploreSubject[]) => void
   /** This dashboard's player or team over their seasons, on a metric (its link arrives with T803). */
   onTrend?: (metric?: string) => void
@@ -141,6 +143,7 @@ export function StatsTeam({
         games={games}
         place={scope.seasonType === 'regular' ? teamPlace(standings, team) : null}
         onOpenGame={onOpenGame}
+        onCompare={onCompare && (() => onCompare([{ entity: 'team', id: team }]))}
       />
       <TabRow label="Team dashboard" tabs={TEAM_DASH_TABS} value={tab} onChange={onTab}>
         <button
@@ -195,7 +198,8 @@ function Header({
   onTeam,
   games,
   place,
-  onOpenGame
+  onOpenGame,
+  onCompare
 }: {
   data: StatsData
   scope: StatsScope
@@ -207,6 +211,7 @@ function Header({
   games: TeamGame[] | null
   place: string | null
   onOpenGame: (id: string) => void
+  onCompare?: () => void
 }): React.JSX.Element {
   const teams = seasonOf(data.seasons, scope.season)?.teams ?? []
   const inScope = games ? gamesInScope(games, scope) : []
@@ -286,7 +291,8 @@ function Header({
             </span>
           )}
         </div>
-        <div className="shrink-0">
+        <div className="flex shrink-0 items-center gap-2">
+          {onCompare && <CompareButton onClick={onCompare} />}
           <ScopeBar scope={scope} seasons={data.seasons} entity="team" onChange={onScope} />
         </div>
       </div>

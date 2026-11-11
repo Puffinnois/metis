@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { X } from 'lucide-react'
 import { ColumnPicker } from '@/components/stats/ColumnPicker'
-import { Segmented, StatsSelect } from '@/components/stats/controls'
+import { Segmented, StatsButton, StatsSelect } from '@/components/stats/controls'
 import { MetricHover } from '@/components/stats/MetricCard'
 import { Loading, Notes } from '@/components/stats/parts'
 import { ScopeBar } from '@/components/stats/ScopeBar'
@@ -46,6 +46,27 @@ const FRESH = { keepLast: false }
 const GRID = 'grid grid-cols-[minmax(170px,220px)_repeat(3,minmax(0,1fr))] gap-x-4'
 const ORDINAL = ['first', 'second', 'third']
 
+export interface CompareProps {
+  data: StatsData
+  scope: StatsScope
+  /** Shows the scope bar; left out when the screen around Compare has its own. */
+  onScope?: (scope: StatsScope) => void
+  state: CompareState
+  /** Updates from the state as it is then: a late default never undoes a newer choice. */
+  onState: (update: (state: CompareState) => CompareState) => void
+  onOpenPlayer: (id: string) => void
+  onOpenTeam: (id: string) => void
+}
+
+/** A dashboard header's way to Compare, with its player or team in the first open slot. */
+export function CompareButton({ onClick }: { onClick: () => void }): React.JSX.Element {
+  return (
+    <StatsButton onClick={onClick} title="Compare side by side with other players or teams">
+      Compare
+    </StatsButton>
+  )
+}
+
 /**
  * Compare: three slots side by side, all players or all teams, one row per metric with the best value
  * in bold. One season ranks each slot among the same pool as the dashboards; several are read whole.
@@ -58,17 +79,7 @@ export function StatsCompare({
   onState,
   onOpenPlayer,
   onOpenTeam
-}: {
-  data: StatsData
-  scope: StatsScope
-  /** Shows the scope bar; left out when the screen around Compare has its own. */
-  onScope?: (scope: StatsScope) => void
-  state: CompareState
-  /** Updates from the state as it is then: a late default never undoes a newer choice. */
-  onState: (update: (state: CompareState) => CompareState) => void
-  onOpenPlayer: (id: string) => void
-  onOpenTeam: (id: string) => void
-}): React.JSX.Element {
+}: CompareProps): React.JSX.Element {
   const { entity, slots, mode } = state
   const columns = useMemo(() => compareColumns(state, data.catalogue), [state, data.catalogue])
   const list = useMemo(
@@ -401,6 +412,8 @@ function SlotSearch({
         onChange={(e) => {
           setText(e.target.value)
           setOpen(true)
+          // Typing searches even when the window had no focus to give the input.
+          onOpen(true)
         }}
         onKeyDown={(e) => {
           if (e.key === 'Enter' && matches[0]) pick(matches[0].id)

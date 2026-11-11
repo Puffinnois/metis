@@ -42,7 +42,10 @@ describe('opening Compare and Trends from another screen', () => {
       { entity: 'team' as const, id: '13' },
       { entity: 'team' as const, id: '2' }
     ]
-    expect(compareWith(DEFAULT_COMPARE, teams)).toEqual({ entity: 'team', subjects: teams })
+    expect(compareWith(DEFAULT_COMPARE, teams)).toMatchObject({
+      entity: 'team',
+      slots: ['13', '2', null]
+    })
     expect(compareWith(DEFAULT_COMPARE, [])).toBe(DEFAULT_COMPARE)
   })
 

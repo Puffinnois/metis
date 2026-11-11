@@ -8,6 +8,7 @@ import {
   compareQuery,
   compareScopeLabel,
   compareView,
+  compareWith,
   DEFAULT_COMPARE,
   defaultColumns,
   fillSlots,
@@ -133,6 +134,17 @@ describe('slots', () => {
     const t = addSubjects(s, 'team', ['1610612738'])
     expect(t.entity).toBe('team')
     expect(t.slots).toEqual(['1610612738', null, null])
+  })
+
+  it("takes a dashboard's subjects through compareWith, the first one's kind deciding", () => {
+    const s: CompareState = { ...DEFAULT_COMPARE, slots: ['a', null, null] }
+    expect(compareWith(s, [{ entity: 'player', id: 'x' }]).slots).toEqual(['a', 'x', null])
+    const t = compareWith(s, [
+      { entity: 'team', id: '1' },
+      { entity: 'player', id: 'y' }
+    ])
+    expect(t).toMatchObject({ entity: 'team', slots: ['1', null, null] })
+    expect(compareWith(s, [])).toBe(s)
   })
 
   it('fills open slots from the candidates, skipping anyone already there', () => {

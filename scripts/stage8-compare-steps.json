@@ -1,0 +1,152 @@
+[
+  {
+    "size": [1500, 980]
+  },
+  {
+    "wait": 4000
+  },
+  {
+    "eval": "window.sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nwindow.until = async (fn, ms = 10000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (fn()) return true; await sleep(150) } return false };\nwindow.nav = (name) => [...document.querySelectorAll('nav button')].find((b) => b.textContent.trim() === name).click();\nwindow.tab = async (label) => { const t = [...document.querySelectorAll('[role=tab]')].find((x) => x.textContent.trim() === label); if (!t) return 'NO TAB ' + label; t.click(); await sleep(800); return 'tab ' + label };\nwindow.setInput = (input, value) => { const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(input, value); input.dispatchEvent(new Event('input', { bubbles: true })) };\nwindow.slotEl = (k) => document.querySelector('[data-slot=\"' + k + '\"]');\nwindow.slotName = (k) => { const s = slotEl(k); const b = s && [...s.querySelectorAll('button')].find((x) => /dashboard/.test(x.title)); return b ? b.textContent : (s ? 'OPEN' : 'NONE') };\nwindow.slots = () => [0, 1, 2].map(slotName);\nwindow.loaded = () => document.querySelectorAll('[data-metric]').length > 0 && !/Loading…/.test(document.querySelector('main').innerText);\nwindow.pick = async (k, text, match) => { const input = slotEl(k).querySelector('input'); input.focus(); setInput(input, text); await until(() => [...slotEl(k).querySelectorAll('[role=listbox] button')].some((b) => b.textContent.includes(match)), 12000); const b = [...slotEl(k).querySelectorAll('[role=listbox] button')].find((x) => x.textContent.includes(match)); if (!b) return 'NO MATCH ' + text + ' ' + JSON.stringify([...slotEl(k).querySelectorAll('[role=listbox] li')].map((l) => l.textContent).slice(0, 4)); b.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true })); await until(() => slotName(k) === match); await sleep(300); await until(loaded); return 'slot ' + k + ' = ' + slotName(k) };\nwindow.remove = async (k) => { const b = slotEl(k).querySelector('button[aria-label^=\"Remove\"]'); if (!b) return 'NO REMOVE'; const name = b.getAttribute('aria-label'); b.click(); await sleep(400); return name + ' -> ' + slotName(k) };\nwindow.row = (id) => { const r = document.querySelector('[data-metric=\"' + id + '\"]'); if (!r) return 'MISSING ' + id; return [...r.querySelectorAll('[data-cell]')].map((c) => { const v = c.querySelector('span').textContent; const lead = c.querySelector('[data-lead]') ? '*' : ''; const rank = c.lastElementChild.textContent; return v + lead + (rank ? ' (' + rank + ')' : '') }).join(' | ') };\nwindow.rowTitles = (id) => { const r = document.querySelector('[data-metric=\"' + id + '\"]'); return r ? [...r.querySelectorAll('[data-cell]')].map((c) => c.title.split('\\n')[0]) : 'MISSING ' + id };\nwindow.family = (label) => { const groups = [...document.querySelectorAll('[aria-label=Comparison] > div')]; const g = groups.find((x) => x.firstElementChild.firstElementChild.textContent === label); if (!g) return 'NO FAMILY ' + label; return [...g.querySelectorAll('[data-metric]')].map((r) => r.dataset.metric + ': ' + row(r.dataset.metric)) };\nwindow.head = () => { const h = [...document.querySelectorAll('h1')].find((x) => x.textContent === 'Compare'); return h ? [...h.parentElement.children].slice(1).map((x) => x.textContent) : 'NO HEADING' };\nwindow.leads = () => [0, 1, 2].map((k) => slotEl(k)?.innerText.match(/Leads \\d+ of \\d+/)?.[0] ?? '');\nwindow.chooseSelect = async (title, value) => { const el = [...document.querySelectorAll('select')].find((x) => x.title === title); if (!el) return 'NO SELECT ' + title; Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(el, String(value)); el.dispatchEvent(new Event('change', { bubbles: true })); await sleep(600); await until(loaded); return title + ' = ' + (el.selectedOptions[0]?.textContent ?? el.value) };\nwindow.radio = async (name) => { const b = [...document.querySelectorAll('[role=radio]')].find((x) => x.textContent.trim() === name); if (!b) return 'NO RADIO ' + name; b.click(); await sleep(600); return 'radio ' + name };\nwindow.openPlayer = async (name) => { const input = document.querySelector('input[aria-label=\"Search players\"]'); setInput(input, name); await until(() => [...document.querySelectorAll('aside button')].some((x) => x.textContent.includes(name))); const b = [...document.querySelectorAll('aside button')].find((x) => x.textContent.includes(name)); if (!b) return 'NOT LISTED'; b.click(); await until(() => document.querySelector('h1')?.innerText.replace(/\\n/g, ' ').includes(name.split(' ').pop())); return 'opened ' + document.querySelector('h1')?.innerText.replace(/\\n/g, ' ') };\n'helpers ready'\n"
+  },
+  {
+    "click": "Explore"
+  },
+  {
+    "wait": 1200
+  },
+  {
+    "eval": "(async () => { return await tab('Compare') })()"
+  },
+  {
+    "eval": "(async () => { await until(() => slots().every((s) => s !== 'OPEN') && loaded(), 15000); return { autofilled: slots(), head: head() } })()"
+  },
+  {
+    "shot": "01-autofill"
+  },
+  {
+    "eval": "(async () => { const s = await chooseSelect('Season', 2026); return [s, await remove(0), await remove(1), await remove(2)] })()"
+  },
+  {
+    "eval": "(async () => { return [await pick(0, 'doncic', 'Luka Dončić'), await pick(1, 'jokic', 'Nikola Jokić'), await pick(2, 'lebron', 'LeBron James')] })()"
+  },
+  {
+    "eval": "(async () => { return { slots: slots(), head: head(), leads: leads(), traditional: family('Traditional') } })()"
+  },
+  {
+    "eval": "(async () => { return { shooting: family('Shooting'), composite: family('Composite') } })()"
+  },
+  {
+    "eval": "(async () => { return { titles_pts: rowTitles('pts'), titles_tov: rowTitles('tov'), titles_usg: rowTitles('usg_pct') } })()"
+  },
+  {
+    "shot": "02-three-players-per-game"
+  },
+  {
+    "eval": "(async () => { await radio('Totals'); await sleep(500); await until(loaded); return { totals: family('Traditional') } })()"
+  },
+  {
+    "eval": "(async () => { await radio('Per 36'); await sleep(500); await until(loaded); return { per36: family('Traditional').slice(0, 6) } })()"
+  },
+  {
+    "eval": "(async () => { await radio('Per game'); await sleep(500); await until(loaded); return 'per game again' })()"
+  },
+  {
+    "eval": "(async () => { await chooseSelect('Add a family of rows', 'tracking'); const r = await chooseSelect('Range', 'dates'); const from = document.querySelector('input[type=date]'); setInput(from, '2026-01-01'); from.dispatchEvent(new Event('change', { bubbles: true })); await sleep(900); await until(loaded); return { r, head: head(), pts: row('pts'), min: row('min'), dist: row('dist_miles'), dist_titles: rowTitles('dist_miles'), missing: document.querySelector('[data-metric=dist_miles]')?.innerText.split(String.fromCharCode(10)).join(' | ') } })()"
+  },
+  {
+    "shot": "03-date-range"
+  },
+  {
+    "eval": "(async () => { return await chooseSelect('Range', 'season') })()"
+  },
+  {
+    "eval": "(async () => { const r = await chooseSelect('Seasons compared', 5); await sleep(800); await until(loaded); return { r, head: head(), traditional: family('Traditional') } })()"
+  },
+  {
+    "shot": "04-last-five-seasons"
+  },
+  {
+    "eval": "(async () => { const a = await remove(1); const b = await pick(1, 'gilgeous', 'Shai Gilgeous-Alexander'); return { a, b, slots: slots(), pts: row('pts') } })()"
+  },
+  {
+    "shot": "05-replaced"
+  },
+  {
+    "eval": "(async () => { return await chooseSelect('Season', 2016) })()"
+  },
+  {
+    "eval": "(async () => { const r = await chooseSelect('Seasons compared', 'all'); return [r, head()] })()"
+  },
+  {
+    "eval": "(async () => { await remove(0); await remove(1); await remove(2); return [await pick(0, 'shaquille o', \"Shaquille O'Neal\"), await pick(1, 'kobe', 'Kobe Bryant'), await pick(2, 'lebron', 'LeBron James')] })()"
+  },
+  {
+    "eval": "(async () => { await sleep(800); await until(loaded); return { slots: slots(), dist: row('dist_miles'), dist_titles: rowTitles('dist_miles'), touches: row('touches'), touches_titles: rowTitles('touches'), pts: row('pts'), plus_minus: row('plus_minus'), pm_titles: rowTitles('plus_minus') } })()"
+  },
+  {
+    "eval": "(async () => { const g = family('Tracking'); return { rows: g.length, first: g.slice(0, 4) } })()"
+  },
+  {
+    "shot": "06-career-before-tracking"
+  },
+  {
+    "eval": "(async () => { return [await chooseSelect('Season', 2026), await chooseSelect('Seasons compared', 1)] })()"
+  },
+  {
+    "eval": "(async () => { await radio('Teams'); return { slots: slots(), empty: document.querySelector('main').innerText.includes('Add a team to compare.') } })()"
+  },
+  {
+    "eval": "(async () => { return [await pick(0, 'okc', 'Oklahoma City Thunder'), await pick(1, 'bos', 'Boston Celtics'), await pick(2, 'den', 'Denver Nuggets')] })()"
+  },
+  {
+    "eval": "(async () => { return { head: head(), leads: leads(), traditional: family('Traditional').slice(0, 14) } })()"
+  },
+  {
+    "eval": "(async () => { return { possessions: family('Possessions'), shooting: family('Shooting') } })()"
+  },
+  {
+    "shot": "07-three-teams"
+  },
+  {
+    "click": "Players"
+  },
+  {
+    "wait": 2500
+  },
+  {
+    "eval": "(async () => { return await openPlayer('Nikola Jokić') })()"
+  },
+  {
+    "eval": "(async () => { const b = [...document.querySelectorAll('header button')].find((x) => x.textContent.trim() === 'Compare'); if (!b) return 'NO COMPARE BUTTON'; b.click(); await sleep(800); await until(loaded); return { current: document.querySelector('nav [aria-current=page]')?.textContent, tab: document.querySelector('[role=tab][aria-selected=true]')?.textContent, slots: slots() } })()"
+  },
+  {
+    "shot": "08-from-player-dashboard"
+  },
+  {
+    "eval": "(async () => { document.querySelector('button[aria-label=Back]')?.click(); await sleep(1500); return 'after Back: ' + document.querySelector('h1')?.innerText.replace(/\\n/g, ' ') })()"
+  },
+  {
+    "click": "Teams"
+  },
+  {
+    "wait": 2500
+  },
+  {
+    "eval": "(async () => { await until(() => document.querySelector('h1')); const h = document.querySelector('h1')?.innerText.replace(/\\n/g, ' '); const b = [...document.querySelectorAll('header button')].find((x) => x.textContent.trim() === 'Compare'); if (!b) return 'NO COMPARE BUTTON'; b.click(); await sleep(800); await until(loaded); return { from: h, current: document.querySelector('nav [aria-current=page]')?.textContent, slots: slots() } })()"
+  },
+  {
+    "shot": "09-from-team-dashboard"
+  },
+  {
+    "eval": "(async () => { document.querySelector('button[aria-label=Back]')?.click(); await sleep(1500); return 'after Back: ' + document.querySelector('h1')?.innerText.replace(/\\n/g, ' ') })()"
+  },
+  {
+    "click": "Explore"
+  },
+  {
+    "wait": 1500
+  },
+  {
+    "eval": "(async () => { await until(loaded); return { kept: slots(), tab: document.querySelector('[role=tab][aria-selected=true]')?.textContent } })()"
+  }
+]

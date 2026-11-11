@@ -1,3 +1,4 @@
+import type { ExploreSubject } from '@/lib/stats/explore'
 import { covers } from '@shared/stats/coverage'
 import { seasonLabel } from '@shared/stats/seasons'
 import type {
@@ -88,6 +89,24 @@ export function addSubjects(
     slots = slots.map((s, k) => (k === (open < 0 ? 2 : open) ? id : s)) as Slots
   }
   return { ...state, entity, slots }
+}
+
+/**
+ * Compare opened from another screen (a dashboard's Compare, the chart's picks) with these players or
+ * teams: each in the first open slot, as `addSubjects` does. The first subject's kind decides; an
+ * empty list keeps what Compare had.
+ */
+export function compareWith(
+  state: CompareState,
+  subjects: readonly ExploreSubject[]
+): CompareState {
+  if (!subjects.length) return state
+  const entity = subjects[0].entity
+  return addSubjects(
+    state,
+    entity,
+    subjects.filter((s) => s.entity === entity).map((s) => s.id)
+  )
 }
 
 /** The open slots filled from the candidates, best first, skipping anyone already compared. */
