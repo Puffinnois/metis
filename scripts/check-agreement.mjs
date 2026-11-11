@@ -1536,6 +1536,10 @@ const IMPACT_TYPES = [
 const impactRows = []
 let darkoPlayoffReasons = 0
 let darkoSeasons = 0
+const darkoPlayoffWhy = new Set()
+// A metric the dataset no longer publishes answers with that reason everywhere: there is nothing to
+// compare (Stage 7 found DARKO's columns replaced by other values).
+const impactGone = new Map()
 for (const season of finished) {
   for (const [type, published] of IMPACT_TYPES) {
     const result = await query({
@@ -1545,14 +1549,20 @@ for (const season of finished) {
       limit: 5000
     })
     const reasons = new Map(result.columns.map((c) => [c.id, c.reason]))
+    for (const c of result.columns) {
+      if (c.reason && /no longer publishes/.test(c.reason)) impactGone.set(c.id, c.reason)
+    }
     const ours = new Map(result.rows.map((r) => [Number(r.id), r.values]))
-    const checks = IMPACT_CHECKS.filter(([id]) => type === 'regular' || !id.includes('darko'))
+    const checks = IMPACT_CHECKS.filter(
+      ([id]) => (type === 'regular' || !id.includes('darko')) && !impactGone.has(id)
+    )
     // Before every DARKO column covers the season, its coverage is the reason given instead.
     if (type === 'playoffs' && season >= 1999) {
       darkoSeasons++
       const darko = IMPACT_CHECKS.filter(([id]) => id.includes('darko'))
-      if (darko.every(([id]) => reasons.get(id) === 'Published for the regular season only.')) {
+      if (darko.every(([id]) => reasons.get(id))) {
         darkoPlayoffReasons++
+        for (const [id] of darko) darkoPlayoffWhy.add(reasons.get(id))
       }
     }
     const raw = await read(
@@ -1646,7 +1656,7 @@ out.push(
     impactRows
   ),
   '',
-  `In the playoffs, DARKO reads blank with the reason "Published for the regular season only." in ${darkoPlayoffReasons} of the ${darkoSeasons} seasons from 1998-99, where every DARKO column has values. Over two regular seasons together (2024-25 and 2025-26), RAPM weighted by possessions, BPM by minutes and WAR added up: ${COUNT.format(impactTwoSame)} of ${COUNT.format(impactTwoRows)} players read the same through the engine, and DARKO's projection reads blank with the reason "${darkoTwoReason}"`
+  `${impactGone.size ? `${impactGone.size} columns are not compared (${[...impactGone.keys()].join(', ')}): the engine answers "${[...new Set(impactGone.values())].join('", "')}" for them, since the file's columns now hold other values (see nba-data-sources.md). ` : ''}In the playoffs, DARKO reads blank in ${darkoPlayoffReasons} of the ${darkoSeasons} seasons from 1998-99, with the reason "${[...darkoPlayoffWhy].join('" or "')}". Over two regular seasons together (2024-25 and 2025-26), RAPM weighted by possessions, BPM by minutes and WAR added up: ${COUNT.format(impactTwoSame)} of ${COUNT.format(impactTwoRows)} players read the same through the engine, and DARKO's projection reads blank with the reason "${darkoTwoReason}"`
 )
 
 // Availability (Plan T709) through the engine and the worker's reads, against the raw files. Games out

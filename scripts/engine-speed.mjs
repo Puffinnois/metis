@@ -118,6 +118,79 @@ const CASES = [
       { seasons: Array.from({ length: season - 1993 }, (_, i) => 1994 + i) },
       { groupBy: ['season'], limit: 5000 }
     )
+  ],
+  // Explore, as its tabs ask (lib/stats/chart.ts, compare.ts, trends.ts).
+  [
+    'Chart: a preset, every player',
+    player(
+      {},
+      {
+        metrics: ['usg_pct', 'ts_pct', 'min'],
+        transform: 'perGame',
+        sort: { metric: 'min', dir: 'desc' },
+        limit: 5000
+      }
+    )
+  ],
+  [
+    'Chart: a box-score axis, a tracking axis, size and colour',
+    player(
+      {},
+      {
+        metrics: ['pts', 'drives', 'ast', 'ts_pct', 'min'],
+        transform: 'perGame',
+        sort: { metric: 'min', dir: 'desc' },
+        limit: 5000
+      }
+    )
+  ],
+  [
+    'Chart: teams',
+    team(
+      {},
+      { metrics: ['team_ortg', 'team_drtg', 'team_win_pct'], transform: 'perGame', limit: 5000 }
+    )
+  ],
+  [
+    'Compare: a season of players, 23 rows',
+    player({}, { metrics: ALL_PLAYER.slice(0, 23), transform: 'perGame' })
+  ],
+  [
+    'Compare: three players over every season',
+    player(
+      {
+        seasons: Array.from({ length: season - 1993 }, (_, i) => 1994 + i),
+        players: ['2544', '201939', '1629029']
+      },
+      { metrics: ALL_PLAYER.slice(0, 23), transform: 'perGame', limit: 3 }
+    )
+  ],
+  [
+    'Trends: one player by season',
+    player(
+      { seasons: Array.from({ length: season - 1993 }, (_, i) => 1994 + i), players: ['2544'] },
+      { metrics: ['pts', 'min'], groupBy: ['season'], transform: 'perGame' }
+    )
+  ],
+  [
+    'Trends: the pool, 14 seasons by season',
+    player(
+      { seasons: Array.from({ length: 14 }, (_, i) => season - 13 + i), qualifiedOnly: true },
+      {
+        metrics: ['pts', 'min'],
+        groupBy: ['season'],
+        transform: 'perGame',
+        sort: { metric: 'min', dir: 'desc' },
+        limit: 5000
+      }
+    )
+  ],
+  [
+    'Trends: every team by season',
+    team(
+      { seasons: Array.from({ length: season - 1993 }, (_, i) => 1994 + i) },
+      { metrics: ['team_nrtg'], groupBy: ['season'], limit: 5000 }
+    )
   ]
 ]
 
