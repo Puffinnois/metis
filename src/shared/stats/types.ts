@@ -660,3 +660,47 @@ export interface StatsDataReport {
   /** Null when the system will not say. */
   freeBytes: number | null
 }
+
+/** The games an on-court read covers: the season types, and a date range or the team's last games. */
+export interface StatsOnCourtScope {
+  gameTypes: GameType[]
+  dates?: [string, string]
+  lastN?: number
+}
+
+/**
+ * What a team did while a group was on the floor, counted from the plays: `secs` on the floor, the
+ * games with any, and each count for the team (`pts`) and against it (`opp_pts`), possessions among
+ * them. Rates are divided by the screen.
+ */
+export type StatsOnCourtLine = { games: number; secs: number } & Record<string, number>
+
+/** A group of two to five players and what the team did with them on the floor together. */
+export interface StatsOnCourtUnit {
+  players: { id: string; name: string }[]
+  line: StatsOnCourtLine
+}
+
+/** A team's groups of one size, most minutes first, or why a season has none. */
+export interface StatsOnCourtUnits {
+  units: StatsOnCourtUnit[]
+  reason: string | null
+}
+
+/**
+ * A player's team with a teammate on and off the floor, in the games both played for it: both on, the
+ * player alone, the teammate alone, neither. A split with no minutes is null.
+ */
+export interface StatsWithOrWithout {
+  teamId: string | null
+  teammate: string | null
+  /** The player's teammates in scope, most minutes on the floor together first. */
+  teammates: { id: string; name: string; minutes: number }[]
+  splits: {
+    both: StatsOnCourtLine | null
+    playerOnly: StatsOnCourtLine | null
+    teammateOnly: StatsOnCourtLine | null
+    neither: StatsOnCourtLine | null
+  } | null
+  reason: string | null
+}

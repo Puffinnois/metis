@@ -16,6 +16,9 @@ import type {
   StatsMatchupScope,
   StatsGameMatchups,
   StatsOfficialCareer,
+  StatsOnCourtScope,
+  StatsOnCourtUnits,
+  StatsWithOrWithout,
   StatsOfficialsSeason,
   StatsProfile,
   StatsAvailability,
@@ -50,6 +53,7 @@ import {
 } from './reads'
 import { readGameMatchups } from './matchupReads'
 import { readOfficialCareer, readOfficialsSeason } from './officialsReads'
+import { readOnCourtUnits, readWithOrWithout } from './onCourtReads'
 import { bootstrapStatsDb } from './schema'
 import { currentSeason, SOURCES } from './sources'
 import { refreshStats, STATS_DERIVED_STEP } from './sync'
@@ -124,6 +128,20 @@ export interface StatsService {
   officialsSeason(season: number, gameTypes: GameType[]): Promise<StatsOfficialsSeason>
   /** One official's seasons, each beside the league's totals; null for an id the file lacks. */
   officialCareer(official: string, gameTypes: GameType[]): Promise<StatsOfficialCareer | null>
+  /** A team's groups of two to five players on the floor, from the plays. */
+  onCourtUnits(
+    team: string,
+    season: number,
+    scope: StatsOnCourtScope,
+    size: number
+  ): Promise<StatsOnCourtUnits>
+  /** A player's team with a teammate on and off the floor, from the plays. */
+  withOrWithout(
+    player: string,
+    teammate: string | null,
+    season: number,
+    scope: StatsOnCourtScope
+  ): Promise<StatsWithOrWithout>
   /** A team's five-man units for a season and season type, with one dashboard's measures. */
   lineups(team: string, season: number, gameType: string, group: LineupGroup): Promise<StatsLineups>
   /** A player's bio, draft and combines, each combine measure ranked within its position group. */
@@ -386,6 +404,10 @@ export async function openStatsService(
       read((reader) => readOfficialsSeason(reader, season, gameTypes)),
     officialCareer: (official, gameTypes) =>
       read((reader) => readOfficialCareer(reader, official, gameTypes)),
+    onCourtUnits: (team, season, scope, size) =>
+      read((reader) => readOnCourtUnits(reader, team, season, scope, size)),
+    withOrWithout: (player, teammate, season, scope) =>
+      read((reader) => readWithOrWithout(reader, player, teammate, season, scope)),
     profile: (player) => read((reader) => readProfile(reader, player)),
     lineups: (team, season, gameType, group) =>
       read((reader) => readLineups(reader, team, season, gameType, group)),

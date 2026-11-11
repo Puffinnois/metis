@@ -18,6 +18,9 @@ import type {
   StatsMatchupScope,
   StatsGameMatchups,
   StatsOfficialCareer,
+  StatsOnCourtScope,
+  StatsOnCourtUnits,
+  StatsWithOrWithout,
   StatsOfficialsSeason,
   GameType,
   StatsProfile,
@@ -106,6 +109,38 @@ export function registerIpcHandlers(ctx: AppContext): void {
     IPC.statsOfficialCareer,
     (_event, official: string, gameTypes: GameType[]): Promise<StatsOfficialCareer | null> =>
       ctx.stats ? ctx.stats.officialCareer(official, gameTypes) : Promise.resolve(null)
+  )
+  ipcMain.handle(
+    IPC.statsOnCourtUnits,
+    (
+      _event,
+      team: string,
+      season: number,
+      scope: StatsOnCourtScope,
+      size: number
+    ): Promise<StatsOnCourtUnits> =>
+      ctx.stats
+        ? ctx.stats.onCourtUnits(team, season, scope, size)
+        : Promise.resolve({ units: [], reason: null })
+  )
+  ipcMain.handle(
+    IPC.statsWithOrWithout,
+    (
+      _event,
+      player: string,
+      teammate: string | null,
+      season: number,
+      scope: StatsOnCourtScope
+    ): Promise<StatsWithOrWithout> =>
+      ctx.stats
+        ? ctx.stats.withOrWithout(player, teammate, season, scope)
+        : Promise.resolve({
+            teamId: null,
+            teammate: null,
+            teammates: [],
+            splits: null,
+            reason: null
+          })
   )
   ipcMain.handle(
     IPC.statsLineups,
