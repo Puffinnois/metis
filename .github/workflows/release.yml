@@ -2,7 +2,7 @@ name: Release
 
 on:
   push:
-    # A stage tag (v0.1-stage3) marks a finished stage. Only a version tag (v1.0.0) releases.
+    # Only a version tag (v1.0.0) releases. The stage tags of Stages 3 to 8 (v0.1-stage3) never did.
     tags: ['v*', '!v*-stage*']
 
 permissions:

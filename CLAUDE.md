@@ -89,11 +89,10 @@ Data comes from sportsdataverse-data releases: `docs/reference/nba-data-sources.
 
 ## Git
 
-- `prod`: what ships. Fast-forward from `preprod` only, after a stage is tested and reviewed; tag `vX.Y-stageN`. That tag marks the stage; a version tag such as `v1.0.0` is what runs the Release workflow.
-- `preprod`: integration. Merged from `main` when a stage is complete.
-- `main`: the trunk. Working branches merge here through a PR, squash preferred.
+- `main`: the trunk and the only long-lived branch. Working branches merge here through a PR, squash preferred. It refuses force-pushes and requires CI's `check`, for admins too.
+- What ships is a tag, not a branch. A stage closes with one PR that records the gate, ticks the stage in Plan.md and sets the version in `package.json`. Once the owner has tried the app and says so, merge it and tag that commit `vX.Y.0`: the one tag marks the stage and runs the Release workflow (D30).
 - Working branches, cut from `main`, named by intent: `feature/`, `fix/`, `chore/`, `docs/`, `refactor/` plus a short slug naming the thing changed (`feature/nba-box-score-load`, not `feature/stage-3`).
-- Conventional commits (`feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`). The three long-lived branches refuse force-pushes and require CI's `check`, for admins too.
+- Conventional commits (`feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`).
 - `archive/rust-tauri` is the old implementation: keep it, build nothing on it. Other old branches are tags under `archive/`.
 
 ## Running it (WSL)
