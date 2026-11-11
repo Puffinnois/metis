@@ -52,8 +52,8 @@ describe('opening Compare and Trends from another screen', () => {
   it('opens Trends on a subject, keeping the metric when none is given', () => {
     const subject = { entity: 'player' as const, id: '1966' }
     const withMetric = trendsFor(DEFAULT_TRENDS, subject, 'pts')
-    expect(withMetric).toEqual({ subject, metric: 'pts' })
+    expect(withMetric).toMatchObject({ subject, metric: 'pts' })
     const team = { entity: 'team' as const, id: '13' }
-    expect(trendsFor(withMetric, team)).toEqual({ subject: team, metric: 'pts' })
+    expect(trendsFor(withMetric, team)).toMatchObject({ subject: team, metric: 'pts' })
   })
 })

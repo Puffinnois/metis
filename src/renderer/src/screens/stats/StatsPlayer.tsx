@@ -106,7 +106,8 @@ export function StatsPlayer({
   onOpenTeam,
   onOpenGame,
   onOpenLeaderboard,
-  onCompare
+  onCompare,
+  onTrend
 }: {
   data: StatsData
   scope: StatsScope
@@ -120,7 +121,7 @@ export function StatsPlayer({
   onOpenLeaderboard: () => void
   /** Compare with these players or teams: Explore's Compare tab. */
   onCompare?: (subjects: ExploreSubject[]) => void
-  /** This dashboard's player or team over their seasons, on a metric (its link arrives with T803). */
+  /** This dashboard's player or team over their seasons in Trends, on a metric or the one shown. */
   onTrend?: (metric?: string) => void
 }): React.JSX.Element {
   const {
@@ -190,13 +191,24 @@ export function StatsPlayer({
               onCompare={onCompare && (() => onCompare([{ entity: 'player', id: player }]))}
             />
             <TabRow label="Player dashboard" tabs={PLAYER_DASH_TABS} value={tab} onChange={onTab}>
-              <button
-                type="button"
-                onClick={onOpenLeaderboard}
-                className="mb-2 shrink-0 cursor-pointer text-[12.5px] font-medium whitespace-nowrap text-fg-2 hover:text-cobalt"
-              >
-                Player leaderboards →
-              </button>
+              <div className="mb-2 flex shrink-0 items-center gap-4">
+                {onTrend && (
+                  <button
+                    type="button"
+                    onClick={() => onTrend()}
+                    className="cursor-pointer text-[12.5px] font-medium whitespace-nowrap text-fg-2 hover:text-cobalt"
+                  >
+                    Trends →
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={onOpenLeaderboard}
+                  className="cursor-pointer text-[12.5px] font-medium whitespace-nowrap text-fg-2 hover:text-cobalt"
+                >
+                  Player leaderboards →
+                </button>
+              </div>
             </TabRow>
             {row === null && tab !== 'profile' && (
               <div className="rounded-[8px] bg-panel-2 px-4 py-3 text-[13px] text-fg-2">
