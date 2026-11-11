@@ -10,7 +10,7 @@ import { DEFAULT_TRENDS } from '@/lib/stats/trends'
 import type { StatsData } from '@/lib/stats/useStats'
 import { StatsExplore } from '@/screens/stats/StatsExplore'
 
-// Compare asks the engine for its rows; here it never answers, so the screen stays on its slots.
+// The chart and Compare ask the engine for their rows; here it never answers, so the tests stay on the tabs.
 vi.mock('@/lib/api', () => ({
   api: { stats: { query: vi.fn(() => new Promise(() => {})), player: vi.fn() } }
 }))
@@ -65,7 +65,7 @@ describe('Explore', () => {
     expect(screen.getByRole('tablist', { name: 'Explore' })).toBeTruthy()
     expect(screen.getByRole('tab', { name: 'Chart' }).getAttribute('aria-selected')).toBe('true')
     expect(screen.getByTitle('Season')).toBeTruthy()
-    expect(screen.getByText('Chart arrives with T801.')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'ts_pct vs usg_pct' })).toBeTruthy()
     fireEvent.click(screen.getByRole('tab', { name: 'Compare' }))
     expect(screen.getByRole('heading', { name: 'Compare' })).toBeTruthy()
     fireEvent.click(screen.getByRole('tab', { name: 'Trends' }))

@@ -115,7 +115,23 @@ The engine reads one game by its id. A date and teams would not do: All-Star rou
 
 ## Explore
 
-Chart, Compare and Trends as three tabs over the shared scope bar. Explore opens on Chart; the tab and each tab's state are kept for the session, so leaving for a dashboard and coming back finds them as they were. Back returns to the page before, not to the previous tab. Each tab is its own screen (`StatsChart`, `StatsCompare`, `StatsTrends`) with its state in `lib/stats/{chart,compare,trends}.ts`. Other screens reach Explore through two entries: Compare with a list of players or teams, and Trends on one player or team, optionally on a metric. Trends with nobody picked shows the player or team a dashboard showed last. The tabs themselves arrive with T801, T802 and T803.
+Chart, Compare and Trends as three tabs over the shared scope bar. Explore opens on Chart; the tab and each tab's state are kept for the session, so leaving for a dashboard and coming back finds them as they were. Back returns to the page before, not to the previous tab. Each tab is its own screen (`StatsChart`, `StatsCompare`, `StatsTrends`) with its state in `lib/stats/{chart,compare,trends}.ts`. Other screens reach Explore through two entries: Compare with a list of players or teams, and Trends on one player or team, optionally on a metric. Trends with nobody picked shows the player or team a dashboard showed last.
+
+### Chart
+
+Any metric against another, for the players at a position (All, G, F, C) or the 30 teams, in the scope bar's scope. One engine query reads the axes, size, colour and the qualifier for every row; nothing new is stored.
+
+- **Presets:** players, usage against true shooting, three-point attempts against percentage, assist percentage against turnover percentage, and drives against points per drive (tracking, from 2013-14); teams, offensive against defensive rating, pace against net rating, three-point rate against true shooting. Any catalogue metric can go on either axis, and the axes swap.
+- **Mode:** per game, totals, per 36, per 48, per 100, as on the dashboards. Rates read the same in all of them.
+- **Qualified:** the leaderboards' rule. A player needs enough minutes for the games in scope, and a row needs enough of each axis's own sample. "Qualified only" can be turned off, as on the leaderboards, and unqualified rows are greyed with NQ. Percentiles are among the qualified of the same position.
+- **Size and colour:** size by a metric's percentile; colour by a metric's percentile, or by a category: the roster's position for players (G, F, C, grey when the roster gives none), the conference for teams. Only metrics with a better side can size or colour.
+- **The plot:** a lower-is-better axis runs reversed, so up and right is better on both, and the corners say so in words. The dashed lines are the qualified means, and r is worked with both axes oriented the same way. The searched and the picked are labelled, then the eight players farthest from the crowd, or every team.
+- **Clicks:** a dot or a table row opens the dashboard, and Back returns to the chart as it was. Shift-click picks up to three, and "Compare these" opens them in Compare.
+- **Too few qualifiers:** under 10 dots the chart says how many qualify, in what scope, and why: "4 centers qualify on both axes in the 2025-26 play-in. A scatter needs at least 10: …". It offers the whole season when a range is set, and "Show all 14 centers" when more have values.
+- **No values:** an axis the scope cannot answer shows the engine's reason instead of an empty plot: "Drives: Published for whole seasons only." under a date range or last games, with a button back to the whole season, and "Drives: Recorded from 2013-14." before then.
+- **Row limit:** the engine returns at most 5,000 rows. A season's players are about 600, but if a query ever stops short, the chart says how many rows it left out.
+
+Measured on the clean Stage 7 load (`scripts/stage8-chart-steps.json`), timed through `window.api` from the renderer, with the engine's own time in brackets: players usage and true shooting 72 ms (58), three-pointers 62 (49), points, drives, assists and true shooting per game 73 (57) and in totals 76 (59), the same under a date range 44 (29), the last 10 games 48 (36), centers in the play-in 30 (25), and teams with three metrics 22 (17). A second run read 56 to 99 ms (41 to 75).
 
 ### Compare
 
