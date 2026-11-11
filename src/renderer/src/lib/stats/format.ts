@@ -101,6 +101,7 @@ export function cellTitle(
 const FAMILY_LABELS: Record<MetricInfo['family'], string> = {
   traditional: 'Traditional',
   shooting: 'Shooting',
+  shots: 'Shot zones',
   possessions: 'Possessions',
   scoring: 'Scoring',
   composite: 'Composite',

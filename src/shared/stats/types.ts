@@ -28,6 +28,7 @@ export type MetricFamily =
   | 'matchups'
   | 'impact'
   | 'availability'
+  | 'shots'
 
 /** `core` shown by default, `extended` in its family and the column picker, `stored` in queries only. */
 export type MetricTier = 'core' | 'extended' | 'stored'
@@ -96,6 +97,13 @@ export interface MetricDef {
    * are named as the published table's, so the same formula reads either.
    */
   publishedGames?: string
+  /**
+   * A table built from the plays at game grain that holds this metric's counts, from
+   * `src/main/stats/derived/gameTables.ts`: the shots by zone. It answers at both grains, joined to the
+   * box-score rows in scope, so a season, a team, a date range or any game filter reads exactly; what
+   * it does not hold (games, minutes) comes from the box scores.
+   */
+  built?: string
   /**
    * A published value that is one regular season's state, not a total or a rate: a projection. It
    * answers for one regular season at a time, since an average of several would mean nothing.

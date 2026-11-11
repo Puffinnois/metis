@@ -10,6 +10,7 @@ import {
 import type { Downloads, FetchedFile } from './download'
 import { buildIdentity, canBuildIdentity, identityStale, markIdentityStale } from './identity'
 import { buildPlays, canBuildPlays, markPlaysStale, playsStale } from './derived/plays'
+import { buildShots, canBuildShots, shotsStale } from './derived/shots'
 import { loadSourceFile } from './load'
 import type {
   RefreshOptions,
@@ -39,6 +40,7 @@ export const STATS_IDENTITY_STEP = `${STATS_LOG_PREFIX}identity`
 export const STATS_DERIVED_STEP = `${STATS_LOG_PREFIX}derived`
 export const STATS_PUBLISHED_STEP = `${STATS_LOG_PREFIX}published`
 export const STATS_PLAYS_STEP = `${STATS_LOG_PREFIX}plays`
+export const STATS_SHOTS_STEP = `${STATS_LOG_PREFIX}shots`
 
 export interface StatsSyncDeps {
   db: StatsDb
@@ -338,6 +340,15 @@ export async function refreshStats(
       log.push(
         await runLogged(deps, STATS_PLAYS_STEP, async () => ({
           rows: await buildPlays(db),
+          message: null
+        }))
+      )
+    }
+    // Shots by zone read the shot view and the plays' assists: only the seasons that changed.
+    if ((await canBuildShots(db)) && (await shotsStale(db))) {
+      log.push(
+        await runLogged(deps, STATS_SHOTS_STEP, async () => ({
+          rows: await buildShots(db),
           message: null
         }))
       )
