@@ -5,14 +5,24 @@ import { useNoteScreen } from '@/lib/dev/noteContext'
 import { errorMessage } from '@/lib/format'
 import type { NavLocation } from '@/lib/navHistory'
 import type { BoardDef } from '@/lib/stats/boards'
+import { DEFAULT_CHART, type ChartState } from '@/lib/stats/chart'
+import { compareWith, DEFAULT_COMPARE, type CompareState } from '@/lib/stats/compare'
+import {
+  DEFAULT_EXPLORE_TAB,
+  lastSubject,
+  type ExploreSubject,
+  type ExploreTab
+} from '@/lib/stats/explore'
 import { DEFAULT_GAMES, type GamesState } from '@/lib/stats/games'
 import { bestFirst, defaultBoard, normalizeBoard } from '@/lib/stats/leaderboard'
 import { defaultPlayer, railQuery, type PlayerTab } from '@/lib/stats/player'
 import { defaultScope, seasonOf, type StatsScope } from '@/lib/stats/scope'
 import { NAV_ITEMS, type StatsScreen } from '@/lib/stats/screens'
 import { defaultTeam, defaultTeamQuery, type TeamTab } from '@/lib/stats/team'
+import { DEFAULT_TRENDS, trendsFor, type TrendsState } from '@/lib/stats/trends'
 import { useStatsData, useStatsQuery } from '@/lib/stats/useStats'
 import { StatsData } from '@/screens/stats/StatsData'
+import { StatsExplore } from '@/screens/stats/StatsExplore'
 import { StatsGames } from '@/screens/stats/StatsGames'
 import { StatsGlossary } from '@/screens/stats/StatsGlossary'
 import { StatsHome } from '@/screens/stats/StatsHome'
@@ -78,6 +88,12 @@ export function StatsApp({
   const [teamTab, setTeamTab] = useState<TeamTab>('overview')
   // Games: the day and game chosen, kept for the session.
   const [games, setGames] = useState<GamesState>(DEFAULT_GAMES)
+  // Explore: its tab and each tab's state, kept for the session.
+  const [exploreTab, setExploreTab] = useState<ExploreTab>(DEFAULT_EXPLORE_TAB)
+  const [chart, setChart] = useState<ChartState>(DEFAULT_CHART)
+  const [compare, setCompare] = useState<CompareState>(DEFAULT_COMPARE)
+  const [trends, setTrends] = useState<TrendsState>(DEFAULT_TRENDS)
+  const [lastShown, setLastShown] = useState<ExploreSubject | null>(null)
   if (focus && focus.nonce !== focused) {
     setFocused(focus.nonce)
     setScreen(focus.location.screen)
@@ -131,6 +147,22 @@ export function StatsApp({
     setGames({ date: null, game: id })
     setScreen('games')
   }
+
+  // Explore's entries from other screens: Compare with these players or teams, or Trends on one,
+  // optionally on a metric. Each tab's own file says how it takes them in.
+  const openCompare = (subjects: ExploreSubject[]): void => {
+    setCompare((c) => compareWith(c, subjects))
+    setExploreTab('compare')
+    setScreen('explore')
+  }
+  const openTrends = (subject: ExploreSubject, metric?: string): void => {
+    setTrends((t) => trendsFor(t, subject, metric))
+    setExploreTab('trends')
+    setScreen('explore')
+  }
+  // Trends opens on the player or team a dashboard showed last.
+  const shown = lastSubject(lastShown, screen, shownPlayer, shownTeam)
+  if (shown !== lastShown) setLastShown(shown)
 
   const locationPlayer = screen === 'player' ? shownPlayer : null
   const locationTeam = screen === 'team' ? shownTeam : null
@@ -239,6 +271,8 @@ export function StatsApp({
               onOpenTeam={openTeam}
               onOpenGame={openGame}
               onOpenLeaderboard={() => setScreen('players')}
+              onCompare={openCompare}
+              onTrend={(metric) => openTrends({ entity: 'player', id: shownPlayer }, metric)}
             />
           ) : (
             <div className="py-20 text-center text-[13px] text-fg-3">
@@ -258,6 +292,8 @@ export function StatsApp({
               onOpenLeaderboard={() => setScreen('teams')}
               onOpenPlayer={openPlayer}
               onOpenGame={openGame}
+              onCompare={openCompare}
+              onTrend={(metric) => openTrends({ entity: 'team', id: shownTeam }, metric)}
             />
           ) : (
             <div className="py-20 text-center text-[13px] text-fg-3">
@@ -289,6 +325,24 @@ export function StatsApp({
             onDeleteView={deleteView}
             onOpenView={openView}
             onOpenRow={playerBoard ? openPlayer : openTeam}
+          />
+        ) : screen === 'explore' ? (
+          <StatsExplore
+            data={data}
+            scope={scope}
+            onScope={setChosen}
+            tab={exploreTab}
+            onTab={setExploreTab}
+            chart={chart}
+            onChart={setChart}
+            compare={compare}
+            onCompare={setCompare}
+            trends={trends}
+            onTrends={setTrends}
+            trendsFallback={lastShown}
+            openCompare={openCompare}
+            onOpenPlayer={openPlayer}
+            onOpenTeam={openTeam}
           />
         ) : screen === 'glossary' ? (
           <StatsGlossary catalogue={data.catalogue} />

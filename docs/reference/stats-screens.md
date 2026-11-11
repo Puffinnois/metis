@@ -4,7 +4,7 @@ What each screen shows and where its numbers come from. Screens are added here a
 
 ## Shell
 
-- **Nav:** Leaderboards, Players, Teams, Standings, Explore (not built yet), Games, Glossary. Players and Teams open a dashboard, with the leaderboards a click on from it. Until the tables are built, every screen says what the load is doing: loading, paused, out of disk space, or stopped until the next refresh.
+- **Nav:** Leaderboards, Players, Teams, Standings, Explore, Games, Glossary. Players and Teams open a dashboard, with the leaderboards a click on from it. Until the tables are built, every screen says what the load is doing: loading, paused, out of disk space, or stopped until the next refresh.
 - **Scope** (below): shared by every screen, and kept for the session.
 - **A refresh that rebuilds the tables** (`status.builtAt` changes) re-reads the seasons and runs every query on screen again. A status line ticking through a load does not.
 - **Status line** (`stats.status()`), read again as a load goes, at most once a second:
@@ -112,6 +112,10 @@ A day's games on a date rail, in place of the template's weeks. Opens on the lat
 - **No box score:** preseason games have none in either source, and some old games and All-Star games have only a score, so the screen says that. It never fabricates a line.
 
 The engine reads one game by its id. A date and teams would not do: All-Star round robins play more than once a day.
+
+## Explore
+
+Chart, Compare and Trends as three tabs over the shared scope bar. Explore opens on Chart; the tab and each tab's state are kept for the session, so leaving for a dashboard and coming back finds them as they were. Back returns to the page before, not to the previous tab. Each tab is its own screen (`StatsChart`, `StatsCompare`, `StatsTrends`) with its state in `lib/stats/{chart,compare,trends}.ts`. Other screens reach Explore through two entries: Compare with a list of players or teams, and Trends on one player or team, optionally on a metric. Trends with nobody picked shows the player or team a dashboard showed last. The tabs themselves arrive with T801, T802 and T803.
 
 ## Glossary
 

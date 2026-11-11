@@ -16,6 +16,7 @@ import { StatSection, StatSections } from '@/components/stats/StatLines'
 import { LineupsTab } from './StatsLineups'
 import { useNoteContext } from '@/lib/dev/noteContext'
 import { DASHBOARD_MODES, sectionMetrics, sectionViews } from '@/lib/stats/dashboard'
+import type { ExploreSubject } from '@/lib/stats/explore'
 import { fmtStat } from '@/lib/stats/format'
 import {
   moveToSeason,
@@ -103,6 +104,10 @@ export function StatsTeam({
   onOpenLeaderboard: () => void
   onOpenPlayer: (id: string) => void
   onOpenGame: (id: string) => void
+  /** Compare with these players or teams: Explore's Compare tab (its link arrives with T802). */
+  onCompare?: (subjects: ExploreSubject[]) => void
+  /** This dashboard's player or team over their seasons, on a metric (its link arrives with T803). */
+  onTrend?: (metric?: string) => void
 }): React.JSX.Element {
   const { value: all, error: gamesError } = useSeasonGames(scope.season, data.version)
   const { value: standings } = useStandings(scope.season, data.version)
