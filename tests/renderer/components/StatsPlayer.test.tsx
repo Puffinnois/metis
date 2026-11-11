@@ -202,6 +202,18 @@ describe('the player dashboard', () => {
     expect(await screen.findByText('Career by season')).toBeTruthy()
   })
 
+  it('opens Compare with the player in the first slot, whose name opens the dashboard', async () => {
+    await openDashboard()
+    fireEvent.click(screen.getByRole('button', { name: 'Compare' }))
+    expect(
+      (await screen.findByRole('tab', { name: 'Compare' })).getAttribute('aria-selected')
+    ).toBe('true')
+    const first = document.querySelector('[data-slot="0"]') as HTMLElement
+    await waitFor(() => expect(within(first).getByText(/Dončić/)).toBeTruthy())
+    fireEvent.click(within(first).getByRole('button', { name: /^Luka Dončić$/ }))
+    expect(await screen.findByRole('heading', { level: 1, name: /Dončić/ })).toBeTruthy()
+  })
+
   it('moves to another player from the rail, and not while their answers load', async () => {
     await openDashboard()
     const rail = within(screen.getByRole('complementary', { name: 'Players' }))

@@ -10,6 +10,11 @@ import { DEFAULT_TRENDS } from '@/lib/stats/trends'
 import type { StatsData } from '@/lib/stats/useStats'
 import { StatsExplore } from '@/screens/stats/StatsExplore'
 
+// Compare asks the engine for its rows; here it never answers, so the screen stays on its slots.
+vi.mock('@/lib/api', () => ({
+  api: { stats: { query: vi.fn(() => new Promise(() => {})), player: vi.fn() } }
+}))
+
 const DATA: StatsData = {
   status: null,
   catalogue: [],
@@ -62,10 +67,10 @@ describe('Explore', () => {
     expect(screen.getByTitle('Season')).toBeTruthy()
     expect(screen.getByText('Chart arrives with T801.')).toBeTruthy()
     fireEvent.click(screen.getByRole('tab', { name: 'Compare' }))
-    expect(screen.getByText('Compare arrives with T802.')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Compare' })).toBeTruthy()
     fireEvent.click(screen.getByRole('tab', { name: 'Trends' }))
     expect(screen.getByRole('tab', { name: 'Trends' }).getAttribute('aria-selected')).toBe('true')
-    expect(screen.queryByText('Compare arrives with T802.')).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Compare' })).toBeNull()
   })
 
   it('hands Trends the last dashboard shown when nobody is picked', () => {

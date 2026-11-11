@@ -11,6 +11,7 @@ import {
   TabRow
 } from '@/components/stats/parts'
 import { PlayerRail } from '@/components/stats/PlayerRail'
+import { CompareButton } from '@/screens/stats/StatsCompare'
 import { StatusChip } from '@/components/stats/StatusChip'
 import { statusTag } from '@/lib/stats/availability'
 import { ScopeBar } from '@/components/stats/ScopeBar'
@@ -104,7 +105,8 @@ export function StatsPlayer({
   onTab,
   onOpenTeam,
   onOpenGame,
-  onOpenLeaderboard
+  onOpenLeaderboard,
+  onCompare
 }: {
   data: StatsData
   scope: StatsScope
@@ -116,7 +118,7 @@ export function StatsPlayer({
   onOpenTeam: (team: string) => void
   onOpenGame: (game: string) => void
   onOpenLeaderboard: () => void
-  /** Compare with these players or teams: Explore's Compare tab (its link arrives with T802). */
+  /** Compare with these players or teams: Explore's Compare tab. */
   onCompare?: (subjects: ExploreSubject[]) => void
   /** This dashboard's player or team over their seasons, on a metric (its link arrives with T803). */
   onTrend?: (metric?: string) => void
@@ -185,6 +187,7 @@ export function StatsPlayer({
               info={info}
               row={row}
               onOpenTeam={onOpenTeam}
+              onCompare={onCompare && (() => onCompare([{ entity: 'player', id: player }]))}
             />
             <TabRow label="Player dashboard" tabs={PLAYER_DASH_TABS} value={tab} onChange={onTab}>
               <button
@@ -434,7 +437,8 @@ function Header({
   onScope,
   info,
   row,
-  onOpenTeam
+  onOpenTeam,
+  onCompare
 }: {
   data: StatsData
   scope: StatsScope
@@ -442,6 +446,7 @@ function Header({
   info: StatsPlayerInfo
   row: StatsRow | null
   onOpenTeam: (team: string) => void
+  onCompare?: () => void
 }): React.JSX.Element {
   const { first, last } = splitName(info.name)
   const code = row?.team ?? info.team?.code ?? null
@@ -506,7 +511,8 @@ function Header({
           </span>
         </div>
       </div>
-      <div className="shrink-0">
+      <div className="flex shrink-0 items-center gap-2">
+        {onCompare && <CompareButton onClick={onCompare} />}
         <ScopeBar scope={scope} seasons={data.seasons} onChange={onScope} />
       </div>
     </header>
