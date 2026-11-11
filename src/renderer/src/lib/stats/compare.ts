@@ -141,6 +141,7 @@ const FAMILY_ORDER: MetricFamily[] = [
   'traditional',
   'shooting',
   'possessions',
+  'on_court',
   'scoring',
   'composite',
   'tracking',

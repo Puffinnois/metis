@@ -360,7 +360,8 @@ function perDivisor(m: MetricDef, transform: Transform, entity: 'player' | 'team
   if (m.aggregation !== 'sum' || m.totalOnly) return null
   if (m.perGameOnly && transform !== 'perGame') return null
   // A team's published minutes are elapsed; its box-score minutes are all five players'.
-  const fives = entity === 'team' && !m.published ? ' / 5.0' : ''
+  const ownTable = !!m.published || !!m.gameTable
+  const fives = entity === 'team' && !ownTable ? ' / 5.0' : ''
   switch (transform) {
     case 'perGame':
       return `{${m.perGameBy ?? 'games'}}`
@@ -369,7 +370,7 @@ function perDivisor(m: MetricDef, transform: Transform, entity: 'player' | 'team
     case 'per48':
       return `{minutes}${fives} / 48.0`
     case 'per100':
-      if (m.published) return '{possessions} / 100.0'
+      if (ownTable) return '{possessions} / 100.0'
       return entity === 'player' ? '{on_poss} / 100.0' : '{poss_sym} / 100.0'
     default:
       return null
@@ -404,7 +405,7 @@ function partsOf(m: MetricDef, q: StatsQuery, c: Checked): string[] {
 function neededComponents(q: StatsQuery, c: Checked): Set<string> {
   const needed = new Set(['games'])
   for (const m of c.metrics) {
-    if (m.published) continue
+    if (m.published || m.gameTable) continue
     for (const part of partsOf(m, q, c)) needed.add(part)
   }
   return needed
@@ -458,6 +459,34 @@ function gameCte(name: string, table: string, parts: Set<string>, c: Checked): s
     SELECT b.id, ${[...dims, ...sums].join(', ')}
     FROM ${table} w JOIN base b ON b.id = w.${t.key} AND b.game = w.game_id
     GROUP BY b.id${c.groupBy.map((d) => `, b.${d}`).join('')})`
+}
+
+/**
+ * A built game table's sums per output row over whole seasons: its rows of the seasons, season types
+ * and players the box scores have in scope, and of the teams named, if any. A traded player's rows
+ * each carry their team, so one team's part reads exactly.
+ */
+function seasonGameCte(
+  name: string,
+  table: string,
+  parts: Set<string>,
+  q: StatsQuery,
+  c: Checked,
+  params: Params
+): string {
+  const t = gameTable(table)
+  if (!t) throw new StatsQueryError(`no game table "${table}"`)
+  const bySeason = c.groupBy.includes('season')
+  const sums = [...parts].map((p) =>
+    p === 'games' ? 'count(DISTINCT w.game_id)::DOUBLE AS games' : `sum(w.${p}) AS ${p}`
+  )
+  const teams = q.scope.teams ? `WHERE w.team_id IN ${params.list(q.scope.teams.map(Number))}` : ''
+  return `${name} AS (
+    SELECT w.${t.key} AS id, ${bySeason ? 'w.season AS g_season, ' : ''}${sums.join(', ')}
+    FROM ${table} w
+    SEMI JOIN base b ON b.id = w.${t.key} AND b.season = w.season AND b.game_type = w.game_type
+    ${teams}
+    GROUP BY w.${t.key}${bySeason ? ', w.season' : ''})`
 }
 
 /** The rows in scope, summed per output row, with each metric's value and sample. */
@@ -518,11 +547,11 @@ function aggregate(q: StatsQuery, c: Checked, params: Params): string {
   // Only the tables some metric can answer from: under a game filter, the game tables.
   const atGames = !season
   const tableOf = (m: MetricDef): string | undefined =>
-    atGames ? (fromGames(m) ? m.publishedGames : undefined) : m.published
+    m.gameTable ?? (atGames ? (fromGames(m) ? m.publishedGames : undefined) : m.published)
   const published = new Map<string, Set<string>>()
   c.metrics.forEach((m, i) => {
     const table = tableOf(m)
-    if (!m.published || !table || c.gaps[i] !== null) return
+    if (!table || c.gaps[i] !== null) return
     const parts = published.get(table) ?? new Set<string>()
     for (const part of partsOf(m, q, c)) parts.add(part)
     published.set(table, parts)
@@ -533,7 +562,9 @@ function aggregate(q: StatsQuery, c: Checked, params: Params): string {
     ctes.push(
       atGames
         ? gameCte(alias(table), table, parts, c)
-        : publishedCte(alias(table), table, parts, q, c, params)
+        : gameTable(table)
+          ? seasonGameCte(alias(table), table, parts, q, c, params)
+          : publishedCte(alias(table), table, parts, q, c, params)
     )
   }
   // A game table's rows group by every dimension; a published table's by the season at most.
@@ -546,7 +577,7 @@ function aggregate(q: StatsQuery, c: Checked, params: Params): string {
   const joins = tables.map((t) => `LEFT JOIN ${alias(t)} ON ${alias(t)}.id = s.id${on(alias(t))}`)
   const sumOf = (m: MetricDef, n: string): string => {
     const table = tableOf(m)
-    return m.published && table ? `${alias(table)}.${n}` : `s.${n}`
+    return table ? `${alias(table)}.${n}` : `s.${n}`
   }
   ctes.push(`agg AS (
     SELECT s.id, ${c.groupBy.map((d) => `s.g_${d}, `).join('')} s.team_id, s.last_season, s.position,

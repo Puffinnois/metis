@@ -1,5 +1,6 @@
 import type { Entity } from '@shared/stats/types'
 import { GAME_MATCHUP_COMPONENTS, GAME_MATCHUP_KEY, GAME_MATCHUPS } from './gameMatchups'
+import { PLAYER_ON_COURT, PLAYER_ON_COURT_COMPONENTS } from './onCourt'
 
 /**
  * A built table at game grain that answers published metrics under a filter that splits a season. The
@@ -22,6 +23,13 @@ export const GAME_TABLES: readonly GameTable[] = [
     entity: 'player',
     key: GAME_MATCHUP_KEY,
     components: GAME_MATCHUP_COMPONENTS
+  },
+  // Built from the plays, so it answers whole seasons too: metrics name it as their `gameTable`.
+  {
+    table: PLAYER_ON_COURT,
+    entity: 'player',
+    key: 'player_id',
+    components: PLAYER_ON_COURT_COMPONENTS
   }
 ]
 

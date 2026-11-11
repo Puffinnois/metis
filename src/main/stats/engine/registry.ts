@@ -17,6 +17,13 @@ export const COMPONENTS: Record<Entity, ReadonlySet<string>> = {
  */
 export function grainsOf(def: MetricDef): Grain[] {
   const parts = componentsOf(def)
+  // Built from the plays at game grain: its table answers both grains.
+  if (def.gameTable) {
+    const built = gameTable(def.gameTable)
+    return built?.entity === def.entity && parts.every((c) => built.components.includes(c))
+      ? ['game', 'season']
+      : []
+  }
   if (def.published) {
     const table = publishedTable(def.published)
     const held = table ? publishedComponents(table) : []

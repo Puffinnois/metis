@@ -1,5 +1,6 @@
 import type { StatsDb } from '../db'
 import { eventsBootstrap, eventsSql } from './events'
+import { buildOnCourt, onCourtBootstrap } from './onCourt'
 import { column, inspect, type Have } from './sql'
 
 /**
@@ -18,7 +19,7 @@ import { column, inspect, type Have } from './sql'
  */
 
 /** Bump when a table changes, so the next refresh builds them without downloading anything. */
-export const PLAYS_VERSION = 1
+export const PLAYS_VERSION = 2
 
 export const PLAY_TABLES = { nba: 'play_nba', espn: 'play_espn' } as const
 export type PlaySource = keyof typeof PLAY_TABLES
@@ -442,7 +443,8 @@ export function playsBootstrap(): string[] {
   return [
     ...Object.values(PLAY_TABLES).map((t) => `CREATE TABLE IF NOT EXISTS ${t} (${columns})`),
     playsViewSql().replace('CREATE OR REPLACE VIEW', 'CREATE VIEW IF NOT EXISTS'),
-    ...eventsBootstrap()
+    ...eventsBootstrap(),
+    ...onCourtBootstrap()
   ]
 }
 
@@ -480,6 +482,8 @@ export async function buildPlays(db: StatsDb): Promise<number> {
   }
   await db.exec(playsViewSql())
   for (const sql of eventsSql(have)) await db.exec(sql)
+  // Who was on the floor (Plan T904), built from the plays: it joins `play_nba`.
+  rows += await buildOnCourt(db, have)
   await db.exec('INSERT OR REPLACE INTO derived_state VALUES (?, ?)', ['plays', PLAYS_VERSION])
   return rows
 }

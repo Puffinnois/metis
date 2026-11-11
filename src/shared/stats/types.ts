@@ -20,6 +20,7 @@ export type MetricFamily =
   | 'traditional'
   | 'shooting'
   | 'possessions'
+  | 'on_court'
   | 'scoring'
   | 'composite'
   | 'tracking'
@@ -96,6 +97,12 @@ export interface MetricDef {
    * are named as the published table's, so the same formula reads either.
    */
   publishedGames?: string
+  /**
+   * A table built from the plays at game grain that answers this metric at every grain, from
+   * `src/main/stats/derived/gameTables.ts`: a whole season sums its rows over the games in scope, and a
+   * filter that splits a season sums the games it keeps. Not a published metric.
+   */
+  gameTable?: string
   /**
    * A published value that is one regular season's state, not a total or a rate: a projection. It
    * answers for one regular season at a time, since an average of several would mean nothing.
