@@ -566,8 +566,7 @@ function OfficialsSeason({
       ) : (
         <>
           <p className="m-0 text-[12.5px] text-fg-3">
-            {coverageText(value.coverage)}
-            {value.reason ? ` ${value.reason}` : ''}
+            {value.reason ?? coverageText(value.coverage)}
           </p>
           {value.officials.length === 0 ? (
             <p className="m-0 text-[12.5px] text-fg-3">No officials listed in scope.</p>

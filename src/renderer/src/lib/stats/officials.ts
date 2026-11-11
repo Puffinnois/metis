@@ -132,7 +132,7 @@ export interface OfficialRow {
 }
 
 const fewNote = (games: number, rates: boolean): string | null =>
-  rates && games > 0 && games < FEW_GAMES ? `${games} games: few` : null
+  rates && games > 0 && games < FEW_GAMES ? `${games} ${games === 1 ? 'game' : 'games'}: few` : null
 
 /** A season's table: the league first, then every official by games worked, then name. */
 export function seasonRows(s: StatsOfficialsSeason): OfficialRow[] {

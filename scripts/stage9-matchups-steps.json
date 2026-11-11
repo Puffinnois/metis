@@ -1,0 +1,143 @@
+[
+  {
+    "size": [1500, 950]
+  },
+  {
+    "wait": 4000
+  },
+  {
+    "eval": "window.sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nwindow.until = async (fn, ms = 10000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (fn()) return true; await sleep(150) } return false };\nwindow.nav = (name) => [...document.querySelectorAll('nav button')].find((b) => b.textContent.trim() === name).click();\nwindow.setInput = (input, value) => { const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(input, value); input.dispatchEvent(new Event('input', { bubbles: true })); input.dispatchEvent(new Event('change', { bubbles: true })) };\nwindow.chooseSelect = async (title, value) => { const el = [...document.querySelectorAll('select')].find((x) => x.title === title); if (!el) return 'NO SELECT ' + title; Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(el, String(value)); el.dispatchEvent(new Event('change', { bubbles: true })); await sleep(900); return title + ' = ' + (el.selectedOptions[0]?.textContent ?? el.value) };\nwindow.rail = (code) => { const b = [...document.querySelectorAll('[aria-label=\"The day’s games\"] button')].find((x) => x.textContent.includes(code)); if (!b) return 'NOT ON THE RAIL ' + code; b.click(); return 'opened ' + b.innerText.replace(/\\n/g, ' ') };\nwindow.cells = (r) => [...r.querySelectorAll('[role=cell]')].map((c) => c.textContent.trim());\nwindow.pairs = () => { const s = document.querySelector('section[aria-label=\"Who guarded whom\"]'); if (!s) return 'NO SECTION'; const tables = [...s.querySelectorAll('[role=table]')]; return { text: s.innerText.split('\\n').slice(0, 3).join(' | '), counts: [...s.querySelectorAll('.font-semibold + span')].map((e) => e.textContent), sides: tables.map((t) => ({ side: t.getAttribute('aria-label'), rows: t.querySelectorAll('[role=row]').length - 1, first: cells([...t.querySelectorAll('[role=row]')][1] ?? t) })) } };\nwindow.officials = () => document.querySelector('[aria-label=Officials]')?.innerText ?? 'NO OFFICIALS LINE';\nwindow.clickText = async (text) => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === text); if (!b) return 'NO BUTTON ' + text; b.click(); await sleep(1200); return 'clicked ' + text };\nwindow.officialTable = (label, n = 3, last = false) => { const t = document.querySelector('[role=table][aria-label=\"' + label + '\"]'); if (!t) return 'NO TABLE ' + label; const rows = [...t.querySelectorAll('[role=row]')]; return { head: [...rows[0].children].map((c) => c.textContent), seasons: rows.length - 1, rows: (last ? rows.slice(-n) : rows.slice(1, 1 + n)).map(cells) } };\nwindow.findRow = (label, name) => { const t = document.querySelector('[role=table][aria-label=\"' + label + '\"]'); const r = t && [...t.querySelectorAll('[role=row]')].find((x) => x.textContent.startsWith(name)); return r ? cells(r) : 'NO ROW ' + name };\nwindow.openPlayer = async (name) => { const input = document.querySelector('input[aria-label=\"Search players\"]'); const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(input, name); input.dispatchEvent(new Event('input', { bubbles: true })); await until(() => [...document.querySelectorAll('aside button')].some((x) => x.textContent.includes(name))); const b = [...document.querySelectorAll('aside button')].find((x) => x.textContent.includes(name)); if (!b) return 'NOT LISTED'; b.click(); await until(() => document.querySelector('h1')?.innerText.replace(/\\n/g, ' ').includes(name.split(' ').pop())); return 'opened ' + document.querySelector('h1')?.innerText.replace(/\\n/g, ' ') };\nwindow.tab = async (label) => { const t = [...document.querySelectorAll('[role=tab]')].find((x) => x.textContent.trim() === label); if (!t) return 'NO TAB ' + label; t.click(); await sleep(1200); return 'tab ' + label };\nwindow.M = (id) => document.querySelector('[data-metric=' + id + ']')?.innerText.replace(/\\n/g, ' | ') ?? 'MISSING ' + id;\nwindow.pairTable = (title) => { const t = document.querySelector('[role=table][aria-label=\"' + title + '\"]'); if (!t) return 'NO TABLE ' + title; const rows = [...t.querySelectorAll('[role=row]')].slice(1); return { rows: rows.length, first: rows.slice(0, 2).map(cells) } };\n'helpers ready'"
+  },
+  {
+    "click": "Games"
+  },
+  {
+    "wait": 1800
+  },
+  {
+    "eval": "(async () => [await chooseSelect('Season', 2026), await chooseSelect('Day', '2026-01-15'), rail('LAL')].join(' · '))()"
+  },
+  {
+    "wait": 2500
+  },
+  {
+    "eval": "'GAME 2026-01-15 CHA @ LAL ' + JSON.stringify({ header: document.querySelector('header')?.innerText.replace(/\\n/g, ' | '), officials: officials(), pairs: pairs() })"
+  },
+  {
+    "shot": "01-game-pairs"
+  },
+  {
+    "eval": "(async () => { const r = await clickText('Show every pair'); await sleep(600); const p = pairs(); return r + ' ' + JSON.stringify(p.sides.map((s) => [s.side, s.rows])) })()"
+  },
+  {
+    "eval": "(async () => clickText('Jonathan Sterling'))()"
+  },
+  {
+    "wait": 1500
+  },
+  {
+    "eval": "'OFFICIAL from the crew ' + JSON.stringify({ h1: document.querySelector('h1')?.innerText.replace(/\\n/g, ' '), line: document.querySelector('h1')?.parentElement?.innerText.replace(/\\n/g, ' | '), table: officialTable('Seasons', 4) })"
+  },
+  {
+    "shot": "02-official-career"
+  },
+  {
+    "eval": "(async () => { const r = await clickText('The game'); return r + ' -> ' + (document.querySelector('header')?.innerText.replace(/\\n/g, ' | ') ?? 'NO HEADER') })()"
+  },
+  {
+    "eval": "(async () => clickText('Officials of 2025-26'))()"
+  },
+  {
+    "wait": 2500
+  },
+  {
+    "eval": "'OFFICIALS 2025-26 ' + JSON.stringify({ h1: document.querySelector('h1')?.innerText, coverage: [...document.querySelectorAll('p')].map((p) => p.textContent).find((t) => /crew listed/.test(t)), table: officialTable('Officials', 3), goble: findRow('Officials', 'Jacyn Goble'), notes: [...document.querySelectorAll('p')].map((p) => p.textContent).filter((t) => /box scores|crew counts|fewer than/.test(t)) })"
+  },
+  {
+    "shot": "03-officials-season"
+  },
+  {
+    "eval": "(async () => { const r = await chooseSelect('Season type', 'playoffs'); await sleep(1500); return r + ' ' + JSON.stringify({ table: officialTable('Officials', 2), few: [...document.querySelectorAll('[role=table][aria-label=Officials] [role=row]')].map((x) => cells(x).at(-1)).filter((t) => /few/.test(t ?? '')).length }) })()"
+  },
+  {
+    "eval": "(async () => chooseSelect('Season type', 'regular'))()"
+  },
+  {
+    "eval": "(async () => { const r = await clickText('Officials of 2025-26'); return r + ' -> pressed ' + document.querySelector('[aria-pressed]')?.getAttribute('aria-pressed') })()"
+  },
+  {
+    "eval": "(async () => [await chooseSelect('Season', 2013), await chooseSelect('Day', '2013-01-16'), rail('')].join(' · '))()"
+  },
+  {
+    "wait": 2500
+  },
+  {
+    "eval": "'GAME 2012-13 ' + JSON.stringify({ header: document.querySelector('header')?.innerText.replace(/\\n/g, ' | '), officials: officials(), pairs: pairs() })"
+  },
+  {
+    "shot": "04-game-2013"
+  },
+  {
+    "eval": "(async () => [await chooseSelect('Season', 2000), await chooseSelect('Day', '1999-11-23'), rail('PHX')].join(' · '))()"
+  },
+  {
+    "wait": 2500
+  },
+  {
+    "eval": "'GAME 1999-00 ' + JSON.stringify({ header: document.querySelector('header')?.innerText.replace(/\\n/g, ' | '), officials: officials(), pairs: pairs() })"
+  },
+  {
+    "eval": "(async () => clickText('Tommy Nunez'))()"
+  },
+  {
+    "wait": 1500
+  },
+  {
+    "eval": "'OFFICIAL 1999-00 ' + JSON.stringify({ h1: document.querySelector('h1')?.innerText, newest: officialTable('Seasons', 2), oldest: officialTable('Seasons', 4, true) })"
+  },
+  {
+    "shot": "05-official-before-2003-04"
+  },
+  {
+    "eval": "(async () => { await clickText('The game'); return clickText('Officials of 1999-00') })()"
+  },
+  {
+    "wait": 1800
+  },
+  {
+    "eval": "'OFFICIALS 1999-00 ' + JSON.stringify({ coverage: [...document.querySelectorAll('p')].map((p) => p.textContent).find((t) => /crew listed/.test(t)), table: officialTable('Officials', 2) })"
+  },
+  {
+    "shot": "06-officials-1999-00"
+  },
+  {
+    "click": "Players"
+  },
+  {
+    "wait": 2000
+  },
+  {
+    "eval": "(async () => [await chooseSelect('Season', 2026), await openPlayer('LeBron James'), await tab('Matchups')].join(' · '))()"
+  },
+  {
+    "wait": 1500
+  },
+  {
+    "eval": "'LEBRON 2025-26 whole season ' + JSON.stringify({ min: M('matchup_min'), pts: M('matchup_pts'), guarded: pairTable('Who they guarded most'), note: [...document.querySelectorAll('p, li')].map((p) => p.textContent).find((t) => /pair file|game matchups/.test(t)) })"
+  },
+  {
+    "eval": "(async () => { const r = await chooseSelect('Range', 'dates'); await sleep(600); setInput(document.querySelector('input[title=\"From date\"]'), '2026-01-01'); await sleep(900); setInput(document.querySelector('input[title=\"To date\"]'), '2026-01-31'); await sleep(2500); return r + ' ' + document.querySelector('input[title=\"From date\"]').value + ' to ' + document.querySelector('input[title=\"To date\"]').value })()"
+  },
+  {
+    "eval": "'LEBRON January 2026 ' + JSON.stringify({ min: M('matchup_min'), pts: M('matchup_pts'), fg: M('matchup_fg_pct'), poss: M('matchup_poss'), positions: M('matchup_g_time_pct'), guarded: pairTable('Who they guarded most'), note: [...document.querySelectorAll('p, li')].map((p) => p.textContent).find((t) => /pair file|game matchups/.test(t)) })"
+  },
+  {
+    "shot": "07-player-date-range"
+  },
+  {
+    "eval": "(async () => { const r = await chooseSelect('Range', 'last'); await sleep(2500); return r + ' ' + JSON.stringify({ min: M('matchup_min'), pts: M('matchup_pts'), guarded: pairTable('Who they guarded most') }) })()"
+  },
+  {
+    "eval": "(async () => { await chooseSelect('Range', 'season'); const r = await chooseSelect('Season', 2017); await sleep(2000); return r + ' ' + JSON.stringify({ min: M('matchup_min'), pairs: [...document.querySelectorAll('p')].map((p) => p.textContent).find((t) => /Tracked from/.test(t)) }) })()"
+  }
+]

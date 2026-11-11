@@ -9,5 +9,6 @@ export const OFFICIATING_FIRST_SEASON = 2004
 /** Why an official's rates are not read for a season; null from 2003-04. */
 export function officiatingReason(season: number, games: number, withCrew: number): string | null {
   if (season >= OFFICIATING_FIRST_SEASON) return null
-  return `Crews are listed for ${withCrew} of ${games} games in ${seasonLabel(season)}; rates start in ${seasonLabel(OFFICIATING_FIRST_SEASON)}.`
+  const n = (x: number): string => x.toLocaleString('en-US')
+  return `Crews are listed for ${n(withCrew)} of ${n(games)} games in ${seasonLabel(season)}; rates start in ${seasonLabel(OFFICIATING_FIRST_SEASON)}.`
 }
