@@ -131,7 +131,7 @@ Any metric against another, for the players at a position (All, G, F, C) or the 
 - **No values:** an axis the scope cannot answer shows the engine's reason instead of an empty plot: "Drives: Published for whole seasons only." under a date range or last games, with a button back to the whole season, and "Drives: Recorded from 2013-14." before then.
 - **Row limit:** the engine returns at most 5,000 rows. A season's players are about 600, but if a query ever stops short, the chart says how many rows it left out.
 
-Measured on the clean Stage 7 load (`scripts/stage8-chart-steps.json`), timed through `window.api` from the renderer, with the engine's own time in brackets: players usage and true shooting 72 ms (58), three-pointers 62 (49), points, drives, assists and true shooting per game 73 (57) and in totals 76 (59), the same under a date range 44 (29), the last 10 games 48 (36), centers in the play-in 30 (25), and teams with three metrics 22 (17).
+Measured on the clean Stage 7 load (`scripts/stage8-chart-steps.json`), timed through `window.api` from the renderer, with the engine's own time in brackets: players usage and true shooting 72 ms (58), three-pointers 62 (49), points, drives, assists and true shooting per game 73 (57) and in totals 76 (59), the same under a date range 44 (29), the last 10 games 48 (36), centers in the play-in 30 (25), and teams with three metrics 22 (17). A second run read 56 to 99 ms (41 to 75).
 
 ### Compare
 
