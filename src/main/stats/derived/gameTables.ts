@@ -4,6 +4,8 @@ import { GAME_MATCHUP_COMPONENTS, GAME_MATCHUP_KEY, GAME_MATCHUPS } from './game
 /**
  * A built table at game grain that answers published metrics under a filter that splits a season. The
  * engine joins it to the box-score rows in scope by player and game, so every filter on a game holds.
+ * A metric names it in `publishedGames`; the table holds `game_id` and its `key`, and counts named as
+ * the metric's `published` table names them. `docs/reference/stats-database.md`, "Game tables".
  */
 export interface GameTable {
   table: string

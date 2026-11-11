@@ -138,6 +138,18 @@
     "eval": "(async () => { const r = await chooseSelect('Range', 'last'); await sleep(2500); return r + ' ' + JSON.stringify({ min: M('matchup_min'), pts: M('matchup_pts'), guarded: pairTable('Who they guarded most') }) })()"
   },
   {
-    "eval": "(async () => { await chooseSelect('Range', 'season'); const r = await chooseSelect('Season', 2017); await sleep(2000); return r + ' ' + JSON.stringify({ min: M('matchup_min'), pairs: [...document.querySelectorAll('p')].map((p) => p.textContent).find((t) => /Tracked from/.test(t)) }) })()"
+    "eval": "(async () => [await chooseSelect('Range', 'season'), await openPlayer('Devin Vassell'), await chooseSelect('Season type', 'playoffs'), await tab('Matchups')].join(' · '))()"
+  },
+  {
+    "wait": 2000
+  },
+  {
+    "eval": "'VASSELL 2025-26 playoffs (raw game file: 23 games, 328.51 min, 268 pts, 106-277, 1608.8 poss) ' + JSON.stringify({ min: M('matchup_min'), pts: M('matchup_pts'), fg: M('matchup_fg_pct'), poss: M('matchup_poss'), guarded: pairTable('Who they guarded most'), note: [...document.querySelectorAll('p, li')].map((p) => p.textContent).find((t) => /pair file|game matchups/.test(t)) })"
+  },
+  {
+    "shot": "08-playoffs-whole-season"
+  },
+  {
+    "eval": "(async () => { await chooseSelect('Season type', 'regular'); await openPlayer('LeBron James'); await chooseSelect('Range', 'season'); const r = await chooseSelect('Season', 2017); await sleep(2000); return r + ' ' + JSON.stringify({ min: M('matchup_min'), pairs: [...document.querySelectorAll('p')].map((p) => p.textContent).find((t) => /Tracked from/.test(t)) }) })()"
   }
 ]

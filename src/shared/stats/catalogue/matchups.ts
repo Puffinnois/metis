@@ -11,8 +11,8 @@ import { metric, ratio, type Opts } from './define'
  *
  * Assignment is a measurement convention: help, switches and scheme sit in every number, and a small
  * sample carries the shooter's quality more than the defender's. In the regular season the totals
- * add up the NBA's pair file; the playoffs and the current season come from its rollup by defender
- * (`derived/publishedTables.ts`).
+ * add up the NBA's pair file, in the playoffs the game matchups; the current season and every
+ * season's games come from its rollup by defender (`derived/publishedTables.ts`).
  */
 const SOURCES = ["The NBA's season matchups"]
 const FIRST = 2018

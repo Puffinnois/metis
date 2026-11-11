@@ -192,7 +192,9 @@ const playoffs = await read(`
   GROUP BY 1 ORDER BY 1`)
 out('## Playoffs: game matchups against the rollup, per defender')
 out()
-out('The rollup prints its clock to the second (`41:33`), so time is compared within a minute.')
+out(
+  'A reported difference, not a problem: a whole playoff season reads the game matchups, and the rollup only for its games. The rollup prints its clock to the second (`41:33`), so time is compared within a minute.'
+)
 out()
 table(
   ['Season', 'Defenders', 'Only in one', 'PTS, FGM, FGA equal', 'Games equal', 'Time within 60 s'],
@@ -204,6 +206,60 @@ table(
     `${r.games} (${pct(r.games, r.n)})`,
     `${r.sec60} (${pct(r.sec60, r.n)})`
   ])
+)
+
+// --- A whole playoff season through the engine against the game matchups ------------------------
+out('## Whole playoff seasons through the engine')
+out()
+out(
+  'The season grain, playoffs, against the game matchups added up in SQL per defender: points, field goals, minutes and possessions must be equal; games are the rollup’s, against the games with a matchup.'
+)
+out()
+const playoffRows = []
+for (let season = FIRST; season <= LAST; season++) {
+  const at = Date.now()
+  const r = await query({
+    entity: 'player',
+    metrics: ['matchup_pts', 'matchup_fgm', 'matchup_fga', 'matchup_min', 'matchup_poss'],
+    scope: { seasons: [season], gameTypes: ['playoffs'] },
+    limit: 5000
+  })
+  const ms = Date.now() - at
+  const sql = await read(`
+    SELECT def_player_id::VARCHAR id, sum(player_pts) pts, sum(matchup_fgm) fgm,
+           sum(matchup_fga) fga, sum(matchup_minutes) mins, sum(possessions) poss,
+           count(DISTINCT game_id)::INTEGER gp
+    FROM game_matchups WHERE season = ${season} AND game_type = 'playoffs' GROUP BY 1`)
+  const byId = new Map(r.rows.map((x) => [x.id, x]))
+  let equal = 0
+  let games = 0
+  for (const s of sql) {
+    const row = byId.get(s.id)
+    const v = row?.values
+    if (
+      v &&
+      v.matchup_pts.value === s.pts &&
+      v.matchup_fgm.value === s.fgm &&
+      v.matchup_fga.value === s.fga &&
+      Math.abs(v.matchup_min.value - s.mins) < 1e-6 &&
+      Math.abs(v.matchup_poss.value - s.poss) < 1e-6
+    ) {
+      equal++
+    }
+    if (row && v.matchup_pts.sample === s.gp) games++
+  }
+  if (equal < sql.length) problems++
+  playoffRows.push([
+    label(season),
+    sql.length,
+    `${equal} (${pct(equal, sql.length)})`,
+    `${games} (${pct(games, sql.length)})`,
+    `${ms} ms`
+  ])
+}
+table(
+  ['Season', 'Defenders', 'Equal on all five', 'Rollup games = games with a matchup', 'Engine'],
+  playoffRows
 )
 
 // --- The engine at the game grain against the table ----------------------------------------------
