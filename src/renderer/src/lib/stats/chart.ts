@@ -424,7 +424,8 @@ export function chartTitle(
 
 /** "guards", "players", "teams": who the dots are, in a sentence. */
 export function whoWords(state: Pick<ChartState, 'entity' | 'position'>): string {
-  return state.entity === 'team' ? 'teams' : lowerFirst(chartTab(state).label)
+  if (state.entity === 'team') return 'teams'
+  return state.position === 'ALL' ? 'players' : lowerFirst(chartTab(state).label)
 }
 
 /**
