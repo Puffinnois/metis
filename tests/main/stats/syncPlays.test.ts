@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import * as plays from '@main/stats/derived/plays'
+import * as plays from '@main/stats/derived/playBuilders'
 import type { Downloads } from '@main/stats/download'
 import type { SourceFile } from '@main/stats/sources'
 import { refreshStats, STATS_PLAYS_STEP } from '@main/stats/sync'
@@ -27,12 +27,11 @@ vi.mock('@main/stats/derived/published', () => ({
   publishedBootstrap: vi.fn(() => [])
 }))
 
-vi.mock('@main/stats/derived/plays', () => ({
+vi.mock('@main/stats/derived/playBuilders', () => ({
   canBuildPlays: vi.fn(async () => true),
-  playsStale: vi.fn(async () => false),
-  markPlaysStale: vi.fn(async () => undefined),
-  buildPlays: vi.fn(async () => 17),
-  playsBootstrap: vi.fn(() => [])
+  playsDue: vi.fn(async () => false),
+  markPlaySeason: vi.fn(async () => undefined),
+  buildPlays: vi.fn(async () => 17)
 }))
 
 const NOW = new Date('2026-11-05T12:00:00Z')
@@ -57,9 +56,13 @@ const PLAYS = source('plays_file', 'plays')
 
 beforeEach(() => {
   vi.mocked(plays.canBuildPlays).mockResolvedValue(true)
-  vi.mocked(plays.playsStale).mockResolvedValue(false)
-  vi.mocked(plays.markPlaysStale).mockClear()
+  vi.mocked(plays.playsDue).mockResolvedValue(false)
+  vi.mocked(plays.markPlaySeason).mockClear()
   vi.mocked(plays.buildPlays).mockClear()
+  // A season is due once any file of the events, plays or core tier wrote rows.
+  vi.mocked(plays.markPlaySeason).mockImplementation(async () => {
+    vi.mocked(plays.playsDue).mockResolvedValue(true)
+  })
 })
 
 async function run(sources: SourceFile[]): Promise<string[]> {
@@ -84,17 +87,19 @@ describe('the plays step', () => {
     expect(plays.buildPlays).toHaveBeenCalledTimes(1)
   })
 
-  it('marks the tables out of date before anything can stop the build', async () => {
-    await run([EVENTS])
-    expect(plays.markPlaysStale).toHaveBeenCalledTimes(1)
+  it('records each season that wrote rows as it loads, before anything can stop the build', async () => {
+    await run([PUBLISHED, EVENTS, PLAYS])
+    expect(vi.mocked(plays.markPlaySeason).mock.calls.map(([, season]) => season)).toEqual([
+      2027, 2027
+    ])
   })
 
-  it('does not run when no event or play file changed and its version stands', async () => {
+  it('does not run when no event, play or core file changed and its version stands', async () => {
     expect(await run([PUBLISHED])).toEqual(['stats:published_file:2027 ok'])
   })
 
-  it('runs when a new version made it stale, with nothing downloaded', async () => {
-    vi.mocked(plays.playsStale).mockResolvedValue(true)
+  it('runs when a new version or an earlier refresh left it due, with nothing downloaded', async () => {
+    vi.mocked(plays.playsDue).mockResolvedValue(true)
     expect(await run([])).toEqual([`${STATS_PLAYS_STEP} ok`])
   })
 

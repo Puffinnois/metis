@@ -8,7 +8,7 @@ import {
 } from './derived/published'
 import type { Downloads, FetchedFile } from './download'
 import { buildIdentity, canBuildIdentity, identityStale, markIdentityStale } from './identity'
-import { buildPlays, canBuildPlays, markPlaysStale, playsStale } from './derived/plays'
+import { buildPlays, canBuildPlays, markPlaySeason, playsDue } from './derived/playBuilders'
 import { loadSourceFile } from './load'
 import type {
   RefreshOptions,
@@ -236,7 +236,6 @@ export async function refreshStats(
   let built = false
   let publishedWrote = false
   let publishedBuilt = false
-  let eventsWrote = false
   const today = nowOf(deps)
   const current = currentSeason(today)
   const states = await readStates(db)
@@ -329,9 +328,10 @@ export async function refreshStats(
   }
 
   // Built at the end, once the events and plays tiers are in: the plays are keyed to the game
-  // tables, and they are the largest build, so nothing else waits behind it.
+  // tables, and they are the largest build, so nothing else waits behind it. Only the seasons whose
+  // files wrote rows are rebuilt (`playBuilders.ts`).
   const runPlaysBuild = async (): Promise<void> => {
-    if ((eventsWrote || coreWrote || (await playsStale(db))) && (await canBuildPlays(db))) {
+    if ((await playsDue(db)) && (await canBuildPlays(db))) {
       log.push(
         await runLogged(deps, STATS_PLAYS_STEP, async () => ({
           rows: await buildPlays(db),
@@ -384,13 +384,8 @@ export async function refreshStats(
       }
       coreWrote = true
     }
-    if (
-      (step.source.tier === 'events' || step.source.tier === 'plays') &&
-      entry.status === 'ok' &&
-      entry.rowsWritten > 0
-    ) {
-      if (!eventsWrote) await markPlaysStale(db)
-      eventsWrote = true
+    if (entry.status === 'ok' && entry.rowsWritten > 0 && step.source.tier !== 'published') {
+      await markPlaySeason(db, step.season)
     }
     if (step.source.tier === 'published' && entry.status === 'ok' && entry.rowsWritten > 0) {
       if (!publishedWrote && canBuildPublished()) await markPublishedStale(db)
