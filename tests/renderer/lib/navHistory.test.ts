@@ -8,7 +8,7 @@ const page = (screen: 'home' | 'games' | 'players'): NavLocation => ({
   team: null,
   player: null
 })
-const statsPlayer = (id: string, position: 'WR' | null): NavLocation => ({
+const statsPlayer = (id: string, position: 'G' | null): NavLocation => ({
   screen: 'player',
   team: null,
   player: { id, position }
@@ -20,7 +20,7 @@ describe('the back stack', () => {
     act(() => result.current.report(page('home')))
     expect(result.current.canGoBack).toBe(false)
     act(() => result.current.report(page('games')))
-    act(() => result.current.report(statsPlayer('00-1', null)))
+    act(() => result.current.report(statsPlayer('2544', null)))
     expect(result.current.canGoBack).toBe(true)
 
     let to: NavLocation | null = null
@@ -40,9 +40,9 @@ describe('the back stack', () => {
 
   it('takes the same page reported again, or the same player at a position, as no move', () => {
     const { result } = renderHook(() => useBackStack())
-    act(() => result.current.report(statsPlayer('00-1', null)))
-    act(() => result.current.report(statsPlayer('00-1', 'WR')))
-    act(() => result.current.report(statsPlayer('00-1', 'WR')))
+    act(() => result.current.report(statsPlayer('2544', null)))
+    act(() => result.current.report(statsPlayer('2544', 'G')))
+    act(() => result.current.report(statsPlayer('2544', 'G')))
     expect(result.current.canGoBack).toBe(false)
     act(() => result.current.report(page('players')))
     let to: NavLocation | null = null
@@ -50,12 +50,12 @@ describe('the back stack', () => {
       to = result.current.back()
     })
     // The position it last had.
-    expect(to).toEqual(statsPlayer('00-1', 'WR'))
+    expect(to).toEqual(statsPlayer('2544', 'G'))
   })
 
   it('takes a waiting dashboard getting its default as the same page', () => {
     const { result } = renderHook(() => useBackStack())
-    act(() => result.current.report(statsPlayer('00-1', null)))
+    act(() => result.current.report(statsPlayer('2544', null)))
     const waiting: NavLocation = { screen: 'team', team: null, player: null }
     act(() => result.current.report(waiting))
     act(() => result.current.report({ ...waiting, team: 'DET' }))
@@ -64,7 +64,7 @@ describe('the back stack', () => {
       to = result.current.back()
     })
     // The player before, not the waiting page.
-    expect(to).toEqual(statsPlayer('00-1', null))
+    expect(to).toEqual(statsPlayer('2544', null))
   })
 
   it(`keeps the last ${BACK_LIMIT} pages`, () => {
