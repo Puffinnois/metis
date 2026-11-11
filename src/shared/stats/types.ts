@@ -661,3 +661,48 @@ export interface StatsDataReport {
   /** Null when the system will not say. */
   freeBytes: number | null
 }
+
+/**
+ * What a shot chart reads: a player's shots, a team's, or the shots taken against a team, over the
+ * seasons and the games of a scope (season types, then a date range or the last games).
+ */
+export interface StatsShotRequest {
+  entity: Entity
+  id: string
+  seasons: number[]
+  scope: StatsMatchupScope
+  /** A team's own shots (offense) or its opponents' against it (defense). Players: offense. */
+  side?: 'offense' | 'defense'
+}
+
+/** One shot as the chart draws it, in the NBA's frame: tenths of a foot from the basket. */
+export interface StatsShot {
+  x: number
+  y: number
+  made: boolean
+  /** 2 or 3, as published. */
+  value: number | null
+  zone: string
+}
+
+/** A zone's counts over every shot in scope, and what the league's rate there would give them. */
+export interface StatsShotZone {
+  zone: string
+  fga: number
+  fgm: number
+  /** Makes the league's regular-season rate in this zone would give these attempts; null before a rate. */
+  expected: number | null
+}
+
+/** The shots of a scope, newest first and capped, with every shot counted by zone. */
+export interface StatsShotChart {
+  shots: StatsShot[]
+  /** Every attempt in scope, drawn or not. */
+  total: number
+  made: number
+  /** More shots than a chart draws: the newest are drawn, and every one is counted in the zones. */
+  capped: boolean
+  zones: StatsShotZone[]
+  /** Why there is nothing to chart ("Recorded from 1996-97."); null when there is. */
+  reason: string | null
+}

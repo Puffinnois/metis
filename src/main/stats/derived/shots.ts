@@ -87,6 +87,8 @@ const KEYS = {
      team_id BIGINT, opponent_id BIGINT`
 }
 
+const KEY_COUNT: Record<string, number> = { [SHOT_PLAYER_GAME]: 7, [SHOT_TEAM_GAME]: 6 }
+
 /** The tables, empty, created on every open so a query before the first build reads no rows. */
 export function shotsBootstrap(): string[] {
   const player = SHOT_COMPONENTS
@@ -303,6 +305,22 @@ export async function shotsStale(db: StatsDb): Promise<boolean> {
 export async function buildShots(db: StatsDb): Promise<number> {
   const have = await inspect(db)
   if (!NEEDS.every((t) => have.tables.has(t))) return 0
+  // Tables of an older shape are built again from nothing: a new rule can add a column.
+  const shapes = {
+    [SHOT_PLAYER_GAME]: SHOT_COMPONENTS,
+    [SHOT_TEAM_GAME]: [...SHOT_COMPONENTS, ...OPP_SHOT_COMPONENTS]
+  }
+  const reshaped = Object.entries(shapes).some(([t, cs]) => {
+    const held = have.columns.get(t)
+    return !held || cs.some((c) => !held.has(c)) || held.size !== cs.length + KEY_COUNT[t]
+  })
+  if (reshaped) {
+    await db.transaction(async () => {
+      for (const t of [SHOT_PLAYER_GAME, SHOT_TEAM_GAME]) await db.exec(`DROP TABLE IF EXISTS ${t}`)
+      await db.exec(`DELETE FROM ${SHOT_STATE}`)
+      for (const sql of shotsBootstrap()) await db.exec(sql)
+    })
+  }
   const stale = await staleShotSeasons(db)
   let rows = 0
   for (const f of stale) {
