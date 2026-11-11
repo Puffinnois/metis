@@ -319,9 +319,9 @@ export async function refreshStats(
   }
 
   // Built once the published tier is in, so its numbers can be read while the events and plays load.
-  const runPublishedBuild = async (): Promise<void> => {
+  const runPublishedBuild = async (force = false): Promise<void> => {
     publishedBuilt = true
-    if (canBuildPublished() && (publishedWrote || (await publishedStale(db)))) {
+    if (canBuildPublished() && (force || publishedWrote || (await publishedStale(db)))) {
       log.push(
         await runLogged(deps, STATS_PUBLISHED_STEP, async () => ({
           rows: await buildPublished(db),
@@ -416,7 +416,7 @@ export async function refreshStats(
     try {
       if (!built) await runBuilds()
       // Once, at the end, however many of the late files came in; then the plays.
-      if (!publishedBuilt || lateWrote) await runPublishedBuild()
+      if (!publishedBuilt || lateWrote) await runPublishedBuild(lateWrote)
       await runPlaysBuild()
     } catch (err) {
       return { steps: log, fatal: err instanceof Error ? err.message : String(err) }
