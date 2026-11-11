@@ -2,82 +2,72 @@
   { "size": [1500, 1000] },
   { "wait": 4000 },
   {
-    "eval": "window.until = async (fn, ms = 10000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (fn()) return true; await new Promise((r) => setTimeout(r, 100)) } return false };\nwindow.sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nwindow.radio = async (group, label) => { const b = [...document.querySelectorAll('[role=radiogroup][aria-label=\"' + group + '\"] [role=radio]')].find((x) => x.textContent.trim() === label); if (!b) return 'NO RADIO ' + group + '/' + label; b.click(); await sleep(300); return 'radio ' + label };\nwindow.pick = async (title, value) => { const s = document.querySelector('select[title=\"' + title + '\"]'); if (!s) return 'NO SELECT ' + title; const set = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set; set.call(s, value); s.dispatchEvent(new Event('change', { bubbles: true })); await sleep(300); return title + '=' + s.value };\nwindow.settle = async () => { const t0 = performance.now(); await sleep(50); await until(() => document.querySelector('[data-summary]') || document.querySelector('[role=status]') || /error|failed/i.test(document.querySelector('main')?.innerText ?? '')); return Math.round(performance.now() - t0) };\nwindow.chart = () => { const rows = [...document.querySelectorAll('[aria-label=\"Chart table\"] [data-row]')]; return { title: document.querySelector('main h1')?.innerText, sub: document.querySelector('main h1')?.nextElementSibling?.innerText, summary: document.querySelector('[data-summary]')?.innerText ?? null, status: document.querySelector('[role=status]')?.innerText.replace(/\\n+/g, ' | ') ?? null, dots: document.querySelectorAll('[data-dot]').length, fills: [...new Set([...document.querySelectorAll('[data-dot] circle:last-child')].map((c) => c.getAttribute('fill')))].slice(0, 6), radii: [...new Set([...document.querySelectorAll('[data-dot] circle:last-child')].map((c) => c.getAttribute('r')))].length, key: document.querySelector('[data-key]')?.innerText.replace(/\\n/g, ' ') ?? null, rows: rows.slice(0, 6).map((r) => r.innerText.replace(/\\s*\\n\\s*/g, ' | ')), notes: [...document.querySelectorAll('main .text-warn')].map((e) => e.innerText) } };\nwindow.timed = async (q) => { const t0 = performance.now(); const r = await window.api.stats.query(q); return { engineMs: r.ms, wallMs: Math.round(performance.now() - t0), rows: r.rows.length, total: r.total } };\n'helpers ready'"
+    "eval": "window.until = async (fn, ms = 10000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (fn()) return true; await new Promise((r) => setTimeout(r, 10)) } return false };\nwindow.sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nwindow.radio = (group, label) => { const b = [...document.querySelectorAll('[role=radiogroup][aria-label=\"' + group + '\"] [role=radio]')].find((x) => x.textContent.trim() === label); if (!b) throw new Error('NO RADIO ' + group + '/' + label); b.click() };\nwindow.pick = (title, value) => { const s = document.querySelector('select[title=\"' + title + '\"]'); if (!s) throw new Error('NO SELECT ' + title); const set = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set; set.call(s, value); s.dispatchEvent(new Event('change', { bubbles: true })) };\nwindow.button = (re, root = document) => { const b = [...root.querySelectorAll('button')].find((x) => re.test(x.textContent)); if (!b) throw new Error('NO BUTTON ' + re); b.click() };\nwindow.chart = () => { const rows = [...document.querySelectorAll('[aria-label=\"Chart table\"] [data-row]')]; const circles = [...document.querySelectorAll('[data-dot] circle:last-child')]; return { title: document.querySelector('main h1')?.innerText, sub: document.querySelector('main h1')?.nextElementSibling?.innerText, summary: document.querySelector('[data-summary]')?.innerText ?? null, status: document.querySelector('[role=status]')?.innerText.replace(/\\n+/g, ' | ') ?? null, dots: circles.length, fills: [...new Set(circles.map((c) => c.getAttribute('fill')))].slice(0, 4), radii: new Set(circles.map((c) => c.getAttribute('r'))).size, key: document.querySelector('[data-key]')?.innerText.replace(/\\n/g, ' ') ?? null, rows: rows.slice(0, 5).map((r) => r.innerText.replace(/\\s*\\n\\s*/g, ' | ')), warn: [...document.querySelectorAll('main .text-warn')].map((e) => e.innerText) } };\nwindow.sig = () => JSON.stringify(chart());\nwindow.act = async (label, fn) => { const before = sig(); const t0 = performance.now(); await fn(); const changed = await until(() => sig() !== before && !/Loading/.test(document.querySelector('main section')?.innerText ?? '')); const ms = Math.round(performance.now() - t0); await sleep(150); return label + ' (' + (changed ? ms + ' ms' : 'NO CHANGE') + ') ' + JSON.stringify(chart()) };\nwindow.timed = async (q) => { const t0 = performance.now(); const r = await window.api.stats.query(q); return { engineMs: r.ms, wallMs: Math.round(performance.now() - t0), rows: r.rows.length, total: r.total } };\n'helpers ready'"
   },
   { "click": "Explore" },
-  { "wait": 1500 },
-  {
-    "eval": "(async () => { await pick('Season', '2026'); return 'season 2025-26 in ' + (await settle()) + ' ms ' + JSON.stringify(chart()) })()"
-  },
+  { "wait": 2500 },
+  { "eval": "act('season 2025-26, preset usage vs efficiency', () => pick('Season', '2026'))" },
   { "shot": "chart-preset-usage" },
-  {
-    "eval": "(async () => { const b = [...document.querySelectorAll('button[aria-pressed]')].find((x) => x.textContent === 'Threes: volume vs accuracy'); b.click(); return 'preset threes in ' + (await settle()) + ' ms ' + JSON.stringify(chart()) })()"
-  },
+  { "eval": "act('preset threes', () => button(/^Threes: volume vs accuracy$/))" },
   { "shot": "chart-preset-threes" },
+  { "eval": "act('Y drives', () => pick('Y axis', 'drives'))" },
   {
-    "eval": "(async () => { await pick('Y axis', 'drives'); await pick('X axis', 'pts'); return 'custom pts vs drives in ' + (await settle()) + ' ms ' + JSON.stringify(chart()) })()"
+    "eval": "act('X points: a box-score metric against a season-grain one', () => pick('X axis', 'pts'))"
   },
-  {
-    "eval": "(async () => { await pick('Size by', 'ast'); await pick('Colour by', '@position'); return 'size ast, colour position ' + (await settle()) + ' ms ' + JSON.stringify(chart()) })()"
-  },
+  { "eval": "act('size by assists', () => pick('Size by', 'ast'))" },
+  { "eval": "act('colour by position', () => pick('Colour by', '@position'))" },
   { "shot": "chart-custom-size-colour" },
-  {
-    "eval": "(async () => { await pick('Colour by', 'ts_pct'); return 'colour by ts_pct ' + (await settle()) + ' ms ' + JSON.stringify(chart()) })()"
-  },
-  {
-    "eval": "(async () => { await pick('Range', 'dates'); return 'date range against drives ' + (await settle()) + ' ms ' + JSON.stringify(chart()) })()"
-  },
+  { "eval": "act('colour by true shooting', () => pick('Colour by', 'ts_pct'))" },
+  { "eval": "act('totals', () => radio('Totals or per game', 'Totals'))" },
+  { "eval": "act('per game', () => radio('Totals or per game', 'Per game'))" },
+  { "eval": "act('a date range against drives', () => pick('Range', 'dates'))" },
   { "shot": "chart-dates-season-grain" },
+  { "eval": "act('last games against drives', () => pick('Range', 'last'))" },
   {
-    "eval": "(async () => { await pick('Range', 'last'); return 'last games against drives ' + (await settle()) + ' ms ' + JSON.stringify(chart()) })()"
+    "eval": "act('whole season again', () => button(/^Use the whole season$/, document.querySelector('[role=status]')))"
   },
-  {
-    "eval": "(async () => { await pick('Range', 'season'); await pick('Season', '2013'); return '2012-13 against drives ' + (await settle()) + ' ms ' + JSON.stringify(chart()) })()"
-  },
+  { "eval": "act('2012-13 against drives', () => pick('Season', '2013'))" },
   { "shot": "chart-before-tracking" },
-  {
-    "eval": "(async () => { await pick('Season', '2026'); const b = [...document.querySelectorAll('button[aria-pressed]')].find((x) => x.textContent === 'Usage vs efficiency'); b.click(); await settle(); await radio('Position', 'C'); await pick('Season type', 'play-in'); return 'centers in the play-in ' + (await settle()) + ' ms ' + JSON.stringify(chart()) })()"
-  },
+  { "eval": "act('back to 2025-26', () => pick('Season', '2026'))" },
+  { "eval": "act('preset usage vs efficiency', () => button(/^Usage vs efficiency$/))" },
+  { "eval": "act('centers', () => radio('Position', 'C'))" },
+  { "eval": "act('centers in the play-in: too few', () => pick('Season type', 'play-in'))" },
   { "shot": "chart-too-few" },
+  { "eval": "act('show all', () => button(/^Show all/, document.querySelector('[role=status]')))" },
+  { "eval": "act('regular season', () => pick('Season type', 'regular'))" },
+  { "eval": "act('qualified only', () => button(/Qualified only/))" },
+  { "eval": "act('all positions', () => radio('Position', 'All'))" },
   {
-    "eval": "(async () => { const b = [...document.querySelectorAll('[role=status] button')].find((x) => /^Show all/.test(x.textContent)); const label = b?.textContent; b?.click(); return 'clicked ' + label + ' ' + (await settle()) + ' ms ' + JSON.stringify(chart()) })()"
-  },
-  {
-    "eval": "(async () => { await pick('Season type', 'regular'); await radio('Position', 'All'); const q = document.querySelector('button[aria-pressed=true]'); return 'back to all players ' + (await settle()) + ' ms ' + JSON.stringify(chart()) })()"
-  },
-  {
-    "eval": "(async () => { const d = document.querySelector('[data-dot]'); d.dispatchEvent(new MouseEvent('mouseover', { bubbles: true })); await sleep(300); return 'hover ' + (document.querySelector('[role=tooltip]')?.innerText.replace(/\\n/g, ' | ') ?? 'NO TOOLTIP') })()"
+    "eval": "(async () => { const d = document.querySelector('[data-dot]'); d.querySelector('circle').dispatchEvent(new MouseEvent('mouseover', { bubbles: true })); await sleep(300); return 'hover ' + (document.querySelector('[role=tooltip]')?.innerText.replace(/\\n/g, ' | ') ?? 'NO TOOLTIP') })()"
   },
   { "shot": "chart-hover" },
   {
-    "eval": "(async () => { const dots = [...document.querySelectorAll('[data-dot]')]; const ids = dots.slice(-2).map((d) => d.getAttribute('data-dot')); for (const d of dots.slice(-2)) d.dispatchEvent(new MouseEvent('click', { bubbles: true, shiftKey: true })); await sleep(400); const picks = [...document.querySelectorAll('main button')].find((b) => b.textContent.includes('Compare these')); return 'picked ' + ids.join(',') + ' compare button ' + !!picks })()"
+    "eval": "(async () => { const dots = [...document.querySelectorAll('[data-dot]')].slice(0, 2); for (const d of dots) d.querySelector('circle').dispatchEvent(new MouseEvent('click', { bubbles: true, shiftKey: true })); await sleep(400); return 'picked ' + dots.map((d) => d.getAttribute('data-dot')).join(',') + ': ' + [...document.querySelectorAll('main h1 ~ * span, main section > div > div:last-child span')].map((s) => s.textContent).filter(Boolean).slice(0, 4).join(' / ') })()"
   },
   { "shot": "chart-picks" },
   {
-    "eval": "(async () => { [...document.querySelectorAll('main button')].find((b) => b.textContent.includes('Compare these')).click(); await sleep(800); return 'compare tab ' + JSON.stringify({ tab: document.querySelector('[role=tab][aria-selected=true]')?.textContent, subjects: document.querySelector('[data-subjects]')?.getAttribute('data-subjects') ?? null, h1: document.querySelector('main h1')?.innerText ?? null }) })()"
+    "eval": "(async () => { button(/Compare these/); await sleep(800); return 'compare ' + JSON.stringify({ tab: document.querySelector('[role=tab][aria-selected=true]')?.textContent, subjects: document.querySelector('[data-subjects]')?.getAttribute('data-subjects') ?? null, h1: document.querySelector('main h1')?.innerText ?? null }) })()"
   },
   { "shot": "chart-to-compare" },
   {
-    "eval": "(async () => { [...document.querySelectorAll('[role=tab]')].find((t) => t.textContent === 'Chart').click(); await settle(); const d = document.querySelector('[data-dot]'); const id = d.getAttribute('data-dot'); d.dispatchEvent(new MouseEvent('click', { bubbles: true })); await until(() => document.querySelector('nav [aria-current=page]')?.textContent === 'Players'); await sleep(1500); return 'opened ' + id + ' -> ' + document.querySelector('h1')?.innerText.replace(/\\n/g, ' ') })()"
+    "eval": "(async () => { [...document.querySelectorAll('[role=tab]')].find((t) => t.textContent === 'Chart').click(); await until(() => document.querySelector('[data-dot]')); const d = document.querySelector('[data-dot]'); const id = d.getAttribute('data-dot'); d.querySelector('circle').dispatchEvent(new MouseEvent('click', { bubbles: true })); await until(() => document.querySelector('nav [aria-current=page]')?.textContent === 'Players'); await sleep(1500); return 'opened ' + id + ' -> ' + document.querySelector('h1')?.innerText.replace(/\\n/g, ' ') })()"
   },
   { "shot": "chart-click-through" },
   { "eval": "document.querySelector('button[aria-label=Back]').click(); 'back'" },
   { "wait": 1500 },
   {
-    "eval": "(async () => 'after Back ' + (await settle()) + ' ms ' + JSON.stringify({ tab: document.querySelector('[role=tab][aria-selected=true]')?.textContent, ...chart() }))()"
+    "eval": "'after Back ' + JSON.stringify({ tab: document.querySelector('[role=tab][aria-selected=true]')?.textContent, ...chart() })"
   },
-  {
-    "eval": "(async () => { await radio('Players or teams', 'Teams'); return 'teams ' + (await settle()) + ' ms ' + JSON.stringify(chart()) })()"
-  },
-  {
-    "eval": "(async () => { await pick('Colour by', '@conference'); await pick('Size by', 'team_win_pct'); return 'teams by conference, sized by win pct ' + (await settle()) + ' ms ' + JSON.stringify(chart()) })()"
-  },
+  { "eval": "act('teams', () => radio('Players or teams', 'Teams'))" },
+  { "eval": "act('teams by conference', () => pick('Colour by', '@conference'))" },
+  { "eval": "act('teams sized by win percentage', () => pick('Size by', 'team_win_pct'))" },
   { "shot": "chart-teams" },
+  { "eval": "act('teams: pace vs net rating', () => button(/^Pace vs net rating$/))" },
   {
-    "eval": "(async () => { const d = [...document.querySelectorAll('[data-dot]')][0]; const id = d.getAttribute('data-dot'); d.dispatchEvent(new MouseEvent('click', { bubbles: true })); await until(() => document.querySelector('nav [aria-current=page]')?.textContent === 'Teams'); await sleep(1500); const h = document.querySelector('h1')?.innerText.replace(/\\n/g, ' '); document.querySelector('button[aria-label=Back]').click(); await sleep(1500); return 'team click-through ' + id + ' -> ' + h + '; back on ' + document.querySelector('[role=tab][aria-selected=true]')?.textContent })()"
+    "eval": "(async () => { const d = [...document.querySelectorAll('[data-dot]')][0]; const id = d.getAttribute('data-dot'); d.querySelector('circle').dispatchEvent(new MouseEvent('click', { bubbles: true })); await until(() => document.querySelector('nav [aria-current=page]')?.textContent === 'Teams'); await sleep(1500); const h = document.querySelector('h1')?.innerText.replace(/\\n/g, ' '); document.querySelector('button[aria-label=Back]').click(); await sleep(1500); return 'team click-through ' + id + ' -> ' + h + '; back on ' + document.querySelector('[role=tab][aria-selected=true]')?.textContent + ' with ' + document.querySelectorAll('[data-dot]').length + ' dots' })()"
   },
   {
-    "eval": "(async () => { const base = { seasons: [2026], gameTypes: ['regular'] }; const out = {}; const run = async (k, q) => { out[k] = await timed(q) }; await run('players usage/ts', { entity: 'player', metrics: ['usg_pct', 'ts_pct', 'min'], scope: base, transform: 'perGame', sort: { metric: 'min', dir: 'desc' }, limit: 5000 }); await run('players fg3a/fg3_pct', { entity: 'player', metrics: ['fg3a', 'fg3_pct', 'min'], scope: base, transform: 'perGame', sort: { metric: 'min', dir: 'desc' }, limit: 5000 }); await run('players pts/drives + ast, ts', { entity: 'player', metrics: ['pts', 'drives', 'ast', 'ts_pct', 'min'], scope: base, transform: 'perGame', sort: { metric: 'min', dir: 'desc' }, limit: 5000 }); await run('players pts/drives, date range', { entity: 'player', metrics: ['pts', 'drives', 'ast', 'ts_pct', 'min'], scope: { ...base, dates: ['2025-11-01', '2026-01-31'] }, transform: 'perGame', sort: { metric: 'min', dir: 'desc' }, limit: 5000 }); await run('players usage/ts, last 5', { entity: 'player', metrics: ['usg_pct', 'ts_pct', 'min'], scope: { ...base, lastN: 5, lastNOf: 'appearances' }, transform: 'perGame', sort: { metric: 'min', dir: 'desc' }, limit: 5000 }); await run('centers play-in', { entity: 'player', metrics: ['usg_pct', 'ts_pct', 'min'], scope: { seasons: [2026], gameTypes: ['play-in'], positions: ['C'] }, transform: 'perGame', sort: { metric: 'min', dir: 'desc' }, limit: 5000 }); await run('teams ortg/drtg + win pct', { entity: 'team', metrics: ['team_ortg', 'team_drtg', 'team_win_pct'], scope: base, transform: 'perGame', sort: { metric: 'team_ortg', dir: 'desc' }, limit: 5000 }); return 'timings ' + JSON.stringify(out) })()"
+    "eval": "(async () => { const base = { seasons: [2026], gameTypes: ['regular'] }; const p = (metrics, scope = base, transform = 'perGame') => ({ entity: 'player', metrics: [...metrics, 'min'], scope, transform, sort: { metric: 'min', dir: 'desc' }, limit: 5000 }); const out = {}; const run = async (k, q) => { out[k] = await timed(q) }; await run('players usage/ts', p(['usg_pct', 'ts_pct'])); await run('players fg3a/fg3_pct', p(['fg3a', 'fg3_pct'])); await run('players pts/drives + ast + ts', p(['pts', 'drives', 'ast', 'ts_pct'])); await run('same, totals', p(['pts', 'drives', 'ast', 'ts_pct'], base, 'raw')); await run('same, date range', p(['pts', 'drives', 'ast', 'ts_pct'], { ...base, dates: ['2025-11-01', '2026-01-31'] })); await run('usage/ts, last 10', p(['usg_pct', 'ts_pct'], { ...base, lastN: 10, lastNOf: 'appearances' })); await run('centers play-in', p(['usg_pct', 'ts_pct'], { seasons: [2026], gameTypes: ['play-in'], positions: ['C'] })); await run('teams ortg/drtg + win pct', { entity: 'team', metrics: ['team_ortg', 'team_drtg', 'team_win_pct'], scope: base, transform: 'perGame', sort: { metric: 'team_ortg', dir: 'desc' }, limit: 5000 }); return 'engine timings ' + JSON.stringify(out) })()"
   },
   {
     "eval": "(async () => { const r = await window.api.stats.query({ entity: 'player', metrics: ['usg_pct', 'ts_pct', 'fg3a', 'fg3_pct', 'min'], scope: { seasons: [2026], gameTypes: ['regular'] }, transform: 'perGame', sort: { metric: 'min', dir: 'desc' }, limit: 5000 }); return 'values ' + JSON.stringify(r.rows.slice(0, 6).map((x) => [x.id, x.name, x.games, ...['usg_pct', 'ts_pct', 'fg3a', 'fg3_pct', 'min'].map((m) => x.values[m].value)])) })()"
