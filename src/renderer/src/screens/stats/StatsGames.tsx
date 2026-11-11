@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { StatsSelect } from '@/components/stats/controls'
 import { Loading, MiniTable, NavButton, SectionHead } from '@/components/stats/parts'
@@ -21,17 +21,44 @@ import {
   type HeaderSide,
   type RailGame
 } from '@/lib/stats/games'
-import { officialsText } from '@/lib/stats/availability'
-import { fullDay, moveToSeason, shortDay, type StatsScope } from '@/lib/stats/scope'
+import {
+  gamePairSides,
+  GAME_PAIR_HEAD,
+  GAME_PAIR_LIMIT,
+  gamePairCount,
+  type GamePairSide
+} from '@/lib/stats/matchups'
+import {
+  careerRows,
+  coverageText,
+  OFFICIAL_HEAD,
+  OFFICIAL_MEASURES,
+  OFFICIAL_NOTES,
+  seasonRows,
+  type OfficialRow
+} from '@/lib/stats/officials'
+import {
+  fullDay,
+  moveToSeason,
+  queryScope,
+  seasonOf,
+  seasonTypes,
+  shortDay,
+  typeLabel,
+  type StatsScope
+} from '@/lib/stats/scope'
 import {
   useGameDetail,
+  useGameMatchups,
+  useOfficialCareer,
+  useOfficialsSeason,
   useSeasonGames,
   useStatsQueries,
   type StatsData
 } from '@/lib/stats/useStats'
 import { cn } from '@/lib/utils'
 import { seasonLabel } from '@shared/stats/seasons'
-import type { StatsGame } from '@shared/stats/types'
+import type { GameType, StatsGame } from '@shared/stats/types'
 
 /** A day's games on a date rail, and a game: its header, scores by period, comparison and box score. */
 export function StatsGames({
@@ -72,6 +99,8 @@ export function StatsGames({
   const goDay = (d: string | null): void => {
     if (d !== null) onState({ date: d, game: null })
   }
+  const officialsOn = state.officials === true && !state.official
+  const gameTypes = queryScope(scope, 'player').gameTypes ?? ['regular']
   return (
     <div className="flex min-h-0 flex-1">
       <aside
@@ -116,6 +145,19 @@ export function StatsGames({
             {rail.length} {rail.length === 1 ? 'GAME' : 'GAMES'}
             {date ? ` · ${fullDay(date).toUpperCase()}` : ''}
           </span>
+          <button
+            type="button"
+            aria-pressed={officialsOn}
+            onClick={() =>
+              onState({ date, game: state.game, officials: !officialsOn, official: null })
+            }
+            className={cn(
+              'cursor-pointer self-start text-[12px] font-medium hover:text-cobalt',
+              officialsOn ? 'text-cobalt' : 'text-fg-2'
+            )}
+          >
+            Officials of {seasonLabel(scope.season)}
+          </button>
         </div>
         <div
           role="list"
@@ -133,7 +175,25 @@ export function StatsGames({
         </div>
       </aside>
       <div className="min-w-0 flex-1 overflow-auto [scrollbar-width:thin]">
-        {error || !games ? (
+        {state.official ? (
+          <OfficialCareer
+            key={state.official}
+            official={state.official}
+            data={data}
+            gameTypes={gameTypes}
+            typesLabel={typeLabel(scope.seasonType)}
+            onBack={() => onState({ ...state, official: null })}
+            backLabel={state.officials ? 'Officials' : 'The game'}
+          />
+        ) : state.officials ? (
+          <OfficialsSeason
+            data={data}
+            scope={scope}
+            onScope={onScope}
+            gameTypes={gameTypes}
+            onOpen={(id) => onState({ ...state, official: id })}
+          />
+        ) : error || !games ? (
           <Loading error={error} />
         ) : !game ? (
           <div className="py-20 text-center text-[13px] text-fg-3">
@@ -148,6 +208,7 @@ export function StatsGames({
             through={through}
             onOpenTeam={onOpenTeam}
             onOpenPlayer={onOpenPlayer}
+            onOpenOfficial={(id) => onState({ date, game: game.id, official: id })}
           />
         )}
       </div>
@@ -204,7 +265,8 @@ function GameBody({
   data,
   through,
   onOpenTeam,
-  onOpenPlayer
+  onOpenPlayer,
+  onOpenOfficial
 }: {
   game: StatsGame
   games: StatsGame[]
@@ -212,6 +274,7 @@ function GameBody({
   through: string | null
   onOpenTeam: (team: string) => void
   onOpenPlayer: (id: string) => void
+  onOpenOfficial: (id: string) => void
 }): React.JSX.Element {
   const { value: detail } = useGameDetail(game.id, data.version)
   const queries = useMemo(() => (game.hasBox ? boxQueries(game) : null), [game])
@@ -226,10 +289,27 @@ function GameBody({
     <div className="flex flex-col gap-[22px] px-8 pt-[22px] pb-8">
       <Header view={header} onOpenTeam={onOpenTeam} />
       {detail && game.played && (
-        <p className="m-0 text-center text-[12px] text-fg-3">
-          {officialsText(detail.officials)
-            ? `Officials: ${officialsText(detail.officials)}`
-            : 'The NBA’s file lists no officials for this game.'}
+        <p className="m-0 text-center text-[12px] text-fg-3" aria-label="Officials">
+          {detail.officials.length > 0 ? (
+            <>
+              Officials:{' '}
+              {detail.officials.map((o, i) => (
+                <span key={o.id}>
+                  {i > 0 && ', '}
+                  <button
+                    type="button"
+                    title={`Open ${o.name}’s seasons`}
+                    onClick={() => onOpenOfficial(o.id)}
+                    className="cursor-pointer hover:text-cobalt"
+                  >
+                    {o.name}
+                  </button>
+                </span>
+              ))}
+            </>
+          ) : (
+            'The NBA’s file lists no officials for this game.'
+          )}
         </p>
       )}
       {periods && (
@@ -296,6 +376,271 @@ function GameBody({
           </section>
         </>
       )}
+      {game.played && <GameMatchups game={game} data={data} onOpenPlayer={onOpenPlayer} />}
+    </div>
+  )
+}
+
+/** Who guarded whom in the game, by the side defending, from the NBA's game matchups. */
+function GameMatchups({
+  game,
+  data,
+  onOpenPlayer
+}: {
+  game: StatsGame
+  data: StatsData
+  onOpenPlayer: (id: string) => void
+}): React.JSX.Element | null {
+  const { value, error } = useGameMatchups(game.id, data.version)
+  const [all, setAll] = useState(false)
+  if (!value) return error ? <Loading error={error} /> : null
+  const sides = gamePairSides(
+    value.pairs,
+    { id: game.away.id, code: game.away.code },
+    { id: game.home.id, code: game.home.code },
+    all ? null : GAME_PAIR_LIMIT
+  )
+  const more = sides.some((s) => s.total > GAME_PAIR_LIMIT)
+  return (
+    <section className="flex flex-col gap-3" aria-label="Who guarded whom">
+      <SectionHead title="Who guarded whom" />
+      {value.reason || value.pairs.length === 0 ? (
+        <p className="m-0 text-[12.5px] text-fg-3">
+          {value.reason ?? 'The NBA’s file has no matchups for this game.'}
+        </p>
+      ) : (
+        <>
+          {sides.map((s) => (
+            <GamePairs key={s.code} side={s} onOpenPlayer={onOpenPlayer} />
+          ))}
+          {more && (
+            <button
+              type="button"
+              onClick={() => setAll(!all)}
+              className="cursor-pointer self-start text-[12.5px] font-medium text-fg-2 hover:text-cobalt"
+            >
+              {all ? 'Show fewer' : 'Show every pair'}
+            </button>
+          )}
+          <p className="m-0 text-[12px] text-fg-3">
+            From the NBA’s game matchups: what the player on offense did while that defender was
+            assigned, longest first. Assignment is tracked moment by moment, so help and switches
+            sit in it too.
+          </p>
+        </>
+      )}
+    </section>
+  )
+}
+
+function GamePairs({
+  side,
+  onOpenPlayer
+}: {
+  side: GamePairSide
+  onOpenPlayer: (id: string) => void
+}): React.JSX.Element {
+  const person = (id: string, name: string, extra: string | null): React.JSX.Element => (
+    <button
+      type="button"
+      title={`Open ${name}’s dashboard`}
+      onClick={() => onOpenPlayer(id)}
+      className="flex min-w-0 cursor-pointer items-center gap-1.5 text-left font-sans text-[13px] font-medium hover:text-cobalt"
+    >
+      <span className="truncate">{name}</span>
+      {extra && <span className="shrink-0 font-mono text-[10.5px] text-fg-3">{extra}</span>}
+    </button>
+  )
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-baseline gap-2">
+        <span className="text-[13.5px] leading-none font-semibold">{side.code} on defense</span>
+        <span className="text-[12px] leading-none text-fg-3">
+          {gamePairCount(side.rows.length, side.total)}
+        </span>
+      </div>
+      <div className="overflow-x-auto">
+        <MiniTable
+          label={`${side.code} on defense`}
+          columns={`minmax(150px,1.3fr) minmax(150px,1.3fr) repeat(${GAME_PAIR_HEAD.length - 2}, minmax(44px,1fr))`}
+          minWidth={880}
+          left={[1]}
+          head={GAME_PAIR_HEAD}
+          rows={side.rows.map((r) => ({
+            key: r.key,
+            cells: [
+              <span key="d">{person(r.defId, r.defName, null)}</span>,
+              <span key="o">{person(r.offId, r.offName, r.offPosition)}</span>,
+              ...r.cells
+            ]
+          }))}
+        />
+      </div>
+    </div>
+  )
+}
+
+const OFFICIAL_COLUMNS = `minmax(180px,1.6fr) ${OFFICIAL_HEAD.map(() => 'minmax(58px,1fr)').join(' ')} minmax(110px,1fr)`
+
+/** An official table: the head's hover says what each column is. */
+function OfficialTable({
+  label,
+  rows,
+  onOpen
+}: {
+  label: string
+  rows: OfficialRow[]
+  onOpen?: (id: string) => void
+}): React.JSX.Element {
+  return (
+    <div className="overflow-x-auto">
+      <MiniTable
+        label={label}
+        columns={OFFICIAL_COLUMNS}
+        minWidth={1000}
+        left={[OFFICIAL_HEAD.length + 1]}
+        head={[
+          '',
+          ...OFFICIAL_MEASURES.map((m) => (
+            <span key={m.id} title={m.title}>
+              {m.short}
+            </span>
+          )),
+          ''
+        ]}
+        rows={rows.map((r) => ({
+          key: r.key,
+          strong: r.league,
+          ...(onOpen && r.id && !r.league
+            ? { title: `Open ${r.name}’s seasons`, onOpen: () => onOpen(r.id as string) }
+            : {}),
+          cells: [
+            <span key="n" className="flex min-w-0 items-center gap-2 font-sans text-[13px]">
+              <span className={cn('truncate', !r.league && 'font-medium')}>{r.name}</span>
+              {r.jersey && (
+                <span className="shrink-0 font-mono text-[10.5px] text-fg-3">#{r.jersey}</span>
+              )}
+            </span>,
+            ...r.cells,
+            <span key="x" className="pl-2 font-sans text-[11.5px] font-normal text-fg-3">
+              {r.note ?? ''}
+            </span>
+          ]
+        }))}
+      />
+    </div>
+  )
+}
+
+/** Every official of the season in scope, beside the league's line for the same games. */
+function OfficialsSeason({
+  data,
+  scope,
+  onScope,
+  gameTypes,
+  onOpen
+}: {
+  data: StatsData
+  scope: StatsScope
+  onScope: (scope: StatsScope) => void
+  gameTypes: GameType[]
+  onOpen: (id: string) => void
+}): React.JSX.Element {
+  const { value, error } = useOfficialsSeason(scope.season, gameTypes, data.version)
+  const types = seasonTypes(seasonOf(data.seasons, scope.season)).filter((t) => t !== 'all-star')
+  return (
+    <div className="flex flex-col gap-4 px-8 pt-[22px] pb-8">
+      <div className="flex items-center gap-3">
+        <h1 className="m-0 text-[20px] leading-none font-semibold tracking-[-0.01em]">
+          Officials of {seasonLabel(scope.season)}
+        </h1>
+        <StatsSelect
+          title="Season type"
+          value={scope.seasonType}
+          options={types.map((t) => ({ value: t, label: typeLabel(t) }))}
+          onChange={(t) => onScope({ ...scope, seasonType: t })}
+        />
+      </div>
+      {!value ? (
+        <Loading error={error} />
+      ) : (
+        <>
+          <p className="m-0 text-[12.5px] text-fg-3">
+            {coverageText(value.coverage)}
+            {value.reason ? ` ${value.reason}` : ''}
+          </p>
+          {value.officials.length === 0 ? (
+            <p className="m-0 text-[12.5px] text-fg-3">No officials listed in scope.</p>
+          ) : (
+            <OfficialTable label="Officials" rows={seasonRows(value)} onOpen={onOpen} />
+          )}
+          <OfficialNotes />
+        </>
+      )}
+    </div>
+  )
+}
+
+/** One official's seasons, newest first, each with the league's line below it. */
+function OfficialCareer({
+  official,
+  data,
+  gameTypes,
+  typesLabel,
+  onBack,
+  backLabel
+}: {
+  official: string
+  data: StatsData
+  gameTypes: GameType[]
+  typesLabel: string
+  onBack: () => void
+  backLabel: string
+}): React.JSX.Element {
+  const { value, error } = useOfficialCareer(official, gameTypes, data.version)
+  return (
+    <div className="flex flex-col gap-4 px-8 pt-[22px] pb-8">
+      <button
+        type="button"
+        onClick={onBack}
+        className="flex cursor-pointer items-center gap-1 self-start text-[12.5px] font-medium text-fg-2 hover:text-cobalt"
+      >
+        <ChevronLeft className="size-3.5" />
+        {backLabel}
+      </button>
+      {!value ? (
+        <Loading error={error} />
+      ) : (
+        <>
+          <div className="flex items-baseline gap-2.5">
+            <h1 className="m-0 text-[20px] leading-none font-semibold tracking-[-0.01em]">
+              {value.name}
+            </h1>
+            {value.jersey && (
+              <span className="font-mono text-[12px] text-fg-3">#{value.jersey}</span>
+            )}
+            <span className="text-[12px] text-fg-3">Official · {typesLabel}</span>
+          </div>
+          {value.seasons.length === 0 ? (
+            <p className="m-0 text-[12.5px] text-fg-3">No games in these season types.</p>
+          ) : (
+            <OfficialTable label="Seasons" rows={careerRows(value)} />
+          )}
+          <OfficialNotes />
+        </>
+      )}
+    </div>
+  )
+}
+
+function OfficialNotes(): React.JSX.Element {
+  return (
+    <div className="flex flex-col gap-1">
+      {OFFICIAL_NOTES.map((n) => (
+        <p key={n} className="m-0 text-[12px] text-fg-3">
+          {n}
+        </p>
+      ))}
     </div>
   )
 }

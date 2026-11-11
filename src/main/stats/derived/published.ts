@@ -3,9 +3,16 @@ import { PUBLISHED_TABLES, type PublishedColumn, type PublishedTable } from './p
 import { column, gameType, inspect, type Have } from './sql'
 import { LINEUPS, lineupsBootstrap, lineupsSql } from './lineups'
 import { MATCHUP_PAIRS, matchupPairsBootstrap, matchupPairsSql } from './matchupPairs'
+import { GAME_MATCHUPS, gameMatchupsBootstrap, gameMatchupsSql } from './gameMatchups'
 
 /** Bump when a table changes, so the next refresh builds them without downloading anything. */
-export const PUBLISHED_VERSION = 9
+export const PUBLISHED_VERSION = 10
+
+/**
+ * Sources of a later tier that a table here reads: the game matchups are in the events tier, which
+ * loads after this step has run, so a refresh that writes them builds the tables again at its end.
+ */
+export const PUBLISHED_LATE_SOURCES: readonly string[] = ['src_nba_game_matchups']
 
 /** What the engine divides a published sum by. A table always has these, NULL when not published. */
 export const PUBLISHED_DIVISORS = ['games', 'minutes', 'possessions'] as const
@@ -31,6 +38,7 @@ const keyOf = (t: PublishedTable): string => (t.entity === 'player' ? 'player_id
 export function publishedBootstrap(): string[] {
   return [
     ...matchupPairsBootstrap(),
+    ...gameMatchupsBootstrap(),
     ...lineupsBootstrap(),
     ...PUBLISHED_TABLES.flatMap((t) => [
       `CREATE TABLE IF NOT EXISTS ${t.table} (
@@ -173,6 +181,11 @@ export async function buildPublished(db: StatsDb): Promise<number> {
   await db.exec(lineupsSql(have))
   const units = await db.get<{ n: number }>(`SELECT count(*)::INTEGER AS n FROM ${LINEUPS}`)
   rows += units?.n ?? 0
+  await db.exec(gameMatchupsSql(have))
+  const matchups = await db.get<{ n: number }>(
+    `SELECT count(*)::INTEGER AS n FROM ${GAME_MATCHUPS}`
+  )
+  rows += matchups?.n ?? 0
   await db.exec('INSERT OR REPLACE INTO derived_state VALUES (?, ?)', [
     'published',
     PUBLISHED_VERSION

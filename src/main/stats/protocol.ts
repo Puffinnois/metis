@@ -1,5 +1,5 @@
 import type { LineupGroup } from '@shared/stats/lineups'
-import type { StatsQuery } from '@shared/stats/types'
+import type { GameType, StatsMatchupScope, StatsQuery } from '@shared/stats/types'
 
 export type StatsStepStatus = 'ok' | 'error' | 'skipped' | 'running' | 'interrupted'
 
@@ -75,7 +75,10 @@ export type StatsRequest =
   | { id: number; kind: 'games'; season: number }
   | { id: number; kind: 'game'; game: string }
   | { id: number; kind: 'standings'; season: number }
-  | { id: number; kind: 'matchups'; player: string; season: number }
+  | { id: number; kind: 'matchups'; player: string; season: number; scope?: StatsMatchupScope }
+  | { id: number; kind: 'gameMatchups'; game: string }
+  | { id: number; kind: 'officialsSeason'; season: number; gameTypes: GameType[] }
+  | { id: number; kind: 'officialCareer'; official: string; gameTypes: GameType[] }
   | { id: number; kind: 'profile'; player: string }
   | {
       id: number
@@ -106,6 +109,9 @@ export const AT_ONCE_REQUESTS: ReadonlySet<StatsRequest['kind']> = new Set([
   'game',
   'standings',
   'matchups',
+  'gameMatchups',
+  'officialsSeason',
+  'officialCareer',
   'profile',
   'lineups',
   'availability',

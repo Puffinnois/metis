@@ -91,6 +91,12 @@ export interface MetricDef {
    */
   published?: string
   /**
+   * A table at game grain that answers a published metric under a filter that splits a season (a date
+   * range, the last games, one team's games), from `src/main/stats/derived/gameTables.ts`. Its columns
+   * are named as the published table's, so the same formula reads either.
+   */
+  publishedGames?: string
+  /**
    * A published value that is one regular season's state, not a total or a rate: a projection. It
    * answers for one regular season at a time, since an average of several would mean nothing.
    */
@@ -435,12 +441,120 @@ export interface StatsMatchupPair {
   blk: number | null
 }
 
-/** A player's season matchups, each list longest first. */
+/** A player's matchups, each list longest first. */
 export interface StatsMatchups {
   /** The players they guarded. */
   guarded: StatsMatchupPair[]
   /** The players who guarded them. */
   guardedBy: StatsMatchupPair[]
+  /**
+   * Where the pairs come from: the NBA's season pair file for a whole regular season, else the game
+   * matchups added up over the player's games in scope. A pair's games are counted either way.
+   */
+  source: 'season' | 'games'
+}
+
+/**
+ * The games a player's matchup pairs cover, when not a whole regular season: the season types, and a
+ * date range or the last games, as the scope bar sets them.
+ */
+export interface StatsMatchupScope {
+  gameTypes: GameType[]
+  dates?: [string, string]
+  lastN?: number
+  lastNOf?: 'appearances' | 'team'
+}
+
+/** One pair of a game's matchups: what the player on offense did while that defender was assigned. */
+export interface StatsGameMatchup {
+  offId: string
+  offName: string
+  offTeamId: string | null
+  /** The position the NBA's file lists for the player on offense in this game. */
+  offPosition: string | null
+  defId: string
+  defName: string
+  defTeamId: string | null
+  minutes: number | null
+  partialPoss: number | null
+  pts: number | null
+  fgm: number | null
+  fga: number | null
+  fg3m: number | null
+  fg3a: number | null
+  ftm: number | null
+  fta: number | null
+  ast: number | null
+  tov: number | null
+  blk: number | null
+  sfl: number | null
+}
+
+/** Who guarded whom in a game, longest first, or why there is nothing to show. */
+export interface StatsGameMatchups {
+  pairs: StatsGameMatchup[]
+  /** "Tracked from 2017-18." before the game matchups start; null when the pairs answer. */
+  reason: string | null
+}
+
+/**
+ * Box-score totals over a group of games, both teams', kept as parts so any rate is divided on read:
+ * fouls, free-throw attempts and points by the home and the away side, and the home side's wins.
+ */
+export interface StatsOfficiatingTotals {
+  games: number
+  homeFouls: number
+  awayFouls: number
+  homeFta: number
+  awayFta: number
+  homePts: number
+  awayPts: number
+  homeWins: number
+}
+
+/** How many of a season's games the officials file has a crew for, and the crews' sizes. */
+export interface StatsCrewCoverage {
+  /** Games played in scope. */
+  games: number
+  withCrew: number
+  /** Games by the number of officials listed: `{ 3: 1225, 4: 2 }`. */
+  crewSizes: Record<string, number>
+}
+
+/** An official's games in a season, as the NBA's officials file and the box scores give them. */
+export interface StatsOfficialLine {
+  id: string
+  name: string
+  /** As published, without the file's padding. */
+  jersey: string | null
+  totals: StatsOfficiatingTotals
+}
+
+/**
+ * Every official of a season and season types, with the league's totals over the same games. Before
+ * the crews are complete the officials are still listed, but `reason` says why the rates are not read.
+ */
+export interface StatsOfficialsSeason {
+  season: number
+  coverage: StatsCrewCoverage
+  league: StatsOfficiatingTotals
+  officials: StatsOfficialLine[]
+  /** Why rates are not read for this season; null when they are. */
+  reason: string | null
+}
+
+/** One official's seasons, each beside the league's totals for the same season and season types. */
+export interface StatsOfficialCareer {
+  id: string
+  name: string
+  jersey: string | null
+  seasons: {
+    season: number
+    totals: StatsOfficiatingTotals
+    league: StatsOfficiatingTotals
+    coverage: StatsCrewCoverage
+    reason: string | null
+  }[]
 }
 
 /**

@@ -19,6 +19,7 @@ import {
   type StatsQuery,
   type Transform
 } from '@shared/stats/types'
+import { gameTable } from '../derived/gameTables'
 import { publishedTable } from '../derived/published'
 import { PUBLISHED_GAME_TYPES } from '../derived/publishedTables'
 import { grainsOf } from './registry'
@@ -287,6 +288,9 @@ const UNPUBLISHED = {
   possessions: 'Published without possessions.'
 }
 
+/** A published metric that a game table answers under a filter that splits a season. */
+const fromGames = (m: MetricDef): boolean => grainsOf(m).includes('game') && !!m.publishedGames
+
 /**
  * Why a metric has no answer to this query; null when it has one. A season outside its coverage comes
  * first, since no change of filter would answer that.
@@ -304,7 +308,16 @@ function gapOf(
     [...new Set(q.scope.seasons)].sort((a, b) => a - b)
   )
   if (coverage !== null || !m.published) return coverage
-  if (grain === 'game') return WHOLE_SEASONS_ONLY
+  if (grain === 'game') {
+    // A game table answers every season type it holds; a divisor it lacks is still a gap.
+    const games = fromGames(m) ? gameTable(m.publishedGames) : undefined
+    if (!games) return WHOLE_SEASONS_ONLY
+    for (const match of (perDivisor(m, transform, q.entity) ?? '').matchAll(TOKEN)) {
+      const part = match[1] as keyof typeof UNPUBLISHED
+      if (part in UNPUBLISHED && !games.components.includes(part)) return UNPUBLISHED[part]
+    }
+    return null
+  }
   if (!gameTypes.some((t) => PUBLISHED_GAME_TYPES.includes(t))) return PUBLISHED_TYPES_ONLY
   if (m.oneSeason) {
     if (!gameTypes.includes('regular')) return REGULAR_SEASON_ONLY
@@ -429,6 +442,24 @@ function publishedCte(
     GROUP BY w.${key}${bySeason ? ', w.season' : ''})`
 }
 
+/**
+ * A game table's sums per output row. It is joined to the box-score rows in scope by player and game,
+ * so a date range, the last games, a team, an opponent or any other filter on a game holds exactly,
+ * and it groups by what the query groups by. Its `games` are the games with a row.
+ */
+function gameCte(name: string, table: string, parts: Set<string>, c: Checked): string {
+  const t = gameTable(table)
+  if (!t) throw new StatsQueryError(`no game table "${table}"`)
+  const dims = c.groupBy.map((d) => `b.${d} AS g_${d}`)
+  const sums = [...parts].map((p) =>
+    p === 'games' ? 'count(DISTINCT w.game_id)::DOUBLE AS games' : `sum(w.${p}) AS ${p}`
+  )
+  return `${name} AS (
+    SELECT b.id, ${[...dims, ...sums].join(', ')}
+    FROM ${table} w JOIN base b ON b.id = w.${t.key} AND b.game = w.game_id
+    GROUP BY b.id${c.groupBy.map((d) => `, b.${d}`).join('')})`
+}
+
 /** The rows in scope, summed per output row, with each metric's value and sample. */
 function aggregate(q: StatsQuery, c: Checked, params: Params): string {
   const player = q.entity === 'player'
@@ -484,26 +515,39 @@ function aggregate(q: StatsQuery, c: Checked, params: Params): string {
            ${[...needed].map((n) => `sum(${n}) AS ${n}`).join(', ')}
     FROM base GROUP BY id${c.groupBy.map((d) => `, ${d}`).join('')})`)
 
-  // Only the tables some metric can answer from: under a game filter, none.
+  // Only the tables some metric can answer from: under a game filter, the game tables.
+  const atGames = !season
+  const tableOf = (m: MetricDef): string | undefined =>
+    atGames ? (fromGames(m) ? m.publishedGames : undefined) : m.published
   const published = new Map<string, Set<string>>()
   c.metrics.forEach((m, i) => {
-    if (!m.published || c.gaps[i] !== null) return
-    const parts = published.get(m.published) ?? new Set<string>()
+    const table = tableOf(m)
+    if (!m.published || !table || c.gaps[i] !== null) return
+    const parts = published.get(table) ?? new Set<string>()
     for (const part of partsOf(m, q, c)) parts.add(part)
-    published.set(m.published, parts)
+    published.set(table, parts)
   })
   const tables = [...published.keys()]
   const alias = (table: string): string => `pub${tables.indexOf(table)}`
   for (const [table, parts] of published) {
-    ctes.push(publishedCte(alias(table), table, parts, q, c, params))
+    ctes.push(
+      atGames
+        ? gameCte(alias(table), table, parts, c)
+        : publishedCte(alias(table), table, parts, q, c, params)
+    )
   }
-  const onSeason = (a: string): string =>
-    c.groupBy.includes('season') ? ` AND ${a}.g_season = s.g_season` : ''
-  const joins = tables.map(
-    (t) => `LEFT JOIN ${alias(t)} ON ${alias(t)}.id = s.id${onSeason(alias(t))}`
-  )
-  const sumOf = (m: MetricDef, n: string): string =>
-    m.published ? `${alias(m.published)}.${n}` : `s.${n}`
+  // A game table's rows group by every dimension; a published table's by the season at most.
+  const on = (a: string): string =>
+    atGames
+      ? c.groupBy.map((d) => ` AND ${a}.g_${d} IS NOT DISTINCT FROM s.g_${d}`).join('')
+      : c.groupBy.includes('season')
+        ? ` AND ${a}.g_season = s.g_season`
+        : ''
+  const joins = tables.map((t) => `LEFT JOIN ${alias(t)} ON ${alias(t)}.id = s.id${on(alias(t))}`)
+  const sumOf = (m: MetricDef, n: string): string => {
+    const table = tableOf(m)
+    return m.published && table ? `${alias(table)}.${n}` : `s.${n}`
+  }
   ctes.push(`agg AS (
     SELECT s.id, ${c.groupBy.map((d) => `s.g_${d}, `).join('')} s.team_id, s.last_season, s.position,
            s.games::DOUBLE AS games, ${metricColumns(q, c, sumOf).join(', ')}
@@ -523,10 +567,11 @@ function notesOf(q: StatsQuery, c: Checked): string[] {
     if (gaps.length > 0) {
       notes.add(`${m.label}: not in the source for ${gaps.map(seasonLabel).join(', ')}.`)
     }
-    if (m.published && c.grain === 'game') {
+    const games = c.grain === 'game' && fromGames(m)
+    if (m.published && c.grain === 'game' && !games) {
       notes.add(`${m.label}: published for whole seasons only.`)
     }
-    if (m.published && c.gameTypes.some((t) => !PUBLISHED_GAME_TYPES.includes(t))) {
+    if (m.published && !games && c.gameTypes.some((t) => !PUBLISHED_GAME_TYPES.includes(t))) {
       notes.add(`${m.label}: published for the regular season and playoffs only.`)
     }
   }

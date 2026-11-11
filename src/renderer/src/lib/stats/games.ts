@@ -20,6 +20,10 @@ export interface GamesState {
   date: string | null
   /** Null: the day's first game. */
   game: string | null
+  /** The season's officials in place of the game: their rates beside the league's. */
+  officials?: boolean
+  /** One official's seasons in place of the game; it wins over `officials`. */
+  official?: string | null
 }
 
 export const DEFAULT_GAMES: GamesState = { date: null, game: null }

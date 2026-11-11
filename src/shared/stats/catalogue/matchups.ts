@@ -4,7 +4,10 @@ import { metric, ratio, type Opts } from './define'
 /**
  * Reference section 10.2: the NBA's matchups, for defenders, from 2017-18. Tracking assigns each
  * offensive player a defender moment by moment, and these add up what the players a defender was
- * assigned did against them. Season totals with no game behind them, so they answer whole seasons only.
+ * assigned did against them. A whole season reads the season files; a date range, the last games or
+ * any filter that splits a season reads the game matchups (`derived/gameMatchups.ts`), added up over
+ * the defender's games in scope. The shares by position have no game file behind them, so they answer
+ * whole seasons only.
  *
  * Assignment is a measurement convention: help, switches and scheme sit in every number, and a small
  * sample carries the shooter's quality more than the defender's. In the regular season the totals
@@ -15,6 +18,7 @@ const SOURCES = ["The NBA's season matchups"]
 const FIRST = 2018
 
 const TABLE = 'pub_player_matchups'
+const GAMES = 'game_matchups'
 const POSITIONS = 'pub_player_matchup_positions'
 
 const CAVEAT =
@@ -33,6 +37,7 @@ const count = (column: string, o: Partial<Opts> = {}): Opts => ({
   sources: SOURCES,
   firstSeason: FIRST,
   published: TABLE,
+  publishedGames: GAMES,
   ...o
 })
 
@@ -47,6 +52,7 @@ const rate = (value: string, sample: string, minSample: number, o: Partial<Opts>
   sources: SOURCES,
   firstSeason: FIRST,
   published: TABLE,
+  publishedGames: GAMES,
   ...o
 })
 
@@ -195,6 +201,7 @@ const BY_POSITION: MetricDef[] = (['g', 'f', 'c'] as const).flatMap((p) => {
       `The share of their matchup time spent guarding ${WHO[p]}, by the position the NBA lists.`,
       rate(ratio(`pos_${p}_minutes`, 'pos_all_minutes'), 'pos_all_minutes', 500, {
         published: POSITIONS,
+        publishedGames: undefined,
         direction: 'neutral'
       })
     ),
@@ -205,6 +212,7 @@ const BY_POSITION: MetricDef[] = (['g', 'f', 'c'] as const).flatMap((p) => {
       `Points scored by the ${WHO[p]} they guarded, per 100 partial possessions guarding them. Derived. ${CAVEAT}`,
       rate(per100(`pos_${p}_pts`, `pos_${p}_poss`), `pos_${p}_poss`, 500, {
         published: POSITIONS,
+        publishedGames: undefined,
         unit: 'rating',
         decimals: 1,
         kind: 'derived'
@@ -215,7 +223,10 @@ const BY_POSITION: MetricDef[] = (['g', 'f', 'c'] as const).flatMap((p) => {
       `FG% allowed to ${WHO[p]}`,
       `vs ${P} FG%`,
       `The field-goal percentage of the ${WHO[p]} they guarded. ${CAVEAT}`,
-      rate(ratio(`pos_${p}_fgm`, `pos_${p}_fga`), `pos_${p}_fga`, 100, { published: POSITIONS })
+      rate(ratio(`pos_${p}_fgm`, `pos_${p}_fga`), `pos_${p}_fga`, 100, {
+        published: POSITIONS,
+        publishedGames: undefined
+      })
     )
   ]
 })
