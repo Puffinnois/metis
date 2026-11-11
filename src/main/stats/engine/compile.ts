@@ -612,6 +612,8 @@ function notesOf(q: StatsQuery, c: Checked): string[] {
     if (gaps.length > 0) {
       notes.add(`${m.label}: not in the source for ${gaps.map(seasonLabel).join(', ')}.`)
     }
+    // Under a split, a published metric's column already says why it has no value.
+    if (m.published && s.split !== undefined) continue
     const games = c.grain === 'game' && fromGames(m)
     if (m.published && c.grain === 'game' && !games) {
       notes.add(`${m.label}: published for whole seasons only.`)
