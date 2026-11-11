@@ -9,6 +9,7 @@ import {
   WHOLE_SEASONS_ONLY
 } from '@shared/stats/catalogue'
 import { seasonLabel } from '@shared/stats/seasons'
+import { SPLIT_IDS, SPLITS_FIRST_SEASON, splitById } from '@shared/stats/splits'
 import {
   GAME_TYPES,
   POSITION_GROUPS,
@@ -21,6 +22,7 @@ import {
 } from '@shared/stats/types'
 import { gameTable } from '../derived/gameTables'
 import { publishedTable } from '../derived/published'
+import { SPLIT_PLAYER, SPLIT_PLAYER_SQL, SPLIT_TEAM, SPLIT_TEAM_SQL } from '../derived/splits'
 import { PUBLISHED_GAME_TYPES } from '../derived/publishedTables'
 import { grainsOf } from './registry'
 
@@ -149,6 +151,7 @@ const SCOPE_FIELDS = [
   'result',
   'players',
   'games',
+  'split',
   'qualifiedOnly'
 ]
 
@@ -238,6 +241,9 @@ function validate(q: StatsQuery, ctx: CompileContext): Checked {
     ids(scope.players, 'scope.players')
   }
   if (scope.games !== undefined) texts(scope.games, 'scope.games', GAME_ID)
+  if (scope.split !== undefined && !SPLIT_IDS.includes(scope.split)) {
+    fail(`unknown split "${String(scope.split)}"; use ${SPLIT_IDS.join(', ')}`)
+  }
   if (scope.qualifiedOnly !== undefined) flag(scope.qualifiedOnly, 'scope.qualifiedOnly')
   const groupBy = q.groupBy ?? []
   for (const g of groupBy) {
@@ -269,6 +275,7 @@ function validate(q: StatsQuery, ctx: CompileContext): Checked {
     scope.restDays !== undefined ||
     scope.starter !== undefined ||
     scope.result !== undefined ||
+    scope.split !== undefined ||
     groupBy.some((g) => g !== 'season')
   const grain: Grain = games ? 'game' : 'season'
   for (const m of metrics) {
@@ -291,6 +298,22 @@ const UNPUBLISHED = {
 /** A published metric that a game table answers under a filter that splits a season. */
 const fromGames = (m: MetricDef): boolean => grainsOf(m).includes('game') && !!m.publishedGames
 
+/** A metric the plays cannot rebuild: tracking, hustle, what is published, what a box score has alone. */
+export const NOT_FROM_PLAYS = 'Not counted from the play by play, so it has no split.'
+export const SPLITS_FROM = `Splits are counted from the play by play, from ${seasonLabel(SPLITS_FIRST_SEASON)}.`
+
+/** The components a split row can sum, per entity. */
+const SPLIT_SQL = { player: SPLIT_PLAYER_SQL, team: SPLIT_TEAM_SQL }
+
+/** Why a metric has no answer under a split; null when the plays answer it. */
+function splitGap(m: MetricDef, q: StatsQuery, transform: Transform): string | null {
+  if (!q.scope.seasons.some((s) => s >= SPLITS_FIRST_SEASON)) return SPLITS_FROM
+  if (m.published) return NOT_FROM_PLAYS
+  const by = perDivisor(m, transform, q.entity)
+  const parts = [...componentsOf(m), ...(by ? [...by.matchAll(TOKEN)].map((x) => x[1]) : [])]
+  return parts.every((p) => p in SPLIT_SQL[q.entity]) ? null : NOT_FROM_PLAYS
+}
+
 /**
  * Why a metric has no answer to this query; null when it has one. A season outside its coverage comes
  * first, since no change of filter would answer that.
@@ -307,7 +330,9 @@ function gapOf(
     m,
     [...new Set(q.scope.seasons)].sort((a, b) => a - b)
   )
-  if (coverage !== null || !m.published) return coverage
+  if (coverage !== null) return coverage
+  if (q.scope.split !== undefined) return splitGap(m, q, transform)
+  if (!m.published) return null
   if (grain === 'game') {
     // A game table answers every season type it holds; a divisor it lacks is still a gap.
     const games = fromGames(m) ? gameTable(m.publishedGames) : undefined
@@ -403,8 +428,9 @@ function partsOf(m: MetricDef, q: StatsQuery, c: Checked): string[] {
 /** Every component a query reads from the box-score tables. */
 function neededComponents(q: StatsQuery, c: Checked): Set<string> {
   const needed = new Set(['games'])
-  for (const m of c.metrics) {
-    if (m.published) continue
+  for (const [i, m] of c.metrics.entries()) {
+    // A metric with no answer reads NULL, so nothing of it is needed.
+    if (m.published || c.gaps[i] !== null) continue
     for (const part of partsOf(m, q, c)) needed.add(part)
   }
   return needed
@@ -484,8 +510,17 @@ function aggregate(q: StatsQuery, c: Checked, params: Params): string {
   const ctes: string[] = []
   let recentJoin = ''
   let lastN = ''
+  const split = s.split !== undefined ? params.add(s.split) : null
   if (s.lastN !== undefined) {
-    if (s.lastNOf === 'team') {
+    if (split !== null && s.lastNOf !== 'team') {
+      // Under a split, the last N games are the player's or team's own, then the split within them:
+      // a game with no moment in the split still counts as one of the N.
+      ctes.push(`recent AS (
+        SELECT w.${key} AS id, w.game_id FROM ${table} w WHERE ${where.join(' AND ')}
+        QUALIFY row_number() OVER (PARTITION BY w.${key} ORDER BY w.game_date DESC, w.game_id DESC)
+          <= ${params.add(s.lastN)})`)
+      recentJoin = `JOIN recent r ON r.id = w.${key} AND r.game_id = w.game_id`
+    } else if (s.lastNOf === 'team') {
       // The team's last N games: a player who sat some of them out has fewer.
       const inner = [`w.season IN ${seasons}`, `w.game_type IN ${types}`, ...gameWhere(q, params)]
       ctes.push(`recent AS (
@@ -502,12 +537,22 @@ function aggregate(q: StatsQuery, c: Checked, params: Params): string {
   const dimColumns = season
     ? 'w.game_type,'
     : `w.team_id AS team, w.opponent_id AS opponent, month(w.game_date) AS month, w.game_id AS game,`
+  // Under a split, the counts are the split's rows, joined to the game lines the filters read.
+  const splitJoin =
+    split === null
+      ? ''
+      : player
+        ? `JOIN ${SPLIT_PLAYER} sp ON sp.player_id = w.player_id AND sp.game_id = w.game_id AND sp.split = ${split}
+           LEFT JOIN ${SPLIT_TEAM} st ON st.game_id = w.game_id AND st.team_id = w.team_id AND st.split = ${split}`
+        : `JOIN ${SPLIT_TEAM} st ON st.team_id = w.team_id AND st.game_id = w.game_id AND st.split = ${split}`
+  const component = (n: string): string =>
+    split === null ? `w.${n}` : `(${SPLIT_SQL[q.entity][n] ?? 'NULL'}) AS ${n}`
   ctes.push(`base AS (
     SELECT w.${key} AS id, w.season, ${season ? 'w.last_date' : 'w.game_date'} AS ord,
            ${teamColumn} AS team_id, ${player ? 'w.position' : 'NULL::VARCHAR AS position'},
            ${dimColumns}
-           ${[...needed].map((n) => `w.${n}`).join(', ')}
-    FROM ${table} w ${recentJoin}
+           ${[...needed].map(component).join(', ')}
+    FROM ${table} w ${recentJoin} ${splitJoin}
     WHERE ${where.join(' AND ')} ${lastN})`)
   ctes.push(`sums AS (
     SELECT id, ${c.groupBy.map((d) => `${d} AS g_${d}, `).join('')}
@@ -591,12 +636,24 @@ function notesOf(q: StatsQuery, c: Checked): string[] {
   if (s.starter !== undefined && s.seasons.some((x) => x >= 2002 && x <= 2006)) {
     notes.add('Who started is unknown for some games from 2001-02 to 2005-06.')
   }
-  if (q.entity === 'player' && c.transform === 'per100') {
+  const split = splitById(s.split)
+  if (split) {
+    notes.add(`${split.label}: ${split.rule} Counted from the NBA's play by play.`)
+    if (s.seasons.some((x) => x < SPLITS_FIRST_SEASON)) {
+      notes.add(`${SPLITS_FROM} Earlier seasons are left out.`)
+    }
+    if (c.transform === 'per100' || c.metrics.some((m) => /\{(on_)?poss/.test(m.value))) {
+      notes.add(
+        q.entity === 'player'
+          ? "Under a split, per 100 uses the team's possessions counted from the plays (derived) in the same moments, times the player's share of its minutes."
+          : 'Under a split, possessions are counted from the plays (derived), not estimated.'
+      )
+    }
+  } else if (q.entity === 'player' && c.transform === 'per100') {
     notes.add(
       "Per 100 uses the team's estimated possessions, times the player's share of its minutes."
     )
-  }
-  if (q.entity === 'team' && c.transform === 'per100') {
+  } else if (q.entity === 'team' && c.transform === 'per100') {
     notes.add('Per 100 uses estimated possessions.')
   }
   return [...notes]
@@ -670,6 +727,12 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
     ...gameWhere(q, gp)
   ]
   if (q.scope.teams) gamesWhere.push(`w.team_id IN ${gp.list(q.scope.teams.map(Number))}`)
+  // Under a split, a sample scales to the split's share of the time as well: clutch is about a
+  // twentieth of a season's minutes, so it needs about a twentieth of the minutes to qualify.
+  const shareJoin = q.scope.split
+    ? `LEFT JOIN ${SPLIT_TEAM} st ON st.team_id = w.team_id AND st.game_id = w.game_id AND st.split = ${gp.add(q.scope.split)}`
+    : ''
+  const share = q.scope.split ? 'coalesce(sum(st.seconds) / nullif(sum(w.seconds), 0), 0)' : '1'
   const last = q.scope.lastN
   return {
     grain: c.grain,
@@ -678,8 +741,9 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
     transform: c.transform,
     // The games a team played in scope, on average: teams can be a game or two apart mid-season.
     gamesSql: `SELECT ${bySeason ? 'w.season, ' : ''}
-                 count(*)::DOUBLE / nullif(count(DISTINCT (w.team_id, w.season)), 0) * ${bySeason ? '1' : 'count(DISTINCT w.season)'} AS games
-               FROM team_game w WHERE ${gamesWhere.join(' AND ')}${bySeason ? ' GROUP BY w.season' : ''}`,
+                 count(*)::DOUBLE / nullif(count(DISTINCT (w.team_id, w.season)), 0) * ${bySeason ? '1' : 'count(DISTINCT w.season)'} AS games,
+                 ${share}::DOUBLE AS share
+               FROM team_game w ${shareJoin} WHERE ${gamesWhere.join(' AND ')}${bySeason ? ' GROUP BY w.season' : ''}`,
     gamesParams: gp.values,
     bySeason,
     sql,
