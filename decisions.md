@@ -40,7 +40,7 @@ Short log of decisions and why. Newest last. The previous implementation's log (
 
 **D18. Keep Apache-2.0.** The template's MIT code, by the same author, is compatible.
 
-**D19. Keep the branch model:** working branches into `main`, `main` into `preprod`, `preprod` into `prod`.
+**D19. Keep the branch model:** working branches into `main`, `main` into `preprod`, `preprod` into `prod`. Replaced by D30.
 
 ## 2026-11-05: the overhaul plan
 
@@ -54,12 +54,16 @@ Short log of decisions and why. Newest last. The previous implementation's log (
 
 **D24. Stats with no free bulk source stay out:** EPM, LEBRON, the NBA's Inside the Game models, Basketball-Reference and paid APIs. They are listed as unavailable with the reason. Metis does not scrape. This follows D7; revisit only if the owner asks.
 
-**D25. The repository's shape:** `main` is the default branch. Old branches live on as tags under `archive/`. `main`, `preprod` and `prod` refuse force-pushes and require CI's `check` to pass, for admins too. A promotion can still fast-forward, because a commit on `main` has already passed `check`. _Why:_ nothing should reach the three branches unchecked.
+**D25. The repository's shape:** `main` is the default branch. Old branches live on as tags under `archive/`. `main`, `preprod` and `prod` refuse force-pushes and require CI's `check` to pass, for admins too. A promotion can still fast-forward, because a commit on `main` has already passed `check`. _Why:_ nothing should reach the three branches unchecked. Since D30 this covers `main` alone.
 
-**D26. A stage tag is not a release.** `vX.Y-stageN` marks a finished stage. A version tag such as `v1.0.0` runs the Release workflow, which requires it to match `package.json`. _Why:_ in the template every `v*` tag was a release, and a stage tag would only fail that version check.
+**D26. A stage tag is not a release.** `vX.Y-stageN` marks a finished stage. A version tag such as `v1.0.0` runs the Release workflow, which requires it to match `package.json`. _Why:_ in the template every `v*` tag was a release, and a stage tag would only fail that version check. Stage tags end with `v0.6-stage8` (D30).
 
 **D27. Source tables stay as published.** `season` is only cast to an INTEGER, and `file_season` and `source_file` are added to tell files apart. Season types and team codes are mapped in the `game` and `team` tables (Plan T407, T408). _Why:_ ESPN's 2000 files hold games of 1998-99 rightly marked 1999, which a file's label would overwrite; many files have no season type column at all, so it has to come from the game anyway; and correcting a mapping should never mean downloading the files again.
 
 **D28. Every game and player has a key, whatever the sources know.** NBA ids stay the keys (D13). A game before 1996-97 is `espn:<id>`, and a player the NBA's data does not know gets the negative of their ESPN id. _Why:_ one type of key for every join, no chance of a collision, and those rows stay in the app instead of dropping out: 200 players, nearly all from before 1996-97.
 
 **D29. The first public release comes before Stage 11.** On 2026-11-06 the owner asked for a release at the end of Stage 6 and chose to publish `v0.4.0`, knowing T1101 was still open. The dataset's licence file says MIT and its README shows CC BY 4.0; neither speaks for ESPN or the NBA. _Why:_ the installer holds no data, since each user downloads it from the source, and the app and README already credit that source. T1101 stays open and still has to be settled before `v1.0.0`. The installer is unsigned, and the install and update checks of T1103 and T1104 have not been run. D26 still holds: this version tag runs the Release workflow, and it matches `package.json`.
+
+## 2026-11-11: one trunk
+
+**D30. `main` is the only long-lived branch, and a stage ends with one tag.** `preprod` and `prod` are deleted. A stage closes with one PR that records the gate, ticks the stage and sets the version in `package.json`; on the owner's word it is merged and that commit is tagged `vX.Y.0`, which marks the stage and runs the Release workflow. This replaces D19 and narrows D25 and D26: the `vX.Y-stageN` tags stop at `v0.6-stage8`, and the Release workflow still ignores them. _Why:_ through eight stages both branches were only ever fast-forwarded to a commit already on `main`, so they checked nothing that `check` and the gate had not. Closing a stage took three PRs, two branch pushes and two tags; it now takes one PR and one tag. What shipped is still exact, because the tag names the commit.

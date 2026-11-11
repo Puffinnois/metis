@@ -33,18 +33,18 @@ Measured 2026-11-05. Details are in `docs/reference/nba-data-sources.md`.
 
 **Each stage ends with something the owner can use.** The earlier draft of this plan built in layers, with the data first and every screen last, so nothing could be judged until the end. Now each stage takes a slice from the data through to the screen, then the next one adds depth.
 
-| Stage              | At the end, the owner can…                                    | Data added      | Tag            |
-| ------------------ | ------------------------------------------------------------- | --------------- | -------------- |
-| 1, 2 Archive, base | Open an empty app (done)                                      |                 |                |
-| 3 Clean slate      | See one clear project on GitHub, with Windows packaging run   |                 | `v0.1-stage3`  |
-| 4 Data foundation  | Load everything, quit, resume, and read the agreement report  | All 1,554 MB    | `v0.2-stage4`  |
-| 5 First usable app | Rank anyone on any box-score stat, 1993-94 to now             | Core in use     | `v0.3-stage5`  |
-| 6 Dashboards       | Open a player, a team or a game                               | Core in use     | `v0.4-stage6`  |
-| 7 Published depth  | See tracking, hustle, play types, matchups, impact, combine   | 214 MB in use   | `v0.5-stage7`  |
-| 8 Explore          | Chart any stat against another, compare, follow a career      |                 | `v0.6-stage8`  |
-| 9 Play level       | Split by clutch or quarter, read shot charts, on/off, lineups | 1,239 MB in use | `v0.7-stage9`  |
-| 10 Ratings         | See Elo, SRS, playoff odds, PER, Win Shares, stability        |                 | `v0.8-stage10` |
-| 11 Ship            | Install it on any Windows machine                             |                 | `v1.0-stage11` |
+| Stage              | At the end, the owner can…                                    | Data added      | Tag           |
+| ------------------ | ------------------------------------------------------------- | --------------- | ------------- |
+| 1, 2 Archive, base | Open an empty app (done)                                      |                 |               |
+| 3 Clean slate      | See one clear project on GitHub, with Windows packaging run   |                 | `v0.1-stage3` |
+| 4 Data foundation  | Load everything, quit, resume, and read the agreement report  | All 1,554 MB    | `v0.2-stage4` |
+| 5 First usable app | Rank anyone on any box-score stat, 1993-94 to now             | Core in use     | `v0.3-stage5` |
+| 6 Dashboards       | Open a player, a team or a game                               | Core in use     | `v0.4-stage6` |
+| 7 Published depth  | See tracking, hustle, play types, matchups, impact, combine   | 214 MB in use   | `v0.5-stage7` |
+| 8 Explore          | Chart any stat against another, compare, follow a career      |                 | `v0.6-stage8` |
+| 9 Play level       | Split by clutch or quarter, read shot charts, on/off, lineups | 1,239 MB in use | `v0.7.0`      |
+| 10 Ratings         | See Elo, SRS, playoff odds, PER, Win Shares, stability        |                 | `v0.8.0`      |
+| 11 Ship            | Install it on any Windows machine                             |                 | `v1.0.0`      |
 
 **Order:** 3 → 4 → 5 → 6, then 7 and 8 in either order, then 9 → 10 → 11.
 
@@ -57,7 +57,7 @@ Measured 2026-11-05. Details are in `docs/reference/nba-data-sources.md`.
 - A `check/**` branch run, so the Windows build and self-test pass.
 - `docs/reference/` updated: `stats-database.md` and `stats-screens.md` start in Stage 4 and 5 and grow from there.
 - Speed held: a screen's queries answer in under 500 ms on the full database, or the reason is written down.
-- The owner tries it. Then `main` into `preprod` into `prod`, and the tag.
+- One closing PR records the gate, ticks the stage and sets the version in `package.json`. The owner tries it. Then the PR is merged and that commit tagged `vX.Y.0`, which marks the stage and runs the Release workflow (D30). Stages 3 to 8 were promoted through `preprod` and `prod` and carry a `-stageN` tag as well.
 
 **Running tasks at the same time:** Stages 6, 7 and 8 have tasks that can each run in their own worktree. To allow that, T503 splits the catalogue into one file per family, so tasks adding metrics do not collide.
 
@@ -189,7 +189,7 @@ Template: `src/main/stats/models/`. The template's field-goal model, fantasy tab
 - [ ] **T1103 Installer and updates (M).** Windows installer, signed-update check. Check: install, update from the previous version.
 - [ ] **T1104 Clean machine (M).** The whole first run on Windows: install, load, quit, resume, refresh. Check: the goal above, item by item.
 - [ ] **T1105 Docs and README (S).** What the app does and what was measured, for someone arriving new.
-- [ ] **T1106 Release (S).** `main` into `preprod` into `prod`, tag `v1.0-stage11`. Set `package.json` to `1.0.0` and push `v1.0.0`: that tag runs the Release workflow, which leaves a draft to publish (D26).
+- [ ] **T1106 Release (S).** Set `package.json` to `1.0.0` in the closing PR, merge it and tag `v1.0.0`: that tag runs the Release workflow, which leaves a draft to publish (D30).
 
 ## Optional
 
