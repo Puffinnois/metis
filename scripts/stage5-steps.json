@@ -51,6 +51,12 @@
     "click": "Players"
   },
   {
+    "wait": 1500
+  },
+  {
+    "click": "Player leaderboards →"
+  },
+  {
     "wait": 800
   },
   {
@@ -177,6 +183,12 @@
     "click": "Teams"
   },
   {
+    "wait": 1500
+  },
+  {
+    "click": "Team leaderboards →"
+  },
+  {
     "wait": 800
   },
   {
@@ -229,6 +241,12 @@
   },
   {
     "click": "Players"
+  },
+  {
+    "wait": 1500
+  },
+  {
+    "click": "Player leaderboards →"
   },
   {
     "wait": 700

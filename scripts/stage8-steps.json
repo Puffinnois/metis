@@ -538,5 +538,44 @@
   },
   {
     "shot": "explore-back"
+  },
+  {
+    "eval": "location.reload(); 'reload for speed'"
+  },
+  {
+    "wait": 5000
+  },
+  {
+    "eval": "'== speed: click to screen, each Explore tab =='"
+  },
+  {
+    "eval": "window.until = async (fn, ms = 15000) => { const t0 = performance.now(); while (performance.now() - t0 < ms) { if (fn()) return true; await new Promise((r) => setTimeout(r, 5)) } return false };\nwindow.mainText = () => document.querySelector('main')?.innerText ?? '';\nwindow.drawn = { chart: () => !!document.querySelector('[data-summary]') && !/Loading/.test(mainText()), compare: () => [...document.querySelectorAll('[data-slot]')].filter((e) => /Leads \\d+ of/.test(e.innerText)).length === 3 && !/Loading…/.test(mainText()), trends: () => document.querySelectorAll('[data-point]').length > 3 && !!document.querySelector('[data-band]') };\nwindow.time = async (label, click, ready) => { const t0 = performance.now(); click(); const ok = await until(ready); return label + ': ' + (ok ? Math.round(performance.now() - t0) + ' ms' : 'NOT DRAWN in 15 s') };\nwindow.tabClick = (name) => () => [...document.querySelectorAll('[role=tab]')].find((t) => t.textContent.trim() === name).click();\nwindow.navClick = (name) => () => [...document.querySelectorAll('nav button')].find((b) => b.textContent.trim() === name).click();\n'speed helpers ready'"
+  },
+  {
+    "click": "Players"
+  },
+  {
+    "eval": "(async () => { await until(() => document.querySelector('[data-metric=pts]')); await new Promise((r) => setTimeout(r, 1500)); return 'dashboard: ' + document.querySelector('h1')?.textContent })()"
+  },
+  {
+    "eval": "time('Explore, the chart, first visit', navClick('Explore'), drawn.chart)"
+  },
+  {
+    "eval": "time('Compare, first visit (leaders fill the slots)', tabClick('Compare'), drawn.compare)"
+  },
+  {
+    "eval": "time('Trends, first visit (the dashboard player)', tabClick('Trends'), drawn.trends)"
+  },
+  {
+    "eval": "time('Chart again', tabClick('Chart'), drawn.chart)"
+  },
+  {
+    "eval": "time('Compare again', tabClick('Compare'), drawn.compare)"
+  },
+  {
+    "eval": "time('Trends again', tabClick('Trends'), drawn.trends)"
+  },
+  {
+    "shot": "speed-trends"
   }
 ]

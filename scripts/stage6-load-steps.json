@@ -1,7 +1,7 @@
 [
   { "size": [1500, 950] },
   {
-    "eval": "window.has = (s) => document.querySelector(s) !== null; window.statusText = () => [...document.querySelectorAll('nav button')].find((b) => b.title === 'See what is loaded')?.textContent ?? ''; window.nav = (name) => [...document.querySelectorAll('nav button')].find((b) => b.textContent.trim() === name).click(); window.until = async (ready, limitMin) => { const t0 = Date.now(); while (!ready()) { if (Date.now() - t0 > limitMin * 60000) return false; await new Promise((r) => setTimeout(r, 1000)) } return true }; 'status at launch: ' + statusText()"
+    "eval": "window.has = (s) => document.querySelector(s) !== null; window.statusText = () => [...document.querySelectorAll('nav button')].find((b) => b.title === 'See what is loaded')?.textContent ?? ''; window.nav = (name) => [...document.querySelectorAll('nav button')].find((b) => b.textContent.trim() === name)?.click(); window.until = async (ready, limitMin) => { const t0 = Date.now(); while (!ready()) { if (Date.now() - t0 > limitMin * 60000) return false; await new Promise((r) => setTimeout(r, 1000)) } return true }; 'status at launch: ' + statusText()"
   },
   { "click": "Players" },
   {

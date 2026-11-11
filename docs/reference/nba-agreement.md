@@ -651,9 +651,9 @@ The impact models (Plan T707) are read through the query engine over a whole sea
 
 | Season  | Type           | Players | Not in the box scores | Rows same % | Values same % | Not compared |
 | ------- | -------------- | ------- | --------------------- | ----------- | ------------- | ------------ |
-| 1996-97 | Regular season | 441     | 1                     | 100.0       | 100.0         | 1,323        |
+| 1996-97 | Regular season | 441     | 1                     | 100.0       | 100.0         | 0            |
 | 1996-97 | Playoffs       | 189     | 0                     | 100.0       | 100.0         | 0            |
-| 1997-98 | Regular season | 439     | 0                     | 100.0       | 100.0         | 439          |
+| 1997-98 | Regular season | 439     | 0                     | 100.0       | 100.0         | 0            |
 | 1997-98 | Playoffs       | 190     | 0                     | 100.0       | 100.0         | 16           |
 | 1998-99 | Regular season | 440     | 0                     | 100.0       | 100.0         | 0            |
 | 1998-99 | Playoffs       | 189     | 0                     | 100.0       | 100.0         | 20           |
@@ -712,7 +712,7 @@ The impact models (Plan T707) are read through the query engine over a whole sea
 | 2025-26 | Regular season | 582     | 0                     | 100.0       | 100.0         | 0            |
 | 2025-26 | Playoffs       | 230     | 0                     | 100.0       | 100.0         | 0            |
 
-In the playoffs, DARKO reads blank with the reason "Published for the regular season only." in 28 of the 28 seasons from 1998-99, where every DARKO column has values. Over two regular seasons together (2024-25 and 2025-26), RAPM weighted by possessions, BPM by minutes and WAR added up: 687 of 687 players read the same through the engine, and DARKO's projection reads blank with the reason "Published for one season at a time."
+3 columns are not compared (sdv_darko_skill, sdv_darko_next, sdv_darko_sd): the engine answers "The dataset no longer publishes DARKO." for them, since the file's columns now hold other values (see nba-data-sources.md). In the playoffs, DARKO reads blank in 28 of the 28 seasons from 1998-99, with the reason "The dataset no longer publishes DARKO.". Over two regular seasons together (2024-25 and 2025-26), RAPM weighted by possessions, BPM by minutes and WAR added up: 687 of 687 players read the same through the engine, and DARKO's projection reads blank with the reason "The dataset no longer publishes DARKO."
 
 ## Games out, from the NBA's injury reports
 
