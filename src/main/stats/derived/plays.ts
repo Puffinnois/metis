@@ -1,4 +1,5 @@
 import type { StatsDb } from '../db'
+import { eventsBootstrap, eventsSql } from './events'
 import { column, inspect, type Have } from './sql'
 
 /**
@@ -133,6 +134,10 @@ const NBA_TECHNICALS = [
 
 const list = (xs: string[]): string => xs.map((x) => `'${x.replaceAll("'", "''")}'`).join(', ')
 
+/** A name without accents or a suffix: "Butler III" and "Butler", "Schröder" and "Schroder". */
+const bare = (name: string): string =>
+  `regexp_replace(strip_accents(${name}), '\\s+(Jr\\.?|Sr\\.?|II|III|IV)$', '')`
+
 const flag = (cond: string): string => `coalesce((${cond})::UTINYINT, 0)`
 
 /** The final SELECT both sources share: the columns in order, with the flags worked out. */
@@ -158,7 +163,10 @@ const WINDOWS = `WINDOW upto AS (PARTITION BY game_id ORDER BY seq ROWS BETWEEN 
  * - Assists are only in the made shot's description, by the name the feed uses for the player
  *   ("(Dort 1 AST)"): matched to a teammate of the shooter with that name in the same game. The name
  *   is the player's `player_name`, or an initial where two share it ("J. Brown", "Jal. Williams"),
- *   or the full name, always without accents ("Schroder" for Schröder).
+ *   or the full name, always without accents ("Schroder" for Schröder) or a suffix ("Boston" for
+ *   "Boston Jr."). Old descriptions keep
+ *   the name of the time while `player_name` is today's ("Butler" for "Butler III", "World Peace"),
+ *   so failing that, the one teammate on the floor whose name holds the description's last word.
  * - Rebounds carry the player's running counts ("Off:1 Def:0"), so a player's rebound is offensive
  *   when their offensive count went up. The feed lists some rebounds out of order (Off:3 before
  *   Off:2), so a player's rebounds are put in order by their running total, not by row; and it
@@ -186,7 +194,8 @@ export function nbaPlaysSql(have: Have): string {
            ${c('shot_value', 'INTEGER')} AS shot_value,
            TRY_CAST(nullif(${c('score_home', 'VARCHAR')}, '') AS INTEGER) AS sh,
            TRY_CAST(nullif(${c('score_away', 'VARCHAR')}, '') AS INTEGER) AS sa,
-           ${c('possession_number', 'INTEGER')} AS possession
+           ${c('possession_number', 'INTEGER')} AS possession,
+           [${[1, 2, 3, 4, 5].map((i) => c(`off_player_${i}`)).join(', ')}] AS on_offense
     FROM ${from} p JOIN game g ON g.nba_game_id = ${c('game_id', 'VARCHAR')}
   ), typed AS (
     SELECT *,
@@ -211,7 +220,7 @@ export function nbaPlaysSql(have: Have): string {
              WHEN action = 'Instant Replay' THEN 'replay'
              WHEN action = 'Ejection' THEN 'ejection'
              ELSE 'other' END AS kind,
-           strip_accents(nullif(regexp_extract(description, '\\(([^()]*?) \\d+ AST\\)', 1), '')) AS assist_name,
+           ${bare(`nullif(regexp_extract(description, '\\(([^()]*?) \\d+ AST\\)', 1), '')`)} AS assist_name,
            TRY_CAST(regexp_extract(description, 'Off:(\\d+)', 1) AS INTEGER) AS off_count,
            TRY_CAST(regexp_extract(description, 'Def:(\\d+)', 1) AS INTEGER) AS def_count
     FROM raw
@@ -227,12 +236,12 @@ export function nbaPlaysSql(have: Have): string {
            any_value(person) FILTER (WHERE kind = 'block') AS block_id
     FROM marked WHERE kind IN ('steal', 'block') GROUP BY 1, 2
   ), names AS (
-    SELECT DISTINCT m.game_id, m.team_id, strip_accents(m.player_name) AS player_name,
-           strip_accents(m.player_initial) AS player_initial, m.player_id,
-           strip_accents(pl.name) AS full_name
+    SELECT DISTINCT m.game_id, m.team_id, ${bare('m.player_name')} AS player_name,
+           ${bare('m.player_initial')} AS player_initial, m.player_id,
+           ${bare('pl.name')} AS full_name
     FROM marked m LEFT JOIN player pl ON pl.player_id = m.player_id
     WHERE m.player_id IS NOT NULL AND m.player_name IS NOT NULL
-  ), assists AS (
+  ), named AS (
     SELECT m.game_id, m.seq, any_value(n.player_id) AS assist_id
     FROM marked m JOIN names n
       ON n.game_id = m.game_id AND n.team_id = m.team_id AND n.player_id <> m.player_id
@@ -241,6 +250,17 @@ export function nbaPlaysSql(have: Have): string {
               AND starts_with(n.full_name, split_part(m.assist_name, '. ', 1))))
     WHERE m.assist_name IS NOT NULL AND m.action = 'Made Shot'
     GROUP BY 1, 2 HAVING count(DISTINCT n.player_id) = 1
+  ), on_floor AS (
+    SELECT m.game_id, m.seq, any_value(o.player_id) AS assist_id
+    FROM (SELECT game_id, seq, player_id, assist_name, unnest(on_offense) AS id
+          FROM marked WHERE assist_name IS NOT NULL AND action = 'Made Shot') m
+    JOIN player o ON o.player_id = m.id
+    WHERE m.id <> m.player_id
+      AND contains(${bare('o.name')}, regexp_extract(m.assist_name, '(\\S+)$', 1))
+    GROUP BY 1, 2 HAVING count(DISTINCT o.player_id) = 1
+  ), assists AS (
+    SELECT game_id, seq, coalesce(n.assist_id, f.assist_id) AS assist_id
+    FROM named n FULL JOIN on_floor f USING (game_id, seq)
   ), joined AS (
     SELECT m.*,
            CASE WHEN m.kind = 'turnover' AND m.nth = 1 THEN cr.steal_id END AS steal_id,
@@ -296,9 +316,13 @@ export function nbaPlaysSql(have: Have): string {
  * matched to the app's players through `player_ids`. The second athlete is the assist on a made
  * shot, the blocker on a missed one and the stealer on a turnover; the description says which.
  * Scores are on every row. A rebound or turnover with a team and no athlete is the team's.
+ * - Teams are matched by ESPN id through `team`: in some games ESPN's home side is the `game`
+ *   table's away side, so its home and away scores are swapped to match.
  * - `score_value` is 0 on made free throws from 2012-13 into 2019-20, so a made free throw is 1.
- * - `points_attempted` is filled only from 2023-24, so a three is also read from the description
- *   ("three point") or a made shot's value.
+ * - `points_attempted` is filled only from 2023-24. Before, a made shot's value says whether it was
+ *   a three; a miss is a three when the description says so ("three point") or its raw coordinates
+ *   (feet across the court and from the basket) are beyond the line: 23.5 feet out, or 22 to the
+ *   side in the corner. That rule agrees with `points_attempted` on 99.8 % of 2025-26's shots.
  */
 export function espnPlaysSql(have: Have): string {
   const t = 'src_espn_pbp'
@@ -311,8 +335,10 @@ export function espnPlaysSql(have: Have): string {
            ${c('game_play_number', 'INTEGER')} AS seq,
            ${c('period_number', 'INTEGER')} AS period,
            ${c('clock_minutes', 'DOUBLE')} * 60 + ${c('clock_seconds', 'DOUBLE')} AS clock,
-           CASE ${c('team_id')} WHEN ${c('home_team_id')} THEN g.home_team_id
-                                WHEN ${c('away_team_id')} THEN g.away_team_id END AS team_id,
+           coalesce(tm.team_id,
+             CASE ${c('team_id')} WHEN ${c('home_team_id')} THEN g.home_team_id
+                                  WHEN ${c('away_team_id')} THEN g.away_team_id END) AS team_id,
+           coalesce(th.team_id = g.away_team_id, false) AS flipped,
            p1.player_id, p2.player_id AS second_id,
            coalesce(replace(${c(type, 'VARCHAR')}, chr(10), ' '), '') AS action,
            ${c('type_id', 'INTEGER')} AS type_id,
@@ -321,9 +347,12 @@ export function espnPlaysSql(have: Have): string {
            coalesce(${c('scoring_play', 'BOOLEAN')}, false) AS scoring,
            ${c('score_value', 'INTEGER')} AS score_value,
            ${c('points_attempted', 'INTEGER')} AS points_attempted,
-           ${c('home_score', 'INTEGER')} AS sh, ${c('away_score', 'INTEGER')} AS sa
+           ${c('coordinate_x_raw', 'DOUBLE')} AS x_raw, ${c('coordinate_y_raw', 'DOUBLE')} AS y_raw,
+           ${c('home_score', 'INTEGER')} AS espn_home_score, ${c('away_score', 'INTEGER')} AS espn_away_score
     FROM ${from} e
     JOIN game g ON g.espn_game_id = ${c('game_id')}
+    LEFT JOIN team tm ON tm.espn_team_id = ${c('team_id')} AND tm.season = g.season
+    LEFT JOIN team th ON th.espn_team_id = ${c('home_team_id')} AND th.season = g.season
     LEFT JOIN player_ids p1 ON p1.espn_athlete_id = ${c('athlete_id_1')}
     LEFT JOIN player_ids p2 ON p2.espn_athlete_id = ${c('athlete_id_2')}
     WHERE ${c('season', 'INTEGER')} = ${c('file_season', 'INTEGER')}
@@ -351,14 +380,19 @@ export function espnPlaysSql(have: Have): string {
     FROM raw
   ), ran AS (
     SELECT *,
-           kind = 'field_goal' AND (points_attempted = 3 OR description ILIKE '%three point%'
-             OR (scoring AND score_value = 3)) AS three,
+           kind = 'field_goal' AND coalesce(
+             points_attempted = 3,
+             CASE WHEN scoring AND score_value IN (2, 3) THEN score_value = 3 END,
+             description ILIKE '%three point%'
+               OR sqrt(power(x_raw - 25, 2) + power(y_raw, 2)) >= 23.5
+               OR (abs(x_raw - 25) >= 22 AND y_raw <= 9)) AS three,
            CASE WHEN kind = 'field_goal' AND scoring AND description ILIKE '%assist%' THEN second_id END AS assist_id,
            CASE WHEN kind IN ('field_goal', 'heave') AND NOT scoring AND description ILIKE '%block%' THEN second_id END AS block_id,
            CASE WHEN kind = 'turnover' AND description ILIKE '%steal%' THEN second_id END AS steal_id,
            CASE team_id WHEN home_team_id THEN away_team_id WHEN away_team_id THEN home_team_id END AS opponent_id,
            team_id = home_team_id AS home,
-           coalesce(sh, 0) AS home_after, coalesce(sa, 0) AS away_after,
+           coalesce(CASE WHEN flipped THEN espn_away_score ELSE espn_home_score END, 0) AS home_after,
+           coalesce(CASE WHEN flipped THEN espn_home_score ELSE espn_away_score END, 0) AS away_after,
            NULL::VARCHAR AS subtype, NULL::INTEGER AS possession
     FROM typed
   ), scored AS (SELECT * FROM ran)
@@ -400,14 +434,15 @@ export const playsViewSql = (): string => {
 }
 
 /**
- * The tables, empty, and the view over them, for whatever a build has not reached: a read gets no
- * rows rather than a missing table.
+ * The tables, empty, and the views, for whatever a build has not reached: a read gets no rows rather
+ * than a missing table. Created on every open; an existing table or view is left as it is.
  */
 export function playsBootstrap(): string[] {
   const columns = PLAY_COLUMNS.map(([n, ty]) => `${n} ${ty}`).join(', ')
   return [
     ...Object.values(PLAY_TABLES).map((t) => `CREATE TABLE IF NOT EXISTS ${t} (${columns})`),
-    playsViewSql()
+    playsViewSql().replace('CREATE OR REPLACE VIEW', 'CREATE VIEW IF NOT EXISTS'),
+    ...eventsBootstrap()
   ]
 }
 
@@ -432,8 +467,8 @@ export async function markPlaysStale(db: StatsDb): Promise<void> {
 }
 
 /**
- * Builds both play tables, each in one statement, so a screen sees the old rows or the new. Returns
- * the rows written.
+ * Builds both play tables, each in one statement, so a screen sees the old rows or the new, then
+ * the views over them and over the shots and possessions. Returns the play rows written.
  */
 export async function buildPlays(db: StatsDb): Promise<number> {
   const have = await inspect(db)
@@ -444,6 +479,7 @@ export async function buildPlays(db: StatsDb): Promise<number> {
     rows += row?.n ?? 0
   }
   await db.exec(playsViewSql())
+  for (const sql of eventsSql(have)) await db.exec(sql)
   await db.exec('INSERT OR REPLACE INTO derived_state VALUES (?, ?)', ['plays', PLAYS_VERSION])
   return rows
 }
