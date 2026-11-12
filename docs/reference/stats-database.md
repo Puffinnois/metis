@@ -112,6 +112,17 @@ Built by `src/main/stats/derived/playBuilders.ts` from the SQL in `plays.ts` and
 
 **View or table, measured** on the full Stage 8 load, warm, a season's scan grouped by player or team-game: `play_nba` as a table answers in 10 to 31 ms; as a view it would redo its window functions, about 6 seconds a season. The shots and possessions answer in 15 to 38 ms as views and 4 to 15 ms as tables, and copies would cost about 540 MB and 11 seconds of build, so they stay views. Deeper pre-aggregation is T907's.
 
+### Shots by zone (Plan T903)
+
+`shot_player_game` and `shot_team_game`, built by `derived/shots.ts` as two builders of `PLAY_BUILDERS`, after the play tables of the same season (they read its assists). One row per player-game and team-game of the NBA's shots, with counts only: for each zone, the combined corner, each distance band and each shot type, its attempts, makes, points and assisted makes, and the makes and points the league's regular-season rate in that bucket that season would give the same attempts (stored in thousandths, as integers: doubles were three quarters of the tables' size). Then the row's shots, threes, assisted makes, summed distances and expected points by zone. A team's row also holds its opponents' shots against it, as `opp_*`. 825,363 rows from 1996-97, about 94 MB; a full rebuild of plays and shots takes 277 seconds, the file peaking at 5.46 GB.
+
+- **Zones** (`src/shared/stats/shots.ts`), in the NBA's legacy frame (tenths of a foot, the basket at 0, 0): the published value decides two or three; a three with `y` ≤ 92.5 is a corner (left where `x` < 0, as the NBA names them), else above the break; a two within 40 of the basket is the restricted area, inside the lane (|`x`| ≤ 80, `y` ≤ 142.5) the paint, else mid-range; beyond half court (`y` > 422.5) the backcourt; a point off any court a zone of its own. The NBA's file publishes no zone, so these are not compared with one.
+- **Bands:** the NBA's ranges on the published distance: under 8 feet, 8 to 16, 16 to 24, 24 and beyond.
+- **Types:** the first of dunk, tip, layup (finger rolls with it), hook, floater, jump shot whose word the `sub_type` text holds; else other.
+- **Assisted:** the make's row in `play_nba`, found by game, period, clock and shooter.
+
+The engine reads them through a metric's `built` table (`derived/gameTables.ts`): at the game grain joined to the box-score rows in scope by player or team and game, at the season grain by season and season type (and by team when the query names teams), so any filter is exact; games, minutes and possessions still come from the box scores. A row in scope with no shot reads 0 attempts. The catalogue is the Shot zones family (`catalogue/shots.ts`), 411 metrics for players, teams and opponents. The shot chart reads its rows through its own call, `shots` (`shotReads.ts`).
+
 ## The catalogue and the query engine
 
 `src/shared/stats/catalogue/` holds every metric, one file per family: `traditional`, `shooting`, `possessions`, `scoring`, `composite`. Each states the fields of reference section 19.4: entity, kind (recorded, derived, estimated, model), aggregation (a sum or a ratio of sums), unit, sample, direction, sources and first season. Its formula is SQL over component sums (`{fgm} / nullif({fga}, 0)`), so adding a metric needs no engine change. Every formula has a test against a value worked by hand, and the test fails for a metric that has none.
