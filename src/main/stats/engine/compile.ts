@@ -729,8 +729,8 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
     ...gameWhere(q, gp)
   ]
   if (q.scope.teams) gamesWhere.push(`w.team_id IN ${gp.list(q.scope.teams.map(Number))}`)
-  // Under a split, a sample scales to the split's share of the time as well: clutch is about a
-  // twentieth of a season's minutes, so it needs about a twentieth of the minutes to qualify.
+  // Under a split, a sample scales to the split's share of the time as well: clutch is about 8 %
+  // of a team's minutes, so it needs about 8 % of the minutes to qualify.
   const shareJoin = q.scope.split
     ? `LEFT JOIN ${SPLIT_TEAM} st ON st.team_id = w.team_id AND st.game_id = w.game_id AND st.split = ${gp.add(q.scope.split)}`
     : ''

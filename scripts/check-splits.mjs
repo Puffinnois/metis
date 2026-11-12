@@ -27,7 +27,7 @@ if (!folder) {
   process.exit(2)
 }
 
-const { read, close } = openStatsWorker(folder)
+const { read, call, close } = openStatsWorker(folder)
 const label = (season) => `${season - 1}-${String(season % 100).padStart(2, '0')}`
 const COUNT = new Intl.NumberFormat('en-US')
 const pct = (part, whole) => (whole ? ((100 * part) / whole).toFixed(1) : '–')
@@ -477,6 +477,154 @@ say(
       COUNT.format(r.both),
       `${pct(r.agree, r.n)} %`
     ])
+  )
+)
+
+// ---- 5. Speed ------------------------------------------------------------------------------------
+
+// The engine under a split, as the screens ask it, warm: the median of seven and the slowest.
+const BOARD = [
+  'min',
+  'pts',
+  'ts_pct',
+  'efg_pct',
+  'fg_pct',
+  'fg3m',
+  'fg3_pct',
+  'ft_pct',
+  'ast',
+  'tov',
+  'usg_pct',
+  'reb',
+  'stl',
+  'blk',
+  'plus_minus',
+  'gmsc'
+]
+const SPLIT_ROW = [
+  'min',
+  'pts',
+  'reb',
+  'ast',
+  'stl',
+  'blk',
+  'tov',
+  'fg_pct',
+  'fg3_pct',
+  'ft_pct',
+  'ts_pct',
+  'plus_minus'
+]
+const TEAM_ROW = [
+  'team_pts',
+  'opp_pts',
+  'team_ortg',
+  'team_drtg',
+  'team_nrtg',
+  'team_pace',
+  'team_efg_pct',
+  'opp_efg_pct',
+  'team_tov_pct',
+  'team_orb_pct',
+  'team_fta_rate'
+]
+const SPLIT_IDS = [
+  'q1',
+  'q2',
+  'q3',
+  'q4',
+  'h1',
+  'h2',
+  'ot',
+  'clutch',
+  'ahead',
+  'tied',
+  'behind',
+  'within5',
+  'ahead10',
+  'behind10',
+  'end2',
+  'last2',
+  'last1',
+  'garbage',
+  'nogarbage'
+]
+const timed = async (fn) => {
+  const ms = []
+  let rows = 0
+  for (let i = 0; i < 8; i++) {
+    const at = Date.now()
+    rows = await fn()
+    if (i > 0) ms.push(Date.now() - at)
+  }
+  ms.sort((a, b) => a - b)
+  return [COUNT.format(rows), ms[3], ms[6]]
+}
+const q = (query) => call('query', { query })
+const one = (scope, metrics = BOARD, entity = 'player', extra = {}) =>
+  q({ entity, metrics, scope, transform: 'raw', limit: 1000, ...extra }).then((r) => r.rows.length)
+const speed = [
+  ['A leaderboard, 16 columns, the whole game', await timed(() => one({ seasons: [2026] }))],
+  ['The same, clutch', await timed(() => one({ seasons: [2026], split: 'clutch' }))],
+  ['The same, 4th quarter', await timed(() => one({ seasons: [2026], split: 'q4' }))],
+  [
+    'Clutch, January only',
+    await timed(() =>
+      one({ seasons: [2026], split: 'clutch', dates: ['2026-01-01', '2026-01-31'] })
+    )
+  ],
+  [
+    'Clutch, by season, every season',
+    await timed(() =>
+      one(
+        { seasons: seasons.filter((x) => x <= 2026), split: 'clutch' },
+        ['pts', 'min', 'ts_pct'],
+        'player',
+        { groupBy: ['season'], limit: 5000 }
+      )
+    )
+  ],
+  [
+    'A team board, clutch',
+    await timed(() => one({ seasons: [2026], split: 'clutch' }, TEAM_ROW, 'team'))
+  ],
+  [
+    "A player's 19 play splits at once",
+    await timed(
+      async () =>
+        (
+          await Promise.all(
+            SPLIT_IDS.map((split) =>
+              one({ seasons: [2026], players: ['1628983'], split }, SPLIT_ROW)
+            )
+          )
+        ).length
+    )
+  ],
+  [
+    "A team's 19 play splits at once",
+    await timed(
+      async () =>
+        (
+          await Promise.all(
+            SPLIT_IDS.map((split) =>
+              one({ seasons: [2026], teams: ['1610612760'], split }, TEAM_ROW, 'team')
+            )
+          )
+        ).length
+    )
+  ]
+]
+say('## Speed')
+say('')
+say(
+  'Through the worker on the full load, warm, 2025-26 unless said: the median of seven runs and the slowest.'
+)
+say('')
+say(
+  table(
+    ['Query', 'Rows', 'Median ms', 'Slowest ms'],
+    speed.map(([name, r]) => [name, ...r])
   )
 )
 
