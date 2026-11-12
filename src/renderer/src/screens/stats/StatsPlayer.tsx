@@ -54,7 +54,15 @@ import {
   type PlayerTab,
   type RailPosition
 } from '@/lib/stats/player'
-import { pairCount, pairGap, pairRows, PAIR_HEAD, PAIR_LIMIT } from '@/lib/stats/matchups'
+import {
+  matchupScope,
+  pairCount,
+  pairGap,
+  pairRows,
+  pairsNote,
+  PAIR_HEAD,
+  PAIR_LIMIT
+} from '@/lib/stats/matchups'
 import {
   bioFacts,
   combineNote,
@@ -355,7 +363,12 @@ function FactList({
 function Matchups(props: TabProps): React.JSX.Element {
   const { data, scope, player, onOpenPlayer } = props
   const gap = pairGap(scope)
-  const { value, error } = useMatchups(gap ? null : player, scope.season, data.version)
+  const { value, error } = useMatchups(
+    gap ? null : player,
+    scope.season,
+    matchupScope(scope),
+    data.version
+  )
   return (
     <div className="flex flex-col gap-7">
       <LinesTab {...props} tab="matchups" />
@@ -371,20 +384,16 @@ function Matchups(props: TabProps): React.JSX.Element {
           <PairTable
             title="Who they guarded most"
             pairs={value.guarded}
-            empty="No matchups as a defender this season."
+            empty="No matchups as a defender in these games."
             onOpenPlayer={onOpenPlayer}
           />
           <PairTable
             title="Who guarded them most"
             pairs={value.guardedBy}
-            empty="No matchups on offense this season."
+            empty="No matchups on offense in these games."
             onOpenPlayer={onOpenPlayer}
           />
-          <Notes
-            notes={[
-              'From the NBA’s pair file, regular season only. PTS, FG and the rest are what the player on offense did while that defender was assigned.'
-            ]}
-          />
+          <Notes notes={[pairsNote(value.source)]} />
         </>
       )}
     </div>

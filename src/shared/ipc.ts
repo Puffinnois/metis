@@ -8,6 +8,11 @@ import type {
   StatsGameDetail,
   StatsLineups,
   StatsMatchups,
+  StatsMatchupScope,
+  StatsGameMatchups,
+  StatsOfficialCareer,
+  StatsOfficialsSeason,
+  GameType,
   StatsProfile,
   StatsAvailability,
   StatsCoach,
@@ -82,8 +87,17 @@ export interface Api {
     game(id: string): Promise<StatsGameDetail | null>
     /** The published standings of a season; empty before they start, in 1995-96. */
     standings(season: number): Promise<StatsStanding[]>
-    /** A player's season matchups: regular season only, from 2017-18; empty lists outside them. */
-    matchups(player: string, season: number): Promise<StatsMatchups>
+    /**
+     * A player's matchups in a season, from 2017-18: the pair file for a whole regular season, the game
+     * matchups for any other scope; empty lists outside them.
+     */
+    matchups(player: string, season: number, scope?: StatsMatchupScope): Promise<StatsMatchups>
+    /** Who guarded whom in a game, or the reason there is nothing to show. */
+    gameMatchups(game: string): Promise<StatsGameMatchups>
+    /** Every official of a season and season types, beside the league's totals. */
+    officialsSeason(season: number, gameTypes: GameType[]): Promise<StatsOfficialsSeason | null>
+    /** One official's seasons, each beside the league's totals. */
+    officialCareer(official: string, gameTypes: GameType[]): Promise<StatsOfficialCareer | null>
     /** A team's published five-man units, from 2007-08; empty outside them. */
     lineups(
       team: string,
@@ -141,6 +155,9 @@ export const IPC = {
   statsGame: 'stats:game',
   statsStandings: 'stats:standings',
   statsMatchups: 'stats:matchups',
+  statsGameMatchups: 'stats:game-matchups',
+  statsOfficialsSeason: 'stats:officials-season',
+  statsOfficialCareer: 'stats:official-career',
   statsLineups: 'stats:lineups',
   statsProfile: 'stats:profile',
   statsAvailability: 'stats:availability',

@@ -4,6 +4,7 @@ import {
   buildPublished,
   canBuildPublished,
   markPublishedStale,
+  PUBLISHED_LATE_SOURCES,
   publishedStale
 } from './derived/published'
 import type { Downloads, FetchedFile } from './download'
@@ -237,6 +238,8 @@ export async function refreshStats(
   let publishedWrote = false
   let publishedBuilt = false
   let eventsWrote = false
+  // A later tier's file that a published table reads, written after the published step ran.
+  let lateWrote = false
   const today = nowOf(deps)
   const current = currentSeason(today)
   const states = await readStates(db)
@@ -316,9 +319,9 @@ export async function refreshStats(
   }
 
   // Built once the published tier is in, so its numbers can be read while the events and plays load.
-  const runPublishedBuild = async (): Promise<void> => {
+  const runPublishedBuild = async (force = false): Promise<void> => {
     publishedBuilt = true
-    if (canBuildPublished() && (publishedWrote || (await publishedStale(db)))) {
+    if (canBuildPublished() && (force || publishedWrote || (await publishedStale(db)))) {
       log.push(
         await runLogged(deps, STATS_PUBLISHED_STEP, async () => ({
           rows: await buildPublished(db),
@@ -396,6 +399,15 @@ export async function refreshStats(
       if (!publishedWrote && canBuildPublished()) await markPublishedStale(db)
       publishedWrote = true
     }
+    if (
+      PUBLISHED_LATE_SOURCES.includes(step.source.table) &&
+      entry.status === 'ok' &&
+      entry.rowsWritten > 0 &&
+      canBuildPublished()
+    ) {
+      await markPublishedStale(db)
+      lateWrote = true
+    }
     deps.onProgress?.({ done: i + 1, total: due.length })
   }
   deps.onProgress?.(null)
@@ -403,7 +415,8 @@ export async function refreshStats(
   if (!deps.cancelled?.()) {
     try {
       if (!built) await runBuilds()
-      if (!publishedBuilt) await runPublishedBuild()
+      // Once, at the end, however many of the late files came in; then the plays.
+      if (!publishedBuilt || lateWrote) await runPublishedBuild(lateWrote)
       await runPlaysBuild()
     } catch (err) {
       return { steps: log, fatal: err instanceof Error ? err.message : String(err) }

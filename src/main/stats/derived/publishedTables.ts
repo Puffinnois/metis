@@ -37,11 +37,11 @@ export interface PublishedTable {
    */
   columns: readonly (string | PublishedColumn)[]
   /**
-   * Another source that takes over some components wherever it holds the season and season type. Its
+   * Other sources that take over some components wherever they hold the season and season type. Their
    * rows are added to the table, and this source's values of those components read NULL there; the
-   * rest, the games among them, still come from this source.
+   * rest, the games among them, still come from this source. They must not hold the same season type.
    */
-  replacedBy?: PublishedReplacement
+  replacedBy?: PublishedReplacement | readonly PublishedReplacement[]
   /** A table that is not the source's totals but built from its rows: the statement that builds it. */
   sql?: (have: Have) => string
 }
@@ -50,6 +50,10 @@ export interface PublishedTable {
 export interface PublishedReplacement {
   source: string
   key?: string
+  /** A column already holding the season type in the one set (D12), as a built table does. */
+  typeColumn?: string
+  /** Only these season types of it. */
+  types?: readonly GameType[]
   /** Each component it takes over, from its own columns: a bare column or `{column}`s worked out. */
   columns: Readonly<Record<string, string>>
 }
@@ -386,9 +390,10 @@ export const MATCHUP_POSITIONS = ['g', 'f', 'c'] as const
  * Reference section 10.2, for defenders. The rollup file gives a defender's season for the regular
  * season and the playoffs, and the current season before its pair file is out. In the regular season
  * the pair file, added up per defender, takes over: it matches the game matchups on every defender of
- * every season, while the 2025-26 rollup reads about 5 % less time than both (measured). The games
- * still come from the rollup, since the pair file's are per pair. The help columns are left out: the
- * pair file publishes them as zeros on every row.
+ * every season, while the 2025-26 rollup reads about 5 % less time than both (measured). In the
+ * playoffs the game matchups take over the same way: the 2025-26 playoff rollup agrees with them on 17
+ * of 230 defenders (measured). The games still come from the rollup, since the pair file's are per
+ * pair. The help columns are left out: the pair file publishes them as zeros on every row.
  */
 const MATCHUP_TABLES: PublishedTable[] = [
   {
@@ -403,15 +408,29 @@ const MATCHUP_TABLES: PublishedTable[] = [
     minutes: null,
     possessions: 'partial_poss',
     columns: [{ name: 'matchup_minutes', sql: clockMinutes('matchup_min') }, ...MATCHUP_COUNTS],
-    replacedBy: {
-      source: 'src_nba_season_matchups',
-      key: 'def_player_id',
-      columns: {
-        possessions: 'partial_poss',
-        matchup_minutes: '{matchup_time_sec} / 60',
-        ...Object.fromEntries(MATCHUP_COUNTS.map((c) => [c, c]))
+    replacedBy: [
+      {
+        source: 'src_nba_season_matchups',
+        key: 'def_player_id',
+        columns: {
+          possessions: 'partial_poss',
+          matchup_minutes: '{matchup_time_sec} / 60',
+          ...Object.fromEntries(MATCHUP_COUNTS.map((c) => [c, c]))
+        }
+      },
+      {
+        // Built from the game file, already in minutes and keyed to `game`'s season types.
+        source: 'game_matchups',
+        key: 'def_player_id',
+        typeColumn: 'game_type',
+        types: ['playoffs'],
+        columns: {
+          possessions: 'possessions',
+          matchup_minutes: 'matchup_minutes',
+          ...Object.fromEntries(MATCHUP_COUNTS.map((c) => [c, c]))
+        }
       }
-    }
+    ]
   },
   {
     // Shares of the rollup's own time, so a season reads as the NBA's percent of time.

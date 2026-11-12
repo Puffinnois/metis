@@ -2,6 +2,7 @@ import { CATALOGUE, componentsOf } from '@shared/stats/catalogue'
 import { sampleLabel } from '@shared/stats/samples'
 import type { Entity, Grain, MetricDef, MetricInfo } from '@shared/stats/types'
 import { PLAYER_SUMS, TEAM_SUMS } from '../derived/game'
+import { gameTable } from '../derived/gameTables'
 import { publishedComponents, publishedTable } from '../derived/published'
 
 /** The columns each entity's game and season tables can sum. */
@@ -12,14 +13,19 @@ export const COMPONENTS: Record<Entity, ReadonlySet<string>> = {
 
 /**
  * Where a metric can be read. One from box scores has both grains; one the dataset publishes per
- * season has only the season. None when a component is not in its table.
+ * season has only the season, unless a game table holds it too. None when a component is not in its table.
  */
 export function grainsOf(def: MetricDef): Grain[] {
   const parts = componentsOf(def)
   if (def.published) {
     const table = publishedTable(def.published)
     const held = table ? publishedComponents(table) : []
-    return table?.entity === def.entity && parts.every((c) => held.includes(c)) ? ['season'] : []
+    if (table?.entity !== def.entity || !parts.every((c) => held.includes(c))) return []
+    // A game table, where one holds every part, answers what splits a season.
+    const games = gameTable(def.publishedGames)
+    return games?.entity === def.entity && parts.every((c) => games.components.includes(c))
+      ? ['game', 'season']
+      : ['season']
   }
   return parts.every((c) => COMPONENTS[def.entity].has(c)) ? ['game', 'season'] : []
 }

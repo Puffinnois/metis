@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest'
+import { gameTable } from '@main/stats/derived/gameTables'
 import { COMPONENTS, grainsOf } from '@main/stats/engine/registry'
 import { CATALOGUE, componentsOf, coverageReason, covers, TOKEN } from '@shared/stats/catalogue'
 import { PLAY_TYPE_SIDES } from '@shared/stats/playTypes'
@@ -596,9 +597,14 @@ describe('the metric catalogue', () => {
 
   it('computes every metric from components the tables hold, at the grains it has', () => {
     for (const m of CATALOGUE) {
-      // A published metric has only the season, and `grainsOf` checks its table holds the components.
+      // A published metric has only the season, and `grainsOf` checks its table holds the components;
+      // one a game table holds too answers at the game grain from it.
       if (m.published) {
-        expect(grainsOf(m), m.id).toEqual(['season'])
+        const games = gameTable(m.publishedGames)
+        expect(grainsOf(m), m.id).toEqual(games ? ['game', 'season'] : ['season'])
+        for (const c of games ? componentsOf(m) : []) {
+          expect(games?.components, `${m.id}: ${c}`).toContain(c)
+        }
         continue
       }
       expect(grainsOf(m), m.id).toEqual(['game', 'season'])

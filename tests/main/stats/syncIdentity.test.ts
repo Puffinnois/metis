@@ -26,7 +26,8 @@ vi.mock('@main/stats/derived/published', () => ({
   publishedStale: vi.fn(async () => false),
   markPublishedStale: vi.fn(async () => undefined),
   buildPublished: vi.fn(async () => 13),
-  publishedBootstrap: vi.fn(() => [])
+  publishedBootstrap: vi.fn(() => []),
+  PUBLISHED_LATE_SOURCES: ['src_late_file']
 }))
 
 const NOW = new Date('2026-11-05T12:00:00Z')
@@ -48,6 +49,8 @@ const source = (id: string, tier: SourceFile['tier']): SourceFile => ({
 const CORE = source('core_file', 'core')
 const PUBLISHED = source('published_file', 'published')
 const EVENTS = source('events_file', 'events')
+// An events file a published table reads, as the game matchups are.
+const LATE = source('late_file', 'events')
 
 beforeEach(() => {
   vi.mocked(published.canBuildPublished).mockReturnValue(true)
@@ -198,6 +201,29 @@ describe('the published step', () => {
     const { steps } = await run([PUBLISHED])
     expect(steps.map((s) => s.source)).toEqual(['stats:published_file:2027'])
     expect(published.markPublishedStale).not.toHaveBeenCalled()
+  })
+
+  it('runs again once at the end when a later tier wrote a file it reads', async () => {
+    const { steps } = await run([PUBLISHED, LATE, EVENTS])
+    expect(steps.map((s) => s.source)).toEqual([
+      'stats:published_file:2027',
+      'stats:published',
+      'stats:late_file:2027',
+      'stats:events_file:2027',
+      'stats:published'
+    ])
+    expect(published.buildPublished).toHaveBeenCalledTimes(2)
+  })
+
+  it('runs at the end when only such a file was due', async () => {
+    const { steps } = await run([LATE])
+    expect(steps.map((s) => s.source)).toEqual(['stats:late_file:2027', 'stats:published'])
+    expect(published.markPublishedStale).toHaveBeenCalledOnce()
+  })
+
+  it('does not run again when such a file was not published', async () => {
+    const { steps } = await run([EVENTS, LATE], [LATE])
+    expect(steps.map((s) => s.source)).not.toContain('stats:published')
   })
 
   it('logs a failure and carries on with the load', async () => {

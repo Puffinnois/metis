@@ -342,8 +342,9 @@ describe('a player’s matchups', () => {
   })
 
   it('is empty in a season without the pair file, and for an id that is not one', async () => {
-    await expect(readMatchups(db, '2544', 2017)).resolves.toEqual({ guarded: [], guardedBy: [] })
-    await expect(readMatchups(db, 'x; DROP', 2026)).resolves.toEqual({ guarded: [], guardedBy: [] })
+    const none = { guarded: [], guardedBy: [], source: 'season' }
+    await expect(readMatchups(db, '2544', 2017)).resolves.toEqual(none)
+    await expect(readMatchups(db, 'x; DROP', 2026)).resolves.toEqual(none)
   })
 })
 
