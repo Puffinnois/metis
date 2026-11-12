@@ -13,6 +13,10 @@ import type {
   StatsStanding,
   StatsLineups,
   StatsMatchups,
+  StatsMatchupScope,
+  StatsGameMatchups,
+  StatsOfficialCareer,
+  StatsOfficialsSeason,
   StatsProfile,
   StatsAvailability,
   StatsCoach,
@@ -44,6 +48,8 @@ import {
   readProfile,
   readStandings
 } from './reads'
+import { readGameMatchups } from './matchupReads'
+import { readOfficialCareer, readOfficialsSeason } from './officialsReads'
 import { bootstrapStatsDb } from './schema'
 import { currentSeason, SOURCES } from './sources'
 import { refreshStats, STATS_DERIVED_STEP } from './sync'
@@ -107,8 +113,17 @@ export interface StatsService {
   game(id: string): Promise<StatsGameDetail | null>
   /** The published standings of a season; empty before they start. */
   standings(season: number): Promise<StatsStanding[]>
-  /** A player's season matchups, from the pair file: regular season only. */
-  matchups(player: string, season: number): Promise<StatsMatchups>
+  /**
+   * A player's matchups in a season: from the pair file for a whole regular season, else from the game
+   * matchups over the player's games in the scope.
+   */
+  matchups(player: string, season: number, scope?: StatsMatchupScope): Promise<StatsMatchups>
+  /** Who guarded whom in a game, from the game matchups. */
+  gameMatchups(game: string): Promise<StatsGameMatchups>
+  /** Every official of a season and season types, with the league's totals over the same games. */
+  officialsSeason(season: number, gameTypes: GameType[]): Promise<StatsOfficialsSeason>
+  /** One official's seasons, each beside the league's totals; null for an id the file lacks. */
+  officialCareer(official: string, gameTypes: GameType[]): Promise<StatsOfficialCareer | null>
   /** A team's five-man units for a season and season type, with one dashboard's measures. */
   lineups(team: string, season: number, gameType: string, group: LineupGroup): Promise<StatsLineups>
   /** A player's bio, draft and combines, each combine measure ranked within its position group. */
@@ -364,7 +379,13 @@ export async function openStatsService(
     games: (season) => read((reader) => readGames(reader, season)),
     game: (id) => read((reader) => readGame(reader, id)),
     standings: (season) => read((reader) => readStandings(reader, season)),
-    matchups: (player, season) => read((reader) => readMatchups(reader, player, season)),
+    matchups: (player, season, scope) =>
+      read((reader) => readMatchups(reader, player, season, scope)),
+    gameMatchups: (game) => read((reader) => readGameMatchups(reader, game)),
+    officialsSeason: (season, gameTypes) =>
+      read((reader) => readOfficialsSeason(reader, season, gameTypes)),
+    officialCareer: (official, gameTypes) =>
+      read((reader) => readOfficialCareer(reader, official, gameTypes)),
     profile: (player) => read((reader) => readProfile(reader, player)),
     lineups: (team, season, gameType, group) =>
       read((reader) => readLineups(reader, team, season, gameType, group)),

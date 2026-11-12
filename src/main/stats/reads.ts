@@ -7,6 +7,7 @@ import type {
   StatsLineupUnit,
   StatsMatchupPair,
   StatsMatchups,
+  StatsMatchupScope,
   PositionGroup,
   StatsBio,
   StatsCombine,
@@ -28,6 +29,7 @@ import { LINEUPS } from './derived/lineups'
 import { MATCHUP_PAIRS } from './derived/matchupPairs'
 import { column, inspect, per, type Have } from './derived/sql'
 import { readOfficials } from './availabilityReads'
+import { readScopedMatchups } from './matchupReads'
 
 /**
  * What the dashboards read beside the query engine: who a player is, the schedule, a game's facts and
@@ -657,17 +659,28 @@ export async function readStandings(db: StatsDb, season: number): Promise<StatsS
   return []
 }
 
+/** A whole regular season, which the pair file answers. */
+const wholeRegularSeason = (scope: StatsMatchupScope | undefined): boolean =>
+  !scope ||
+  (scope.gameTypes.length === 1 &&
+    scope.gameTypes[0] === 'regular' &&
+    scope.dates === undefined &&
+    scope.lastN === undefined)
+
 /**
- * A player's matchups in a season, from the NBA's pair file, each list longest first: the players
- * they guarded and the players who guarded them. The pair file is published for the regular season
- * only, from 2017-18; outside it both lists are empty.
+ * A player's matchups in a season, each list longest first: the players they guarded and the players
+ * who guarded them. A whole regular season reads the NBA's pair file; any other scope (the playoffs, a
+ * date range, the last games) adds up the game matchups over the player's games in it
+ * (`readScopedMatchups`). Both start in 2017-18; before it both lists are empty.
  */
 export async function readMatchups(
   db: StatsDb,
   id: string,
-  season: number
+  season: number,
+  scope?: StatsMatchupScope
 ): Promise<StatsMatchups> {
-  const none: StatsMatchups = { guarded: [], guardedBy: [] }
+  if (!wholeRegularSeason(scope)) return readScopedMatchups(db, id, season, scope!)
+  const none: StatsMatchups = { guarded: [], guardedBy: [], source: 'season' }
   const have = await inspect(db)
   if (!have.tables.has(MATCHUP_PAIRS) || !/^-?[0-9]{1,12}$/.test(id) || !Number.isInteger(season)) {
     return none
@@ -726,7 +739,8 @@ export async function readMatchups(
   })
   return {
     guarded: rows.filter((r) => r.guarded).map(pair),
-    guardedBy: rows.filter((r) => !r.guarded).map(pair)
+    guardedBy: rows.filter((r) => !r.guarded).map(pair),
+    source: 'season'
   }
 }
 

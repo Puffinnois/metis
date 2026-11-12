@@ -3,9 +3,16 @@ import { PUBLISHED_TABLES, type PublishedColumn, type PublishedTable } from './p
 import { column, gameType, inspect, type Have } from './sql'
 import { LINEUPS, lineupsBootstrap, lineupsSql } from './lineups'
 import { MATCHUP_PAIRS, matchupPairsBootstrap, matchupPairsSql } from './matchupPairs'
+import { GAME_MATCHUPS, gameMatchupsBootstrap, gameMatchupsSql } from './gameMatchups'
 
 /** Bump when a table changes, so the next refresh builds them without downloading anything. */
-export const PUBLISHED_VERSION = 9
+export const PUBLISHED_VERSION = 11
+
+/**
+ * Sources of a later tier that a table here reads: the game matchups are in the events tier, which
+ * loads after this step has run, so a refresh that writes them builds the tables again at its end.
+ */
+export const PUBLISHED_LATE_SOURCES: readonly string[] = ['src_nba_game_matchups']
 
 /** What the engine divides a published sum by. A table always has these, NULL when not published. */
 export const PUBLISHED_DIVISORS = ['games', 'minutes', 'possessions'] as const
@@ -31,6 +38,7 @@ const keyOf = (t: PublishedTable): string => (t.entity === 'player' ? 'player_id
 export function publishedBootstrap(): string[] {
   return [
     ...matchupPairsBootstrap(),
+    ...gameMatchupsBootstrap(),
     ...lineupsBootstrap(),
     ...PUBLISHED_TABLES.flatMap((t) => [
       `CREATE TABLE IF NOT EXISTS ${t.table} (
@@ -53,6 +61,10 @@ interface Rows {
   source: string
   match?: Readonly<Record<string, string>>
   firstSeason?: number
+  /** A column already holding the season type in the one set (D12), as the built tables do. */
+  typeColumn?: string
+  /** Only these season types. */
+  types?: readonly string[]
 }
 
 /** The pieces of a SELECT over one source's rows of totals: what to read, and how. */
@@ -78,8 +90,11 @@ function rowsOf(
           )})`
         : column(have, r.source, 's', sql, 'DOUBLE')
   const season = column(have, r.source, 's', 'season')
-  const type = gameType(column(have, r.source, 's', 'season_type', 'VARCHAR'))
+  const type = r.typeColumn
+    ? column(have, r.source, 's', r.typeColumn, 'VARCHAR')
+    : gameType(column(have, r.source, 's', 'season_type', 'VARCHAR'))
   const where = [`${type} IS NOT NULL`]
+  if (r.types) where.push(`${type} IN (${r.types.map((x) => `'${x}'`).join(', ')})`)
   if (held?.has('per_mode')) where.push("lower(s.per_mode) = 'totals'")
   if (r.firstSeason !== undefined) where.push(`${season} >= ${r.firstSeason}`)
   for (const [name, value] of Object.entries(r.match ?? {})) {
@@ -98,18 +113,21 @@ function buildSql(t: PublishedTable, have: Have): string {
   if (t.sql) return t.sql(have)
   const key = keyOf(t)
   const main = rowsOf(t, have)
-  const r = t.replacedBy
-  const taken = new Set(Object.keys(r?.columns ?? {}))
+  const reps = t.replacedBy ? [t.replacedBy].flat() : []
   const named = [
     { name: 'games', sql: t.games },
     { name: 'minutes', sql: t.minutes },
     { name: 'possessions', sql: t.possessions },
     ...t.columns.map((c) => ({ name: nameOf(c), sql: typeof c === 'string' ? c : c.sql }))
   ]
-  // Where the replacement holds the season and type, this source's values of what it takes over are
+  // Where a replacement holds the season and type, this source's values of what it takes over are
   // left out; its rows still give the rest.
-  const mine = (name: string, sql: string | null | undefined): string =>
-    taken.has(name) ? `CASE WHEN c.season IS NULL THEN ${main.read(sql)} END` : main.read(sql)
+  const mine = (name: string, sql: string | null | undefined): string => {
+    const held = reps.flatMap((r, i) => (name in r.columns ? [`c${i}.season IS NULL`] : []))
+    return held.length
+      ? `CASE WHEN ${held.join(' AND ')} THEN ${main.read(sql)} END`
+      : main.read(sql)
+  }
   const select = (
     rows: ReturnType<typeof rowsOf>,
     keyColumn: string,
@@ -121,20 +139,43 @@ function buildSql(t: PublishedTable, have: Have): string {
            ${named.map((n) => `${value(n.name, n.sql)} AS ${n.name}`).join(', ')}
     FROM ${rows.from} s ${join}
     WHERE ${rows.where.join(' AND ')}`
-  if (!r) {
+  if (reps.length === 0) {
     return `CREATE OR REPLACE TABLE ${t.table} AS ${select(main, t.key ?? key, (_, sql) => main.read(sql))}`
   }
-  const other = rowsOf({ source: r.source, firstSeason: t.firstSeason }, have)
-  // The replacement's rows are added up per player or team first: the engine would add them anyway,
+  const others = reps.map((r) =>
+    rowsOf(
+      { source: r.source, firstSeason: t.firstSeason, typeColumn: r.typeColumn, types: r.types },
+      have
+    )
+  )
+  // A replacement's rows are added up per player or team first: the engine would add them anyway,
   // and the pair file has hundreds of rows for each defender.
   return `CREATE OR REPLACE TABLE ${t.table} AS
-    WITH c AS (SELECT DISTINCT ${other.season} AS season, ${other.type} AS game_type
-               FROM ${other.from} s WHERE ${other.where.join(' AND ')})
-    ${select(main, t.key ?? key, mine, `LEFT JOIN c ON c.season = ${main.season} AND c.game_type = ${main.type}`)}
-    UNION ALL
+    WITH ${others
+      .map(
+        (o, i) => `c${i} AS (SELECT DISTINCT ${o.season} AS season, ${o.type} AS game_type
+               FROM ${o.from} s WHERE ${o.where.join(' AND ')})`
+      )
+      .join(',\n')}
+    ${select(
+      main,
+      t.key ?? key,
+      mine,
+      others
+        .map(
+          (_, i) =>
+            `LEFT JOIN c${i} ON c${i}.season = ${main.season} AND c${i}.game_type = ${main.type}`
+        )
+        .join(' ')
+    )}
+    ${reps
+      .map(
+        (r, i) => `UNION ALL
     SELECT ${key}, season, game_type, ${named.map((n) => `sum(${n.name}) AS ${n.name}`).join(', ')}
-    FROM (${select(other, r.key ?? key, (name) => other.read(r.columns[name]))})
+    FROM (${select(others[i], r.key ?? key, (name) => others[i].read(r.columns[name]))})
     GROUP BY ${key}, season, game_type`
+      )
+      .join('\n')}`
 }
 
 /** With no table to build, there is no step to log. */
@@ -162,6 +203,12 @@ export async function markPublishedStale(db: StatsDb): Promise<void> {
 export async function buildPublished(db: StatsDb): Promise<number> {
   const have = await inspect(db)
   let rows = 0
+  // First: the defenders' playoff matchups add it up.
+  await db.exec(gameMatchupsSql(have))
+  const matchups = await db.get<{ n: number }>(
+    `SELECT count(*)::INTEGER AS n FROM ${GAME_MATCHUPS}`
+  )
+  rows += matchups?.n ?? 0
   for (const t of PUBLISHED_TABLES) {
     await db.exec(buildSql(t, have))
     const row = await db.get<{ n: number }>(`SELECT count(*)::INTEGER AS n FROM ${t.table}`)

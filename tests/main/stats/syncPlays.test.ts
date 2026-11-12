@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as plays from '@main/stats/derived/playBuilders'
+import * as published from '@main/stats/derived/published'
 import type { Downloads } from '@main/stats/download'
 import type { SourceFile } from '@main/stats/sources'
 import { refreshStats, STATS_PLAYS_STEP } from '@main/stats/sync'
@@ -24,7 +25,8 @@ vi.mock('@main/stats/derived/published', () => ({
   publishedStale: vi.fn(async () => false),
   markPublishedStale: vi.fn(async () => undefined),
   buildPublished: vi.fn(async () => 13),
-  publishedBootstrap: vi.fn(() => [])
+  publishedBootstrap: vi.fn(() => []),
+  PUBLISHED_LATE_SOURCES: ['src_late_file']
 }))
 
 vi.mock('@main/stats/derived/playBuilders', () => ({
@@ -53,6 +55,8 @@ const source = (id: string, tier: SourceFile['tier']): SourceFile => ({
 const PUBLISHED = source('published_file', 'published')
 const EVENTS = source('events_file', 'events')
 const PLAYS = source('plays_file', 'plays')
+// An events file a published table reads, as the game matchups are.
+const LATE = source('late_file', 'events')
 
 beforeEach(() => {
   vi.mocked(plays.canBuildPlays).mockResolvedValue(true)
@@ -85,6 +89,17 @@ describe('the plays step', () => {
       `${STATS_PLAYS_STEP} ok`
     ])
     expect(plays.buildPlays).toHaveBeenCalledTimes(1)
+  })
+
+  it('runs after the published tables are built again for a late file', async () => {
+    vi.mocked(published.canBuildPublished).mockReturnValue(true)
+    expect(await run([LATE, PLAYS])).toEqual([
+      'stats:late_file:2027 ok',
+      'stats:plays_file:2027 ok',
+      'stats:published ok',
+      `${STATS_PLAYS_STEP} ok`
+    ])
+    vi.mocked(published.canBuildPublished).mockReturnValue(false)
   })
 
   it('records each season that wrote rows as it loads, before anything can stop the build', async () => {

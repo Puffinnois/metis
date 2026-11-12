@@ -51,7 +51,13 @@ async function handle(request: StatsRequest): Promise<unknown> {
     case 'standings':
       return service.standings(request.season)
     case 'matchups':
-      return service.matchups(request.player, request.season)
+      return service.matchups(request.player, request.season, request.scope)
+    case 'gameMatchups':
+      return service.gameMatchups(request.game)
+    case 'officialsSeason':
+      return service.officialsSeason(request.season, request.gameTypes)
+    case 'officialCareer':
+      return service.officialCareer(request.official, request.gameTypes)
     case 'profile':
       return service.profile(request.player)
     case 'lineups':

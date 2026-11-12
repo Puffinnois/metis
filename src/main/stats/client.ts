@@ -8,6 +8,11 @@ import type {
   StatsGameDetail,
   StatsLineups,
   StatsMatchups,
+  StatsMatchupScope,
+  StatsGameMatchups,
+  StatsOfficialCareer,
+  StatsOfficialsSeason,
+  GameType,
   StatsProfile,
   StatsAvailability,
   StatsCoach,
@@ -43,7 +48,10 @@ export interface StatsClient {
   games(season: number): Promise<StatsGame[]>
   game(id: string): Promise<StatsGameDetail | null>
   standings(season: number): Promise<StatsStanding[]>
-  matchups(player: string, season: number): Promise<StatsMatchups>
+  matchups(player: string, season: number, scope?: StatsMatchupScope): Promise<StatsMatchups>
+  gameMatchups(game: string): Promise<StatsGameMatchups>
+  officialsSeason(season: number, gameTypes: GameType[]): Promise<StatsOfficialsSeason>
+  officialCareer(official: string, gameTypes: GameType[]): Promise<StatsOfficialCareer | null>
   lineups(team: string, season: number, gameType: string, group: LineupGroup): Promise<StatsLineups>
   profile(player: string): Promise<StatsProfile>
   availability(players: string[]): Promise<StatsAvailability[]>
@@ -113,8 +121,19 @@ export function startStatsWorker(
     games: (season) => request<StatsGame[]>((id) => ({ id, kind: 'games', season })),
     game: (game) => request<StatsGameDetail | null>((id) => ({ id, kind: 'game', game })),
     standings: (season) => request<StatsStanding[]>((id) => ({ id, kind: 'standings', season })),
-    matchups: (player, season) =>
-      request<StatsMatchups>((id) => ({ id, kind: 'matchups', player, season })),
+    matchups: (player, season, scope) =>
+      request<StatsMatchups>((id) => ({ id, kind: 'matchups', player, season, scope })),
+    gameMatchups: (game) =>
+      request<StatsGameMatchups>((id) => ({ id, kind: 'gameMatchups', game })),
+    officialsSeason: (season, gameTypes) =>
+      request<StatsOfficialsSeason>((id) => ({ id, kind: 'officialsSeason', season, gameTypes })),
+    officialCareer: (official, gameTypes) =>
+      request<StatsOfficialCareer | null>((id) => ({
+        id,
+        kind: 'officialCareer',
+        official,
+        gameTypes
+      })),
     profile: (player) => request<StatsProfile>((id) => ({ id, kind: 'profile', player })),
     lineups: (team, season, gameType, group) =>
       request<StatsLineups>((id) => ({ id, kind: 'lineups', team, season, gameType, group })),

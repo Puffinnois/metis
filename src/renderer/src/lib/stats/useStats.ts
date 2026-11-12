@@ -8,6 +8,11 @@ import type {
   StatsGameDetail,
   StatsLineups,
   StatsMatchups,
+  StatsMatchupScope,
+  StatsGameMatchups,
+  StatsOfficialCareer,
+  StatsOfficialsSeason,
+  GameType,
   StatsProfile,
   StatsAvailability,
   StatsCoach,
@@ -199,14 +204,43 @@ export const useGameDetail = (
 export const useStandings = (season: number, version: string | null): ReadState<StatsStanding[]> =>
   useRead(`${version}|${season}`, () => api.stats.standings(season))
 
-/** A player's season matchups; null as the key when there is nothing to read. */
+/** A player's matchups in a season and scope; null as the key when there is nothing to read. */
 export const useMatchups = (
   player: string | null,
   season: number,
+  scope: StatsMatchupScope | undefined,
   version: string | null
 ): ReadState<StatsMatchups> =>
-  useRead(player === null ? null : `${version}|${player}|${season}`, () =>
-    api.stats.matchups(player ?? '', season)
+  useRead(
+    player === null ? null : `${version}|${player}|${season}|${JSON.stringify(scope ?? null)}`,
+    () => api.stats.matchups(player ?? '', season, scope)
+  )
+
+/** Who guarded whom in a game; null as the game when there is nothing to read. */
+export const useGameMatchups = (
+  game: string | null,
+  version: string | null
+): ReadState<StatsGameMatchups> =>
+  useRead(game === null ? null : `${version}|${game}`, () => api.stats.gameMatchups(game ?? ''))
+
+/** Every official of a season; null as the season when there is nothing to read. */
+export const useOfficialsSeason = (
+  season: number | null,
+  gameTypes: GameType[],
+  version: string | null
+): ReadState<StatsOfficialsSeason | null> =>
+  useRead(season === null ? null : `${version}|${season}|${gameTypes.join(',')}`, () =>
+    api.stats.officialsSeason(season ?? 0, gameTypes)
+  )
+
+/** One official's seasons; null as the official when there is nothing to read. */
+export const useOfficialCareer = (
+  official: string | null,
+  gameTypes: GameType[],
+  version: string | null
+): ReadState<StatsOfficialCareer | null> =>
+  useRead(official === null ? null : `${version}|${official}|${gameTypes.join(',')}`, () =>
+    api.stats.officialCareer(official ?? '', gameTypes)
   )
 
 /** A team's five-man units with one dashboard's measures; null as the team when there is nothing to read. */

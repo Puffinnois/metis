@@ -15,6 +15,11 @@ import type {
   StatsGameDetail,
   StatsLineups,
   StatsMatchups,
+  StatsMatchupScope,
+  StatsGameMatchups,
+  StatsOfficialCareer,
+  StatsOfficialsSeason,
+  GameType,
   StatsProfile,
   StatsAvailability,
   StatsCoach,
@@ -84,10 +89,23 @@ export function registerIpcHandlers(ctx: AppContext): void {
   )
   ipcMain.handle(
     IPC.statsMatchups,
-    (_event, player: string, season: number): Promise<StatsMatchups> =>
+    (_event, player: string, season: number, scope?: StatsMatchupScope): Promise<StatsMatchups> =>
       ctx.stats
-        ? ctx.stats.matchups(player, season)
-        : Promise.resolve({ guarded: [], guardedBy: [] })
+        ? ctx.stats.matchups(player, season, scope)
+        : Promise.resolve({ guarded: [], guardedBy: [], source: 'season' })
+  )
+  ipcMain.handle(IPC.statsGameMatchups, (_event, game: string): Promise<StatsGameMatchups> =>
+    ctx.stats ? ctx.stats.gameMatchups(game) : Promise.resolve({ pairs: [], reason: null })
+  )
+  ipcMain.handle(
+    IPC.statsOfficialsSeason,
+    (_event, season: number, gameTypes: GameType[]): Promise<StatsOfficialsSeason | null> =>
+      ctx.stats ? ctx.stats.officialsSeason(season, gameTypes) : Promise.resolve(null)
+  )
+  ipcMain.handle(
+    IPC.statsOfficialCareer,
+    (_event, official: string, gameTypes: GameType[]): Promise<StatsOfficialCareer | null> =>
+      ctx.stats ? ctx.stats.officialCareer(official, gameTypes) : Promise.resolve(null)
   )
   ipcMain.handle(
     IPC.statsLineups,

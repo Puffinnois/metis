@@ -1,7 +1,18 @@
 import { describe, expect, it } from 'vitest'
-import { pairCount, pairGap, pairRows, PAIR_HEAD, PAIR_LIMIT } from '@/lib/stats/matchups'
+import {
+  gamePairCount,
+  gamePairSides,
+  GAME_PAIR_HEAD,
+  matchupScope,
+  pairCount,
+  pairGap,
+  pairRows,
+  pairsNote,
+  PAIR_HEAD,
+  PAIR_LIMIT
+} from '@/lib/stats/matchups'
 import type { StatsScope } from '@/lib/stats/scope'
-import type { StatsMatchupPair } from '@shared/stats/types'
+import type { StatsGameMatchup, StatsMatchupPair } from '@shared/stats/types'
 
 const SEASON: StatsScope = { season: 2026, seasonType: 'regular', range: { kind: 'season' } }
 
@@ -25,15 +36,34 @@ const PAIR: StatsMatchupPair = {
 }
 
 describe('the matchup pairs', () => {
-  it('answer a whole regular season from 2017-18 only, and say why not otherwise', () => {
+  it('answer any scope from 2017-18, and say why not before it', () => {
     expect(pairGap(SEASON)).toBeNull()
     expect(pairGap({ ...SEASON, season: 2017 })).toBe('Tracked from 2017-18.')
-    expect(pairGap({ ...SEASON, seasonType: 'playoffs' })).toBe(
-      'The NBA publishes pairs for the regular season only.'
-    )
-    expect(pairGap({ ...SEASON, range: { kind: 'last', n: 10, of: 'appearances' } })).toBe(
-      'Pairs are published for whole seasons only.'
-    )
+    expect(pairGap({ ...SEASON, seasonType: 'playoffs' })).toBeNull()
+    expect(pairGap({ ...SEASON, range: { kind: 'last', n: 10, of: 'appearances' } })).toBeNull()
+  })
+
+  it('pass the scope bar’s games to the read', () => {
+    expect(matchupScope(SEASON)).toEqual({ gameTypes: ['regular'] })
+    expect(
+      matchupScope({ ...SEASON, range: { kind: 'dates', from: '2026-01-01', to: '2026-01-31' } })
+    ).toEqual({ gameTypes: ['regular'], dates: ['2026-01-01', '2026-01-31'] })
+    expect(matchupScope({ ...SEASON, range: { kind: 'last', n: 10, of: 'team' } })).toEqual({
+      gameTypes: ['regular'],
+      lastN: 10,
+      lastNOf: 'team'
+    })
+    expect(matchupScope({ ...SEASON, seasonType: 'counted' }).gameTypes).toEqual([
+      'regular',
+      'play-in',
+      'playoffs',
+      'cup-final'
+    ])
+  })
+
+  it('say where the pairs come from', () => {
+    expect(pairsNote('season')).toMatch(/^From the NBA’s pair file for the whole regular season\./)
+    expect(pairsNote('games')).toMatch(/^Added up from the NBA’s game matchups/)
   })
 
   it('read a pair as the table shows it, one cell per column after the name', () => {
@@ -59,5 +89,72 @@ describe('the matchup pairs', () => {
     expect(pairRows(many, null)).toHaveLength(PAIR_LIMIT + 3)
     expect(pairCount(PAIR_LIMIT, many.length)).toBe(`${PAIR_LIMIT} of ${many.length} players`)
     expect(pairCount(1, 1)).toBe('1 player')
+  })
+
+  it('count a game’s pairs', () => {
+    expect(gamePairCount(15, 87)).toBe('15 of 87 pairs')
+    expect(gamePairCount(1, 1)).toBe('1 pair')
+  })
+})
+
+const game = (
+  defTeamId: string,
+  defId: string,
+  offId: string,
+  minutes: number,
+  o: Partial<StatsGameMatchup> = {}
+): StatsGameMatchup => ({
+  offId,
+  offName: `Player ${offId}`,
+  offTeamId: defTeamId === 'A' ? 'H' : 'A',
+  offPosition: 'F',
+  defId,
+  defName: `Player ${defId}`,
+  defTeamId,
+  minutes,
+  partialPoss: 10.5,
+  pts: 4,
+  fgm: 2,
+  fga: 5,
+  fg3m: 0,
+  fg3a: 2,
+  ftm: 0,
+  fta: 0,
+  ast: 1,
+  tov: 0,
+  blk: 1,
+  sfl: 0,
+  ...o
+})
+
+describe('a game’s pairs', () => {
+  const pairs = [
+    game('H', '1', '9', 6),
+    game('A', '2', '8', 5.5),
+    game('H', '3', '7', 4),
+    game('A', '4', '6', 1, { fga: null, fgm: null })
+  ]
+
+  it('split by the side defending, away first, each in the order read', () => {
+    const [away, home] = gamePairSides(pairs, { id: 'A', code: 'AWY' }, { id: 'H', code: 'HOM' })
+    expect(away.code).toBe('AWY')
+    expect(away.rows.map((r) => r.key)).toEqual(['2-8', '4-6'])
+    expect(home.rows.map((r) => r.key)).toEqual(['1-9', '3-7'])
+    expect(home.total).toBe(2)
+  })
+
+  it('read one cell per column after the two names, a missing count as a dash', () => {
+    const [away] = gamePairSides(pairs, { id: 'A', code: 'AWY' }, { id: 'H', code: 'HOM' })
+    expect(away.rows[0].cells).toEqual(['5:30', '10.5', '4', '2-5', '0-2', '0-0', '1', '0', '1'])
+    expect(away.rows[0].cells).toHaveLength(GAME_PAIR_HEAD.length - 2)
+    expect(away.rows[1].cells[3]).toBe('—')
+  })
+
+  it('cut each side to the limit, and show all with none', () => {
+    const [, home] = gamePairSides(pairs, { id: 'A', code: 'AWY' }, { id: 'H', code: 'HOM' }, 1)
+    expect(home.rows).toHaveLength(1)
+    expect(home.total).toBe(2)
+    const [, all] = gamePairSides(pairs, { id: 'A', code: 'AWY' }, { id: 'H', code: 'HOM' }, null)
+    expect(all.rows).toHaveLength(2)
   })
 })

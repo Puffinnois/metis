@@ -3,7 +3,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { api } from '@/lib/api'
 import { StatsApp } from '@/screens/stats/StatsApp'
-import type { StatsGame, StatsQuery, StatsResult, StatsSeason } from '@shared/stats/types'
+import type {
+  StatsGame,
+  StatsGameMatchup,
+  StatsOfficiatingTotals,
+  StatsQuery,
+  StatsResult,
+  StatsSeason
+} from '@shared/stats/types'
 import { catalogueFixture } from '../../fixtures/catalogue'
 
 vi.mock('@/lib/api', () => ({
@@ -21,7 +28,10 @@ vi.mock('@/lib/api', () => ({
       game: vi.fn(),
       standings: vi.fn(),
       availability: vi.fn(() => Promise.resolve([])),
-      coaches: vi.fn(() => Promise.resolve([]))
+      coaches: vi.fn(() => Promise.resolve([])),
+      gameMatchups: vi.fn(() => Promise.resolve({ pairs: [], reason: null })),
+      officialsSeason: vi.fn(() => Promise.resolve(null)),
+      officialCareer: vi.fn(() => Promise.resolve(null))
     },
     dev: { mode: vi.fn().mockResolvedValue(false), onModeChanged: vi.fn(() => () => {}) }
   }
@@ -271,5 +281,121 @@ describe('the games screen', () => {
     const box = within(await screen.findByRole('table', { name: 'BOS box score' }))
     fireEvent.click(box.getByRole('row', { name: /Jayson Tatum/ }))
     expect(await screen.findByRole('heading', { level: 1, name: /Tatum/ })).toBeTruthy()
+  })
+
+  it('lists who guarded whom in the game, by the side on defense', async () => {
+    const pair = (
+      defTeamId: string,
+      defName: string,
+      offName: string,
+      minutes: number
+    ): StatsGameMatchup => ({
+      offId: offName,
+      offName,
+      offTeamId: defTeamId === '10' ? '20' : '10',
+      offPosition: 'F',
+      defId: defName,
+      defName,
+      defTeamId,
+      minutes,
+      partialPoss: 30,
+      pts: 6,
+      fgm: 3,
+      fga: 4,
+      fg3m: 0,
+      fg3a: 0,
+      ftm: 0,
+      fta: 0,
+      ast: 1,
+      tov: 2,
+      blk: 0,
+      sfl: 0
+    })
+    vi.mocked(api.stats.gameMatchups).mockResolvedValue({
+      pairs: [
+        pair('20', 'LeBron James', 'Jayson Tatum', 7.24),
+        pair('10', 'Jrue Holiday', 'Luka Doncic', 6)
+      ],
+      reason: null
+    })
+    await openGames()
+    const lal = within(await screen.findByRole('table', { name: 'LAL on defense' }))
+    expect(lal.getByText('LeBron James')).toBeTruthy()
+    expect(lal.getByText('7:14')).toBeTruthy()
+    expect(screen.getByRole('table', { name: 'BOS on defense' })).toBeTruthy()
+    expect(vi.mocked(api.stats.gameMatchups)).toHaveBeenCalledWith('last')
+  })
+
+  it('says why a game has no pairs', async () => {
+    vi.mocked(api.stats.gameMatchups).mockResolvedValue({
+      pairs: [],
+      reason: 'Tracked from 2017-18.'
+    })
+    await openGames()
+    expect(await screen.findByText('Tracked from 2017-18.')).toBeTruthy()
+  })
+
+  it('opens an official from the crew, and the season’s officials beside the league', async () => {
+    const totals = (games: number): StatsOfficiatingTotals => ({
+      games,
+      homeFouls: 20 * games,
+      awayFouls: 20 * games,
+      homeFta: 22 * games,
+      awayFta: 22 * games,
+      homePts: 115 * games,
+      awayPts: 110 * games,
+      homeWins: games
+    })
+    vi.mocked(api.stats.game).mockImplementation((id) =>
+      Promise.resolve({
+        id,
+        venue: null,
+        city: null,
+        attendance: null,
+        note: null,
+        periods: null,
+        officials: [{ id: '7', name: 'Ed Malloy' }]
+      })
+    )
+    vi.mocked(api.stats.officialCareer).mockResolvedValue({
+      id: '7',
+      name: 'Ed Malloy',
+      jersey: '7',
+      seasons: [
+        {
+          season: 2026,
+          totals: totals(4),
+          league: totals(1230),
+          coverage: { games: 1230, withCrew: 1230, crewSizes: { 3: 1230 } },
+          reason: null
+        }
+      ]
+    })
+    vi.mocked(api.stats.officialsSeason).mockResolvedValue({
+      season: 2026,
+      coverage: { games: 1230, withCrew: 1230, crewSizes: { 3: 1230 } },
+      league: totals(1230),
+      officials: [{ id: '7', name: 'Ed Malloy', jersey: '7', totals: totals(4) }],
+      reason: null
+    })
+    await openGames()
+    fireEvent.click(await screen.findByRole('button', { name: 'Ed Malloy' }))
+    const seasons = within(await screen.findByRole('table', { name: 'Seasons' }))
+    expect(seasons.getByText('2025-26')).toBeTruthy()
+    expect(seasons.getByText('League')).toBeTruthy()
+    expect(seasons.getByText('4 games: few')).toBeTruthy()
+    expect(vi.mocked(api.stats.officialCareer)).toHaveBeenCalledWith('7', ['regular'])
+    fireEvent.click(screen.getByRole('button', { name: 'The game' }))
+    expect(await screen.findByRole('table', { name: 'BOS box score' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Officials of 2025-26' }))
+    const list = within(await screen.findByRole('table', { name: 'Officials' }))
+    expect(list.getAllByRole('row').map((r) => r.textContent?.split(/\d/)[0])).toEqual([
+      expect.any(String),
+      'League',
+      'Ed Malloy#'
+    ])
+    expect(
+      screen.getByText('1,230 of 1,230 games have a crew listed; crews of 3 on 1,230.')
+    ).toBeTruthy()
   })
 })

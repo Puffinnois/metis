@@ -287,6 +287,42 @@ describe('the published tables', () => {
       ])
     })
 
+    it('add up the game matchups in the playoffs, and only there, keeping the rollup’s games', async () => {
+      await db.exec(`CREATE OR REPLACE TABLE game (game_id VARCHAR, nba_game_id VARCHAR,
+        season INTEGER, game_type VARCHAR, game_date DATE)`)
+      await db.exec(`INSERT INTO game VALUES
+        ('p1', 'p1', 2026, 'playoffs', DATE '2026-04-20'),
+        ('p2', 'p2', 2026, 'playoffs', DATE '2026-04-22'),
+        ('r1', 'r1', 2026, 'regular', DATE '2026-01-10')`)
+      await db.exec(`CREATE TABLE src_nba_game_matchups (game_id VARCHAR, def_person_id BIGINT,
+        off_person_id BIGINT, matchup_minutes VARCHAR, matchup_minutes_sort DOUBLE,
+        partial_possessions DOUBLE, player_points BIGINT, team_points BIGINT,
+        matchup_field_goals_made BIGINT, matchup_field_goals_attempted BIGINT, shooting_fouls BIGINT)`)
+      await db.exec(`INSERT INTO src_nba_game_matchups VALUES
+        ('p1', 2544, 1, '4:00', 240, 20, 7, 9, 3, 6, 1),
+        ('p2', 2544, 2, '2:30', 150, 12.5, 4, 5, 2, 3, 0),
+        ('r1', 2544, 1, '9:00', 540, 40, 99, 99, 40, 80, 9)`)
+      await buildPublished(db)
+      const sums = await db.all<Record<string, number>>(
+        `SELECT game_type, sum(games) AS games, sum(possessions) AS poss,
+                sum(matchup_minutes) AS minutes, sum(player_pts) AS pts, sum(matchup_fga) AS fga
+         FROM pub_player_matchups WHERE player_id = 2544 AND season = 2026 GROUP BY ALL ORDER BY ALL`
+      )
+      expect(sums).toEqual([
+        // The game matchups' two playoff games, over the rollup's 5 games.
+        { game_type: 'playoffs', games: 5, poss: 32.5, minutes: 6.5, pts: 11, fga: 9 },
+        // The regular season stays the pair file's: the game file's regular row is not read here.
+        {
+          game_type: 'regular',
+          games: 60,
+          poss: 210,
+          minutes: (1800 + 599.5) / 60,
+          pts: 11,
+          fga: 11
+        }
+      ])
+    })
+
     it('split the rollup by the position guarded, over its own total', async () => {
       await buildPublished(db)
       const [row] = await db.all<Record<string, number>>(
