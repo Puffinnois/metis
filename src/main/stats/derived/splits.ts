@@ -1,8 +1,8 @@
 import { mirrorOf, SPLITS, type SplitDef, type SplitPiece } from '@shared/stats/splits'
-import type { StatsDb } from '../db'
+import type { PlayBuilder } from './playBuilders'
 import { BOX_COUNTS } from './game'
 import { possessionsSql } from './events'
-import { column, inspect, per, type Have } from './sql'
+import { column, per, type Have } from './sql'
 
 /**
  * Box-score counts by split of a game (reference section 12), from the NBA's play by play: one row
@@ -23,13 +23,10 @@ import { column, inspect, per, type Have } from './sql'
  * - **Possessions** are SportsDataverse's derived ones (`possession`, counted only), in a split by
  *   their first play: its period, clock and the score before it. Derived, not official.
  *
- * Built a season at a time, each in one transaction, so a screen reads a season's old rows or its
- * new ones. A missing table or column reads NULL and never fails: without the substitutions'
+ * Built a season at a time by the play layer's builders, each season in one transaction, so a
+ * screen reads a season's old rows or its new ones. A missing table or column reads NULL and never fails: without the substitutions'
  * text or the lineups, players' time reads NULL rather than a guess.
  */
-
-/** Bump when a rule or a column changes, so the next refresh builds the tables again. */
-export const SPLITS_VERSION = 1
 
 export const SPLIT_PLAYER = 'split_player'
 export const SPLIT_TEAM = 'split_team'
@@ -382,72 +379,38 @@ export function splitPlayerSelect(have: Have, season: number): string {
   ORDER BY game_id, team_id, player_id, split`
 }
 
-/**
- * The two tables as builders for the play layer's season-by-season rebuild: their columns and the
- * SELECT of one season. Teams first, then players.
- */
-export const SPLIT_BUILDERS: ReadonlyArray<{
-  table: string
-  columns: ReadonlyArray<readonly [string, string]>
-  select: (have: Have, season: number) => string
-}> = [
-  { table: SPLIT_TEAM, columns: SPLIT_TEAM_COLUMNS, select: splitTeamSelect },
-  { table: SPLIT_PLAYER, columns: SPLIT_PLAYER_COLUMNS, select: splitPlayerSelect }
-]
-
-/** What the build needs: the plays and the tables they are keyed to. */
+/** What a season's rows need; without one of them the season reads no rows. */
 const NEEDS = ['play_nba', 'game', 'player', 'player_game']
 
-export async function canBuildSplits(db: StatsDb): Promise<boolean> {
-  const have = await inspect(db)
-  return NEEDS.every((t) => have.tables.has(t))
-}
+/** A SELECT of the columns, typed, with no rows. */
+const noRows = (columns: ReadonlyArray<readonly [string, string]>): string =>
+  `SELECT ${columns.map(([n, t]) => `NULL::${t} AS ${n}`).join(', ')} WHERE false`
 
-export async function splitsStale(db: StatsDb): Promise<boolean> {
-  const row = await db.get<{ version: number }>(
-    "SELECT version FROM derived_state WHERE name = 'splits'"
-  )
-  return (row?.version ?? 0) < SPLITS_VERSION
-}
+const guarded =
+  (
+    columns: ReadonlyArray<readonly [string, string]>,
+    select: (have: Have, season: number) => string
+  ) =>
+  (have: Have, season: number): string =>
+    NEEDS.every((t) => have.tables.has(t)) ? select(have, season) : noRows(columns)
 
 /**
- * Builds the splits of the seasons given, or of every season with plays, each season in one
- * transaction per table. A season with no plays left loses its rows. Returns the player rows written.
- * Once the play layer's builder registry is on main, the two builders above join it and this goes.
+ * The two tables as builders of the play layer (`PLAY_BUILDERS` in `playBuilders.ts`), which
+ * replaces a season of each in one transaction after that season's plays. Teams first, then players.
+ * Bump `PLAYS_VERSION` there when a rule or a column changes.
  */
-export async function buildSplits(db: StatsDb, seasons?: number[]): Promise<number> {
-  const have = await inspect(db)
-  const held = await db.all<{ season: number }>(
-    'SELECT DISTINCT season FROM play_nba WHERE season IS NOT NULL ORDER BY 1'
-  )
-  const todo = seasons ?? held.map((r) => r.season)
-  // Out of date until every season is in, so a build the app never finished runs again.
-  if (seasons === undefined) {
-    await db.exec("INSERT OR REPLACE INTO derived_state VALUES ('splits', 0)")
+export const SPLIT_BUILDERS: readonly PlayBuilder[] = [
+  {
+    table: SPLIT_TEAM,
+    columns: SPLIT_TEAM_COLUMNS,
+    select: guarded(SPLIT_TEAM_COLUMNS, splitTeamSelect)
+  },
+  {
+    table: SPLIT_PLAYER,
+    columns: SPLIT_PLAYER_COLUMNS,
+    select: guarded(SPLIT_PLAYER_COLUMNS, splitPlayerSelect)
   }
-  let rows = 0
-  for (const season of todo.map(Number)) {
-    for (const b of SPLIT_BUILDERS) {
-      const n = await db.transaction(async () => {
-        await db.exec(`DELETE FROM ${b.table} WHERE season = ?`, [season])
-        await db.exec(`INSERT INTO ${b.table} ${b.select(have, season)}`)
-        const row = await db.get<{ n: number }>(
-          `SELECT count(*)::INTEGER AS n FROM ${b.table} WHERE season = ?`,
-          [season]
-        )
-        return row?.n ?? 0
-      })
-      if (b.table === SPLIT_PLAYER) rows += n
-    }
-  }
-  if (seasons === undefined) {
-    const keep = held.map((r) => Number(r.season))
-    const gone = keep.length ? `season NOT IN (${keep.join(', ')})` : 'true'
-    for (const b of SPLIT_BUILDERS) await db.exec(`DELETE FROM ${b.table} WHERE ${gone}`)
-    await db.exec('INSERT OR REPLACE INTO derived_state VALUES (?, ?)', ['splits', SPLITS_VERSION])
-  }
-  return rows
-}
+]
 
 // ---- How the engine reads them ----------------------------------------------------------------
 

@@ -9,8 +9,7 @@ import {
 } from './derived/published'
 import type { Downloads, FetchedFile } from './download'
 import { buildIdentity, canBuildIdentity, identityStale, markIdentityStale } from './identity'
-import { buildPlays, canBuildPlays, markPlaysStale, playsStale } from './derived/plays'
-import { buildSplits, canBuildSplits, splitsStale } from './derived/splits'
+import { buildPlays, canBuildPlays, markPlaySeason, playsDue } from './derived/playBuilders'
 import { loadSourceFile } from './load'
 import type {
   RefreshOptions,
@@ -40,7 +39,6 @@ export const STATS_IDENTITY_STEP = `${STATS_LOG_PREFIX}identity`
 export const STATS_DERIVED_STEP = `${STATS_LOG_PREFIX}derived`
 export const STATS_PUBLISHED_STEP = `${STATS_LOG_PREFIX}published`
 export const STATS_PLAYS_STEP = `${STATS_LOG_PREFIX}plays`
-export const STATS_SPLITS_STEP = `${STATS_LOG_PREFIX}splits`
 
 export interface StatsSyncDeps {
   db: StatsDb
@@ -239,7 +237,6 @@ export async function refreshStats(
   let built = false
   let publishedWrote = false
   let publishedBuilt = false
-  let eventsWrote = false
   // A later tier's file that a published table reads, written after the published step ran.
   let lateWrote = false
   const today = nowOf(deps)
@@ -334,22 +331,13 @@ export async function refreshStats(
   }
 
   // Built at the end, once the events and plays tiers are in: the plays are keyed to the game
-  // tables, and they are the largest build, so nothing else waits behind it.
+  // tables, and they are the largest build, so nothing else waits behind it. Only the seasons whose
+  // files wrote rows are rebuilt (`playBuilders.ts`).
   const runPlaysBuild = async (): Promise<void> => {
-    let rebuilt = false
-    if ((eventsWrote || coreWrote || (await playsStale(db))) && (await canBuildPlays(db))) {
-      const entry = await runLogged(deps, STATS_PLAYS_STEP, async () => ({
-        rows: await buildPlays(db),
-        message: null
-      }))
-      log.push(entry)
-      rebuilt = entry.status === 'ok'
-    }
-    // The splits of each game are counted from the plays, so they follow them.
-    if ((rebuilt || (await splitsStale(db))) && (await canBuildSplits(db))) {
+    if ((await playsDue(db)) && (await canBuildPlays(db))) {
       log.push(
-        await runLogged(deps, STATS_SPLITS_STEP, async () => ({
-          rows: await buildSplits(db),
+        await runLogged(deps, STATS_PLAYS_STEP, async () => ({
+          rows: await buildPlays(db),
           message: null
         }))
       )
@@ -399,13 +387,8 @@ export async function refreshStats(
       }
       coreWrote = true
     }
-    if (
-      (step.source.tier === 'events' || step.source.tier === 'plays') &&
-      entry.status === 'ok' &&
-      entry.rowsWritten > 0
-    ) {
-      if (!eventsWrote) await markPlaysStale(db)
-      eventsWrote = true
+    if (entry.status === 'ok' && entry.rowsWritten > 0 && step.source.tier !== 'published') {
+      await markPlaySeason(db, step.season)
     }
     if (step.source.tier === 'published' && entry.status === 'ok' && entry.rowsWritten > 0) {
       if (!publishedWrote && canBuildPublished()) await markPublishedStale(db)

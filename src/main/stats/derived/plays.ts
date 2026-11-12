@@ -1,13 +1,13 @@
-import type { StatsDb } from '../db'
-import { eventsBootstrap, eventsSql } from './events'
-import { column, inspect, type Have } from './sql'
+import { eventsBootstrap } from './events'
+import { column, type Have } from './sql'
 
 /**
  * The play layer: every play of both play-by-play sources keyed to the `game` and `team` tables,
  * with counting flags, so later work sums flags instead of parsing text. The two sources sit side by
  * side in their own tables and are never merged (data policy 5); `plays` is a view over both with a
  * `source` column. Measured choices (view or table, the default source) are in
- * `docs/reference/nba-data-sources.md`, "Plays".
+ * `docs/reference/nba-data-sources.md`, "Plays". The tables are built season by season, through
+ * `PLAY_BUILDERS` in `playBuilders.ts`: each function here is the SELECT of one season.
  *
  * Who a flag belongs to:
  * - `fga` to `pf` (all but `ast`, `stl` and `blk`): the acting player `player_id` and team `team_id`.
@@ -16,9 +16,6 @@ import { column, inspect, type Have } from './sql'
  *   `opponent_id`. They sit on the turnover, the made shot or the missed shot they belong to, in
  *   both sources: the NBA writes a steal or a block as its own row, which keeps its row but no flag.
  */
-
-/** Bump when a table changes, so the next refresh builds them without downloading anything. */
-export const PLAYS_VERSION = 1
 
 export const PLAY_TABLES = { nba: 'play_nba', espn: 'play_espn' } as const
 export type PlaySource = keyof typeof PLAY_TABLES
@@ -138,6 +135,13 @@ const list = (xs: string[]): string => xs.map((x) => `'${x.replaceAll("'", "''")
 const bare = (name: string): string =>
   `regexp_replace(strip_accents(${name}), '\\s+(Jr\\.?|Sr\\.?|II|III|IV)$', '')`
 
+/**
+ * The source's own season, beside the game's: the files are loaded a season at a time, so a filter
+ * on it lets DuckDB skip the other seasons' row groups. A source without the column reads every row.
+ */
+const sourceSeason = (have: Have, table: string, alias: string, season: number): string =>
+  have.columns.get(table)?.has('season') ? `${alias}.season = ${season}` : 'true'
+
 const flag = (cond: string): string => `coalesce((${cond})::UTINYINT, 0)`
 
 /** The final SELECT both sources share: the columns in order, with the flags worked out. */
@@ -175,12 +179,11 @@ const WINDOWS = `WINDOW upto AS (PARTITION BY game_id ORDER BY seq ROWS BETWEEN 
  *   team took the last miss.
  * - 2000-01 pads `action_type` with spaces, so it is trimmed.
  */
-export function nbaPlaysSql(have: Have): string {
+export function nbaPlaysSql(have: Have, season: number): string {
   const t = 'src_nba_pbp'
   const c = (name: string, type = 'BIGINT'): string => column(have, t, 'p', name, type)
   const from = have.tables.has(t) ? t : '(SELECT 1)'
-  return `CREATE OR REPLACE TABLE ${PLAY_TABLES.nba} AS
-  WITH raw AS (
+  return `WITH raw AS (
     SELECT g.game_id, g.season, g.game_type, g.game_date, g.home_team_id, g.away_team_id,
            ${c('order_index', 'INTEGER')} AS seq,
            ${c('action_number')} AS action_number, ${c('period', 'INTEGER')} AS period,
@@ -197,6 +200,7 @@ export function nbaPlaysSql(have: Have): string {
            ${c('possession_number', 'INTEGER')} AS possession,
            [${[1, 2, 3, 4, 5].map((i) => c(`off_player_${i}`)).join(', ')}] AS on_offense
     FROM ${from} p JOIN game g ON g.nba_game_id = ${c('game_id', 'VARCHAR')}
+    WHERE g.season = ${season} AND ${sourceSeason(have, t, 'p', season)}
   ), typed AS (
     SELECT *,
            CASE WHEN src_team > 0 THEN src_team
@@ -324,13 +328,12 @@ export function nbaPlaysSql(have: Have): string {
  *   (feet across the court and from the basket) are beyond the line: 23.5 feet out, or 22 to the
  *   side in the corner. That rule agrees with `points_attempted` on 99.8 % of 2025-26's shots.
  */
-export function espnPlaysSql(have: Have): string {
+export function espnPlaysSql(have: Have, season: number): string {
   const t = 'src_espn_pbp'
   const c = (name: string, type = 'BIGINT'): string => column(have, t, 'e', name, type)
   const from = have.tables.has(t) ? t : '(SELECT 1)'
   const type = 'type_text'
-  return `CREATE OR REPLACE TABLE ${PLAY_TABLES.espn} AS
-  WITH raw AS (
+  return `WITH raw AS (
     SELECT g.game_id, g.season, g.game_type, g.game_date, g.home_team_id, g.away_team_id,
            ${c('game_play_number', 'INTEGER')} AS seq,
            ${c('period_number', 'INTEGER')} AS period,
@@ -356,6 +359,7 @@ export function espnPlaysSql(have: Have): string {
     LEFT JOIN player_ids p1 ON p1.espn_athlete_id = ${c('athlete_id_1')}
     LEFT JOIN player_ids p2 ON p2.espn_athlete_id = ${c('athlete_id_2')}
     WHERE ${c('season', 'INTEGER')} = ${c('file_season', 'INTEGER')}
+      AND g.season = ${season} AND ${sourceSeason(have, t, 'e', season)}
   ), typed AS (
     SELECT *,
            CASE
@@ -444,42 +448,4 @@ export function playsBootstrap(): string[] {
     playsViewSql().replace('CREATE OR REPLACE VIEW', 'CREATE VIEW IF NOT EXISTS'),
     ...eventsBootstrap()
   ]
-}
-
-/** The identity tables the plays are keyed to. */
-const NEEDS = ['game', 'team', 'player', 'player_ids']
-
-export async function canBuildPlays(db: StatsDb): Promise<boolean> {
-  const have = await inspect(db)
-  return NEEDS.every((t) => have.tables.has(t))
-}
-
-export async function playsStale(db: StatsDb): Promise<boolean> {
-  const row = await db.get<{ version: number }>(
-    "SELECT version FROM derived_state WHERE name = 'plays'"
-  )
-  return (row?.version ?? 0) < PLAYS_VERSION
-}
-
-/** Marks the tables out of date, so a build the app never got to still happens on the next refresh. */
-export async function markPlaysStale(db: StatsDb): Promise<void> {
-  await db.exec("INSERT OR REPLACE INTO derived_state VALUES ('plays', 0)")
-}
-
-/**
- * Builds both play tables, each in one statement, so a screen sees the old rows or the new, then
- * the views over them and over the shots and possessions. Returns the play rows written.
- */
-export async function buildPlays(db: StatsDb): Promise<number> {
-  const have = await inspect(db)
-  let rows = 0
-  for (const sql of [nbaPlaysSql(have), espnPlaysSql(have)]) await db.exec(sql)
-  for (const t of Object.values(PLAY_TABLES)) {
-    const row = await db.get<{ n: number }>(`SELECT count(*)::INTEGER AS n FROM ${t}`)
-    rows += row?.n ?? 0
-  }
-  await db.exec(playsViewSql())
-  for (const sql of eventsSql(have)) await db.exec(sql)
-  await db.exec('INSERT OR REPLACE INTO derived_state VALUES (?, ?)', ['plays', PLAYS_VERSION])
-  return rows
 }

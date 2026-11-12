@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { StatsDb } from '@main/stats/db'
-import { PLAY_COLUMNS } from '@main/stats/derived/plays'
+import { PLAY_BUILDERS } from '@main/stats/derived/playBuilders'
+import { PLAY_COLUMNS, PLAY_TABLES } from '@main/stats/derived/plays'
+import { inspect } from '@main/stats/derived/sql'
 import {
-  buildSplits,
+  SPLIT_BUILDERS,
   SPLIT_PLAYER_COLUMNS,
   SPLIT_TEAM_COLUMNS,
   splitsBootstrap
@@ -253,6 +255,19 @@ async function seed(
   for (const sql of splitsBootstrap()) await db.exec(sql)
 }
 
+/** A season of each split table, replaced as the play layer's rebuild replaces it. */
+async function buildSplits(db: StatsDb, seasons = [2026]): Promise<void> {
+  const have = await inspect(db)
+  for (const season of seasons) {
+    for (const b of SPLIT_BUILDERS) {
+      await db.transaction(async () => {
+        await db.exec(`DELETE FROM ${b.table} WHERE season = ?`, [season])
+        await db.exec(`INSERT INTO ${b.table} ${b.select(have, season)}`)
+      })
+    }
+  }
+}
+
 type Row = Record<string, number | null>
 const playerRow = async (db: StatsDb, player: number, split: string): Promise<Row | null> =>
   db.get<Row>(`SELECT * FROM split_player WHERE player_id = ? AND split = ?`, [player, split])
@@ -353,6 +368,18 @@ describe('the splits builder', () => {
         [table]
       )
       expect(held.map((c) => [c.column_name, c.data_type])).toEqual(columns.map((c) => [...c]))
+    }
+  })
+
+  it('runs in the play layer after the season’s plays, and reads no rows without them', async () => {
+    const tables = PLAY_BUILDERS.map((b) => b.table)
+    expect(tables.indexOf('split_team')).toBeGreaterThan(tables.indexOf(PLAY_TABLES.nba))
+    expect(tables.indexOf('split_player')).toBeGreaterThan(tables.indexOf(PLAY_TABLES.nba))
+    const db = await openTestDb()
+    for (const sql of splitsBootstrap()) await db.exec(sql)
+    const have = await inspect(db)
+    for (const b of SPLIT_BUILDERS) {
+      expect(await db.all(b.select({ ...have, tables: new Set() }, 2026))).toEqual([])
     }
   })
 })
