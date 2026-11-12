@@ -71,14 +71,20 @@ function insideArcAbove(y: number): string {
   return `M ${pt(-x, y)} A ${r} ${r} 0 0 0 ${pt(x, y)} Z`
 }
 
-/** Where a zone's figures are written. */
-export const ZONE_LABELS: Record<string, { x: number; y: number }> = {
-  ra: { x: 0, y: 12 },
-  paint: { x: 0, y: 95 },
-  mid: { x: 0, y: 185 },
-  c3l: { x: -235, y: 30 },
-  c3r: { x: 235, y: 30 },
-  atb3: { x: 0, y: 300 }
+/**
+ * Where a zone's figures are written: below the rim in the restricted area, and against the sideline
+ * in a corner, which is only three feet wide, so the figures run inwards from it.
+ */
+export const ZONE_LABELS: Record<
+  string,
+  { x: number; y: number; anchor: 'start' | 'middle' | 'end' }
+> = {
+  ra: { x: 0, y: 30, anchor: 'middle' },
+  paint: { x: 0, y: 95, anchor: 'middle' },
+  mid: { x: 0, y: 185, anchor: 'middle' },
+  c3l: { x: -246, y: 112, anchor: 'start' },
+  c3r: { x: 246, y: 112, anchor: 'end' },
+  atb3: { x: 0, y: 300, anchor: 'middle' }
 }
 
 /** The court's lines, as SVG paths in the drawing's frame. */
@@ -147,10 +153,14 @@ export function zoneShades(chart: StatsShotChart): ZoneShade[] {
   })
 }
 
-/** The heat colour of a level: the app's scale, warm above the league, cool below. */
-export function shadeFill(level: ShadeLevel | null): string {
+/**
+ * The heat colour of a level, on the app's scale: good above the league for a shooter, and the other
+ * way round for the shots a team faced, where opponents below the league is the defense doing well.
+ */
+export function shadeFill(level: ShadeLevel | null, lowerIsBetter = false): string {
   if (level === null || level === 0) return 'var(--panel-2)'
-  return `var(--${level > 0 ? 'h' : 'l'}${Math.abs(level)})`
+  const good = lowerIsBetter ? level < 0 : level > 0
+  return `var(--${good ? 'h' : 'l'}${Math.abs(level)})`
 }
 
 const COUNT = new Intl.NumberFormat('en-US')

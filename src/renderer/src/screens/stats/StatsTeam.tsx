@@ -526,6 +526,7 @@ function ShotsTab(props: TabProps): React.JSX.Element {
         request={request}
         version={data.version}
         title={side === 'offense' ? 'Shot chart' : 'Shot chart against'}
+        against={side === 'defense'}
       />
       <LinesTab
         key={side}

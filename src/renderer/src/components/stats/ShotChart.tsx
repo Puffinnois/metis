@@ -37,11 +37,14 @@ const LINES = courtLines()
 export function ShotChart({
   request,
   version,
-  title = 'Shot chart'
+  title = 'Shot chart',
+  against = false
 }: {
   request: StatsShotRequest | null
   version: string | null
   title?: string
+  /** The shots a team faced: below the league is shaded as the good side. */
+  against?: boolean
 }): React.JSX.Element {
   const [mode, setMode] = useState<Mode>('zones')
   const { value, error } = useShots(request, version)
@@ -79,21 +82,25 @@ export function ShotChart({
               role="img"
               aria-label={`${title}: ${chartSummary(value)}`}
             >
-              {mode === 'zones' ? <Zones shades={shades} /> : <Marks request={value} />}
+              {mode === 'zones' ? (
+                <Zones shades={shades} against={against} />
+              ) : (
+                <Marks request={value} />
+              )}
               {LINES.map((d, i) => (
                 <path key={i} d={d} fill="none" stroke="var(--fg-3)" strokeWidth={2} />
               ))}
             </svg>
             <ZoneTable shades={shades} total={value.total} />
           </div>
-          <Legend mode={mode} />
+          <Legend mode={mode} against={against} />
         </>
       )}
     </section>
   )
 }
 
-function Zones({ shades }: { shades: ZoneShade[] }): React.JSX.Element {
+function Zones({ shades, against }: { shades: ZoneShade[]; against: boolean }): React.JSX.Element {
   return (
     <g>
       {shades.map((z) => (
@@ -101,7 +108,7 @@ function Zones({ shades }: { shades: ZoneShade[] }): React.JSX.Element {
           key={z.zone}
           d={PATHS[z.zone]}
           fillRule="evenodd"
-          fill={shadeFill(z.level)}
+          fill={shadeFill(z.level, against)}
           data-zone={z.zone}
         >
           <title>{`${z.label}: ${z.fgm} of ${z.fga}, ${pctText(z.pct)}, ${relText(z.rel)} vs league`}</title>
@@ -115,7 +122,7 @@ function Zones({ shades }: { shades: ZoneShade[] }): React.JSX.Element {
             key={z.zone}
             x={cx}
             y={cy}
-            textAnchor="middle"
+            textAnchor={at.anchor}
             className="fill-fg font-mono"
             fontSize={z.zone.startsWith('c3') ? 15 : 19}
           >
@@ -186,7 +193,7 @@ function ZoneTable({ shades, total }: { shades: ZoneShade[]; total: number }): R
   )
 }
 
-function Legend({ mode }: { mode: Mode }): React.JSX.Element {
+function Legend({ mode, against }: { mode: Mode; against: boolean }): React.JSX.Element {
   return mode === 'zones' ? (
     <div className="flex flex-wrap items-center gap-2 text-[12px] text-fg-3">
       <span>Below the league</span>
@@ -194,7 +201,7 @@ function Legend({ mode }: { mode: Mode }): React.JSX.Element {
         <span
           key={l}
           className="inline-block h-3 w-5 rounded-[3px]"
-          style={{ background: shadeFill(l) }}
+          style={{ background: shadeFill(l, against) }}
         />
       ))}
       <span>Above the league</span>

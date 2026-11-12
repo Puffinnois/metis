@@ -64,6 +64,9 @@ describe('the zones against the league', () => {
     expect(shadeFill(2)).toBe('var(--h2)')
     expect(shadeFill(-3)).toBe('var(--l3)')
     expect(shadeFill(0)).toBe('var(--panel-2)')
+    // Against a defense, opponents below the league is the good side.
+    expect(shadeFill(-2, true)).toBe('var(--h2)')
+    expect(shadeFill(3, true)).toBe('var(--l3)')
   })
 
   it('compares each zone with what the league’s rate gives the same attempts, from 5 attempts', () => {
