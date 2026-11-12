@@ -38,6 +38,8 @@ const COUNTS = [
   'tov',
   'pf'
 ]
+/** `2026` is 2025-26, as the screens and the docs write it. */
+const season = (s) => `${s - 1}-${String(s % 100).padStart(2, '0')}`
 const pct = (x) => (x === null || x === undefined ? '—' : `${(100 * Number(x)).toFixed(1)}`)
 const out = []
 const table = (title, note, head, rows) => {
@@ -101,7 +103,7 @@ table(
     'File PTS ±5'
   ],
   teams.map((r) => [
-    r.season,
+    season(r.season),
     r.n,
     ...[
       'pts',
@@ -161,7 +163,7 @@ table(
     'Off the lineups'
   ],
   players.map((r) => [
-    r.season,
+    season(r.season),
     r.n,
     pct(r.min05),
     pct(r.min1),
@@ -239,7 +241,7 @@ table(
     'POSS ratio'
   ],
   units.map((r) => [
-    r.season,
+    season(r.season),
     r.game_type,
     r.n,
     pct(r.found),
@@ -282,7 +284,7 @@ table(
     'Metis +/-'
   ],
   worst.map((r) => [
-    r.season,
+    season(r.season),
     r.game_type,
     r.team,
     r.names,
