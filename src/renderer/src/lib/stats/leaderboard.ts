@@ -296,7 +296,8 @@ export function leaderboardQuery(
     scope: {
       ...queryScope(scope, board.entity),
       ...(tab.positions ? { positions: tab.positions } : {}),
-      ...(board.team ? { teams: [board.team] } : {})
+      ...(board.team ? { teams: [board.team] } : {}),
+      ...(board.split ? { split: board.split } : {})
     },
     transform: board.mode,
     sort: engineSort(fixed, catalogue),

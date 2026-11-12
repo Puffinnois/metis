@@ -1,6 +1,7 @@
 import { mirrorOf, SPLITS, type SplitDef, type SplitPiece } from '@shared/stats/splits'
 import type { StatsDb } from '../db'
 import { BOX_COUNTS } from './game'
+import { possessionsSql } from './events'
 import { column, inspect, per, type Have } from './sql'
 
 /**
@@ -41,16 +42,34 @@ const TEN = [1, 2, 3, 4, 5].flatMap((i) => [`off_player_${i}`, `def_player_${i}`
 /** What players' time needs from the feed itself, beyond `play_nba`. */
 const TIMED_COLUMNS = ['game_id', 'order_index', 'description', 'player_name', ...TEN]
 
+export const SPLIT_PLAYER_COLUMNS: ReadonlyArray<readonly [string, string]> = [
+  ['season', 'INTEGER'],
+  ['game_id', 'VARCHAR'],
+  ['team_id', 'BIGINT'],
+  ['player_id', 'BIGINT'],
+  ['split', 'VARCHAR'],
+  ['seconds', 'DOUBLE'],
+  ...SPLIT_COUNTS.map((c) => [c, 'INTEGER'] as const)
+]
+
+export const SPLIT_TEAM_COLUMNS: ReadonlyArray<readonly [string, string]> = [
+  ['season', 'INTEGER'],
+  ['game_id', 'VARCHAR'],
+  ['team_id', 'BIGINT'],
+  ['split', 'VARCHAR'],
+  ['seconds', 'DOUBLE'],
+  ...SPLIT_COUNTS.map((c) => [c, 'INTEGER'] as const),
+  ...SPLIT_COUNTS.map((c) => [`opp_${c}`, 'INTEGER'] as const),
+  ['poss', 'INTEGER'],
+  ['opp_poss', 'INTEGER']
+]
+
+const tableSql = (name: string, columns: ReadonlyArray<readonly [string, string]>): string =>
+  `CREATE TABLE IF NOT EXISTS ${name} (${columns.map(([n, t]) => `${n} ${t}`).join(', ')})`
+
+/** The tables, empty, so a query before the first build reads no rows instead of failing. */
 export function splitsBootstrap(): string[] {
-  const counts = SPLIT_COUNTS.map((c) => `${c} INTEGER`).join(', ')
-  return [
-    `CREATE TABLE IF NOT EXISTS ${SPLIT_PLAYER} (
-       season INTEGER, game_id VARCHAR, team_id BIGINT, player_id BIGINT, split VARCHAR,
-       seconds DOUBLE, ${counts})`,
-    `CREATE TABLE IF NOT EXISTS ${SPLIT_TEAM} (
-       season INTEGER, game_id VARCHAR, team_id BIGINT, split VARCHAR, seconds DOUBLE, ${counts},
-       ${SPLIT_COUNTS.map((c) => `opp_${c} INTEGER`).join(', ')}, poss INTEGER, opp_poss INTEGER)`
-  ]
+  return [tableSql(SPLIT_PLAYER, SPLIT_PLAYER_COLUMNS), tableSql(SPLIT_TEAM, SPLIT_TEAM_COLUMNS)]
 }
 
 // ---- The rules in SQL -------------------------------------------------------------------------
@@ -129,47 +148,53 @@ const bare = (name: string): string =>
   `regexp_replace(strip_accents(${name}), '\\s+(Jr\\.?|Sr\\.?|II|III|IV)$', '')`
 
 /** Seconds in a period: 12 minutes in regulation, 5 in overtime. */
-const periodLength = (period: string): string => `CASE WHEN ${period} <= 4 THEN 720.0 ELSE 300.0 END`
+const periodLength = (period: string): string =>
+  `CASE WHEN ${period} <= 4 THEN 720.0 ELSE 300.0 END`
 
-// ---- The season's build -----------------------------------------------------------------------
+// ---- The season's rows ------------------------------------------------------------------------
+
+const timedBy = (have: Have): boolean =>
+  have.tables.has(RAW) && TIMED_COLUMNS.every((c) => have.columns.get(RAW)?.has(c))
 
 /** The season's plays, with the margin before and after each, from the home side. */
-const playsSql = (season: number): string => `CREATE OR REPLACE TEMP TABLE split_plays AS
-  SELECT p.game_id, p.seq, p.period, p.clock, p.team_id, p.opponent_id, p.player_id, p.assist_id,
-         p.steal_id, p.block_id, p.kind, ${['fga', 'fgm', 'fg3a', 'fg3m', 'fta', 'ftm', 'pts', 'oreb', 'dreb', 'tov', 'pf'].map((f) => `p.${f}`).join(', ')},
-         g.home_team_id, g.away_team_id,
-         (p.home_after - CASE WHEN p.home THEN p.pts ELSE 0 END)
-           - (p.away_after - CASE WHEN NOT p.home THEN p.pts ELSE 0 END) AS mh_before,
-         p.home_after - p.away_after AS mh_after
-  FROM play_nba p JOIN game g ON g.game_id = p.game_id
-  WHERE p.season = ${season} AND p.period IS NOT NULL AND p.clock IS NOT NULL`
+const playsCte = (season: number): string => `split_plays AS (
+    SELECT p.game_id, p.seq, p.period, p.clock, p.team_id, p.opponent_id, p.player_id, p.assist_id,
+           p.steal_id, p.block_id, p.kind, ${['fga', 'fgm', 'fg3a', 'fg3m', 'fta', 'ftm', 'pts', 'oreb', 'dreb', 'tov', 'pf'].map((f) => `p.${f}`).join(', ')},
+           g.home_team_id, g.away_team_id,
+           (p.home_after - CASE WHEN p.home THEN p.pts ELSE 0 END)
+             - (p.away_after - CASE WHEN NOT p.home THEN p.pts ELSE 0 END) AS mh_before,
+           p.home_after - p.away_after AS mh_after
+    FROM play_nba p JOIN game g ON g.game_id = p.game_id
+    WHERE p.season = ${season} AND p.period IS NOT NULL AND p.clock IS NOT NULL
+  )`
 
 /**
  * The stretches between plays, in the order of the clock (a play listed late keeps its time), each
  * with the score after the last play before it.
  */
-const SEGMENTS = `CREATE OR REPLACE TEMP TABLE split_segments AS
-  SELECT game_id, period, home_team_id, away_team_id, mh_after AS mh,
-         clock AS hi, coalesce(lead(clock) OVER w, 0) AS lo
-  FROM split_plays
-  WINDOW w AS (PARTITION BY game_id, period ORDER BY clock DESC, seq)
-  QUALIFY clock > coalesce(lead(clock) OVER w, 0)`
+const SEGMENTS = `split_segments AS (
+    SELECT game_id, period, home_team_id, away_team_id, mh_after AS mh,
+           clock AS hi, coalesce(lead(clock) OVER w, 0) AS lo
+    FROM split_plays
+    WINDOW w AS (PARTITION BY game_id, period ORDER BY clock DESC, seq)
+    QUALIFY clock > coalesce(lead(clock) OVER w, 0)
+  )`
 
 /**
  * Each player's stretches on the court, from the substitutions. A player taken off who was never
  * put on is taken as on from the period's start; one put on and never taken off stays to its end.
  */
-function stintsSql(have: Have, season: number): string {
-  const timed = have.tables.has(RAW) && TIMED_COLUMNS.every((c) => have.columns.get(RAW)?.has(c))
-  if (!timed) {
-    return `CREATE OR REPLACE TEMP TABLE split_stints AS
+function stintsCtes(have: Have, season: number): string {
+  if (!timedBy(have)) {
+    return `split_stints AS (
       SELECT NULL::VARCHAR AS game_id, NULL::INTEGER AS period, NULL::BIGINT AS team_id,
-             NULL::BIGINT AS player_id, NULL::DOUBLE AS hi, NULL::DOUBLE AS lo WHERE false`
+             NULL::BIGINT AS player_id, NULL::DOUBLE AS hi, NULL::DOUBLE AS lo WHERE false
+    )`
   }
   const c = (name: string, type = 'BIGINT'): string => column(have, RAW, 'r', name, type)
   const initial = c('player_name_i', 'VARCHAR')
-  return `CREATE OR REPLACE TEMP TABLE split_stints AS
-  WITH r AS (
+  const own = have.columns.get(RAW)?.has('season') ? `r.season = ${season}` : 'true'
+  return `st_rows AS (
     SELECT p.game_id, p.seq, p.period, p.clock, p.team_id, p.player_id, p.kind,
            ${c('description', 'VARCHAR')} AS description,
            ${bare(`nullif(trim(${c('player_name', 'VARCHAR')}), '')`)} AS player_name,
@@ -177,71 +202,84 @@ function stintsSql(have: Have, season: number): string {
            [${TEN.map((n) => c(n)).join(', ')}] AS ten
     FROM split_plays p JOIN game g ON g.game_id = p.game_id
     JOIN ${RAW} r ON ${c('game_id', 'VARCHAR')} = g.nba_game_id AND ${c('order_index', 'INTEGER')} = p.seq
-  ), box AS (
+    WHERE ${own}
+  ), st_box AS (
     SELECT b.game_id, b.team_id, b.player_id, ${bare('pl.name')} AS full_name
     FROM player_game b LEFT JOIN player pl ON pl.player_id = b.player_id
     WHERE b.season = ${season}
-  ), names AS (
+  ), st_names AS (
     SELECT b.*, f.player_name, f.player_initial
-    FROM box b LEFT JOIN (
-      SELECT DISTINCT game_id, player_id, player_name, player_initial FROM r
+    FROM st_box b LEFT JOIN (
+      SELECT DISTINCT game_id, player_id, player_name, player_initial FROM st_rows
       WHERE player_id IS NOT NULL AND player_name IS NOT NULL
     ) f ON f.game_id = b.game_id AND f.player_id = b.player_id
-  ), subs AS (
+  ), st_subs AS (
     SELECT game_id, seq, period, clock, team_id, player_id AS out_id,
            ${bare("trim(regexp_extract(description, '^SUB: (.*) FOR ', 1))")} AS in_name
-    FROM r WHERE kind = 'substitution' AND player_id IS NOT NULL AND team_id IS NOT NULL
-  ), cand AS (
+    FROM st_rows WHERE kind = 'substitution' AND player_id IS NOT NULL AND team_id IS NOT NULL
+  ), st_cand AS (
     SELECT s.game_id, s.seq, s.period, s.clock, n.player_id
-    FROM subs s JOIN names n
+    FROM st_subs s JOIN st_names n
       ON n.game_id = s.game_id AND n.team_id = s.team_id AND n.player_id <> s.out_id
      AND (n.player_name = s.in_name OR n.player_initial = s.in_name OR n.full_name = s.in_name
           OR n.full_name LIKE '% ' || s.in_name
           OR (s.in_name LIKE '%. %'
               AND n.full_name LIKE split_part(s.in_name, '. ', 1) || '% ' || split_part(s.in_name, '. ', 2)))
     WHERE s.in_name <> ''
-  ), next_ten AS (
+  ), st_next AS (
     -- Two players of one name: the one the feed lists on the court at the next play decides.
     SELECT k.game_id, k.seq, arg_min(r.ten, r.seq) AS ten
-    FROM (SELECT DISTINCT game_id, seq, period, clock FROM cand) k
-    JOIN r ON r.game_id = k.game_id AND r.period = k.period AND r.clock < k.clock
+    FROM (SELECT DISTINCT game_id, seq, period, clock FROM st_cand) k
+    JOIN st_rows r ON r.game_id = k.game_id AND r.period = k.period AND r.clock < k.clock
     GROUP BY 1, 2
-  ), matched AS (
+  ), st_matched AS (
     SELECT k.game_id, k.seq,
            CASE WHEN count(DISTINCT k.player_id) = 1 THEN any_value(k.player_id)
                 WHEN count(DISTINCT k.player_id) FILTER (WHERE list_contains(t.ten, k.player_id)) = 1
                 THEN any_value(k.player_id) FILTER (WHERE list_contains(t.ten, k.player_id)) END AS in_id
-    FROM cand k LEFT JOIN next_ten t ON t.game_id = k.game_id AND t.seq = k.seq
+    FROM st_cand k LEFT JOIN st_next t ON t.game_id = k.game_id AND t.seq = k.seq
     GROUP BY 1, 2
-  ), firsts AS (
-    SELECT game_id, period, ten FROM r
+  ), st_firsts AS (
+    SELECT game_id, period, ten FROM st_rows
     QUALIFY row_number() OVER (PARTITION BY game_id, period ORDER BY seq) = 1
-  ), starters AS (
+  ), st_starters AS (
     SELECT f.game_id, f.period, b.team_id, b.player_id
-    FROM (SELECT game_id, period, unnest(ten) AS player_id FROM firsts) f
-    JOIN box b ON b.game_id = f.game_id AND b.player_id = f.player_id
-  ), ev AS (
+    FROM (SELECT game_id, period, unnest(ten) AS player_id FROM st_firsts) f
+    JOIN st_box b ON b.game_id = f.game_id AND b.player_id = f.player_id
+  ), st_ev AS (
     SELECT game_id, period, -1 AS seq, ${periodLength('period')} AS clock, team_id, player_id,
            true AS on_court
-    FROM starters
+    FROM st_starters
     UNION ALL
     SELECT s.game_id, s.period, s.seq, s.clock, s.team_id, m.in_id, true
-    FROM subs s JOIN matched m ON m.game_id = s.game_id AND m.seq = s.seq
+    FROM st_subs s JOIN st_matched m ON m.game_id = s.game_id AND m.seq = s.seq
     WHERE m.in_id IS NOT NULL
     UNION ALL
-    SELECT game_id, period, seq, clock, team_id, out_id, false FROM subs
-  ), paired AS (
+    SELECT game_id, period, seq, clock, team_id, out_id, false FROM st_subs
+  ), st_paired AS (
     SELECT *, lag(on_court) OVER w AS was_on, lag(clock) OVER w AS was_at,
            lead(on_court) OVER w AS next_on
-    FROM ev WINDOW w AS (PARTITION BY game_id, period, player_id ORDER BY seq)
-  )
-  SELECT game_id, period, team_id, player_id,
-         CASE WHEN was_on THEN was_at ELSE ${periodLength('period')} END AS hi, clock AS lo
-  FROM paired WHERE NOT on_court
-  UNION ALL
-  SELECT game_id, period, team_id, player_id, clock AS hi, 0.0 AS lo
-  FROM paired WHERE on_court AND next_on IS NULL`
+    FROM st_ev WINDOW w AS (PARTITION BY game_id, period, player_id ORDER BY seq)
+  ), split_stints AS (
+    SELECT game_id, period, team_id, player_id,
+           CASE WHEN was_on THEN was_at ELSE ${periodLength('period')} END AS hi, clock AS lo
+    FROM st_paired WHERE NOT on_court
+    UNION ALL
+    SELECT game_id, period, team_id, player_id, clock AS hi, 0.0 AS lo
+    FROM st_paired WHERE on_court AND next_on IS NULL
+  )`
 }
+
+/**
+ * SportsDataverse's possessions of the season, read from the source as the `possession` view reads
+ * it: the view is replaced only after the play tables are built, so a first build would find it
+ * empty.
+ */
+const possessionsCte = (have: Have, season: number): string =>
+  `split_poss_src AS (
+    SELECT * FROM (${possessionsSql(have).replace(/^\s*CREATE OR REPLACE VIEW \w+ AS/, '')})
+    WHERE season = ${season}
+  )`
 
 const countsOf = (alias = ''): string =>
   SPLIT_COUNTS.map((c) => `sum(${alias}${c})::INTEGER AS ${c}`).join(', ')
@@ -277,10 +315,11 @@ const CREDITS = `credits AS (
     FROM credits
   )`
 
-function teamSql(season: number): string {
+/** A team's rows of one season: its counts, the opponent's in the same moments, time, possessions. */
+export function splitTeamSelect(have: Have, season: number): string {
   const margin = 'CASE WHEN x.home THEN p.mh_before ELSE -p.mh_before END'
-  return `INSERT INTO ${SPLIT_TEAM}
-  WITH ${CREDITS}, counts AS (
+  return `WITH ${playsCte(season)}, ${SEGMENTS}, ${possessionsCte(have, season)}, ${CREDITS},
+  counts AS (
     SELECT game_id, team AS team_id, split, ${countsOf()} FROM tagged GROUP BY 1, 2, 3
   ), sides AS (
     SELECT s.*, v.home, CASE WHEN v.home THEN s.home_team_id ELSE s.away_team_id END AS team_id,
@@ -295,8 +334,8 @@ function teamSql(season: number): string {
     FROM (
       SELECT x.game_id, x.team_id,
              unnest(${splitListSql('x.period', 'x.start_clock', margin)}) AS split
-      FROM possession x LEFT JOIN split_plays p ON p.game_id = x.game_id AND p.seq = x.start_seq
-      WHERE x.season = ${season} AND coalesce(x.counted, true) AND x.team_id IS NOT NULL
+      FROM split_poss_src x LEFT JOIN split_plays p ON p.game_id = x.game_id AND p.seq = x.start_seq
+      WHERE coalesce(x.counted, true) AND x.team_id IS NOT NULL
     ) GROUP BY 1, 2, 3
   ), own AS (
     SELECT o.*, CASE WHEN o.team_id = g.home_team_id THEN g.away_team_id ELSE g.home_team_id END AS opp_id
@@ -309,19 +348,22 @@ function teamSql(season: number): string {
     SELECT game_id, team_id, split FROM own
     UNION SELECT game_id, opp_id, ${mirrorSql('split')} FROM own
   )
-  SELECT ${season} AS season, k.game_id, k.team_id, k.split, coalesce(o.seconds, 0) AS seconds,
-         ${SPLIT_COUNTS.map((c) => `coalesce(o.${c}, 0) AS ${c}`).join(', ')},
-         ${SPLIT_COUNTS.map((c) => `coalesce(t.${c}, 0) AS opp_${c}`).join(', ')},
-         o.poss, t.poss AS opp_poss
+  SELECT ${season} AS season, k.game_id, k.team_id, k.split, coalesce(o.seconds, 0)::DOUBLE AS seconds,
+         ${SPLIT_COUNTS.map((c) => `coalesce(o.${c}, 0)::INTEGER AS ${c}`).join(', ')},
+         ${SPLIT_COUNTS.map((c) => `coalesce(t.${c}, 0)::INTEGER AS opp_${c}`).join(', ')},
+         o.poss::INTEGER AS poss, t.poss::INTEGER AS opp_poss
   FROM keys k
   LEFT JOIN own o ON o.game_id = k.game_id AND o.team_id = k.team_id AND o.split = k.split
   LEFT JOIN own t ON t.game_id = k.game_id AND t.opp_id = k.team_id
-   AND t.split = ${mirrorSql('k.split')}`
+   AND t.split = ${mirrorSql('k.split')}
+  ORDER BY k.game_id, k.team_id, k.split`
 }
 
-function playerSql(season: number, timed: boolean): string {
-  return `INSERT INTO ${SPLIT_PLAYER}
-  WITH ${CREDITS}, counts AS (
+/** A player's rows of one season: their counts and their time on the court. */
+export function splitPlayerSelect(have: Have, season: number): string {
+  const timed = timedBy(have)
+  return `WITH ${playsCte(season)}, ${SEGMENTS}, ${stintsCtes(have, season)}, ${CREDITS},
+  counts AS (
     SELECT game_id, team AS team_id, player AS player_id, split, ${countsOf()}
     FROM tagged WHERE player IS NOT NULL GROUP BY 1, 2, 3, 4
   ), time AS (
@@ -334,35 +376,27 @@ function playerSql(season: number, timed: boolean): string {
     ) GROUP BY 1, 2, 3, 4
   )
   SELECT ${season} AS season, game_id, team_id, player_id, split,
-         ${timed ? 'coalesce(seconds, 0)' : 'NULL::DOUBLE'} AS seconds,
-         ${SPLIT_COUNTS.map((c) => `coalesce(${c}, 0) AS ${c}`).join(', ')}
-  FROM counts FULL JOIN time USING (game_id, team_id, player_id, split)`
+         ${timed ? 'coalesce(seconds, 0)' : 'NULL'}::DOUBLE AS seconds,
+         ${SPLIT_COUNTS.map((c) => `coalesce(${c}, 0)::INTEGER AS ${c}`).join(', ')}
+  FROM counts FULL JOIN time USING (game_id, team_id, player_id, split)
+  ORDER BY game_id, team_id, player_id, split`
 }
 
-/** Builds one season's rows, replacing what it had, in one transaction. Returns the rows written. */
-async function buildSeason(db: StatsDb, have: Have, season: number): Promise<number> {
-  const timed = have.tables.has(RAW) && TIMED_COLUMNS.every((c) => have.columns.get(RAW)?.has(c))
-  return db.transaction(async () => {
-    await db.exec(playsSql(season))
-    await db.exec(SEGMENTS)
-    await db.exec(stintsSql(have, season))
-    await db.exec(`DELETE FROM ${SPLIT_TEAM} WHERE season = ?`, [season])
-    await db.exec(`DELETE FROM ${SPLIT_PLAYER} WHERE season = ?`, [season])
-    await db.exec(teamSql(season))
-    await db.exec(playerSql(season, timed))
-    for (const t of ['split_plays', 'split_segments', 'split_stints']) {
-      await db.exec(`DROP TABLE IF EXISTS ${t}`)
-    }
-    const row = await db.get<{ n: number }>(
-      `SELECT count(*)::INTEGER AS n FROM ${SPLIT_PLAYER} WHERE season = ?`,
-      [season]
-    )
-    return row?.n ?? 0
-  })
-}
+/**
+ * The two tables as builders for the play layer's season-by-season rebuild: their columns and the
+ * SELECT of one season. Teams first, then players.
+ */
+export const SPLIT_BUILDERS: ReadonlyArray<{
+  table: string
+  columns: ReadonlyArray<readonly [string, string]>
+  select: (have: Have, season: number) => string
+}> = [
+  { table: SPLIT_TEAM, columns: SPLIT_TEAM_COLUMNS, select: splitTeamSelect },
+  { table: SPLIT_PLAYER, columns: SPLIT_PLAYER_COLUMNS, select: splitPlayerSelect }
+]
 
 /** What the build needs: the plays and the tables they are keyed to. */
-const NEEDS = ['play_nba', 'game', 'player', 'player_game', 'possession']
+const NEEDS = ['play_nba', 'game', 'player', 'player_game']
 
 export async function canBuildSplits(db: StatsDb): Promise<boolean> {
   const have = await inspect(db)
@@ -377,8 +411,9 @@ export async function splitsStale(db: StatsDb): Promise<boolean> {
 }
 
 /**
- * Builds the splits of the seasons given, or of every season with plays. A season with no plays
- * left loses its rows. Returns the player rows written.
+ * Builds the splits of the seasons given, or of every season with plays, each season in one
+ * transaction per table. A season with no plays left loses its rows. Returns the player rows written.
+ * Once the play layer's builder registry is on main, the two builders above join it and this goes.
  */
 export async function buildSplits(db: StatsDb, seasons?: number[]): Promise<number> {
   const have = await inspect(db)
@@ -391,12 +426,24 @@ export async function buildSplits(db: StatsDb, seasons?: number[]): Promise<numb
     await db.exec("INSERT OR REPLACE INTO derived_state VALUES ('splits', 0)")
   }
   let rows = 0
-  for (const season of todo) rows += await buildSeason(db, have, Number(season))
+  for (const season of todo.map(Number)) {
+    for (const b of SPLIT_BUILDERS) {
+      const n = await db.transaction(async () => {
+        await db.exec(`DELETE FROM ${b.table} WHERE season = ?`, [season])
+        await db.exec(`INSERT INTO ${b.table} ${b.select(have, season)}`)
+        const row = await db.get<{ n: number }>(
+          `SELECT count(*)::INTEGER AS n FROM ${b.table} WHERE season = ?`,
+          [season]
+        )
+        return row?.n ?? 0
+      })
+      if (b.table === SPLIT_PLAYER) rows += n
+    }
+  }
   if (seasons === undefined) {
     const keep = held.map((r) => Number(r.season))
     const gone = keep.length ? `season NOT IN (${keep.join(', ')})` : 'true'
-    await db.exec(`DELETE FROM ${SPLIT_TEAM} WHERE ${gone}`)
-    await db.exec(`DELETE FROM ${SPLIT_PLAYER} WHERE ${gone}`)
+    for (const b of SPLIT_BUILDERS) await db.exec(`DELETE FROM ${b.table} WHERE ${gone}`)
     await db.exec('INSERT OR REPLACE INTO derived_state VALUES (?, ?)', ['splits', SPLITS_VERSION])
   }
   return rows

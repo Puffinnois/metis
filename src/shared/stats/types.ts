@@ -598,6 +598,11 @@ export interface LeaderboardBoard {
   qualifiedOnly: boolean
   /** An NBA team id; null for every team. */
   team: string | null
+  /**
+   * A split within each game counted from the play by play (`src/shared/stats/splits.ts`), such as
+   * clutch; null or absent for the whole game. Optional, so views saved before it still open.
+   */
+  split?: string | null
 }
 
 /** A saved view: a named leaderboard, kept in `metis.db`. */

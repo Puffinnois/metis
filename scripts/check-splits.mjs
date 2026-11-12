@@ -127,7 +127,21 @@ const RAW = `WITH g AS (SELECT game_id, nba_game_id FROM game WHERE game_id = '$
      AND n.player_name = regexp_extract(c.description, '\\(([^()]*?) \\d+ AST\\)', 1)
     WHERE c.action_type = 'Made Shot' AND c.description LIKE '% AST)%'
   )`
-const HAND = ['pts', 'fgm', 'fga', 'fg3m', 'fg3a', 'ftm', 'fta', 'reb', 'ast', 'stl', 'blk', 'tov', 'pf']
+const HAND = [
+  'pts',
+  'fgm',
+  'fga',
+  'fg3m',
+  'fg3a',
+  'ftm',
+  'fta',
+  'reb',
+  'ast',
+  'stl',
+  'blk',
+  'tov',
+  'pf'
+]
 
 const plays = await read(`${RAW}
   SELECT period, secs, location, margin_before, description FROM clutch
@@ -183,7 +197,9 @@ const players = hand.map((r) => {
   const ok = HAND.every((c) => r[`h_${c}`] === r[`m_${c}`])
   return [
     r.name,
-    ...HAND.map((c) => (r[`h_${c}`] === r[`m_${c}`] ? r[`h_${c}`] : `${r[`h_${c}`]} / ${r[`m_${c}`]}`)),
+    ...HAND.map((c) =>
+      r[`h_${c}`] === r[`m_${c}`] ? r[`h_${c}`] : `${r[`h_${c}`]} / ${r[`m_${c}`]}`
+    ),
     ok ? 'equal' : 'differs'
   ]
 })
@@ -205,14 +221,18 @@ say(
   )
 )
 const handOk = hand.every((r) => HAND.every((c) => r[`h_${c}`] === r[`m_${c}`]))
-const teamOk = teamHand.every((r) => ['pts', 'fgm', 'fga', 'fta'].every((c) => r[`h_${c}`] === r[`m_${c}`]))
+const teamOk = teamHand.every((r) =>
+  ['pts', 'fgm', 'fga', 'fta'].every((c) => r[`h_${c}`] === r[`m_${c}`])
+)
 say(`Hand count: ${handOk && teamOk ? 'every player and team total equal' : 'DIFFERS'}.`)
 say('')
 
 // ---- 2. Identities ------------------------------------------------------------------------------
 
 // A season at a time, so a scan of every play stays inside DuckDB's memory limit.
-const seasons = (await read('SELECT DISTINCT season FROM split_team ORDER BY 1')).map((r) => r.season)
+const seasons = (await read('SELECT DISTINCT season FROM split_team ORDER BY 1')).map(
+  (r) => r.season
+)
 const perSeason = async (sql) => {
   const rows = []
   for (const s of seasons) rows.push(...(await read(sql(s))))
@@ -236,12 +256,15 @@ const PLAY_LINES = (s) => `
     FROM actor a FULL JOIN credit c USING (game_id, player_id)
   )`
 
-const byPeriod = (s) => `SELECT season, game_id, team_id, player_id, ${sumsOf()}, sum(seconds) AS seconds
+const byPeriod = (
+  s
+) => `SELECT season, game_id, team_id, player_id, ${sumsOf()}, sum(seconds) AS seconds
   FROM split_player WHERE season = ${s} AND split IN ${PERIODS} GROUP BY 1, 2, 3, 4`
 const partSums = (s, splits) => `SELECT game_id, player_id, ${sumsOf()}, sum(seconds) AS seconds
   FROM split_player WHERE season = ${s} AND split IN (${splits.map((x) => `'${x}'`).join(', ')}) GROUP BY 1, 2`
 
-const identity = await perSeason((x) => `WITH ${PLAY_LINES(x)}, q AS (${byPeriod(x)}),
+const identity = await perSeason(
+  (x) => `WITH ${PLAY_LINES(x)}, q AS (${byPeriod(x)}),
   h AS (${partSums(x, ['h1', 'h2'])}), h4 AS (${partSums(x, ['q1', 'q2', 'q3', 'q4'])}),
   s AS (${partSums(x, ['ahead', 'tied', 'behind'])}), gt AS (${partSums(x, ['garbage', 'nogarbage'])})
   SELECT q.season, count(*)::INTEGER AS n,
@@ -252,9 +275,11 @@ const identity = await perSeason((x) => `WITH ${PLAY_LINES(x)}, q AS (${byPeriod
   FROM q LEFT JOIN lines l USING (game_id, player_id) LEFT JOIN h USING (game_id, player_id)
   LEFT JOIN h4 USING (game_id, player_id) LEFT JOIN s USING (game_id, player_id)
   LEFT JOIN gt USING (game_id, player_id)
-  GROUP BY 1 ORDER BY 1`)
+  GROUP BY 1 ORDER BY 1`
+)
 
-const teamIdentity = await perSeason((x) => `WITH q AS (
+const teamIdentity = await perSeason(
+  (x) => `WITH q AS (
     SELECT season, game_id, team_id, ${sumsOf()}, sum(opp_pts) AS opp_pts, sum(seconds) AS seconds, sum(poss) AS poss
     FROM split_team WHERE season = ${x} AND split IN ${PERIODS} GROUP BY 1, 2, 3
   ), s AS (
@@ -280,21 +305,33 @@ const teamIdentity = await perSeason((x) => `WITH q AS (
          count(*) FILTER (WHERE q.poss = p.poss)::INTEGER AS poss
   FROM q LEFT JOIN l USING (game_id, team_id) LEFT JOIN s USING (game_id, team_id)
   LEFT JOIN p USING (game_id, team_id)
-  GROUP BY 1 ORDER BY 1`)
+  GROUP BY 1 ORDER BY 1`
+)
 
 say('## Identities, per season')
 say('')
 say(
-  'Player-games: the quarters and overtime added up against the game\'s play totals (all 14 counts), ' +
+  "Player-games: the quarters and overtime added up against the game's play totals (all 14 counts), " +
     'the halves against the four quarters, ahead + tied + behind and garbage + the rest against the ' +
     'quarters (counts and seconds). Team-games: the quarters against the play totals, the score ' +
-    'states against the quarters (with the opponent\'s points), possessions against the game\'s.'
+    "states against the quarters (with the opponent's points), possessions against the game's."
 )
 say('')
 const teamBy = new Map(teamIdentity.map((r) => [r.season, r]))
 say(
   table(
-    ['Season', 'Player-games', 'Plays', 'Halves', 'Score', 'Garbage', 'Team-games', 'Plays', 'Score', 'Possessions'],
+    [
+      'Season',
+      'Player-games',
+      'Plays',
+      'Halves',
+      'Score',
+      'Garbage',
+      'Team-games',
+      'Plays',
+      'Score',
+      'Possessions'
+    ],
     identity.map((r) => {
       const t = teamBy.get(r.season) ?? {}
       const show = (part, whole) => (part === whole ? 'all' : `${COUNT.format(whole - part)} off`)
@@ -316,7 +353,8 @@ say(
 
 // ---- 3. Against the box scores ------------------------------------------------------------------
 
-const box = await perSeason((x) => `WITH q AS (${byPeriod(x)})
+const box = await perSeason(
+  (x) => `WITH q AS (${byPeriod(x)})
   SELECT b.season, count(*)::INTEGER AS n,
          count(*) FILTER (WHERE ${same('q', 'b')})::INTEGER AS exact,
          count(*) FILTER (WHERE ${COUNTS.map((c) => `abs(coalesce(q.${c}, 0) - coalesce(b.${c}, 0)) <= 1`).join(' AND ')})::INTEGER AS within1,
@@ -328,7 +366,8 @@ const box = await perSeason((x) => `WITH q AS (${byPeriod(x)})
   LEFT JOIN q ON q.game_id = b.game_id AND q.player_id = b.player_id
   WHERE b.season = ${x} AND t.source = 'nba' AND b.game_type IN ${COUNTED}
     AND b.game_id IN (SELECT DISTINCT game_id FROM split_team WHERE season = ${x})
-  GROUP BY 1 ORDER BY 1`)
+  GROUP BY 1 ORDER BY 1`
+)
 
 const lines = await read(`WITH e AS (
     SELECT g.game_id, g.season, g.home_team_id, g.away_team_id, g.home_score, g.away_score,
@@ -357,16 +396,26 @@ const lines = await read(`WITH e AS (
 say('## Against the box scores, per season')
 say('')
 say(
-  'Player-games of the counted types with the NBA\'s box score: the quarters added up against the ' +
-    'box-score line (exact: all 14 counts; within 1: none off by more), and players\' time from the ' +
+  "Player-games of the counted types with the NBA's box score: the quarters added up against the " +
+    "box-score line (exact: all 14 counts; within 1: none off by more), and players' time from the " +
     'substitutions against box-score minutes. Team-games: points by quarter and overtime against ' +
-    'ESPN\'s line scores, where those add up to the final score.'
+    "ESPN's line scores, where those add up to the final score."
 )
 say('')
 const lineBy = new Map(lines.map((r) => [r.season, r]))
 say(
   table(
-    ['Season', 'Player-games', 'Exact', 'Within 1', 'Time ≤ 1 s', 'Time ≤ 60 s', 'Box in whole minutes', 'Line scores', 'Equal'],
+    [
+      'Season',
+      'Player-games',
+      'Exact',
+      'Within 1',
+      'Time ≤ 1 s',
+      'Time ≤ 60 s',
+      'Box in whole minutes',
+      'Line scores',
+      'Equal'
+    ],
     box.map((r) => {
       const l = lineBy.get(r.season)
       return [
@@ -386,7 +435,8 @@ say(
 
 // ---- 4. Garbage time against the dataset's mark -------------------------------------------------
 
-const garbage = await perSeason((x) => `WITH p AS (
+const garbage = await perSeason(
+  (x) => `WITH p AS (
     SELECT x.season, x.garbage_time AS theirs,
            x.period = 4 AND (
              (x.start_clock > 540 AND abs(m.margin) >= 25) OR
@@ -405,13 +455,14 @@ const garbage = await perSeason((x) => `WITH p AS (
          count(*) FILTER (WHERE ours)::INTEGER AS ours,
          count(*) FILTER (WHERE theirs AND ours)::INTEGER AS both,
          count(*) FILTER (WHERE coalesce(theirs, false) = coalesce(ours, false))::INTEGER AS agree
-  FROM p GROUP BY 1 ORDER BY 1`)
+  FROM p GROUP BY 1 ORDER BY 1`
+)
 
-say('## Garbage time against the possessions\' mark, per season')
+say("## Garbage time against the possessions' mark, per season")
 say('')
 say(
   'Counted possessions, each by its first play: the rule here (the 4th quarter, a margin of 25+ ' +
-    'with over 9:00 left, 20+ from 9:00 to 6:01, 10+ at 6:00 or less) against SportsDataverse\'s ' +
+    "with over 9:00 left, 20+ from 9:00 to 6:01, 10+ at 6:00 or less) against SportsDataverse's " +
     '`is_garbage_time`.'
 )
 say('')

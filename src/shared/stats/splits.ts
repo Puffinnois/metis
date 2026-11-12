@@ -171,7 +171,7 @@ export const SPLITS: readonly SplitDef[] = [
     id: 'garbage',
     label: 'Garbage time',
     group: 'garbage',
-    rule: 'The 4th quarter with a lead of 25+ and over 9 minutes left, 20+ with 6 to 9, or 10+ with 6 or less.',
+    rule: 'The 4th quarter with a margin of 25+ and over 9 minutes left, 20+ with 6 to 9, or 10+ with 6 or less.',
     pieces: [
       { periods: [4, 4], clock: [540, 720], absMin: 25 },
       { periods: [4, 4], clock: [360, 540], absMin: 20 },
@@ -221,3 +221,32 @@ export function inPiece(p: SplitPiece, period: number, clock: number, margin: nu
 
 export const inSplit = (s: SplitDef, period: number, clock: number, margin: number): boolean =>
   s.pieces.some((p) => inPiece(p, period, clock, margin))
+
+/** How the screens group the splits, each group with its rule in one short line. */
+export const SPLIT_GROUPS: readonly { group: SplitGroup; title: string; note: string }[] = [
+  {
+    group: 'period',
+    title: 'By quarter',
+    note: 'Each period of the game. The 2nd half leaves overtime out.'
+  },
+  {
+    group: 'clutch',
+    title: 'Clutch',
+    note: "The NBA's rule: the last 5 minutes of the 4th quarter or overtime, the score within 5."
+  },
+  {
+    group: 'late',
+    title: 'Last minutes',
+    note: 'The last 2 minutes of every period, then of the 4th quarter and each overtime, whatever the score.'
+  },
+  {
+    group: 'score',
+    title: 'By the score',
+    note: "By the score before each play, from the team's side. Within 5 holds at any time."
+  },
+  {
+    group: 'garbage',
+    title: 'Garbage time',
+    note: 'The 4th quarter with a margin of 25+ and over 9 minutes left, 20+ with 6 to 9, or 10+ with 6 or less.'
+  }
+]
