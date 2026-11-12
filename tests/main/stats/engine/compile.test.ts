@@ -151,3 +151,55 @@ describe('compileQuery', () => {
     ])
   })
 })
+
+describe('a table built from the plays', () => {
+  const onCourt = (
+    scope: Partial<StatsQuery['scope']> = {},
+    extra: Partial<StatsQuery> = {}
+  ): StatsQuery => ({
+    entity: 'player',
+    metrics: ['onc_net', 'onc_plus_minus', 'pts'],
+    scope: { seasons: [2026], ...scope },
+    ...extra
+  })
+
+  it('answers a whole season from its rows, summed over the box scores in scope', () => {
+    const c = compileQuery(onCourt(), CTX)
+    expect(c.grain).toBe('season')
+    expect(c.gaps).toEqual([null, null, null])
+    expect(c.sql).toContain('FROM player_on_court w')
+    expect(c.sql).toContain('SEMI JOIN base b ON b.id = w.player_id AND b.season = w.season')
+    // Its own columns: the box-score sums do not read them.
+    expect(c.sql).not.toMatch(/w\.on_pts, /)
+  })
+
+  it('reads one team’s part of a traded player’s season from its rows', () => {
+    const c = compileQuery(onCourt({ teams: ['1610612760'] }), CTX)
+    expect(c.sql).toMatch(/FROM player_on_court w[\s\S]*WHERE w\.team_id IN/)
+    expect(c.params).toContain(1610612760)
+    expect(c.notes.join(' ')).not.toContain('published')
+  })
+
+  it('answers a date range from the games it keeps', () => {
+    const c = compileQuery(onCourt({ dates: ['2026-01-01', '2026-01-31'] }), CTX)
+    expect(c.grain).toBe('game')
+    expect(c.gaps).toEqual([null, null, null])
+    expect(c.sql).toContain('JOIN base b ON b.id = w.player_id AND b.game = w.game_id')
+  })
+
+  it('divides a count by its own possessions and minutes', () => {
+    const per100 = compileQuery(onCourt({}, { transform: 'per100' }), CTX)
+    expect(per100.sql).toMatch(
+      /\(pub0\.on_pts\) - \(pub0\.on_opp_pts\)|pub0\.on_pts - pub0\.on_opp_pts/
+    )
+    expect(per100.sql).toContain('pub0.possessions')
+    const per36 = compileQuery(onCourt({}, { transform: 'per36' }), CTX)
+    expect(per36.sql).toContain('pub0.minutes')
+  })
+
+  it('reads null with its reason before the play by play', () => {
+    const c = compileQuery(onCourt({ seasons: [1995] }), CTX)
+    expect(c.gaps[0]).toBe('Recorded from 1996-97.')
+    expect(c.gaps[2]).toBeNull()
+  })
+})
