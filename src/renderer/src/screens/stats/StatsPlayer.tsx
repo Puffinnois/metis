@@ -85,6 +85,7 @@ import {
   type StatsData
 } from '@/lib/stats/useStats'
 import { cn } from '@/lib/utils'
+import { WithOrWithout } from './StatsOnCourt'
 import type { BoardMode, StatsMatchupPair, StatsPlayerInfo, StatsRow } from '@shared/stats/types'
 
 /** The dashboard is about one player: never another player's answers while their own load. */
@@ -265,6 +266,7 @@ function TabBody({
   if (tab === 'log') return <GameLog {...props} />
   if (tab === 'splits') return <Splits {...props} />
   if (tab === 'matchups') return <Matchups {...props} />
+  if (tab === 'on_off') return <OnOff {...props} />
   return <LinesTab {...props} tab={tab} />
 }
 
@@ -356,6 +358,23 @@ function FactList({
         </dl>
       )}
     </section>
+  )
+}
+
+/** Their team's numbers on and off the floor, the actual on-court rates, then with or without a teammate. */
+function OnOff(props: TabProps): React.JSX.Element {
+  const { data, scope, player, info, onOpenPlayer } = props
+  return (
+    <div className="flex flex-col gap-7">
+      <LinesTab {...props} tab="on_off" />
+      <WithOrWithout
+        data={data}
+        scope={scope}
+        player={player}
+        playerName={info?.name ?? 'They'}
+        onOpenPlayer={onOpenPlayer}
+      />
+    </div>
   )
 }
 

@@ -29,6 +29,7 @@ export type PlayerTab =
   | 'tracking'
   | 'play_types'
   | 'matchups'
+  | 'on_off'
   | 'log'
   | 'splits'
   | 'profile'
@@ -43,6 +44,7 @@ export const PLAYER_DASH_TABS: { id: PlayerTab; label: string }[] = [
   { id: 'tracking', label: 'Tracking' },
   { id: 'play_types', label: 'Play types' },
   { id: 'matchups', label: 'Matchups' },
+  { id: 'on_off', label: 'On/off' },
   { id: 'log', label: 'Game log' },
   { id: 'splits', label: 'Splits' },
   { id: 'profile', label: 'Profile' }
@@ -213,6 +215,51 @@ export const TAB_SECTIONS: Record<
     }
   ],
   // The NBA's matchups, from 2017-18: what the players they were assigned to did against them.
+  on_off: [
+    {
+      title: 'On and off the floor',
+      note: 'From the play by play, 1996-97 on',
+      metrics: [
+        'onc_min',
+        'onc_poss',
+        'onc_plus_minus',
+        'onc_pace',
+        'onc_ortg',
+        'onc_drtg',
+        'onc_net',
+        'offc_ortg',
+        'offc_drtg',
+        'offc_net',
+        'onoff_ortg',
+        'onoff_drtg',
+        'onoff_net'
+      ]
+    },
+    {
+      title: 'Actual on court, beside the estimates',
+      note: 'Counted while on the floor; the estimates use minutes',
+      metrics: [
+        'onc_usg_pct',
+        'usg_pct',
+        'onc_ast_pct',
+        'ast_pct',
+        'onc_orb_pct',
+        'orb_pct',
+        'onc_drb_pct',
+        'drb_pct',
+        'onc_trb_pct',
+        'trb_pct',
+        'onc_stl_pct',
+        'stl_pct',
+        'onc_blk_pct',
+        'blk_pct'
+      ]
+    },
+    {
+      title: 'The team on the floor',
+      metrics: ['onc_efg_pct', 'onc_opp_efg_pct', 'onc_tm_tov_pct', 'onc_tm_orb_pct']
+    }
+  ],
   matchups: [
     {
       title: 'Guarding',
