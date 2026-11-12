@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { StatsDb } from '@main/stats/db'
 import {
-  buildOnCourt,
   ON_COURT_BUILDERS,
   PLAYER_ON_COURT,
   PLAYER_ON_COURT_COLUMNS,
@@ -9,6 +8,7 @@ import {
   UNIT_GAME_COLUMNS
 } from '@main/stats/derived/onCourt'
 import { PLAY_COLUMNS } from '@main/stats/derived/plays'
+import { PLAY_BUILDERS } from '@main/stats/derived/playBuilders'
 import { inspect } from '@main/stats/derived/sql'
 import { readOnCourtUnits, readWithOrWithout } from '@main/stats/onCourtReads'
 import { openTestDb } from '../../../fixtures/stats'
@@ -188,6 +188,20 @@ async function createGame(
   )
 }
 
+/**
+ * The on-court builders for the fixture's season, as the play step runs them: the fixture writes
+ * `play_nba` itself, so the play tables' own builders are left out.
+ */
+async function buildOnCourt(db: StatsDb): Promise<void> {
+  const have = await inspect(db)
+  for (const b of ON_COURT_BUILDERS) {
+    await db.exec(
+      `CREATE OR REPLACE TABLE ${b.table} (${b.columns.map(([n, t]) => `${n} ${t}`).join(', ')})`
+    )
+    await db.exec(`INSERT INTO ${b.table} ${b.select(have, 2026)}`)
+  }
+}
+
 let db: StatsDb
 
 beforeEach(async () => {
@@ -202,7 +216,7 @@ const player = async (id: number): Promise<Row> =>
 describe('the on-court tables', () => {
   beforeEach(async () => {
     await createGame(db)
-    await buildOnCourt(db, await inspect(db))
+    await buildOnCourt(db)
   })
 
   it('has the columns its builders declare, in order', async () => {
@@ -216,6 +230,8 @@ describe('the on-court tables', () => {
       expect(rows.map((r) => [r.column_name, r.data_type])).toEqual(columns.map(([n, t]) => [n, t]))
     }
     expect(ON_COURT_BUILDERS.map((b) => b.table)).toEqual([UNIT_GAME, PLAYER_ON_COURT])
+    // In the play step's registry, after the plays they read.
+    expect(PLAY_BUILDERS.slice(-2).map((b) => b.table)).toEqual([UNIT_GAME, PLAYER_ON_COURT])
   })
 
   it('credits a free throw after a substitution to the five on the floor at the foul', async () => {
@@ -284,14 +300,14 @@ describe('the on-court tables', () => {
 describe('a source that is missing', () => {
   it('builds no players without the lineup file', async () => {
     await createGame(db, { lineups: false })
-    await buildOnCourt(db, await inspect(db))
+    await buildOnCourt(db)
     const n = await db.get<{ n: number }>(`SELECT count(*)::INTEGER AS n FROM ${PLAYER_ON_COURT}`)
     expect(n?.n).toBe(0)
   })
 
   it('counts every possession when the file has no count column', async () => {
     await createGame(db, { counted: false })
-    await buildOnCourt(db, await inspect(db))
+    await buildOnCourt(db)
     expect(await player(16)).toMatchObject({ on_poss: 1, on_opp_poss: 1 })
   })
 })
@@ -299,7 +315,7 @@ describe('a source that is missing', () => {
 describe('the on-court reads', () => {
   beforeEach(async () => {
     await createGame(db)
-    await buildOnCourt(db, await inspect(db))
+    await buildOnCourt(db)
     await db.exec(
       `CREATE OR REPLACE TABLE player AS SELECT 11::BIGINT AS player_id, 'Ann Able' AS name`
     )

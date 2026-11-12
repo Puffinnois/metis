@@ -1,4 +1,4 @@
-import type { StatsDb } from '../db'
+import type { PlayBuilder } from './playBuilders'
 import { column, type Have } from './sql'
 
 /**
@@ -130,22 +130,13 @@ export const PLAYER_ON_COURT_COMPONENTS: readonly string[] = [
   ...PLAYER_ON_COURT_COLUMNS.slice(KEYS.length + 1).map(([n]) => n)
 ]
 
-/** A table built from the plays, a season at a time: the shape of T901's `PlayBuilder`. */
-export interface OnCourtBuilder {
-  table: string
-  columns: Columns
-  select: (have: Have, season: number) => string
-}
-
-const createSql = (table: string, columns: Columns, ifNotExists: boolean): string =>
-  `CREATE ${ifNotExists ? 'TABLE IF NOT EXISTS' : 'OR REPLACE TABLE'} ${table} (${columns
-    .map(([n, t]) => `${n} ${t}`)
-    .join(', ')})`
+const createSql = (table: string, columns: Columns): string =>
+  `CREATE TABLE IF NOT EXISTS ${table} (${columns.map(([n, t]) => `${n} ${t}`).join(', ')})`
 
 /** The tables, empty, for a database the build has not reached: a read gets no rows. */
 export const onCourtBootstrap = (): string[] => [
-  createSql(UNIT_GAME, UNIT_GAME_COLUMNS, true),
-  createSql(PLAYER_ON_COURT, PLAYER_ON_COURT_COLUMNS, true)
+  createSql(UNIT_GAME, UNIT_GAME_COLUMNS),
+  createSql(PLAYER_ON_COURT, PLAYER_ON_COURT_COLUMNS)
 ]
 
 /** Seconds since the tip-off: 720 a quarter, 300 an overtime. */
@@ -336,34 +327,7 @@ export function playerOnCourtSql(_have: Have, season: number): string {
 }
 
 /** In build order: `player_on_court` reads `unit_game`. */
-export const ON_COURT_BUILDERS: OnCourtBuilder[] = [
+export const ON_COURT_BUILDERS: PlayBuilder[] = [
   { table: UNIT_GAME, columns: UNIT_GAME_COLUMNS, select: unitGameSql },
   { table: PLAYER_ON_COURT, columns: PLAYER_ON_COURT_COLUMNS, select: playerOnCourtSql }
 ]
-
-/**
- * Builds both tables season by season, each season in one transaction per table, so a reader sees a
- * season whole, old or new. Every season `play_nba` holds is built, and the rest dropped. Returns the
- * rows written. Until the seasonal play rebuild lands, the play step calls this after the plays.
- */
-export async function buildOnCourt(db: StatsDb, have: Have): Promise<number> {
-  for (const b of ON_COURT_BUILDERS) await db.exec(createSql(b.table, b.columns, false))
-  const seasons = await db.all<{ season: number }>(
-    'SELECT DISTINCT season FROM play_nba WHERE season IS NOT NULL ORDER BY season'
-  )
-  let rows = 0
-  for (const { season } of seasons) {
-    for (const b of ON_COURT_BUILDERS) {
-      rows += await db.transaction(async () => {
-        await db.exec(`DELETE FROM ${b.table} WHERE season = ?`, [season])
-        await db.exec(`INSERT INTO ${b.table} ${b.select(have, season)}`)
-        const n = await db.get<{ n: number }>(
-          `SELECT count(*)::INTEGER AS n FROM ${b.table} WHERE season = ?`,
-          [season]
-        )
-        return n?.n ?? 0
-      })
-    }
-  }
-  return rows
-}

@@ -20,7 +20,7 @@ import { queryScope, type StatsScope } from './scope'
 export const ON_COURT_FIRST_SEASON = 1997
 
 export const DERIVED_NOTE =
-  'Counted from the play by play: possessions and who was on the floor are derived by SportsDataverse, not official.'
+  'Counted from the play by play: who was on the floor is SportsDataverse’s lineup of each play, and the possessions are its count. Derived, not official.'
 
 /** Why a season cannot be answered; null when it can. */
 export function onCourtGap(scope: StatsScope): string | null {
