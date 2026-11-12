@@ -230,6 +230,84 @@ Per pair (123,605 to 147,303 a season), points and field goals are equal on ever
 
 **One official recounted by hand:** Jacyn Goble, the official with the most games of the 2025-26 regular season, 66. Counted from the raw officials file and the raw NBA team box scores (`src_nba_team_box`), apart from the read's `team_game`: games, fouls, free-throw attempts and points for each side and home wins are equal on all eight totals (1,321 and 1,386 fouls, 1,569 and 1,541 free-throw attempts, 7,793 and 7,669 points, 40 home wins). Per game that is 41.0 fouls against the league's 39.7, 47.1 free-throw attempts against 47.0, and the home side won 60.6 % against 55.4 %.
 
+## Shots by zone, per season (Plan T903)
+
+Measured 2026-11-12 on a copy of Stage 8's full load with the play tables built (`~/.cache/metis-dev/t903`) by `scripts/check-shots.mjs`, which writes every table in full. How the shot tables are built and what the zones are is in [stats-database.md](stats-database.md), "Shots by zone"; the traps are under "Traps", "Shots".
+
+**Tolerance:** exact, nothing tuned. "Zones = shots" counts rows (player-games, team-games both sides) whose zones, bands or types do not add up to their attempts or makes, and shot-row player-games whose table row differs. "Recount" classifies every shot again by the rule written out apart in the script. "3 inside" is a three whose point is inside the arc and the corner lines, "2 outside" a two more than half a foot beyond them. Box scores: the counted game types with an NBA box score; a team-game or player-game is exact when FGA, FGM, 3PA and 3PM all equal the box score's. The corner and above-the-break threes with those from beyond half court and off the court against the threes of the rows, regular season. Curves: the league's FG% by distance from the shots against `nba_stats_metric_curves`, binned the same way (the exact distance, every season type), weighted by attempts. ESPN: its shots that are not free throws against the box score's FGA, regular season; never read by a metric.
+
+| Season  | Zones = shots (rows off) | Recount = table | 3 inside / 2 outside | Team-games exact (all four) | Player-games exact | Playoff team-games | Corner + ATB + back of 3PA | Curves, mean diff (pts) | ESPN FGA exact |
+| ------- | -----------------------: | --------------: | -------------------: | --------------------------: | -----------------: | -----------------: | -------------------------: | ----------------------: | -------------: |
+| 1996-97 |                        0 |             yes |            21026 / 8 |                        99.6 |               99.9 |              100.0 |                        all |                    0.00 |              – |
+| 1997-98 |                        0 |             yes |             362 / 17 |                        99.8 |               99.9 |              100.0 |                        all |                    0.00 |              – |
+| 1998-99 |                        0 |             yes |              69 / 21 |                        99.9 |              100.0 |              100.0 |                        all |                    0.00 |              – |
+| 1999-00 |                        0 |             yes |             159 / 13 |                       100.0 |              100.0 |              100.0 |                        all |                    0.00 |              – |
+| 2000-01 |                        0 |             yes |               51 / 7 |                       100.0 |              100.0 |              100.0 |                        all |                    0.00 |              – |
+| 2001-02 |                        0 |             yes |               81 / 8 |                        99.9 |              100.0 |              100.0 |                        all |                    0.00 |           31.2 |
+| 2002-03 |                        0 |             yes |               80 / 2 |                       100.0 |              100.0 |              100.0 |                        all |                    0.00 |           57.0 |
+| 2003-04 |                        0 |             yes |               58 / 7 |                       100.0 |              100.0 |              100.0 |                        all |                    0.00 |           75.7 |
+| 2004-05 |                        0 |             yes |              101 / 6 |                       100.0 |              100.0 |              100.0 |                        all |                    0.00 |           73.0 |
+| 2005-06 |                        0 |             yes |              86 / 12 |                       100.0 |              100.0 |              100.0 |                        all |                    0.00 |           75.2 |
+| 2006-07 |                        0 |             yes |               87 / 8 |                        99.9 |              100.0 |              100.0 |                        all |                    0.00 |           97.5 |
+| 2007-08 |                        0 |             yes |             113 / 13 |                       100.0 |              100.0 |              100.0 |                        all |                    0.00 |           96.8 |
+| 2008-09 |                        0 |             yes |             117 / 12 |                       100.0 |              100.0 |              100.0 |                        all |                    0.00 |           98.9 |
+| 2009-10 |                        0 |             yes |                0 / 0 |                       100.0 |              100.0 |              100.0 |                        all |                    0.00 |           98.1 |
+| 2010-11 |                        0 |             yes |                0 / 0 |                       100.0 |              100.0 |              100.0 |                        all |                    0.00 |           98.5 |
+| 2011-12 |                        0 |             yes |                0 / 0 |                       100.0 |              100.0 |              100.0 |                        all |                    0.00 |           98.4 |
+| 2012-13 |                        0 |             yes |                0 / 0 |                       100.0 |              100.0 |              100.0 |                        all |                    0.00 |           76.1 |
+| 2013-14 |                        0 |             yes |                0 / 0 |                       100.0 |              100.0 |              100.0 |                        all |                    0.00 |           98.0 |
+| 2014-15 |                        0 |             yes |                2 / 0 |                       100.0 |              100.0 |              100.0 |                        all |                    0.00 |           97.3 |
+| 2015-16 |                        0 |             yes |                5 / 0 |                       100.0 |              100.0 |              100.0 |                        all |                    0.00 |           52.4 |
+| 2016-17 |                        0 |             yes |                0 / 1 |                       100.0 |              100.0 |              100.0 |                        all |                    0.00 |           92.9 |
+| 2017-18 |                        0 |             yes |              102 / 0 |                       100.0 |              100.0 |              100.0 |                        all |                    0.00 |           94.9 |
+| 2018-19 |                        0 |             yes |              134 / 0 |                       100.0 |              100.0 |              100.0 |                        all |                    0.00 |           96.0 |
+| 2019-20 |                        0 |             yes |               96 / 0 |                       100.0 |              100.0 |              100.0 |                        all |                    0.01 |           96.2 |
+| 2020-21 |                        0 |             yes |               81 / 0 |                       100.0 |              100.0 |              100.0 |                        all |                    0.04 |           97.2 |
+| 2021-22 |                        0 |             yes |              209 / 0 |                       100.0 |              100.0 |              100.0 |                        all |                    0.04 |           97.2 |
+| 2022-23 |                        0 |             yes |              128 / 0 |                       100.0 |              100.0 |              100.0 |                        all |                    0.03 |           98.5 |
+| 2023-24 |                        0 |             yes |                6 / 0 |                       100.0 |              100.0 |              100.0 |                        all |                    0.04 |           97.8 |
+| 2024-25 |                        0 |             yes |                0 / 0 |                       100.0 |              100.0 |              100.0 |                        all |                    0.03 |           98.6 |
+| 2025-26 |                        0 |             yes |                0 / 0 |                       100.0 |              100.0 |              100.0 |                        all |                    0.03 |           61.3 |
+| 2026-27 |                        0 |             yes |                0 / 0 |                       100.0 |              100.0 |                  – |                        all |                    0.00 |           59.9 |
+
+The NBA's file has no zone column (no table of a full load has one), so the zones cannot be compared with a published zone; they are recounted instead, and the published value is compared with where the three-point line is. 1996-97's threes inside the arc are its 22-foot line. After it, the few threes recorded inside the line and twos beyond it are kept as the published value has them: the value matches the box scores.
+
+The league's FG% by zone, regular season, as the metrics compare with it (from the shots; the dataset's curves have distance bins only):
+
+| Season  |   RA | Paint |  Mid | L corner 3 | R corner 3 | ATB 3 |
+| ------- | ---: | ----: | ---: | ---------: | ---------: | ----: |
+| 1996-97 | 55.1 |  43.3 | 41.1 |       39.5 |       35.4 |  35.9 |
+| 1997-98 | 60.2 |  37.0 | 38.9 |       36.8 |       37.8 |  34.2 |
+| 1998-99 | 59.5 |  36.4 | 38.0 |       38.3 |       36.1 |  33.2 |
+| 1999-00 | 60.9 |  37.4 | 39.5 |       38.7 |       38.3 |  34.6 |
+| 2000-01 | 60.0 |  37.1 | 39.1 |       37.9 |       38.2 |  34.8 |
+| 2001-02 | 59.4 |  38.8 | 39.1 |       38.1 |       38.5 |  34.8 |
+| 2002-03 | 59.2 |  39.0 | 38.7 |       36.5 |       37.1 |  34.7 |
+| 2003-04 | 58.2 |  38.6 | 38.2 |       37.9 |       37.6 |  34.0 |
+| 2004-05 | 58.5 |  39.8 | 39.2 |       37.8 |       39.1 |  34.9 |
+| 2005-06 | 59.2 |  40.5 | 39.8 |       38.6 |       39.1 |  35.1 |
+| 2006-07 | 60.0 |  41.3 | 39.9 |       38.4 |       38.3 |  35.2 |
+| 2007-08 | 60.0 |  40.9 | 40.2 |       39.2 |       40.0 |  35.4 |
+| 2008-09 | 59.6 |  41.2 | 40.2 |       39.3 |       39.4 |  36.1 |
+| 2009-10 | 60.6 |  42.3 | 40.0 |       39.2 |       39.1 |  34.5 |
+| 2010-11 | 62.0 |  39.1 | 40.0 |       39.2 |       39.8 |  34.9 |
+| 2011-12 | 60.5 |  38.1 | 38.7 |       37.6 |       37.7 |  34.2 |
+| 2012-13 | 60.5 |  38.5 | 39.3 |       38.5 |       39.3 |  35.1 |
+| 2013-14 | 60.8 |  39.4 | 39.4 |       39.1 |       38.9 |  35.3 |
+| 2014-15 | 60.1 |  39.3 | 39.5 |       38.0 |       39.2 |  34.1 |
+| 2015-16 | 60.2 |  40.1 | 39.8 |       37.3 |       38.1 |  34.9 |
+| 2016-17 | 61.1 |  41.8 | 40.2 |       38.5 |       38.9 |  35.1 |
+| 2017-18 | 63.1 |  39.8 | 40.3 |       38.4 |       40.3 |  35.6 |
+| 2018-19 | 62.9 |  40.4 | 40.2 |       38.5 |       37.7 |  35.0 |
+| 2019-20 | 63.5 |  39.9 | 40.5 |       39.7 |       38.1 |  35.1 |
+| 2020-21 | 64.1 |  42.7 | 41.5 |       39.7 |       38.8 |  36.0 |
+| 2021-22 | 65.3 |  42.9 | 40.6 |       38.4 |       38.1 |  34.6 |
+| 2022-23 | 66.6 |  44.4 | 42.0 |       38.5 |       38.6 |  35.4 |
+| 2023-24 | 66.3 |  44.0 | 41.8 |       38.6 |       39.4 |  35.9 |
+| 2024-25 | 66.3 |  44.4 | 41.6 |       38.7 |       38.9 |  35.3 |
+| 2025-26 | 67.1 |  44.5 | 41.7 |       38.7 |       38.6 |  35.0 |
+| 2026-27 | 65.8 |  44.5 | 39.9 |       35.8 |       35.8 |  34.5 |
+
 ## Old seasons
 
 | Season label (file) | Source | Games | Notes                                                  |
@@ -362,6 +440,17 @@ The NBA's feed is stats.nba.com's v3 play by play, ESPN's its own. How the play 
 - **ESPN credits nearly every play of some old games to one team:** Denver–Portland of 2002-03-09 has 448 of its 487 rows on Portland, so one side's line is the whole game and the other's nearly nothing. These games are the worst misses of 2001-02 and 2002-03 and are left as published. Teams are matched by ESPN id through `team`, not by side, and where ESPN's home side is the `game` table's away side its scores are swapped to match.
 - **ESPN's 2012-13 and 2015-16 rebuild worse than the seasons around them** (team-games exact 46 % and 34 %, against 83 to 89 % beside them), on field-goal attempts and makes. The cause was not found; those seasons read as measured.
 - **Both feeds hold games the box scores do not count:** the NBA's has preseason and All-Star games, and 8 of ESPN's 2025-26 games link to no game in `game`. The play tables keep only games in `game`, with its type.
+
+### Shots (Plan T903)
+
+- **The NBA's shot file has no zone, area or range column**, though the NBA's own shot charts carry them: 19 columns, coordinates and the distance only. Zones are classified from `x_legacy`, `y_legacy` and `shot_value` by the rule in `src/shared/stats/shots.ts`.
+- **The distance is the coordinates' distance rounded to the foot** on every shot from 1996-97 (`round(sqrt(x² + y²) / 10)`), 457 of 1996-97's rows aside, which have none; a band falls back on the coordinates there.
+- **2001-02 has a dozen points thousands of tenths off the court** (`x` −16,398): they keep their attempt in a zone of their own, "unknown", so the zones still add up. 2009-10 to 2016-17 have shots a little beyond the sideline (`|x|` up to 328); they stay in their zone.
+- **1996-97's three-point line was 22 feet all round**, so a three there can be inside today's arc; the value, not the point, decides. Its restricted-area share (37 %) and FG% (55 %) stand apart from the seasons after (about 30 % and 60 %): its coordinates place more shots near the rim.
+- **Which corner is left is the NBA's own naming**, negative `x`, from its shot charts elsewhere; nothing in this dataset names a side. Both corners together do not depend on it.
+- **Heaves are out of the shot file from 2025-26**, as out of the box score's FGA (Plan T901): 34 shots from beyond half court in the 2025-26 regular season, against 336 to 581 a season from 2017-18 to 2024-25.
+- **The dataset's distance curves mix every season type and bin by the exact distance**, not the published one, and from 2019-20 leave out a few hundred shots a season (202,223 of 202,399 in 2019-20). The metrics' league rate is recomputed from the regular-season shots instead.
+- **ESPN's shot coordinates are another frame**, whole feet: `coordinate_x` runs the court's length from centre court, `coordinate_y` across it; the raw pair is feet across the court and out from the basket. They are not converted or mixed in.
 
 ## stats.nba.com directly
 

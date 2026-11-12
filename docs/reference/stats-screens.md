@@ -200,7 +200,7 @@ Measured in the real window on the full database, from a click to its table on s
 | Defense                        | 76      |
 | Glossary                       | 27      |
 
-The Shots tab's read, from `scripts/check-shots.mjs` on the full database, in the worker, warm, median of five: a player's season 46 ms, a date range 45 ms, a team's season 63 ms and its shots against 68 ms, a career from 1996-97 (20,000 of its shots drawn) 105 ms. A leaderboard of ten shot zone metrics for 2025-26 answers in 103 ms, the same over a date range in 30 ms, a team board of both sides in 19 ms.
+The Shots tab's read, from `scripts/check-shots.mjs` on the full database, in the worker, warm, median of five: a player's season 104 ms, a date range 100 ms, a team's season 129 ms and its shots against 141 ms, a career from 1996-97 (20,000 of its shots drawn) 253 ms. A leaderboard of ten shot zone metrics for 2025-26 answers in 218 ms, the same over a date range in 53 ms, a team board of both sides in 36 ms. An earlier run on the same file read 46, 45, 63, 68, 105, 103, 30 and 19 ms: times vary between runs by up to three times.
 
 Five of these clicks took 103 to 389 ms during play by play, the heaviest writes of a first load. The boards were on screen 175 seconds into a first load, and a screen never waits for the rest.
 
