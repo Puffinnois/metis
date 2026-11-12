@@ -232,7 +232,7 @@ Per pair (123,605 to 147,303 a season), points and field goals are equal on ever
 
 ## Shots by zone, per season (Plan T903)
 
-Measured 2026-11-12 on a copy of Stage 8's full load with the play tables built (`~/.cache/metis-dev/t903`) by `scripts/check-shots.mjs`, which writes every table in full. How the shot tables are built and what the zones are is in [stats-database.md](stats-database.md), "Shots by zone"; the traps are under "Traps", "Shots".
+Measured 2026-11-12 on a fresh copy of Stage 8's full load with the play tables built, after a real refresh built the shot tables (`~/.cache/metis-dev/t903r`), by `scripts/check-shots.mjs`, which writes every table in full. How the shot tables are built and what the zones are is in [stats-database.md](stats-database.md), "Shots by zone"; the traps are under "Traps", "Shots".
 
 **Tolerance:** exact, nothing tuned. "Zones = shots" counts rows (player-games, team-games both sides) whose zones, bands or types do not add up to their attempts or makes, and shot-row player-games whose table row differs. "Recount" classifies every shot again by the rule written out apart in the script. "3 inside" is a three whose point is inside the arc and the corner lines, "2 outside" a two more than half a foot beyond them. Box scores: the counted game types with an NBA box score; a team-game or player-game is exact when FGA, FGM, 3PA and 3PM all equal the box score's. The corner and above-the-break threes with those from beyond half court and off the court against the threes of the rows, regular season. Curves: the league's FG% by distance from the shots against `nba_stats_metric_curves`, binned the same way (the exact distance, every season type), weighted by attempts. ESPN: its shots that are not free throws against the box score's FGA, regular season; never read by a metric.
 
@@ -268,7 +268,7 @@ Measured 2026-11-12 on a copy of Stage 8's full load with the play tables built 
 | 2023-24 |                        0 |             yes |                6 / 0 |                       100.0 |              100.0 |              100.0 |                        all |                    0.04 |           97.8 |
 | 2024-25 |                        0 |             yes |                0 / 0 |                       100.0 |              100.0 |              100.0 |                        all |                    0.03 |           98.6 |
 | 2025-26 |                        0 |             yes |                0 / 0 |                       100.0 |              100.0 |              100.0 |                        all |                    0.03 |           61.3 |
-| 2026-27 |                        0 |             yes |                0 / 0 |                       100.0 |              100.0 |                  – |                        all |                    0.00 |           59.9 |
+| 2026-27 |                        0 |             yes |                0 / 0 |                       100.0 |              100.0 |                  – |                        all |                    0.00 |           61.2 |
 
 The NBA's file has no zone column (no table of a full load has one), so the zones cannot be compared with a published zone; they are recounted instead, and the published value is compared with where the three-point line is. 1996-97's threes inside the arc are its 22-foot line. After it, the few threes recorded inside the line and twos beyond it are kept as the published value has them: the value matches the box scores.
 
@@ -306,7 +306,7 @@ The league's FG% by zone, regular season, as the metrics compare with it (from t
 | 2023-24 | 66.3 |  44.0 | 41.8 |       38.6 |       39.4 |  35.9 |
 | 2024-25 | 66.3 |  44.4 | 41.6 |       38.7 |       38.9 |  35.3 |
 | 2025-26 | 67.1 |  44.5 | 41.7 |       38.7 |       38.6 |  35.0 |
-| 2026-27 | 65.8 |  44.5 | 39.9 |       35.8 |       35.8 |  34.5 |
+| 2026-27 | 65.7 |  44.4 | 40.0 |       35.9 |       35.9 |  34.8 |
 
 ## Old seasons
 
