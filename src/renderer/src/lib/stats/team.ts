@@ -15,12 +15,14 @@ import { queryScope, scopeLabel, shortDay, type StatsScope } from './scope'
 
 /** The team dashboard: a header with the record and the standing, and tabs. */
 
-export type TeamTab = 'overview' | 'offense' | 'defense' | 'players' | 'lineups' | 'schedule'
+export type TeamTab =
+  'overview' | 'offense' | 'defense' | 'shots' | 'players' | 'lineups' | 'schedule'
 
 export const TEAM_DASH_TABS: { id: TeamTab; label: string }[] = [
   { id: 'overview', label: 'Overview' },
   { id: 'offense', label: 'Offense' },
   { id: 'defense', label: 'Defense' },
+  { id: 'shots', label: 'Shots' },
   { id: 'players', label: 'Players' },
   { id: 'lineups', label: 'Lineups' },
   { id: 'schedule', label: 'Schedule' }
@@ -32,7 +34,129 @@ export const RATINGS_SECTION: SectionDef = {
   metrics: ['team_win_pct', 'team_point_diff', 'team_ortg', 'team_drtg', 'team_nrtg', 'team_pace']
 }
 
-export const TEAM_SECTIONS: Record<'offense' | 'defense', SectionDef[]> = {
+export const TEAM_SECTIONS: Record<
+  'offense' | 'defense' | 'shots_offense' | 'shots_defense',
+  SectionDef[]
+> = {
+  // Shots by zone, band and type: the team's own, and those taken against it.
+  shots_offense: [
+    {
+      title: 'Profile',
+      note: 'From the NBA’s shot chart file, 1996-97 on',
+      metrics: [
+        'team_shot_avg_dist',
+        'team_shot_ra_freq',
+        'team_shot_paint_freq',
+        'team_shot_mid_freq',
+        'team_shot_c3_freq',
+        'team_shot_atb3_freq'
+      ]
+    },
+    {
+      title: 'Against the league',
+      note: 'FG% above the league’s rate in each zone that season',
+      metrics: [
+        'team_shot_ra_fg_rel',
+        'team_shot_paint_fg_rel',
+        'team_shot_mid_fg_rel',
+        'team_shot_c3_fg_rel',
+        'team_shot_atb3_fg_rel',
+        'team_shot_pps_above',
+        'team_shot_pts_above'
+      ]
+    },
+    {
+      title: 'By distance',
+      metrics: [
+        'team_shot_lt8_fg_pct',
+        'team_shot_d8_16_fg_pct',
+        'team_shot_d16_24_fg_pct',
+        'team_shot_d24p_fg_pct',
+        'team_shot_lt8_freq',
+        'team_shot_d24p_freq'
+      ]
+    },
+    {
+      title: 'Shot types',
+      metrics: [
+        'team_shot_dunk_fga',
+        'team_shot_layup_fg_pct',
+        'team_shot_hook_fg_pct',
+        'team_shot_floater_fg_pct',
+        'team_shot_jumper_fg_pct',
+        'team_shot_jumper_freq'
+      ]
+    },
+    {
+      title: 'Assisted',
+      note: 'The share of makes assisted, by the play by play',
+      metrics: [
+        'team_shot_ra_ast_pct',
+        'team_shot_mid_ast_pct',
+        'team_shot_c3_ast_pct',
+        'team_shot_atb3_ast_pct'
+      ]
+    }
+  ],
+  shots_defense: [
+    {
+      title: 'Profile',
+      note: 'From the NBA’s shot chart file, 1996-97 on',
+      metrics: [
+        'opp_shot_avg_dist',
+        'opp_shot_ra_freq',
+        'opp_shot_paint_freq',
+        'opp_shot_mid_freq',
+        'opp_shot_c3_freq',
+        'opp_shot_atb3_freq'
+      ]
+    },
+    {
+      title: 'Against the league',
+      note: 'FG% above the league’s rate in each zone that season',
+      metrics: [
+        'opp_shot_ra_fg_rel',
+        'opp_shot_paint_fg_rel',
+        'opp_shot_mid_fg_rel',
+        'opp_shot_c3_fg_rel',
+        'opp_shot_atb3_fg_rel',
+        'opp_shot_pps_above',
+        'opp_shot_pts_above'
+      ]
+    },
+    {
+      title: 'By distance',
+      metrics: [
+        'opp_shot_lt8_fg_pct',
+        'opp_shot_d8_16_fg_pct',
+        'opp_shot_d16_24_fg_pct',
+        'opp_shot_d24p_fg_pct',
+        'opp_shot_lt8_freq',
+        'opp_shot_d24p_freq'
+      ]
+    },
+    {
+      title: 'Shot types',
+      metrics: [
+        'opp_shot_dunk_fga',
+        'opp_shot_layup_fg_pct',
+        'opp_shot_hook_fg_pct',
+        'opp_shot_floater_fg_pct',
+        'opp_shot_jumper_fg_pct',
+        'opp_shot_jumper_freq'
+      ]
+    },
+    {
+      title: 'Assisted',
+      note: 'The share of makes assisted, by the play by play',
+      metrics: [
+        'opp_shot_ra_ast_pct',
+        'opp_shot_mid_ast_pct',
+        'opp_shot_c3_ast_pct',
+        'opp_shot_atb3_ast_pct'
+      ]
+    }
+  ],
   offense: [
     {
       title: 'Scoring',

@@ -4,13 +4,12 @@ import {
   SHOT_BANDS,
   SHOT_TYPES,
   SHOT_ZONE_GROUPS,
-  SHOT_ZONES,
-  SHOTS_FIRST_SEASON
+  SHOT_ZONES
 } from '@shared/stats/shots'
-import type { StatsDb } from '../db'
-import { SHOT_VIEWS } from './events'
+import { nbaShotsSelect } from './events'
+import type { PlayBuilder } from './playBuilders'
 import { PLAY_TABLES } from './plays'
-import { inspect, type Have } from './sql'
+import type { Have } from './sql'
 
 /**
  * Shots by zone, distance band and type (reference section 7), counted per player-game and team-game
@@ -19,15 +18,12 @@ import { inspect, type Have } from './sql'
  *
  * The NBA's shots are the source (`shot_nba`); ESPN's are another coordinate frame and are not read
  * here. A season before the shots start has no rows, and its metrics read null with their reason.
+ * Built season by season through `PLAY_BUILDERS` (`playBuilders.ts`), after the play tables; a change
+ * of rule bumps `PLAYS_VERSION` there.
  */
-
-/** Bump when a column or a rule changes: every season is built again on the next refresh. */
-export const SHOTS_VERSION = 1
 
 export const SHOT_PLAYER_GAME = 'shot_player_game'
 export const SHOT_TEAM_GAME = 'shot_team_game'
-/** Per season: what the season was built from, so a refresh rebuilds only the seasons that changed. */
-export const SHOT_STATE = 'shot_build_state'
 
 type Dim = 'zone' | 'band' | 'type'
 
@@ -80,27 +76,40 @@ export const OPP_SHOT_COMPONENTS: readonly string[] = SHOT_COMPONENTS.map((c) =>
  */
 export const isZeroCount = (component: string): boolean => !/x(fgm|pts)$/.test(component)
 
-const KEYS = {
-  [SHOT_PLAYER_GAME]: `game_id VARCHAR, season INTEGER, game_type VARCHAR, game_date DATE,
-     player_id BIGINT, team_id BIGINT, opponent_id BIGINT`,
-  [SHOT_TEAM_GAME]: `game_id VARCHAR, season INTEGER, game_type VARCHAR, game_date DATE,
-     team_id BIGINT, opponent_id BIGINT`
-}
+type Columns = ReadonlyArray<readonly [string, string]>
 
-const KEY_COUNT: Record<string, number> = { [SHOT_PLAYER_GAME]: 7, [SHOT_TEAM_GAME]: 6 }
+const KEY_COLUMNS: Columns = [
+  ['game_id', 'VARCHAR'],
+  ['season', 'INTEGER'],
+  ['game_type', 'VARCHAR'],
+  ['game_date', 'DATE']
+]
+
+/** Every column, typed, in order: the key, the player or team, then the counts. */
+export const SHOT_PLAYER_COLUMNS: Columns = [
+  ...KEY_COLUMNS,
+  ['player_id', 'BIGINT'],
+  ['team_id', 'BIGINT'],
+  ['opponent_id', 'BIGINT'],
+  ...SHOT_COMPONENTS.map((c) => [c, 'INTEGER'] as const)
+]
+export const SHOT_TEAM_COLUMNS: Columns = [
+  ...KEY_COLUMNS,
+  ['team_id', 'BIGINT'],
+  ['opponent_id', 'BIGINT'],
+  ...[...SHOT_COMPONENTS, ...OPP_SHOT_COMPONENTS].map((c) => [c, 'INTEGER'] as const)
+]
 
 /** The tables, empty, created on every open so a query before the first build reads no rows. */
 export function shotsBootstrap(): string[] {
-  const player = SHOT_COMPONENTS
-  const team = [...SHOT_COMPONENTS, ...OPP_SHOT_COMPONENTS]
-  return [
-    `CREATE TABLE IF NOT EXISTS ${SHOT_PLAYER_GAME} (${KEYS[SHOT_PLAYER_GAME]},
-       ${player.map((c) => `${c} INTEGER`).join(', ')})`,
-    `CREATE TABLE IF NOT EXISTS ${SHOT_TEAM_GAME} (${KEYS[SHOT_TEAM_GAME]},
-       ${team.map((c) => `${c} INTEGER`).join(', ')})`,
-    `CREATE TABLE IF NOT EXISTS ${SHOT_STATE} (
-       season INTEGER PRIMARY KEY, version INTEGER, shots BIGINT, made BIGINT, assisted BIGINT)`
-  ]
+  return (
+    [
+      [SHOT_PLAYER_GAME, SHOT_PLAYER_COLUMNS],
+      [SHOT_TEAM_GAME, SHOT_TEAM_COLUMNS]
+    ] as const
+  ).map(
+    ([t, cs]) => `CREATE TABLE IF NOT EXISTS ${t} (${cs.map(([n, ty]) => `${n} ${ty}`).join(', ')})`
+  )
 }
 
 const sqlText = (s: string): string => `'${s.replaceAll("'", "''")}'`
@@ -175,36 +184,41 @@ function sums(prefix = ''): string[] {
 
 /**
  * One season's shots, classified, each with whether its make was assisted and the league's rates for
- * its zone, band and type. `$1` is the season.
+ * its zone, band and type.
  *
- * - **Assisted:** the make's row in `play_nba` names the assist. A make is found there by game, period,
- *   clock and shooter, which is unique for all but a handful of makes a season; where two makes share
- *   them, they pair in order, and both are the same shooter's at the same moment.
+ * - **Shots:** the SELECT behind `shot_nba`, for this season only. The view itself is created after
+ *   the builders have run, so on a new database it would still be empty here.
+ * - **Assisted:** the make's row in `play_nba` names the assist; `play_nba` is built for the season
+ *   before this builder runs. A make is found there by game, period, clock and shooter, which is
+ *   unique for all but a handful of makes a season; where two makes share them, they pair in order,
+ *   and both are the same shooter's at the same moment.
  * - **League rates:** the season's regular-season shots, by bucket: the share made and points per
  *   attempt. Every game type of the season is compared with them, so a playoff run reads against the
  *   league's season, not against the few teams left.
  */
-function classifiedSql(): string {
-  const shots = SHOT_VIEWS.nba
-  const plays = PLAY_TABLES.nba
+function classifiedSql(have: Have, season: number): string {
+  const plays = have.tables.has(PLAY_TABLES.nba)
+    ? `SELECT game_id, period, clock, player_id, seq, assist_id
+       FROM ${PLAY_TABLES.nba} WHERE season = ${season} AND fgm = 1`
+    : `SELECT NULL::VARCHAR AS game_id, NULL::INTEGER AS period, NULL::DOUBLE AS clock,
+              NULL::BIGINT AS player_id, NULL::INTEGER AS seq, NULL::BIGINT AS assist_id WHERE false`
   const key = 'game_id, period, clock, player_id'
   const rates = (dim: string): string => `lg_${dim} AS (
       SELECT ${dim}, avg(made::INTEGER) AS pct, avg(CASE WHEN made THEN value ELSE 0 END) AS pps
       FROM s WHERE game_type = 'regular' GROUP BY ${dim})`
-  return `WITH s0 AS (
+  return `WITH s AS (
       SELECT game_id, season, game_type, game_date, team_id, opponent_id, player_id, period, clock,
              coalesce(made, false) AS made, value, distance, x, y,
              row_number() OVER () AS rid,
              ${zoneSql()} AS zone, ${bandSql()} AS band, ${typeSql()} AS type,
              coalesce(distance, round(sqrt(x * x + y * y) / 10)) AS feet
-      FROM ${shots} WHERE season = $1),
-    s AS (SELECT * FROM s0),
+      FROM (${nbaShotsSelect(have, season)}) v),
     mk AS (SELECT rid, ${key},
                   row_number() OVER (PARTITION BY ${key} ORDER BY x, y, rid) AS k
            FROM s WHERE made),
     pl AS (SELECT ${key}, assist_id,
                   row_number() OVER (PARTITION BY ${key} ORDER BY seq) AS k
-           FROM ${plays} WHERE season = $1 AND fgm = 1),
+           FROM (${plays}) p),
     ast AS (SELECT mk.rid FROM mk JOIN pl USING (${key}, k) WHERE pl.assist_id IS NOT NULL),
     ${rates('zone')}, ${rates('band')}, ${rates('type')},
     c AS (
@@ -217,10 +231,9 @@ function classifiedSql(): string {
       LEFT JOIN lg_type lt USING (type))`
 }
 
-/** One season's player-games. */
-export function playerGameSql(): string {
-  return `INSERT INTO ${SHOT_PLAYER_GAME}
-    ${classifiedSql()}
+/** One season's player-games, as a SELECT of `SHOT_PLAYER_COLUMNS` in order. */
+export function playerGameSql(have: Have, season: number): string {
+  return `${classifiedSql(have, season)}
     SELECT c.game_id, any_value(c.season), any_value(c.game_type), any_value(c.game_date),
            c.player_id, c.team_id, any_value(c.opponent_id), ${sums().join(', ')}
     FROM c WHERE c.player_id IS NOT NULL
@@ -228,9 +241,8 @@ export function playerGameSql(): string {
 }
 
 /** One season's team-games: the team's shots, and its opponent's against it. */
-export function teamGameSql(): string {
-  return `INSERT INTO ${SHOT_TEAM_GAME}
-    ${classifiedSql()},
+export function teamGameSql(have: Have, season: number): string {
+  return `${classifiedSql(have, season)},
     own AS (SELECT c.game_id, c.team_id, any_value(c.opponent_id) AS opponent_id,
                    any_value(c.season) AS season, any_value(c.game_type) AS game_type,
                    any_value(c.game_date) AS game_date, ${sums().join(', ')}
@@ -247,113 +259,8 @@ export function teamGameSql(): string {
     FROM own FULL JOIN opp ON opp.game_id = own.game_id AND opp.team_id = own.team_id`
 }
 
-/** What each season holds now: a season whose numbers differ from its last build is built again. */
-export function fingerprintSql(have: Have): string {
-  const plays = have.tables.has(PLAY_TABLES.nba)
-    ? `SELECT season, count(*) AS made, count(assist_id) AS assisted
-       FROM ${PLAY_TABLES.nba} WHERE fgm = 1 GROUP BY season`
-    : 'SELECT NULL::INTEGER AS season, 0 AS made, 0 AS assisted WHERE false'
-  return `WITH s AS (SELECT season, count(*) AS shots FROM ${SHOT_VIEWS.nba}
-                     WHERE season >= ${SHOTS_FIRST_SEASON} GROUP BY season),
-               p AS (${plays})
-          SELECT s.season, s.shots::BIGINT AS shots, coalesce(p.made, 0)::BIGINT AS made,
-                 coalesce(p.assisted, 0)::BIGINT AS assisted
-          FROM s LEFT JOIN p USING (season) ORDER BY s.season`
-}
-
-interface Fingerprint {
-  season: number
-  shots: number
-  made: number
-  assisted: number
-}
-
-const NEEDS = ['game', SHOT_VIEWS.nba]
-
-export async function canBuildShots(db: StatsDb): Promise<boolean> {
-  const have = await inspect(db)
-  return NEEDS.every((t) => have.tables.has(t))
-}
-
-/** The seasons a build would write: those whose shots or assists changed, or built by an older rule. */
-export async function staleShotSeasons(db: StatsDb): Promise<Fingerprint[]> {
-  const have = await inspect(db)
-  if (!NEEDS.every((t) => have.tables.has(t))) return []
-  const now = await db.all<Fingerprint>(fingerprintSql(have))
-  const built = await db.all<Fingerprint & { version: number }>(`SELECT * FROM ${SHOT_STATE}`)
-  const was = new Map(built.map((b) => [b.season, b]))
-  return now.filter((f) => {
-    const b = was.get(f.season)
-    return (
-      !b ||
-      b.version !== SHOTS_VERSION ||
-      Number(b.shots) !== Number(f.shots) ||
-      Number(b.made) !== Number(f.made) ||
-      Number(b.assisted) !== Number(f.assisted)
-    )
-  })
-}
-
-export async function shotsStale(db: StatsDb): Promise<boolean> {
-  return (await staleShotSeasons(db)).length > 0
-}
-
-/**
- * Builds the seasons that changed, each in one transaction, so a screen sees a season's old rows or its
- * new ones. A season the shots no longer have is removed. Returns the rows written.
- */
-export async function buildShots(db: StatsDb): Promise<number> {
-  const have = await inspect(db)
-  if (!NEEDS.every((t) => have.tables.has(t))) return 0
-  // Tables of an older shape are built again from nothing: a new rule can add a column.
-  const shapes = {
-    [SHOT_PLAYER_GAME]: SHOT_COMPONENTS,
-    [SHOT_TEAM_GAME]: [...SHOT_COMPONENTS, ...OPP_SHOT_COMPONENTS]
-  }
-  const reshaped = Object.entries(shapes).some(([t, cs]) => {
-    const held = have.columns.get(t)
-    return !held || cs.some((c) => !held.has(c)) || held.size !== cs.length + KEY_COUNT[t]
-  })
-  if (reshaped) {
-    await db.transaction(async () => {
-      for (const t of [SHOT_PLAYER_GAME, SHOT_TEAM_GAME]) await db.exec(`DROP TABLE IF EXISTS ${t}`)
-      await db.exec(`DELETE FROM ${SHOT_STATE}`)
-      for (const sql of shotsBootstrap()) await db.exec(sql)
-    })
-  }
-  const stale = await staleShotSeasons(db)
-  let rows = 0
-  for (const f of stale) {
-    await db.transaction(async () => {
-      for (const t of [SHOT_PLAYER_GAME, SHOT_TEAM_GAME]) {
-        await db.exec(`DELETE FROM ${t} WHERE season = $1`, [f.season])
-      }
-      await db.exec(playerGameSql(), [f.season])
-      await db.exec(teamGameSql(), [f.season])
-      await db.exec(`INSERT OR REPLACE INTO ${SHOT_STATE} VALUES ($1, $2, $3, $4, $5)`, [
-        f.season,
-        SHOTS_VERSION,
-        Number(f.shots),
-        Number(f.made),
-        Number(f.assisted)
-      ])
-    })
-    const n = await db.get<{ n: number }>(
-      `SELECT (SELECT count(*) FROM ${SHOT_PLAYER_GAME} WHERE season = $1)
-            + (SELECT count(*) FROM ${SHOT_TEAM_GAME} WHERE season = $1) AS n`,
-      [f.season]
-    )
-    rows += Number(n?.n ?? 0)
-  }
-  const gone = await db.all<{ season: number }>(
-    `SELECT season FROM ${SHOT_STATE} WHERE season NOT IN (SELECT season FROM ${SHOT_VIEWS.nba})`
-  )
-  for (const g of gone) {
-    await db.transaction(async () => {
-      for (const t of [SHOT_PLAYER_GAME, SHOT_TEAM_GAME, SHOT_STATE]) {
-        await db.exec(`DELETE FROM ${t} WHERE season = $1`, [g.season])
-      }
-    })
-  }
-  return rows
-}
+/** The builders `PLAY_BUILDERS` runs, after the play tables, one season at a time. */
+export const SHOT_BUILDERS: readonly PlayBuilder[] = [
+  { table: SHOT_PLAYER_GAME, columns: SHOT_PLAYER_COLUMNS, select: playerGameSql },
+  { table: SHOT_TEAM_GAME, columns: SHOT_TEAM_COLUMNS, select: teamGameSql }
+]

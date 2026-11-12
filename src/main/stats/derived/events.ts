@@ -102,31 +102,39 @@ const isoClock = (c: string): string =>
   `TRY_CAST(regexp_extract(${c}, 'PT(\\d+)M', 1) AS DOUBLE) * 60
    + TRY_CAST(regexp_extract(${c}, 'M([\\d.]+)S', 1) AS DOUBLE)`
 
-export function nbaShotsSql(have: Have): string {
+export const nbaShotsSql = (have: Have): string =>
+  `CREATE OR REPLACE VIEW ${SHOT_VIEWS.nba} AS ${nbaShotsSelect(have)}`
+
+/**
+ * The NBA's shots keyed to the game, every season or one: the shot tables read a season straight from
+ * here, since the view is only created after they are built.
+ */
+export function nbaShotsSelect(have: Have, season?: number): string {
   const t = 'src_nba_shots'
   const c = (name: string, type = 'BIGINT'): string => column(have, t, 's', name, type)
-  return `CREATE OR REPLACE VIEW ${SHOT_VIEWS.nba} AS
-    SELECT ${select(SHOT_COLUMNS, {
-      game_id: 'g.game_id',
-      season: 'g.season',
-      game_type: 'g.game_type',
-      game_date: 'g.game_date',
-      period: c('period'),
-      clock: isoClock(c('clock', 'VARCHAR')),
-      team_id: 'team',
-      ...SIDES,
-      player_id: `nullif(${c('person_id')}, 0)`,
-      free_throw: 'false',
-      made: `${c('shot_result', 'VARCHAR')} = 'Made'`,
-      value: c('shot_value'),
-      distance: c('shot_distance'),
-      x: c('x_legacy', 'DOUBLE'),
-      y: c('y_legacy', 'DOUBLE'),
-      action: c('action_type', 'VARCHAR'),
-      subtype: `nullif(${c('sub_type', 'VARCHAR')}, '')`
-    })}
+  const bySource = have.columns.get(t)?.has('season') ? ` AND s.season = ${season}` : ''
+  const one = season === undefined ? '' : `WHERE g.season = ${season}${bySource}`
+  return `SELECT ${select(SHOT_COLUMNS, {
+    game_id: 'g.game_id',
+    season: 'g.season',
+    game_type: 'g.game_type',
+    game_date: 'g.game_date',
+    period: c('period'),
+    clock: isoClock(c('clock', 'VARCHAR')),
+    team_id: 'team',
+    ...SIDES,
+    player_id: `nullif(${c('person_id')}, 0)`,
+    free_throw: 'false',
+    made: `${c('shot_result', 'VARCHAR')} = 'Made'`,
+    value: c('shot_value'),
+    distance: c('shot_distance'),
+    x: c('x_legacy', 'DOUBLE'),
+    y: c('y_legacy', 'DOUBLE'),
+    action: c('action_type', 'VARCHAR'),
+    subtype: `nullif(${c('sub_type', 'VARCHAR')}, '')`
+  })}
     FROM (SELECT s.*, ${c('team_id')} AS team FROM ${have.tables.has(t) ? t : '(SELECT 1)'} s) s
-    JOIN game g ON g.nba_game_id = ${c('game_id', 'VARCHAR')}`
+    JOIN game g ON g.nba_game_id = ${c('game_id', 'VARCHAR')} ${one}`
 }
 
 /** ESPN's shots name the team by ESPN id, matched through `team` for the game's season. */

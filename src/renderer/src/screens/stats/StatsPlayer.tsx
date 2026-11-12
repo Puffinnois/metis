@@ -1,3 +1,5 @@
+import { ShotChart } from '@/components/stats/ShotChart'
+import { shotRequest } from '@/lib/stats/shotChart'
 import { useMemo, useState } from 'react'
 import { Segmented } from '@/components/stats/controls'
 import { GameChart } from '@/components/stats/GameChart'
@@ -265,6 +267,7 @@ function TabBody({
   if (tab === 'log') return <GameLog {...props} />
   if (tab === 'splits') return <Splits {...props} />
   if (tab === 'matchups') return <Matchups {...props} />
+  if (tab === 'shots') return <Shots {...props} />
   return <LinesTab {...props} tab={tab} />
 }
 
@@ -356,6 +359,18 @@ function FactList({
         </dl>
       )}
     </section>
+  )
+}
+
+/** The shot chart for the scope, then the shot metrics, ranked among the player's position. */
+function Shots(props: TabProps): React.JSX.Element {
+  const { data, scope, player } = props
+  const request = useMemo(() => shotRequest('player', player, scope), [player, scope])
+  return (
+    <div className="flex flex-col gap-7">
+      <ShotChart request={request} version={data.version} />
+      <LinesTab {...props} tab="shots" />
+    </div>
   )
 }
 
