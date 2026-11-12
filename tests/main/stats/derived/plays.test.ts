@@ -1,13 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { StatsDb } from '@main/stats/db'
-import {
-  buildPlays,
-  PLAY_COLUMNS,
-  PLAY_FLAGS,
-  PLAY_TABLES,
-  PLAYS_VERSION,
-  playsStale
-} from '@main/stats/derived/plays'
+import { buildPlays, PLAYS_VERSION, playsStale } from '@main/stats/derived/playBuilders'
+import { PLAY_COLUMNS, PLAY_FLAGS, PLAY_TABLES } from '@main/stats/derived/plays'
 import { POSSESSION_COLUMNS, SHOT_COLUMNS } from '@main/stats/derived/events'
 import { openTestDb } from '../../../fixtures/stats'
 import {
