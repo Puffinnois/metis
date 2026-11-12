@@ -97,7 +97,7 @@ const CASES = [
           'fg_pct',
           'fg3_pct',
           'ft_pct',
-          'minutes'
+          'min'
         ],
         scope: { seasons: [season] }
       })

@@ -241,6 +241,23 @@ Trends' queries, timed from the window (`window.api.stats.query`, round trip) on
 | Lakers, defensive rating: the history, the pool | 34, 1,005           | 21, 34       |
 | The player search                               | 3,091               | 71           |
 
+The on-court reads (Plan T904), timed in the worker on the full database with `scripts/on-off-speed.mjs`, warm, 2025-26, the median and the worst of seven, with sibling builds running on the same machine. The On/off tab's sections are a query each, so the tab waits for the slower.
+
+| Read                                                | Rows  | Median ms | Worst ms |
+| --------------------------------------------------- | ----- | --------- | -------- |
+| On/off tab: 13 metrics over every guard             | 278   | 149       | 203      |
+| On/off tab: 14 actual and estimated rates           | 278   | 323       | 432      |
+| On/off tab, a month                                 | 224   | 155       | 210      |
+| A leaderboard: net on-off and ten box-score columns | 100   | 285       | 377      |
+| Every season, net on-off by season                  | 5,000 | 313       | 383      |
+| The team's On/off tab                               | 20    | 93        | 105      |
+| Units of five                                       | 770   | 89        | 200      |
+| Units of four                                       | 1,249 | 160       | 272      |
+| Units of three                                      | 653   | 186       | 252      |
+| Units of two                                        | 159   | 79        | 136      |
+| Units of five, the last 10 games                    | 132   | 68        | 100      |
+| With or without, the first teammate                 | 4     | 166       | 270      |
+
 ## Data panel
 
 What is loaded, from `stats.data()`. It reads again as a load goes.
