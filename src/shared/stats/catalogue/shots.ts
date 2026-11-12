@@ -384,12 +384,32 @@ function overall(s: Side): MetricDef[] {
   ]
 }
 
-export const SHOTS: MetricDef[] = SIDES.flatMap((s) => [
-  ...ZONES.flatMap((b) => bucketMetrics(s, b, where.zone(b), ZONE_MEASURES)),
-  ...BANDS.flatMap((b) => bucketMetrics(s, b, where.band(b), BAND_MEASURES)),
-  ...TYPES.flatMap((b) => bucketMetrics(s, b, where.type(b), TYPE_MEASURES)),
-  ...overall(s)
+/** The family's preset on a leaderboard, for each side: how well and how often, by zone. */
+const CORE = new Set([
+  'ra_fg_pct',
+  'paint_fg_pct',
+  'mid_fg_pct',
+  'c3_fg_pct',
+  'atb3_fg_pct',
+  'ra_freq',
+  'mid_freq',
+  'c3_freq',
+  'atb3_freq',
+  'ra_fg_rel',
+  'avg_dist',
+  'pps_above'
 ])
+
+export const SHOTS: MetricDef[] = SIDES.flatMap((s) =>
+  [
+    ...ZONES.flatMap((b) => bucketMetrics(s, b, where.zone(b), ZONE_MEASURES)),
+    ...BANDS.flatMap((b) => bucketMetrics(s, b, where.band(b), BAND_MEASURES)),
+    ...TYPES.flatMap((b) => bucketMetrics(s, b, where.type(b), TYPE_MEASURES)),
+    ...overall(s)
+  ].map((m) =>
+    CORE.has(m.id.replace(/^(team_|opp_)?shot_/, '')) ? { ...m, tier: 'core' as const } : m
+  )
+)
 
 /** What each sample counts, for the column heads: "212 restricted-area attempts". */
 export const SHOT_SAMPLE_LABELS: Readonly<Record<string, string>> = Object.fromEntries(

@@ -132,7 +132,8 @@ const timed = async (sql) => {
            count(*) FILTER (WHERE value = 2 AND ((abs(x) >= 225 AND y <= 92.5) OR x*x + y*y >= 245*245))::INTEGER AS two_outside,
            count(*)::INTEGER AS n
     FROM s GROUP BY season ORDER BY season`)
-  const tb = await read(`SELECT season, ${ZONES.map((z) => `sum(${z}_fga)::INTEGER AS ${z}`).join(', ')}
+  const tb =
+    await read(`SELECT season, ${ZONES.map((z) => `sum(${z}_fga)::INTEGER AS ${z}`).join(', ')}
     FROM shot_team_game GROUP BY season ORDER BY season`)
   const tbBy = new Map(tb.map((r) => [r.season, r]))
   out.push('## 2. Zones recounted from the coordinates', '')
@@ -142,7 +143,14 @@ const timed = async (sql) => {
   )
   out.push(
     ...table(
-      ['Season', 'Shots', ...ZONES.map((z) => `${z} %`), 'Recount = table', '3 inside', '2 outside'],
+      [
+        'Season',
+        'Shots',
+        ...ZONES.map((z) => `${z} %`),
+        'Recount = table',
+        '3 inside',
+        '2 outside'
+      ],
       re.map((r) => {
         const t = tbBy.get(r.season)
         const same = t && ZONES.every((z) => t[z] === r[z])
@@ -422,7 +430,12 @@ const timed = async (sql) => {
         call('query', {
           query: {
             entity: 'team',
-            metrics: ['team_shot_ra_fg_pct', 'opp_shot_ra_fg_pct', 'team_shot_c3_freq', 'opp_shot_c3_freq'],
+            metrics: [
+              'team_shot_ra_fg_pct',
+              'opp_shot_ra_fg_pct',
+              'team_shot_c3_freq',
+              'opp_shot_c3_freq'
+            ],
             scope: { seasons: [2026] }
           }
         })

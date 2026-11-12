@@ -108,18 +108,24 @@ export async function readShotChart(db: StatsDb, raw: StatsShotRequest): Promise
   const p = defense ? 'opp_' : ''
   const zoneKeys = SHOT_ZONES.map((z) => z.key)
 
-  const [rows, sums] = await Promise.all([
-    db.all<{ x: number; y: number; made: boolean; value: number | null; zone: string }>(
-      `WITH g AS (${games})
+  // One statement at a time: the reader's connection runs them in turn.
+  const rows = await db.all<{
+    x: number
+    y: number
+    made: boolean
+    value: number | null
+    zone: string
+  }>(
+    `WITH g AS (${games})
        SELECT v.x, v.y, coalesce(v.made, false) AS made, v.value, ${zoneSql('v.x', 'v.y', 'v.value')} AS zone
        FROM ${SHOT_VIEWS.nba} v SEMI JOIN g ON g.game_id = v.game_id
        WHERE ${who} AND v.season IN (${r.seasons.join(', ')})
        ORDER BY v.game_date DESC, v.game_id DESC, v.period DESC, v.clock ASC
        LIMIT ${SHOT_CHART_LIMIT}`,
-      params
-    ),
-    db.get<Record<string, number | null>>(
-      `WITH g AS (${games})
+    params
+  )
+  const sums = await db.get<Record<string, number | null>>(
+    `WITH g AS (${games})
        SELECT ${zoneKeys
          .flatMap((z) => [
            `coalesce(sum(t.${p}${z}_fga), 0)::INTEGER AS ${z}_fga`,
@@ -131,9 +137,8 @@ export async function readShotChart(db: StatsDb, raw: StatsShotRequest): Promise
               coalesce(sum(t.${p}shots_fgm), 0)::INTEGER AS made
        FROM ${built} t SEMI JOIN g ON g.game_id = t.game_id
        WHERE t.${key} = ${id}`,
-      params
-    )
-  ])
+    params
+  )
   const zones: StatsShotZone[] = zoneKeys.map((z) => ({
     zone: z,
     fga: Number(sums?.[`${z}_fga`] ?? 0),

@@ -240,6 +240,10 @@ export function playerGameSql(have: Have, season: number): string {
     GROUP BY c.game_id, c.player_id, c.team_id`
 }
 
+/** A side with no shot in a game took none: its counts read 0, its league expectations NULL. */
+const side = (alias: string, c: string): string =>
+  isZeroCount(c) ? `coalesce(${alias}.${c}, 0)` : `${alias}.${c}`
+
 /** One season's team-games: the team's shots, and its opponent's against it. */
 export function teamGameSql(have: Have, season: number): string {
   return `${classifiedSql(have, season)},
@@ -254,8 +258,8 @@ export function teamGameSql(have: Have, season: number): string {
     SELECT coalesce(own.game_id, opp.game_id), coalesce(own.season, opp.season),
            coalesce(own.game_type, opp.game_type), coalesce(own.game_date, opp.game_date),
            coalesce(own.team_id, opp.team_id), coalesce(own.opponent_id, opp.opp_team),
-           ${SHOT_COMPONENTS.map((c) => `own.${c}`).join(', ')},
-           ${OPP_SHOT_COMPONENTS.map((c) => `opp.${c}`).join(', ')}
+           ${SHOT_COMPONENTS.map((c) => side('own', c)).join(', ')},
+           ${OPP_SHOT_COMPONENTS.map((c) => side('opp', c)).join(', ')}
     FROM own FULL JOIN opp ON opp.game_id = own.game_id AND opp.team_id = own.team_id`
 }
 
