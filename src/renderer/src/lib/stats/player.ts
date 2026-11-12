@@ -46,9 +46,9 @@ export const PLAYER_DASH_TABS: { id: PlayerTab; label: string }[] = [
   { id: 'matchups', label: 'Matchups' },
   { id: 'log', label: 'Game log' },
   { id: 'splits', label: 'Splits' },
-  { id: 'profile', label: 'Profile' },
-  // Last, so the tabs before it keep their places.
-  { id: 'on_off', label: 'On/off' }
+  // After the tabs older step files click by place, before the profile, which stays last.
+  { id: 'on_off', label: 'On/off' },
+  { id: 'profile', label: 'Profile' }
 ]
 
 export const TAB_SECTIONS: Record<
