@@ -339,6 +339,13 @@ describe('the on-court reads', () => {
     expect(first.teammates.map((t) => t.id).slice(0, 4)).toEqual(['12', '13', '14', '16'])
   })
 
+  it('counts a unit missing a player in the split it belongs to', async () => {
+    // In overtime the away lineup knows four players: 22 on, 21 off.
+    const w = await readWithOrWithout(db, '22', '21', 2026, { gameTypes: ['regular'] })
+    expect(w.splits?.both).toMatchObject({ secs: 720 })
+    expect(w.splits?.playerOnly).toMatchObject({ secs: 300, opp_pts: 2 })
+  })
+
   it('refuses what is not an id', async () => {
     const bad = await readOnCourtUnits(db, "1' OR 1=1", 2026, { gameTypes: ['regular'] }, 5)
     expect(bad.units).toEqual([])

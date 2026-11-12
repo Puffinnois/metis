@@ -216,7 +216,9 @@ export async function readWithOrWithout(
        SELECT * FROM u WHERE u.game_id IN (SELECT game_id FROM ${UNIT_GAME} w
          WHERE w.team_id = $2 AND w.season = $1 AND $${p + 1} IN (w.p1, w.p2, w.p3, w.p4, w.p5))
      )
-     SELECT $${p} IN (p1, p2, p3, p4, p5) AS me_on, $${p + 1} IN (p1, p2, p3, p4, p5) AS mate_on,
+     -- list_contains, not IN: a unit missing a player would read NULL, and drop out of both splits.
+     SELECT list_contains([p1, p2, p3, p4, p5], $${p}) AS me_on,
+            list_contains([p1, p2, p3, p4, p5], $${p + 1}) AS mate_on,
             count(DISTINCT game_id) AS games, ${PARTS.map((x) => `sum(${x})::DOUBLE AS ${x}`).join(', ')}
      FROM shared GROUP BY ALL`,
     [...params, me, Number(pick)]

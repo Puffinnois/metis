@@ -44,10 +44,11 @@ export const PLAYER_DASH_TABS: { id: PlayerTab; label: string }[] = [
   { id: 'tracking', label: 'Tracking' },
   { id: 'play_types', label: 'Play types' },
   { id: 'matchups', label: 'Matchups' },
-  { id: 'on_off', label: 'On/off' },
   { id: 'log', label: 'Game log' },
   { id: 'splits', label: 'Splits' },
-  { id: 'profile', label: 'Profile' }
+  { id: 'profile', label: 'Profile' },
+  // Last, so the tabs before it keep their places.
+  { id: 'on_off', label: 'On/off' }
 ]
 
 export const TAB_SECTIONS: Record<

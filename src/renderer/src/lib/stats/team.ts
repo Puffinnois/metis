@@ -23,9 +23,10 @@ export const TEAM_DASH_TABS: { id: TeamTab; label: string }[] = [
   { id: 'offense', label: 'Offense' },
   { id: 'defense', label: 'Defense' },
   { id: 'players', label: 'Players' },
-  { id: 'on_off', label: 'On/off' },
   { id: 'lineups', label: 'Lineups' },
-  { id: 'schedule', label: 'Schedule' }
+  { id: 'schedule', label: 'Schedule' },
+  // Last, so the tabs before it keep their places.
+  { id: 'on_off', label: 'On/off' }
 ]
 
 export const RATINGS_SECTION: SectionDef = {
