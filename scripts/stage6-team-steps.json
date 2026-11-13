@@ -58,13 +58,19 @@
     "eval": "JSON.stringify({ h1: document.querySelector('h1')?.textContent, line: document.querySelector('header span.truncate')?.textContent, tiles: [...document.querySelectorAll('header .font-cond')].map((t) => t.textContent), scorers: [...document.querySelector('[aria-label=\"Who scores\"]').querySelectorAll('[role=row]')].slice(1, 4).map((r) => r.innerText.replace(/\\n/g, ' ')) })"
   },
   { "shot": "team-sea-2008" },
-  { "click": "[role=tablist] [role=tab]:nth-child(2)" },
+  {
+    "eval": "[...document.querySelectorAll('[role=tablist] [role=tab]')].find((t) => t.textContent.trim() === 'Offense').click()"
+  },
   { "wait": 900 },
   { "shot": "team-offense" },
-  { "click": "[role=tablist] [role=tab]:nth-child(4)" },
+  {
+    "eval": "[...document.querySelectorAll('[role=tablist] [role=tab]')].find((t) => t.textContent.trim() === 'Players').click()"
+  },
   { "wait": 1000 },
   { "shot": "team-players" },
-  { "click": "[role=tablist] [role=tab]:nth-child(6)" },
+  {
+    "eval": "[...document.querySelectorAll('[role=tablist] [role=tab]')].find((t) => t.textContent.trim() === 'Schedule').click()"
+  },
   { "wait": 500 },
   { "shot": "team-schedule" },
   { "select": ["Season", "2013"] },
@@ -76,7 +82,9 @@
   },
   { "select": ["Season", "2018"] },
   { "wait": 800 },
-  { "click": "[role=tablist] [role=tab]:nth-child(2)" },
+  {
+    "eval": "[...document.querySelectorAll('[role=tablist] [role=tab]')].find((t) => t.textContent.trim() === 'Offense').click()"
+  },
   { "wait": 900 },
   {
     "eval": "document.querySelector('[data-metric=team_paint_pts]')?.innerText.replace(/\\n/g, ' | ')"
@@ -96,7 +104,9 @@
     "eval": "JSON.stringify({ h1: document.querySelector('h1')?.textContent, note: [...document.querySelectorAll('.bg-panel-2')].map((e) => e.textContent).filter((t) => /did not play|no games/.test(t)) })"
   },
   { "shot": "team-gap" },
-  { "click": "[role=tablist] [role=tab]:nth-child(1)" },
+  {
+    "eval": "[...document.querySelectorAll('[role=tablist] [role=tab]')].find((t) => t.textContent.trim() === 'Overview').click()"
+  },
   { "wait": 1300 },
   {
     "eval": "[...document.querySelector('[aria-label=\"Season by season\"]').querySelectorAll('[role=row]')].map((r) => r.innerText.replace(/\\n/g, ' ')).filter((t) => /2001-02|2002-03|2003-04|2004-05|2005-06/.test(t)).join(' // ')"
