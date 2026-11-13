@@ -151,10 +151,22 @@ function finalColumns(flags: Record<PlayFlag, string>): string {
   ).join(',\n         ')
 }
 
-/** Running scores: the source writes a score on scoring rows only, so it is carried forward. */
-const SCORES = `
-    coalesce(last_value(sh IGNORE NULLS) OVER upto, 0) AS home_after,
-    coalesce(last_value(sa IGNORE NULLS) OVER upto, 0) AS away_after`
+/** A row's points, from the NBA's columns: a made shot's value, 1 for a made free throw. */
+const NBA_PTS = `CASE WHEN action = 'Made Shot' THEN coalesce(shot_value, 0)
+               WHEN kind = 'free_throw' AND NOT missed THEN 1 ELSE 0 END`
+
+/**
+ * The NBA's running score: the last score the feed wrote, plus the points of the rows since that
+ * have none written (`written` numbers the written scores, so each stretch sums its own rows). A
+ * score is written on scoring rows; before 2017-18 the feed writes "0" and "0" on the rows that score
+ * nothing, and on a few that do, which is no score at all (a real 0-0 is only before the first
+ * basket, where the sum gives 0 anyway).
+ */
+const NBA_SCORES = `
+    coalesce(last_value(sh IGNORE NULLS) OVER upto, 0)
+      + sum(CASE WHEN sh IS NULL AND home THEN pts_now ELSE 0 END) OVER since AS home_after,
+    coalesce(last_value(sa IGNORE NULLS) OVER upto, 0)
+      + sum(CASE WHEN sa IS NULL AND NOT home THEN pts_now ELSE 0 END) OVER since AS away_after`
 const WINDOWS = `WINDOW upto AS (PARTITION BY game_id ORDER BY seq ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW),
          before AS (PARTITION BY game_id ORDER BY seq ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING)`
 
@@ -195,14 +207,17 @@ export function nbaPlaysSql(have: Have, season: number): string {
            nullif(trim(${c('player_name', 'VARCHAR')}), '') AS player_name,
            nullif(trim(${c('player_name_i', 'VARCHAR')}), '') AS player_initial,
            ${c('shot_value', 'INTEGER')} AS shot_value,
-           TRY_CAST(nullif(${c('score_home', 'VARCHAR')}, '') AS INTEGER) AS sh,
-           TRY_CAST(nullif(${c('score_away', 'VARCHAR')}, '') AS INTEGER) AS sa,
+           TRY_CAST(nullif(${c('score_home', 'VARCHAR')}, '') AS INTEGER) AS sh_text,
+           TRY_CAST(nullif(${c('score_away', 'VARCHAR')}, '') AS INTEGER) AS sa_text,
            ${c('possession_number', 'INTEGER')} AS possession,
            [${[1, 2, 3, 4, 5].map((i) => c(`off_player_${i}`)).join(', ')}] AS on_offense
     FROM ${from} p JOIN game g ON g.nba_game_id = ${c('game_id', 'VARCHAR')}
     WHERE g.season = ${season} AND ${sourceSeason(have, t, 'p', season)}
   ), typed AS (
     SELECT *,
+           -- 0-0 written after the tip is no score: see NBA_SCORES.
+           CASE WHEN sh_text = 0 AND sa_text = 0 THEN NULL ELSE sh_text END AS sh,
+           CASE WHEN sh_text = 0 AND sa_text = 0 THEN NULL ELSE sa_text END AS sa,
            CASE WHEN src_team > 0 THEN src_team
                 WHEN person IN (home_team_id, away_team_id) THEN person
                 WHEN location = 'h' THEN home_team_id WHEN location = 'v' THEN away_team_id END AS team_id,
@@ -276,6 +291,10 @@ export function nbaPlaysSql(have: Have, season: number): string {
     FROM marked m
     LEFT JOIN credits cr ON cr.game_id = m.game_id AND cr.action_number = m.action_number
     LEFT JOIN assists a ON a.game_id = m.game_id AND a.seq = m.seq
+  ), counted AS (
+    SELECT *, count(sh) OVER upto AS written, ${NBA_PTS} AS pts_now
+    FROM joined
+    WINDOW upto AS (PARTITION BY game_id ORDER BY seq ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
   ), ran AS (
     SELECT *,
            last_value(CASE WHEN missed THEN team_id END IGNORE NULLS) OVER before AS miss_team,
@@ -283,9 +302,11 @@ export function nbaPlaysSql(have: Have, season: number): string {
              PARTITION BY game_id, player_id, kind ORDER BY off_count + def_count, seq), 0) AS off_gain,
            row_number() OVER (
              PARTITION BY game_id, player_id, kind, off_count, def_count ORDER BY seq) AS in_group,
-           ${SCORES}
-    FROM joined
-    ${WINDOWS}
+           ${NBA_SCORES}
+    FROM counted
+    ${WINDOWS},
+         since AS (PARTITION BY game_id, written ORDER BY seq
+                   ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
   ), scored AS (
     SELECT *,
            kind = 'rebound' AND coalesce(
@@ -302,8 +323,7 @@ export function nbaPlaysSql(have: Have, season: number): string {
     fg3m: flag("action = 'Made Shot' AND shot_value = 3"),
     fta: flag("kind = 'free_throw'"),
     ftm: flag("kind = 'free_throw' AND NOT missed"),
-    pts: `CASE WHEN action = 'Made Shot' THEN coalesce(shot_value, 0)
-               WHEN kind = 'free_throw' AND NOT missed THEN 1 ELSE 0 END`,
+    pts: NBA_PTS,
     oreb: flag("kind = 'rebound' AND offensive"),
     dreb: flag("kind = 'rebound' AND NOT offensive"),
     tov: flag("kind = 'turnover' AND description NOT ILIKE 'No Turnover%'"),
