@@ -22,15 +22,57 @@ import { useLineups, type StatsData } from '@/lib/stats/useStats'
 import { lineupColumns } from '@shared/stats/lineups'
 import type { BoardMode } from '@shared/stats/types'
 import { cn } from '@/lib/utils'
+import { DerivedUnits } from './StatsOnCourt'
 
 const GROUP_OPTIONS = LINEUP_GROUPS.map((g) => ({ value: g.id, label: g.label }))
+type Source = 'published' | 'derived'
+const SOURCES: { value: Source; label: string }[] = [
+  { value: 'published', label: 'Published' },
+  { value: 'derived', label: 'From possessions' }
+]
+
 const FLOORS = MIN_MINUTES.map((m) => ({
   value: m,
   label: m === 0 ? 'Any minutes' : `${m}+ minutes`
 }))
 
+/**
+ * The team's units: the NBA's published five-man units, or Metis's own count from the plays, every
+ * group of two to five in every loaded season. Each is labelled as what it is.
+ */
+export function LineupsTab(props: {
+  data: StatsData
+  scope: StatsScope
+  team: string
+  mode: BoardMode
+  onOpenPlayer: (id: string) => void
+}): React.JSX.Element {
+  const [source, setSource] = useState<Source>('published')
+  return (
+    <div className="flex flex-col gap-3">
+      <Segmented label="Source" value={source} options={SOURCES} onChange={setSource} />
+      {source === 'published' ? (
+        <PublishedLineups {...props} />
+      ) : (
+        <section className="flex flex-col gap-3">
+          <SectionHead
+            title="Lineups"
+            note="Counted from the play by play: derived, not official"
+          />
+          <DerivedUnits
+            data={props.data}
+            scope={props.scope}
+            team={props.team}
+            onOpenPlayer={props.onOpenPlayer}
+          />
+        </section>
+      )}
+    </div>
+  )
+}
+
 /** The team's five-man units for the season in scope, one dashboard's measures at a time. */
-export function LineupsTab({
+function PublishedLineups({
   data,
   scope,
   team,

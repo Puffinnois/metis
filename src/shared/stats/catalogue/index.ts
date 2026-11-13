@@ -6,6 +6,7 @@ import { HUSTLE } from './hustle'
 import { AVAILABILITY } from './availability'
 import { IMPACT } from './impact'
 import { MATCHUPS } from './matchups'
+import { ON_COURT } from './onCourt'
 import { PLAY_TYPES } from './playTypes'
 import { POSSESSIONS } from './possessions'
 import { SCORING } from './scoring'
@@ -21,6 +22,7 @@ export const CATALOGUE: MetricDef[] = [
   ...TRADITIONAL,
   ...SHOOTING,
   ...POSSESSIONS,
+  ...ON_COURT,
   ...SCORING,
   ...COMPOSITE,
   ...DASHBOARDS,

@@ -151,6 +151,7 @@ const FAMILIES: MetricFamily[] = [
   'shooting',
   'shots',
   'possessions',
+  'on_court',
   'scoring',
   'composite',
   'tracking',

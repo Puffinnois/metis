@@ -105,6 +105,7 @@ describe('the column picker and presets', () => {
       'shooting',
       'shots',
       'possessions',
+      'on_court',
       'scoring',
       'composite',
       'tracking',

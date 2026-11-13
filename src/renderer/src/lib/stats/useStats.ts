@@ -13,6 +13,9 @@ import type {
   StatsMatchupScope,
   StatsGameMatchups,
   StatsOfficialCareer,
+  StatsOnCourtScope,
+  StatsOnCourtUnits,
+  StatsWithOrWithout,
   StatsOfficialsSeason,
   GameType,
   StatsProfile,
@@ -243,6 +246,32 @@ export const useOfficialCareer = (
 ): ReadState<StatsOfficialCareer | null> =>
   useRead(official === null ? null : `${version}|${official}|${gameTypes.join(',')}`, () =>
     api.stats.officialCareer(official ?? '', gameTypes)
+  )
+
+/** A team's groups of one size on the floor; null as the team when there is nothing to read. */
+export const useOnCourtUnits = (
+  team: string | null,
+  season: number,
+  scope: StatsOnCourtScope,
+  size: number,
+  version: string | null
+): ReadState<StatsOnCourtUnits> =>
+  useRead(
+    team === null ? null : `${version}|${team}|${season}|${size}|${JSON.stringify(scope)}`,
+    () => api.stats.onCourtUnits(team ?? '', season, scope, size)
+  )
+
+/** A player's team with a teammate on and off; null as the player when there is nothing to read. */
+export const useWithOrWithout = (
+  player: string | null,
+  teammate: string | null,
+  season: number,
+  scope: StatsOnCourtScope,
+  version: string | null
+): ReadState<StatsWithOrWithout> =>
+  useRead(
+    player === null ? null : `${version}|${player}|${teammate}|${season}|${JSON.stringify(scope)}`,
+    () => api.stats.withOrWithout(player ?? '', teammate, season, scope)
   )
 
 /** A team's five-man units with one dashboard's measures; null as the team when there is nothing to read. */
