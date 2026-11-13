@@ -143,9 +143,16 @@ export const TECHNICAL_SUBTYPES: readonly string[] = [
 ]
 export const DEFENSE_THREE_SECONDS = 'Defense 3 Second'
 
+/** ESPN's shooting fouls, blocking fouls on a shooter among them. */
+export const ESPN_SHOOTING_FOUL_TYPES: readonly string[] = ['Shooting Foul', 'Shooting Block']
+
 /** ESPN's foul types that name the fouled player as the second athlete (doubles name a second fouler). */
 export const ESPN_DRAWN_FOUL_TYPES: readonly string[] = [
   'Shooting Foul',
+  // From 2010-11 ESPN spells charges and blocking fouls as types of their own.
+  'Shooting Block',
+  'Personal Block',
+  'Offensive Charge',
   'Personal Foul',
   'Offensive Foul',
   'Loose Ball Foul',

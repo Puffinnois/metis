@@ -3,6 +3,7 @@ import {
   AND_ONE_FREE_THROW,
   DEFENSE_THREE_SECONDS,
   ESPN_DRAWN_FOUL_TYPES,
+  ESPN_SHOOTING_FOUL_TYPES,
   FOUL_KINDS,
   TECHNICAL_SUBTYPES,
   TRIP_FREE_THROWS,
@@ -113,7 +114,7 @@ const PASSER: Count[] = [
 /** Fouls drawn, from ESPN's play by play: all personal fouls, and shooting fouls. */
 const DRAWN: Count[] = [
   { name: 'fd', to: 'drawn', when: 'true' },
-  { name: 'fd_shooting', to: 'drawn', when: "type_text = 'Shooting Foul'" }
+  { name: 'fd_shooting', to: 'drawn', when: `type_text IN (${list(ESPN_SHOOTING_FOUL_TYPES)})` }
 ]
 
 /** A player's counts, as the catalogue reads them. */
