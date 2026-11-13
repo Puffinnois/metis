@@ -1,6 +1,7 @@
 import type { StatsDb } from '../db'
 import { eventsSql } from './events'
 import { espnPlaysSql, nbaPlaysSql, PLAY_COLUMNS, PLAY_TABLES, playsViewSql } from './plays'
+import { SPLIT_BUILDERS } from './splits'
 import { inspect, type Have } from './sql'
 
 /**
@@ -23,11 +24,13 @@ export interface PlayBuilder {
 
 export const PLAY_BUILDERS: PlayBuilder[] = [
   { table: PLAY_TABLES.nba, columns: PLAY_COLUMNS, select: nbaPlaysSql },
-  { table: PLAY_TABLES.espn, columns: PLAY_COLUMNS, select: espnPlaysSql }
+  { table: PLAY_TABLES.espn, columns: PLAY_COLUMNS, select: espnPlaysSql },
+  // Plan T902: the splits of each game, counted from `play_nba` of the same season.
+  ...SPLIT_BUILDERS
 ]
 
 /** Bump when a builder's rows change, so the next refresh rebuilds every season of every table. */
-export const PLAYS_VERSION = 1
+export const PLAYS_VERSION = 2
 
 /** A file of season 0 holds every season. */
 const ALL = 0

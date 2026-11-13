@@ -193,6 +193,76 @@ Each game's final score, and each team's and player's box-score line rebuilt fro
 - **Possessions:** their points equal the team's on every team-game from 1997-98 except three in 2003-04 (off by 3 at worst), and on 99.7 % of 1996-97 (one game off by 88). Their field-goal makes and attempts and free-throw attempts equal the box score's on 99 to 100 %. Their turnovers equal the team's plays, team turnovers included, on 97.4 to 99.6 %. Their offensive rebounds are their own measure: they match the plays on 2 to 5 %. Counted possessions run a median 1.6 to 2.4 below the box score's simple estimate, within 3 on 60 to 77 % of team-games. **Plan T901's "2,327 of 2,644 team-games exact in 2025-26" was the file before it was republished** (the 88 % above); on the current file it is 2,644 of 2,644.
 - **Cost, on the full load:** the `stats:plays` step built 33,327,811 play rows (19,047,400 from the NBA's feed, 14,280,411 from ESPN's) in 213 seconds in a real refresh, as one statement a table. The file grew from 4.67 GB to 5.16 GB (+0.48 GB); peak memory of the refresh process was 1.6 GB. Built that way, a rebuild wrote the new tables before the old ones were freed, and the file reached 5.89 GB. Since the step replaces one season at a time and only the seasons that changed (`stats-database.md`, "Plays, shots and possessions"), a full rebuild takes 94 to 276 seconds and peaks at 5.13 GB from 5.12 GB in steady state (5.42 GB the first time, on the older file), with 2.2 GB of memory, and the daily rebuild of the current season takes 1.5 seconds with no growth. D22's limits are 6 GB, an hour and 4 GB.
 
+## Splits from plays, per season
+
+Measured 2026-11-11 by `scripts/check-splits.mjs` on a copy of T901's full load (`~/.cache/metis-dev/t902`), which writes these tables. How the split tables are built and read is in [stats-database.md](stats-database.md), "Splits of each game"; the rules are in `src/shared/stats/splits.ts` and on the screens.
+
+**The plan's hand count:** the earliest 2025-26 regular-season game decided by one point in regulation, Philadelphia 117 at Boston 116 (2025-10-22, `0022500083`). Its clutch rows were listed from the raw `src_nba_pbp` by SQL written apart from the builder (its own clock from the ISO text, its own carried score, its own credits from the rows' columns and descriptions): 52 plays from 4:44 left, the margin before each from 5 to −4. Every player's 13 counts (points, makes and attempts, rebounds, assists, steals, blocks, turnovers, fouls) and both teams' points, makes, attempts and free throws equal `split_player` and `split_team`: 14 players, 3:30 of clutch time. The script prints the plays and both tables.
+
+**What must hold exactly, per season.** Player-games: the quarters and overtime added up equal the game's play totals on all 14 counts; the halves equal their quarters; ahead, tied and behind added up equal the quarters, counts and seconds, and so do garbage time and the rest. Team-games: the quarters equal the play totals, the score states equal the quarters with the opponent's points, and the possessions equal the game's. Every season from 1997-98 to 2026-27 holds on every row. 1996-97 misses on one game, Miami at Charlotte of 1997-03-09 (`0029600879`), in "Traps": Keith Askins's player-game is split across both teams (counted twice as 2 rows), and Charlotte has no possessions.
+
+**Against the box scores, per season.** The quarters added up against the NBA's box-score line (the rate T901 measured for the plays: what misses is the plays' own assists and fouls), players' time from the substitutions against box-score minutes, and teams' points by quarter and overtime against ESPN's line scores where those add up to the final score. **Tolerance for time:** one second where the box score prints seconds; a minute where it prints whole minutes.
+
+| Season  | Player-games | Lines exact | Within 1 | Time ≤ 1 s | Time ≤ 60 s | Box in whole minutes | Line scores |   Equal |
+| ------- | -----------: | ----------: | -------: | ---------: | ----------: | -------------------: | ----------: | ------: |
+| 1996-97 |       25,173 |      98.8 % |   99.9 % |     99.6 % |      99.8 % |                2.9 % |       2,498 |  99.8 % |
+| 1997-98 |       25,425 |      99.0 % |   99.9 % |     99.9 % |      99.9 % |                2.5 % |       2,508 | 100.0 % |
+| 1998-99 |       16,262 |      99.1 % |  100.0 % |     99.7 % |      99.9 % |                2.5 % |       2,482 | 100.0 % |
+| 1999-00 |       25,772 |      99.5 % |  100.0 % |     99.8 % |      99.9 % |                2.5 % |       2,474 | 100.0 % |
+| 2000-01 |       25,367 |      99.6 % |  100.0 % |     94.9 % |      99.9 % |                7.5 % |       2,500 | 100.0 % |
+| 2001-02 |       25,278 |      99.3 % |  100.0 % |    100.0 % |     100.0 % |                2.5 % |           – |       – |
+| 2002-03 |       25,706 |      99.5 % |  100.0 % |     93.4 % |     100.0 % |                9.2 % |           – |       – |
+| 2003-04 |       25,548 |      99.6 % |  100.0 % |     22.5 % |      95.5 % |               81.3 % |           – |       – |
+| 2004-05 |       26,603 |      99.7 % |  100.0 % |     13.8 % |      94.2 % |               89.8 % |           – |       – |
+| 2005-06 |       26,637 |      99.7 % |  100.0 % |     99.8 % |      99.8 % |                2.3 % |           – |       – |
+| 2006-07 |       26,648 |      99.8 % |  100.0 % |     99.9 % |      99.9 % |                1.9 % |           – |       – |
+| 2007-08 |       26,651 |      99.8 % |  100.0 % |     99.9 % |      99.9 % |                2.3 % |           – |       – |
+| 2008-09 |       26,370 |      99.7 % |  100.0 % |     99.9 % |      99.9 % |                2.3 % |           – |       – |
+| 2009-10 |       26,487 |      99.8 % |  100.0 % |     99.8 % |      99.9 % |                2.4 % |           – |       – |
+| 2010-11 |       26,769 |      99.8 % |  100.0 % |     99.9 % |      99.9 % |                1.9 % |           – |       – |
+| 2011-12 |       22,502 |      99.6 % |  100.0 % |     99.6 % |      99.6 % |                1.9 % |           – |       – |
+| 2012-13 |       27,538 |      99.6 % |  100.0 % |     99.6 % |      99.6 % |                2.3 % |           – |       – |
+| 2013-14 |       27,524 |      99.3 % |   99.9 % |     99.1 % |      99.1 % |                2.0 % |           – |       – |
+| 2014-15 |       27,634 |      99.3 % |   99.9 % |     99.1 % |      99.1 % |                2.2 % |           – |       – |
+| 2015-16 |       27,978 |      99.5 % |  100.0 % |     99.2 % |      99.2 % |                2.0 % |           – |       – |
+| 2016-17 |       27,876 |      99.5 % |   99.9 % |     99.0 % |      99.1 % |                1.9 % |           – |       – |
+| 2017-18 |       27,836 |      99.6 % |   99.9 % |     99.7 % |      99.7 % |                2.1 % |           – |       – |
+| 2018-19 |       27,862 |      99.6 % |   99.8 % |     99.6 % |      99.7 % |                1.9 % |           – |       – |
+| 2019-20 |       24,105 |      99.6 % |   99.9 % |     99.3 % |      99.3 % |                2.0 % |       2,286 | 100.0 % |
+| 2020-21 |       25,054 |      99.5 % |   99.9 % |     99.2 % |      99.2 % |                1.8 % |       2,342 |  99.9 % |
+| 2021-22 |       28,050 |      99.6 % |   99.9 % |     99.3 % |      99.4 % |                1.8 % |       2,646 | 100.0 % |
+| 2022-23 |       27,739 |      99.6 % |   99.9 % |     99.5 % |      99.5 % |                1.9 % |       2,640 | 100.0 % |
+| 2023-24 |       28,232 |      99.5 % |   99.9 % |     99.2 % |      99.2 % |                2.1 % |       2,638 | 100.0 % |
+| 2024-25 |       28,265 |      99.7 % |   99.9 % |     99.6 % |      99.6 % |                2.0 % |       2,642 | 100.0 % |
+| 2025-26 |       28,716 |      99.6 % |  100.0 % |     99.5 % |      99.5 % |                1.9 % |       2,636 | 100.0 % |
+| 2026-27 |        3,843 |      99.6 % |   99.9 % |     99.6 % |      99.6 % |                2.2 % |         340 | 100.0 % |
+
+- **Time is trusted for every season,** so minute-based rates under a split are not withheld. 2003-04 and 2004-05 look worse only because the box score prints whole minutes there (81 and 90 % of lines): within a minute, 95.5 and 94.2 %. 2000-01 and 2002-03 have 5 to 9 % of lines in whole minutes. Where time misses by more than a minute (0.1 to 1 % of player-games), a substitution's player coming in could not be named (below).
+- **Line scores:** ESPN's schedule has them for 1996-97 to 2000-01 and from 2019-20; where it does and they add up, the quarters and overtime equal them on 99.8 to 100 % of team-games.
+- **Clutch totals against the NBA's own clutch tables:** no loaded table has them (searched on a full load, above), so there is nothing to compare with. For scale only: 2025-26's leader in clutch points here is Shai Gilgeous-Alexander, 175 in 27 games.
+
+**Garbage time against the dataset's mark.** The rule here: the 4th quarter, a margin of 25 or more with over 9:00 left, 20 or more from 9:00 to 6:01, 10 or more at 6:00 or less, as Cleaning the Glass describes it without its condition on starters. Counted possessions, each by its first play, against SportsDataverse's `is_garbage_time`: they agree on 96.2 to 97.1 % of possessions to 2016-17 and 94.7 to 95.5 % from 2017-18. Before 2017-18 the two mark about as many possessions but overlap on only a third to a half of them; from 2017-18 this rule marks two to two and a half times as many, and nearly all of the dataset's are among them. The dataset does not publish its rule. The split states this one.
+
+| Seasons            | Possessions a season | Marked by the dataset | Marked here     | Both            | Agree          |
+| ------------------ | -------------------- | --------------------- | --------------- | --------------- | -------------- |
+| 1996-97 to 2016-17 | 141,861 to 274,118   | 3,196 to 8,614        | 3,510 to 9,151  | 1,077 to 3,700  | 96.2 to 97.1 % |
+| 2017-18 to 2026-27 | 29,145 to 279,013    | 1,055 to 10,198       | 2,575 to 24,447 | 1,041 to 10,158 | 94.7 to 95.5 % |
+
+**Speed,** through the worker on the full load, warm, 2025-26 unless said, the median of seven runs and the slowest (the script's last table):
+
+| Query                                     |              Rows | Median ms | Slowest ms |
+| ----------------------------------------- | ----------------: | --------: | ---------: |
+| A leaderboard, 16 columns, the whole game |               582 |       176 |        206 |
+| The same, clutch                          |               490 |       109 |        113 |
+| The same, 4th quarter                     |               580 |       121 |        125 |
+| Clutch, January only                      |               332 |       102 |        107 |
+| Clutch, by season, every season           | 5,000 (the limit) |       249 |        259 |
+| A team board, clutch                      |                30 |        41 |         44 |
+| A player's 19 play splits at once         |                19 |       230 |        240 |
+| A team's 19 play splits at once           |                19 |       187 |        201 |
+
+**Cost on the full load.** Built alone on a copy of T901's load, the split tables add 194 MB (5.16 to 5.35 GB) in 215 seconds for 31 seasons. Built as they ship, as entries of `PLAY_BUILDERS` after each season's plays, in a real refresh of a fresh copy of that load (`scripts/load-report.mjs`, 2026-11-12, `PLAYS_VERSION` 2, so every season of every play table rebuilt): the `stats:plays` step took 345 seconds for both play tables and both split tables; the file went from 5.16 GB to 5.61 GB at its peak and 5.59 GB at the end, the refresh's other new files included; peak memory of the process was 2.1 GB. The peak is below T901's 5.89 GB, since a season is replaced at a time and checkpointed. A refresh that changes one season rebuilds only that season: 2025-26's plays and splits in 8.7 seconds and 2026-27's in 1.9, the file unchanged. D22's limits are 6 GB, an hour and 4 GB.
+
 ## Game matchups and officials, per season
 
 Measured on a copy of the clean Stage 8 load after a real refresh (2026-11-11) by `scripts/check-matchups-officials.mjs`, which writes these tables.
@@ -361,6 +431,10 @@ The NBA's feed is stats.nba.com's v3 play by play, ESPN's its own. How the play 
 - **ESPN records no steals before 2005-06,** and misses whole runs of plays from 2001-02 to 2005-06: its team-games rebuild exactly on under 1 % of 2001-02 to 2004-05 and 24 % of 2005-06.
 - **ESPN credits nearly every play of some old games to one team:** Denver–Portland of 2002-03-09 has 448 of its 487 rows on Portland, so one side's line is the whole game and the other's nearly nothing. These games are the worst misses of 2001-02 and 2002-03 and are left as published. Teams are matched by ESPN id through `team`, not by side, and where ESPN's home side is the `game` table's away side its scores are swapped to match.
 - **ESPN's 2012-13 and 2015-16 rebuild worse than the seasons around them** (team-games exact 46 % and 34 %, against 83 to 89 % beside them), on field-goal attempts and makes. The cause was not found; those seasons read as measured.
+- **The NBA's lineups on every row lag the substitutions** (`off_player_1` to `def_player_5`, which SportsDataverse fills from the quarter box scores, `lineup_source` `quarter_box`): a player can stay listed for minutes after leaving, or appear before a substitution names them. Players' time from them matched box-score minutes within a second on 4 % of 2025-26's player-games; from the substitutions, on 99.5 %. The split tables take only each period's first lineup from them.
+- **A substitution names the player going out by id and the one coming in by name only** ("SUB: Eason FOR Smith Jr."): the name the feed uses, an initial where two share it ("Jay. Williams"), no accent ("Jokic"), sometimes the last word of a longer name ("Hansen" for Yang Hansen). A player who comes in and does nothing else has no other row with that name, so the names are matched against everyone with a box-score line for that team in the game; where two fit, the one the feed lists on the court at the next play. 95 % of 2025-26's substitutions are named by these rules; the rest leave the player in from the period's start, which is what misses in "Time ≤ 1 s".
+- **The NBA's feed credits a player with the steal of his own turnover** in Miami at Charlotte of 1997-03-09 (`0029600879`): Keith Askins turns it over and the steal row names him too. A steal counts for the other side, so his line there is split across both teams; the split tables keep it as published. The dataset's possessions of that game are all Miami's: Charlotte has none, so its possessions read NULL there.
+- **ESPN's line scores are text in Python's form** (`[{'period': 1, 'value': 23.0} …]`), and its schedule has them only for 1996-97 to 2000-01 and from 2019-20.
 - **Both feeds hold games the box scores do not count:** the NBA's has preseason and All-Star games, and 8 of ESPN's 2025-26 games link to no game in `game`. The play tables keep only games in `game`, with its type.
 
 ## stats.nba.com directly

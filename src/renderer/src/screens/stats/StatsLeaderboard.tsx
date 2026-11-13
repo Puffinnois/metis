@@ -26,6 +26,7 @@ import {
   tabsOf
 } from '@/lib/stats/leaderboard'
 import { rangeLabel, scopeLabel, seasonOf, type StatsScope } from '@/lib/stats/scope'
+import { MOMENTS } from '@/lib/stats/splits'
 import { useStatsQuery, type StatsData } from '@/lib/stats/useStats'
 import { cn } from '@/lib/utils'
 import { seasonLabel } from '@shared/stats/seasons'
@@ -123,7 +124,13 @@ export function StatsLeaderboard({
   }
   const switchTab = (id: string): void => {
     const next = defaultBoard(entity, id, data.byId)
-    update({ ...next, mode: board.mode, qualifiedOnly: board.qualifiedOnly, team: board.team })
+    update({
+      ...next,
+      mode: board.mode,
+      qualifiedOnly: board.qualifiedOnly,
+      team: board.team,
+      split: board.split ?? null
+    })
   }
   const setFamily = (family: MetricFamily | 'default' | 'custom'): void => {
     if (family === 'custom') return
@@ -237,6 +244,13 @@ export function StatsLeaderboard({
           value={board.mode}
           options={BOARD_MODES}
           onChange={(mode) => update({ mode })}
+        />
+        <StatsSelect
+          title="Moments of the game"
+          value={board.split ?? ''}
+          options={MOMENTS}
+          onChange={(split) => update({ split: split || null })}
+          className="w-[170px]"
         />
         {tab.qualifier && (
           <CheckToggle
