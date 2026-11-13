@@ -378,6 +378,189 @@ The league's FG% by zone, regular season, as the metrics compare with it (from t
 | 2025-26 | 67.1 |  44.5 | 41.7 |       38.7 |       38.6 |  35.0 |
 | 2026-27 | 65.7 |  44.4 | 40.0 |       35.9 |       35.9 |  34.8 |
 
+## Play-derived stats, per season (Plan T905)
+
+Measured 2026-11-13 on a copy of the full load after a real refresh that built every play table with T905's (`~/.cache/metis-dev/t905`), by `scripts/check-play-derived.mjs`, which writes every table below in full. How the tables are built is in [stats-database.md](stats-database.md), "Play-derived stats"; the rules are data in `src/shared/stats/playDetail.ts`; the traps are under "Traps", "Play-derived stats".
+
+### Where each entry comes from
+
+Reference section 16, entry by entry, and the entries of sections 3 and 13 the plan sends to the plays. "Built" is a metric of the Play by play family (`catalogue/plays.ts`) or a read; "elsewhere" is another task's table; "not built" says why.
+
+| Entry (section 16)                                                                                                  | Where it comes from                                                                                                                                       |
+| ------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Live-ball / dead-ball turnovers                                                                                     | Built: a turnover with a steal credited is live-ball, the rest dead-ball (the feed tags no other way)                                                     |
+| Bad-pass / lost-ball / offensive-foul / traveling / shot-clock / out-of-bounds turnovers                            | Built: eight disjoint kinds from `sub_type` (bad pass, lost ball, offensive foul, traveling, shot clock, stepped out of bounds, other violations, other)  |
+| Shooting / non-shooting / offensive / loose-ball / take / transition-take / clear-path / technical / flagrant fouls | Built: ten personal-foul kinds that add up to PF, technicals and defensive three seconds apart                                                            |
+| And-one opportunities / conversions                                                                                 | Built: a make, a shooting foul by the other side and a "1 of 1" free throw by the shooter at the same moment; converted when it went in                   |
+| Two-shot / three-shot foul trips                                                                                    | Built: counted once a trip, on the "1 of 2" and "1 of 3" free throws                                                                                      |
+| Free-throw trip rate                                                                                                | Built: shooting-foul trips (two- and three-shot and and-ones) per field-goal attempt, labelled so                                                         |
+| Actual scoring attempts / possession-ending trips                                                                   | Not built: needs possession-ending rules for free throws the plan has not assigned; the possessions (`possession`) hold the ends, for T907 or later       |
+| Assisted two-point / three-point points (assist points)                                                             | Built: 2 × assists on twos + 3 × assists on threes, for the passer; a team's from its assisted makes                                                      |
+| Assist networks                                                                                                     | Built: its own read (`assists`), passer to scorer with makes, threes and points, for a team or a player over any scope                                    |
+| Unassisted rim / mid-range / three makes                                                                            | Elsewhere and built: by zone, the shot tables' makes less assisted makes (Plan T903); unassisted twos and threes here                                     |
+| Blocked-shot recovery rate                                                                                          | Not built: who recovered a block is the next rebound or turnover, a possession-chain rule the plan has not assigned                                       |
+| Offensive rebound retention / second-chance PPP                                                                     | Not built here: the dataset's possessions mark `is_second_chance`; reading them is possession work (T904's tables, T907)                                  |
+| Transition after steal / defensive rebound / made basket                                                            | Not built here: `possession_start_type` and `is_transition` are in the possessions file, the same                                                         |
+| Half-court frequency / PPP                                                                                          | Not built here: the same file's `is_transition`, the same                                                                                                 |
+| Average possession duration                                                                                         | Not built here: the possessions' start and end clocks, the same                                                                                           |
+| After-timeout efficiency                                                                                            | Not built: needs a rule for which possessions follow a timeout; listed for later                                                                          |
+| After-dead-ball / sideline / baseline out-of-bounds efficiency                                                      | Not available: the feed does not tag inbound locations (reference: licensed video)                                                                        |
+| Jump balls won / lost / win%                                                                                        | Not built: the winner is named only in the text ("Tip to Grimes"), by a name to match; listed for later                                                   |
+| Goaltending / basket interference / other violations                                                                | Built: defensive goaltending and kicked balls per player; offensive goaltending is a turnover kind                                                        |
+| Substitutions / stints / rotation lengths                                                                           | Elsewhere: Plan T904's units and time on court                                                                                                            |
+| Timeouts taken / remaining                                                                                          | Not built: a team's timeouts are rows (`kind = 'timeout'`), but not a performance statistic; listed only                                                  |
+| Coach's challenges / successful challenges                                                                          | Not built: the challenge row names the team (2,591 rows), the ruling rows do not (5,021 overturned, 2,014 stand); pairing them is a rule not yet assigned |
+| Buzzer-beaters / game winners / go-ahead shots                                                                      | Not built: needs the stated clock tolerance and rules the reference asks for; the flow read has every scoring play in order                               |
+| Scoring drought / longest run / lead-preserving possessions                                                         | Built: runs and droughts (below); lead-preserving possessions not built                                                                                   |
+
+| Entry (sections 3 and 13)              | Where it comes from                                                                                                |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Fouls drawn                            | Built: ESPN's play by play, which names the fouled player, read from 2006-07 to 2016-17 (below)                    |
+| Offensive fouls                        | Built: a foul kind; the turnover it causes is a turnover kind, so a possession is never counted twice in one count |
+| Technical fouls / team technical fouls | Built: a player's, and a team's with its bench and delay technicals                                                |
+| Flagrant fouls / ejections             | Built: flagrants of type 1 and 2; ejections from the play by play's ejection rows                                  |
+| Disqualifications                      | Not built: a sixth foul is not a row; it can be read from PF ≥ 6 in the box score                                  |
+| Team fouls / bonus status              | Not built: a period's state, not a statistic over games                                                            |
+| Largest lead, largest scoring run      | Built: per team-game, averaged per game; and on each game's flow chart                                             |
+| Lead changes, times tied               | Built: the same                                                                                                    |
+| Time leading / tied / trailing         | Built: the same, by the game clock                                                                                 |
+| Comeback size                          | Not built: neither section 13 nor 16 lists it                                                                      |
+
+### The feed's spellings
+
+`play_nba.subtype`, the NBA's `sub_type` trimmed. Every spelling, its rows and its first and last season; the kind it falls in is in `src/shared/stats/playDetail.ts`.
+
+Turnovers: Bad Pass 463,711 (1996-97 on); Lost Ball 242,960 (1996-97 on); Foul 103,878 (1996-97 to 2016-17, an offensive foul's turnover); Traveling 75,698; Out of Bounds - Bad Pass Turnover 47,766 (2015-16 on); Shot Clock Turnover 47,554; Out of Bounds Lost Ball Turnover 46,320 (2003-04 on); Offensive Foul Turnover 42,957 (2003-04 on, a few dozen a season until 2017-18); Step Out of Bounds Turnover 18,498 (2003-04 on); 3 Second Violation 17,110; Poss Lost Ball Turnover 8,895 (2003-04 to 2016-17); Out Of Bounds 6,082 (to 2016-17); Backcourt Turnover 5,632; Offensive Goaltending 4,629; Discontinue Dribble 4,089; Palming Turnover 3,460 (2000-01 on); Double Dribble 3,137; 8 Second Violation 1,056; Lane Violation 998; Inbound Turnover 901; 5 Second Violation 871; Kicked Ball Violation 702; no type 616; Illegal Screen Turnover 578; 5 Second Inbound Turnover 493; Illegal Assist Turnover 239; Illegal Pick 182; Jump Ball Violation 155; Isolation Violation 52; Basket from Below Turnover 41; Double Personal Turnover 32; Punched Ball Turnover 31; Excess Timeout Turnover 26; Player Out of Bounds Violation Turnover 24; Swinging Elbows Turnover 19; Post Up Turnover 18; Stolen Pass Turnover 17; Too Many Players Turnover 9; Opposite Basket Turnover 6; 10 Second Violaton 4 (sic, 2023-24 on).
+
+Fouls: Shooting 779,004; Personal 578,238; Offensive 123,198; Loose Ball 104,568; Technical 28,190; Personal Take 23,410 (2010-11 on); Offensive Charge 23,097 (2010-11 on); Defense 3 Second 21,358; Shooting Block 7,564 and Personal Block 6,257 (2010-11 to 2017-18); Flagrant Type 1 4,221; Double Technical 3,403; Clear Path 2,358; Away From Play 2,356; Double Personal 1,724; Inbound 966 (to 2017-18); Delay Technical 858; Transition Take 698 (2022-23 on); Hanging Technical 487; Flagrant Type 2 400; Taunting Technical 273; Flopping 147 (2023-24 on); Non-Unsportsmanlike Technical 121; Excess Timeout Technical 32; Too Many Players Technical 21; Elbow 13; Punching 10; Bench 7; no type 4 (none a personal foul).
+
+**Unmapped:** every foul spelling is mapped (0 personal fouls unmapped in every season). The turnovers no kind lists are those with no type: 0 to 7 a season (0.0 %) except 2015-16 (28), 2016-17 (38), 2017-18 (241, 0.6 %), 2018-19 (103) and 2019-20 to 2021-22 (35 to 49); they count in "other".
+
+### What the tables are checked against
+
+**Tolerance:** exact, nothing tuned. "Sum ≠" counts rows whose kinds do not add up to their turnovers (and live plus dead to them) or whose foul kinds do not add up to their personal fouls; 0 in every season is the check. Box-score rows only.
+
+**Turnovers and fouls.** Kinds that do not add up to the total are counted as "sum ≠" (0 everywhere is the check). Team turnovers: the box score leaves out the team’s own (a shot-clock violation with no player), so the plays’ team total less those is compared; the column beside counts them in. Fouls: the gap is the box score’s fouls the feed has no row for, summed.
+
+| Season  | Player-games | Sum ≠ | TOV exact | PF exact | Team-games | Sum ≠ | TOV exact | TOV w/ team | PF exact | PF ±1 |       PF gap | Unmapped TOV | Unmapped PF |
+| ------- | -----------: | ----: | --------: | -------: | ---------: | ----: | --------: | ----------: | -------: | ----: | -----------: | -----------: | ----------: |
+| 1996-97 |        24884 |     0 |      99.9 |     99.1 |       2522 |     0 |      99.7 |        54.7 |     92.0 |  99.5 | 230 of 55967 |    1 (0.0 %) |   0 (0.0 %) |
+| 1997-98 |        25140 |     0 |     100.0 |     99.1 |       2520 |     0 |     100.0 |        53.6 |     91.8 |  99.3 | 226 of 56734 |    0 (0.0 %) |   0 (0.0 %) |
+| 1998-99 |        16085 |     0 |     100.0 |     99.2 |       1582 |     0 |      99.9 |        51.1 |     93.1 |  99.6 | 115 of 35418 |    0 (0.0 %) |   0 (0.0 %) |
+| 1999-00 |        25507 |     0 |     100.0 |     99.7 |       2528 |     0 |      99.9 |        57.4 |     96.9 | 100.0 |  79 of 59044 |    0 (0.0 %) |   0 (0.0 %) |
+| 2000-01 |        25101 |     0 |     100.0 |     99.6 |       2520 |     0 |     100.0 |        53.1 |     96.5 |  99.8 |  91 of 56359 |    0 (0.0 %) |   0 (0.0 %) |
+| 2001-02 |        24974 |     0 |     100.0 |     99.4 |       2520 |     0 |      99.9 |        54.4 |     94.6 |  99.8 | 142 of 53871 |    5 (0.0 %) |   0 (0.0 %) |
+| 2002-03 |        25429 |     0 |     100.0 |     99.7 |       2554 |     0 |      99.9 |        53.4 |     96.6 |  99.9 |  89 of 56010 |    7 (0.0 %) |   0 (0.0 %) |
+| 2003-04 |        25257 |     0 |     100.0 |     99.8 |       2542 |     0 |     100.0 |        50.0 |     97.6 | 100.0 |  62 of 54818 |    2 (0.0 %) |   0 (0.0 %) |
+| 2004-05 |        26275 |     0 |     100.0 |     99.8 |       2628 |     0 |     100.0 |        53.0 |     98.0 | 100.0 |  52 of 59612 |    6 (0.0 %) |   0 (0.0 %) |
+| 2005-06 |        26266 |     0 |     100.0 |     99.8 |       2638 |     0 |     100.0 |        53.7 |     98.4 |  99.9 |  44 of 60255 |    3 (0.0 %) |   0 (0.0 %) |
+| 2006-07 |        26228 |     0 |     100.0 |     99.9 |       2618 |     0 |     100.0 |        54.2 |     99.3 | 100.0 |  19 of 58169 |    7 (0.0 %) |   0 (0.0 %) |
+| 2007-08 |        26309 |     0 |     100.0 |     99.8 |       2632 |     0 |     100.0 |        55.6 |     98.5 | 100.0 |  40 of 55606 |    0 (0.0 %) |   0 (0.0 %) |
+| 2008-09 |        26080 |     0 |     100.0 |     99.9 |       2630 |     0 |     100.0 |        54.6 |     98.6 | 100.0 |  37 of 55626 |    6 (0.0 %) |   0 (0.0 %) |
+| 2009-10 |        26172 |     0 |     100.0 |     99.9 |       2624 |     0 |     100.0 |        51.9 |     98.6 | 100.0 |  38 of 55129 |    2 (0.0 %) |   0 (0.0 %) |
+| 2010-11 |        26496 |     0 |     100.0 |     99.9 |       2622 |     0 |     100.0 |        51.9 |     98.7 | 100.0 |  33 of 54434 |    5 (0.0 %) |   0 (0.0 %) |
+| 2011-12 |        22200 |     0 |     100.0 |     99.9 |       2148 |     0 |     100.0 |        55.4 |     98.7 | 100.0 |  27 of 42301 |    6 (0.0 %) |   0 (0.0 %) |
+| 2012-13 |        27167 |     0 |     100.0 |     99.8 |       2630 |     0 |     100.0 |        55.2 |     98.0 |  99.9 |  54 of 52572 |    7 (0.0 %) |   0 (0.0 %) |
+| 2013-14 |        27094 |     0 |     100.0 |     99.9 |       2640 |     0 |     100.0 |        56.5 |     99.1 | 100.0 |  25 of 54861 |    3 (0.0 %) |   0 (0.0 %) |
+| 2014-15 |        27271 |     0 |     100.0 |     99.8 |       2624 |     0 |     100.0 |        54.2 |     98.1 | 100.0 |  50 of 53281 |    4 (0.0 %) |   0 (0.0 %) |
+| 2015-16 |        27628 |     0 |     100.0 |     99.8 |       2634 |     0 |     100.0 |        54.6 |     98.1 | 100.0 |  52 of 53494 |   28 (0.1 %) |   0 (0.0 %) |
+| 2016-17 |        27532 |     0 |     100.0 |     99.9 |       2620 |     0 |     100.0 |        55.3 |     98.7 | 100.0 |  33 of 52248 |   38 (0.1 %) |   0 (0.0 %) |
+| 2017-18 |        27457 |     0 |     100.0 |     99.9 |       2626 |     0 |     100.0 |        55.6 |     98.9 | 100.0 |  29 of 52264 |  241 (0.6 %) |   0 (0.0 %) |
+| 2018-19 |        27520 |     0 |     100.0 |    100.0 |       2628 |     0 |      99.9 |        58.9 |     99.4 |  99.9 |   0 of 55092 |  103 (0.3 %) |   0 (0.0 %) |
+| 2019-20 |        23805 |     0 |     100.0 |     99.9 |       2288 |     0 |     100.0 |        53.1 |     99.3 | 100.0 |  16 of 47694 |   42 (0.1 %) |   0 (0.0 %) |
+| 2020-21 |        24593 |     0 |     100.0 |     99.9 |       2344 |     0 |     100.0 |        54.8 |     99.4 | 100.0 |  15 of 45416 |   35 (0.1 %) |   0 (0.0 %) |
+| 2021-22 |        27560 |     0 |     100.0 |     99.9 |       2648 |     0 |     100.0 |        48.5 |     99.2 | 100.0 |  22 of 52318 |   49 (0.1 %) |   0 (0.0 %) |
+| 2022-23 |        27272 |     0 |     100.0 |     99.9 |       2642 |     0 |     100.0 |        51.1 |     99.2 | 100.0 |  20 of 52688 |   11 (0.0 %) |   0 (0.0 %) |
+| 2023-24 |        27621 |     0 |     100.0 |    100.0 |       2640 |     0 |     100.0 |        48.2 |     99.5 | 100.0 |  12 of 49469 |    0 (0.0 %) |   0 (0.0 %) |
+| 2024-25 |        27725 |     0 |     100.0 |     99.9 |       2648 |     0 |     100.0 |        45.3 |     99.3 | 100.0 |  19 of 49503 |    2 (0.0 %) |   0 (0.0 %) |
+| 2025-26 |        28261 |     0 |     100.0 |     99.9 |       2644 |     0 |     100.0 |        47.8 |     98.8 | 100.0 |  32 of 52917 |    3 (0.0 %) |   0 (0.0 %) |
+| 2026-27 |         3774 |     0 |     100.0 |     99.9 |        340 |     0 |     100.0 |        45.0 |     98.5 | 100.0 |    5 of 7502 |    0 (0.0 %) |   0 (0.0 %) |
+
+**Assisted makes, and-ones and the flow.** Makes: player-games where assisted plus unassisted twos and threes differ from the plays’ makes (0 is the check). Assists: the scorers’ assisted makes against the box score’s team assists, and the passers’ against each player’s. Shots: player-games where the assisted makes equal the shot table’s `shots_ast` (the same flag through the shot file). And-ones: team-games with more and-ones than the other side’s shooting fouls (0 is the check), and the "1 of 1" free throws beside them. Time: team-games whose time leading, trailing and tied miss the game’s length by more than a tenth (0 is the check). Margin: games whose last scoring play’s margin equals the box score’s. Team assists miss on 1 to 5 % of team-games as Plan T901 measured them: assists named in text no rule matches.
+
+| Season  | Makes ≠ | Team AST exact | Player AST exact | Same as shots | And-ones | Converted | Over shooting fouls | "1 of 1" FTs | Technicals | Flagrants | Time ≠ | Margin exact |
+| ------- | ------: | -------------: | ---------------: | ------------: | -------: | --------: | ------------------: | -----------: | ---------: | --------: | -----: | -----------: |
+| 1996-97 |       0 |           98.6 |             99.9 |         100.0 |     5314 |      71.0 |                   0 |         5375 |        922 |       152 |      2 |         99.7 |
+| 1997-98 |       0 |           99.2 |            100.0 |         100.0 |     5426 |      69.8 |                   0 |         5489 |       1028 |       159 |      2 |         99.8 |
+| 1998-99 |       0 |           99.6 |            100.0 |         100.0 |     3132 |      70.2 |                   0 |         3175 |        599 |       125 |      0 |        100.0 |
+| 1999-00 |       0 |           99.4 |            100.0 |         100.0 |     5084 |      72.2 |                   0 |         5155 |       1027 |       185 |      0 |         99.9 |
+| 2000-01 |       0 |           99.5 |            100.0 |         100.0 |     4868 |      71.6 |                   0 |         4957 |       1163 |       198 |      2 |         99.8 |
+| 2001-02 |       0 |           99.2 |            100.0 |         100.0 |     4971 |      72.2 |                   0 |         5047 |       1091 |       218 |      2 |        100.0 |
+| 2002-03 |       0 |           99.1 |            100.0 |         100.0 |     5000 |      73.6 |                   0 |         5087 |       1038 |       188 |      0 |        100.0 |
+| 2003-04 |       0 |           99.1 |            100.0 |         100.0 |     4866 |      71.9 |                   0 |         4938 |        937 |       116 |      0 |         99.9 |
+| 2004-05 |       0 |           99.4 |            100.0 |         100.0 |     5720 |      72.5 |                   0 |         5812 |       1063 |       103 |      0 |        100.0 |
+| 2005-06 |       0 |           99.1 |            100.0 |         100.0 |     6083 |      72.9 |                   0 |         6171 |        843 |       129 |      0 |         99.9 |
+| 2006-07 |       0 |           98.9 |            100.0 |         100.0 |     6403 |      71.4 |                   0 |         6472 |        908 |       123 |      0 |         99.8 |
+| 2007-08 |       0 |           99.3 |            100.0 |         100.0 |     5859 |      73.1 |                   0 |         5940 |        797 |       108 |      0 |         99.9 |
+| 2008-09 |       0 |           99.3 |            100.0 |         100.0 |     5985 |      74.3 |                   0 |         6074 |        871 |       109 |      0 |         99.9 |
+| 2009-10 |       0 |           99.4 |            100.0 |         100.0 |     6171 |      74.3 |                   0 |         6270 |        759 |        98 |      0 |        100.0 |
+| 2010-11 |       0 |           99.4 |            100.0 |         100.0 |     5947 |      74.2 |                   0 |         6633 |        942 |       134 |      0 |         99.9 |
+| 2011-12 |       0 |           98.3 |            100.0 |         100.0 |     4237 |      71.0 |                   0 |         4433 |        751 |       103 |      0 |         99.9 |
+| 2012-13 |       0 |           98.4 |             99.9 |         100.0 |     5098 |      73.5 |                   0 |         5714 |        926 |       130 |      0 |         99.8 |
+| 2013-14 |       0 |           95.3 |             99.5 |         100.0 |     5545 |      73.1 |                   0 |         6138 |        883 |       115 |      0 |        100.0 |
+| 2014-15 |       0 |           95.9 |             99.6 |         100.0 |     5165 |      72.7 |                   0 |         5821 |        790 |       141 |      0 |        100.0 |
+| 2015-16 |       0 |           96.9 |             99.8 |         100.0 |     5445 |      73.7 |                   0 |         5995 |        752 |       140 |      0 |         99.9 |
+| 2016-17 |       0 |           96.2 |             99.7 |         100.0 |     5857 |      74.8 |                   0 |         6483 |        811 |       130 |      2 |        100.0 |
+| 2017-18 |       0 |           97.1 |             99.8 |         100.0 |     5833 |      74.6 |                   0 |         6434 |        874 |       119 |     80 |         99.4 |
+| 2018-19 |       0 |           96.5 |             99.8 |         100.0 |     6148 |      74.6 |                   0 |         6753 |        929 |       120 |     28 |         99.8 |
+| 2019-20 |       0 |           96.8 |             99.8 |         100.0 |     5408 |      73.9 |                   0 |         5584 |        755 |       170 |      8 |        100.0 |
+| 2020-21 |       0 |           95.6 |             99.7 |         100.0 |     5269 |      75.1 |                   0 |         5656 |        756 |       173 |     16 |         99.9 |
+| 2021-22 |       0 |           96.8 |             99.8 |         100.0 |     6129 |      75.0 |                   0 |         6574 |       1088 |       208 |     10 |         99.8 |
+| 2022-23 |       0 |           97.3 |             99.8 |         100.0 |     6922 |      76.5 |                   0 |         7720 |       1024 |       211 |      8 |        100.0 |
+| 2023-24 |       0 |           96.3 |             99.7 |         100.0 |     6320 |      75.5 |                   0 |         7019 |        936 |       145 |      6 |        100.0 |
+| 2024-25 |       0 |           97.3 |             99.9 |         100.0 |     5897 |      75.7 |                   0 |         6549 |        801 |       168 |      4 |        100.0 |
+| 2025-26 |       0 |           98.3 |             99.9 |         100.0 |     6229 |      76.3 |                   0 |         7018 |        824 |       272 |      8 |        100.0 |
+| 2026-27 |       0 |           97.1 |             99.9 |         100.0 |      779 |      76.4 |                   0 |          877 |        137 |        38 |      4 |         99.4 |
+
+**The flow recounted.** Every game of six seasons: the raw `src_nba_pbp` score text carried as distinct score states, ties the states level after 0-0, lead changes the switches between non-zero signs, largest leads the extremes; against the home side’s row of `play_team_game`.
+
+| Season  | Games | Lead changes |  Ties | Largest leads | First misses |
+| ------- | ----: | -----------: | ----: | ------------: | -----------: |
+| 1996-97 |  1261 |        100.0 | 100.0 |         100.0 |            – |
+| 2002-03 |  1277 |        100.0 | 100.0 |         100.0 |            – |
+| 2008-09 |  1317 |        100.0 |  99.9 |         100.0 |   0020800225 |
+| 2014-15 |  1431 |        100.0 | 100.0 |         100.0 |            – |
+| 2020-21 |  1221 |        100.0 | 100.0 |         100.0 |            – |
+| 2025-26 |  1400 |        100.0 | 100.0 |         100.0 |            – |
+
+**Fouls drawn and ejections.** Fouls drawn: ESPN’s, 2005-06 to 2016-17, a team’s summed against the other side’s box-score fouls. Ejections: player-games ESPN’s box score marks ejected, those the play by play records, and both. Fouls drawn read from 2006-07 (2005-06 agrees too rarely); ESPN’s `ejected` is never true in this load.
+
+| Season  | FD exact | FD ±2 | Ejected (ESPN) | Ejections (plays) | Both |
+| ------- | -------: | ----: | -------------: | ----------------: | ---: |
+| 1996-97 |        – |     – |              0 |                74 |    0 |
+| 1997-98 |        – |     – |              0 |                76 |    0 |
+| 1998-99 |        – |     – |              0 |                56 |    0 |
+| 1999-00 |        – |     – |              0 |               101 |    0 |
+| 2000-01 |        – |     – |              0 |               107 |    0 |
+| 2001-02 |        – |     – |              0 |                97 |    0 |
+| 2002-03 |        – |     – |              0 |                80 |    0 |
+| 2003-04 |        – |     – |              0 |                69 |    0 |
+| 2004-05 |        – |     – |              0 |                95 |    0 |
+| 2005-06 |     83.4 |  97.0 |              0 |                53 |    0 |
+| 2006-07 |     93.7 |  97.6 |              0 |                78 |    0 |
+| 2007-08 |     94.8 |  98.7 |              0 |                43 |    0 |
+| 2008-09 |     96.7 |  99.8 |              0 |                53 |    0 |
+| 2009-10 |     96.6 |  99.6 |              0 |                33 |    0 |
+| 2010-11 |     96.8 |  99.6 |              0 |                76 |    0 |
+| 2011-12 |     96.6 | 100.0 |              0 |                34 |    0 |
+| 2012-13 |     90.5 |  99.8 |              0 |                65 |    0 |
+| 2013-14 |     97.7 |  99.6 |              0 |                58 |    0 |
+| 2014-15 |     95.6 |  99.7 |              0 |                56 |    0 |
+| 2015-16 |     95.7 |  99.7 |              0 |                54 |    0 |
+| 2016-17 |     97.3 | 100.0 |              0 |                73 |    0 |
+| 2017-18 |        – |     – |              0 |                78 |    0 |
+| 2018-19 |        – |     – |              0 |                73 |    0 |
+| 2019-20 |        – |     – |              0 |                53 |    0 |
+| 2020-21 |        – |     – |              0 |                57 |    0 |
+| 2021-22 |        – |     – |              0 |                95 |    0 |
+| 2022-23 |        – |     – |              0 |                78 |    0 |
+| 2023-24 |        – |     – |              0 |                74 |    0 |
+| 2024-25 |        – |     – |              0 |                83 |    0 |
+| 2025-26 |        – |     – |              0 |                64 |    0 |
+| 2026-27 |        – |     – |              0 |                 7 |    0 |
+
+**Reads,** in the worker on the full load, warm, median of five: a team’s assist network, a season 22 ms; the same over January 20 ms; a player’s assists, a season 20 ms; a team’s assist network, ten seasons 45 ms; a game’s flow 21 ms; a five-metric player leaderboard (engine) 44 ms.
+
 ## Old seasons
 
 | Season label (file) | Source | Games | Notes                                                  |
@@ -525,6 +708,20 @@ The NBA's feed is stats.nba.com's v3 play by play, ESPN's its own. How the play 
 - **Heaves are out of the shot file from 2025-26**, as out of the box score's FGA (Plan T901): 34 shots from beyond half court in the 2025-26 regular season, against 336 to 581 a season from 2017-18 to 2024-25.
 - **The dataset's distance curves mix every season type and bin by the exact distance**, not the published one, and from 2019-20 leave out a few hundred shots a season (202,223 of 202,399 in 2019-20). The metrics' league rate is recomputed from the regular-season shots instead.
 - **ESPN's shot coordinates are another frame**, whole feet: `coordinate_x` runs the court's length from centre court, `coordinate_y` across it; the raw pair is feet across the court and out from the basket. They are not converted or mixed in.
+
+### Play-derived stats (Plan T905)
+
+- **Before 2017-18 the NBA's feed writes the score as "0" and "0" on every row that scores nothing,** not as empty text, so `play_nba` carries `home_after` and `away_after` of 0-0 on about half the rows of those seasons (1996-97: 341,888 of 596,315 rows; from 2017-18 about 1,400 a season). Scoring rows hold the real score, so the game flow reads scoring rows only. The splits of Plan T902 take the score before every play from these columns, so their score-state splits before 2017-18 read 0-0 on non-scoring plays: raised with the manager, not changed here.
+- **It writes 0-0 on a few scoring rows too:** up to 16 a season from 1999-00 to 2016-17, none after. The flow takes the last written score plus the play's points there.
+- **It lists a few scoring rows out of order:** an and-one's free throw before its basket, so the written score steps back (76-75, then 75-75) and would make a tie that never was. A score only rises, so the flow orders scoring plays by the total score, then by row. With both rules the raw feed's own score, recounted apart, gives the same lead changes, ties and largest leads on every game of six seasons across the eras but one (its ties, in 2008-09).
+- **The final margin from the last written score equals the box score's on 99.4 to 100 % of games;** the running sum of the plays' points does on 98.6 to 100 %, so the written score is the one read.
+- **An offensive foul's turnover is "Foul" until 2016-17 and "Offensive Foul Turnover" after,** both from 2003-04 to 2016-17 (the second on a few dozen a season). Both are one kind.
+- **A bad pass out of bounds is spelled apart only from 2015-16** ("Out of Bounds - Bad Pass Turnover"), so it stays a bad pass, or bad passes would fall by a quarter in 2015-16. A ball lost out of bounds likewise stays a lost ball.
+- **Live-ball turnovers are those with a steal credited.** The feed tags no other way; a bad pass thrown out of bounds is dead-ball.
+- **The NBA's feed never names the fouled player.** Its foul text ends with the official ("(S.Foster)"). ESPN's names them as the second athlete from 2005-06 to 2016-17 (99 to 100 % of its fouls), and not before or after (0 %, a handful in 2026-27). From 2010-11 ESPN spells charges and blocking fouls as types of their own ("Offensive Charge", "Shooting Block", "Personal Block"); left out, a team's fouls drawn fell short by 1.2 to 1.4 a game. A team's fouls drawn equal the other side's box-score fouls on 93.7 to 97.7 % of team-games from 2006-07 (90.5 % in 2012-13, when ESPN's file misses plays), but on 83.4 % in 2005-06, so fouls drawn start in 2006-07. A double personal foul names a second fouler, not a fouled player, and is left out.
+- **No loaded table holds technical fouls,** so technicals are counted from the plays only. A double technical is one row naming one player: the other is not credited.
+- **ESPN's player box score's `ejected` is never true in this load,** so ejections cannot be checked against it: the plays record 33 to 107 a full season.
+- **And-ones never exceed the other side's shooting fouls** in any team-game; they are about 90 to 99 % of the "1 of 1" free throws (the rest follow away-from-play and other fouls, or a make at another clock).
 
 ## stats.nba.com directly
 
