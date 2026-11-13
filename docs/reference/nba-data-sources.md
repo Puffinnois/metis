@@ -199,7 +199,7 @@ Measured 2026-11-11 by `scripts/check-splits.mjs` on a copy of T901's full load 
 
 **The plan's hand count:** the earliest 2025-26 regular-season game decided by one point in regulation, Philadelphia 117 at Boston 116 (2025-10-22, `0022500083`). Its clutch rows were listed from the raw `src_nba_pbp` by SQL written apart from the builder (its own clock from the ISO text, its own carried score, its own credits from the rows' columns and descriptions): 52 plays from 4:44 left, the margin before each from 5 to −4. Every player's 13 counts (points, makes and attempts, rebounds, assists, steals, blocks, turnovers, fouls) and both teams' points, makes, attempts and free throws equal `split_player` and `split_team`: 14 players, 3:30 of clutch time. The script prints the plays and both tables.
 
-**What must hold exactly, per season.** Player-games: the quarters and overtime added up equal the game's play totals on all 14 counts; the halves equal their quarters; ahead, tied and behind added up equal the quarters, counts and seconds, and so do garbage time and the rest. Team-games: the quarters equal the play totals, the score states equal the quarters with the opponent's points, and the possessions equal the game's. Every season from 1997-98 to 2026-27 holds on every row. 1996-97 misses on 2 of 25,186 player-games and one team-game's possessions; the cause was not traced.
+**What must hold exactly, per season.** Player-games: the quarters and overtime added up equal the game's play totals on all 14 counts; the halves equal their quarters; ahead, tied and behind added up equal the quarters, counts and seconds, and so do garbage time and the rest. Team-games: the quarters equal the play totals, the score states equal the quarters with the opponent's points, and the possessions equal the game's. Every season from 1997-98 to 2026-27 holds on every row. 1996-97 misses on one game, Miami at Charlotte of 1997-03-09 (`0029600879`), in "Traps": Keith Askins's player-game is split across both teams (counted twice as 2 rows), and Charlotte has no possessions.
 
 **Against the box scores, per season.** The quarters added up against the NBA's box-score line (the rate T901 measured for the plays: what misses is the plays' own assists and fouls), players' time from the substitutions against box-score minutes, and teams' points by quarter and overtime against ESPN's line scores where those add up to the final score. **Tolerance for time:** one second where the box score prints seconds; a minute where it prints whole minutes.
 
@@ -235,7 +235,7 @@ Measured 2026-11-11 by `scripts/check-splits.mjs` on a copy of T901's full load 
 | 2023-24 |       28,232 |      99.5 % |   99.9 % |     99.2 % |      99.2 % |                2.1 % |       2,638 | 100.0 % |
 | 2024-25 |       28,265 |      99.7 % |   99.9 % |     99.6 % |      99.6 % |                2.0 % |       2,642 | 100.0 % |
 | 2025-26 |       28,716 |      99.6 % |  100.0 % |     99.5 % |      99.5 % |                1.9 % |       2,636 | 100.0 % |
-| 2026-27 |        3,294 |      99.6 % |   99.9 % |     99.6 % |      99.6 % |                2.1 % |         292 | 100.0 % |
+| 2026-27 |        3,843 |      99.6 % |   99.9 % |     99.6 % |      99.6 % |                2.2 % |         340 | 100.0 % |
 
 - **Time is trusted for every season,** so minute-based rates under a split are not withheld. 2003-04 and 2004-05 look worse only because the box score prints whole minutes there (81 and 90 % of lines): within a minute, 95.5 and 94.2 %. 2000-01 and 2002-03 have 5 to 9 % of lines in whole minutes. Where time misses by more than a minute (0.1 to 1 % of player-games), a substitution's player coming in could not be named (below).
 - **Line scores:** ESPN's schedule has them for 1996-97 to 2000-01 and from 2019-20; where it does and they add up, the quarters and overtime equal them on 99.8 to 100 % of team-games.
@@ -252,16 +252,16 @@ Measured 2026-11-11 by `scripts/check-splits.mjs` on a copy of T901's full load 
 
 | Query                                     |              Rows | Median ms | Slowest ms |
 | ----------------------------------------- | ----------------: | --------: | ---------: |
-| A leaderboard, 16 columns, the whole game |               582 |       170 |        186 |
-| The same, clutch                          |               490 |       119 |        126 |
-| The same, 4th quarter                     |               580 |       131 |        136 |
-| Clutch, January only                      |               332 |       107 |        108 |
-| Clutch, by season, every season           | 5,000 (the limit) |       277 |        287 |
-| A team board, clutch                      |                30 |        44 |         47 |
-| A player's 19 play splits at once         |                19 |       268 |        279 |
-| A team's 19 play splits at once           |                19 |       204 |        209 |
+| A leaderboard, 16 columns, the whole game |               582 |       176 |        206 |
+| The same, clutch                          |               490 |       109 |        113 |
+| The same, 4th quarter                     |               580 |       121 |        125 |
+| Clutch, January only                      |               332 |       102 |        107 |
+| Clutch, by season, every season           | 5,000 (the limit) |       249 |        259 |
+| A team board, clutch                      |                30 |        41 |         44 |
+| A player's 19 play splits at once         |                19 |       230 |        240 |
+| A team's 19 play splits at once           |                19 |       187 |        201 |
 
-**Cost on the full load:** the split tables add 194 MB (5.16 to 5.35 GB) and take 215 seconds to build for 31 seasons, about 7 a season, so a refresh that rebuilds one season's plays rebuilds its splits in about 7 seconds. A full rebuild replaces each season's rows in turn, so the file does not hold two copies at once.
+**Cost on the full load.** Built alone on a copy of T901's load, the split tables add 194 MB (5.16 to 5.35 GB) in 215 seconds for 31 seasons. Built as they ship, as entries of `PLAY_BUILDERS` after each season's plays, in a real refresh of a fresh copy of that load (`scripts/load-report.mjs`, 2026-11-12, `PLAYS_VERSION` 2, so every season of every play table rebuilt): the `stats:plays` step took 345 seconds for both play tables and both split tables; the file went from 5.16 GB to 5.61 GB at its peak and 5.59 GB at the end, the refresh's other new files included; peak memory of the process was 2.1 GB. The peak is below T901's 5.89 GB, since a season is replaced at a time and checkpointed. A refresh that changes one season rebuilds only that season: 2025-26's plays and splits in 8.7 seconds and 2026-27's in 1.9, the file unchanged. D22's limits are 6 GB, an hour and 4 GB.
 
 ## Game matchups and officials, per season
 
@@ -433,6 +433,7 @@ The NBA's feed is stats.nba.com's v3 play by play, ESPN's its own. How the play 
 - **ESPN's 2012-13 and 2015-16 rebuild worse than the seasons around them** (team-games exact 46 % and 34 %, against 83 to 89 % beside them), on field-goal attempts and makes. The cause was not found; those seasons read as measured.
 - **The NBA's lineups on every row lag the substitutions** (`off_player_1` to `def_player_5`, which SportsDataverse fills from the quarter box scores, `lineup_source` `quarter_box`): a player can stay listed for minutes after leaving, or appear before a substitution names them. Players' time from them matched box-score minutes within a second on 4 % of 2025-26's player-games; from the substitutions, on 99.5 %. The split tables take only each period's first lineup from them.
 - **A substitution names the player going out by id and the one coming in by name only** ("SUB: Eason FOR Smith Jr."): the name the feed uses, an initial where two share it ("Jay. Williams"), no accent ("Jokic"), sometimes the last word of a longer name ("Hansen" for Yang Hansen). A player who comes in and does nothing else has no other row with that name, so the names are matched against everyone with a box-score line for that team in the game; where two fit, the one the feed lists on the court at the next play. 95 % of 2025-26's substitutions are named by these rules; the rest leave the player in from the period's start, which is what misses in "Time ≤ 1 s".
+- **The NBA's feed credits a player with the steal of his own turnover** in Miami at Charlotte of 1997-03-09 (`0029600879`): Keith Askins turns it over and the steal row names him too. A steal counts for the other side, so his line there is split across both teams; the split tables keep it as published. The dataset's possessions of that game are all Miami's: Charlotte has none, so its possessions read NULL there.
 - **ESPN's line scores are text in Python's form** (`[{'period': 1, 'value': 23.0} …]`), and its schedule has them only for 1996-97 to 2000-01 and from 2019-20.
 - **Both feeds hold games the box scores do not count:** the NBA's has preseason and All-Star games, and 8 of ESPN's 2025-26 games link to no game in `game`. The play tables keep only games in `game`, with its type.
 

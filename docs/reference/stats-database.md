@@ -114,7 +114,7 @@ Built by `src/main/stats/derived/playBuilders.ts` from the SQL in `plays.ts` and
 
 ## Splits of each game
 
-Built by `src/main/stats/derived/splits.ts` (Plan T902) from `play_nba`, a season at a time, each season in one transaction per table, logged as `stats:splits` after the plays. Each table is one SELECT a season, in the shape of the play layer's builder registry. The rules are data in `src/shared/stats/splits.ts`, so the builder, the engine and the screens read the same numbers.
+Built by `src/main/stats/derived/splits.ts` (Plan T902) from `play_nba`, as two entries of `PLAY_BUILDERS` (`playBuilders.ts`) after the play tables: the `stats:plays` step replaces a season of each in one transaction, only the seasons that changed. The rules are data in `src/shared/stats/splits.ts`, so the builder, the engine and the screens read the same numbers.
 
 | Table          | One row per            | Holds                                                                                                                      |
 | -------------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------- |
@@ -124,7 +124,7 @@ Built by `src/main/stats/derived/splits.ts` (Plan T902) from `play_nba`, a seaso
 - **The splits:** `q1` to `q4`, `h1`, `h2` (without overtime), `ot` (every overtime), `clutch`, `ahead`, `tied`, `behind`, `within5`, `ahead10`, `behind10`, `end2` (the last 2 minutes of every period), `last2` and `last1` (of the 4th quarter and each overtime), `garbage` and `nogarbage`. A play is in a split by its period, its clock and the score **before** it, from the side of the team the stat belongs to: a steal is the stealer's team's moment. Time between two plays is in a split by the score after the first, cut at each window's edge (5:00, 2:00, 1:00, 9:00, 6:00).
 - **Counts** are the flags as the box score counts them (rebounds and turnovers where a player is named). **Players' time** comes from the substitutions: the period's starters from the feed's lineup on its first row, the player coming in named in the substitution's text and matched to that team's players in the game; the lineups on every row are not used, they lag the substitutions by minutes. **Possessions** are SportsDataverse's counted ones, in a split by their first play: derived, not official.
 - **The engine** reads them under `scope.split` (see below). A missing source reads NULL: without the feed's substitution text or lineups players' time is NULL, without the possessions file possessions are.
-- **Size and time on the full load:** 11.2 million player rows and 1.3 million team rows, 194 MB, built in 215 seconds for 31 seasons (about 7 a season). Rows are written in key order; unsorted they took 288 MB.
+- **Size and time on the full load:** 11.2 million player rows and 1.3 million team rows, 194 MB, about 7 seconds a season (215 for 31 built alone). Rows are written in key order; unsorted they took 288 MB. In a real refresh rebuilding every season, the whole `stats:plays` step took 345 seconds and the file peaked at 5.61 GB; one changed season rebuilds in 2 to 9 seconds. Measured in [nba-data-sources.md](nba-data-sources.md), "Splits from plays".
 
 ## The catalogue and the query engine
 
