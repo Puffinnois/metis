@@ -55,7 +55,7 @@ export const PLAY_BUILDERS: PlayBuilder[] = [
 ]
 
 /** Bump when a builder's rows change, so the next refresh rebuilds every season of every table. */
-export const PLAYS_VERSION = 5
+export const PLAYS_VERSION = 6
 
 /** A file of season 0 holds every season. */
 const ALL = 0
