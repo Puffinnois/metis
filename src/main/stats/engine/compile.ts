@@ -516,11 +516,15 @@ function builtCte(
   const sums = [...parts].map((p) =>
     t.zero?.(p) ? `coalesce(sum(w.${p}), 0) AS ${p}` : `sum(w.${p}) AS ${p}`
   )
+  // The row's team is NULL on exactly the rows of a player query that names no team (the season
+  // table's row of no team), so which condition holds is known here. Written as `row_team IS NULL OR
+  // ...` it cannot be hashed, and DuckDB joined every season row to every built row in a nested loop:
+  // a shot zone board over 30 seasons took 4.2 s (Plan T907).
+  const byTeam = q.entity === 'team' || q.scope.teams !== undefined
   const on =
     c.grain === 'game'
       ? `b.game = w.game_id`
-      : `b.season = w.season AND b.game_type = w.game_type
-         AND (b.row_team IS NULL OR w.team_id = b.row_team)`
+      : `b.season = w.season AND b.game_type = w.game_type${byTeam ? ' AND w.team_id = b.row_team' : ''}`
   return `${name} AS (
     SELECT b.id, ${[...dims, ...sums].join(', ')}
     FROM base b LEFT JOIN ${table} w
@@ -576,7 +580,8 @@ function aggregate(q: StatsQuery, c: Checked, params: Params): string {
     }
   }
   const teamColumn = player && season ? 'w.last_team_id' : 'w.team_id'
-  // The row's own team at the season grain, for a built table: NULL on a player's row of no team.
+  // The row's own team at the season grain, for a built table: NULL on a player's row of no team,
+  // which `builtCte` relies on.
   const dimColumns = season
     ? 'w.game_type, w.team_id AS row_team,'
     : `w.team_id AS team, w.opponent_id AS opponent, month(w.game_date) AS month, w.game_id AS game,`

@@ -179,6 +179,20 @@ describe('the on-court table, read through built', () => {
     expect(c.params).toContain(1610612760)
   })
 
+  it('joins a season on equalities alone, so it can be hashed (Plan T907)', () => {
+    // A player's whole season, every team: no team condition at all.
+    const all = compileQuery(onCourt(), CTX)
+    expect(all.sql).not.toContain('row_team IS NULL')
+    expect(all.sql).not.toContain('w.team_id = b.row_team')
+    // A team's season: by the row's team, which is never NULL.
+    const team = compileQuery(
+      { entity: 'team', metrics: ['team_shot_ra_fg_pct'], scope: { seasons: [2026] } },
+      CTX
+    )
+    expect(team.sql).toContain('w.team_id = b.row_team')
+    expect(team.sql).not.toContain('row_team IS NULL')
+  })
+
   it('answers a date range from the games it keeps', () => {
     const c = compileQuery(onCourt({ dates: ['2026-01-01', '2026-01-31'] }), CTX)
     expect(c.grain).toBe('game')
