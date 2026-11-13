@@ -11,6 +11,12 @@ export const PUBLISHED_TYPES_ONLY = 'Published for the regular season and playof
 export const ONE_SEASON_ONLY = 'Published for one season at a time.'
 /** Why it has none in the playoffs: its playoff rows repeat the regular season's. */
 export const REGULAR_SEASON_ONLY = 'Published for the regular season only.'
+/** Why a model computed per season has no value under a filter that splits a season's games. */
+export const COMPUTED_WHOLE_SEASONS = 'Computed for whole seasons only.'
+/** Why a rating as of a game has none over several seasons at once: it is one season's state. */
+export const STATE_ONE_SEASON = 'A rating as of a game, read one season at a time.'
+/** Why a model has no value under a split of each game. */
+export const MODEL_NO_SPLIT = 'Computed per game, not per moment, so it has no split.'
 
 /** Whether the source has real values for this metric in this season. */
 export const covers = (def: Coverage, season: number): boolean =>

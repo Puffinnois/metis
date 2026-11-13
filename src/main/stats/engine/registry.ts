@@ -4,6 +4,7 @@ import type { Entity, Grain, MetricDef, MetricInfo } from '@shared/stats/types'
 import { PLAYER_SUMS, TEAM_SUMS } from '../derived/game'
 import { gameTable } from '../derived/gameTables'
 import { publishedComponents, publishedTable } from '../derived/published'
+import { modelTable } from '../models/build'
 
 /** The columns each entity's game and season tables can sum. */
 export const COMPONENTS: Record<Entity, ReadonlySet<string>> = {
@@ -17,6 +18,15 @@ export const COMPONENTS: Record<Entity, ReadonlySet<string>> = {
  */
 export function grainsOf(def: MetricDef): Grain[] {
   const parts = componentsOf(def)
+  if (def.model) {
+    // A model table holds the values; the box scores the rest (games, minutes).
+    const table = modelTable(def.model)
+    const ok =
+      table?.entity === def.entity &&
+      parts.every((c) => table.components.includes(c) || COMPONENTS[def.entity].has(c))
+    if (!ok) return []
+    return table.kind === 'sum' && table.grain === 'season' ? ['season'] : ['game', 'season']
+  }
   if (def.built) {
     // A built table holds the counts; the box scores the rest (games, minutes, box_games).
     const table = gameTable(def.built)

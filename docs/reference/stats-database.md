@@ -294,6 +294,68 @@ The last is over the 500 ms a screen is allowed, and no screen asks it. Trends (
 
 Lineups (Plan T710) are one more table that is not a metric: `pub_lineups`, one row per team, season, season type and set of five players, 83,277 rows from 2007-08. It is built by the `stats:published` step from the six lineup dashboards and read by its own call, `lineups`; the engine never sees it, and it has no lineup subject. The five ids are sorted ascending (`p1` to `p5`), which is the order the sources write them, so a unit's key never depends on a file's habit. Each of the 89 stored columns is read from its own dashboard, in `src/shared/stats/lineups.ts`, and the NBA's `nba_stats_lineups` is not read. The table holds every unit any dashboard lists: each file is cut to its first 2,000 regular-season rows by its own sort, so the files list different units and a measure a file does not list reads NULL (`nba-data-sources.md`). Games come from whichever file lists the unit, in the order base, advanced, misc, opponent, four factors, scoring, and minutes from `sum_time_played / 3000`. Counts are stored as published and the rates as published, since a unit is a whole season and nothing adds them up across seasons; the seven percentages of makes over attempts are worked out on read. A team-season reads in 22 ms at the median and 70 ms at most over all 5,244 reads of 2007-08 to 2025-26 (`scripts/check-lineups.mjs`).
 
+## Models
+
+Plan Stage 10: tables Metis computes in TypeScript, by a solve or a sequential pass, from the game tables. Everything here is labelled as computed by Metis (`kind: 'model'`, a source of "Computed by Metis from …"). The code is in `src/main/stats/models/`: pure maths (solvers, formulas) in files with no database import, tested with worked values (`linear.ts`, `srs.ts`); one file per task that reads the database and returns rows (`teamStrength.ts`); and `build.ts`, the registry and the step.
+
+### The `stats:models` step
+
+The last step of a refresh, after `stats:plays` (`runModelsBuild` in `sync.ts`), logged as `stats:models`. It runs when:
+
+- a file of any tier wrote rows: `markModelSeason(season)` records `models:<season>` in `derived_state` as it loads, before anything can stop the build; season 0, a file of every season, means every season;
+- `MODELS_VERSION` changed (`derived_state` row `models`): every builder recomputes every season;
+- a builder is new, its `version` changed (`model:<name>`) or one of its tables has another shape: that builder recomputes every season;
+- the last run failed: the `models:<season>` rows are cleared only when a run finishes, so the next refresh runs it again with nothing downloaded.
+
+It waits until `game`, `team`, `team_game` and `player_game` exist. A sealed season whose files did not change is never recomputed, so a daily refresh computes the current season (and any season whose files changed) only.
+
+**Builders.** `MODEL_BUILDERS` is an ordered list; each Stage 10 task appends one line and owns its tables and files. A `ModelBuilder` has:
+
+| Field     | What it is                                                                                                                                                                 |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`    | Its key in `derived_state` (`model:<name>`)                                                                                                                                |
+| `version` | Bump when its rows change: the next refresh recomputes every season of its tables, and no other builder's                                                                  |
+| `tables`  | Its `ModelTable`s (below)                                                                                                                                                  |
+| `seasons` | Optional: the seasons to compute given the seasons whose data changed and the seasons played. A model carried from season to season (Elo) adds the seasons after them      |
+| `build`   | `(ctx) => rows`: one season's rows for each of its tables, as objects keyed by column name. `ctx` gives `db`, `have` (the tables and columns present), `season`, `current` |
+
+The step calls `build` once per builder and season, then replaces that season in one transaction: its rows deleted from each of the builder's tables and the new rows inserted (in batches of 500), so a reader sees a season old or new, never half. Builders run in order, and a season one builder recomputes is recomputed by every later builder too, so a builder can read an earlier builder's table. A builder recomputing every season also drops the seasons no longer played. A missing source table or column must not fail a build (data policy 4): read `have` and return NULL, or no rows.
+
+**Tables.** A `ModelTable` declares how the engine reads it:
+
+| Field                      | What it is                                                                                                                                                                                                                               |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `table`, `entity`          | The table's name; `player` or `team`                                                                                                                                                                                                     |
+| `kind`                     | `sum`: counts and sums, each rate a numerator and a denominator (data policy 3), added over the rows in scope like a box score. `state`: a value that is not a sum (a rating), the value after each game, read at the last game in scope |
+| `grain`                    | `game`: a row per player or team and game. `season`: a row per player or team, team and season type, read for whole seasons only. A state is always at game grain                                                                        |
+| `columns`                  | Every column, typed, in order: `season INTEGER, game_type VARCHAR, team_id BIGINT`, then `player_id BIGINT` on a player table, then `game_id VARCHAR, game_date DATE` at game grain, then the values                                     |
+| `components`               | The value columns a metric reads as `{name}`; never a key                                                                                                                                                                                |
+| `gameTypes`, `typesReason` | The season types it has rows for, and the reason a scope with none of them reads instead                                                                                                                                                 |
+
+A player's row is per team, never a total of their teams: the engine adds a traded player's teams itself, once. The tables are created empty on every open (`modelsBootstrap`), so a query before the first build reads null, not a missing table.
+
+### How the engine reads them (`model`)
+
+A metric names its table in `model`, the one field Stage 10 added to `MetricDef`. Its formula reads the table's components and, for anything the table does not hold (`games`, `minutes`, `box_games`), the box-score sums of the same rows, as a `built` metric does. `grainsOf` gives it both grains, or the season only for a `sum` table at season grain, and none when a component is in neither.
+
+- **A `sum` table** is read as a `built` table is ("Metrics on a built table"): joined to the box-score rows in scope, by game at the game grain, by season, season type and (with teams named) the row's team at the season grain, so a date range, the last games, home or road and every other filter on a game read exactly, and a traded player's teams are added once. A table at season grain under a filter that splits a season reads null with "Computed for whole seasons only.". Transforms (per game, per 36, per 100) divide as for any `sum` metric.
+- **A `state` table** (`stateCte`) is read at the last game in scope of each output row: `arg_max(value, (game_date, game_id))` over the table's rows joined to the box-score rows in scope, by game at the game grain, by season and season type at the season grain. So a whole season reads the rating after the season's last game, a date range ending mid-season the rating as it stood after the team's last game in it, grouped by game the rating after each game, by season each season's final. Over several seasons at once it reads null with "A rating as of a game, read one season at a time." unless grouped by season or game. A state metric is `aggregation: 'ratio'`, so no transform divides it, and a screen at the game grain notes "<label>: as of the last game in scope.".
+- **Season types.** A scope with none of the table's `gameTypes` reads null with its `typesReason` ("Solved on the regular season."). A scope with some reads the rows of those.
+- **Splits.** A model is computed per game, so under `scope.split` it reads null with "Computed per game, not per moment, so it has no split.".
+- **Coverage.** `firstSeason` gives "Recorded from …" outside it, as for every metric.
+
+### How to add a model table
+
+1. Write the maths in a file of its own with no database import, and test it with values worked by hand (`tests/main/stats/models/`).
+2. Write the task's file in `src/main/stats/models/`: its `ModelTable`s, and a `ModelBuilder` whose `build` reads the season (from `game`, `team_game`, `player_game`, an earlier builder's table) and returns rows. Keep to the column order above.
+3. Append one line to `MODEL_BUILDERS` in `build.ts`. Do not bump `MODELS_VERSION`: a new builder, its own `version` or a new shape is enough.
+4. Add the metrics to the family's catalogue file with `model: '<table>'`, `kind: 'model'`, sources naming Metis, the right `firstSeason`; a state as `aggregation: 'ratio'`, a sum as numerator and denominator. Add a worked row for the catalogue test (`MODEL_ROW` in `tests/shared/stats/catalogue.test.ts`).
+5. Test the builder on a small fixture through `buildModels` and the read through `runQuery` (`tests/main/stats/models/build.test.ts`, `tests/main/stats/engine/models.test.ts` show both), then run a real refresh and time the step.
+
+### Team strength (Plan T1001)
+
+`team_strength`: a `state` table of the regular season, one row per team and game day from 1993-94, the season so far after that day's games, everyone's included: `srs_games`, `mov` (average margin), `sos` (average SRS of the opponents played, one term per game) and `srs`. Each day's ratings are solved directly, not iterated (`srs.ts`): games × rating − Σ opponents' ratings = Σ margins for each team, with one equation of each group of teams that have met replaced by "the ratings sum to zero", so the league mean is zero and SRS = MOV + SOS exactly. The game table's type leaves out the All-Star games ESPN files as regular season and the Cup final, which is not a regular-season game; the other Cup games count. A playoff scope reads "Solved on the regular season.".
+
 ## Reads beside the engine
 
 `src/main/stats/reads.ts`: plain reads a dashboard needs that are not a metric. A table not loaded yet reads as nothing, and a column a source has dropped as NULL.

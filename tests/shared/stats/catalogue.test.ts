@@ -3,6 +3,7 @@ import { gameTable } from '@main/stats/derived/gameTables'
 import { OPP_SHOT_COMPONENTS, SHOT_COMPONENTS } from '@main/stats/derived/shots'
 import { PLAY_DETAIL_COUNTS, PLAY_DETAIL_TEAM_COMPONENTS } from '@main/stats/derived/playDetail'
 import { COMPONENTS, grainsOf } from '@main/stats/engine/registry'
+import { modelTable } from '@main/stats/models/build'
 import { CATALOGUE, componentsOf, coverageReason, covers, TOKEN } from '@shared/stats/catalogue'
 import { PLAY_TYPE_SIDES } from '@shared/stats/playTypes'
 import { SAMPLE_LABELS } from '@shared/stats/samples'
@@ -659,6 +660,22 @@ Object.assign(EXPECTED, {
  * each, so a formula over the wrong count fails. The expected makes and points are stored in
  * thousandths.
  */
+/**
+ * One row of a model table's values with the box-score divisors beside them (Plan Stage 10): the
+ * ratings read a team's state, so every column differs, and SRS = MOV + SOS.
+ */
+const MODEL_ROW: Record<string, number> = {
+  games: 10,
+  srs_games: 10,
+  mov: 3.25,
+  sos: -1.5,
+  srs: 1.75
+}
+
+Object.assign(EXPECTED, {
+  team_srs: 1.75
+})
+
 const SHOT_ROW: Record<string, number> = Object.fromEntries(
   [...SHOT_COMPONENTS, ...OPP_SHOT_COMPONENTS].map((c, i) => [
     c,
@@ -805,6 +822,19 @@ describe('the metric catalogue', () => {
 
   it('computes every metric from components the tables hold, at the grains it has', () => {
     for (const m of CATALOGUE) {
+      // A model table holds its values, the box scores the rest; a sum per season has the season only.
+      if (m.model) {
+        const table = modelTable(m.model)
+        const whole = table?.kind === 'sum' && table.grain === 'season'
+        expect(grainsOf(m), m.id).toEqual(whole ? ['season'] : ['game', 'season'])
+        for (const c of componentsOf(m)) {
+          expect(
+            table?.components.includes(c) || COMPONENTS[m.entity].has(c),
+            `${m.id}: ${c}`
+          ).toBe(true)
+        }
+        continue
+      }
       // A built table holds the counts, the box scores the rest, at both grains.
       if (m.built) {
         const built = gameTable(m.built)
@@ -938,15 +968,17 @@ describe('every formula, against a value worked by hand', () => {
           m,
           m.published
             ? PUBLISHED_ROW
-            : m.family === 'plays'
-              ? PLAY_ROW
-              : m.family === 'on_court'
-                ? ON_COURT_ROW
-                : m.built
-                  ? SHOT_ROW
-                  : m.entity === 'player'
-                    ? PLAYER_ROW
-                    : TEAM_ROW
+            : m.model
+              ? MODEL_ROW
+              : m.family === 'plays'
+                ? PLAY_ROW
+                : m.family === 'on_court'
+                  ? ON_COURT_ROW
+                  : m.built
+                    ? SHOT_ROW
+                    : m.entity === 'player'
+                      ? PLAYER_ROW
+                      : TEAM_ROW
         )})::DOUBLE AS "${m.id}"`
     )
     values = (await db.get<Record<string, number | null>>(`SELECT ${columns.join(', ')}`)) ?? {}
@@ -964,7 +996,10 @@ describe('every formula, against a value worked by hand', () => {
 
   it('reads a ratio with nothing under it as null, not Infinity', async () => {
     const zeros = (m: MetricDef): string => m.value.replace(TOKEN, () => '0')
-    const ratios = CATALOGUE.filter((m) => m.aggregation === 'ratio')
+    // A rating read as a state is a value, not a division: it stays a ratio so no transform divides it.
+    const ratios = CATALOGUE.filter(
+      (m) => m.aggregation === 'ratio' && modelTable(m.model)?.kind !== 'state'
+    )
     const row = await db.get<Record<string, number | null>>(
       `SELECT ${ratios.map((m) => `(${zeros(m)})::DOUBLE AS "${m.id}"`).join(', ')}`
     )

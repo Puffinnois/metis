@@ -32,6 +32,7 @@ export type MetricFamily =
   | 'availability'
   | 'shots'
   | 'plays'
+  | 'ratings'
 
 /** `core` shown by default, `extended` in its family and the column picker, `stored` in queries only. */
 export type MetricTier = 'core' | 'extended' | 'stored'
@@ -112,6 +113,14 @@ export interface MetricDef {
    * answers for one regular season at a time, since an average of several would mean nothing.
    */
   oneSeason?: boolean
+  /**
+   * A table the models compute (Plan Stage 10), from `src/main/stats/models/build.ts`. Its kind says
+   * how it reads: a `sum` table is added over the rows in scope like a box score; a `state` table
+   * (a rating) holds the value after each game and reads the one at the last game in scope. What it
+   * does not hold (games, minutes) comes from the box scores. `docs/reference/stats-database.md`,
+   * "Models".
+   */
+  model?: string
 }
 
 /** A catalogue entry as the engine serves it: the formula left out, where it can be read added. */
