@@ -23,6 +23,7 @@ export type PlayerTab =
   | 'overview'
   | 'scoring'
   | 'shooting'
+  | 'shots'
   | 'playmaking'
   | 'rebounding'
   | 'defense'
@@ -37,6 +38,7 @@ export const PLAYER_DASH_TABS: { id: PlayerTab; label: string }[] = [
   { id: 'overview', label: 'Overview' },
   { id: 'scoring', label: 'Scoring' },
   { id: 'shooting', label: 'Shooting' },
+  { id: 'shots', label: 'Shots' },
   { id: 'playmaking', label: 'Playmaking' },
   { id: 'rebounding', label: 'Rebounding' },
   { id: 'defense', label: 'Defense' },
@@ -84,6 +86,61 @@ export const TAB_SECTIONS: Record<
       metrics: ['fg2a', 'fg3a', 'fta', 'fg3a_rate', 'fg2a_rate', 'fta_rate', 'ftm_per_fga']
     },
     { title: 'Makes and misses', metrics: ['fg2m', 'fg3m', 'fg_miss', 'ft_miss'] }
+  ],
+  // Shots by zone, band and type (reference section 7), at the game grain, so any range reads.
+  shots: [
+    {
+      title: 'Profile',
+      note: 'From the NBA’s shot chart file, 1996-97 on',
+      metrics: [
+        'shot_avg_dist',
+        'shot_ra_freq',
+        'shot_paint_freq',
+        'shot_mid_freq',
+        'shot_c3_freq',
+        'shot_atb3_freq'
+      ]
+    },
+    {
+      title: 'Against the league',
+      note: 'FG% above the league’s rate in each zone that season',
+      metrics: [
+        'shot_ra_fg_rel',
+        'shot_paint_fg_rel',
+        'shot_mid_fg_rel',
+        'shot_c3_fg_rel',
+        'shot_atb3_fg_rel',
+        'shot_pps_above',
+        'shot_pts_above'
+      ]
+    },
+    {
+      title: 'By distance',
+      metrics: [
+        'shot_lt8_fg_pct',
+        'shot_d8_16_fg_pct',
+        'shot_d16_24_fg_pct',
+        'shot_d24p_fg_pct',
+        'shot_lt8_freq',
+        'shot_d24p_freq'
+      ]
+    },
+    {
+      title: 'Shot types',
+      metrics: [
+        'shot_dunk_fga',
+        'shot_layup_fg_pct',
+        'shot_hook_fg_pct',
+        'shot_floater_fg_pct',
+        'shot_jumper_fg_pct',
+        'shot_jumper_freq'
+      ]
+    },
+    {
+      title: 'Assisted',
+      note: 'The share of makes assisted, by the play by play',
+      metrics: ['shot_ra_ast_pct', 'shot_mid_ast_pct', 'shot_c3_ast_pct', 'shot_atb3_ast_pct']
+    }
   ],
   playmaking: [
     { title: 'Passing', metrics: ['ast', 'ast_pct', 'ast_ratio', 'share_ast'] },

@@ -1,3 +1,5 @@
+import { ShotChart } from '@/components/stats/ShotChart'
+import { shotRequest } from '@/lib/stats/shotChart'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Segmented, StatsSelect } from '@/components/stats/controls'
@@ -201,6 +203,7 @@ export function StatsTeam({
       {(tab === 'offense' || tab === 'defense') && anyPlayed && (
         <LinesTab key={tab} {...props} tab={tab} />
       )}
+      {tab === 'shots' && anyPlayed && <ShotsTab {...props} />}
       {tab === 'players' && anyPlayed && <Players {...props} />}
       {tab === 'lineups' && (anyPlayed || !games) && (
         <LineupsTab data={data} scope={scope} team={team} mode={mode} onOpenPlayer={onOpenPlayer} />
@@ -515,6 +518,36 @@ function History({
   )
 }
 
+const SHOT_SIDES: { value: 'offense' | 'defense'; label: string }[] = [
+  { value: 'offense', label: 'Their shots' },
+  { value: 'defense', label: 'Shots against' }
+]
+
+/** The team's shot chart, or its opponents' against it, then the shot metrics ranked among teams. */
+function ShotsTab(props: TabProps): React.JSX.Element {
+  const { data, scope, team } = props
+  const [side, setSide] = useState<'offense' | 'defense'>('offense')
+  const request = useMemo(() => shotRequest('team', team, scope, side), [team, scope, side])
+  return (
+    <div className="flex flex-col gap-7">
+      <div className="self-start">
+        <Segmented label="Whose shots" value={side} options={SHOT_SIDES} onChange={setSide} />
+      </div>
+      <ShotChart
+        request={request}
+        version={data.version}
+        title={side === 'offense' ? 'Shot chart' : 'Shot chart against'}
+        against={side === 'defense'}
+      />
+      <LinesTab
+        key={side}
+        {...props}
+        tab={side === 'offense' ? 'shots_offense' : 'shots_defense'}
+      />
+    </div>
+  )
+}
+
 /** Offense or Defense: its sections, ranked among the teams. */
 function LinesTab({
   data,
@@ -522,7 +555,7 @@ function LinesTab({
   team,
   mode,
   tab
-}: TabProps & { tab: 'offense' | 'defense' }): React.JSX.Element {
+}: TabProps & { tab: keyof typeof TEAM_SECTIONS }): React.JSX.Element {
   const sections = TEAM_SECTIONS[tab]
   const q = useMemo(
     () => teamPoolQuery(sectionMetrics(sections), scope, mode),

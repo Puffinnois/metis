@@ -1,6 +1,7 @@
 import type { StatsDb } from './db'
 import { playsBootstrap } from './derived/plays'
 import { publishedBootstrap } from './derived/published'
+import { shotsBootstrap } from './derived/shots'
 import { splitsBootstrap } from './derived/splits'
 
 /**
@@ -46,6 +47,7 @@ export async function bootstrapStatsDb(db: StatsDb, now: Date): Promise<number> 
     ...BOOTSTRAP,
     ...publishedBootstrap(),
     ...playsBootstrap(),
+    ...shotsBootstrap(),
     ...splitsBootstrap()
   ]) {
     await db.exec(sql)

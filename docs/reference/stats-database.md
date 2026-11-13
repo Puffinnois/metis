@@ -112,6 +112,51 @@ Built by `src/main/stats/derived/playBuilders.ts` from the SQL in `plays.ts` and
 
 **View or table, measured** on the full Stage 8 load, warm, a season's scan grouped by player or team-game: `play_nba` as a table answers in 10 to 31 ms; as a view it would redo its window functions, about 6 seconds a season. The shots and possessions answer in 15 to 38 ms as views and 4 to 15 ms as tables, and copies would cost about 540 MB and 11 seconds of build, so they stay views. Deeper pre-aggregation is T907's.
 
+### Shots by zone (Plan T903)
+
+`shot_player_game` and `shot_team_game`, built by `derived/shots.ts` as two builders of `PLAY_BUILDERS`, after the play tables of the same season (they read its assists). One row per player-game and team-game of the NBA's shots, with counts only: for each zone, the combined corner, each distance band and each shot type, its attempts, makes, points and assisted makes, and the makes and points the league's regular-season rate in that bucket that season would give the same attempts (stored in thousandths, as integers: doubles were three quarters of the tables' size). Then the row's shots, threes, assisted makes, summed distances and expected points by zone. A team's row also holds its opponents' shots against it, as `opp_*`. 825,740 rows from 1996-97, about 94 MB. Measured by a real refresh (`scripts/load-report.mjs`) on a fresh copy of the full load, whose new shot tables made every season due: the `stats:plays` step rebuilt plays and shots for every season in 254 seconds (34.2 million rows), the file growing from 5.16 to 5.49 GB with a peak of 5.58 GB. A refresh in which only the current season's files changed rebuilds that season alone: 1.9 seconds for 2026-27's 177,966 rows, the file unchanged, 14 MB higher at the peak.
+
+- **Zones** (`src/shared/stats/shots.ts`), in the NBA's legacy frame (tenths of a foot, the basket at 0, 0): the published value decides two or three; a three with `y` ≤ 92.5 is a corner (left where `x` < 0, as the NBA names them), else above the break; a two within 40 of the basket is the restricted area, inside the lane (|`x`| ≤ 80, `y` ≤ 142.5) the paint, else mid-range; beyond half court (`y` > 422.5) the backcourt; a point off any court a zone of its own. The NBA's file publishes no zone, so these are not compared with one.
+- **Bands:** the NBA's ranges on the published distance: under 8 feet, 8 to 16, 16 to 24, 24 and beyond.
+- **Types:** the first of dunk, tip, layup (finger rolls with it), hook, floater, jump shot whose word the `sub_type` text holds; else other.
+- **Assisted:** the make's row in `play_nba`, found by game, period, clock and shooter.
+
+The engine reads them through a metric's `built` table (below, "Metrics on a built table"): at the game grain joined to the box-score rows in scope by player or team and game, at the season grain by season and season type (and by team when the query names teams), so any filter is exact; games, minutes and possessions still come from the box scores. A row in scope with no shot reads 0 attempts. The catalogue is the Shot zones family (`catalogue/shots.ts`), 411 metrics for players, teams and opponents. The shot chart reads its rows through its own call, `shots` (`shotReads.ts`).
+
+### Metrics on a built table (`built`)
+
+The one mechanism for tables built from the plays that the engine reads at both grains (the shot tables first; on/off and the other play-derived tables use the same). A metric names the table in `built`; the table is listed in `GAME_TABLES` (`src/main/stats/derived/gameTables.ts`); the engine needs no other change. It is apart from `published` and `publishedGames`, which are the dataset's season files and their game-grain companion (Plan T906).
+
+**What the table must hold**
+
+- One row per player or team and game, or several, which are added up. Counts only, never a rate: each rate is a numerator and a denominator, both columns, divided by the metric's formula (data policy 3).
+- `game_id` (the `game` table's id, as in `player_game` and `team_game`), `season`, `game_type`, and the column named as its `key` in `GAME_TABLES`: `player_id` for a player table, `team_id` for a team table.
+- `team_id` on a player table too: the player's team in that game. The season grain needs it for a traded player (below).
+- Every column the metrics read, listed in the entry's `components`. A team table holds the opponents' side as `opp_*` columns of its own, since `swapSides` only knows the box-score names.
+- Optionally `zero(component)`: the components that read 0, not null, for a row in scope that has no row in the table (a player who took no shot took none from the corner). Leave out what has no honest zero, such as an expectation in a season with no league rate yet: those read null.
+
+It is built season by season by appending a `PlayBuilder` (`table`, typed `columns`, `select(have, season)`) to `PLAY_BUILDERS` (`derived/playBuilders.ts`). It is created empty on every open from its own bootstrap, so a query before the first build reads zeros and nulls, not a missing table. A builder that reads a view (`shot_nba`, `possession`) must read the view's SELECT for its season (`nbaShotsSelect(have, season)`), because the views are created after the builders run.
+
+**How each grain joins.** The engine first takes the box-score rows in scope (`base`: `player_game` or `team_game` at the game grain, `player_season` or `team_season` at the season grain, after every filter and the last N games). Then `builtCte` sums the table per output row, `base LEFT JOIN table`:
+
+| Grain                                                                                              | Join                                                                                                                    | What it gives                                                                                                                                                                          |
+| -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Game (a date range, last N, an opponent, home or road, any split, grouping by anything but season) | `w.key = b.id AND w.game_id = b.game`                                                                                   | Exactly the games in scope. Groups by what the query groups by                                                                                                                         |
+| Season (whole seasons, by season or not)                                                           | `w.key = b.id AND w.season = b.season AND w.game_type = b.game_type AND (b.row_team IS NULL OR w.team_id = b.row_team)` | A season and season type. A player's row of no team reads every team they played for; with teams named, each team's row reads its own games, so a traded player is never counted twice |
+
+Both also keep to `w.season IN` the seasons in scope, so DuckDB skips the other seasons' row groups. The sums join back to the box-score sums by row (and by every grouping dimension), so neither multiplies the other.
+
+**Where games, minutes and possessions come from.** A component the table does not hold is read from the box-score sums of the same rows: `games`, `box_games`, `minutes`, `on_poss`, `poss_sym`. So a count's per game divides by the games played in scope (a team's by `box_games` when the metric sets `perGameBy`), per 36 and per 48 by the box score's minutes (a team's divided by five, as for any box-score team metric), and per 100 by the estimated possessions (`on_poss` for players, `poss_sym` for teams). Qualifying (`minSample`, scaled to the team games in scope) and ranks work as for any metric.
+
+**A table that brings its own divisor.** Two ways:
+
+- Name the column after the box-score component it replaces (`minutes`, `on_poss`, `poss_sym`, `games`) and list it in `components`: the engine reads a component from the table whenever the table holds it, so per 36 or per 100 then divides by the table's own. A team's minutes are still divided by five under per 36, so a team table's `minutes` must be all five players' minutes, as the box score's are.
+- Or give it its own name (`shots_fga`, `poss_on`) and use it in the formula and as the `sample`, with `totalOnly` or `perGameOnly` on counts the box-score divisors would misread.
+
+**Splits.** A built table counts per game, not per moment of a game, so under `scope.split` (Plan T902) a built metric reads null with "Counted per game, not per moment, so it has no split.", never its whole-game value. A table that wants splits must hold them itself.
+
+**Coverage.** A metric's `firstSeason` (and `missingSeasons`) gives the reason a season outside it reads null ("Recorded from 1996-97."); inside it, the zeros and nulls above. `grainsOf` gives a built metric both grains when every component is in the table or in the box-score tables, and none otherwise. The catalogue test reads such a metric from a worked row of the table's components.
+
 ## Splits of each game
 
 Built by `src/main/stats/derived/splits.ts` (Plan T902) from `play_nba`, as two entries of `PLAY_BUILDERS` (`playBuilders.ts`) after the play tables: the `stats:plays` step replaces a season of each in one transaction, only the seasons that changed. The rules are data in `src/shared/stats/splits.ts`, so the builder, the engine and the screens read the same numbers.

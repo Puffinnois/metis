@@ -300,6 +300,11 @@ const fromGames = (m: MetricDef): boolean => grainsOf(m).includes('game') && !!m
 
 /** A metric the plays cannot rebuild: tracking, hustle, what is published, what a box score has alone. */
 export const NOT_FROM_PLAYS = 'Not counted from the play by play, so it has no split.'
+/**
+ * A metric on a built table (`built`) counts per game, not per moment of a game: a split would need the
+ * table itself split, so it reads this rather than its whole-game value.
+ */
+export const BUILT_NO_SPLIT = 'Counted per game, not per moment, so it has no split.'
 export const SPLITS_FROM = `Splits are counted from the play by play, from ${seasonLabel(SPLITS_FIRST_SEASON)}.`
 
 /** The components a split row can sum, per entity. */
@@ -309,6 +314,7 @@ const SPLIT_SQL = { player: SPLIT_PLAYER_SQL, team: SPLIT_TEAM_SQL }
 function splitGap(m: MetricDef, q: StatsQuery, transform: Transform): string | null {
   if (!q.scope.seasons.some((s) => s >= SPLITS_FIRST_SEASON)) return SPLITS_FROM
   if (m.published) return NOT_FROM_PLAYS
+  if (m.built) return BUILT_NO_SPLIT
   const by = perDivisor(m, transform, q.entity)
   const parts = [...componentsOf(m), ...(by ? [...by.matchAll(TOKEN)].map((x) => x[1]) : [])]
   return parts.every((p) => p in SPLIT_SQL[q.entity]) ? null : NOT_FROM_PLAYS
@@ -431,7 +437,11 @@ function neededComponents(q: StatsQuery, c: Checked): Set<string> {
   for (const [i, m] of c.metrics.entries()) {
     // A metric with no answer reads NULL, so nothing of it is needed.
     if (m.published || c.gaps[i] !== null) continue
-    for (const part of partsOf(m, q, c)) needed.add(part)
+    // A built table's counts are read from it; its divisors still come from here.
+    const built = gameTable(m.built)
+    for (const part of partsOf(m, q, c)) {
+      if (!built?.components.includes(part)) needed.add(part)
+    }
   }
   return needed
 }
@@ -486,6 +496,38 @@ function gameCte(name: string, table: string, parts: Set<string>, c: Checked): s
     GROUP BY b.id${c.groupBy.map((d) => `, b.${d}`).join('')})`
 }
 
+/**
+ * A built table's sums per output row, at either grain. At the game grain it joins the box-score rows
+ * in scope by player or team and game, so every filter on a game holds; at the season grain by
+ * season and season type, and by the row's team when the query names teams, so a traded player's
+ * teams are never added together twice. A row in scope with no shot reads 0 attempts, not null.
+ */
+function builtCte(
+  name: string,
+  table: string,
+  parts: Set<string>,
+  q: StatsQuery,
+  c: Checked,
+  params: Params
+): string {
+  const t = gameTable(table)
+  if (!t) throw new StatsQueryError(`no built table "${table}"`)
+  const dims = c.groupBy.map((d) => `b.${d} AS g_${d}`)
+  const sums = [...parts].map((p) =>
+    t.zero?.(p) ? `coalesce(sum(w.${p}), 0) AS ${p}` : `sum(w.${p}) AS ${p}`
+  )
+  const on =
+    c.grain === 'game'
+      ? `b.game = w.game_id`
+      : `b.season = w.season AND b.game_type = w.game_type
+         AND (b.row_team IS NULL OR w.team_id = b.row_team)`
+  return `${name} AS (
+    SELECT b.id, ${[...dims, ...sums].join(', ')}
+    FROM base b LEFT JOIN ${table} w
+      ON b.id = w.${t.key} AND ${on} AND w.season IN ${params.list(q.scope.seasons)}
+    GROUP BY b.id${c.groupBy.map((d) => `, b.${d}`).join('')})`
+}
+
 /** The rows in scope, summed per output row, with each metric's value and sample. */
 function aggregate(q: StatsQuery, c: Checked, params: Params): string {
   const player = q.entity === 'player'
@@ -534,8 +576,9 @@ function aggregate(q: StatsQuery, c: Checked, params: Params): string {
     }
   }
   const teamColumn = player && season ? 'w.last_team_id' : 'w.team_id'
+  // The row's own team at the season grain, for a built table: NULL on a player's row of no team.
   const dimColumns = season
-    ? 'w.game_type,'
+    ? 'w.game_type, w.team_id AS row_team,'
     : `w.team_id AS team, w.opponent_id AS opponent, month(w.game_date) AS month, w.game_id AS game,`
   // Under a split, the counts are the split's rows, joined to the game lines the filters read.
   const splitJoin =
@@ -563,34 +606,45 @@ function aggregate(q: StatsQuery, c: Checked, params: Params): string {
   // Only the tables some metric can answer from: under a game filter, the game tables.
   const atGames = !season
   const tableOf = (m: MetricDef): string | undefined =>
-    atGames ? (fromGames(m) ? m.publishedGames : undefined) : m.published
+    m.built ?? (atGames ? (fromGames(m) ? m.publishedGames : undefined) : m.published)
   const published = new Map<string, Set<string>>()
   c.metrics.forEach((m, i) => {
     const table = tableOf(m)
-    if (!m.published || !table || c.gaps[i] !== null) return
+    if (!(m.published || m.built) || !table || c.gaps[i] !== null) return
     const parts = published.get(table) ?? new Set<string>()
-    for (const part of partsOf(m, q, c)) parts.add(part)
+    const built = gameTable(m.built)
+    for (const part of partsOf(m, q, c)) {
+      if (!built || built.components.includes(part)) parts.add(part)
+    }
     published.set(table, parts)
   })
   const tables = [...published.keys()]
   const alias = (table: string): string => `pub${tables.indexOf(table)}`
+  const isBuilt = (table: string): boolean => c.metrics.some((m) => m.built === table)
   for (const [table, parts] of published) {
     ctes.push(
-      atGames
-        ? gameCte(alias(table), table, parts, c)
-        : publishedCte(alias(table), table, parts, q, c, params)
+      isBuilt(table)
+        ? builtCte(alias(table), table, parts, q, c, params)
+        : atGames
+          ? gameCte(alias(table), table, parts, c)
+          : publishedCte(alias(table), table, parts, q, c, params)
     )
   }
-  // A game table's rows group by every dimension; a published table's by the season at most.
-  const on = (a: string): string =>
-    atGames
+  // A game or built table's rows group by every dimension; a published table's by the season at most.
+  const on = (a: string, table: string): string =>
+    atGames || isBuilt(table)
       ? c.groupBy.map((d) => ` AND ${a}.g_${d} IS NOT DISTINCT FROM s.g_${d}`).join('')
       : c.groupBy.includes('season')
         ? ` AND ${a}.g_season = s.g_season`
         : ''
-  const joins = tables.map((t) => `LEFT JOIN ${alias(t)} ON ${alias(t)}.id = s.id${on(alias(t))}`)
+  const joins = tables.map(
+    (t) => `LEFT JOIN ${alias(t)} ON ${alias(t)}.id = s.id${on(alias(t), t)}`
+  )
   const sumOf = (m: MetricDef, n: string): string => {
     const table = tableOf(m)
+    if (m.built && table) {
+      return gameTable(m.built)?.components.includes(n) ? `${alias(table)}.${n}` : `s.${n}`
+    }
     return m.published && table ? `${alias(table)}.${n}` : `s.${n}`
   }
   ctes.push(`agg AS (
