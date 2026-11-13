@@ -14,6 +14,7 @@ import {
   SHOT_PLAYER_GAME,
   SHOT_TEAM_GAME
 } from './shots'
+import { PLAYER_ON_COURT, PLAYER_ON_COURT_COMPONENTS } from './onCourt'
 
 /**
  * A built table at game grain that answers published metrics under a filter that splits a season. The
@@ -55,6 +56,13 @@ export const GAME_TABLES: readonly GameTable[] = [
     key: 'team_id',
     components: [...SHOT_COMPONENTS, ...OPP_SHOT_COMPONENTS],
     zero: isZeroCount
+  },
+  // Who was on the floor (Plan T904): the On court metrics' counts and their own divisors.
+  {
+    table: PLAYER_ON_COURT,
+    entity: 'player',
+    key: 'player_id',
+    components: PLAYER_ON_COURT_COMPONENTS
   },
   {
     table: PLAY_DETAIL_PLAYER_GAME,

@@ -183,6 +183,31 @@ Built by `src/main/stats/derived/splits.ts` (Plan T902) from `play_nba`, as two 
 - **The engine** reads them under `scope.split` (see below). A missing source reads NULL: without the feed's substitution text or lineups players' time is NULL, without the possessions file possessions are.
 - **Size and time on the full load:** 11.2 million player rows and 1.3 million team rows, 194 MB, about 7 seconds a season (215 for 31 built alone). Rows are written in key order; unsorted they took 288 MB. In a real refresh rebuilding every season, the whole `stats:plays` step took 345 seconds and the file peaked at 5.61 GB; one changed season rebuilds in 2 to 9 seconds. Measured in [nba-data-sources.md](nba-data-sources.md), "Splits from plays".
 
+## On court
+
+Built by `src/main/stats/derived/onCourt.ts` (Plan T904) at the end of the `stats:plays` step, a season at a time, each season in one transaction a table: the last two of `PLAY_BUILDERS` (`derived/playBuilders.ts`), after the plays they read, so a season whose files changed rebuilds them with its plays. Both hold counts, never rates (data policy 3), and a missing source or column reads NULL: no lineup file, no players on the floor; no possessions file, no possessions. How well they agree with the box scores and the NBA's lineups is in [nba-data-sources.md](nba-data-sources.md), "On court, per season".
+
+| Table             | One row per                                | Holds                                                                                                   |
+| ----------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| `unit_game`       | team, game and set of players on the floor | The players (`p1` to `p5`, ascending), `complete` when five are known, seconds, and 15 counts each side |
+| `player_on_court` | player and game                            | The team's and the opponent's counts with the player on and off the floor, and the player's own counts  |
+
+**How a play is credited.**
+
+- **Who:** SportsDataverse's lineup of each play (`nba_stats_game_lineups`, through `src_nba_pbp`'s `action_number`), which changes at the play of a substitution. The possessions file's players are the possession's first five only, so a substitute who comes in between free throws is missed: with them, on-court plus-minus equals the box score's on 26 to 40 % of player-games; with the per-play lineups, on 89 to 97 %. A play the lineup file has no row for takes the lineup before it in the period.
+- **Free throws** count for the players on the floor at the foul, as the official plus-minus does.
+- **Time** is the clock between a play and the one before it in its period (720 seconds a quarter, 300 an overtime), credited to the players on the floor at the play. A possession's own clocks do not chain (each starts at its first play), so they are not used.
+- **Possessions** are the possessions file's (those it counts), each credited to the five on the floor at the play that ends it. They are SportsDataverse's count, about 5 % below the NBA's.
+- **Counts** follow `play_nba`: rebounds and turnovers are a player's, as in the box score; a steal or a block sits on the other team's play and is credited to the side of the player who made it.
+- **Units:** a five-man unit is a row with five distinct players known (`complete`); a lineup with a player missing (0.05 to 0.1 % of possessions) or listed twice still counts for the team and the players known.
+- **Off the floor** is the team's line in the game less the player's on-court line, so on plus off equals the team's exactly, and it covers the player's own games only, not games they missed.
+
+**What reads it.**
+
+- **The engine** reads through the On court metrics' field, the same mechanism as the shots ("Metrics on a built table"): joined to the box-score rows in scope by player and game under a filter that splits a season, by season, season type and the row's team over whole seasons, so a traded player's one team reads exactly. The table holds the counts and the on-court minutes; games come from the box scores. Per 36 and per 48 divide by the minutes on the floor and per 100 by the possessions on the floor (), both the table's own, since reads a divisor from the table when the table holds it. Under a split within games (Plan T902) they read "Counted per game, not per moment, so it has no split." No new subject: a player's on/off is a player metric.
+- **`onCourtUnits(team, season, scope, size)`:** a team's groups of two to five players in a season and scope (season types, a date range or the team's last games), every group the plays put on the floor, from `unit_game`. A five is a complete unit; a smaller group is any players known together, whatever the rest of the floor. Counted on read, so nothing is stored per pair, triple or four.
+- **`withOrWithout(player, teammate, season, scope)`:** the player's team in the games both played for it: both on, the player alone, the teammate alone, neither; with no teammate named, the one they shared the most minutes with, and the list of teammates for a picker.
+
 ## The catalogue and the query engine
 
 `src/shared/stats/catalogue/` holds every metric, one file per family: `traditional`, `shooting`, `possessions`, `scoring`, `composite`. Each states the fields of reference section 19.4: entity, kind (recorded, derived, estimated, model), aggregation (a sum or a ratio of sums), unit, sample, direction, sources and first season. Its formula is SQL over component sums (`{fgm} / nullif({fga}, 0)`), so adding a metric needs no engine change. Every formula has a test against a value worked by hand, and the test fails for a metric that has none.
@@ -272,17 +297,19 @@ Lineups (Plan T710) are one more table that is not a metric: `pub_lineups`, one 
 
 `src/main/stats/reads.ts`: plain reads a dashboard needs that are not a metric. A table not loaded yet reads as nothing, and a column a source has dropped as NULL.
 
-| Read                                 | Answers                                                                                                                                         |
-| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `player(id)`                         | Name, seasons, latest position and team; number, size, birth date and school from the latest roster line                                        |
-| `games(season)`                      | Every game on the schedule, played or not: its type, sides, score, whether a box score is held, overtimes                                       |
-| `game(id)`                           | ESPN's venue, city, attendance and note, and the score by period when those add up to the final score                                           |
-| `standings(season)`                  | The published standings: `src_nba_standings`, or the dashboards' file for 1995-96                                                               |
-| `matchups(id, season)`               | Who a defender guarded and who guarded them, from `pub_matchup_pairs`                                                                           |
-| `lineups(team, season, type, group)` | A team's five-man units for a season and season type with one dashboard's columns, most minutes first, from `pub_lineups`; empty before 2007-08 |
-| `profile(id)`                        | The latest roster line, the draft pick, and every combine the player went to, each measure with its percentile in its position group            |
-| `availability(ids)`                  | Each player's status on their team's newest official injury report that lists anyone, with its reason and date                                  |
-| `coaches(team, season)`              | The head coach and the assistants of a season, from `src_nba_coaches`                                                                           |
+| Read                                             | Answers                                                                                                                                         |
+| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `player(id)`                                     | Name, seasons, latest position and team; number, size, birth date and school from the latest roster line                                        |
+| `games(season)`                                  | Every game on the schedule, played or not: its type, sides, score, whether a box score is held, overtimes                                       |
+| `game(id)`                                       | ESPN's venue, city, attendance and note, and the score by period when those add up to the final score                                           |
+| `standings(season)`                              | The published standings: `src_nba_standings`, or the dashboards' file for 1995-96                                                               |
+| `matchups(id, season)`                           | Who a defender guarded and who guarded them, from `pub_matchup_pairs`                                                                           |
+| `lineups(team, season, type, group)`             | A team's five-man units for a season and season type with one dashboard's columns, most minutes first, from `pub_lineups`; empty before 2007-08 |
+| `profile(id)`                                    | The latest roster line, the draft pick, and every combine the player went to, each measure with its percentile in its position group            |
+| `availability(ids)`                              | Each player's status on their team's newest official injury report that lists anyone, with its reason and date                                  |
+| `onCourtUnits(team, season, scope, size)`        | A team's groups of two to five players on the floor, counted from the plays, from `unit_game`: see "On court"                                   |
+| `withOrWithout(player, teammate, season, scope)` | A player's team with a teammate on and off the floor, in the games both played: see "On court"                                                  |
+| `coaches(team, season)`                          | The head coach and the assistants of a season, from `src_nba_coaches`                                                                           |
 
 - **A side with no row in `team`** is an All-Star team or a touring club: its name comes from the NBA's schedule, then ESPN's.
 - **Overtime** is read from the team's minutes, 240 in regulation and 25 more per period. It matches ESPN's period on nearly every game, and in 2001-02 ESPN's undercounts: it has 30 overtime games to the box scores' 70.

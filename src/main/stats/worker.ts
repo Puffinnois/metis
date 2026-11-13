@@ -58,6 +58,10 @@ async function handle(request: StatsRequest): Promise<unknown> {
       return service.officialsSeason(request.season, request.gameTypes)
     case 'officialCareer':
       return service.officialCareer(request.official, request.gameTypes)
+    case 'onCourtUnits':
+      return service.onCourtUnits(request.team, request.season, request.scope, request.size)
+    case 'withOrWithout':
+      return service.withOrWithout(request.player, request.teammate, request.season, request.scope)
     case 'profile':
       return service.profile(request.player)
     case 'lineups':

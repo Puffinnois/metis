@@ -1,6 +1,7 @@
 import type { StatsDb } from '../db'
 import { eventsSql } from './events'
 import { PLAY_DETAIL_BUILDERS } from './playDetail'
+import { ON_COURT_BUILDERS } from './onCourt'
 import { espnPlaysSql, nbaPlaysSql, PLAY_COLUMNS, PLAY_TABLES, playsViewSql } from './plays'
 import { SHOT_BUILDERS } from './shots'
 import { SPLIT_BUILDERS } from './splits'
@@ -31,12 +32,14 @@ export const PLAY_BUILDERS: PlayBuilder[] = [
   ...SHOT_BUILDERS,
   // Plan T902: the splits of each game, counted from `play_nba` of the same season.
   ...SPLIT_BUILDERS,
+  // Who was on the floor (Plan T904): `unit_game`, then `player_on_court`, which reads it.
+  ...ON_COURT_BUILDERS,
   // Plan T905: turnover and foul kinds, and-ones, assists by value, fouls drawn and the game flow.
   ...PLAY_DETAIL_BUILDERS
 ]
 
 /** Bump when a builder's rows change, so the next refresh rebuilds every season of every table. */
-export const PLAYS_VERSION = 4
+export const PLAYS_VERSION = 5
 
 /** A file of season 0 holds every season. */
 const ALL = 0

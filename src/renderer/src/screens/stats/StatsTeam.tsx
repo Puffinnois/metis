@@ -19,6 +19,7 @@ import {
 import { ScopeBar } from '@/components/stats/ScopeBar'
 import { StatSection, StatSections } from '@/components/stats/StatLines'
 import { LineupsTab } from './StatsLineups'
+import { TeamOnOff } from './StatsOnCourt'
 import { useNoteContext } from '@/lib/dev/noteContext'
 import { DASHBOARD_MODES, sectionMetrics, sectionViews } from '@/lib/stats/dashboard'
 import type { ExploreSubject } from '@/lib/stats/explore'
@@ -189,6 +190,7 @@ export function StatsTeam({
         tab === 'defense' ||
         tab === 'plays' ||
         tab === 'players' ||
+        tab === 'on_off' ||
         tab === 'lineups' ||
         tab === 'splits') &&
         (anyPlayed || !games) && (
@@ -208,6 +210,9 @@ export function StatsTeam({
       {tab === 'shots' && anyPlayed && <ShotsTab {...props} />}
       {tab === 'plays' && anyPlayed && <PlaysTab {...props} />}
       {tab === 'players' && anyPlayed && <Players {...props} />}
+      {tab === 'on_off' && anyPlayed && (
+        <TeamOnOff data={data} scope={scope} team={team} onOpenPlayer={onOpenPlayer} />
+      )}
       {tab === 'lineups' && (anyPlayed || !games) && (
         <LineupsTab data={data} scope={scope} team={team} mode={mode} onOpenPlayer={onOpenPlayer} />
       )}

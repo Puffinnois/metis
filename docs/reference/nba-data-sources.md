@@ -378,6 +378,162 @@ The league's FG% by zone, regular season, as the metrics compare with it (from t
 | 2025-26 | 67.1 |  44.5 | 41.7 |       38.7 |       38.6 |  35.0 |
 | 2026-27 | 65.7 |  44.4 | 40.0 |       35.9 |       35.9 |  34.8 |
 
+## On court, per season
+
+Measured 2026-11-12 on a copy of T901's full load after a real refresh by `scripts/check-on-off.mjs`, which writes these tables; how the tables are built is in [stats-database.md](stats-database.md), "On court", and the traps under "Traps", "On court".
+
+- **Tolerances.** Counts and plus-minus are exact or they miss; minutes are within 30 seconds of the box score's (it prints seconds from 2005-06, whole minutes on most of 2003-04 and 2004-05); a five-man unit's minutes are within a minute or 10 % of the NBA's, its points, field goals and plus-minus exact or within 2, and its possessions within 5 % plus one.
+- **Team-games:** the units add up to the box score on every count on 89.6 to 98.1 % of team-games, and points on 99.3 to 100 %: what misses is T901's assists and fouls, not the lineups. Every possession the file counts is credited to a unit.
+- **Possessions' points against the box score,** the plan's old check: exact on 99.7 % of 1996-97's team-games and 100 % of every season after, so within 5 on 99.9 to 100 %. The "about 96 % within 5 before 2017-18" was the file before its republication.
+- **Player-games:** on-court plus-minus equals the box score's on 95.3 to 97.5 % of player-games a season to 2011-12, and 89.4 to 93.6 % from 2012-13; within 2 on 95 to 99.7 %. Minutes are within a minute on 92.2 to 99.6 %. The later seasons have more mid-possession substitutions and more of the lineup file's slips (below). From 1996-97 every season is within these bounds, so coverage starts there: no early season reads worse than the latest.
+- **On plus off** equals the team's line exactly on every player-game.
+- **Five-man units:** 99.2 to 100 % of the units the NBA lists in a regular season are found, and 94.6 to 99 % of its playoff units. Minutes agree within 10 % on 91.6 to 99.2 % in the regular season, 93.3 to 99.5 % in the playoffs; points within 2 on 80.5 to 97.3 % and 91.3 to 99 %. Possessions agree within 5 % on only 66 to 84 % in the regular season: SportsDataverse counts about 5 % fewer than the NBA, steadily. The worst misses are units the lineup file credits a few minutes too many or too few, where a substitution it kept a player on through: their plus-minus still agrees within 10.
+- **Cost, every Stage 9 table together, measured alone** (2026-11-13, main with #57's score fix, a fresh copy of T901's load, nothing else running): the two on-court tables hold 1,182,262 and 818,397 rows, beside 19,059,316 and 14,288,099 plays, 10,879,925 and 1,279,010 split rows and 749,347 and 76,393 shot rows. The `stats:plays` step rebuilt every season of every builder (`PLAYS_VERSION` 4), 48,332,749 rows, in 450 seconds, peak memory 2.49 GB. The file went from 5.16 GB to a peak of 5.71 GB (with its write-ahead log) and settled at 5.69 GB, 5.63 GB of it in use. **Against D22's 6 GB: 0.29 GB under at the peak, 0.31 GB under after.** A rebuild of the current season alone, as a daily refresh does, took 3.3 seconds for 244,129 rows, peaked at 5.69 GB and left the file as it was. The on-court tables alone, before the splits and shots joined, took the file from 5.16 to 5.49 GB under the same rebuild.
+- **No on-court number reads the score columns** (`home_after`, `away_after`, the score before) that #57 corrected before 2017-18: the tables sum `play_nba`'s flags, whose points come from the shot value and made free throws, and the per-season tables above were identical before and after the fix.
+
+#### Team-games: units summed against the box score
+
+Share of regular-season team-games (%) whose count summed over the units equals the team box score; "All" is every count at once. "Poss" is the possessions credited to units against the possessions file's count; the last two are the possessions file's own points against the box score.
+
+| Season  | Team-games | PTS   | FGA   | FGM   | 3PA   | FTA   | OREB  | DREB  | AST  | STL   | BLK   | TOV   | PF   | All  | Poss  | File PTS exact | File PTS ±5 |
+| ------- | ---------- | ----- | ----- | ----- | ----- | ----- | ----- | ----- | ---- | ----- | ----- | ----- | ---- | ---- | ----- | -------------- | ----------- |
+| 1996-97 | 2378       | 99.8  | 99.6  | 99.8  | 99.8  | 100.0 | 99.8  | 99.7  | 98.5 | 99.0  | 99.9  | 99.7  | 92.3 | 89.6 | 100.0 | 99.7           | 99.9        |
+| 1997-98 | 2378       | 100.0 | 99.9  | 100.0 | 100.0 | 100.0 | 99.9  | 100.0 | 99.2 | 99.9  | 100.0 | 100.0 | 92.0 | 90.8 | 100.0 | 100.0          | 100.0       |
+| 1998-99 | 1450       | 100.0 | 99.9  | 100.0 | 99.9  | 100.0 | 99.9  | 100.0 | 99.7 | 99.9  | 100.0 | 99.9  | 93.7 | 93.1 | 100.0 | 100.0          | 100.0       |
+| 1999-00 | 2378       | 100.0 | 100.0 | 100.0 | 100.0 | 99.9  | 100.0 | 100.0 | 99.5 | 100.0 | 100.0 | 100.0 | 97.0 | 96.3 | 100.0 | 100.0          | 100.0       |
+| 2000-01 | 2378       | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 99.5 | 100.0 | 100.0 | 100.0 | 96.6 | 96.1 | 100.0 | 100.0          | 100.0       |
+| 2001-02 | 2378       | 100.0 | 99.9  | 100.0 | 100.0 | 100.0 | 99.9  | 100.0 | 99.2 | 99.9  | 99.9  | 99.9  | 94.6 | 93.7 | 100.0 | 100.0          | 100.0       |
+| 2002-03 | 2378       | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 99.1 | 99.9  | 100.0 | 99.9  | 96.6 | 95.5 | 100.0 | 100.0          | 100.0       |
+| 2003-04 | 2378       | 99.9  | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 99.1 | 100.0 | 100.0 | 100.0 | 97.8 | 96.7 | 100.0 | 100.0          | 100.0       |
+| 2004-05 | 2460       | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 99.5 | 100.0 | 100.0 | 100.0 | 98.2 | 97.6 | 100.0 | 100.0          | 100.0       |
+| 2005-06 | 2460       | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 99.1 | 100.0 | 100.0 | 100.0 | 98.4 | 97.4 | 100.0 | 100.0          | 100.0       |
+| 2006-07 | 2460       | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 99.9  | 98.9 | 100.0 | 100.0 | 100.0 | 99.3 | 98.1 | 100.0 | 100.0          | 100.0       |
+| 2007-08 | 2460       | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 99.3 | 100.0 | 100.0 | 100.0 | 98.6 | 97.9 | 100.0 | 100.0          | 100.0       |
+| 2008-09 | 2460       | 99.3  | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 99.9  | 99.5 | 100.0 | 100.0 | 100.0 | 98.6 | 97.2 | 100.0 | 100.0          | 100.0       |
+| 2009-10 | 2460       | 99.6  | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 99.4 | 100.0 | 100.0 | 100.0 | 98.6 | 97.5 | 100.0 | 100.0          | 100.0       |
+| 2010-11 | 2460       | 99.6  | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 99.4 | 100.0 | 100.0 | 100.0 | 98.9 | 97.9 | 100.0 | 100.0          | 100.0       |
+| 2011-12 | 1980       | 99.4  | 100.0 | 100.0 | 100.0 | 99.9  | 100.0 | 99.9  | 98.5 | 100.0 | 100.0 | 100.0 | 98.9 | 96.8 | 100.0 | 100.0          | 100.0       |
+| 2012-13 | 2458       | 99.7  | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 98.4 | 100.0 | 100.0 | 100.0 | 98.2 | 96.2 | 100.0 | 100.0          | 100.0       |
+| 2013-14 | 2460       | 99.3  | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 95.1 | 100.0 | 100.0 | 100.0 | 99.0 | 93.5 | 100.0 | 100.0          | 100.0       |
+| 2014-15 | 2460       | 99.7  | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 95.7 | 100.0 | 100.0 | 100.0 | 98.1 | 93.7 | 100.0 | 100.0          | 100.0       |
+| 2015-16 | 2460       | 99.7  | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 97.0 | 100.0 | 100.0 | 100.0 | 98.1 | 95.0 | 100.0 | 100.0          | 100.0       |
+| 2016-17 | 2460       | 99.7  | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 96.1 | 100.0 | 100.0 | 100.0 | 98.7 | 94.6 | 100.0 | 100.0          | 100.0       |
+| 2017-18 | 2460       | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 97.0 | 100.0 | 100.0 | 100.0 | 98.9 | 96.0 | 100.0 | 100.0          | 100.0       |
+| 2018-19 | 2460       | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 96.7 | 100.0 | 100.0 | 100.0 | 99.5 | 96.3 | 100.0 | 100.0          | 100.0       |
+| 2019-20 | 2118       | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 96.9 | 100.0 | 100.0 | 100.0 | 99.4 | 96.4 | 100.0 | 100.0          | 100.0       |
+| 2020-21 | 2160       | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 95.4 | 100.0 | 100.0 | 100.0 | 99.4 | 94.7 | 100.0 | 100.0          | 100.0       |
+| 2021-22 | 2460       | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 97.0 | 100.0 | 100.0 | 100.0 | 99.2 | 96.2 | 100.0 | 100.0          | 100.0       |
+| 2022-23 | 2460       | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 97.6 | 100.0 | 100.0 | 100.0 | 99.2 | 96.8 | 100.0 | 100.0          | 100.0       |
+| 2023-24 | 2460       | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 96.1 | 100.0 | 100.0 | 100.0 | 99.5 | 95.7 | 100.0 | 100.0          | 100.0       |
+| 2024-25 | 2460       | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 97.2 | 100.0 | 100.0 | 100.0 | 99.3 | 96.6 | 100.0 | 100.0          | 100.0       |
+| 2025-26 | 2460       | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 98.2 | 100.0 | 100.0 | 100.0 | 98.9 | 97.0 | 100.0 | 100.0          | 100.0       |
+| 2026-27 | 340        | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 100.0 | 97.1 | 100.0 | 100.0 | 100.0 | 98.5 | 95.6 | 100.0 | 100.0          | 100.0       |
+
+#### Player-games: on court against the box score
+
+Share of regular-season player-games (%) with the lineups' minutes within 30 seconds and a minute of the box score's, the on-court plus-minus equal to the box score's or within 2, and the player's own points from the plays equal to the box score's. "Off the lineups" counts box-score players with minutes the lineups never put on the floor.
+
+| Season  | Player-games | MIN ±0.5 | MIN ±1 | +/- exact | +/- ±2 | Own PTS | Off the lineups |
+| ------- | ------------ | -------- | ------ | --------- | ------ | ------- | --------------- |
+| 1996-97 | 23612        | 99.2     | 99.5   | 96.3      | 99.5   | 99.9    | 146             |
+| 1997-98 | 23853        | 99.4     | 99.5   | 95.9      | 99.5   | 100.0   | 148             |
+| 1998-99 | 14831        | 99.4     | 99.6   | 96.6      | 99.6   | 100.0   | 90              |
+| 1999-00 | 24169        | 99.5     | 99.6   | 97.2      | 99.6   | 100.0   | 128             |
+| 2000-01 | 23822        | 98.5     | 98.7   | 96.3      | 99.0   | 100.0   | 150             |
+| 2001-02 | 23741        | 99.4     | 99.6   | 97.5      | 99.7   | 100.0   | 167             |
+| 2002-03 | 23796        | 99.3     | 99.5   | 97.3      | 99.6   | 100.0   | 145             |
+| 2003-04 | 23731        | 73.8     | 94.8   | 96.7      | 99.4   | 100.0   | 162             |
+| 2004-05 | 24806        | 69.2     | 93.7   | 97.0      | 99.6   | 100.0   | 150             |
+| 2005-06 | 24689        | 98.9     | 99.3   | 97.2      | 99.5   | 100.0   | 224             |
+| 2006-07 | 24859        | 97.5     | 98.1   | 95.8      | 98.8   | 100.0   | 227             |
+| 2007-08 | 24694        | 96.4     | 97.1   | 95.3      | 98.3   | 100.0   | 192             |
+| 2008-09 | 24460        | 98.7     | 99.0   | 96.6      | 99.4   | 99.9    | 168             |
+| 2009-10 | 24672        | 98.3     | 98.6   | 96.5      | 99.0   | 100.0   | 140             |
+| 2010-11 | 25018        | 98.0     | 98.4   | 96.5      | 99.0   | 100.0   | 134             |
+| 2011-12 | 20558        | 97.1     | 97.7   | 95.8      | 98.7   | 99.9    | 197             |
+| 2012-13 | 25506        | 95.3     | 96.3   | 93.6      | 97.8   | 100.0   | 249             |
+| 2013-14 | 25314        | 94.2     | 95.7   | 93.0      | 97.5   | 99.9    | 301             |
+| 2014-15 | 25721        | 91.7     | 93.4   | 90.8      | 96.1   | 100.0   | 258             |
+| 2015-16 | 25855        | 93.1     | 94.7   | 91.7      | 96.8   | 100.0   | 220             |
+| 2016-17 | 25869        | 92.7     | 94.5   | 91.3      | 96.6   | 100.0   | 269             |
+| 2017-18 | 25829        | 93.9     | 95.4   | 90.9      | 96.0   | 100.0   | 274             |
+| 2018-19 | 25869        | 93.2     | 94.8   | 91.8      | 96.3   | 100.0   | 231             |
+| 2019-20 | 22178        | 92.6     | 94.3   | 91.4      | 96.6   | 100.0   | 213             |
+| 2020-21 | 22715        | 91.6     | 93.4   | 90.5      | 95.7   | 100.0   | 338             |
+| 2021-22 | 25665        | 91.2     | 93.1   | 89.9      | 95.4   | 100.0   | 372             |
+| 2022-23 | 25548        | 90.7     | 92.6   | 89.7      | 95.2   | 100.0   | 346             |
+| 2023-24 | 25905        | 89.9     | 92.2   | 89.4      | 95.0   | 100.0   | 494             |
+| 2024-25 | 25867        | 93.0     | 94.5   | 92.6      | 96.6   | 100.0   | 439             |
+| 2025-26 | 26635        | 91.9     | 93.5   | 91.4      | 96.0   | 100.0   | 15              |
+| 2026-27 | 3778         | 90.3     | 92.6   | 89.8      | 95.5   | 100.0   | 65              |
+
+#### On plus off
+
+On plus off equals the team's line in the game, for every count and the seconds, on 818397 of 818397 player-games (all seasons and types).
+
+#### Five-man units against the published lineups
+
+Units the NBA's base file lists (its 2,000 a regular season with the most minutes, and its playoff units), joined on team, season, season type and the five ids. "Found" is the share Metis's count has at all; the rest are shares of those found (%): minutes within a minute and within 10 % (plus a minute), points and field goals made exact or within 2, plus-minus exact or within 2, and possessions within 2 and within 5 % (plus one) of the advanced file's. "POSS ratio" is Metis's possessions over the NBA's, summed over the units found.
+
+| Season  | Type     | Units | Found | MIN ±1 | MIN ±10% | PTS  | PTS ±2 | FGM  | +/-  | +/- ±2 | POSS ±2 | POSS ±5% | POSS ratio |
+| ------- | -------- | ----- | ----- | ------ | -------- | ---- | ------ | ---- | ---- | ------ | ------- | -------- | ---------- |
+| 2007-08 | regular  | 2000  | 100.0 | 88.7   | 97.0     | 86.0 | 91.0   | 88.8 | 84.2 | 93.0   | 48.7    | 73.7     | 0.958      |
+| 2008-09 | regular  | 2000  | 100.0 | 96.1   | 99.2     | 93.7 | 97.3   | 95.9 | 90.7 | 97.7   | 49.0    | 76.2     | 0.958      |
+| 2009-10 | regular  | 2000  | 100.0 | 94.0   | 98.3     | 91.8 | 95.2   | 94.2 | 89.6 | 96.4   | 50.0    | 74.1     | 0.958      |
+| 2010-11 | regular  | 2000  | 100.0 | 92.8   | 97.9     | 90.1 | 94.5   | 92.8 | 87.5 | 94.9   | 48.8    | 73.7     | 0.958      |
+| 2011-12 | regular  | 2000  | 100.0 | 92.6   | 97.2     | 91.1 | 94.0   | 93.0 | 89.3 | 95.7   | 57.9    | 76.2     | 0.957      |
+| 2012-13 | regular  | 2000  | 100.0 | 86.8   | 95.0     | 83.5 | 88.5   | 86.3 | 81.8 | 90.5   | 46.2    | 69.9     | 0.955      |
+| 2013-14 | regular  | 2000  | 100.0 | 84.6   | 95.0     | 80.8 | 87.0   | 84.0 | 79.8 | 90.2   | 49.5    | 72.3     | 0.957      |
+| 2014-15 | regular  | 2000  | 100.0 | 77.3   | 91.8     | 74.8 | 80.8   | 76.8 | 73.0 | 84.9   | 44.9    | 66.0     | 0.952      |
+| 2015-16 | regular  | 2000  | 100.0 | 80.9   | 93.0     | 77.9 | 83.9   | 81.0 | 75.7 | 86.7   | 45.2    | 67.8     | 0.953      |
+| 2016-17 | regular  | 2000  | 100.0 | 80.0   | 93.3     | 76.3 | 82.7   | 79.7 | 73.3 | 87.0   | 45.5    | 68.8     | 0.954      |
+| 2017-18 | regular  | 2000  | 100.0 | 84.5   | 95.3     | 80.5 | 86.9   | 84.1 | 77.5 | 89.6   | 44.0    | 66.0     | 0.948      |
+| 2018-19 | regular  | 2000  | 100.0 | 83.4   | 93.8     | 79.8 | 85.0   | 82.1 | 78.6 | 89.5   | 43.5    | 67.8     | 0.950      |
+| 2019-20 | regular  | 2000  | 100.0 | 82.7   | 93.5     | 78.0 | 84.5   | 81.9 | 76.4 | 87.8   | 48.4    | 69.3     | 0.950      |
+| 2020-21 | regular  | 2000  | 100.0 | 80.5   | 91.9     | 77.4 | 82.8   | 79.8 | 75.6 | 86.4   | 52.0    | 71.9     | 0.953      |
+| 2021-22 | regular  | 2000  | 100.0 | 81.8   | 93.5     | 77.9 | 83.8   | 80.2 | 76.3 | 87.5   | 47.0    | 68.2     | 0.949      |
+| 2022-23 | regular  | 2000  | 100.0 | 79.5   | 92.8     | 76.3 | 82.1   | 78.8 | 74.4 | 86.0   | 49.4    | 69.5     | 0.951      |
+| 2023-24 | regular  | 2000  | 100.0 | 77.5   | 91.6     | 75.0 | 80.5   | 78.0 | 73.1 | 84.2   | 46.3    | 67.3     | 0.950      |
+| 2024-25 | regular  | 2000  | 100.0 | 83.9   | 95.4     | 80.4 | 85.5   | 83.2 | 78.1 | 88.4   | 50.0    | 71.9     | 0.954      |
+| 2025-26 | regular  | 2000  | 100.0 | 79.7   | 92.5     | 75.6 | 81.5   | 78.8 | 73.2 | 85.2   | 49.8    | 70.0     | 0.953      |
+| 2026-27 | regular  | 2000  | 99.2  | 91.9   | 95.0     | 89.8 | 93.9   | 91.6 | 87.9 | 95.0   | 87.9    | 84.4     | 0.945      |
+| 2007-08 | playoffs | 1002  | 97.5  | 98.1   | 98.3     | 97.3 | 98.2   | 98.3 | 96.8 | 98.9   | 91.0    | 90.3     | 0.947      |
+| 2008-09 | playoffs | 996   | 98.0  | 97.2   | 98.1     | 96.9 | 98.0   | 97.4 | 95.1 | 98.5   | 91.4    | 89.2     | 0.946      |
+| 2009-10 | playoffs | 967   | 98.6  | 98.3   | 99.2     | 96.9 | 98.7   | 97.6 | 96.6 | 99.2   | 91.3    | 90.7     | 0.948      |
+| 2010-11 | playoffs | 957   | 99.0  | 98.5   | 99.2     | 97.4 | 99.0   | 98.6 | 96.9 | 99.4   | 90.1    | 87.9     | 0.941      |
+| 2011-12 | playoffs | 1054  | 97.2  | 98.9   | 99.5     | 97.7 | 98.8   | 98.4 | 96.6 | 99.1   | 90.9    | 90.8     | 0.945      |
+| 2012-13 | playoffs | 1157  | 97.4  | 97.8   | 98.1     | 97.2 | 98.3   | 97.8 | 96.5 | 98.8   | 90.8    | 89.9     | 0.944      |
+| 2013-14 | playoffs | 1149  | 97.0  | 97.6   | 98.3     | 96.7 | 98.3   | 97.6 | 96.3 | 98.1   | 90.5    | 87.8     | 0.943      |
+| 2014-15 | playoffs | 1108  | 96.2  | 93.7   | 96.3     | 92.2 | 94.7   | 93.4 | 89.4 | 94.7   | 88.0    | 86.5     | 0.941      |
+| 2015-16 | playoffs | 1262  | 97.0  | 95.3   | 97.6     | 93.5 | 96.0   | 94.4 | 92.1 | 97.1   | 91.7    | 88.5     | 0.944      |
+| 2016-17 | playoffs | 1240  | 97.3  | 93.4   | 96.1     | 90.9 | 94.6   | 92.1 | 90.2 | 95.4   | 90.1    | 87.2     | 0.942      |
+| 2017-18 | playoffs | 1203  | 97.7  | 98.3   | 99.0     | 96.6 | 98.1   | 97.6 | 95.1 | 98.3   | 92.7    | 90.0     | 0.942      |
+| 2018-19 | playoffs | 1148  | 96.9  | 92.1   | 94.8     | 91.1 | 93.3   | 92.7 | 89.5 | 94.5   | 88.0    | 85.1     | 0.938      |
+| 2019-20 | playoffs | 1168  | 96.8  | 90.5   | 94.0     | 87.7 | 91.6   | 90.0 | 85.0 | 93.0   | 86.3    | 83.0     | 0.938      |
+| 2020-21 | playoffs | 1287  | 94.6  | 92.9   | 96.7     | 91.7 | 95.1   | 92.7 | 90.3 | 95.5   | 88.7    | 85.3     | 0.938      |
+| 2021-22 | playoffs | 1253  | 96.2  | 92.9   | 95.1     | 91.4 | 93.5   | 93.2 | 89.2 | 95.0   | 88.9    | 86.2     | 0.940      |
+| 2022-23 | playoffs | 1090  | 97.1  | 92.9   | 95.7     | 90.9 | 93.2   | 91.9 | 90.1 | 95.5   | 88.5    | 86.6     | 0.939      |
+| 2023-24 | playoffs | 1108  | 96.4  | 89.6   | 94.2     | 87.2 | 92.4   | 89.1 | 86.0 | 94.0   | 86.0    | 81.6     | 0.935      |
+| 2024-25 | playoffs | 1210  | 96.4  | 89.5   | 93.3     | 86.6 | 91.3   | 89.4 | 85.4 | 93.2   | 85.7    | 82.5     | 0.934      |
+| 2025-26 | playoffs | 1442  | 98.5  | 95.3   | 97.0     | 93.8 | 96.3   | 94.9 | 93.1 | 96.8   | 91.3    | 88.6     | 0.935      |
+
+#### The ten largest minute misses
+
+Units found in both, by the gap in minutes.
+
+| Season  | Type    | Team | Unit                                                                    | NBA MIN | Metis MIN | NBA PTS | Metis PTS | NBA +/- | Metis +/- |
+| ------- | ------- | ---- | ----------------------------------------------------------------------- | ------- | --------- | ------- | --------- | ------- | --------- |
+| 2018-19 | regular | OKC  | R. Westbrook - P. George - S. Adams - J. Grant - T. Ferguson            | 919.3   | 1068.4    | 2249    | 2590      | 160     | 150       |
+| 2018-19 | regular | OKC  | R. Westbrook - P. George - D. Schroder - S. Adams - J. Grant            | 434.3   | 301.2     | 1144    | 843       | 85      | 85        |
+| 2022-23 | regular | ATL  | C. Capela - D. Murray - J. Collins - T. Young - D. Hunter               | 737.7   | 795.1     | 1847    | 1988      | 82      | 79        |
+| 2013-14 | regular | PHX  | C. Frye - G. Green - P. Tucker - G. Dragic - M. Plumlee                 | 526.1   | 578.3     | 1184    | 1300      | 6       | 9         |
+| 2021-22 | regular | DEN  | J. Green - W. Barton - A. Gordon - N. Jokic - M. Morris                 | 761.2   | 710.3     | 1928    | 1800      | 146     | 144       |
+| 2019-20 | regular | OKC  | C. Paul - D. Gallinari - D. Schroder - S. Adams - S. Gilgeous-Alexander | 176.6   | 130       | 518     | 408       | 126     | 123       |
+| 2022-23 | regular | ATL  | C. Capela - B. Bogdanovic - D. Murray - J. Collins - D. Hunter          | 71.5    | 25        | 172     | 73        | -25     | -1        |
+| 2022-23 | regular | HOU  | K. Porter Jr. - J. Green - K. Martin Jr. - A. Sengun - J. Smith Jr.     | 439.8   | 399.6     | 1028    | 937       | -77     | -67       |
+| 2021-22 | regular | ATL  | D. Gallinari - C. Capela - K. Huerter - T. Young - D. Hunter            | 232.4   | 270.2     | 578     | 651       | 9       | -15       |
+| 2023-24 | regular | ATL  | C. Capela - B. Bogdanovic - D. Murray - D. Hunter - V. Krejci           | 158     | 121.2     | 373     | 285       | 31      | 23        |
+
 ## Play-derived stats, per season (Plan T905)
 
 Measured 2026-11-13 on a copy of the full load after a real refresh that built every play table with T905's (`~/.cache/metis-dev/t905`), by `scripts/check-play-derived.mjs`, which writes every table below in full. How the tables are built is in [stats-database.md](stats-database.md), "Play-derived stats"; the rules are data in `src/shared/stats/playDetail.ts`; the traps are under "Traps", "Play-derived stats".
@@ -710,6 +866,21 @@ The NBA's feed is stats.nba.com's v3 play by play, ESPN's its own. How the play 
 - **Heaves are out of the shot file from 2025-26**, as out of the box score's FGA (Plan T901): 34 shots from beyond half court in the 2025-26 regular season, against 336 to 581 a season from 2017-18 to 2024-25.
 - **The dataset's distance curves mix every season type and bin by the exact distance**, not the published one, and from 2019-20 leave out a few hundred shots a season (202,223 of 202,399 in 2019-20). The metrics' league rate is recomputed from the regular-season shots instead.
 - **ESPN's shot coordinates are another frame**, whole feet: `coordinate_x` runs the court's length from centre court, `coordinate_y` across it; the raw pair is feet across the court and out from the basket. They are not converted or mixed in.
+
+### On court (Plan T904)
+
+How the on-court tables read these is in `src/main/stats/derived/onCourt.ts`; how well they agree is under "On court, per season".
+
+- **The possessions file's ten players are the possession's first five a side,** and the NBA play by play's `off_player_*` and `def_player_*` columns copy them onto every play of the possession. A substitute who comes in during a possession (after a foul, between free throws) appears only from the next one: in 2025-26, 34,149 of 278,341 possessions hold a substitution after their first play. Credited by possession, on-court plus-minus equals the box score's on 26 to 40 % of player-games.
+- **`nba_stats_game_lineups` has the ten players for every play,** keyed by the game and the NBA's `action_number`, which is not unique (a steal shares its turnover's); the rows of one action number agree on 99.98 % of keys (158 of 670,234 in 2025-26 do not) and the first is taken. It is the same row count as the play by play, home and away rather than offense and defense. Its lineup on a substitution row is sometimes before the substitution and sometimes after; a substitution row carries no time and no points, so neither matters. Some plays have no row (period starts and ends, replays): they take the lineup before them in the period.
+- **It sometimes keeps a player on after their substitution,** or swaps two players' stretches: in the first game of 2025-26, Hartenstein's and Caruso's minutes are five minutes apart from the box score's either way. These are the worst minute misses below; plus-minus can still match, when the swapped players shared the floor.
+- **The official plus-minus credits free throws to the players on the floor at the foul.** Credited to those on the floor at the free throw, plus-minus matches on about 36 % of player-games; at the foul, on 89 to 97 %.
+- **A possession's start clock is its first play, not the previous possession's end:** the gap between them (about 10 seconds) belongs to no possession. Seconds per possession read from their own clocks average 4 seconds; from the end of the one before, 14.5 to 15.6.
+- **Every possession in the file is `quarter_box`:** `lineup_source` holds no other value on any season loaded, so no possession is marked as a fallback.
+- **Possessions with a player listed twice or missing:** 14 to 333 a season (0.05 to 0.1 %). Their team counts stand; the player known is on the floor; they make no five-man unit.
+- **SportsDataverse's possessions are about 5 % fewer than the NBA's** (0.945 to 0.958 of the advanced lineup file's, summed over the units found, steadily across seasons), so ratings from them read about 5 % higher than the NBA's for the same points. They are not the NBA's count, and the screens say so.
+- **Box-score minutes are whole minutes on 81 % of 2003-04's player-games and 90 % of 2004-05's**, against 2 to 9 % around them, so on-court minutes are within 30 seconds of them on 69 to 74 % of those seasons' player-games, and within a minute on 94 %.
+- **Off the floor covers the player's own games.** A team's line without a player in games they missed is not counted; the screens say "the rest of their own games".
 
 ### Play-derived stats (Plan T905)
 

@@ -16,6 +16,9 @@ import type {
   StatsMatchupScope,
   StatsGameMatchups,
   StatsOfficialCareer,
+  StatsOnCourtScope,
+  StatsOnCourtUnits,
+  StatsWithOrWithout,
   StatsOfficialsSeason,
   GameType,
   StatsProfile,
@@ -103,6 +106,20 @@ export interface Api {
     officialsSeason(season: number, gameTypes: GameType[]): Promise<StatsOfficialsSeason | null>
     /** One official's seasons, each beside the league's totals. */
     officialCareer(official: string, gameTypes: GameType[]): Promise<StatsOfficialCareer | null>
+    /** A team's groups of two to five players on the floor, counted from the plays, from 1996-97. */
+    onCourtUnits(
+      team: string,
+      season: number,
+      scope: StatsOnCourtScope,
+      size: number
+    ): Promise<StatsOnCourtUnits>
+    /** A player's team with a teammate on and off the floor, counted from the plays. */
+    withOrWithout(
+      player: string,
+      teammate: string | null,
+      season: number,
+      scope: StatsOnCourtScope
+    ): Promise<StatsWithOrWithout>
     /** A team's published five-man units, from 2007-08; empty outside them. */
     lineups(
       team: string,
@@ -169,6 +186,8 @@ export const IPC = {
   statsGameMatchups: 'stats:game-matchups',
   statsOfficialsSeason: 'stats:officials-season',
   statsOfficialCareer: 'stats:official-career',
+  statsOnCourtUnits: 'stats:on-court-units',
+  statsWithOrWithout: 'stats:with-or-without',
   statsLineups: 'stats:lineups',
   statsProfile: 'stats:profile',
   statsAvailability: 'stats:availability',

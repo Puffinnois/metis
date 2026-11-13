@@ -151,3 +151,61 @@ describe('compileQuery', () => {
     ])
   })
 })
+
+describe('the on-court table, read through built', () => {
+  const onCourt = (
+    scope: Partial<StatsQuery['scope']> = {},
+    extra: Partial<StatsQuery> = {}
+  ): StatsQuery => ({
+    entity: 'player',
+    metrics: ['onc_net', 'onc_plus_minus', 'pts'],
+    scope: { seasons: [2026], ...scope },
+    ...extra
+  })
+
+  it('answers a whole season from its rows, joined to the box scores in scope', () => {
+    const c = compileQuery(onCourt(), CTX)
+    expect(c.grain).toBe('season')
+    expect(c.gaps).toEqual([null, null, null])
+    expect(c.sql).toContain('FROM base b LEFT JOIN player_on_court w')
+    expect(c.sql).toContain('b.season = w.season AND b.game_type = w.game_type')
+    // Its counts are its own: the box-score rows do not read them.
+    expect(c.sql).not.toMatch(/w\.on_pts, /)
+  })
+
+  it('reads one team’s part of a traded player’s season by the row’s team', () => {
+    const c = compileQuery(onCourt({ teams: ['1610612760'] }), CTX)
+    expect(c.sql).toContain('w.team_id = b.row_team')
+    expect(c.params).toContain(1610612760)
+  })
+
+  it('answers a date range from the games it keeps', () => {
+    const c = compileQuery(onCourt({ dates: ['2026-01-01', '2026-01-31'] }), CTX)
+    expect(c.grain).toBe('game')
+    expect(c.gaps).toEqual([null, null, null])
+    expect(c.sql).toContain('b.game = w.game_id')
+  })
+
+  it('divides a count by its own possessions and minutes on the floor', () => {
+    const per100 = compileQuery(onCourt({}, { transform: 'per100' }), CTX)
+    expect(per100.sql).toContain('pub0.on_poss')
+    const per36 = compileQuery(onCourt({}, { transform: 'per36' }), CTX)
+    expect(per36.sql).toContain('pub0.minutes')
+    // Per game divides by the games of the box scores in scope.
+    const perGame = compileQuery(onCourt({}, { transform: 'perGame' }), CTX)
+    expect(perGame.sql).not.toContain('pub0.games')
+  })
+
+  it('reads a reason under a split, not the whole game', () => {
+    const c = compileQuery(onCourt({ split: 'clutch' }), CTX)
+    expect(c.gaps[0]).toBe('Counted per game, not per moment, so it has no split.')
+    expect(c.gaps[1]).toBe('Counted per game, not per moment, so it has no split.')
+    expect(c.sql).not.toContain('player_on_court')
+  })
+
+  it('reads null with its reason before the play by play', () => {
+    const c = compileQuery(onCourt({ seasons: [1995] }), CTX)
+    expect(c.gaps[0]).toBe('Recorded from 1996-97.')
+    expect(c.gaps[2]).toBeNull()
+  })
+})

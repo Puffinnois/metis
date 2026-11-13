@@ -16,6 +16,9 @@ import type {
   StatsMatchupScope,
   StatsGameMatchups,
   StatsOfficialCareer,
+  StatsOnCourtScope,
+  StatsOnCourtUnits,
+  StatsWithOrWithout,
   StatsOfficialsSeason,
   GameType,
   StatsProfile,
@@ -57,6 +60,18 @@ export interface StatsClient {
   gameMatchups(game: string): Promise<StatsGameMatchups>
   officialsSeason(season: number, gameTypes: GameType[]): Promise<StatsOfficialsSeason>
   officialCareer(official: string, gameTypes: GameType[]): Promise<StatsOfficialCareer | null>
+  onCourtUnits(
+    team: string,
+    season: number,
+    scope: StatsOnCourtScope,
+    size: number
+  ): Promise<StatsOnCourtUnits>
+  withOrWithout(
+    player: string,
+    teammate: string | null,
+    season: number,
+    scope: StatsOnCourtScope
+  ): Promise<StatsWithOrWithout>
   lineups(team: string, season: number, gameType: string, group: LineupGroup): Promise<StatsLineups>
   profile(player: string): Promise<StatsProfile>
   availability(players: string[]): Promise<StatsAvailability[]>
@@ -141,6 +156,17 @@ export function startStatsWorker(
         kind: 'officialCareer',
         official,
         gameTypes
+      })),
+    onCourtUnits: (team, season, scope, size) =>
+      request<StatsOnCourtUnits>((id) => ({ id, kind: 'onCourtUnits', team, season, scope, size })),
+    withOrWithout: (player, teammate, season, scope) =>
+      request<StatsWithOrWithout>((id) => ({
+        id,
+        kind: 'withOrWithout',
+        player,
+        teammate,
+        season,
+        scope
       })),
     profile: (player) => request<StatsProfile>((id) => ({ id, kind: 'profile', player })),
     lineups: (team, season, gameType, group) =>

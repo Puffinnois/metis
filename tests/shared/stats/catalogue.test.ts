@@ -584,6 +584,77 @@ Object.assign(EXPECTED, {
 })
 
 /**
+ * One player's line in `player_on_court` (`catalogue/onCourt.ts`): the team on and off the floor and
+ * the player's own counts, in round numbers that keep each formula's parts apart.
+ */
+const ON_COURT_ROW: Record<string, number> = {
+  games: 60,
+  minutes: 1500,
+  on_secs: 90000,
+  on_poss: 3000,
+  on_opp_poss: 2990,
+  on_pts: 3450,
+  on_opp_pts: 3300,
+  on_fgm: 1250,
+  on_fga: 2600,
+  on_fg3m: 400,
+  on_fg3a: 1100,
+  on_fta: 700,
+  on_tov: 420,
+  on_oreb: 300,
+  on_dreb: 900,
+  on_opp_oreb: 280,
+  on_opp_dreb: 950,
+  on_opp_fgm: 1200,
+  on_opp_fga: 2550,
+  on_opp_fg3m: 380,
+  on_opp_fg3a: 1050,
+  off_poss: 1000,
+  off_opp_poss: 1010,
+  off_pts: 1100,
+  off_opp_pts: 1120,
+  p_fgm: 300,
+  p_fga: 600,
+  p_fta: 200,
+  p_tov: 90,
+  p_ast: 250,
+  p_oreb: 40,
+  p_dreb: 180,
+  p_stl: 45,
+  p_blk: 30
+}
+
+const ON_DRTG = (100 * 3300) / 2990
+const OFF_DRTG = (100 * 1120) / 1010
+
+Object.assign(EXPECTED, {
+  onc_min: 1500,
+  onc_poss: 3000,
+  onc_plus_minus: 150,
+  onc_ortg: 115,
+  onc_drtg: ON_DRTG,
+  onc_net: 115 - ON_DRTG,
+  offc_ortg: 110,
+  offc_drtg: OFF_DRTG,
+  offc_net: 110 - OFF_DRTG,
+  onoff_ortg: 5,
+  onoff_drtg: ON_DRTG - OFF_DRTG,
+  onoff_net: 115 - ON_DRTG - (110 - OFF_DRTG),
+  onc_pace: (2880 * (3000 + 2990)) / 2 / 90000,
+  onc_efg_pct: (1250 + 200) / 2600,
+  onc_opp_efg_pct: (1200 + 190) / 2550,
+  onc_tm_tov_pct: 420 / 3000,
+  onc_tm_orb_pct: 300 / (300 + 950),
+  onc_usg_pct: (600 + 0.44 * 200 + 90) / (2600 + 0.44 * 700 + 420),
+  onc_ast_pct: 250 / (1250 - 300),
+  onc_orb_pct: 40 / (300 + 950),
+  onc_drb_pct: 180 / (900 + 280),
+  onc_trb_pct: (40 + 180) / (300 + 900 + 280 + 950),
+  onc_stl_pct: 45 / 2990,
+  onc_blk_pct: 30 / (2550 - 1050)
+})
+
+/**
  * Shot zones (`catalogue/shots.ts`): every count of the shot tables, both sides, a different number
  * each, so a formula over the wrong count fails. The expected makes and points are stored in
  * thousandths.
@@ -869,11 +940,13 @@ describe('every formula, against a value worked by hand', () => {
             ? PUBLISHED_ROW
             : m.family === 'plays'
               ? PLAY_ROW
-              : m.built
-                ? SHOT_ROW
-                : m.entity === 'player'
-                  ? PLAYER_ROW
-                  : TEAM_ROW
+              : m.family === 'on_court'
+                ? ON_COURT_ROW
+                : m.built
+                  ? SHOT_ROW
+                  : m.entity === 'player'
+                    ? PLAYER_ROW
+                    : TEAM_ROW
         )})::DOUBLE AS "${m.id}"`
     )
     values = (await db.get<Record<string, number | null>>(`SELECT ${columns.join(', ')}`)) ?? {}

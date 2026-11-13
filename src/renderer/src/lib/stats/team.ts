@@ -25,6 +25,7 @@ export type TeamTab =
   | 'lineups'
   | 'splits'
   | 'schedule'
+  | 'on_off'
 
 export const TEAM_DASH_TABS: { id: TeamTab; label: string }[] = [
   { id: 'overview', label: 'Overview' },
@@ -35,7 +36,9 @@ export const TEAM_DASH_TABS: { id: TeamTab; label: string }[] = [
   { id: 'players', label: 'Players' },
   { id: 'lineups', label: 'Lineups' },
   { id: 'splits', label: 'Splits' },
-  { id: 'schedule', label: 'Schedule' }
+  { id: 'schedule', label: 'Schedule' },
+  // Last, so the tabs before it keep their places.
+  { id: 'on_off', label: 'On/off' }
 ]
 
 export const RATINGS_SECTION: SectionDef = {

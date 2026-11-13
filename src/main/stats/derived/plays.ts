@@ -1,4 +1,5 @@
 import { eventsBootstrap } from './events'
+import { onCourtBootstrap } from './onCourt'
 import { column, type Have } from './sql'
 
 /**
@@ -466,6 +467,7 @@ export function playsBootstrap(): string[] {
   return [
     ...Object.values(PLAY_TABLES).map((t) => `CREATE TABLE IF NOT EXISTS ${t} (${columns})`),
     playsViewSql().replace('CREATE OR REPLACE VIEW', 'CREATE VIEW IF NOT EXISTS'),
-    ...eventsBootstrap()
+    ...eventsBootstrap(),
+    ...onCourtBootstrap()
   ]
 }
