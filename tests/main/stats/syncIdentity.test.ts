@@ -128,10 +128,10 @@ describe('the identity and derived steps', () => {
     expect(derived.buildDerived).not.toHaveBeenCalled()
   })
 
-  it('rebuild only identity when a new version made only it stale', async () => {
+  it('rebuild identity, then the game tables that join through it, when a new version made it stale', async () => {
     vi.mocked(identity.identityStale).mockResolvedValue(true)
     const { steps } = await run([])
-    expect(steps.map((s) => s.source)).toEqual(['stats:identity'])
+    expect(steps.map((s) => s.source)).toEqual(['stats:identity', 'stats:derived'])
   })
 
   it('rebuild only the derived tables when a new version made only them stale', async () => {

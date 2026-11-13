@@ -193,6 +193,36 @@ describe('game', () => {
     })
   })
 
+  it('links the ESPN row with a score where its schedule lists a game twice, whatever the order', async () => {
+    for (const order of [
+      [6001, 400216711],
+      [400216711, 6001]
+    ]) {
+      await db.exec(
+        'DELETE FROM src_nba_schedule; DELETE FROM src_espn_schedule; DELETE FROM src_team_groups'
+      )
+      await anchorEspn(db)
+      await db.exec(
+        `INSERT INTO src_nba_schedule VALUES ${nbaGame('0029800009', 1999, '1999-02-05')}`
+      )
+      // ESPN's 1998-99 lists some games twice: the real one, and an empty one (0-0, a later id).
+      for (const id of order) {
+        const score = id === 6001 ? '104, 96' : '0, 0'
+        await db.exec(
+          `INSERT INTO src_espn_schedule VALUES (${id}, 1999, 1999, 2, DATE '1999-02-05', 1, 2, ${score}, true)`
+        )
+      }
+      await db.exec(`INSERT INTO src_team_groups
+        SELECT s, t, 'Team', 'nba:east', 'nba:atlantic' FROM (VALUES (1999)) AS a(s), (VALUES ('1'), ('2')) AS b(t)`)
+      await db.exec(`DELETE FROM derived_state WHERE name = 'identity'`)
+      await buildIdentity(db)
+      expect(
+        await db.get("SELECT espn_game_id FROM game WHERE game_id = '0029800009'"),
+        String(order)
+      ).toEqual({ espn_game_id: 6001 })
+    }
+  })
+
   it('does not link the same teams two days apart', async () => {
     await anchorEspn(db)
     await db.exec(
