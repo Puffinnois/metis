@@ -3,6 +3,9 @@ import { api } from '@/lib/api'
 import { errorMessage } from '@/lib/format'
 import type { LineupGroup } from '@shared/stats/lineups'
 import type {
+  StatsAssistRequest,
+  StatsAssistNetwork,
+  StatsGameFlow,
   StatsShotRequest,
   StatsShotChart,
   MetricInfo,
@@ -264,6 +267,24 @@ export const useShots = (
 ): ReadState<StatsShotChart> =>
   useRead(request === null ? null : `${version}|${JSON.stringify(request)}`, () =>
     api.stats.shots(request as StatsShotRequest)
+  )
+
+/** Who assisted whom for a team or a player; null as the request when there is nothing to read. */
+export const useAssists = (
+  request: StatsAssistRequest | null,
+  version: string | null
+): ReadState<StatsAssistNetwork> =>
+  useRead(request === null ? null : `${version}|${JSON.stringify(request)}`, () =>
+    api.stats.assists(request as StatsAssistRequest)
+  )
+
+/** One game's scoring in order and its flow; null when no game is open. */
+export const useGameFlow = (
+  game: string | null,
+  version: string | null
+): ReadState<StatsGameFlow> =>
+  useRead(game === null ? null : `${version}|flow|${game}`, () =>
+    api.stats.gameFlow(game as string)
   )
 
 /** Players' status on the latest injury report; none to read is a key of null. */
