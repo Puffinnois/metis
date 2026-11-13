@@ -50,6 +50,8 @@ All of it is inside the limits in D22 (6 GB, an hour, 4 GB of memory). Time vari
 
 The whole load took 20.6 minutes; peak memory 2.70 GB (at the end of the play step); the file 5.32 GB at the end and 5.32 GB at its peak (4.67 GB at Stage 8's gate, before any Stage 9 table). D22's limits are 6 GB, an hour and 4 GB, so 0.68 GB, 39 minutes and 1.3 GB are left. The boards were on screen 161 seconds in and a player dashboard 162. Five clicks during the play step's writes (the write-ahead log filling and checkpointing around each): the leaderboards 125 ms, the player dashboard 354, its Splits tab 297, its Shots tab 242, the team dashboard 271. Quit and relaunch: the status read "updated 1 min ago" and the sync log gained no row. A daily refresh straight after (`load-report.mjs --force`) took 27 seconds: 176 steps, 127 files unchanged, and the play step rebuilt 2026-27 alone, 162,953 rows in 3.3 seconds; the file grew to 5.40 GB, with 105 MB of it free blocks left by the identity and game tables' rebuild, used again by the next.
 
+Stage 9's gate, the same day on main at `d06be7d` (`~/.cache/metis-dev/gate9`), measured the same: 3,025 files, no errors, 20.7 minutes, peak memory 2.76 GB, the file 5.32 GB at its end and 5.34 GB at its peak, `stats:plays` 34,938,989 rows in 440 seconds, the boards at 157 seconds.
+
 An earlier run the same day, before ESPN's plays became a view, took 26.1 minutes on a busy machine, with 2.88 GB of memory and a 5.57 GB peak.
 
 **A full rebuild of the play step** (every season due, as after a version bump), on a fresh copy of T901's load with `scripts/load-report.mjs`, the file sampled every half second:
