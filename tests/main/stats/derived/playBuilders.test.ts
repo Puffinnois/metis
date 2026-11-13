@@ -58,7 +58,14 @@ describe('which seasons are rebuilt', () => {
     )
     await markPlaySeason(db, 2026)
     const rows = await buildPlays(db)
-    expect(rows).toBe(26)
+    // The play rows, and what the later builders made of them.
+    let later = 0
+    for (const b of PLAY_BUILDERS.slice(2)) {
+      later +=
+        (await db.get<{ n: number }>(`SELECT count(*)::INTEGER AS n FROM ${b.table}`))?.n ?? 0
+    }
+    expect(rows).toBe(26 + later)
+    expect(later).toBeGreaterThan(0)
     expect(
       await db.all(
         `SELECT season, count(*)::INTEGER AS n FROM ${PLAY_TABLES.nba} GROUP BY 1 ORDER BY 1`

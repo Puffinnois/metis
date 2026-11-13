@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import { gameTable } from '@main/stats/derived/gameTables'
 import { OPP_SHOT_COMPONENTS, SHOT_COMPONENTS } from '@main/stats/derived/shots'
+import { PLAY_DETAIL_COUNTS, PLAY_DETAIL_TEAM_COMPONENTS } from '@main/stats/derived/playDetail'
 import { COMPONENTS, grainsOf } from '@main/stats/engine/registry'
 import { CATALOGUE, componentsOf, coverageReason, covers, TOKEN } from '@shared/stats/catalogue'
 import { PLAY_TYPE_SIDES } from '@shared/stats/playTypes'
@@ -632,6 +633,91 @@ Object.assign(
   )
 )
 
+/**
+ * Play-derived stats (`catalogue/plays.ts`): every count of the play tables, both sides, a different
+ * number each, with the box score's makes and attempts the rates read beside them.
+ */
+const PLAY_ROW: Record<string, number> = {
+  ...Object.fromEntries(
+    [...new Set([...PLAY_DETAIL_COUNTS, ...PLAY_DETAIL_TEAM_COMPONENTS])].map((c, i) => [
+      c,
+      /_ds$/.test(c) ? 20_000 + 97 * i : 10 + 3 * i
+    ])
+  ),
+  fga: 1500,
+  fgm: 700,
+  opp_fga: 1600,
+  opp_fgm: 750
+}
+
+/** Each play-derived metric, written out from its description. */
+function playExpected(id: string): number {
+  const [, side, rest] = /^(team_pbp_|opp_pbp_|pbp_)(.+)$/.exec(id) ?? []
+  const p = side === 'opp_pbp_' ? 'opp_' : ''
+  const r = (c: string): number => PLAY_ROW[`${p}${c}`]
+  const shared = (c: string): number => PLAY_ROW[c]
+  const g = shared('flow_games')
+  switch (rest) {
+    case 'tov_live_share':
+      return r('tov_live') / r('tov')
+    case 'tov_bad_pass_share':
+    case 'tov_lost_ball_share':
+    case 'tov_off_foul_share':
+    case 'tov_travel_share':
+      return r(rest.replace('_share', '')) / r('tov')
+    case 'pf_shooting_share':
+      return r('pf_shooting') / r('pf')
+    case 'flagrant':
+      return r('pf_flagrant1') + r('pf_flagrant2')
+    case 'and1_pct':
+      return r('and1_ftm') / r('and1')
+    case 'and1_rate':
+      return r('and1') / r('fgm')
+    case 'trip_rate':
+      return (r('ft_trip2') + r('ft_trip3') + r('and1')) / r('fga')
+    case 'ast2_share':
+      return r('made2_ast') / (r('made2_ast') + r('made2_unast'))
+    case 'ast3_share':
+      return r('made3_ast') / (r('made3_ast') + r('made3_unast'))
+    case 'unast_share':
+      return (
+        (r('made2_unast') + r('made3_unast')) /
+        (r('made2_ast') + r('made2_unast') + r('made3_ast') + r('made3_unast'))
+      )
+    case 'ast_pts':
+      return p === '' && side === 'pbp_'
+        ? 2 * r('ast2') + 3 * r('ast3')
+        : 2 * r('made2_ast') + 3 * r('made3_ast')
+    case 'ast_to3_share':
+      return r('ast3') / (r('ast2') + r('ast3'))
+    case 'lead_changes':
+    case 'times_tied':
+      return shared(rest) / g
+    case 'tied_share':
+      return shared('tied_ds') / shared('game_ds')
+    case 'largest_lead':
+    case 'best_run':
+      return r(rest) / g
+    case 'lead_share':
+      return r('lead_ds') / shared('game_ds')
+    case 'drought':
+      return r('drought_ds') / 600 / g
+    case 'drought_fg':
+      return r('drought_fg_ds') / 600 / g
+    default:
+      // A count: the column of the same name.
+      if (!(`${p}${rest}` in PLAY_ROW)) throw new Error(`${id}: no worked value`)
+      return r(rest)
+  }
+}
+
+Object.assign(
+  EXPECTED,
+  Object.fromEntries(
+    CATALOGUE.filter((m) => m.family === 'plays').map((m) => [m.id, playExpected(m.id)])
+  )
+)
+
 const fill = (m: MetricDef, row: Record<string, number>): string =>
   m.value.replace(TOKEN, (_, c: string) => {
     if (!(c in row)) throw new Error(`${m.id}: no ${c} in the worked row`)
@@ -777,7 +863,18 @@ describe('every formula, against a value worked by hand', () => {
     db = await openTestDb()
     const columns = CATALOGUE.map(
       (m) =>
-        `(${fill(m, m.published ? PUBLISHED_ROW : m.built ? SHOT_ROW : m.entity === 'player' ? PLAYER_ROW : TEAM_ROW)})::DOUBLE AS "${m.id}"`
+        `(${fill(
+          m,
+          m.published
+            ? PUBLISHED_ROW
+            : m.family === 'plays'
+              ? PLAY_ROW
+              : m.built
+                ? SHOT_ROW
+                : m.entity === 'player'
+                  ? PLAYER_ROW
+                  : TEAM_ROW
+        )})::DOUBLE AS "${m.id}"`
     )
     values = (await db.get<Record<string, number | null>>(`SELECT ${columns.join(', ')}`)) ?? {}
   })

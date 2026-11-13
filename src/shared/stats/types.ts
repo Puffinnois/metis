@@ -29,6 +29,7 @@ export type MetricFamily =
   | 'impact'
   | 'availability'
   | 'shots'
+  | 'plays'
 
 /** `core` shown by default, `extended` in its family and the column picker, `stored` in queries only. */
 export type MetricTier = 'core' | 'extended' | 'stored'

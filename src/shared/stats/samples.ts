@@ -3,6 +3,7 @@ import { AVAILABILITY_SAMPLE_LABELS } from './availability'
 import { IMPACT_SAMPLE_LABELS } from './catalogue/impact'
 import { playTypeSampleLabels } from './playTypes'
 import { SHOT_SAMPLE_LABELS } from './catalogue/shots'
+import { PLAY_SAMPLE_LABELS } from './catalogue/plays'
 
 /** What each metric's sample counts, in words: "412 field-goal attempts". */
 export const SAMPLE_LABELS: Readonly<Record<string, string>> = {
@@ -66,7 +67,8 @@ export const SAMPLE_LABELS: Readonly<Record<string, string>> = {
   ...MATCHUP_SAMPLE_LABELS,
   ...IMPACT_SAMPLE_LABELS,
   ...AVAILABILITY_SAMPLE_LABELS,
-  ...SHOT_SAMPLE_LABELS
+  ...SHOT_SAMPLE_LABELS,
+  ...PLAY_SAMPLE_LABELS
 }
 
 /** The words for a sample component; its name, spaced, for one not listed. */

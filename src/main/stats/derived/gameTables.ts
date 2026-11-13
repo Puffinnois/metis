@@ -1,6 +1,13 @@
 import type { Entity } from '@shared/stats/types'
 import { GAME_MATCHUP_COMPONENTS, GAME_MATCHUP_KEY, GAME_MATCHUPS } from './gameMatchups'
 import {
+  isPlayDetailZero,
+  PLAY_DETAIL_COUNTS,
+  PLAY_DETAIL_PLAYER_GAME,
+  PLAY_DETAIL_TEAM_COMPONENTS,
+  PLAY_DETAIL_TEAM_GAME
+} from './playDetail'
+import {
   isZeroCount,
   OPP_SHOT_COMPONENTS,
   SHOT_COMPONENTS,
@@ -48,6 +55,20 @@ export const GAME_TABLES: readonly GameTable[] = [
     key: 'team_id',
     components: [...SHOT_COMPONENTS, ...OPP_SHOT_COMPONENTS],
     zero: isZeroCount
+  },
+  {
+    table: PLAY_DETAIL_PLAYER_GAME,
+    entity: 'player',
+    key: 'player_id',
+    components: PLAY_DETAIL_COUNTS,
+    zero: isPlayDetailZero
+  },
+  {
+    table: PLAY_DETAIL_TEAM_GAME,
+    entity: 'team',
+    key: 'team_id',
+    components: PLAY_DETAIL_TEAM_COMPONENTS,
+    zero: isPlayDetailZero
   }
 ]
 
