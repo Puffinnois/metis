@@ -27,7 +27,7 @@
     "eval": "document.querySelector('[role=tablist]').innerText.replace(/\\n/g,' | ')"
   },
   {
-    "click": "[role=tablist] [role=tab]:nth-child(5)"
+    "eval": "[...document.querySelectorAll('[role=tablist] [role=tab]')].find((t) => t.textContent.trim() === 'Lineups').click()"
   },
   {
     "wait": 2000
@@ -225,7 +225,7 @@
     "wait": 2500
   },
   {
-    "click": "[role=tablist] [role=tab]:nth-child(5)"
+    "eval": "[...document.querySelectorAll('[role=tablist] [role=tab]')].find((t) => t.textContent.trim() === 'Lineups').click()"
   },
   {
     "wait": 1500

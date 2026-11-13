@@ -403,7 +403,13 @@ export const PLAY_DETAIL_BUILDERS: PlayBuilder[] = [
   {
     table: PLAY_DETAIL_PLAYER_GAME,
     columns: PLAY_DETAIL_PLAYER_COLUMNS,
-    select: playDetailPlayerSql
+    select: playDetailPlayerSql,
+    order: 'game_id, team_id, player_id'
   },
-  { table: PLAY_DETAIL_TEAM_GAME, columns: PLAY_DETAIL_TEAM_COLUMNS, select: playDetailTeamSql }
+  {
+    table: PLAY_DETAIL_TEAM_GAME,
+    columns: PLAY_DETAIL_TEAM_COLUMNS,
+    select: playDetailTeamSql,
+    order: 'game_id, team_id'
+  }
 ]

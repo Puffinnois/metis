@@ -403,12 +403,14 @@ export const SPLIT_BUILDERS: readonly PlayBuilder[] = [
   {
     table: SPLIT_TEAM,
     columns: SPLIT_TEAM_COLUMNS,
-    select: guarded(SPLIT_TEAM_COLUMNS, splitTeamSelect)
+    select: guarded(SPLIT_TEAM_COLUMNS, splitTeamSelect),
+    order: 'game_id, team_id, split'
   },
   {
     table: SPLIT_PLAYER,
     columns: SPLIT_PLAYER_COLUMNS,
-    select: guarded(SPLIT_PLAYER_COLUMNS, splitPlayerSelect)
+    select: guarded(SPLIT_PLAYER_COLUMNS, splitPlayerSelect),
+    order: 'game_id, team_id, player_id, split'
   }
 ]
 

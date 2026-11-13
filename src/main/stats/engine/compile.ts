@@ -131,7 +131,16 @@ function flag(value: unknown, what: string): boolean {
 
 const ids = (values: unknown, what: string): number[] => texts(values, what, ID).map(Number)
 
-const QUERY_FIELDS = ['entity', 'metrics', 'scope', 'groupBy', 'transform', 'sort', 'limit']
+const QUERY_FIELDS = [
+  'entity',
+  'metrics',
+  'scope',
+  'groupBy',
+  'transform',
+  'sort',
+  'limit',
+  'ranks'
+]
 const SCOPE_FIELDS = [
   'seasons',
   'gameTypes',
@@ -260,6 +269,8 @@ function validate(q: StatsQuery, ctx: CompileContext): Checked {
     if (q.sort.dir !== 'asc' && q.sort.dir !== 'desc') fail('sort.dir must be asc or desc')
   }
   if (q.limit !== undefined) integers([q.limit], 'limit', 1, MAX_LIMIT)
+  if (q.ranks !== undefined && typeof q.ranks !== 'boolean') fail('ranks must be true or false')
+  if (q.ranks === false && transform === 'percentile') fail('percentile needs ranks')
 
   // The season tables answer anything that does not split a season's games.
   const games =
@@ -516,11 +527,15 @@ function builtCte(
   const sums = [...parts].map((p) =>
     t.zero?.(p) ? `coalesce(sum(w.${p}), 0) AS ${p}` : `sum(w.${p}) AS ${p}`
   )
+  // The row's team is NULL on exactly the rows of a player query that names no team (the season
+  // table's row of no team), so which condition holds is known here. Written as `row_team IS NULL OR
+  // ...` it cannot be hashed, and DuckDB joined every season row to every built row in a nested loop:
+  // a shot zone board over 30 seasons took 4.2 s (Plan T907).
+  const byTeam = q.entity === 'team' || q.scope.teams !== undefined
   const on =
     c.grain === 'game'
       ? `b.game = w.game_id`
-      : `b.season = w.season AND b.game_type = w.game_type
-         AND (b.row_team IS NULL OR w.team_id = b.row_team)`
+      : `b.season = w.season AND b.game_type = w.game_type${byTeam ? ' AND w.team_id = b.row_team' : ''}`
   return `${name} AS (
     SELECT b.id, ${[...dims, ...sums].join(', ')}
     FROM base b LEFT JOIN ${table} w
@@ -576,7 +591,8 @@ function aggregate(q: StatsQuery, c: Checked, params: Params): string {
     }
   }
   const teamColumn = player && season ? 'w.last_team_id' : 'w.team_id'
-  // The row's own team at the season grain, for a built table: NULL on a player's row of no team.
+  // The row's own team at the season grain, for a built table: NULL on a player's row of no team,
+  // which `builtCte` relies on.
   const dimColumns = season
     ? 'w.game_type, w.team_id AS row_team,'
     : `w.team_id AS team, w.opponent_id AS opponent, month(w.game_date) AS month, w.game_id AS game,`
@@ -730,9 +746,12 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
     const ok = `q${i} AND v${i} IS NOT NULL`
     const up = m.direction === 'lower' ? 'DESC' : 'ASC'
     const best = m.direction === 'lower' ? 'ASC' : 'DESC'
+    const ranks = q.ranks !== false
     return [
-      `CASE WHEN ${ok} THEN 100 * percent_rank() ${over(i, up)} END AS p${i}`,
-      `CASE WHEN ${ok} THEN rank() ${over(i, best)} END AS r${i}`,
+      ranks
+        ? `CASE WHEN ${ok} THEN 100 * percent_rank() ${over(i, up)} END AS p${i}`
+        : `NULL::DOUBLE AS p${i}`,
+      ranks ? `CASE WHEN ${ok} THEN rank() ${over(i, best)} END AS r${i}` : `NULL::BIGINT AS r${i}`,
       // The league mean and spread, for the transforms that need them.
       ...(c.transform === 'zScore' || c.transform === 'vsLeague'
         ? [

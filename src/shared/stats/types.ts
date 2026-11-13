@@ -180,6 +180,11 @@ export interface StatsQuery {
   sort?: { metric: string; dir: 'asc' | 'desc' }
   /** Default 100, at most 5000. */
   limit?: number
+  /**
+   * False leaves out each value's percentile and rank (null), for a screen that shows neither: they
+   * are two window functions a metric, about half of a small query's time. Not with `percentile`.
+   */
+  ranks?: boolean
 }
 
 export interface MetricValue {

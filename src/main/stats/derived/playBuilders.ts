@@ -2,7 +2,7 @@ import type { StatsDb } from '../db'
 import { eventsSql } from './events'
 import { PLAY_DETAIL_BUILDERS } from './playDetail'
 import { ON_COURT_BUILDERS } from './onCourt'
-import { espnPlaysSql, nbaPlaysSql, PLAY_COLUMNS, PLAY_TABLES, playsViewSql } from './plays'
+import { espnPlaysViewSql, nbaPlaysSql, PLAY_COLUMNS, PLAY_TABLES, playsViewSql } from './plays'
 import { SHOT_BUILDERS } from './shots'
 import { SPLIT_BUILDERS } from './splits'
 import { inspect, type Have } from './sql'
@@ -23,11 +23,27 @@ export interface PlayBuilder {
   columns: ReadonlyArray<readonly [string, string]>
   /** The rows of one season, as a SELECT of `columns` in order. What is missing reads NULL. */
   select: (have: Have, season: number) => string
+  /**
+   * The order a season's rows are written in, game first. Rows of a game side by side compress
+   * better (Plan T907 measured 8 to 26 % on the play, split, unit and on-court tables), and a read
+   * of one game skips the row groups of the others.
+   */
+  order?: string
+}
+
+/** A season's INSERT for a builder, in its order when it has one. */
+export function insertSql(b: PlayBuilder, have: Have, season: number): string {
+  const select = b.select(have, season)
+  // The SELECT's columns are named by position, since not every builder aliases each one.
+  const names = b.columns.map(([n]) => n).join(', ')
+  return b.order
+    ? `INSERT INTO ${b.table} SELECT * FROM (${select}) AS s(${names}) ORDER BY ${b.order}`
+    : `INSERT INTO ${b.table} ${select}`
 }
 
 export const PLAY_BUILDERS: PlayBuilder[] = [
-  { table: PLAY_TABLES.nba, columns: PLAY_COLUMNS, select: nbaPlaysSql },
-  { table: PLAY_TABLES.espn, columns: PLAY_COLUMNS, select: espnPlaysSql },
+  { table: PLAY_TABLES.nba, columns: PLAY_COLUMNS, select: nbaPlaysSql, order: 'game_id, seq' },
+  // ESPN's plays are not stored: `play_espn` is a view (`espnPlaysViewSql`), made after the builders.
   // Shots by zone, band and type (Plan T903): they read the season's `play_nba` for assists.
   ...SHOT_BUILDERS,
   // Plan T902: the splits of each game, counted from `play_nba` of the same season.
@@ -39,7 +55,7 @@ export const PLAY_BUILDERS: PlayBuilder[] = [
 ]
 
 /** Bump when a builder's rows change, so the next refresh rebuilds every season of every table. */
-export const PLAYS_VERSION = 5
+export const PLAYS_VERSION = 7
 
 /** A file of season 0 holds every season. */
 const ALL = 0
@@ -114,7 +130,8 @@ export async function seasonsToBuild(db: StatsDb): Promise<{ all: boolean; seaso
 }
 
 /**
- * Rebuilds what is due, season by season, each in one transaction per table, then the views. A
+ * Rebuilds what is due, season by season, each in one transaction per table, then the views
+ * (ESPN's plays first, which are only a view). A
  * table of another shape is created empty first, and a full rebuild drops seasons no longer played.
  * After each season DuckDB is asked to checkpoint, so the space of the rows it deleted is reused
  * before the next season is written. Returns the rows written.
@@ -123,6 +140,17 @@ export async function buildPlays(db: StatsDb): Promise<number> {
   const have = await inspect(db)
   const { all, seasons } = await seasonsToBuild(db)
   let rows = 0
+  // A database built before Plan T907 holds ESPN's plays as a table: drop it first, and checkpoint,
+  // so its blocks are free before the seasons are written into them. Then the view in its place.
+  const stored = await db.get(
+    "SELECT 1 AS yes FROM duckdb_tables() WHERE schema_name = 'main' AND table_name = ?",
+    [PLAY_TABLES.espn]
+  )
+  if (stored) {
+    await db.exec(`DROP TABLE ${PLAY_TABLES.espn}`)
+    await checkpoint(db)
+  }
+  await db.exec(espnPlaysViewSql(have))
   for (const b of PLAY_BUILDERS) {
     if (!(await shaped(db, b))) {
       await db.exec(
@@ -134,7 +162,7 @@ export async function buildPlays(db: StatsDb): Promise<number> {
     for (const b of PLAY_BUILDERS) {
       rows += await db.transaction(async () => {
         await db.exec(`DELETE FROM ${b.table} WHERE season = ?`, [season])
-        await db.exec(`INSERT INTO ${b.table} ${b.select(have, season)}`)
+        await db.exec(insertSql(b, have, season))
         const n = await db.get<{ n: number }>(
           `SELECT count(*)::INTEGER AS n FROM ${b.table} WHERE season = ?`,
           [season]

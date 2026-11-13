@@ -37,6 +37,31 @@ Measured 2026-11-05 with `scripts/load-report.mjs`, from nothing, in WSL on 16 c
 
 All of it is inside the limits in D22 (6 GB, an hour, 4 GB of memory). Time varies: an earlier run, with the `*_master` files and nothing else on the machine, took 14.4 minutes, one through the real window with the Data panel open took 23.8, one on the leaderboards took 15.9, and one on the dashboards took 25.6.
 
+**With the play level (Plan T907).** Measured 2026-11-13 through the real window (`scripts/drive.mjs` with `scripts/stage9-load-steps.json`) on a clean profile (`~/.cache/metis-dev/t907-clean`, kept), at `PLAYS_VERSION` 7, with nothing else running. Memory is summed over every process of the app, sampled every 5 seconds; the file is the database plus its write-ahead log.
+
+| Step                                                | From, s | To, s | Rows         |
+| --------------------------------------------------- | ------- | ----- | ------------ |
+| Core files (828), then the identity and game tables | 0       | 160   | 7.8 million  |
+| Published files (2,037 steps)                       | 160     | 773   | 6.9 million  |
+| Events files (149)                                  | 375     | 498   | 42.7 million |
+| Play-by-play files (57)                             | 498     | 773   | 33.4 million |
+| `stats:published`                                   | 773     | 782   | 3.9 million  |
+| `stats:plays`: every play table, 31 seasons         | 783     | 1,235 | 34.9 million |
+
+The whole load took 20.6 minutes; peak memory 2.70 GB (at the end of the play step); the file 5.32 GB at the end and 5.32 GB at its peak (4.67 GB at Stage 8's gate, before any Stage 9 table). D22's limits are 6 GB, an hour and 4 GB, so 0.68 GB, 39 minutes and 1.3 GB are left. The boards were on screen 161 seconds in and a player dashboard 162. Five clicks during the play step's writes (the write-ahead log filling and checkpointing around each): the leaderboards 125 ms, the player dashboard 354, its Splits tab 297, its Shots tab 242, the team dashboard 271. Quit and relaunch: the status read "updated 1 min ago" and the sync log gained no row. A daily refresh straight after (`load-report.mjs --force`) took 27 seconds: 176 steps, 127 files unchanged, and the play step rebuilt 2026-27 alone, 162,953 rows in 3.3 seconds; the file grew to 5.40 GB, with 105 MB of it free blocks left by the identity and game tables' rebuild, used again by the next.
+
+An earlier run the same day, before ESPN's plays became a view, took 26.1 minutes on a busy machine, with 2.88 GB of memory and a 5.57 GB peak.
+
+**A full rebuild of the play step** (every season due, as after a version bump), on a fresh copy of T901's load with `scripts/load-report.mjs`, the file sampled every half second:
+
+| Build                                      | Rows written | `stats:plays`, s | File before, peak, after (GB) | Memory  |
+| ------------------------------------------ | ------------ | ---------------- | ----------------------------- | ------- |
+| Main at T905 (every Stage 9 table)         | 49.2 million | 986 (busy)       | 5.16, 5.73, 5.71              | 2.26 GB |
+| Every play table written in game order     | 49.2 million | 580              | 5.16, 5.66, 5.62              | 2.33 GB |
+| And `play_espn` a view (`PLAYS_VERSION` 7) | 34.9 million | 443              | 5.16, **5.38**, 5.36          | 2.46 GB |
+
+The peak is under the 5.4 GB T907 aimed for. The copy held T901's `play_espn` table: the build dropped it first, and its blocks were used again, so the file never grew past 5.38 GB.
+
 **Memory limit:** DuckDB's limit is 1 GB. The template's 512 MB failed at about 1,000 files: a checkpoint could not pin a block, and DuckDB invalidated the database. Reopening it recovered everything, and the load carried on. 768 MB passed a whole load even with the 625-column master files, so 1 GB leaves room.
 
 ## Refreshing

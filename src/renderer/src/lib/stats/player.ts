@@ -1060,6 +1060,8 @@ export function splitQueries(
     transform: mode,
     sort: { metric: 'pts', dir: 'desc' },
     limit: 40,
+    // The table shows values only: no rank among a player's own rows.
+    ranks: false,
     ...extra
   })
   return new Map<string, StatsQuery>([
