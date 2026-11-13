@@ -1,7 +1,7 @@
 import type { StatsDb } from './db'
 
 /** Bump when these tables change, so the next refresh builds them without downloading anything. */
-export const IDENTITY_VERSION = 3
+export const IDENTITY_VERSION = 4
 
 /**
  * What the identity tables read. They are all in the core tier, so the app can use them as soon as
@@ -57,7 +57,10 @@ const TEAM = `CREATE OR REPLACE TABLE team AS
  * From 1996-97 the NBA's schedule says what is a game: its id's prefix is the game's type, and its
  * regular seasons match their real lengths. ESPN's id comes from the crosswalk, then from the same
  * teams within a day, since the crosswalk starts in 2001-02 and misses a few after it. ESPN's rows are
- * read once per game, its own season file first: the 1998-99 games are in two files.
+ * read once per game, its own season file first: the 1998-99 games are in two files. Where two ESPN
+ * rows fit one game, the one with a score wins, then the lower id, so every build links the same:
+ * ESPN's schedule lists 46 games of 1998-99 and 74 of 1999-00 twice, the second an empty row (0-0,
+ * no box score) under a 4002… id.
  *
  * Before 1996-97 only ESPN has games. Its season type is enough there, once games against touring
  * teams are told apart by a team that is not in the league. Rows it files as games but never played
@@ -89,7 +92,7 @@ const GAME = `CREATE OR REPLACE TABLE game AS
   ), crosswalked AS (
     SELECT DISTINCT ON (nba_game_id) nba_game_id, TRY_CAST(espn_game_id AS BIGINT) AS espn_game_id
     FROM src_xwalk_game WHERE nba_game_id IS NOT NULL AND espn_game_id IS NOT NULL
-    ORDER BY nba_game_id, match_confidence DESC NULLS LAST
+    ORDER BY nba_game_id, match_confidence DESC NULLS LAST, TRY_CAST(espn_game_id AS BIGINT)
   ), unlinked AS (
     SELECT n.* FROM nba n ANTI JOIN crosswalked c USING (nba_game_id)
   ), by_teams AS (
@@ -98,7 +101,8 @@ const GAME = `CREATE OR REPLACE TABLE game AS
     JOIN espn_teams e ON e.home_team_id = u.home_team_id AND e.away_team_id = u.away_team_id
       AND abs(date_diff('day', e.game_date, u.game_date)) <= 1
     WHERE e.espn_game_id NOT IN (SELECT espn_game_id FROM crosswalked)
-    ORDER BY u.nba_game_id, abs(date_diff('day', e.game_date, u.game_date))
+    ORDER BY u.nba_game_id, abs(date_diff('day', e.game_date, u.game_date)),
+             coalesce(e.home_score, 0) + coalesce(e.away_score, 0) > 0 DESC, e.espn_game_id
   ), link AS (
     SELECT * FROM crosswalked UNION ALL SELECT * FROM by_teams
   ), first_nba_season AS (
