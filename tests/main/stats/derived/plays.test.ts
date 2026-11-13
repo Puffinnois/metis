@@ -113,6 +113,33 @@ describe('the NBA play table', () => {
     })
   })
 
+  it('reads the old feed’s 0-0 as no score, on rows that score nothing and on one that scores', async () => {
+    const scores = (): Promise<unknown[]> =>
+      db.all(`SELECT seq, home_after, away_after FROM ${PLAY_TABLES.nba} ORDER BY seq`)
+    const before = await scores()
+    // Before 2017-18 the feed writes "0" and "0" where it has no score, and on a few scoring rows.
+    await db.exec(`UPDATE src_nba_pbp SET score_home = '0', score_away = '0' WHERE score_home = ''`)
+    const last = await db.get<{ o: number }>(
+      `SELECT max(order_index)::INTEGER AS o FROM src_nba_pbp WHERE score_home NOT IN ('', '0')`
+    )
+    await db.exec(`UPDATE src_nba_pbp SET score_home = '0', score_away = '0'
+                   WHERE order_index = ${last?.o}`)
+    await db.exec(`DELETE FROM derived_state WHERE name = 'plays'`)
+    await buildPlays(db)
+    expect(await scores()).toEqual(before)
+    // No row's score goes below the one before it, nor back to 0-0 once a point is scored.
+    expect(
+      await db.get(
+        `SELECT count(*)::INTEGER AS n FROM (
+           SELECT home_after, away_after,
+                  lag(home_after) OVER w AS h0, lag(away_after) OVER w AS a0,
+                  sum(pts) OVER w AS scored
+           FROM ${PLAY_TABLES.nba} WINDOW w AS (PARTITION BY game_id ORDER BY seq))
+         WHERE home_after < h0 OR away_after < a0 OR (scored > 0 AND home_after + away_after = 0)`
+      )
+    ).toEqual({ n: 0 })
+  })
+
   it('marks the steal and the block rows apart, with no flag of their own', async () => {
     expect(
       await db.all(

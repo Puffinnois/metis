@@ -2,7 +2,8 @@
 // Checks the play tables against the box scores the app already trusts, on a real load, through the
 // built worker: each game's final score, and each team's and player's box-score line rebuilt from
 // the counting flags, per source, season and season type. Then the possessions against the team's
-// points, the box score and the plays. Writes the tables as a report.
+// points, the box score and the plays; and the running score, which should only rise. Writes the
+// tables as a report.
 //
 // Tolerance: a line is "exact" when all 15 counts equal the box score's, and "within 1" when none is
 // off by more than 1. Nothing else is tuned: a count that misses is reported, and the worst misses
@@ -281,6 +282,43 @@ const preg = poss.filter((r) => r.game_type === 'regular')
 brief.push(
   `possession points exact, regular seasons: ${Math.min(...preg.map((r) => (100 * r.pts) / r.n)).toFixed(1)}–${Math.max(...preg.map((r) => (100 * r.pts) / r.n)).toFixed(1)} %`
 )
+
+// The running score: per source and season, the rows whose score after is below the row before's,
+// or back to 0-0 once a point has been scored. Both should be 0: a score only rises. (The NBA's feed
+// wrote 0-0 on every row that scores nothing before 2017-18; read as a score, it did both.)
+const steps = await read(
+  `${SOURCES.map(
+    ([source, t]) => `SELECT '${source}' AS source, season, count(*)::INTEGER AS n,
+         count(*) FILTER (WHERE home_after < h0 OR away_after < a0)::INTEGER AS below,
+         count(*) FILTER (WHERE scored > 0 AND home_after + away_after = 0)::INTEGER AS zero
+  FROM (SELECT season, home_after, away_after,
+               lag(home_after) OVER w AS h0, lag(away_after) OVER w AS a0, sum(pts) OVER w AS scored
+        FROM ${t} WINDOW w AS (PARTITION BY game_id ORDER BY seq))
+  GROUP BY season`
+  ).join(' UNION ALL ')} ORDER BY source, season`
+)
+out.push(
+  '## The running score',
+  '',
+  'Rows whose score after is below the row before\'s ("Below"), and rows at 0-0 once a point has been scored ("0-0"), per source and season, in the play order. Both should be 0: a score only rises.',
+  '',
+  ...table(
+    ['Season', 'Source', 'Rows', 'Below', '0-0'],
+    steps.map((r) => [
+      label(r.season),
+      r.source === 'nba' ? 'NBA' : 'ESPN',
+      COUNT.format(r.n),
+      COUNT.format(r.below),
+      COUNT.format(r.zero)
+    ])
+  )
+)
+for (const source of ['nba', 'espn']) {
+  const of = steps.filter((r) => r.source === source)
+  brief.push(
+    `${source} running score: ${of.reduce((n, r) => n + r.below, 0)} rows below the one before, ${of.reduce((n, r) => n + r.zero, 0)} at 0-0 after a point, of ${of.reduce((n, r) => n + r.n, 0)}`
+  )
+}
 
 await close()
 if (mdFile) writeFileSync(mdFile, `${out.join('\n')}\n`)
