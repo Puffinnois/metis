@@ -348,8 +348,12 @@ export function nbaPlaysSql(have: Have, season: number): string {
  *   a three; a miss is a three when the description says so ("three point") or its raw coordinates
  *   (feet across the court and from the basket) are beyond the line: 23.5 feet out, or 22 to the
  *   side in the corner. That rule agrees with `points_attempted` on 99.8 % of 2025-26's shots.
+ *
+ * With no season, every season at once, as the `play_espn` view reads: a row's game and file are
+ * of the same season, as each season's build required, so a filter on `season` reaches the file's
+ * own season and DuckDB reads only that season's rows.
  */
-export function espnPlaysSql(have: Have, season: number): string {
+export function espnPlaysSql(have: Have, season: number | null): string {
   const t = 'src_espn_pbp'
   const c = (name: string, type = 'BIGINT'): string => column(have, t, 'e', name, type)
   const from = have.tables.has(t) ? t : '(SELECT 1)'
@@ -380,7 +384,13 @@ export function espnPlaysSql(have: Have, season: number): string {
     LEFT JOIN player_ids p1 ON p1.espn_athlete_id = ${c('athlete_id_1')}
     LEFT JOIN player_ids p2 ON p2.espn_athlete_id = ${c('athlete_id_2')}
     WHERE ${c('season', 'INTEGER')} = ${c('file_season', 'INTEGER')}
-      AND g.season = ${season} AND ${sourceSeason(have, t, 'e', season)}
+      AND ${
+        season === null
+          ? have.columns.get(t)?.has('season')
+            ? 'g.season = e.season'
+            : 'true'
+          : `g.season = ${season} AND ${sourceSeason(have, t, 'e', season)}`
+      }
   ), typed AS (
     SELECT *,
            CASE
@@ -444,6 +454,14 @@ export function espnPlaysSql(have: Have, season: number): string {
 }
 
 /**
+ * ESPN's plays, worked out on read from `src_espn_pbp` rather than stored (Plan T907): nothing the
+ * app shows reads them, only the agreement checks and the `plays` view, so the 243 MB a stored copy
+ * took is not spent. Its columns are `PLAY_COLUMNS`, as `play_nba`'s. A missing source reads no rows.
+ */
+export const espnPlaysViewSql = (have: Have): string =>
+  `CREATE OR REPLACE VIEW ${PLAY_TABLES.espn} AS ${espnPlaysSql(have, null)}`
+
+/**
  * Both sources in one view, each row marked with its source, with what is cheap to work out instead
  * of stored: the seconds since the tip-off, and the score before the play (the score after, less
  * the points the play scored).
@@ -464,8 +482,12 @@ export const playsViewSql = (): string => {
  */
 export function playsBootstrap(): string[] {
   const columns = PLAY_COLUMNS.map(([n, ty]) => `${n} ${ty}`).join(', ')
+  const none = PLAY_COLUMNS.map(([n, ty]) => `NULL::${ty} AS ${n}`).join(', ')
   return [
-    ...Object.values(PLAY_TABLES).map((t) => `CREATE TABLE IF NOT EXISTS ${t} (${columns})`),
+    `CREATE TABLE IF NOT EXISTS ${PLAY_TABLES.nba} (${columns})`,
+    // ESPN's plays are a view (`espnPlaysViewSql`), empty until a build. A database built before
+    // Plan T907 still holds them as a table: the next build drops it.
+    `CREATE VIEW IF NOT EXISTS ${PLAY_TABLES.espn} AS SELECT ${none} WHERE false`,
     playsViewSql().replace('CREATE OR REPLACE VIEW', 'CREATE VIEW IF NOT EXISTS'),
     ...eventsBootstrap(),
     ...onCourtBootstrap()

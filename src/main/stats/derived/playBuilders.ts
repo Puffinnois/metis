@@ -2,7 +2,7 @@ import type { StatsDb } from '../db'
 import { eventsSql } from './events'
 import { PLAY_DETAIL_BUILDERS } from './playDetail'
 import { ON_COURT_BUILDERS } from './onCourt'
-import { espnPlaysSql, nbaPlaysSql, PLAY_COLUMNS, PLAY_TABLES, playsViewSql } from './plays'
+import { espnPlaysViewSql, nbaPlaysSql, PLAY_COLUMNS, PLAY_TABLES, playsViewSql } from './plays'
 import { SHOT_BUILDERS } from './shots'
 import { SPLIT_BUILDERS } from './splits'
 import { inspect, type Have } from './sql'
@@ -43,7 +43,7 @@ export function insertSql(b: PlayBuilder, have: Have, season: number): string {
 
 export const PLAY_BUILDERS: PlayBuilder[] = [
   { table: PLAY_TABLES.nba, columns: PLAY_COLUMNS, select: nbaPlaysSql, order: 'game_id, seq' },
-  { table: PLAY_TABLES.espn, columns: PLAY_COLUMNS, select: espnPlaysSql, order: 'game_id, seq' },
+  // ESPN's plays are not stored: `play_espn` is a view (`espnPlaysViewSql`), made after the builders.
   // Shots by zone, band and type (Plan T903): they read the season's `play_nba` for assists.
   ...SHOT_BUILDERS,
   // Plan T902: the splits of each game, counted from `play_nba` of the same season.
@@ -55,7 +55,7 @@ export const PLAY_BUILDERS: PlayBuilder[] = [
 ]
 
 /** Bump when a builder's rows change, so the next refresh rebuilds every season of every table. */
-export const PLAYS_VERSION = 6
+export const PLAYS_VERSION = 7
 
 /** A file of season 0 holds every season. */
 const ALL = 0
@@ -130,7 +130,8 @@ export async function seasonsToBuild(db: StatsDb): Promise<{ all: boolean; seaso
 }
 
 /**
- * Rebuilds what is due, season by season, each in one transaction per table, then the views. A
+ * Rebuilds what is due, season by season, each in one transaction per table, then the views
+ * (ESPN's plays first, which are only a view). A
  * table of another shape is created empty first, and a full rebuild drops seasons no longer played.
  * After each season DuckDB is asked to checkpoint, so the space of the rows it deleted is reused
  * before the next season is written. Returns the rows written.
@@ -139,6 +140,17 @@ export async function buildPlays(db: StatsDb): Promise<number> {
   const have = await inspect(db)
   const { all, seasons } = await seasonsToBuild(db)
   let rows = 0
+  // A database built before Plan T907 holds ESPN's plays as a table: drop it first, and checkpoint,
+  // so its blocks are free before the seasons are written into them. Then the view in its place.
+  const stored = await db.get(
+    "SELECT 1 AS yes FROM duckdb_tables() WHERE schema_name = 'main' AND table_name = ?",
+    [PLAY_TABLES.espn]
+  )
+  if (stored) {
+    await db.exec(`DROP TABLE ${PLAY_TABLES.espn}`)
+    await checkpoint(db)
+  }
+  await db.exec(espnPlaysViewSql(have))
   for (const b of PLAY_BUILDERS) {
     if (!(await shaped(db, b))) {
       await db.exec(

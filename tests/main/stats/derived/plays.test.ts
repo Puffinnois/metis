@@ -1,7 +1,15 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { StatsDb } from '@main/stats/db'
-import { buildPlays, PLAYS_VERSION, playsStale } from '@main/stats/derived/playBuilders'
-import { PLAY_COLUMNS, PLAY_FLAGS, PLAY_TABLES } from '@main/stats/derived/plays'
+import {
+  buildPlays,
+  markPlaySeason,
+  PLAYS_VERSION,
+  playsStale
+} from '@main/stats/derived/playBuilders'
+import { espnPlaysSql, PLAY_COLUMNS, PLAY_FLAGS, PLAY_TABLES } from '@main/stats/derived/plays'
+import { inspect } from '@main/stats/derived/sql'
+
+const VIEW_KIND = "SELECT table_type FROM information_schema.tables WHERE table_name = 'play_espn'"
 import { POSSESSION_COLUMNS, SHOT_COLUMNS } from '@main/stats/derived/events'
 import { openTestDb } from '../../../fixtures/stats'
 import {
@@ -225,8 +233,45 @@ describe('building with something missing', () => {
   it('builds one feed when the other is missing', async () => {
     await createIdentity(db)
     await createEspnPbp(db)
-    expect(await buildPlays(db)).toBe(15)
+    // ESPN's plays are a view (Plan T907): read, not written.
+    expect(await buildPlays(db)).toBe(0)
+    expect(await db.get(`SELECT count(*)::INTEGER AS n FROM ${PLAY_TABLES.espn}`)).toEqual({
+      n: 15
+    })
     expect(await db.get(`SELECT count(*)::INTEGER AS n FROM ${PLAY_TABLES.nba}`)).toEqual({ n: 0 })
+  })
+
+  it('reads ESPN’s plays as a view, the rows a season’s build gives, and none without the file', async () => {
+    await createIdentity(db)
+    await buildPlays(db)
+    // No file: an empty view, not an error.
+    expect(await db.get(`SELECT count(*)::INTEGER AS n FROM ${PLAY_TABLES.espn}`)).toEqual({ n: 0 })
+    await createEspnPbp(db)
+    await markPlaySeason(db, 2026)
+    await buildPlays(db)
+    const have = await inspect(db)
+    const season = `SELECT * FROM (${espnPlaysSql(have, 2026)})`
+    const view = `SELECT * FROM ${PLAY_TABLES.espn} WHERE season = 2026`
+    const missing = await db.all(
+      `(${view} EXCEPT ALL ${season}) UNION ALL (${season} EXCEPT ALL ${view})`
+    )
+    expect(missing).toEqual([])
+    expect(await db.get(`SELECT count(*)::INTEGER AS n FROM ${PLAY_TABLES.espn}`)).toEqual({
+      n: 15
+    })
+    expect(await db.get(VIEW_KIND)).toEqual({ table_type: 'VIEW' })
+  })
+
+  it('drops the table a database built before held, and makes the view in its place', async () => {
+    await createIdentity(db)
+    await createEspnPbp(db)
+    await db.exec(`DROP VIEW ${PLAY_TABLES.espn}`)
+    await db.exec(`CREATE TABLE ${PLAY_TABLES.espn} AS SELECT 1 AS stale`)
+    await buildPlays(db)
+    expect(await db.get(VIEW_KIND)).toEqual({ table_type: 'VIEW' })
+    expect(await db.get(`SELECT count(*)::INTEGER AS n FROM ${PLAY_TABLES.espn}`)).toEqual({
+      n: 15
+    })
   })
 
   it('reads a missing column as NULL and still builds', async () => {
