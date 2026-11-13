@@ -271,6 +271,75 @@ The on-court reads (Plan T904), timed in the worker on the full database with `s
 | Units of five, the last 10 games                    | 132   | 68        | 100      |
 | With or without, the first teammate                 | 4     | 166       | 270      |
 
+### Play level (Plan T907)
+
+**The budget**, as earlier stages held to it: a click to its table on screen under 500 ms on the full database; a screen never waits behind a refresh (each read has its own connection); and D22's limits for the first load, a 6 GB file, an hour and 4 GB of memory. T907 also aimed for the peak of a full rebuild of the play tables at or below 5.4 GB.
+
+Measured on 2026-11-13 on a full database with every Stage 9 table (`~/.cache/metis-dev/t907`: T901's load, then a real refresh that rebuilt every play season), in WSL on 16 cores, with nothing else running unless stated.
+
+**From a click to the screen**, in the real window, with `scripts/stage9-speed-steps.json`: the time from the click to the last change the screen makes for it, painted. Every click is under 330 ms.
+
+| Click                                                               | ms       |
+| ------------------------------------------------------------------- | -------- |
+| Leaderboard, Moments: clutch, 4th quarter, garbage time, whole game | 285–322  |
+| Leaderboard, Shot zones, On court, Play by play families            | 202–212  |
+| Player: Splits tab, three times                                     | 287–308  |
+| Player: Shots, On/off, Play by play tabs                            | 284–291  |
+| Player: with or without another teammate                            | 63       |
+| Team: Splits tab, twice                                             | 272, 308 |
+| Team: Shots tab, the shots against                                  | 166, 208 |
+| Team: On/off tab, twice                                             | 74, 81   |
+| Team: Play by play tab                                              | 168      |
+| Team: lineups from possessions, units of five to two                | 94–147   |
+| Games: a day, a game with its matchups and flow                     | 173, 255 |
+| Games: the season's officials                                       | 237      |
+
+The Stage 6 dashboards on the same database (`stage6-speed-steps.json`) read 30 to 380 ms, as at Stage 6.
+
+**In the worker**, with `scripts/engine-speed.mjs --plays`: each read first in a new worker (cold), then five times (warm). A tab of several queries is timed until the last answers, as the screen waits.
+
+| Read                                                                                              | Rows         | Cold ms | Warm median ms | Warm worst ms |
+| ------------------------------------------------------------------------------------------------- | ------------ | ------- | -------------- | ------------- |
+| A leaderboard of ten columns under clutch, 4th quarter, garbage time, ahead by 10, last 2 minutes | 490–580      | 117–142 | 83–93          | 90–113        |
+| The player's Splits tab (31 queries)                                                              | 33           | 293     | 218            | 232           |
+| The team's Splits tab (30 queries)                                                                | 33           | 215     | 163            | 166           |
+| Shot chart: a player's season                                                                     | 799          | 151     | 42             | 53            |
+| Shot chart: a career, every season                                                                | 31,502       | 174     | 104            | 109           |
+| Shot chart: a team's shots against                                                                | 7,115        | 126     | 68             | 70            |
+| A zone leaderboard (the preset, 12 columns)                                                       | 582          | 102     | 78             | 83            |
+| The same over every season                                                                        | 2,860        | 172     | 136            | 190           |
+| The On/off tab, both sections, every guard                                                        | 2            | 121     | 96             | 103           |
+| The team's On/off tab                                                                             | 20           | 51      | 39             | 42            |
+| Units of two to five, a team-season                                                               | 1            | 60–80   | 37–53          | 40–59         |
+| Units of two to five, ten seasons (a call a season)                                               | 10           | 187–362 | 154–281        | 159–312       |
+| With or without                                                                                   | 4            | 60      | 38             | 41            |
+| A game's matchups, a player's January of matchups                                                 |              | 51, 57  | 22, 31         | 24, 39        |
+| A season's officials                                                                              |              | 216     | 186            | 197           |
+| The player's Play by play tab, every guard                                                        | 278          | 267     | 237            | 275           |
+| The team's Play by play tab                                                                       | 30           | 158     | 137            | 140           |
+| The assist network: a team's season, ten seasons, a player's ten seasons                          | 2,113–18,829 | 46–86   | 23–43          | 27–43         |
+| A game's flow                                                                                     |              | 47      | 25             | 31            |
+
+**What missed the budget, and the fix.** Two reads did, and neither needed a pre-aggregated table: nothing scans `play_nba`, `possession` or `shot_nba` on a screen's read except the assist network and a game's flow, and those take 23 to 43 ms.
+
+- **A built table over many seasons** (the shot zones, the On court metrics) read through a join DuckDB could not hash: `row_team IS NULL OR w.team_id = b.row_team` inside a LEFT JOIN made a nested loop of every season row against every built row. Which side holds is known when the query compiles, so the condition is chosen then. A zone board over 30 seasons went from 4.3 s to 0.50 s, the same by season from 4.2 to 0.33 s, on/off by season over every season from 4.6 to 0.22 s; the answers are the same to the last bit of a double.
+- **The Splits tabs** ask 31 queries at once (30 for a team) since the play splits joined them, and took 529 and 530 ms from a click. Each query is small, and half its time was two window functions a metric for a percentile and a rank the tab never shows; a query can now ask `ranks: false`, and the tabs do. The engine also stopped asking DuckDB on every query whether the season tables exist (4 ms each). Now 272 to 308 ms from a click. A larger thread pool (16 instead of Node's 4) helped in a plain Node worker (306 to 180 ms) but changed nothing in Electron, so it was left out.
+
+**31 seasons of plays**, the widest questions the screens can ask of the play tables, in the worker, warm (cold in brackets):
+
+| Question                                                         | Rows     | ms        |
+| ---------------------------------------------------------------- | -------- | --------- |
+| A split (clutch) by season for every player, 1996-97 to now      | 12,750   | 533 (891) |
+| The Play by play family by season for every player, every season | 14,570   | 348 (423) |
+| A career shot chart, every season                                | 31,502   | 104 (174) |
+| On/off by season over a career                                   | 23       | 86 (114)  |
+| A team's units of four over ten seasons                          | 10 calls | 281 (362) |
+| A shot zone leaderboard over every season                        | 2,860    | 136 (172) |
+
+No screen asks for a split by season (the leaderboards and Trends do not group a split), so the one read over 500 ms is not a click.
+
+**During a first load**, five clicks during the play step's writes, and when the first screens came up, are in [nba-data-sources.md](nba-data-sources.md), "The first full load": the boards were on screen 161 seconds into the load and a player dashboard 162; during the play step's writes the leaderboards took 125 ms, the player dashboard 354, its Splits tab 297, its Shots tab 242 and the team dashboard 271 (`scripts/stage9-load-steps.json`).
+
 ## Data panel
 
 What is loaded, from `stats.data()`. It reads again as a load goes.
