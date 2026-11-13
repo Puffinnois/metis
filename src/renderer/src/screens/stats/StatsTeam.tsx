@@ -12,6 +12,7 @@ import {
   Notes,
   ResultChip,
   SectionHead,
+  SplitTables,
   TabRow
 } from '@/components/stats/parts'
 import { ScopeBar } from '@/components/stats/ScopeBar'
@@ -60,9 +61,17 @@ import {
   useCoaches,
   useSeasonGames,
   useStandings,
+  useStatsQueries,
   useStatsQuery,
   type StatsData
 } from '@/lib/stats/useStats'
+import { splitTable } from '@/lib/stats/player'
+import {
+  playSplitTableNotes,
+  TEAM_SPLIT_METRICS,
+  teamSplitDefs,
+  teamSplitQueries
+} from '@/lib/stats/splits'
 import { StatusChip } from '@/components/stats/StatusChip'
 import { coachLines, tagsById } from '@/lib/stats/availability'
 import { cn } from '@/lib/utils'
@@ -178,7 +187,8 @@ export function StatsTeam({
         tab === 'offense' ||
         tab === 'defense' ||
         tab === 'players' ||
-        tab === 'lineups') &&
+        tab === 'lineups' ||
+        tab === 'splits') &&
         (anyPlayed || !games) && (
           <div className="self-start">
             <Segmented
@@ -198,6 +208,7 @@ export function StatsTeam({
       {tab === 'lineups' && (anyPlayed || !games) && (
         <LineupsTab data={data} scope={scope} team={team} mode={mode} onOpenPlayer={onOpenPlayer} />
       )}
+      {tab === 'splits' && anyPlayed && <TeamSplits {...props} />}
       {tab === 'schedule' && <Schedule {...props} />}
     </div>
   )
@@ -607,6 +618,29 @@ function Players({ data, scope, team, mode, onOpenPlayer }: TabProps): React.JSX
       </div>
       <Notes notes={result.notes} />
     </section>
+  )
+}
+
+/**
+ * The team's game splits from the engine's filters, then its quarters, clutch, the score, the last
+ * minutes and garbage time from the play by play, then by month and by opponent.
+ */
+function TeamSplits({ data, scope, team, mode }: TabProps): React.JSX.Element {
+  const season = seasonOf(data.seasons, scope.season)
+  const defs = useMemo(() => teamSplitDefs(season), [season])
+  const queries = useMemo(
+    () => teamSplitQueries(team, defs, scope, mode),
+    [team, defs, scope, mode]
+  )
+  const { results, error } = useStatsQueries(queries, data.version)
+  if (!results) return <Loading error={error} />
+  const groups = splitTable(results, defs, season, data.byId, mode, TEAM_SPLIT_METRICS)
+  const head = TEAM_SPLIT_METRICS.map((id) => data.byId.get(id)?.short ?? id)
+  return (
+    <div className="flex flex-col gap-6">
+      <SplitTables groups={groups} head={head} />
+      <Notes notes={playSplitTableNotes(results, scope)} />
+    </div>
   )
 }
 

@@ -10,9 +10,11 @@ import {
   Notes,
   ResultChip,
   SectionHead,
+  SplitTables,
   TabRow
 } from '@/components/stats/parts'
 import { PlayerRail } from '@/components/stats/PlayerRail'
+import { playSplitDefs, playSplitTableNotes } from '@/lib/stats/splits'
 import { CompareButton } from '@/screens/stats/StatsCompare'
 import { StatusChip } from '@/components/stats/StatusChip'
 import { statusTag } from '@/lib/stats/availability'
@@ -47,7 +49,6 @@ import {
   SPLIT_METRICS,
   splitDefs,
   splitName,
-  splitNotes,
   splitQueries,
   splitTable,
   TAB_SECTIONS,
@@ -828,10 +829,13 @@ function GameLog({ data, scope, player, onOpenGame }: TabProps): React.JSX.Eleme
   )
 }
 
-/** Home and road, wins and losses and the rest, by month and by opponent, from the engine's filters. */
+/**
+ * Home and road, wins and losses and the rest from the engine's filters; quarters, clutch, the score,
+ * the last minutes and garbage time from the play by play; then by month and by opponent.
+ */
 function Splits({ data, scope, player, mode }: TabProps): React.JSX.Element {
   const season = seasonOf(data.seasons, scope.season)
-  const defs = useMemo(() => splitDefs(season), [season])
+  const defs = useMemo(() => [...splitDefs(season), ...playSplitDefs()], [season])
   const queries = useMemo(
     () => splitQueries(player, defs, scope, mode),
     [player, defs, scope, mode]
@@ -840,35 +844,10 @@ function Splits({ data, scope, player, mode }: TabProps): React.JSX.Element {
   if (!results) return <Loading error={error} />
   const groups = splitTable(results, defs, season, data.byId, mode)
   const head = SPLIT_METRICS.map((id) => data.byId.get(id)?.short ?? id)
-  const columns = `minmax(150px,1.4fr) 36px ${head.map(() => 'minmax(52px,1fr)').join(' ')}`
   return (
     <div className="flex flex-col gap-6">
-      {groups.map((g) => (
-        <section key={g.title} className="flex flex-col gap-1.5">
-          <h3 className="m-0 text-[12.5px] leading-none font-semibold text-fg-2">{g.title}</h3>
-          <div className="overflow-x-auto">
-            <MiniTable
-              label={g.title}
-              columns={columns}
-              minWidth={970}
-              head={['Split', 'G', ...head]}
-              rows={g.rows.map((r) => ({
-                key: r.key,
-                cells: [
-                  <span key="l" className="font-sans text-[13px] font-medium">
-                    {r.label}
-                  </span>,
-                  <span key="g" className="text-fg-2">
-                    {r.games}
-                  </span>,
-                  ...r.cells
-                ]
-              }))}
-            />
-          </div>
-        </section>
-      ))}
-      <Notes notes={splitNotes(results, scope)} />
+      <SplitTables groups={groups} head={head} />
+      <Notes notes={playSplitTableNotes(results, scope)} />
     </div>
   )
 }

@@ -16,7 +16,7 @@ import { queryScope, scopeLabel, shortDay, type StatsScope } from './scope'
 /** The team dashboard: a header with the record and the standing, and tabs. */
 
 export type TeamTab =
-  'overview' | 'offense' | 'defense' | 'shots' | 'players' | 'lineups' | 'schedule'
+  'overview' | 'offense' | 'defense' | 'shots' | 'players' | 'lineups' | 'splits' | 'schedule'
 
 export const TEAM_DASH_TABS: { id: TeamTab; label: string }[] = [
   { id: 'overview', label: 'Overview' },
@@ -25,6 +25,7 @@ export const TEAM_DASH_TABS: { id: TeamTab; label: string }[] = [
   { id: 'shots', label: 'Shots' },
   { id: 'players', label: 'Players' },
   { id: 'lineups', label: 'Lineups' },
+  { id: 'splits', label: 'Splits' },
   { id: 'schedule', label: 'Schedule' }
 ]
 

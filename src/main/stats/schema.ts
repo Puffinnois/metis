@@ -2,6 +2,7 @@ import type { StatsDb } from './db'
 import { playsBootstrap } from './derived/plays'
 import { publishedBootstrap } from './derived/published'
 import { shotsBootstrap } from './derived/shots'
+import { splitsBootstrap } from './derived/splits'
 
 /**
  * Created on every open, so a new version replaces them. The tables keep their rows across
@@ -46,7 +47,8 @@ export async function bootstrapStatsDb(db: StatsDb, now: Date): Promise<number> 
     ...BOOTSTRAP,
     ...publishedBootstrap(),
     ...playsBootstrap(),
-    ...shotsBootstrap()
+    ...shotsBootstrap(),
+    ...splitsBootstrap()
   ]) {
     await db.exec(sql)
   }

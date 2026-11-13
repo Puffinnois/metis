@@ -13,6 +13,7 @@ import {
   zoneSql
 } from '@main/stats/derived/shots'
 import { inspect } from '@main/stats/derived/sql'
+import { BUILT_NO_SPLIT } from '@main/stats/engine/compile'
 import { runQuery } from '@main/stats/engine/run'
 import { readShotChart } from '@main/stats/shotReads'
 import { shotBand, shotType, shotZone, SHOT_TYPES } from '@shared/stats/shots'
@@ -348,6 +349,19 @@ describe('the engine over the shot tables', () => {
   it('reads a season before the shots start as null with its reason', async () => {
     const r = await run({ scope: { seasons: [1996] } })
     expect(r.columns.find((c) => c.id === 'shot_ra_fga')?.reason).toBe('Recorded from 1996-97.')
+  })
+
+  it('reads its reason under a split, never the whole game’s value', async () => {
+    const r = await run({
+      metrics: ['shot_ra_fga', 'shot_ra_fg_pct', 'fga'],
+      scope: { seasons: [2026], split: 'q4' }
+    })
+    for (const id of ['shot_ra_fga', 'shot_ra_fg_pct']) {
+      expect(r.columns.find((c) => c.id === id)?.reason, id).toBe(BUILT_NO_SPLIT)
+      for (const row of r.rows) expect(row.values[id].value, id).toBeNull()
+    }
+    // A box-score count beside it is still read from the split.
+    expect(r.columns.find((c) => c.id === 'fga')?.reason).toBeNull()
   })
 
   it('reads the shots against a team', async () => {
