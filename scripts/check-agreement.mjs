@@ -1303,7 +1303,7 @@ out.push(
 // Matchups (Plan T706) through the engine, against the raw files. In the regular season a defender's
 // totals add up the pair file, which is checked against the game matchups too; the rollup by defender
 // is compared with both. Its split by position should read back as its published percent of time,
-// and the playoffs, which only the rollup has, as the rollup.
+// and a whole playoff season as the game matchups added up per defender (Plan T906).
 const MATCHUP_CHECKS = [
   ['matchup_min', 'minutes'],
   ['matchup_poss', 'poss'],
@@ -1424,6 +1424,17 @@ for (const season of matchupSeasons) {
       WHERE season = ${season} AND per_mode = 'totals'
         AND season_type = '${type === 'regular' ? 'regular-season' : 'playoffs'}'
       GROUP BY 1`)
+    // Since Plan T906 a whole playoff season reads the game matchups added up per defender, not the
+    // rollup, whose 2025-26 playoffs agree with the game file on 17 of 230 defenders.
+    const games =
+      type === 'playoffs'
+        ? new Map(
+            (
+              await read(`SELECT def_player_id AS id, sum(player_pts) AS pts, sum(possessions) AS poss
+                FROM game_matchups WHERE season = ${season} AND game_type = 'playoffs' GROUP BY 1`)
+            ).map((g) => [Number(g.id), g])
+          )
+        : new Map()
     let rows = 0
     let shares = 0
     let sharesNear = 0
@@ -1432,6 +1443,7 @@ for (const season of matchupSeasons) {
       const o = ours.get(Number(r.id))
       if (!o) continue
       rows++
+      const g = games.get(Number(r.id))
       // A share the rollup leaves out is no time there: the engine reads it as 0 of the total.
       const near = (tolerance) =>
         within(o.matchup_g_time_pct ?? 0, r.g ?? 0, tolerance) &&
@@ -1439,7 +1451,7 @@ for (const season of matchupSeasons) {
         within(o.matchup_c_time_pct ?? 0, r.c ?? 0, tolerance)
       if (near(0.001)) shares++
       if (near(0.01)) sharesNear++
-      if (same(o.matchup_pts ?? null, r.pts) && same(o.matchup_poss ?? null, r.poss)) totals++
+      if (g && same(o.matchup_pts ?? null, g.pts) && same(o.matchup_poss ?? null, g.poss)) totals++
     }
     positionRows.push([
       label(season),
@@ -1490,7 +1502,7 @@ out.push(
     matchupRows
   ),
   '',
-  'The time on guards, forwards and centers against the rollup’s published percent of time, all three within 0.1 and within 1 percentage point. The NBA works the share out from unrounded time while the file prints it to the second, so a share rebuilt from the printed time is off by rounding, most on the smallest samples; from 2025-26 the two agree more closely. In the playoffs, which only the rollup has, its points and partial possessions should read back exactly.',
+  'The time on guards, forwards and centers against the rollup’s published percent of time, all three within 0.1 and within 1 percentage point. The NBA works the share out from unrounded time while the file prints it to the second, so a share rebuilt from the printed time is off by rounding, most on the smallest samples; from 2025-26 the two agree more closely. In the playoffs a whole season reads the game matchups added up per defender (Plan T906), so its points and partial possessions should equal that sum exactly.',
   '',
   table(
     [

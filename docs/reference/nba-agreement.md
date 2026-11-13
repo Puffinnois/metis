@@ -620,7 +620,7 @@ Matchups (Plan T706) are read through the query engine over a whole regular seas
 | 2024-25 | 569       | 100.0       | 100.0           | 0.00                  | 99.6             | 0.0                    |
 | 2025-26 | 582       | 100.0       | 100.0           | 0.00                  | 0.7              | -5.5                   |
 
-The time on guards, forwards and centers against the rollup’s published percent of time, all three within 0.1 and within 1 percentage point. The NBA works the share out from unrounded time while the file prints it to the second, so a share rebuilt from the printed time is off by rounding, most on the smallest samples; from 2025-26 the two agree more closely. In the playoffs, which only the rollup has, its points and partial possessions should read back exactly.
+The time on guards, forwards and centers against the rollup’s published percent of time, all three within 0.1 and within 1 percentage point. The NBA works the share out from unrounded time while the file prints it to the second, so a share rebuilt from the printed time is off by rounding, most on the smallest samples; from 2025-26 the two agree more closely. In the playoffs a whole season reads the game matchups added up per defender (Plan T906), so its points and partial possessions should equal that sum exactly.
 
 | Season  | Type           | Defenders | Shares within 0.1 pt % | Within 1 pt % | Playoff totals same % |
 | ------- | -------------- | --------- | ---------------------- | ------------- | --------------------- |
