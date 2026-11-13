@@ -322,9 +322,57 @@ const PLAY_CASES = [
         scope: { ...regular, dates: [`${season}-01-01`, `${season}-01-31`] }
       })
   ],
-  ["A season's officials", (w) => w.call('officialsSeason', { season, gameTypes: ['regular'] })]
+  ["A season's officials", (w) => w.call('officialsSeason', { season, gameTypes: ['regular'] })],
+  // Play by play (T905): the tab is one query of its family over the position's pool.
+  [
+    "The player's Play by play tab (every guard)",
+    (w) =>
+      w.query({
+        entity: 'player',
+        metrics: PBP.player,
+        scope: { seasons: [season], positions: ['G'] },
+        limit: 5000
+      })
+  ],
+  [
+    "The team's Play by play tab (every team)",
+    (w) => w.query({ entity: 'team', metrics: PBP.team, scope: { seasons: [season] }, limit: 100 })
+  ],
+  [
+    'Play by play by season over every season (all players)',
+    (w) =>
+      w.query({
+        entity: 'player',
+        metrics: PBP.player.slice(0, 10),
+        scope: { seasons: SEASONS_PLAYS },
+        groupBy: ['season'],
+        limit: 5000
+      })
+  ],
+  [
+    'Assist network: a team, a season',
+    (w) =>
+      w.call('assists', { request: { entity: 'team', id: OKC, seasons: [season], scope: regular } })
+  ],
+  [
+    'Assist network: a team, ten seasons',
+    (w) =>
+      w.call('assists', {
+        request: { entity: 'team', id: OKC, seasons: lastSeasons(10), scope: regular }
+      })
+  ],
+  [
+    'Assist network: a player, ten seasons (LeBron)',
+    (w) =>
+      w.call('assists', {
+        request: { entity: 'player', id: LEBRON, seasons: lastSeasons(10), scope: regular }
+      })
+  ],
+  ["A game's flow", (w) => w.call('gameFlow', { game: GAME })]
 ]
 let GAME = ''
+// The Play by play family's metrics, from the catalogue, at most the 40 a query takes.
+const PBP = { player: [], team: [] }
 
 const plays = process.argv.includes('--plays')
 const RUNS = 5
@@ -337,6 +385,13 @@ if (plays) {
       `SELECT game_id FROM game WHERE game_date = DATE '${season}-01-15' AND played ORDER BY game_id LIMIT 1`
     )
     GAME = g?.game_id ?? ''
+    const catalogue = await w.call('catalogue', {})
+    for (const entity of ['player', 'team']) {
+      PBP[entity] = catalogue
+        .filter((m) => m.family === 'plays' && m.entity === entity)
+        .map((m) => m.id)
+        .slice(0, 40)
+    }
     await w.close()
   }
   // --only=<text> times the cases whose label holds it.

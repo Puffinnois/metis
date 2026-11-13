@@ -32,6 +32,10 @@
   },
   { "wait": 300 },
   {
+    "eval": "timed('Leaderboard, Play by play family', pick('Metric family', 'plays'), () => has('tbody tr'))"
+  },
+  { "wait": 300 },
+  {
     "eval": "(async () => { pick('Metric family', 'default')(); await sleep(2000); nav('Players')(); await sleep(3000); return openPlayer('Stephen Curry') })()"
   },
   { "eval": "timed('Player: Splits tab', tab('Splits'), table('Clutch'))" },
@@ -44,6 +48,10 @@
   { "wait": 300 },
   {
     "eval": "timed('Player: With or without, another teammate', () => { const el = [...document.querySelectorAll('select')].find((x) => x.title === 'Teammate'); const v = [...el.options].map((o) => o.value).filter((v) => v && v !== el.value)[0]; pick('Teammate', v)() }, table('With or without'))"
+  },
+  { "wait": 300 },
+  {
+    "eval": "timed('Player: Play by play tab', tab('Play by play'), () => has('[data-metric=pbp_tov_bad_pass]') && table('Who they feed')())"
   },
   { "wait": 300 },
   { "eval": "timed('Player: Splits tab, again', tab('Splits'), table('Clutch'))" },
@@ -66,6 +74,10 @@
   },
   { "wait": 300 },
   { "eval": "timed('Team: On/off tab', tab('On/off'), table('On and off'))" },
+  { "wait": 300 },
+  {
+    "eval": "timed('Team: Play by play tab', tab('Play by play'), table('Assist network'))"
+  },
   { "wait": 300 },
   { "eval": "timed('Team: Splits tab, again', tab('Splits'), table('Clutch'))" },
   { "wait": 300 },
@@ -90,7 +102,7 @@
   },
   { "wait": 300 },
   {
-    "eval": "timed('Games: a game with its matchups', () => [...document.querySelectorAll('[aria-label=\"The day’s games\"] button')].find((x) => x.textContent.includes('LAL')).click(), () => has('section[aria-label=\"Who guarded whom\"] [role=table]'))"
+    "eval": "timed('Games: a game with its matchups and flow', () => [...document.querySelectorAll('[aria-label=\"The day’s games\"] button')].find((x) => x.textContent.includes('LAL')).click(), () => has('section[aria-label=\"Who guarded whom\"] [role=table]') && has('[aria-label=\"Lead changes and ties\"]'))"
   },
   { "wait": 300 },
   {
