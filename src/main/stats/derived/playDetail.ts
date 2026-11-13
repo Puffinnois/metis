@@ -271,8 +271,8 @@ export function playDetailPlayerSql(have: Have, season: number): string {
 /**
  * The scoring plays of the rows `source` gives (`play_nba` or a part of it), in order, with the score
  * after each (`home_score`, `away_score`) and the seconds since the tip-off (`t`). The score is the
- * one the feed writes, except on the few scoring rows it writes as 0-0 (up to 16 a season before
- * 2017-18, measured): there it is the last written score plus the play's points. `ord` is the order:
+ * one the play table carries; on a scoring row whose score reads 0-0 it is the last score plus the
+ * play's points (a guard: since the play table reads the feed's 0-0 as no score, none is left). `ord` is the order:
  * by the total score, then by row, since a score only rises and the feed lists a few rows out of
  * order (an and-one's free throw before its basket would read 76-75, then 75-75, a tie that never
  * was). Shared by the builder and the game-flow read, so the chart and the tables agree.
