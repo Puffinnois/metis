@@ -30,19 +30,24 @@ export async function runQuery(
     let factor: string
     if (compiled.bySeason) {
       // Each season's own games: a row reads its season's factor.
-      const games = await db.all<{ season: number; games: number }>(
+      const games = await db.all<{ season: number; games: number; share: number | null }>(
         compiled.gamesSql,
         compiled.gamesParams
       )
       const when = games.map(
         (g) =>
-          `WHEN ${Number(g.season)} THEN ${(compiled.rowGames(g.games, 1) / FULL_SEASON).toFixed(6)}`
+          `WHEN ${Number(g.season)} THEN ${((compiled.rowGames(g.games, 1) * (num(g.share) ?? 1)) / FULL_SEASON).toFixed(6)}`
       )
       factor = when.length ? `(CASE a.g_season ${when.join(' ')} ELSE 0 END)` : '0'
     } else {
-      const scope = await db.get<{ games: number }>(compiled.gamesSql, compiled.gamesParams)
+      const scope = await db.get<{ games: number; share: number | null }>(
+        compiled.gamesSql,
+        compiled.gamesParams
+      )
       const seasons = new Set(query.scope.seasons).size
-      factor = (compiled.rowGames(scope?.games ?? 0, seasons) / FULL_SEASON).toFixed(6)
+      // Under a split, the split's share of the time scales the sample too.
+      const share = num(scope?.share) ?? 1
+      factor = ((compiled.rowGames(scope?.games ?? 0, seasons) * share) / FULL_SEASON).toFixed(6)
     }
     rows = await db.all(compiled.sql.replaceAll('$factor', factor), compiled.params)
   } catch (err) {

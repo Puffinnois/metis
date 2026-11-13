@@ -103,6 +103,7 @@ describe('the column picker and presets', () => {
     expect(familiesOf(CATALOGUE, tab)).toEqual([
       'traditional',
       'shooting',
+      'shots',
       'possessions',
       'on_court',
       'scoring',
@@ -114,6 +115,25 @@ describe('the column picker and presets', () => {
       'impact',
       'availability'
     ])
+    // Shot zones preset to how well and how often by zone, against the league, and the distance.
+    expect([...familyColumns(CATALOGUE, tab, 'shots')].sort()).toEqual(
+      [
+        'ra_fg_pct',
+        'paint_fg_pct',
+        'mid_fg_pct',
+        'c3_fg_pct',
+        'atb3_fg_pct',
+        'ra_freq',
+        'mid_freq',
+        'c3_freq',
+        'atb3_freq',
+        'ra_fg_rel',
+        'avg_dist',
+        'pps_above'
+      ]
+        .map((k) => `shot_${k}`)
+        .sort()
+    )
     // Play types preset to how often and how well, for the six commonest offensive types.
     expect([...familyColumns(CATALOGUE, tab, 'play_types')].sort()).toEqual(
       ['iso', 'pnr_bh', 'pnr_roll', 'post_up', 'spot_up', 'transition']

@@ -75,6 +75,7 @@ const ROW_LIMIT = 5000
 const FAMILIES: MetricFamily[] = [
   'traditional',
   'shooting',
+  'shots',
   'possessions',
   'on_court',
   'scoring',

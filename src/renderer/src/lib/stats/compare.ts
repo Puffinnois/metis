@@ -140,6 +140,7 @@ export const DEFAULT_FAMILIES: Record<Entity, MetricFamily[]> = {
 const FAMILY_ORDER: MetricFamily[] = [
   'traditional',
   'shooting',
+  'shots',
   'possessions',
   'on_court',
   'scoring',

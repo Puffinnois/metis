@@ -8,6 +8,8 @@ import type { installAutoUpdater } from '@main/updater'
 import { IPC } from '@shared/ipc'
 import type { LineupGroup } from '@shared/stats/lineups'
 import type {
+  StatsShotRequest,
+  StatsShotChart,
   LeaderboardBoard,
   MetricInfo,
   StatsDataReport,
@@ -154,6 +156,11 @@ export function registerIpcHandlers(ctx: AppContext): void {
       ctx.stats
         ? ctx.stats.lineups(team, season, gameType, group)
         : Promise.resolve({ units: [], floorMinutes: null })
+  )
+  ipcMain.handle(IPC.statsShots, (_event, request: StatsShotRequest): Promise<StatsShotChart> =>
+    ctx.stats
+      ? ctx.stats.shots(request)
+      : Promise.resolve({ shots: [], total: 0, made: 0, capped: false, zones: [], reason: null })
   )
   ipcMain.handle(
     IPC.statsAvailability,

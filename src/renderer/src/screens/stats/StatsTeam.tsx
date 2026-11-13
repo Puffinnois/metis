@@ -1,3 +1,5 @@
+import { ShotChart } from '@/components/stats/ShotChart'
+import { shotRequest } from '@/lib/stats/shotChart'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Segmented, StatsSelect } from '@/components/stats/controls'
@@ -10,6 +12,7 @@ import {
   Notes,
   ResultChip,
   SectionHead,
+  SplitTables,
   TabRow
 } from '@/components/stats/parts'
 import { ScopeBar } from '@/components/stats/ScopeBar'
@@ -59,9 +62,17 @@ import {
   useCoaches,
   useSeasonGames,
   useStandings,
+  useStatsQueries,
   useStatsQuery,
   type StatsData
 } from '@/lib/stats/useStats'
+import { splitTable } from '@/lib/stats/player'
+import {
+  playSplitTableNotes,
+  TEAM_SPLIT_METRICS,
+  teamSplitDefs,
+  teamSplitQueries
+} from '@/lib/stats/splits'
 import { StatusChip } from '@/components/stats/StatusChip'
 import { coachLines, tagsById } from '@/lib/stats/availability'
 import { cn } from '@/lib/utils'
@@ -178,7 +189,8 @@ export function StatsTeam({
         tab === 'defense' ||
         tab === 'players' ||
         tab === 'on_off' ||
-        tab === 'lineups') &&
+        tab === 'lineups' ||
+        tab === 'splits') &&
         (anyPlayed || !games) && (
           <div className="self-start">
             <Segmented
@@ -193,6 +205,7 @@ export function StatsTeam({
       {(tab === 'offense' || tab === 'defense') && anyPlayed && (
         <LinesTab key={tab} {...props} tab={tab} />
       )}
+      {tab === 'shots' && anyPlayed && <ShotsTab {...props} />}
       {tab === 'players' && anyPlayed && <Players {...props} />}
       {tab === 'on_off' && anyPlayed && (
         <TeamOnOff data={data} scope={scope} team={team} onOpenPlayer={onOpenPlayer} />
@@ -200,6 +213,7 @@ export function StatsTeam({
       {tab === 'lineups' && (anyPlayed || !games) && (
         <LineupsTab data={data} scope={scope} team={team} mode={mode} onOpenPlayer={onOpenPlayer} />
       )}
+      {tab === 'splits' && anyPlayed && <TeamSplits {...props} />}
       {tab === 'schedule' && <Schedule {...props} />}
     </div>
   )
@@ -509,6 +523,36 @@ function History({
   )
 }
 
+const SHOT_SIDES: { value: 'offense' | 'defense'; label: string }[] = [
+  { value: 'offense', label: 'Their shots' },
+  { value: 'defense', label: 'Shots against' }
+]
+
+/** The team's shot chart, or its opponents' against it, then the shot metrics ranked among teams. */
+function ShotsTab(props: TabProps): React.JSX.Element {
+  const { data, scope, team } = props
+  const [side, setSide] = useState<'offense' | 'defense'>('offense')
+  const request = useMemo(() => shotRequest('team', team, scope, side), [team, scope, side])
+  return (
+    <div className="flex flex-col gap-7">
+      <div className="self-start">
+        <Segmented label="Whose shots" value={side} options={SHOT_SIDES} onChange={setSide} />
+      </div>
+      <ShotChart
+        request={request}
+        version={data.version}
+        title={side === 'offense' ? 'Shot chart' : 'Shot chart against'}
+        against={side === 'defense'}
+      />
+      <LinesTab
+        key={side}
+        {...props}
+        tab={side === 'offense' ? 'shots_offense' : 'shots_defense'}
+      />
+    </div>
+  )
+}
+
 /** Offense or Defense: its sections, ranked among the teams. */
 function LinesTab({
   data,
@@ -516,7 +560,7 @@ function LinesTab({
   team,
   mode,
   tab
-}: TabProps & { tab: 'offense' | 'defense' }): React.JSX.Element {
+}: TabProps & { tab: keyof typeof TEAM_SECTIONS }): React.JSX.Element {
   const sections = TEAM_SECTIONS[tab]
   const q = useMemo(
     () => teamPoolQuery(sectionMetrics(sections), scope, mode),
@@ -579,6 +623,29 @@ function Players({ data, scope, team, mode, onOpenPlayer }: TabProps): React.JSX
       </div>
       <Notes notes={result.notes} />
     </section>
+  )
+}
+
+/**
+ * The team's game splits from the engine's filters, then its quarters, clutch, the score, the last
+ * minutes and garbage time from the play by play, then by month and by opponent.
+ */
+function TeamSplits({ data, scope, team, mode }: TabProps): React.JSX.Element {
+  const season = seasonOf(data.seasons, scope.season)
+  const defs = useMemo(() => teamSplitDefs(season), [season])
+  const queries = useMemo(
+    () => teamSplitQueries(team, defs, scope, mode),
+    [team, defs, scope, mode]
+  )
+  const { results, error } = useStatsQueries(queries, data.version)
+  if (!results) return <Loading error={error} />
+  const groups = splitTable(results, defs, season, data.byId, mode, TEAM_SPLIT_METRICS)
+  const head = TEAM_SPLIT_METRICS.map((id) => data.byId.get(id)?.short ?? id)
+  return (
+    <div className="flex flex-col gap-6">
+      <SplitTables groups={groups} head={head} />
+      <Notes notes={playSplitTableNotes(results, scope)} />
+    </div>
   )
 }
 

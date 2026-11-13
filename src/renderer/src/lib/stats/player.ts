@@ -23,6 +23,7 @@ export type PlayerTab =
   | 'overview'
   | 'scoring'
   | 'shooting'
+  | 'shots'
   | 'playmaking'
   | 'rebounding'
   | 'defense'
@@ -38,6 +39,7 @@ export const PLAYER_DASH_TABS: { id: PlayerTab; label: string }[] = [
   { id: 'overview', label: 'Overview' },
   { id: 'scoring', label: 'Scoring' },
   { id: 'shooting', label: 'Shooting' },
+  { id: 'shots', label: 'Shots' },
   { id: 'playmaking', label: 'Playmaking' },
   { id: 'rebounding', label: 'Rebounding' },
   { id: 'defense', label: 'Defense' },
@@ -87,6 +89,61 @@ export const TAB_SECTIONS: Record<
       metrics: ['fg2a', 'fg3a', 'fta', 'fg3a_rate', 'fg2a_rate', 'fta_rate', 'ftm_per_fga']
     },
     { title: 'Makes and misses', metrics: ['fg2m', 'fg3m', 'fg_miss', 'ft_miss'] }
+  ],
+  // Shots by zone, band and type (reference section 7), at the game grain, so any range reads.
+  shots: [
+    {
+      title: 'Profile',
+      note: 'From the NBA’s shot chart file, 1996-97 on',
+      metrics: [
+        'shot_avg_dist',
+        'shot_ra_freq',
+        'shot_paint_freq',
+        'shot_mid_freq',
+        'shot_c3_freq',
+        'shot_atb3_freq'
+      ]
+    },
+    {
+      title: 'Against the league',
+      note: 'FG% above the league’s rate in each zone that season',
+      metrics: [
+        'shot_ra_fg_rel',
+        'shot_paint_fg_rel',
+        'shot_mid_fg_rel',
+        'shot_c3_fg_rel',
+        'shot_atb3_fg_rel',
+        'shot_pps_above',
+        'shot_pts_above'
+      ]
+    },
+    {
+      title: 'By distance',
+      metrics: [
+        'shot_lt8_fg_pct',
+        'shot_d8_16_fg_pct',
+        'shot_d16_24_fg_pct',
+        'shot_d24p_fg_pct',
+        'shot_lt8_freq',
+        'shot_d24p_freq'
+      ]
+    },
+    {
+      title: 'Shot types',
+      metrics: [
+        'shot_dunk_fga',
+        'shot_layup_fg_pct',
+        'shot_hook_fg_pct',
+        'shot_floater_fg_pct',
+        'shot_jumper_fg_pct',
+        'shot_jumper_freq'
+      ]
+    },
+    {
+      title: 'Assisted',
+      note: 'The share of makes assisted, by the play by play',
+      metrics: ['shot_ra_ast_pct', 'shot_mid_ast_pct', 'shot_c3_ast_pct', 'shot_atb3_ast_pct']
+    }
   ],
   playmaking: [
     { title: 'Passing', metrics: ['ast', 'ast_pct', 'ast_ratio', 'share_ast'] },
@@ -890,6 +947,8 @@ export interface SplitDef {
   group: string
   label: string
   patch: Partial<StatsQuery['scope']>
+  /** The group's rule, in one line under its title. */
+  note?: string
 }
 
 const titled = (word: string): string => word.charAt(0).toUpperCase() + word.slice(1)
@@ -969,6 +1028,7 @@ export interface SplitRow {
 export interface SplitGroup {
   title: string
   rows: SplitRow[]
+  note?: string
 }
 
 const MONTHS = [
@@ -991,13 +1051,14 @@ function splitRow(
   label: string,
   r: StatsRow,
   byId: ReadonlyMap<string, MetricInfo>,
-  mode: BoardMode
+  mode: BoardMode,
+  metrics: readonly string[]
 ): SplitRow {
   return {
     key,
     label,
     games: String(r.games),
-    cells: SPLIT_METRICS.map((id) =>
+    cells: metrics.map((id) =>
       fmtStat(r.values[id]?.value ?? null, byId.get(id) ?? { unit: 'number', decimals: 1 }, mode)
     )
   }
@@ -1009,15 +1070,21 @@ export function splitTable(
   defs: readonly SplitDef[],
   season: StatsSeason | undefined,
   byId: ReadonlyMap<string, MetricInfo>,
-  mode: BoardMode
+  mode: BoardMode,
+  metrics: readonly string[] = SPLIT_METRICS
 ): SplitGroup[] {
   const groups = new Map<string, SplitRow[]>()
+  const notes = new Map<string, string>()
   const all = results.get('all')?.rows[0]
-  if (all) groups.set('Overall', [splitRow('all', 'All games', all, byId, mode)])
+  if (all) groups.set('Overall', [splitRow('all', 'All games', all, byId, mode, metrics)])
   for (const d of defs) {
     const r = results.get(d.key)?.rows[0]
     if (!r) continue
-    groups.set(d.group, [...(groups.get(d.group) ?? []), splitRow(d.key, d.label, r, byId, mode)])
+    if (d.note) notes.set(d.group, d.note)
+    groups.set(d.group, [
+      ...(groups.get(d.group) ?? []),
+      splitRow(d.key, d.label, r, byId, mode, metrics)
+    ])
   }
   // A season reads from the autumn on: August, the start of the bubble's games, comes first.
   const inSeason = (m: number): number => (m + 4) % 12
@@ -1025,23 +1092,27 @@ export function splitTable(
     .sort((a, b) => inSeason(Number(a.group.month)) - inSeason(Number(b.group.month)))
     .map((r) => {
       const m = Number(r.group.month)
-      return splitRow(`month-${m}`, MONTHS[m - 1] ?? String(m), r, byId, mode)
+      return splitRow(`month-${m}`, MONTHS[m - 1] ?? String(m), r, byId, mode, metrics)
     })
   if (months.length) groups.set('By month', months)
   const codes = new Map((season?.teams ?? []).map((t) => [t.id, t.code]))
   const opponents = (results.get('opponents')?.rows ?? [])
     .map((r) => {
       const id = String(r.group.opponent)
-      return splitRow(`opp-${id}`, codes.get(id) ?? id, r, byId, mode)
+      return splitRow(`opp-${id}`, codes.get(id) ?? id, r, byId, mode, metrics)
     })
     .sort((a, b) => a.label.localeCompare(b.label))
   if (opponents.length) groups.set('By opponent', opponents)
-  return [...groups].map(([title, rows]) => ({ title, rows }))
+  return [...groups].map(([title, rows]) =>
+    notes.has(title) ? { title, rows, note: notes.get(title) } : { title, rows }
+  )
 }
 
 /** What the splits' answers depend on: each result's notes, once. */
 export function splitNotes(results: ReadonlyMap<string, StatsResult>, scope: StatsScope): string[] {
   const notes = new Set([...results.values()].flatMap((r) => r.notes))
+  // A play split's rule is under its group; the engine's copy of it would repeat it.
+  for (const n of [...notes]) if (/ Counted from the NBA's play by play\.$/.test(n)) notes.delete(n)
   if (scope.range.kind === 'last') {
     notes.add(`Each split reads its own last ${scope.range.n} games.`)
   }

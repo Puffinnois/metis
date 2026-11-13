@@ -1,6 +1,8 @@
 import type { DevNote, NewNote, NoteError, NoteStatus } from './devNotes'
 import type { LineupGroup } from './stats/lineups'
 import type {
+  StatsShotRequest,
+  StatsShotChart,
   LeaderboardBoard,
   MetricInfo,
   StatsDataReport,
@@ -128,6 +130,8 @@ export interface Api {
     availability(players: string[]): Promise<StatsAvailability[]>
     /** A team's head and assistant coaches for a season; empty when the file has none. */
     coaches(team: string, season: number): Promise<StatsCoach[]>
+    /** The shots a chart draws for a player or team in a scope, or why there are none. */
+    shots(request: StatsShotRequest): Promise<StatsShotChart>
     views(): Promise<StatsView[]>
     /** Saves under a name; the same name, in any case, replaces. Rejects with a readable message. */
     saveView(name: string, board: LeaderboardBoard): Promise<StatsView>
@@ -181,6 +185,7 @@ export const IPC = {
   statsProfile: 'stats:profile',
   statsAvailability: 'stats:availability',
   statsCoaches: 'stats:coaches',
+  statsShots: 'stats:shots',
   statsViews: 'stats:views',
   statsSaveView: 'stats:saveView',
   statsDeleteView: 'stats:deleteView',

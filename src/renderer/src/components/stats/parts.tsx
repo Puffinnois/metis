@@ -229,3 +229,48 @@ export function Notes({ notes }: { notes: string[] }): React.JSX.Element | null 
     </div>
   )
 }
+
+/** The Splits tabs' tables: a titled table per group, its rule under the title when it has one. */
+export function SplitTables({
+  groups,
+  head
+}: {
+  groups: {
+    title: string
+    note?: string
+    rows: { key: string; label: string; games: string; cells: string[] }[]
+  }[]
+  head: string[]
+}): React.JSX.Element {
+  const columns = `minmax(150px,1.4fr) 36px ${head.map(() => 'minmax(52px,1fr)').join(' ')}`
+  return (
+    <>
+      {groups.map((g) => (
+        <section key={g.title} className="flex flex-col gap-1.5">
+          <h3 className="m-0 text-[12.5px] leading-none font-semibold text-fg-2">{g.title}</h3>
+          {g.note && <div className="text-[12px] text-fg-3">{g.note}</div>}
+          <div className="overflow-x-auto">
+            <MiniTable
+              label={g.title}
+              columns={columns}
+              minWidth={970}
+              head={['Split', 'G', ...head]}
+              rows={g.rows.map((r) => ({
+                key: r.key,
+                cells: [
+                  <span key="l" className="font-sans text-[13px] font-medium">
+                    {r.label}
+                  </span>,
+                  <span key="g" className="text-fg-2">
+                    {r.games}
+                  </span>,
+                  ...r.cells
+                ]
+              }))}
+            />
+          </div>
+        </section>
+      ))}
+    </>
+  )
+}

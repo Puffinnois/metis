@@ -116,19 +116,18 @@ export const PLAYER_ON_COURT_COLUMNS: Columns = [
   ...ON_OFF('on').map((c) => [c, c.endsWith('secs') ? 'DOUBLE' : 'INTEGER'] as const),
   ...ON_OFF('off').map((c) => [c, c.endsWith('secs') ? 'DOUBLE' : 'INTEGER'] as const),
   ...OWN_COUNTS.map((c) => [`p_${c}`, 'INTEGER'] as const),
-  // What the engine divides a count by under a transform: on-court minutes and possessions.
-  ['minutes', 'DOUBLE'],
-  ['possessions', 'INTEGER']
+  // Minutes on the floor: what an On court count divides by per 36 or per 48, through `built`, in
+  // place of the box score's minutes. Per 100 divides by `on_poss`, the possessions on the floor.
+  ['minutes', 'DOUBLE']
 ]
 
 /**
- * What the engine can read from `player_on_court`: every count, and `games`, which it counts as the
- * games with a row. The keys are not components.
+ * What the engine reads from `player_on_court` through a metric's `built`: every count and the
+ * on-court minutes. The keys are not components, and games come from the box scores in scope.
  */
-export const PLAYER_ON_COURT_COMPONENTS: readonly string[] = [
-  'games',
-  ...PLAYER_ON_COURT_COLUMNS.slice(KEYS.length + 1).map(([n]) => n)
-]
+export const PLAYER_ON_COURT_COMPONENTS: readonly string[] = PLAYER_ON_COURT_COLUMNS.slice(
+  KEYS.length + 1
+).map(([n]) => n)
 
 const createSql = (table: string, columns: Columns): string =>
   `CREATE TABLE IF NOT EXISTS ${table} (${columns.map(([n, t]) => `${n} ${t}`).join(', ')})`
@@ -321,7 +320,7 @@ export function playerOnCourtSql(_have: Have, season: number): string {
            ${parts.map((p) => `o.${p} AS on_${p}`).join(', ')},
            ${parts.map((p) => `t.${p} - o.${p} AS off_${p}`).join(', ')},
            ${OWN_COUNTS.map((c) => `coalesce(w.${c}, 0) AS p_${c}`).join(', ')},
-           o.secs / 60.0 AS minutes, o.poss AS possessions
+           o.secs / 60.0 AS minutes
     FROM onc o JOIN team t ON t.game_id = o.game_id AND t.team_id = o.team_id
     LEFT JOIN own w ON w.game_id = o.game_id AND w.player_id = o.player_id`
 }

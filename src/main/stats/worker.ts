@@ -70,6 +70,8 @@ async function handle(request: StatsRequest): Promise<unknown> {
       return service.availability(request.players)
     case 'coaches':
       return service.coaches(request.team, request.season)
+    case 'shots':
+      return service.shots(request.request)
     case 'close':
       await service.close()
       service = null

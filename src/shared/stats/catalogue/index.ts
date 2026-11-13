@@ -11,6 +11,7 @@ import { PLAY_TYPES } from './playTypes'
 import { POSSESSIONS } from './possessions'
 import { SCORING } from './scoring'
 import { SHOOTING } from './shooting'
+import { SHOTS } from './shots'
 import { TRADITIONAL } from './traditional'
 
 /**
@@ -30,7 +31,8 @@ export const CATALOGUE: MetricDef[] = [
   ...PLAY_TYPES,
   ...MATCHUPS,
   ...IMPACT,
-  ...AVAILABILITY
+  ...AVAILABILITY,
+  ...SHOTS
 ]
 
 export const METRICS: ReadonlyMap<string, MetricDef> = new Map(CATALOGUE.map((m) => [m.id, m]))

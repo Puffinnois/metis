@@ -29,6 +29,7 @@ export type MetricFamily =
   | 'matchups'
   | 'impact'
   | 'availability'
+  | 'shots'
 
 /** `core` shown by default, `extended` in its family and the column picker, `stored` in queries only. */
 export type MetricTier = 'core' | 'extended' | 'stored'
@@ -98,11 +99,12 @@ export interface MetricDef {
    */
   publishedGames?: string
   /**
-   * A table built from the plays at game grain that answers this metric at every grain, from
-   * `src/main/stats/derived/gameTables.ts`: a whole season sums its rows over the games in scope, and a
-   * filter that splits a season sums the games it keeps. Not a published metric.
+   * A table built from the plays at game grain that holds this metric's counts, from
+   * `src/main/stats/derived/gameTables.ts`: the shots by zone, the on-court lines. It answers at both grains, joined to the
+   * box-score rows in scope, so a season, a team, a date range or any game filter reads exactly; what
+   * it does not hold (games, minutes) comes from the box scores.
    */
-  gameTable?: string
+  built?: string
   /**
    * A published value that is one regular season's state, not a total or a rate: a projection. It
    * answers for one regular season at a time, since an average of several would mean nothing.
@@ -163,6 +165,11 @@ export interface StatsQuery {
     players?: string[]
     /** Game ids: one box score, or the games a screen names. */
     games?: string[]
+    /**
+     * A split of each game counted from the play by play (`src/shared/stats/splits.ts`): a quarter,
+     * clutch, the score, the last minutes, garbage time. Only the moments in it count.
+     */
+    split?: string
     qualifiedOnly?: boolean
   }
   groupBy?: GroupBy[]
@@ -600,6 +607,11 @@ export interface LeaderboardBoard {
   qualifiedOnly: boolean
   /** An NBA team id; null for every team. */
   team: string | null
+  /**
+   * A split within each game counted from the play by play (`src/shared/stats/splits.ts`), such as
+   * clutch; null or absent for the whole game. Optional, so views saved before it still open.
+   */
+  split?: string | null
 }
 
 /** A saved view: a named leaderboard, kept in `metis.db`. */
@@ -702,5 +714,50 @@ export interface StatsWithOrWithout {
     teammateOnly: StatsOnCourtLine | null
     neither: StatsOnCourtLine | null
   } | null
+  reason: string | null
+}
+
+/**
+ * What a shot chart reads: a player's shots, a team's, or the shots taken against a team, over the
+ * seasons and the games of a scope (season types, then a date range or the last games).
+ */
+export interface StatsShotRequest {
+  entity: Entity
+  id: string
+  seasons: number[]
+  scope: StatsMatchupScope
+  /** A team's own shots (offense) or its opponents' against it (defense). Players: offense. */
+  side?: 'offense' | 'defense'
+}
+
+/** One shot as the chart draws it, in the NBA's frame: tenths of a foot from the basket. */
+export interface StatsShot {
+  x: number
+  y: number
+  made: boolean
+  /** 2 or 3, as published. */
+  value: number | null
+  zone: string
+}
+
+/** A zone's counts over every shot in scope, and what the league's rate there would give them. */
+export interface StatsShotZone {
+  zone: string
+  fga: number
+  fgm: number
+  /** Makes the league's regular-season rate in this zone would give these attempts; null before a rate. */
+  expected: number | null
+}
+
+/** The shots of a scope, newest first and capped, with every shot counted by zone. */
+export interface StatsShotChart {
+  shots: StatsShot[]
+  /** Every attempt in scope, drawn or not. */
+  total: number
+  made: number
+  /** More shots than a chart draws: the newest are drawn, and every one is counted in the zones. */
+  capped: boolean
+  zones: StatsShotZone[]
+  /** Why there is nothing to chart ("Recorded from 1996-97."); null when there is. */
   reason: string | null
 }

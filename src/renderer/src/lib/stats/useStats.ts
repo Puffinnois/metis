@@ -3,6 +3,8 @@ import { api } from '@/lib/api'
 import { errorMessage } from '@/lib/format'
 import type { LineupGroup } from '@shared/stats/lineups'
 import type {
+  StatsShotRequest,
+  StatsShotChart,
   MetricInfo,
   StatsGame,
   StatsGameDetail,
@@ -282,6 +284,15 @@ export const useLineups = (
 ): ReadState<StatsLineups> =>
   useRead(team === null ? null : `${version}|${team}|${season}|${gameType}|${group}`, () =>
     api.stats.lineups(team ?? '', season, gameType, group)
+  )
+
+/** The shots a chart draws; null as the request when there is nothing to read. */
+export const useShots = (
+  request: StatsShotRequest | null,
+  version: string | null
+): ReadState<StatsShotChart> =>
+  useRead(request === null ? null : `${version}|${JSON.stringify(request)}`, () =>
+    api.stats.shots(request as StatsShotRequest)
   )
 
 /** Players' status on the latest injury report; none to read is a key of null. */

@@ -9,6 +9,7 @@ import type { MetricFamily, MetricInfo } from '@shared/stats/types'
 const FAMILIES: MetricFamily[] = [
   'traditional',
   'shooting',
+  'shots',
   'possessions',
   'on_court',
   'scoring',

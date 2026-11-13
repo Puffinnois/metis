@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import { gameTable } from '@main/stats/derived/gameTables'
+import { OPP_SHOT_COMPONENTS, SHOT_COMPONENTS } from '@main/stats/derived/shots'
 import { COMPONENTS, grainsOf } from '@main/stats/engine/registry'
 import { CATALOGUE, componentsOf, coverageReason, covers, TOKEN } from '@shared/stats/catalogue'
 import { PLAY_TYPE_SIDES } from '@shared/stats/playTypes'
@@ -588,7 +589,6 @@ Object.assign(EXPECTED, {
 const ON_COURT_ROW: Record<string, number> = {
   games: 60,
   minutes: 1500,
-  possessions: 3000,
   on_secs: 90000,
   on_poss: 3000,
   on_opp_poss: 2990,
@@ -653,6 +653,56 @@ Object.assign(EXPECTED, {
   onc_blk_pct: 30 / (2550 - 1050)
 })
 
+/**
+ * Shot zones (`catalogue/shots.ts`): every count of the shot tables, both sides, a different number
+ * each, so a formula over the wrong count fails. The expected makes and points are stored in
+ * thousandths.
+ */
+const SHOT_ROW: Record<string, number> = Object.fromEntries(
+  [...SHOT_COMPONENTS, ...OPP_SHOT_COMPONENTS].map((c, i) => [
+    c,
+    /x(fgm|pts)$/.test(c) ? 50_000 + 1_013 * i : 100 + 7 * i
+  ])
+)
+
+/** Each measure of a zone, band or type, written out from reference section 7. */
+const SHOT_MEASURES: Record<
+  string,
+  (r: (m: string) => number, all: (m: string) => number) => number
+> = {
+  fga: (r) => r('fga'),
+  fgm: (r) => r('fgm'),
+  fg_pct: (r) => r('fgm') / r('fga'),
+  freq: (r, all) => r('fga') / all('shots_fga'),
+  pps: (r) => r('pts') / r('fga'),
+  efg_pct: (r) => r('pts') / (2 * r('fga')),
+  fg_rel: (r) => (r('fgm') - r('xfgm') / 1000) / r('fga'),
+  pps_rel: (r) => (r('pts') - r('xpts') / 1000) / r('fga'),
+  ast_pct: (r) => r('ast') / r('fgm')
+}
+
+function shotExpected(id: string): number {
+  const [, side, rest] = /^(team_shot_|opp_shot_|shot_)(.+)$/.exec(id) ?? []
+  const p = side === 'opp_shot_' ? 'opp_' : ''
+  const all = (c: string): number => SHOT_ROW[`${p}${c}`]
+  if (rest === 'avg_dist') return all('dist_sum') / all('dist_n')
+  if (rest === 'pts_above') return all('shots_pts') - all('shots_xpts') / 1000
+  if (rest === 'pps_above') return (all('shots_pts') - all('shots_xpts') / 1000) / all('shots_fga')
+  const measure = Object.keys(SHOT_MEASURES)
+    .sort((a, b) => b.length - a.length)
+    .find((m) => rest.endsWith(`_${m}`))
+  if (!measure) throw new Error(`${id}: no measure`)
+  const key = rest.slice(0, -(measure.length + 1))
+  return SHOT_MEASURES[measure]((m) => SHOT_ROW[`${p}${key}_${m}`], all)
+}
+
+Object.assign(
+  EXPECTED,
+  Object.fromEntries(
+    CATALOGUE.filter((m) => m.family === 'shots').map((m) => [m.id, shotExpected(m.id)])
+  )
+)
+
 const fill = (m: MetricDef, row: Record<string, number>): string =>
   m.value.replace(TOKEN, (_, c: string) => {
     if (!(c in row)) throw new Error(`${m.id}: no ${c} in the worked row`)
@@ -669,6 +719,18 @@ describe('the metric catalogue', () => {
 
   it('computes every metric from components the tables hold, at the grains it has', () => {
     for (const m of CATALOGUE) {
+      // A built table holds the counts, the box scores the rest, at both grains.
+      if (m.built) {
+        const built = gameTable(m.built)
+        expect(grainsOf(m), m.id).toEqual(['game', 'season'])
+        for (const c of componentsOf(m)) {
+          expect(
+            built?.components.includes(c) || COMPONENTS[m.entity].has(c),
+            `${m.id}: ${c}`
+          ).toBe(true)
+        }
+        continue
+      }
       // A published metric has only the season, and `grainsOf` checks its table holds the components;
       // one a game table holds too answers at the game grain from it.
       if (m.published) {
@@ -680,11 +742,7 @@ describe('the metric catalogue', () => {
         continue
       }
       expect(grainsOf(m), m.id).toEqual(['game', 'season'])
-      // A table built from the plays answers both grains from its own columns.
-      const built = gameTable(m.gameTable)
-      for (const c of componentsOf(m)) {
-        expect(built?.components ?? [...COMPONENTS[m.entity]], `${m.id}: ${c}`).toContain(c)
-      }
+      for (const c of componentsOf(m)) expect(COMPONENTS[m.entity], `${m.id}: ${c}`).toContain(c)
     }
   })
 
@@ -790,7 +848,7 @@ describe('every formula, against a value worked by hand', () => {
     db = await openTestDb()
     const columns = CATALOGUE.map(
       (m) =>
-        `(${fill(m, m.published ? PUBLISHED_ROW : m.gameTable ? ON_COURT_ROW : m.entity === 'player' ? PLAYER_ROW : TEAM_ROW)})::DOUBLE AS "${m.id}"`
+        `(${fill(m, m.published ? PUBLISHED_ROW : m.family === 'on_court' ? ON_COURT_ROW : m.built ? SHOT_ROW : m.entity === 'player' ? PLAYER_ROW : TEAM_ROW)})::DOUBLE AS "${m.id}"`
     )
     values = (await db.get<Record<string, number | null>>(`SELECT ${columns.join(', ')}`)) ?? {}
   })

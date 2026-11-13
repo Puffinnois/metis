@@ -30,7 +30,7 @@ const base = (o: Opts): Opts => ({
   kind: 'derived',
   sources: SOURCES,
   firstSeason: FIRST,
-  gameTable: TABLE,
+  built: TABLE,
   ...o
 })
 

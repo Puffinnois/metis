@@ -17,12 +17,13 @@ export const COMPONENTS: Record<Entity, ReadonlySet<string>> = {
  */
 export function grainsOf(def: MetricDef): Grain[] {
   const parts = componentsOf(def)
-  // Built from the plays at game grain: its table answers both grains.
-  if (def.gameTable) {
-    const built = gameTable(def.gameTable)
-    return built?.entity === def.entity && parts.every((c) => built.components.includes(c))
-      ? ['game', 'season']
-      : []
+  if (def.built) {
+    // A built table holds the counts; the box scores the rest (games, minutes, box_games).
+    const table = gameTable(def.built)
+    const ok =
+      table?.entity === def.entity &&
+      parts.every((c) => table.components.includes(c) || COMPONENTS[def.entity].has(c))
+    return ok ? ['game', 'season'] : []
   }
   if (def.published) {
     const table = publishedTable(def.published)
