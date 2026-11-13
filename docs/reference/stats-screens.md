@@ -247,7 +247,7 @@ Trends' queries, timed from the window (`window.api.stats.query`, round trip) on
 | Lakers, defensive rating: the history, the pool | 34, 1,005           | 21, 34       |
 | The player search                               | 3,091               | 71           |
 
-The play-derived reads (Plan T905), from `scripts/check-play-derived.mjs` on the full database, in the worker, warm, median of five: a team's assist network over a season 22 ms, over January 20 ms, over ten seasons 45 ms; a player's 20 ms; a game's flow 21 ms; a five-metric Play by play leaderboard through the engine 44 ms. Summed from `play_nba` as asked, so nothing is stored for them. The scenario steps are in `scripts/stage9-derived-steps.json`.
+The play-derived reads (Plan T905), from `scripts/check-play-derived.mjs` on the full database, in the worker, warm, median of five: a team's assist network over a season 25 ms, over January 23 ms, over ten seasons 51 ms; a player's 23 ms; a game's flow 23 ms; a five-metric Play by play leaderboard through the engine 51 ms. Summed from `play_nba` as asked, so nothing is stored for them. The scenario steps are in `scripts/stage9-derived-steps.json`.
 
 The splits within games (Plan T902), timed through the worker on the full load, warm: a season's leaderboard of 16 columns under clutch, 109 ms (176 for the whole game on the same run); a player's 19 play splits at once, as the Splits tab asks them beside its game splits, 230 ms; a team's, 187 ms. The rest are in [nba-data-sources.md](nba-data-sources.md), "Splits from plays". The scenario steps are in `scripts/stage9-splits-steps.json`.
 
