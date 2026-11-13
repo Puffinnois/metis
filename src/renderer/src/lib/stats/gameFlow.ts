@@ -84,7 +84,8 @@ export function flowGeometry(flow: StatsGameFlow, frame: FlowFrame = FLOW_FRAME)
     const start = p <= 4 ? (p - 1) * 720 : 2880 + (p - 5) * 300
     return { x: x(start), label: periodLabel(p) }
   })
-  const ticks = [scale, scale / 2, 0, -scale / 2, -scale].map((m) => ({
+  const half = Math.round(scale / 2)
+  const ticks = [scale, half, 0, -half, -scale].map((m) => ({
     y: y(m),
     label: m === 0 ? '0' : String(Math.abs(m))
   }))

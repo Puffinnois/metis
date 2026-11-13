@@ -415,7 +415,7 @@ const ENTRIES: Entry[] = [
     short: '%Ast 2PM',
     description: 'The share of two-point makes that were assisted.',
     opts: {
-      ...shareOf('made2_ast', 'made2_ast', 100),
+      ...shareOf('made2_ast', 'fgm', 100),
       value: '{made2_ast} / nullif({made2_ast} + {made2_unast}, 0)'
     }
   },
@@ -425,7 +425,7 @@ const ENTRIES: Entry[] = [
     short: '%Ast 3PM',
     description: 'The share of threes made that were assisted.',
     opts: {
-      ...shareOf('made3_ast', 'made3_ast', 40),
+      ...shareOf('made3_ast', 'fg3m', 40),
       value: '{made3_ast} / nullif({made3_ast} + {made3_unast}, 0)'
     }
   },
@@ -435,7 +435,7 @@ const ENTRIES: Entry[] = [
     short: '%Unast FGM',
     description: 'The share of field goals made with no assist.',
     opts: {
-      ...shareOf('made2_unast', 'made2_unast', 150),
+      ...shareOf('made2_unast', 'fgm', 150),
       value:
         '({made2_unast} + {made3_unast}) / nullif({made2_ast} + {made2_unast} + {made3_ast} + {made3_unast}, 0)'
     }
@@ -653,12 +653,8 @@ export const PLAYS: MetricDef[] = PLAYS_ALL.map((m) =>
 export const PLAY_SAMPLE_LABELS: Readonly<Record<string, string>> = {
   and1: 'and-ones',
   opp_and1: 'and-ones allowed',
-  made2_ast: 'two-point makes',
-  opp_made2_ast: 'two-point makes allowed',
-  made3_ast: 'threes made',
-  opp_made3_ast: 'threes allowed',
-  made2_unast: 'field goals made',
-  opp_made2_unast: 'field goals allowed',
+  fg3m: '3-pointers made',
+  opp_fg3m: '3-pointers allowed',
   ast2: 'assists',
   pf: 'personal fouls',
   opp_pf: 'opponents’ personal fouls',

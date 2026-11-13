@@ -52,6 +52,8 @@ describe('the game-flow chart', () => {
     expect(g.path).toBe('M0,60 H75 V10 H150 V110 H300')
     expect(g.area).toBe('M0,60 H75 V10 H150 V110 H300 V60 H0 Z')
     expect(g.changes).toEqual([{ x: 150, y: 110 }])
+    // Whole points on the axis: 5 and 3 (not 2.5) each way.
+    expect(g.ticks.map((t) => t.label)).toEqual(['5', '3', '0', '3', '5'])
   })
 
   it('marks each period and overtime at its start', () => {

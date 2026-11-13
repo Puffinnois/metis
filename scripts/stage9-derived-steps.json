@@ -1,0 +1,107 @@
+[
+  {
+    "size": [1500, 1000]
+  },
+  {
+    "wait": 4000
+  },
+  {
+    "eval": "window.sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nwindow.until = async (fn, ms = 15000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (fn()) return true; await sleep(150) } return false };\nwindow.nav = (name) => [...document.querySelectorAll('nav button')].find((b) => b.textContent.trim() === name).click();\nwindow.chooseSelect = async (title, value) => { const el = [...document.querySelectorAll('select')].find((x) => x.title === title); if (!el) return 'NO SELECT ' + title; Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(el, String(value)); el.dispatchEvent(new Event('change', { bubbles: true })); await sleep(1200); return title + ' = ' + (el.selectedOptions[0]?.textContent ?? el.value) };\nwindow.setInput = (input, value) => { const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(input, value); input.dispatchEvent(new Event('input', { bubbles: true })); input.dispatchEvent(new Event('change', { bubbles: true })) };\nwindow.openPlayer = async (name) => { const input = document.querySelector('input[aria-label=\"Search players\"]'); setInput(input, name); await until(() => [...document.querySelectorAll('aside button')].some((x) => x.textContent.includes(name))); const b = [...document.querySelectorAll('aside button')].find((x) => x.textContent.includes(name)); if (!b) return 'NOT LISTED ' + name; b.click(); await until(() => document.querySelector('h1')?.innerText.includes(name.split(' ').pop())); return 'opened ' + document.querySelector('h1')?.innerText.replace(/\\n/g, ' ') };\nwindow.openTeam = async (name) => { await until(() => [...document.querySelectorAll('button[role=row]')].some((x) => x.textContent.includes(name))); const b = [...document.querySelectorAll('button[role=row]')].find((x) => x.textContent.includes(name)); if (!b) return 'NOT LISTED ' + name; b.click(); await until(() => document.querySelector('h1')?.innerText.includes(name.split(' ').pop())); return 'opened ' + document.querySelector('h1')?.innerText.replace(/\\n/g, ' ') };\nwindow.tab = async (label) => { const t = [...document.querySelectorAll('[role=tab]')].find((x) => x.textContent.trim() === label); if (!t) return 'NO TAB ' + label; t.click(); await sleep(1500); return 'tab ' + label };\nwindow.radio = async (group, label) => { const b = [...document.querySelectorAll('[role=radiogroup][aria-label=\"' + group + '\"] [role=radio]')].find((x) => x.textContent.trim() === label); if (!b) return 'NO RADIO ' + group + '/' + label; b.click(); await sleep(1200); return group + ' = ' + label };\nwindow.chart = (title = 'Shot chart') => { const s = document.querySelector('section[aria-label=\"' + title + '\"]'); if (!s) return 'NO CHART'; const t = s.querySelector('[role=table][aria-label=\"Shots by zone\"]'); const rows = t ? [...t.querySelectorAll('[role=row]')].slice(1).map((r) => [...r.querySelectorAll('[role=cell]')].map((c) => c.textContent.trim())) : []; return { total: Number(s.getAttribute('data-shot-total')), drawn: Number(s.getAttribute('data-shot-drawn')), head: s.querySelector('h2')?.parentElement?.innerText.replace(/\\n/g, ' | '), status: s.querySelector('[role=status]')?.textContent ?? null, zones: rows } };\nwindow.waitChart = async (title = 'Shot chart') => { await until(() => { const s = document.querySelector('section[aria-label=\"' + title + '\"]'); return s && (s.hasAttribute('data-shot-total') || s.querySelector('[role=status]')) }); await sleep(400); return chart(title) };\nwindow.check = (label, got, want) => (JSON.stringify(got) === JSON.stringify(want) ? 'PASS ' : 'FAIL ') + label + ' got ' + JSON.stringify(got) + ' want ' + JSON.stringify(want);\nwindow.rail = (code) => { const b = [...document.querySelectorAll('[aria-label=\"The day’s games\"] button')].find((x) => x.textContent.includes(code)); if (!b) return 'NOT ON THE RAIL ' + code; b.click(); return 'opened ' + b.innerText.replace(/\\n/g, ' ') };\nwindow.table = (label) => { const t = document.querySelector('[role=table][aria-label=\"' + label + '\"]'); return t ? [...t.querySelectorAll('[role=row]')].slice(1).map((r) => [...r.querySelectorAll('[role=cell]')].map((c) => c.textContent.trim())) : null };\nwindow.card = (id) => document.querySelector('[data-metric=\"' + id + '\"]')?.innerText.replace(/\\n/g, ' | ') ?? 'MISSING ' + id;\nwindow.q = (metrics, scope, entity = 'player') => window.api.stats.query({ entity, metrics, scope });\nwindow.val = (r, id, m) => r.rows.find((x) => x.id === id)?.values[m]?.value ?? null;\nwindow.reason = (r, m) => r.columns.find((c) => c.id === m)?.reason ?? null;\n'helpers ready'"
+  },
+  {
+    "click": "Players"
+  },
+  {
+    "wait": 2500
+  },
+  {
+    "eval": "(async () => [await chooseSelect('Season', 2026), await chooseSelect('Season type', 'regular'), await chooseSelect('Range', 'season'), await openPlayer('Stephen Curry'), await tab('Play by play')].join(' · '))()"
+  },
+  {
+    "eval": "(async () => { await until(() => document.querySelector('[data-metric=pbp_tov_bad_pass]')); const r = await q(['pbp_tov_bad_pass', 'pbp_tov_lost_ball', 'pbp_tov_off_foul', 'pbp_tov_travel', 'pbp_tov_out_of_bounds', 'pbp_tov_violation', 'pbp_and1', 'pbp_and1_ftm'], { seasons: [2026], players: ['201939'] }); const v = (m) => val(r, '201939', m); return [check('Curry bad passes (SQL on src_nba_pbp: 49 + 16 out of bounds)', v('pbp_tov_bad_pass'), 65), check('lost balls (SQL 26 + 8)', v('pbp_tov_lost_ball'), 34), check('offensive-foul turnovers (SQL 10)', v('pbp_tov_off_foul'), 10), check('travels (SQL 2)', v('pbp_tov_travel'), 2), check('stepped out (SQL 7)', v('pbp_tov_out_of_bounds'), 7), check('other violations (SQL 3 backcourt)', v('pbp_tov_violation'), 3), check('and-ones (SQL 24)', v('pbp_and1'), 24), check('and-ones converted (SQL 23)', v('pbp_and1_ftm'), 23), 'cards: ' + card('pbp_tov_bad_pass') + ' || ' + card('pbp_and1')].join('\\n') })()"
+  },
+  {
+    "shot": "01-player-plays"
+  },
+  {
+    "eval": "(async () => { await until(() => table('Who they feed')); const feeds = table('Who they feed'); const fed = table('Who feeds them'); return [check('Curry feeds someone', (feeds?.length ?? 0) > 0, true), check('someone feeds Curry', (fed?.length ?? 0) > 0, true), 'top fed: ' + JSON.stringify(feeds?.[0]), 'top feeder: ' + JSON.stringify(fed?.[0])].join('\\n') })()"
+  },
+  {
+    "shot": "02-player-assists"
+  },
+  {
+    "eval": "(async () => { const r = await chooseSelect('Range', 'dates'); setInput(document.querySelector('input[aria-label=\"From date\"]'), '2025-12-01'); await sleep(1200); setInput(document.querySelector('input[aria-label=\"To date\"]'), '2025-12-31'); await sleep(2500); const e = await q(['pbp_tov_bad_pass', 'pbp_and1'], { seasons: [2026], players: ['201939'], dates: ['2025-12-01', '2025-12-31'] }); return [r, check('Curry December bad passes (SQL 14)', val(e, '201939', 'pbp_tov_bad_pass'), 14), check('December and-ones (SQL 7)', val(e, '201939', 'pbp_and1'), 7), 'card: ' + card('pbp_and1')].join('\\n') })()"
+  },
+  {
+    "shot": "03-player-date-range"
+  },
+  {
+    "eval": "(async () => chooseSelect('Range', 'season'))()"
+  },
+  {
+    "eval": "(async () => [await chooseSelect('Season', 1996), await openPlayer('Michael Jordan'), await tab('Play by play')].join(' · '))()"
+  },
+  {
+    "eval": "(async () => { await until(() => [...document.querySelectorAll('section')].some((s) => s.innerText.includes('Recorded from 1996-97.'))); const r = await q(['pbp_and1'], { seasons: [1996] }); return [check('1995-96 reads its reason', reason(r, 'pbp_and1'), 'Recorded from 1996-97.'), check('the assist network says so too', [...document.querySelectorAll('section')].some((s) => s.innerText.startsWith('Who they feed') || s.innerText.includes('Recorded from 1996-97.')), true)].join('\\n') })()"
+  },
+  {
+    "shot": "04-before-coverage"
+  },
+  {
+    "eval": "(async () => { const r = await q(['pbp_and1', 'pts'], { seasons: [2026], split: 'clutch' }); return [check('under a split: its reason', reason(r, 'pbp_and1'), 'Counted per game, not per moment, so it has no split.'), check('and no value', r.rows.every((x) => x.values.pbp_and1.value === null), true)].join('\\n') })()"
+  },
+  {
+    "eval": "(async () => chooseSelect('Season', 2026))()"
+  },
+  {
+    "click": "Teams"
+  },
+  {
+    "wait": 2500
+  },
+  {
+    "eval": "(async () => [await chooseSelect('Team', '1610612738'), await tab('Play by play')].join(' · '))()"
+  },
+  {
+    "eval": "(async () => { await until(() => table('Assist network')); const t = table('Assist network'); const head = document.querySelector('section[aria-label=\"Assist network\"] h2')?.parentElement?.innerText.replace(/\\n/g, ' | '); return [check('Boston top pair (SQL: Pritchard to Brown, 78 makes, 15 threes, 171 points)', t?.[0]?.slice(0, 5), ['Payton Pritchard', 'Jaylen Brown', '78', '15', '171']), check('second (SQL: White to Brown, 72, 17, 161)', t?.[1]?.slice(0, 5), ['Derrick White', 'Jaylen Brown', '72', '17', '161']), check('third (SQL: Pritchard to Queta, 68, 0, 136)', t?.[2]?.slice(0, 5), ['Payton Pritchard', 'Neemias Queta', '68', '0', '136']), 'head: ' + head, 'flow card: ' + card('team_pbp_lead_changes')].join('\\n') })()"
+  },
+  {
+    "shot": "05-team-assists"
+  },
+  {
+    "click": "Games"
+  },
+  {
+    "wait": 2000
+  },
+  {
+    "eval": "(async () => [await chooseSelect('Season', 2026), await chooseSelect('Day', '2025-10-22'), rail('PHI')].join(' · '))()"
+  },
+  {
+    "wait": 2500
+  },
+  {
+    "eval": "(async () => { await until(() => document.querySelector('[aria-label=\"Lead changes and ties\"]')); const shared = document.querySelector('[aria-label=\"Lead changes and ties\"]')?.textContent; const t = table('Flow by team'); const lead = t?.find((r) => r[0] === 'Largest lead'); const marks = document.querySelectorAll('section[aria-label=\"Game flow\"] svg circle').length; return [check('PHI at BOS lead changes (SQL on src_nba_pbp: 13)', shared?.startsWith('13 lead changes'), true), check('tied 9 times (SQL 9)', shared?.includes('tied 9 times'), true), check('largest leads PHI 8, BOS 13 (SQL)', lead?.slice(1), ['8', '13']), check('a mark for each lead change', marks, 13), 'flow: ' + shared, 'table: ' + JSON.stringify(t)].join('\\n') })()"
+  },
+  {
+    "shot": "06-game-flow"
+  },
+  {
+    "click": "Players"
+  },
+  {
+    "wait": 2000
+  },
+  {
+    "click": "Player leaderboards →"
+  },
+  {
+    "wait": 2500
+  },
+  {
+    "eval": "(async () => { const r = await chooseSelect('Metric family', 'plays'); await sleep(2500); const heads = [...document.querySelectorAll('thead th')].map((t) => t.textContent.trim()).filter(Boolean); const first = document.querySelector('tbody tr')?.innerText.replace(/\\s+/g, ' ').slice(0, 160); return [r, check('the play-by-play preset is on the board', ['BadP TO', 'And1', 'Ast PTS'].every((h) => heads.includes(h)), true), 'heads: ' + heads.join(', '), 'first row: ' + first].join('\\n') })()"
+  },
+  {
+    "shot": "07-leaderboard-plays"
+  }
+]
