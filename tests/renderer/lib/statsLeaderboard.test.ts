@@ -104,6 +104,7 @@ describe('the column picker and presets', () => {
       'traditional',
       'shooting',
       'shots',
+      'plays',
       'possessions',
       'scoring',
       'composite',
@@ -114,6 +115,23 @@ describe('the column picker and presets', () => {
       'impact',
       'availability'
     ])
+    // Play by play preset to turnovers, fouls, and-ones and assists (Plan T905).
+    expect([...familyColumns(CATALOGUE, tab, 'plays')].sort()).toEqual(
+      [
+        'pbp_tov_bad_pass',
+        'pbp_tov_lost_ball',
+        'pbp_tov_off_foul',
+        'pbp_tov_live_share',
+        'pbp_pf_shooting',
+        'pbp_pf_offensive',
+        'pbp_tech',
+        'pbp_and1',
+        'pbp_and1_pct',
+        'pbp_trip_rate',
+        'pbp_ast_pts',
+        'pbp_unast_share'
+      ].sort()
+    )
     // Shot zones preset to how well and how often by zone, against the league, and the distance.
     expect([...familyColumns(CATALOGUE, tab, 'shots')].sort()).toEqual(
       [

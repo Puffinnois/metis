@@ -605,7 +605,30 @@ const FLOW: MetricDef[] = [
   ])
 ]
 
-export const PLAYS: MetricDef[] = [
+/**
+ * The family's leaderboard preset: what a turnover, a foul, an assist and a game's flow most often
+ * come down to. Core, so the preset shows them first.
+ */
+const CORE = new Set([
+  'tov_bad_pass',
+  'tov_lost_ball',
+  'tov_off_foul',
+  'tov_live_share',
+  'pf_shooting',
+  'pf_offensive',
+  'tech',
+  'and1',
+  'and1_pct',
+  'trip_rate',
+  'ast_pts',
+  'unast_share',
+  'lead_changes',
+  'largest_lead',
+  'best_run',
+  'drought'
+])
+
+const PLAYS_ALL: MetricDef[] = [
   ...ENTRIES.flatMap((e) =>
     (e.sides ?? ALL).map((s) =>
       metric(
@@ -621,6 +644,10 @@ export const PLAYS: MetricDef[] = [
   ...TEAM_PASSING,
   ...FLOW
 ]
+
+export const PLAYS: MetricDef[] = PLAYS_ALL.map((m) =>
+  CORE.has(m.id.replace(/^(team_|opp_)?pbp_/, '')) ? { ...m, tier: 'core' as const } : m
+)
 
 /** What each sample counts, in words. */
 export const PLAY_SAMPLE_LABELS: Readonly<Record<string, string>> = {

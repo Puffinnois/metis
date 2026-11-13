@@ -24,6 +24,7 @@ export type PlayerTab =
   | 'scoring'
   | 'shooting'
   | 'shots'
+  | 'plays'
   | 'playmaking'
   | 'rebounding'
   | 'defense'
@@ -39,6 +40,7 @@ export const PLAYER_DASH_TABS: { id: PlayerTab; label: string }[] = [
   { id: 'scoring', label: 'Scoring' },
   { id: 'shooting', label: 'Shooting' },
   { id: 'shots', label: 'Shots' },
+  { id: 'plays', label: 'Play by play' },
   { id: 'playmaking', label: 'Playmaking' },
   { id: 'rebounding', label: 'Rebounding' },
   { id: 'defense', label: 'Defense' },
@@ -54,6 +56,59 @@ export const TAB_SECTIONS: Record<
   Exclude<PlayerTab, 'overview' | 'log' | 'splits' | 'profile'>,
   SectionDef[]
 > = {
+  // Plan T905: counted from the NBA's play by play, 1996-97 on.
+  plays: [
+    {
+      title: 'Turnovers',
+      note: 'Live-ball: a steal credited',
+      metrics: [
+        'pbp_tov_bad_pass',
+        'pbp_tov_lost_ball',
+        'pbp_tov_off_foul',
+        'pbp_tov_travel',
+        'pbp_tov_live',
+        'pbp_tov_dead',
+        'pbp_tov_live_share'
+      ]
+    },
+    {
+      title: 'Fouls',
+      note: 'Fouls drawn: ESPN’s play by play, 2006-07 to 2009-10',
+      metrics: [
+        'pbp_pf_shooting',
+        'pbp_pf_personal',
+        'pbp_pf_offensive',
+        'pbp_pf_loose_ball',
+        'pbp_tech',
+        'pbp_flagrant',
+        'pbp_fd'
+      ]
+    },
+    {
+      title: 'And-ones and trips',
+      metrics: [
+        'pbp_and1',
+        'pbp_and1_pct',
+        'pbp_and1_rate',
+        'pbp_ft_trip2',
+        'pbp_ft_trip3',
+        'pbp_trip_rate'
+      ]
+    },
+    {
+      title: 'Assists',
+      note: 'Assist points: 2 a two, 3 a three',
+      metrics: [
+        'pbp_ast2',
+        'pbp_ast3',
+        'pbp_ast_pts',
+        'pbp_ast_to3_share',
+        'pbp_ast2_share',
+        'pbp_ast3_share',
+        'pbp_unast_share'
+      ]
+    }
+  ],
   scoring: [
     { title: 'Volume', metrics: ['pts', 'fgm', 'fga', 'fg3m', 'ftm', 'fta', 'tsa'] },
     {

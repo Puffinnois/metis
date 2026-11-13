@@ -20,6 +20,17 @@ vi.mock('@/lib/api', () => ({
       standings: vi.fn(),
       availability: vi.fn(() => Promise.resolve([])),
       coaches: vi.fn(() => Promise.resolve([])),
+      assists: vi.fn(() => Promise.resolve({ pairs: [], total: 0, reason: null })),
+      gameFlow: vi.fn(() =>
+        Promise.resolve({
+          points: [],
+          periods: 4,
+          homeTeam: '',
+          awayTeam: '',
+          summary: null,
+          reason: null
+        })
+      ),
       views: vi.fn(),
       saveView: vi.fn(),
       deleteView: vi.fn(),
