@@ -1,6 +1,9 @@
 import { mkdirSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import type {
+  StatsAssistRequest,
+  StatsAssistNetwork,
+  StatsGameFlow,
   StatsShotRequest,
   StatsShotChart,
   GameType,
@@ -44,6 +47,7 @@ import type {
 } from './protocol'
 import { readAvailability, readCoaches } from './availabilityReads'
 import { readShotChart } from './shotReads'
+import { readAssistNetwork, readGameFlow } from './playReads'
 import type { LineupGroup } from '@shared/stats/lineups'
 import {
   readGame,
@@ -153,6 +157,10 @@ export interface StatsService {
   coaches(team: string, season: number): Promise<StatsCoach[]>
   /** The shots a chart draws, capped, with every shot of the scope counted by zone. */
   shots(request: StatsShotRequest): Promise<StatsShotChart>
+  /** Who assisted whom, for a team or a player over a scope (Plan T905). */
+  assists(request: StatsAssistRequest): Promise<StatsAssistNetwork>
+  /** One game's scoring in order and its flow. */
+  gameFlow(game: string): Promise<StatsGameFlow>
   /**
    * Stops a refresh now: aborts its downloads, interrupts its statement and starts no other step. A
    * process must not exit while DuckDB runs a statement (Electron aborts), so closing cancels first.
@@ -426,6 +434,8 @@ export async function openStatsService(
     availability: (players) => read((reader) => readAvailability(reader, players)),
     coaches: (team, season) => read((reader) => readCoaches(reader, team, season)),
     shots: (request) => read((reader) => readShotChart(reader, request)),
+    assists: (request) => read((reader) => readAssistNetwork(reader, request)),
+    gameFlow: (game) => read((reader) => readGameFlow(reader, game)),
     /** Write, read, a Parquet round trip, `read_json` and an ICU time zone, through the real file. */
     async selfTest() {
       await db.exec('CREATE OR REPLACE TABLE self_test AS SELECT range AS x FROM range(1000)')

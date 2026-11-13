@@ -8,6 +8,9 @@ import type { installAutoUpdater } from '@main/updater'
 import { IPC } from '@shared/ipc'
 import type { LineupGroup } from '@shared/stats/lineups'
 import type {
+  StatsAssistRequest,
+  StatsAssistNetwork,
+  StatsGameFlow,
   StatsShotRequest,
   StatsShotChart,
   LeaderboardBoard,
@@ -161,6 +164,25 @@ export function registerIpcHandlers(ctx: AppContext): void {
     ctx.stats
       ? ctx.stats.shots(request)
       : Promise.resolve({ shots: [], total: 0, made: 0, capped: false, zones: [], reason: null })
+  )
+  ipcMain.handle(
+    IPC.statsAssists,
+    (_event, request: StatsAssistRequest): Promise<StatsAssistNetwork> =>
+      ctx.stats
+        ? ctx.stats.assists(request)
+        : Promise.resolve({ pairs: [], total: 0, reason: null })
+  )
+  ipcMain.handle(IPC.statsGameFlow, (_event, game: string): Promise<StatsGameFlow> =>
+    ctx.stats
+      ? ctx.stats.gameFlow(game)
+      : Promise.resolve({
+          points: [],
+          periods: 4,
+          homeTeam: '',
+          awayTeam: '',
+          summary: null,
+          reason: null
+        })
   )
   ipcMain.handle(
     IPC.statsAvailability,

@@ -1,3 +1,4 @@
+import type { FlowSummary } from './playDetail'
 /** The one set of game types (D12). All-Star and preseason never count unless asked for. */
 export const GAME_TYPES = [
   'regular',
@@ -30,6 +31,7 @@ export type MetricFamily =
   | 'impact'
   | 'availability'
   | 'shots'
+  | 'plays'
 
 /** `core` shown by default, `extended` in its family and the column picker, `stored` in queries only. */
 export type MetricTier = 'core' | 'extended' | 'stored'
@@ -764,5 +766,52 @@ export interface StatsShotChart {
   capped: boolean
   zones: StatsShotZone[]
   /** Why there is nothing to chart ("Recorded from 1996-97."); null when there is. */
+  reason: string | null
+}
+
+/** Who assisted whom (Plan T905): a team's passers and scorers, or a player's, over a scope. */
+export type StatsAssistRequest = StatsShotRequest
+
+/** One passer and scorer pair: the makes one assisted for the other, its threes and its points. */
+export interface StatsAssistPair {
+  passer: string
+  passerName: string
+  scorer: string
+  scorerName: string
+  makes: number
+  threes: number
+  points: number
+}
+
+export interface StatsAssistNetwork {
+  /** Most makes first. A player's holds the pairs where they passed or scored. */
+  pairs: StatsAssistPair[]
+  /** The assists in scope, every pair counted. */
+  total: number
+  reason: string | null
+}
+
+/** A scoring play on a game's flow chart. */
+export interface StatsFlowPoint {
+  /** Seconds since the tip-off. */
+  t: number
+  period: number
+  /** Seconds left in the period. */
+  clock: number
+  home: boolean
+  pts: number
+  fg: boolean
+  homeScore: number
+  awayScore: number
+}
+
+/** One game's scoring, in order, with its flow worked out by `flowSummary`. */
+export interface StatsGameFlow {
+  points: StatsFlowPoint[]
+  /** The last period played, for the chart's axis. */
+  periods: number
+  homeTeam: string
+  awayTeam: string
+  summary: FlowSummary | null
   reason: string | null
 }

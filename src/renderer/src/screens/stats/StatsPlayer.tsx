@@ -1,3 +1,4 @@
+import { AssistNetwork } from '@/components/stats/AssistNetwork'
 import { ShotChart } from '@/components/stats/ShotChart'
 import { shotRequest } from '@/lib/stats/shotChart'
 import { useMemo, useState } from 'react'
@@ -270,6 +271,7 @@ function TabBody({
   if (tab === 'splits') return <Splits {...props} />
   if (tab === 'matchups') return <Matchups {...props} />
   if (tab === 'shots') return <Shots {...props} />
+  if (tab === 'plays') return <Plays {...props} />
   if (tab === 'on_off') return <OnOff {...props} />
   return <LinesTab {...props} tab={tab} />
 }
@@ -390,6 +392,23 @@ function Shots(props: TabProps): React.JSX.Element {
     <div className="flex flex-col gap-7">
       <ShotChart request={request} version={data.version} />
       <LinesTab {...props} tab="shots" />
+    </div>
+  )
+}
+
+/** The play-derived counts, then who the player feeds and who feeds them. */
+function Plays(props: TabProps): React.JSX.Element {
+  const { data, scope, player, onOpenPlayer } = props
+  return (
+    <div className="flex flex-col gap-7">
+      <LinesTab {...props} tab="plays" />
+      <AssistNetwork
+        entity="player"
+        id={player}
+        scope={scope}
+        version={data.version}
+        onOpenPlayer={onOpenPlayer}
+      />
     </div>
   )
 }
