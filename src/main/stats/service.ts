@@ -182,6 +182,7 @@ export async function openStatsService(
   // Each read gets its own connection, so it runs while a refresh writes, never waits behind another
   // read, and its timeout interrupts only itself.
   const reading = new Set<StatsDb>()
+  let seasonTablesBuilt = false
   const inFlight = new Set<Promise<unknown>>()
   let closing = false
   const read = async <T>(fn: (conn: StatsDb) => Promise<T>): Promise<T> => {
@@ -342,10 +343,16 @@ export async function openStatsService(
     read: (sql) => read((reader) => reader.all(sql)),
     query: (query) =>
       read(async (reader) => {
-        const built = await reader.get(
-          "SELECT 1 AS yes FROM duckdb_tables() WHERE schema_name = 'main' AND table_name = 'player_season'"
-        )
-        if (!built) throw new StatsQueryError('No stats yet: the first load has not got that far.')
+        // Once there, the season tables stay (they are replaced in place, never dropped), so the
+        // check runs until it first passes: it cost 4 ms of each query, and a Splits tab asks 31.
+        if (!seasonTablesBuilt) {
+          seasonTablesBuilt = !!(await reader.get(
+            "SELECT 1 AS yes FROM duckdb_tables() WHERE schema_name = 'main' AND table_name = 'player_season'"
+          ))
+        }
+        if (!seasonTablesBuilt) {
+          throw new StatsQueryError('No stats yet: the first load has not got that far.')
+        }
         return runQuery(reader, query, { currentSeason: currentSeason(new Date()) })
       }),
     catalogue: async () => catalogueInfo(),

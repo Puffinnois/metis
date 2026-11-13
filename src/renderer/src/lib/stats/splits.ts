@@ -75,6 +75,8 @@ export function teamSplitQueries(
     transform: mode,
     sort: { metric: 'team_pts', dir: 'desc' },
     limit: 40,
+    // The table shows values only: no rank among a team's own rows.
+    ranks: false,
     ...extra
   })
   return new Map<string, StatsQuery>([

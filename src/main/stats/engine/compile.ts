@@ -131,7 +131,16 @@ function flag(value: unknown, what: string): boolean {
 
 const ids = (values: unknown, what: string): number[] => texts(values, what, ID).map(Number)
 
-const QUERY_FIELDS = ['entity', 'metrics', 'scope', 'groupBy', 'transform', 'sort', 'limit']
+const QUERY_FIELDS = [
+  'entity',
+  'metrics',
+  'scope',
+  'groupBy',
+  'transform',
+  'sort',
+  'limit',
+  'ranks'
+]
 const SCOPE_FIELDS = [
   'seasons',
   'gameTypes',
@@ -260,6 +269,8 @@ function validate(q: StatsQuery, ctx: CompileContext): Checked {
     if (q.sort.dir !== 'asc' && q.sort.dir !== 'desc') fail('sort.dir must be asc or desc')
   }
   if (q.limit !== undefined) integers([q.limit], 'limit', 1, MAX_LIMIT)
+  if (q.ranks !== undefined && typeof q.ranks !== 'boolean') fail('ranks must be true or false')
+  if (q.ranks === false && transform === 'percentile') fail('percentile needs ranks')
 
   // The season tables answer anything that does not split a season's games.
   const games =
@@ -735,9 +746,12 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
     const ok = `q${i} AND v${i} IS NOT NULL`
     const up = m.direction === 'lower' ? 'DESC' : 'ASC'
     const best = m.direction === 'lower' ? 'ASC' : 'DESC'
+    const ranks = q.ranks !== false
     return [
-      `CASE WHEN ${ok} THEN 100 * percent_rank() ${over(i, up)} END AS p${i}`,
-      `CASE WHEN ${ok} THEN rank() ${over(i, best)} END AS r${i}`,
+      ranks
+        ? `CASE WHEN ${ok} THEN 100 * percent_rank() ${over(i, up)} END AS p${i}`
+        : `NULL::DOUBLE AS p${i}`,
+      ranks ? `CASE WHEN ${ok} THEN rank() ${over(i, best)} END AS r${i}` : `NULL::BIGINT AS r${i}`,
       // The league mean and spread, for the transforms that need them.
       ...(c.transform === 'zScore' || c.transform === 'vsLeague'
         ? [

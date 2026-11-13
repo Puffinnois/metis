@@ -179,6 +179,17 @@ describe('the on-court table, read through built', () => {
     expect(c.params).toContain(1610612760)
   })
 
+  it('leaves out ranks and percentiles when a screen asks for values only', () => {
+    const plain = compileQuery(onCourt({}, { ranks: false }), CTX)
+    expect(plain.sql).not.toContain('percent_rank()')
+    expect(plain.sql).not.toContain('rank()')
+    expect(plain.sql).toContain('NULL::DOUBLE AS p0')
+    expect(compileQuery(onCourt(), CTX).sql).toContain('percent_rank()')
+    expect(() => compileQuery(onCourt({}, { ranks: false, transform: 'percentile' }), CTX)).toThrow(
+      'percentile needs ranks'
+    )
+  })
+
   it('joins a season on equalities alone, so it can be hashed (Plan T907)', () => {
     // A player's whole season, every team: no team condition at all.
     const all = compileQuery(onCourt(), CTX)
