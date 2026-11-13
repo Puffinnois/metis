@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { StatsDb } from '@main/stats/db'
 import {
   buildPlays,
+  insertSql,
   markPlaySeason,
   PLAY_BUILDERS,
   playsDue,
@@ -159,6 +160,37 @@ describe('a reader during a rebuild', () => {
     expect([...seen].every((n) => n === 50_000 || n === 200_000)).toBe(true)
     expect(seen.has(200_000)).toBe(true)
     await reader.close()
+  })
+})
+
+describe('the order rows are written in', () => {
+  it('sorts a season by the builder’s order, and leaves a builder without one as selected', () => {
+    const have = { tables: new Set<string>(), columns: new Map() }
+    const sorted: PlayBuilder = {
+      table: 't',
+      columns: [['season', 'INTEGER']],
+      select: (_h, s) => `SELECT ${s} AS season`,
+      order: 'game_id, seq'
+    }
+    expect(insertSql(sorted, have, 2026)).toBe(
+      'INSERT INTO t SELECT * FROM (SELECT 2026 AS season) AS s(season) ORDER BY game_id, seq'
+    )
+    expect(insertSql({ ...sorted, order: undefined }, have, 2026)).toBe(
+      'INSERT INTO t SELECT 2026 AS season'
+    )
+  })
+
+  it('writes every play table in game order', async () => {
+    await buildPlays(db)
+    const rows = await db.all<{ game_id: string; seq: number }>(
+      `SELECT game_id, seq FROM ${PLAY_TABLES.nba}`
+    )
+    const sorted = [...rows].sort((a, b) =>
+      a.game_id === b.game_id ? a.seq - b.seq : a.game_id < b.game_id ? -1 : 1
+    )
+    expect(rows.length).toBeGreaterThan(10)
+    expect(rows).toEqual(sorted)
+    for (const b of PLAY_BUILDERS) expect(b.order, b.table).toMatch(/^game_id\b/)
   })
 })
 

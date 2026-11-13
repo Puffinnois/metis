@@ -327,6 +327,16 @@ export function playerOnCourtSql(_have: Have, season: number): string {
 
 /** In build order: `player_on_court` reads `unit_game`. */
 export const ON_COURT_BUILDERS: PlayBuilder[] = [
-  { table: UNIT_GAME, columns: UNIT_GAME_COLUMNS, select: unitGameSql },
-  { table: PLAYER_ON_COURT, columns: PLAYER_ON_COURT_COLUMNS, select: playerOnCourtSql }
+  {
+    table: UNIT_GAME,
+    columns: UNIT_GAME_COLUMNS,
+    select: unitGameSql,
+    order: 'game_id, team_id, p1, p2, p3, p4, p5'
+  },
+  {
+    table: PLAYER_ON_COURT,
+    columns: PLAYER_ON_COURT_COLUMNS,
+    select: playerOnCourtSql,
+    order: 'game_id, team_id, player_id'
+  }
 ]

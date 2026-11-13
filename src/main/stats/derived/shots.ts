@@ -265,6 +265,16 @@ export function teamGameSql(have: Have, season: number): string {
 
 /** The builders `PLAY_BUILDERS` runs, after the play tables, one season at a time. */
 export const SHOT_BUILDERS: readonly PlayBuilder[] = [
-  { table: SHOT_PLAYER_GAME, columns: SHOT_PLAYER_COLUMNS, select: playerGameSql },
-  { table: SHOT_TEAM_GAME, columns: SHOT_TEAM_COLUMNS, select: teamGameSql }
+  {
+    table: SHOT_PLAYER_GAME,
+    columns: SHOT_PLAYER_COLUMNS,
+    select: playerGameSql,
+    order: 'game_id, team_id, player_id'
+  },
+  {
+    table: SHOT_TEAM_GAME,
+    columns: SHOT_TEAM_COLUMNS,
+    select: teamGameSql,
+    order: 'game_id, team_id'
+  }
 ]
