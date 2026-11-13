@@ -10,6 +10,7 @@ import { ON_COURT } from './onCourt'
 import { PLAY_TYPES } from './playTypes'
 import { PLAYS } from './plays'
 import { POSSESSIONS } from './possessions'
+import { RATINGS } from './ratings'
 import { SCORING } from './scoring'
 import { SHOOTING } from './shooting'
 import { SHOTS } from './shots'
@@ -34,7 +35,8 @@ export const CATALOGUE: MetricDef[] = [
   ...IMPACT,
   ...AVAILABILITY,
   ...SHOTS,
-  ...PLAYS
+  ...PLAYS,
+  ...RATINGS
 ]
 
 export const METRICS: ReadonlyMap<string, MetricDef> = new Map(CATALOGUE.map((m) => [m.id, m]))
@@ -49,9 +51,12 @@ export function componentsOf(def: Pick<MetricDef, 'value' | 'sample' | 'perGameB
 }
 
 export {
+  COMPUTED_WHOLE_SEASONS,
   coverageReason,
   covers,
+  MODEL_NO_SPLIT,
   ONE_SEASON_ONLY,
+  STATE_ONE_SEASON,
   PUBLISHED_TYPES_ONLY,
   REGULAR_SEASON_ONLY,
   WHOLE_SEASONS_ONLY

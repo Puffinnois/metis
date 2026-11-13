@@ -1,10 +1,13 @@
 import {
   componentsOf,
+  COMPUTED_WHOLE_SEASONS,
   coverageReason,
   METRICS,
+  MODEL_NO_SPLIT,
   ONE_SEASON_ONLY,
   PUBLISHED_TYPES_ONLY,
   REGULAR_SEASON_ONLY,
+  STATE_ONE_SEASON,
   TOKEN,
   WHOLE_SEASONS_ONLY
 } from '@shared/stats/catalogue'
@@ -24,6 +27,7 @@ import { gameTable } from '../derived/gameTables'
 import { publishedTable } from '../derived/published'
 import { SPLIT_PLAYER, SPLIT_PLAYER_SQL, SPLIT_TEAM, SPLIT_TEAM_SQL } from '../derived/splits'
 import { PUBLISHED_GAME_TYPES } from '../derived/publishedTables'
+import { modelTable, type ModelTable } from '../models/build'
 import { grainsOf } from './registry'
 
 /** A query the engine refuses, with a message a person can act on. */
@@ -292,7 +296,7 @@ function validate(q: StatsQuery, ctx: CompileContext): Checked {
   for (const m of metrics) {
     const grains = grainsOf(m)
     // A published metric under a filter that splits a season is a gap with a reason, not a refusal.
-    if (m.published && grains.length > 0) continue
+    if ((m.published || m.model) && grains.length > 0) continue
     if (!grains.includes(grain)) fail(`"${m.id}" cannot be read at the ${grain} grain`)
   }
   const gaps = metrics.map((m) => gapOf(m, q, grain, gameTypes, transform))
@@ -325,6 +329,7 @@ const SPLIT_SQL = { player: SPLIT_PLAYER_SQL, team: SPLIT_TEAM_SQL }
 function splitGap(m: MetricDef, q: StatsQuery, transform: Transform): string | null {
   if (!q.scope.seasons.some((s) => s >= SPLITS_FIRST_SEASON)) return SPLITS_FROM
   if (m.published) return NOT_FROM_PLAYS
+  if (m.model) return MODEL_NO_SPLIT
   if (m.built) return BUILT_NO_SPLIT
   const by = perDivisor(m, transform, q.entity)
   const parts = [...componentsOf(m), ...(by ? [...by.matchAll(TOKEN)].map((x) => x[1]) : [])]
@@ -349,6 +354,7 @@ function gapOf(
   )
   if (coverage !== null) return coverage
   if (q.scope.split !== undefined) return splitGap(m, q, transform)
+  if (m.model) return modelGap(m, q, grain, gameTypes)
   if (!m.published) return null
   if (grain === 'game') {
     // A game table answers every season type it holds; a divisor it lacks is still a gap.
@@ -370,6 +376,24 @@ function gapOf(
   for (const match of (perDivisor(m, transform, q.entity) ?? '').matchAll(TOKEN)) {
     const part = match[1] as keyof typeof UNPUBLISHED
     if (part in UNPUBLISHED && !table?.[part]) return UNPUBLISHED[part]
+  }
+  return null
+}
+
+/**
+ * Why a model metric has no answer: a season type it is not computed for, a table of whole seasons
+ * under a filter that splits one, or a rating as of a game over several seasons at once.
+ */
+function modelGap(m: MetricDef, q: StatsQuery, grain: Grain, gameTypes: GameType[]): string | null {
+  const t = modelTable(m.model)
+  if (!t) return null
+  if (t.gameTypes && !gameTypes.some((x) => t.gameTypes?.includes(x))) {
+    return t.typesReason ?? `Computed for ${t.gameTypes.join(', ')} games only.`
+  }
+  if (t.kind === 'sum' && t.grain === 'season' && grain === 'game') return COMPUTED_WHOLE_SEASONS
+  if (t.kind === 'state' && new Set(q.scope.seasons).size > 1) {
+    const by = q.groupBy ?? []
+    if (!by.includes('season') && !by.includes('game')) return STATE_ONE_SEASON
   }
   return null
 }
@@ -442,16 +466,24 @@ function partsOf(m: MetricDef, q: StatsQuery, c: Checked): string[] {
   return [...componentsOf(m), ...(by ? [...by.matchAll(TOKEN)].map((match) => match[1]) : [])]
 }
 
+/** What a metric's own built or model table holds; undefined for the box scores and published tables. */
+function heldBy(m: MetricDef): readonly string[] | undefined {
+  return (modelTable(m.model) ?? gameTable(m.built))?.components
+}
+
+/** The column a model table's rows are keyed by: the player or the team. */
+const keyOfModel = (t: ModelTable): string => (t.entity === 'player' ? 'player_id' : 'team_id')
+
 /** Every component a query reads from the box-score tables. */
 function neededComponents(q: StatsQuery, c: Checked): Set<string> {
   const needed = new Set(['games'])
   for (const [i, m] of c.metrics.entries()) {
     // A metric with no answer reads NULL, so nothing of it is needed.
     if (m.published || c.gaps[i] !== null) continue
-    // A built table's counts are read from it; its divisors still come from here.
-    const built = gameTable(m.built)
+    // A built or model table's values are read from it; its divisors still come from here.
+    const held = heldBy(m)
     for (const part of partsOf(m, q, c)) {
-      if (!built?.components.includes(part)) needed.add(part)
+      if (!held?.includes(part)) needed.add(part)
     }
   }
   return needed
@@ -521,7 +553,8 @@ function builtCte(
   c: Checked,
   params: Params
 ): string {
-  const t = gameTable(table)
+  const model = modelTable(table)
+  const t = model ? { key: keyOfModel(model), zero: undefined } : gameTable(table)
   if (!t) throw new StatsQueryError(`no built table "${table}"`)
   const dims = c.groupBy.map((d) => `b.${d} AS g_${d}`)
   const sums = [...parts].map((p) =>
@@ -540,6 +573,36 @@ function builtCte(
     SELECT b.id, ${[...dims, ...sums].join(', ')}
     FROM base b LEFT JOIN ${table} w
       ON b.id = w.${t.key} AND ${on} AND w.season IN ${params.list(q.scope.seasons)}
+    GROUP BY b.id${c.groupBy.map((d) => `, b.${d}`).join('')})`
+}
+
+/**
+ * A state's value per output row: a rating holds its value after each game, so the row reads it at
+ * its last game in scope, by date. At the game grain it joins the box-score rows in scope by game, so
+ * a date range or any filter on a game reads the rating as it stood then; at the season grain by
+ * season and season type, which reads the season's last game. Rows outside the table's season types
+ * read null.
+ */
+function stateCte(
+  name: string,
+  t: ModelTable,
+  parts: Set<string>,
+  q: StatsQuery,
+  c: Checked,
+  params: Params
+): string {
+  const key = keyOfModel(t)
+  const dims = c.groupBy.map((d) => `b.${d} AS g_${d}`)
+  const picks = [...parts].map((p) => `arg_max(w.${p}, (w.game_date, w.game_id)) AS ${p}`)
+  const byTeam = t.entity === 'player' && q.scope.teams !== undefined
+  const on =
+    c.grain === 'game'
+      ? 'w.game_id = b.game'
+      : `w.season = b.season AND w.game_type = b.game_type${byTeam ? ' AND w.team_id = b.row_team' : ''}`
+  return `${name} AS (
+    SELECT b.id, ${[...dims, ...picks].join(', ')}
+    FROM base b JOIN ${t.table} w
+      ON w.${key} = b.id AND ${on} AND w.season IN ${params.list(q.scope.seasons)}
     GROUP BY b.id${c.groupBy.map((d) => `, b.${d}`).join('')})`
 }
 
@@ -622,28 +685,33 @@ function aggregate(q: StatsQuery, c: Checked, params: Params): string {
   // Only the tables some metric can answer from: under a game filter, the game tables.
   const atGames = !season
   const tableOf = (m: MetricDef): string | undefined =>
-    m.built ?? (atGames ? (fromGames(m) ? m.publishedGames : undefined) : m.published)
+    m.model ?? m.built ?? (atGames ? (fromGames(m) ? m.publishedGames : undefined) : m.published)
   const published = new Map<string, Set<string>>()
   c.metrics.forEach((m, i) => {
     const table = tableOf(m)
-    if (!(m.published || m.built) || !table || c.gaps[i] !== null) return
+    if (!(m.published || m.built || m.model) || !table || c.gaps[i] !== null) return
     const parts = published.get(table) ?? new Set<string>()
-    const built = gameTable(m.built)
+    const held = heldBy(m)
     for (const part of partsOf(m, q, c)) {
-      if (!built || built.components.includes(part)) parts.add(part)
+      if (!held || held.includes(part)) parts.add(part)
     }
     published.set(table, parts)
   })
   const tables = [...published.keys()]
   const alias = (table: string): string => `pub${tables.indexOf(table)}`
-  const isBuilt = (table: string): boolean => c.metrics.some((m) => m.built === table)
+  // Built and model tables group by every dimension of the query, as the box scores do.
+  const isBuilt = (table: string): boolean =>
+    c.metrics.some((m) => m.built === table || m.model === table)
   for (const [table, parts] of published) {
+    const model = modelTable(table)
     ctes.push(
-      isBuilt(table)
-        ? builtCte(alias(table), table, parts, q, c, params)
-        : atGames
-          ? gameCte(alias(table), table, parts, c)
-          : publishedCte(alias(table), table, parts, q, c, params)
+      model?.kind === 'state'
+        ? stateCte(alias(table), model, parts, q, c, params)
+        : isBuilt(table)
+          ? builtCte(alias(table), table, parts, q, c, params)
+          : atGames
+            ? gameCte(alias(table), table, parts, c)
+            : publishedCte(alias(table), table, parts, q, c, params)
     )
   }
   // A game or built table's rows group by every dimension; a published table's by the season at most.
@@ -658,8 +726,8 @@ function aggregate(q: StatsQuery, c: Checked, params: Params): string {
   )
   const sumOf = (m: MetricDef, n: string): string => {
     const table = tableOf(m)
-    if (m.built && table) {
-      return gameTable(m.built)?.components.includes(n) ? `${alias(table)}.${n}` : `s.${n}`
+    if ((m.built || m.model) && table) {
+      return heldBy(m)?.includes(n) ? `${alias(table)}.${n}` : `s.${n}`
     }
     return m.published && table ? `${alias(table)}.${n}` : `s.${n}`
   }
@@ -681,6 +749,9 @@ function notesOf(q: StatsQuery, c: Checked): string[] {
     const gaps = (m.missingSeasons ?? []).filter((x) => s.seasons.includes(x))
     if (gaps.length > 0) {
       notes.add(`${m.label}: not in the source for ${gaps.map(seasonLabel).join(', ')}.`)
+    }
+    if (modelTable(m.model)?.kind === 'state' && c.grain === 'game') {
+      notes.add(`${m.label}: as of the last game in scope.`)
     }
     // Under a split, a published metric's column already says why it has no value.
     if (m.published && s.split !== undefined) continue
