@@ -1,3 +1,4 @@
+import { GameFlowChart } from '@/components/stats/GameFlowChart'
 import { useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { StatsSelect } from '@/components/stats/controls'
@@ -336,6 +337,14 @@ function GameBody({
             }))}
           />
         </section>
+      )}
+      {game.played && (
+        <GameFlowChart
+          game={game.id}
+          home={game.home.code}
+          away={game.away.code}
+          version={data.version}
+        />
       )}
       {!game.hasBox ? (
         <div className="rounded-[8px] bg-panel-2 px-4 py-3 text-[13px] text-fg-2">

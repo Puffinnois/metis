@@ -1,3 +1,4 @@
+import { AssistNetwork } from '@/components/stats/AssistNetwork'
 import { ShotChart } from '@/components/stats/ShotChart'
 import { shotRequest } from '@/lib/stats/shotChart'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -187,6 +188,7 @@ export function StatsTeam({
       {(tab === 'overview' ||
         tab === 'offense' ||
         tab === 'defense' ||
+        tab === 'plays' ||
         tab === 'players' ||
         tab === 'on_off' ||
         tab === 'lineups' ||
@@ -206,6 +208,7 @@ export function StatsTeam({
         <LinesTab key={tab} {...props} tab={tab} />
       )}
       {tab === 'shots' && anyPlayed && <ShotsTab {...props} />}
+      {tab === 'plays' && anyPlayed && <PlaysTab {...props} />}
       {tab === 'players' && anyPlayed && <Players {...props} />}
       {tab === 'on_off' && anyPlayed && (
         <TeamOnOff data={data} scope={scope} team={team} onOpenPlayer={onOpenPlayer} />
@@ -548,6 +551,23 @@ function ShotsTab(props: TabProps): React.JSX.Element {
         key={side}
         {...props}
         tab={side === 'offense' ? 'shots_offense' : 'shots_defense'}
+      />
+    </div>
+  )
+}
+
+/** The play-derived counts ranked among the teams, then who assisted whom. */
+function PlaysTab(props: TabProps): React.JSX.Element {
+  const { data, scope, team, onOpenPlayer } = props
+  return (
+    <div className="flex flex-col gap-7">
+      <LinesTab {...props} tab="plays" />
+      <AssistNetwork
+        entity="team"
+        id={team}
+        scope={scope}
+        version={data.version}
+        onOpenPlayer={onOpenPlayer}
       />
     </div>
   )

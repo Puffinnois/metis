@@ -230,8 +230,13 @@ describe('the on-court tables', () => {
       expect(rows.map((r) => [r.column_name, r.data_type])).toEqual(columns.map(([n, t]) => [n, t]))
     }
     expect(ON_COURT_BUILDERS.map((b) => b.table)).toEqual([UNIT_GAME, PLAYER_ON_COURT])
-    // In the play step's registry, after the plays they read.
-    expect(PLAY_BUILDERS.slice(-2).map((b) => b.table)).toEqual([UNIT_GAME, PLAYER_ON_COURT])
+    // In the play step's registry, together, after the plays they read.
+    const at = PLAY_BUILDERS.findIndex((b) => b.table === UNIT_GAME)
+    expect(PLAY_BUILDERS.slice(at, at + 2).map((b) => b.table)).toEqual([
+      UNIT_GAME,
+      PLAYER_ON_COURT
+    ])
+    expect(at).toBeGreaterThan(PLAY_BUILDERS.findIndex((b) => b.table === 'play_nba'))
   })
 
   it('credits a free throw after a substitution to the five on the floor at the foul', async () => {

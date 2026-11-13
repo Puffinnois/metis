@@ -20,6 +20,7 @@ export type TeamTab =
   | 'offense'
   | 'defense'
   | 'shots'
+  | 'plays'
   | 'players'
   | 'lineups'
   | 'splits'
@@ -31,6 +32,7 @@ export const TEAM_DASH_TABS: { id: TeamTab; label: string }[] = [
   { id: 'offense', label: 'Offense' },
   { id: 'defense', label: 'Defense' },
   { id: 'shots', label: 'Shots' },
+  { id: 'plays', label: 'Play by play' },
   { id: 'players', label: 'Players' },
   { id: 'lineups', label: 'Lineups' },
   { id: 'splits', label: 'Splits' },
@@ -46,9 +48,62 @@ export const RATINGS_SECTION: SectionDef = {
 }
 
 export const TEAM_SECTIONS: Record<
-  'offense' | 'defense' | 'shots_offense' | 'shots_defense',
+  'offense' | 'defense' | 'shots_offense' | 'shots_defense' | 'plays',
   SectionDef[]
 > = {
+  // Plan T905: counted from the NBA's play by play, 1996-97 on.
+  plays: [
+    {
+      title: 'Game flow',
+      note: 'Averages a game',
+      metrics: [
+        'team_pbp_lead_changes',
+        'team_pbp_largest_lead',
+        'opp_pbp_largest_lead',
+        'team_pbp_lead_share',
+        'team_pbp_best_run',
+        'opp_pbp_best_run',
+        'team_pbp_drought',
+        'team_pbp_drought_fg'
+      ]
+    },
+    {
+      title: 'Turnovers',
+      note: 'Team turnovers: no player charged',
+      metrics: [
+        'team_pbp_tov_bad_pass',
+        'team_pbp_tov_lost_ball',
+        'team_pbp_tov_off_foul',
+        'team_pbp_tov_travel',
+        'team_pbp_tov_shot_clock',
+        'team_pbp_tov_team',
+        'team_pbp_tov_live_share',
+        'opp_pbp_tov_live'
+      ]
+    },
+    {
+      title: 'Fouls',
+      metrics: [
+        'team_pbp_pf_shooting',
+        'team_pbp_pf_personal',
+        'team_pbp_pf_offensive',
+        'team_pbp_tech',
+        'team_pbp_flagrant',
+        'opp_pbp_pf_shooting'
+      ]
+    },
+    {
+      title: 'Scoring',
+      metrics: [
+        'team_pbp_and1',
+        'team_pbp_and1_pct',
+        'opp_pbp_and1',
+        'team_pbp_ast_pts',
+        'team_pbp_ast2_share',
+        'team_pbp_ast3_share'
+      ]
+    }
+  ],
   // Shots by zone, band and type: the team's own, and those taken against it.
   shots_offense: [
     {

@@ -1,6 +1,7 @@
 import type { LineupGroup } from '@shared/stats/lineups'
 import type {
   GameType,
+  StatsAssistRequest,
   StatsMatchupScope,
   StatsOnCourtScope,
   StatsQuery,
@@ -113,6 +114,8 @@ export type StatsRequest =
   | { id: number; kind: 'availability'; players: string[] }
   | { id: number; kind: 'coaches'; team: string; season: number }
   | { id: number; kind: 'shots'; request: StatsShotRequest }
+  | { id: number; kind: 'assists'; request: StatsAssistRequest }
+  | { id: number; kind: 'gameFlow'; game: string }
 
 /**
  * The kinds that run at once, each on its own connection, instead of in turn. A pause cannot wait
@@ -141,7 +144,9 @@ export const AT_ONCE_REQUESTS: ReadonlySet<StatsRequest['kind']> = new Set([
   'lineups',
   'availability',
   'coaches',
-  'shots'
+  'shots',
+  'assists',
+  'gameFlow'
 ])
 
 export type StatsReply =
