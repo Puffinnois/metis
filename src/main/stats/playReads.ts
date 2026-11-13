@@ -8,7 +8,8 @@ import {
   type StatsGameFlow
 } from '@shared/stats/types'
 import type { StatsDb } from './db'
-import { elapsedSql, PLAY_TABLES } from './derived/plays'
+import { scoringRowsSql } from './derived/playDetail'
+import { PLAY_TABLES } from './derived/plays'
 import { inspect } from './derived/sql'
 
 /**
@@ -158,15 +159,12 @@ export async function readGameFlow(db: StatsDb, gameId: string): Promise<StatsGa
     home: boolean
     pts: number
     fgm: number
-    home_after: number
-    away_after: number
+    home_score: number
+    away_score: number
   }>(
-    `SELECT ${elapsedSql('period', 'clock')} AS t, period, clock, home, pts, fgm,
-            home_after, away_after
-     FROM ${PLAY_TABLES.nba}
-     WHERE season = ${season} AND game_id = $1 AND pts > 0 AND home IS NOT NULL
-       AND clock IS NOT NULL
-     ORDER BY seq`,
+    `SELECT t, period, clock, home, pts, fgm, home_score, away_score
+     FROM (${scoringRowsSql(`(SELECT * FROM ${PLAY_TABLES.nba} WHERE season = ${season} AND game_id = $1)`)})
+     ORDER BY ord`,
     [gameId]
   )
   const last = await db.get<{ p: number | null }>(
@@ -183,8 +181,8 @@ export async function readGameFlow(db: StatsDb, gameId: string): Promise<StatsGa
     home: Boolean(x.home),
     pts: Number(x.pts),
     fg: Number(x.fgm) === 1,
-    homeScore: Number(x.home_after),
-    awayScore: Number(x.away_after)
+    homeScore: Number(x.home_score),
+    awayScore: Number(x.away_score)
   }))
   return {
     points,

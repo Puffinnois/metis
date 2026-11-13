@@ -17,7 +17,7 @@ import { metric, type Opts } from './define'
  * `docs/reference/nba-data-sources.md`, "Play-derived stats".
  *
  * Fouls drawn come from ESPN's play by play, the only feed naming the fouled player, and only from
- * 2005-06 to 2016-17.
+ * 2006-07 to 2016-17 (2005-06 agrees with the box scores too rarely to show).
  */
 
 const SOURCES = ["The NBA's play by play"]
@@ -302,7 +302,7 @@ const ENTRIES: Entry[] = [
     label: 'Fouls drawn',
     short: 'PFD',
     description:
-      'Personal fouls drawn, from ESPN’s play by play, which names the fouled player from 2005-06 to 2016-17 only.',
+      'Personal fouls drawn, from ESPN’s play by play, which names the fouled player from 2006-07 to 2016-17 only.',
     opts: countOf('fd', {
       sources: ESPN_SOURCES,
       firstSeason: FOULS_DRAWN_FIRST_SEASON,
@@ -313,7 +313,7 @@ const ENTRIES: Entry[] = [
     key: 'fd_shooting',
     label: 'Shooting fouls drawn',
     short: 'S PFD',
-    description: 'Shooting fouls drawn, from ESPN’s play by play, 2005-06 to 2016-17.',
+    description: 'Shooting fouls drawn, from ESPN’s play by play, 2006-07 to 2016-17.',
     opts: countOf('fd_shooting', {
       sources: ESPN_SOURCES,
       firstSeason: FOULS_DRAWN_FIRST_SEASON,

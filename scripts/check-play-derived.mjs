@@ -166,10 +166,12 @@ const flow = await read(`
     SELECT game_id, season, order_index, h, a, h - a AS m FROM raw
     -- Before 2017-18 the feed writes 0-0 on rows that score nothing: a real 0-0 is only the tip.
     WHERE h IS NOT NULL AND a IS NOT NULL AND h + a > 0
-    QUALIFY (h, a) IS DISTINCT FROM lag((h, a)) OVER (PARTITION BY game_id ORDER BY order_index)
+    -- A score only rises: states in order of their total, so a row the feed lists early does not
+    -- step the score back.
+    QUALIFY (h, a) IS DISTINCT FROM lag((h, a)) OVER (PARTITION BY game_id ORDER BY h + a, order_index)
   ), signed AS (
     SELECT game_id, sign(m) AS s,
-           lag(sign(m)) OVER (PARTITION BY game_id ORDER BY order_index) AS before
+           lag(sign(m)) OVER (PARTITION BY game_id ORDER BY h + a, order_index) AS before
     FROM states WHERE m <> 0
   ), recount AS (
     SELECT s.game_id, any_value(s.season) AS season,

@@ -22,7 +22,7 @@ import { column, type Have } from './sql'
  *
  * Read from `play_nba` of the same season (built just before by `PLAY_BUILDERS`), whose flags already
  * hold who acted, assisted and stole. Fouls drawn are the exception: the NBA's feed never names the
- * fouled player, so they come from ESPN's play by play, which does from 2005-06 to 2016-17; ESPN's
+ * fouled player, so they come from ESPN's play by play, which does from 2005-06 to 2016-17 (read from 2006-07); ESPN's
  * rows are counted beside the NBA's, never merged into them.
  *
  * Assisted makes: the same `ast` flag of `play_nba` that the shot tables (Plan T903) read through the
@@ -269,40 +269,62 @@ export function playDetailPlayerSql(have: Have, season: number): string {
 }
 
 /**
+ * The scoring plays of the rows `source` gives (`play_nba` or a part of it), in order, with the score
+ * after each (`home_score`, `away_score`) and the seconds since the tip-off (`t`). The score is the
+ * one the feed writes, except on the few scoring rows it writes as 0-0 (up to 16 a season before
+ * 2017-18, measured): there it is the last written score plus the play's points. `ord` is the order:
+ * by the total score, then by row, since a score only rises and the feed lists a few rows out of
+ * order (an and-one's free throw before its basket would read 76-75, then 75-75, a tie that never
+ * was). Shared by the builder and the game-flow read, so the chart and the tables agree.
+ */
+export function scoringRowsSql(source: string): string {
+  const written = 'home_after + away_after > 0'
+  const before = (c: string): string =>
+    `coalesce(last_value(CASE WHEN ${written} THEN ${c} END IGNORE NULLS) OVER (
+       PARTITION BY game_id ORDER BY seq ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING), 0)`
+  return `SELECT *, row_number() OVER (
+             PARTITION BY game_id ORDER BY home_score + away_score, seq) AS ord FROM (
+    SELECT game_id, seq, period, clock, home, pts, fgm, ${elapsedSql('period', 'clock')} AS t,
+         CASE WHEN ${written} THEN home_after
+              ELSE ${before('home_after')} + CASE WHEN home THEN pts ELSE 0 END END AS home_score,
+         CASE WHEN ${written} THEN away_after
+              ELSE ${before('away_after')} + CASE WHEN home THEN 0 ELSE pts END END AS away_score
+    FROM ${source} WHERE pts > 0 AND home IS NOT NULL AND clock IS NOT NULL)`
+}
+
+/**
  * The flow of each game from its scoring plays, by the rules of `flowSummary` in
  * `src/shared/stats/playDetail.ts`, as one row per side (`home`).
  */
 function flowCte(): string {
-  const t = elapsedSql('period', 'clock')
   return `scoring AS (
-    SELECT game_id, seq, home, pts, fgm, home_after - away_after AS m, ${t} AS t
-    FROM p WHERE pts > 0 AND home IS NOT NULL AND clock IS NOT NULL
+    SELECT *, home_score - away_score AS m FROM (${scoringRowsSql('p')})
   ), ends AS (
     SELECT game_id, ${elapsedSql('max(period)', '0')} AS len FROM p WHERE period IS NOT NULL GROUP BY 1
   ), marked AS (
     SELECT s.*, e.len,
            last_value(nullif(sign(m), 0) IGNORE NULLS) OVER (
-             PARTITION BY s.game_id ORDER BY seq ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS last_leader,
-           greatest(0, coalesce(lead(t) OVER (PARTITION BY s.game_id ORDER BY seq), e.len) - t) AS span,
-           CASE WHEN home IS DISTINCT FROM lag(home) OVER (PARTITION BY s.game_id ORDER BY seq)
+             PARTITION BY s.game_id ORDER BY ord ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS last_leader,
+           greatest(0, coalesce(lead(t) OVER (PARTITION BY s.game_id ORDER BY ord), e.len) - t) AS span,
+           CASE WHEN home IS DISTINCT FROM lag(home) OVER (PARTITION BY s.game_id ORDER BY ord)
                 THEN 1 ELSE 0 END AS new_run
     FROM scoring s JOIN ends e USING (game_id)
   ), runs AS (
     SELECT game_id, home, sum(pts) AS run
-    FROM (SELECT *, sum(new_run) OVER (PARTITION BY game_id ORDER BY seq) AS run_id FROM marked)
+    FROM (SELECT *, sum(new_run) OVER (PARTITION BY game_id ORDER BY ord) AS run_id FROM marked)
     GROUP BY game_id, run_id, home
   ), gaps AS (
     SELECT game_id, home, max(greatest(gap, CASE WHEN final THEN len - t ELSE 0 END)) AS drought
     FROM (SELECT game_id, home, t, len,
-                 t - coalesce(lag(t) OVER (PARTITION BY game_id, home ORDER BY seq), 0) AS gap,
-                 row_number() OVER (PARTITION BY game_id, home ORDER BY seq DESC) = 1 AS final
+                 t - coalesce(lag(t) OVER (PARTITION BY game_id, home ORDER BY ord), 0) AS gap,
+                 row_number() OVER (PARTITION BY game_id, home ORDER BY ord DESC) = 1 AS final
           FROM marked)
     GROUP BY 1, 2
   ), fg_gaps AS (
     SELECT game_id, home, max(greatest(gap, CASE WHEN final THEN len - t ELSE 0 END)) AS drought
     FROM (SELECT game_id, home, t, len,
-                 t - coalesce(lag(t) OVER (PARTITION BY game_id, home ORDER BY seq), 0) AS gap,
-                 row_number() OVER (PARTITION BY game_id, home ORDER BY seq DESC) = 1 AS final
+                 t - coalesce(lag(t) OVER (PARTITION BY game_id, home ORDER BY ord), 0) AS gap,
+                 row_number() OVER (PARTITION BY game_id, home ORDER BY ord DESC) = 1 AS final
           FROM marked WHERE fgm = 1)
     GROUP BY 1, 2
   ), games AS (

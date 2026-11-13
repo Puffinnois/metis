@@ -396,6 +396,28 @@ describe('the play-derived tables', () => {
     })
   })
 
+  it('repairs a scoring row the feed writes as 0-0: the last written score and its points', async () => {
+    const before = await db.all(`SELECT * FROM ${PLAY_DETAIL_TEAM_GAME} ORDER BY team_id`)
+    // The Lakers’ free throw at 6-3, written as 0-0 as the old feed does.
+    await db.exec(`UPDATE ${PLAY_TABLES.nba} SET home_after = 0, away_after = 0
+                   WHERE kind = 'free_throw' AND pts = 1 AND team_id = ${LAL}`)
+    await build()
+    expect(await db.all(`SELECT * FROM ${PLAY_DETAIL_TEAM_GAME} ORDER BY team_id`)).toEqual(before)
+    const flow = await readGameFlow(db, 'a')
+    expect(flow.points[4]).toMatchObject({ homeScore: 6, awayScore: 3 })
+  })
+
+  it('puts back in order an and-one’s free throw the feed lists before its basket', async () => {
+    const before = await db.all(`SELECT * FROM ${PLAY_DETAIL_TEAM_GAME} ORDER BY team_id`)
+    // Ana's basket (5-2) is row 4 and her free throw (6-2) row 6: listed the other way round.
+    await db.exec(`UPDATE ${PLAY_TABLES.nba} SET seq = CASE seq WHEN 4 THEN 6 ELSE 4 END
+                   WHERE seq IN (4, 6)`)
+    await build()
+    expect(await db.all(`SELECT * FROM ${PLAY_DETAIL_TEAM_GAME} ORDER BY team_id`)).toEqual(before)
+    const flow = await readGameFlow(db, 'a')
+    expect(flow.points.slice(2, 4).map((p) => p.homeScore)).toEqual([5, 6])
+  })
+
   it('builds with no plays, no ESPN file and an ESPN file missing a column', async () => {
     await db.exec(`DELETE FROM ${PLAY_TABLES.nba}`)
     await build()

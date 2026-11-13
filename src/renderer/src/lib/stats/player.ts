@@ -73,7 +73,7 @@ export const TAB_SECTIONS: Record<
     },
     {
       title: 'Fouls',
-      note: 'Fouls drawn: ESPN’s play by play, 2006-07 to 2009-10',
+      note: 'Fouls drawn: ESPN’s play by play, 2006-07 to 2016-17',
       metrics: [
         'pbp_pf_shooting',
         'pbp_pf_personal',

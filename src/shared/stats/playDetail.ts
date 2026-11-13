@@ -6,14 +6,18 @@
  * "Play-derived stats".
  *
  * The NBA's play by play is the source (its `sub_type`, kept in `play_nba.subtype`), except fouls
- * drawn: the NBA's feed never names the fouled player, ESPN's does from 2005-06 to 2016-17.
+ * drawn: the NBA's feed never names the fouled player, ESPN's does from 2005-06 to 2016-17, read from 2006-07.
  */
 
 /** The NBA's play by play starts here, 1996-97. */
 export const PLAY_DETAIL_FIRST_SEASON = 1997
 
-/** ESPN names the player who drew a foul in these seasons only (`athlete_id_2`, measured). */
-export const FOULS_DRAWN_FIRST_SEASON = 2006
+/**
+ * ESPN names the player who drew a foul from 2005-06 to 2016-17 (`athlete_id_2`, measured). Its fouls
+ * drawn equal the other side's box-score fouls on 93.7 to 97.7 % of team-games from 2006-07 (90.5 %
+ * in 2012-13, when ESPN's file misses plays), but on 83.4 % in 2005-06: coverage starts in 2006-07.
+ */
+export const FOULS_DRAWN_FIRST_SEASON = 2007
 export const FOULS_DRAWN_LAST_SEASON = 2017
 
 export interface PlayKind {
