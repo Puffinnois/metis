@@ -236,7 +236,7 @@ const all = (calls) => Promise.all(calls).then((r) => ({ total: r.length }))
 const splitsTab = (entity, id, metrics, splits) => (w) => {
   const base = { seasons: [season], ...(entity === 'player' ? { players: [id] } : { teams: [id] }) }
   const q = (scope, extra = {}) =>
-    w.query({ entity, metrics, scope, limit: 40, transform: 'perGame', ...extra })
+    w.query({ entity, metrics, scope, limit: 40, transform: 'perGame', ranks: false, ...extra })
   return all([
     q(base),
     ...GAME_SPLITS.map((p) => q({ ...base, ...p }, { limit: 1 })),
@@ -339,7 +339,9 @@ if (plays) {
     GAME = g?.game_id ?? ''
     await w.close()
   }
-  for (const [label, c] of PLAY_CASES) {
+  // --only=<text> times the cases whose label holds it.
+  const only = process.argv.find((a) => a.startsWith('--only='))?.slice(7)
+  for (const [label, c] of PLAY_CASES.filter(([l]) => !only || l.includes(only))) {
     const run = (w) => (typeof c === 'function' ? c(w) : w.query(c))
     const w = openStatsWorker(folder)
     await w.read('SELECT 1')

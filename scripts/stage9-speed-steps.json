@@ -46,6 +46,12 @@
     "eval": "timed('Player: With or without, another teammate', () => { const el = [...document.querySelectorAll('select')].find((x) => x.title === 'Teammate'); const v = [...el.options].map((o) => o.value).filter((v) => v && v !== el.value)[0]; pick('Teammate', v)() }, table('With or without'))"
   },
   { "wait": 300 },
+  { "eval": "timed('Player: Splits tab, again', tab('Splits'), table('Clutch'))" },
+  { "wait": 300 },
+  { "eval": "timed('Player: Overview', tab('Overview'), () => has('[data-metric=pts]'))" },
+  { "wait": 300 },
+  { "eval": "timed('Player: Splits tab, a third time', tab('Splits'), table('Clutch'))" },
+  { "wait": 300 },
   {
     "eval": "(async () => { nav('Teams')(); await sleep(3000); pick('Team', '1610612738')(); await sleep(3000); return 'Boston' })()"
   },
@@ -60,6 +66,10 @@
   },
   { "wait": 300 },
   { "eval": "timed('Team: On/off tab', tab('On/off'), table('On and off'))" },
+  { "wait": 300 },
+  { "eval": "timed('Team: Splits tab, again', tab('Splits'), table('Clutch'))" },
+  { "wait": 300 },
+  { "eval": "timed('Team: On/off tab, again', tab('On/off'), table('On and off'))" },
   { "wait": 300 },
   { "eval": "(async () => { tab('Lineups')(); await sleep(2500); return 'lineups' })()" },
   {
