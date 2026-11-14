@@ -283,19 +283,23 @@ Inside the worker on a copy of the full database, warm, median of five (`scripts
 
 ### Elo (Plan T1002)
 
-Inside the worker on a copy of the full database, warm, median of five (`scripts/check-elo.mjs`): the Standings' four columns for a season 18 ms; the Ratings preset (12 metrics) over a season 41 ms, over a date range 36 ms, over the regular season and playoffs 38 ms; the preset by season over the 32 seasons read 168 ms; Elo by game for one team 13 ms; a game page's two rows 2 ms. `scripts/stage10-elo-steps.json` drives the Standings, the team Overview, the Ratings preset and the game page on the built app.
+Inside the worker on a copy of the full database, warm, median of five (`scripts/check-elo.mjs`): the Standings' four columns for a season 18 ms; the Ratings preset (12 metrics) over a season 41 ms, over a date range 36 ms, over the regular season and playoffs 38 ms; the preset by season over the 32 seasons read 168 ms; Elo by game for one team 13 ms; a game page's two rows 2 ms. The elo part of `scripts/stage10-steps.json` drives the Standings, the team Overview, the Ratings preset and the game page on the built app.
 
 ### Season forecast (Plan T1003)
 
-Inside the worker on a copy of the full database, warm, median of five (`scripts/check-forecast.mjs`): the Standings' forecast columns for the season in progress 14 ms and for 2015-16 12 ms; the Overview's trend by game 9 ms; the forecast metrics by season over 1995-96 to now 35 ms. `scripts/stage10-simulation-steps.json` drives the Standings (2026-27 and 2015-16) and the team Overview (2026-27, 2015-16, a date range, the playoffs) on the built app.
+Inside the worker on a copy of the full database, warm, median of five (`scripts/check-forecast.mjs`): the Standings' forecast columns for the season in progress 14 ms and for 2015-16 12 ms; the Overview's trend by game 9 ms; the forecast metrics by season over 1995-96 to now 35 ms. The simulation part of `scripts/stage10-steps.json` drives the Standings (2026-27 and 2015-16) and the team Overview (2026-27, 2015-16, a date range, the playoffs) on the built app.
 
 ### Adjusted ratings (Plan T1004)
 
-Inside the worker on a copy of the full database, warm, median of five (`scripts/check-adjusted.mjs`): the Ratings preset with the adjusted ratings over a season 40 ms and over a date range 33 ms; by season over all 34 seasons 165 ms; the team Overview's two sections (15 metrics) 47 ms; one team's adjusted ratings by game over a season 21 ms. `scripts/stage10-adjusted-steps.json` drives the Overview, the board and the Glossary on the built app.
+Inside the worker on a copy of the full database, warm, median of five (`scripts/check-adjusted.mjs`): the Ratings preset with the adjusted ratings over a season 40 ms and over a date range 33 ms; by season over all 34 seasons 165 ms; the team Overview's two sections (15 metrics) 47 ms; one team's adjusted ratings by game over a season 21 ms. The adjusted part of `scripts/stage10-steps.json` drives the Overview, the board and the Glossary on the built app.
 
 ### Stability, shrinkage and indexes (Plan T1006)
 
-Inside the worker on a copy of the full database (`scripts/check-stability.mjs`): the catalogue with every metric's stability 14 ms the first time and 12 after (the stability is read once and kept until a refresh ends); a 2025-26 board of TS+, eFG+, FT%+ and 3P%+ 76 ms; a shrunk board of five rates 83 ms, and over January 2016 31 ms; TS+ by season over every season for one player 47 ms; the team indexes, both sides, 24 ms. `scripts/stage10-stability-steps.json` drives the marks, the cards, TS+, the shrunk toggle and the Glossary on the built app.
+Inside the worker on a copy of the full database (`scripts/check-stability.mjs`): the catalogue with every metric's stability 14 ms the first time and 12 after (the stability is read once and kept until a refresh ends); a 2025-26 board of TS+, eFG+, FT%+ and 3P%+ 76 ms; a shrunk board of five rates 83 ms, and over January 2016 31 ms; TS+ by season over every season for one player 47 ms; the team indexes, both sides, 24 ms. The stability part of `scripts/stage10-steps.json` drives the marks, the cards, TS+, the shrunk toggle and the Glossary on the built app.
+
+### Stage 10 clicks (gate)
+
+Click to screen in the window on the Stage 10 gate's database, a quiet machine (the speed part of `scripts/stage10-steps.json`): the Standings of 2026-27 with strength, Elo and the forecast 67 ms, 2015-16's 48; the team Overview 243; the team board 136, its Ratings preset 135, Shrunk rates on and off 153 and 133; the player board's Box-score ratings preset 263, League indexes 375, Shrunk rates on 453 and off 373 (each a new query of the board's sixteen columns, as raw: the shrinking itself adds nothing); the Games screen to its first game's Elo 312; the Glossary 164 and most stable first 77. The Glossary drew every card on its first open, 490 to 513 ms with stability on each; its cards now lay out only when scrolled to (`content-visibility: auto`), 154 to 231 ms.
 
 ### Play level (Plan T907)
 

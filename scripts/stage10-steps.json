@@ -558,6 +558,9 @@
     "eval": "(async () => {\n      await until(() => document.querySelector('th[data-metric-head=\"ts_pct\"]'))\n      const m = await marks(document.querySelector('thead'))\n      return [check('LEADERBOARD every metric head carries the mark the catalogue says', [m.heads === m.withMark, m.wrong], [true, []]), 'heads with a mark: ' + m.withMark + ' · ' + [...document.querySelectorAll('thead [data-stability]')].map((x) => x.dataset.stability).join(' ')].join('\\n')\n    })()"
   },
   {
+    "eval": "(async () => into(\"th[data-metric-head=\\\"ts_pct\\\"]\"))()"
+  },
+  {
     "hover": "th[data-metric-head=\"ts_pct\"]"
   },
   {
@@ -736,6 +739,114 @@
   },
   {
     "shot": "stability-09-glossary-indexes"
+  },
+  {
+    "eval": "'ERRORS ON SCREEN ' + JSON.stringify([...document.querySelectorAll('.text-bad')].map((e) => e.textContent).slice(0, 5))"
+  },
+  {
+    "eval": "location.reload(); 'reload for speed'"
+  },
+  {
+    "size": [1500, 950]
+  },
+  {
+    "wait": 4000
+  },
+  {
+    "eval": "window.sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nwindow.has = (s) => document.querySelector(s) !== null;\nwindow.byText = (sel, text) => [...document.querySelectorAll(sel)].find((x) => x.textContent.trim() === text);\nwindow.setInput = (input, value) => { const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(input, value); input.dispatchEvent(new Event('input', { bubbles: true })); input.dispatchEvent(new Event('change', { bubbles: true })) };\nwindow.pick = (title, value) => () => { const el = [...document.querySelectorAll('select')].find((x) => x.title === title); if (!el) throw new Error('NO SELECT ' + title); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(el, String(value)); el.dispatchEvent(new Event('change', { bubbles: true })) };\nwindow.press = (text, sel = 'button,[role=tab],[role=radio]') => () => { const b = byText(sel, text); if (!b) throw new Error('NO BUTTON ' + text); b.click() };\nwindow.nav = (name) => press(name, 'nav button');\nwindow.tab = (name) => press(name, '[role=tab]');\nwindow.radio = (group, label) => () => { const b = [...document.querySelectorAll('[role=radiogroup][aria-label=\"' + group + '\"] [role=radio]')].find((x) => x.textContent.trim() === label); if (!b) throw new Error('NO RADIO ' + label); b.click() };\nwindow.table = (label) => () => { const t = document.querySelector('[role=table][aria-label=\"' + label + '\"]'); return t !== null && t.querySelectorAll('[role=row]').length > 1 };\nwindow.openPlayer = async (name) => { const input = document.querySelector('input[aria-label=\"Search players\"]'); setInput(input, name); for (let i = 0; i < 60 && ![...document.querySelectorAll('aside button')].some((x) => x.textContent.includes(name)); i++) await sleep(100); [...document.querySelectorAll('aside button')].find((x) => x.textContent.includes(name)).click(); await sleep(2500); return 'opened ' + name };\n// From the click to the last change the screen makes for it: the time of the last DOM mutation before the screen has been still for 600 ms, with `ready` true, plus the frame that paints it.\nwindow.timed = async (label, click, ready = () => true) => { let last = 0; const obs = new MutationObserver(() => { last = performance.now() }); obs.observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true }); const t0 = performance.now(); try { click() } catch (e) { obs.disconnect(); return label + ': ' + e.message } while (true) { await sleep(20); const now = performance.now(); if (now > t0 + 20000) { obs.disconnect(); return label + ': TIMED OUT' } if (last > 0 && ready() && now - last > 600) break } obs.disconnect(); await new Promise((r) => requestAnimationFrame(() => setTimeout(r))); return label + ': ' + Math.round(last - t0 + 16) + ' ms' };\n'ready'"
+  },
+  {
+    "eval": "window.pressEnds = (text) => () => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim().endsWith(text)); if (!b) throw new Error('NO BUTTON ' + text); b.click() }; 'pressEnds'"
+  },
+  {
+    "eval": "timed(\"Standings, 2026-27: strength, Elo and the forecast\", nav('Standings'), () => has('[role=table] [data-metric-head=\"team_playoff_pct\"]'))"
+  },
+  {
+    "wait": 300
+  },
+  {
+    "eval": "timed(\"Standings, 2015-16\", pick('Season', 2016), () => has('[role=table] [data-metric-head=\"team_elo\"]') && !has('[role=table] [data-metric-head=\"team_playoff_pct\"]'))"
+  },
+  {
+    "wait": 300
+  },
+  {
+    "eval": "(async () => { pick('Season', 2026)(); await sleep(2000); return 'season 2025-26' })()"
+  },
+  {
+    "eval": "timed(\"Teams, the Overview\", nav('Teams'), () => has('[data-metric=team_srs]'))"
+  },
+  {
+    "wait": 300
+  },
+  {
+    "eval": "timed(\"Team leaderboard\", press('Team leaderboards →'), () => has('tbody tr'))"
+  },
+  {
+    "wait": 300
+  },
+  {
+    "eval": "timed(\"Team board, the Ratings preset\", pick('Metric family', 'ratings'), () => has('th[data-metric-head=\"team_elo\"]') && has('tbody tr'))"
+  },
+  {
+    "wait": 300
+  },
+  {
+    "eval": "timed(\"Team board, Shrunk rates on\", pressEnds('Shrunk rates'), () => has('[data-shrunk]'))"
+  },
+  {
+    "wait": 300
+  },
+  {
+    "eval": "timed(\"Team board, Shrunk rates off\", pressEnds('Shrunk rates'), () => !has('[data-shrunk]'))"
+  },
+  {
+    "wait": 300
+  },
+  {
+    "eval": "(async () => { nav('Leaderboards')(); await sleep(2500); press('All →')(); await sleep(3000); return 'player board' })()"
+  },
+  {
+    "eval": "timed(\"Player board, the Box-score ratings preset\", pick('Metric family', 'box_composites'), () => has('th[data-metric-head=\"per\"]') && has('tbody tr'))"
+  },
+  {
+    "wait": 300
+  },
+  {
+    "eval": "timed(\"Player board, the League indexes preset\", pick('Metric family', 'indexes'), () => has('th[data-metric-head=\"ts_pct_plus\"]') && has('tbody tr'))"
+  },
+  {
+    "wait": 300
+  },
+  {
+    "eval": "timed(\"Player board, Shrunk rates on\", pressEnds('Shrunk rates'), () => has('[data-shrunk]'))"
+  },
+  {
+    "wait": 300
+  },
+  {
+    "eval": "timed(\"Player board, Shrunk rates off\", pressEnds('Shrunk rates'), () => !has('[data-shrunk]'))"
+  },
+  {
+    "wait": 300
+  },
+  {
+    "eval": "timed(\"Games: the latest day's first game, with its Elo\", nav('Games'), () => has('section[aria-label=\"Elo\"]'))"
+  },
+  {
+    "wait": 300
+  },
+  {
+    "eval": "timed(\"Glossary\", nav('Glossary'), () => has('[data-testid=stability-lines]'))"
+  },
+  {
+    "wait": 300
+  },
+  {
+    "eval": "timed(\"Glossary, most stable first\", pick('Order', 'stability'), () => has('article'))"
+  },
+  {
+    "wait": 300
   },
   {
     "eval": "'ERRORS ON SCREEN ' + JSON.stringify([...document.querySelectorAll('.text-bad')].map((e) => e.textContent).slice(0, 5))"

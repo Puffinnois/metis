@@ -115,7 +115,9 @@ export function StatsGlossary({ catalogue }: { catalogue: MetricInfo[] }): React
         {shown.map((m) => (
           <article
             key={m.id}
-            className="rounded-[10px] bg-panel p-3.5 shadow-[0_0_0_1px_var(--line)]"
+            // Over 800 cards: the ones off screen are laid out and painted only when scrolled to,
+            // which took the first open from 500 ms to under it (Stage 10 gate).
+            className="rounded-[10px] bg-panel p-3.5 shadow-[0_0_0_1px_var(--line)] [contain-intrinsic-size:auto_300px] [content-visibility:auto]"
           >
             <MetricCardBody info={m} className="w-full" />
           </article>
