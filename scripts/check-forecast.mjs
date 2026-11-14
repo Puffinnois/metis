@@ -50,7 +50,7 @@ const [sd] = await read(
   `SELECT stddev_samp((g.home_score - g.away_score) - e.exp_margin) AS sd, count(*) AS n,
           avg((g.home_score - g.away_score) - e.exp_margin) AS bias
    FROM elo_game e JOIN game g USING (game_id)
-   WHERE e.home AND e.played AND e.game_type = 'regular' AND e.season BETWEEN 1996 AND ${current - 1}`
+   WHERE e.home AND e.game_type = 'regular' AND e.season BETWEEN 1996 AND ${current - 1}`
 )
 say(
   '## The margin around the Elo spread',

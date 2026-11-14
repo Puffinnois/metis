@@ -49,8 +49,10 @@ describe('the models step', () => {
 
   it('computes every season played on a database never built', async () => {
     expect(await modelsDue(db)).toBe(true)
-    // Every builder: T1001's, T1005's and T1002's.
+    // Every builder: T1001's, T1005's, T1002's and T1003's, which writes nothing for a league of
+    // three teams: it cannot fill a bracket.
     expect(await planModels(db)).toMatchObject([
+      { all: true, seasons: [2025, 2026] },
       { all: true, seasons: [2025, 2026] },
       { all: true, seasons: [2025, 2026] },
       { all: true, seasons: [2025, 2026] }

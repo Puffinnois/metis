@@ -234,3 +234,43 @@ describe('a sum read from a model table', () => {
     expect(value(day, BOS, 'test_points')).toBe(10)
   })
 })
+
+describe('the season forecast (Plan T1003)', () => {
+  // Snapshots sit on a team's last game on or before their day: Boston has two, the Lakers one, Miami none.
+  beforeEach(async () => {
+    await db.exec(`INSERT INTO team_forecast (season, game_type, team_id, game_id, game_date, as_of,
+        runs, games_in, model_version, proj_w, proj_l, p_playoffs, p_title, mean_seed) VALUES
+      (2026, 'regular', ${BOS}, 'a', DATE '2025-11-01', DATE '2025-11-01', 10000, 1, 1, 50, 32, 0.6, 0.05, 5),
+      (2026, 'regular', ${BOS}, 'c', DATE '2025-11-03', DATE '2025-11-04', 10000, 3, 1, 48, 34, 0.7, 0.04, 4.5),
+      (2026, 'regular', ${LAL}, 'b', DATE '2025-11-02', DATE '2025-11-02', 10000, 2, 1, 30, 52, 0.1, 0, 12)`)
+  })
+  const forecast = ['team_proj_w', 'team_playoff_pct', 'team_title_pct', 'team_mean_seed']
+
+  it('reads a whole season as the latest snapshot, and nothing for a team with none', async () => {
+    const r = await team({ scope: { seasons: [2026], gameTypes: ['regular'] } }, forecast)
+    expect(value(r, BOS, 'team_playoff_pct')).toBeCloseTo(0.7, 12)
+    expect(value(r, BOS, 'team_proj_w')).toBe(48)
+    expect(value(r, LAL, 'team_mean_seed')).toBe(12)
+    expect(value(r, MIA, 'team_playoff_pct')).toBeNull()
+  })
+
+  it('reads a date range as the forecast made by its last game', async () => {
+    const r = await team(
+      { scope: { seasons: [2026], gameTypes: ['regular'], dates: ['2025-11-01', '2025-11-02'] } },
+      forecast
+    )
+    expect(value(r, BOS, 'team_playoff_pct')).toBeCloseTo(0.6, 12)
+  })
+
+  it('reads null with its reason in the playoffs, and before 1995-96 or the play-in', async () => {
+    // The Lakers played the one playoff game.
+    const r = await team({ scope: { seasons: [2026], gameTypes: ['playoffs'] } }, forecast)
+    expect(value(r, LAL, 'team_playoff_pct')).toBeNull()
+    expect(r.columns[forecast.indexOf('team_playoff_pct')].reason).toBe(
+      'Forecast in the regular season, as of its games.'
+    )
+    expect(METRICS.get('team_playoff_pct')!.firstSeason).toBe(1996)
+    expect(METRICS.get('team_play_in_pct')!.firstSeason).toBe(2020)
+    expect(METRICS.get('team_top6_pct')!.firstSeason).toBe(2021)
+  })
+})

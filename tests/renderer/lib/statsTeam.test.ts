@@ -8,6 +8,9 @@ import {
   HISTORY_METRICS,
   historyQuery,
   historyRows,
+  forecastTrend,
+  forecastTrendNote,
+  forecastTrendQuery,
   marginSeries,
   nextGame,
   noGamesNote,
@@ -304,6 +307,31 @@ describe('a team’s games', () => {
       ['next', '', null]
     ])
     expect(scheduleRows(of('A'), '2026-02-01').find((r) => r.key === 'po')?.type).toBe('Playoffs')
+  })
+
+  it('charts the playoff odds after each game holding a forecast, in date order', () => {
+    expect(forecastTrendQuery('A', SCOPE)).toMatchObject({
+      metrics: ['team_playoff_pct', 'team_forecast_runs'],
+      groupBy: ['game'],
+      scope: { seasons: [2026], gameTypes: ['regular'], teams: ['A'] }
+    })
+    expect(forecastTrendQuery('A', { ...SCOPE, season: 1995 })).toBeNull()
+    expect(forecastTrendQuery('A', { ...SCOPE, seasonType: 'playoffs' })).toBeNull()
+    const r = result([
+      row('A', { team_playoff_pct: 0.62, team_forecast_runs: 10000 }, { group: { game: 'g2' } }),
+      row('A', { team_playoff_pct: 0.5, team_forecast_runs: 10000 }, { group: { game: 'g1' } }),
+      row('A', { team_playoff_pct: null, team_forecast_runs: null }, { group: { game: 'off' } })
+    ])
+    const trend = forecastTrend(r, gamesInScope(of('A'), SCOPE))!
+    expect(trend.series.points.map((p) => [p.label, p.value])).toEqual([
+      ['Jan 1', 50],
+      ['Jan 3', 62]
+    ])
+    expect(trend.runs).toBe(10000)
+    expect(forecastTrendNote(trend.runs)).toBe(
+      'A model’s odds, computed by Metis from Elo · 10,000 runs'
+    )
+    expect(forecastTrend(result([]), of('A'))).toBeNull()
   })
 
   it('charts the margin of each game played', () => {

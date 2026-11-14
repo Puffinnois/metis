@@ -38,6 +38,9 @@ import {
   HISTORY_METRICS,
   historyQuery,
   historyRows,
+  forecastTrend,
+  forecastTrendNote,
+  forecastTrendQuery,
   marginSeries,
   nextGame,
   noGamesNote,
@@ -414,6 +417,11 @@ function Overview({
     ? sectionViews([RATINGS_SECTION, STRENGTH_SECTION], ratings.result, team, data.byId, mode, null)
     : null
   const rows = scorerRows(scorers.result, data.byId)
+  const tq = useMemo(
+    () => (anyPlayed ? forecastTrendQuery(team, scope) : null),
+    [anyPlayed, team, scope]
+  )
+  const trend = forecastTrend(useStatsQuery(tq, data.version, FRESH).result, inScope)
   return (
     <div className="flex flex-col gap-7">
       {anyPlayed && (
@@ -476,6 +484,17 @@ function Overview({
                 label={`${name} margin by game`}
               />
             </section>
+            {trend && (
+              <section className="flex flex-col gap-2.5">
+                <SectionHead title="Playoff odds" note={forecastTrendNote(trend.runs)} />
+                <GameChart
+                  series={trend.series}
+                  format={(x) => `${Math.round(x)}%`}
+                  height={150}
+                  label={`${name} playoff odds by game`}
+                />
+              </section>
+            )}
           </div>
         </div>
       )}
