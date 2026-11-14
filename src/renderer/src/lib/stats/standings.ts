@@ -123,7 +123,7 @@ function row(s: StatsStanding, by: StandingsView, strength: StrengthCells | null
       pythW === null ? '—' : pythW.toFixed(1),
       fmtSigned(srs, 2),
       fmtSigned(sos, 2),
-      elo === null ? '—' : elo.toFixed(0)
+      fmtStat(elo, { unit: 'number', decimals: 0 })
     ]
   }
 }

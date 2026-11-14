@@ -278,6 +278,47 @@ const recountNeutral = games.filter((g) => g.neutral).length
 say(`Neutral games in the table: ${tableNeutral[0].n}; in the recount: ${recountNeutral}.`, '')
 if (Number(tableNeutral[0].n) !== recountNeutral) problems.push('Neutral games differ')
 
+// ---- 3b. Franchises that moved or entered.
+say('### Franchises that moved or entered', '')
+const moves = [
+  // [season, code, the code it continues (null: a new franchise at 1300)]
+  [1996, 'TOR', null],
+  [1996, 'VAN', null],
+  [2002, 'MEM', 'VAN'],
+  [2003, 'NOH', 'CHH'],
+  [2005, 'CHA', null],
+  [2009, 'OKC', 'SEA'],
+  [2013, 'BKN', 'NJN']
+]
+const ids = await read('SELECT season, code, team_id::VARCHAR AS team FROM team')
+const idOf = (season, code) => ids.find((r) => r.season === season && r.code === code)?.team
+const moveRows = []
+for (const [season, code, from] of moves) {
+  const team = idOf(season, code)
+  const first = (
+    await read(`SELECT elo_pre FROM elo_game WHERE season = ${season} AND team_id = ${team}
+      ORDER BY game_date, game_id LIMIT 1`)
+  )[0]?.elo_pre
+  const prior = from ? mine.finals.get(season - 1).ratings.get(idOf(season - 1, from)) : null
+  const want = from ? RULES.mean + (prior - RULES.mean) * RULES.carry : RULES.entry
+  if (Math.abs(first - want) > 1e-6)
+    problems.push(`${label(season)} ${code}: starts at ${first}, not ${want}`)
+  moveRows.push([
+    label(season),
+    code,
+    team === idOf(season - 1, from ?? code) ? 'same' : 'new',
+    from ? `${from} ${f(prior, 1)}` : 'none',
+    f(first, 1)
+  ])
+}
+say(
+  ...table(
+    ['Season', 'Team', 'Id against the season before', 'Carried from', 'First rating'],
+    moveRows
+  ),
+  ''
+)
+
 // ---- 4. Burn-in.
 say('## 4. Burn-in', '')
 let seed = 7

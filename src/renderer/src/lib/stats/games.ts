@@ -218,11 +218,12 @@ export function eloView(game: StatsGame, detail: StatsGameDetail | null): EloVie
   }
   const elo = detail?.elo
   if (!elo) return null
-  const pct = (p: number): string => `${(100 * p).toFixed(0)} %`
+  const pct = (p: number): string => `${(100 * p).toFixed(0)}%`
+  const rating = (x: number): string => fmtStat(x, { unit: 'number', decimals: 0 })
   const rows = [
-    { label: 'Before', away: elo.away.pre.toFixed(0), home: elo.home.pre.toFixed(0) },
+    { label: 'Before', away: rating(elo.away.pre), home: rating(elo.home.pre) },
     ...(elo.home.post !== null && elo.away.post !== null
-      ? [{ label: 'After', away: elo.away.post.toFixed(0), home: elo.home.post.toFixed(0) }]
+      ? [{ label: 'After', away: rating(elo.away.post), home: rating(elo.home.post) }]
       : []),
     { label: 'Win probability', away: pct(1 - elo.homeWin), home: pct(elo.homeWin) }
   ]

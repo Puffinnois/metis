@@ -83,7 +83,7 @@ Opens on the best record in scope, and stays on whoever is chosen when the seaso
 - **Coaches:** under the record, the head coach (both, with "and", in a season it changed, since the file has no dates) and the assistants for the season in scope, or "No head coach listed" where the NBA's file has no row. The Players tab marks a player the latest report lists as anything but Available, with the status and the full line on hover, in the newest season only.
 - **Results strip:** the latest 15 games played in scope, then the next ones. A card opens the game.
 - **Mode:** Per game, Totals, Per 36, Per 48, Per 100, across the stat tabs.
-- **Overview:** who scores, per game, with their share of the team's points in the games they played, ordered by total points so one big night does not lead the team. The ratings, then **Team strength** (computed by Metis, Plan T1001): margin of victory, Pythagorean wins, wins over Pythagorean, SRS, strength of schedule and of the schedule left, ranked among the teams; SRS and the schedule strengths as of the last game in scope, so a date range reads them as they stood, and a playoff scope reads "Solved on the regular season.". Then the next game, the margin by game, and the franchise by season under each season's name; a row opens that season.
+- **Overview:** who scores, per game, with their share of the team's points in the games they played, ordered by total points so one big night does not lead the team. The ratings, then **Team strength** (computed by Metis, Plans T1001 and T1002): margin of victory, Pythagorean wins, wins over Pythagorean, SRS, strength of schedule and of the schedule left, Elo and the wins Elo expected, ranked among the teams; SRS, the schedule strengths and Elo as of the last game in scope, so a date range reads them as they stood. A playoff scope reads "Solved on the regular season." for SRS and the schedule strengths, while Elo gives the rating after the team's last playoff game. Before 1995-96 Elo reads "Elo rating: starts in 1995-96.": its first two seasons settle the ratings. Then the next game, the margin by game, and the franchise by season under each season's name; a row opens that season.
 - **Offense, Defense:** titled lists of metrics with their percentile and rank among the teams. A stat with no value says why.
 - **Shots:** the player dashboard's Shots tab for the team, with "Their shots" or "Shots against": the shots the team's opponents took against it, where opponents below the league is shaded as the good side. The metrics below rank among the teams.
 - **Play by play:** the player's tab for the team, ranked among the teams, with a Game flow section first: lead changes a game, the largest lead and the largest deficit, time leading, the best run for and against, the longest stretches without a point and without a field goal; team turnovers (no player charged) beside the kinds; the opponents' live-ball turnovers, shooting fouls and and-ones. Then the assist network: passer to scorer, makes, threes, points and the pair's share of the team's assisted makes, most makes first, 15 rows and "Show all".
@@ -95,7 +95,7 @@ Opens on the best record in scope, and stays on whoever is chosen when the seaso
 
 ## Standings
 
-The NBA's published standings of a season, regular season only, by conference or by division. Nothing published is recomputed; the last three columns are Metis's own, and the notes say so. A row opens the team.
+The NBA's published standings of a season, regular season only, by conference or by division. Nothing published is recomputed; the last four columns are Metis's own, and the notes say so. A row opens the team.
 
 | Shown            | From                                                                                                                                                                         |
 | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -106,6 +106,7 @@ The NBA's published standings of a season, regular season only, by conference or
 | L10, Strk        | From 2001-02. Before it they read as a dash, and the screen says so                                                                                                          |
 | PPG, Opp, Diff   | As published                                                                                                                                                                 |
 | PYTH W, SRS, SOS | Computed by Metis (Plan T1001), from the final scores of the regular season: Pythagorean wins with the exponent 14, the final SRS and strength of schedule. The notes say so |
+| ELO              | Computed by Metis (Plan T1002): Elo after the team's last regular-season game, before the playoffs. The notes say so                                                         |
 
 Published standings start in 1995-96, so 1993-94 and 1994-95 say that and show no table. Division tables read as four through 2003-04 and six after. The clinch marks are left off: see the traps in [nba-data-sources.md](nba-data-sources.md).
 
@@ -117,6 +118,7 @@ A day's games on a date rail, in place of the template's weeks. Opens on the lat
 - **Header:** each team's name, score, its record and last five results before this game in the same kind of game, then the status (Final, Final/OT, Not played, Scheduled), the date, ESPN's note ("NBA Finals - Game 5"), the arena and the crowd. A team opens its dashboard.
 - **Officials:** under the header, "Officials: …" from the NBA's file, or "The NBA's file lists no officials for this game." (before 2003-04 most games). A name opens that official's seasons.
 - **Score by period:** when ESPN has it and it adds up to the final score: through 2000-01 and from 2019-20.
+- **Elo** (Plan T1002): a small table, away then home, of both ratings before the game, after it once played, and the win probability before it, with a line for the home court ("Home court: 80 Elo points.", or "Neutral site: no home court.") and the expected margin ("Expected: GSW by 3.2."). A game still to come in the season in progress reads the latest ratings, so its probability moves as games are played. In 1993-94 and 1994-95 it reads "Elo is read from 1995-96: every team starts at 1500 in 1993-94, so the first two seasons settle the ratings." and shows no ratings. All-Star and preseason games have none.
 - **Game flow:** from 1996-97, between the score by period and the box scores: the home side's margin over the game clock as a step line, shaded on the side ahead, period and overtime breaks dashed, a dot at each lead change. Under it, the lead changes, the times tied and the time level, then each side's largest lead, time leading, best run, and longest stretches without a point and without a field goal, with the rules in a line. Before 1996-97 it reads "Recorded from 1996-97."; a game the feed lacks, "No play by play for this game.". It reads one game's scoring plays through its own call (`gameFlow`) and works the numbers out by the rules the tables use.
 - **Box score:** one table a team, starters then bench, with minutes as a clock and made and attempted together. A player opens their dashboard. The totals are the team's own box score, and points the final score. With nobody flagged as starting, one list says who started is not listed. When the players' lines do not add up to the final score, the screen says so: 36 of 83,516 team-games.
 - **The teams:** twelve lines side by side, the better side in bold, with the reason where a stat did not exist yet.
@@ -275,6 +277,10 @@ The on-court reads (Plan T904), timed in the worker on the full database with `s
 ### Team strength (Plan T1001)
 
 Inside the worker on a copy of the full database, warm, median of five (`scripts/check-team-strength.mjs`): the Standings' three columns for a season 13 ms; the Ratings preset over a season 26 ms and over a date range 22 ms; the preset by season over all 34 seasons 111 ms; the team Overview's two sections (12 metrics) 34 ms. `scripts/stage10-steps.json` drives the three screens on the built app.
+
+### Elo (Plan T1002)
+
+Inside the worker on a copy of the full database, warm, median of five (`scripts/check-elo.mjs`): the Standings' four columns for a season 18 ms; the Ratings preset (12 metrics) over a season 41 ms, over a date range 36 ms, over the regular season and playoffs 38 ms; the preset by season over the 32 seasons read 168 ms; Elo by game for one team 13 ms; a game page's two rows 2 ms. `scripts/stage10-elo-steps.json` drives the Standings, the team Overview, the Ratings preset and the game page on the built app.
 
 ### Play level (Plan T907)
 

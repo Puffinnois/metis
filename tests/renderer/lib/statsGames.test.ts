@@ -392,9 +392,9 @@ describe('a game’s Elo', () => {
   it('reads the ratings before and after, and the win probability before the game', () => {
     expect(eloView(game('g', '2026-01-02'), detail(elo))).toEqual({
       rows: [
-        { label: 'Before', away: '1540', home: '1520' },
-        { label: 'After', away: '1534', home: '1527' },
-        { label: 'Win probability', away: '36 %', home: '64 %' }
+        { label: 'Before', away: '1,540', home: '1,520' },
+        { label: 'After', away: '1,534', home: '1,527' },
+        { label: 'Win probability', away: '36%', home: '64%' }
       ],
       note: 'Home court: 80 Elo points. Expected: BOS by 3.6.'
     })
