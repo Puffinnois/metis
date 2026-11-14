@@ -49,13 +49,30 @@ export const RATINGS_SECTION: SectionDef = {
 
 /**
  * Plan T1001: how strong the team is beyond its record. The margin and Pythagorean wins come from the
- * scores in scope; SRS and the schedule strengths are solved on the regular season, as of the last
- * game in scope.
+ * scores in scope; SRS, the schedule strengths and the adjusted ratings (T1004) are solved on the
+ * regular season, as of the last game in scope. Plan T1002: Elo as of the last game in scope,
+ * playoffs included, and the wins it expected over the games in scope. Plan T1003: the season
+ * forecast as of the last game in scope.
  */
 export const STRENGTH_SECTION: SectionDef = {
   title: 'Team strength',
   note: 'Computed by Metis',
-  metrics: ['team_mov', 'team_pyth_w', 'team_win_resid', 'team_srs', 'team_sos', 'team_sos_left']
+  metrics: [
+    'team_mov',
+    'team_pyth_w',
+    'team_win_resid',
+    'team_srs',
+    'team_sos',
+    'team_sos_left',
+    'team_elo',
+    'team_elo_exp_w',
+    'team_adj_ortg',
+    'team_adj_drtg',
+    'team_adj_nrtg',
+    'team_proj_w',
+    'team_playoff_pct',
+    'team_title_pct'
+  ]
 }
 
 /** The two sections of the Overview, read by one query. */
@@ -507,6 +524,70 @@ export function scheduleRows(games: readonly TeamGame[], through: string | null)
     }
   })
 }
+
+/** The first season with a forecast (Plan T1003): Elo's, after its burn-in. */
+const FORECAST_FIRST = 1996
+
+/**
+ * Plan T1003: the playoff odds after each of the team's games that holds a forecast (a past season's
+ * twenty snapshots, the season in progress's as they were made), for the Overview's trend.
+ */
+export function forecastTrendQuery(team: string, scope: StatsScope): StatsQuery | null {
+  if (scope.season < FORECAST_FIRST || scope.seasonType === 'playoffs') return null
+  return {
+    entity: 'team',
+    metrics: ['team_playoff_pct', 'team_forecast_runs'],
+    groupBy: ['game'],
+    scope: { ...queryScope(scope, 'team'), gameTypes: ['regular'], teams: [team] },
+    limit: 200,
+    ranks: false
+  }
+}
+
+export interface ForecastTrend {
+  series: ChartSeries
+  /** The runs behind the latest point. */
+  runs: number | null
+}
+
+export function forecastTrend(
+  result: StatsResult | null,
+  games: readonly TeamGame[]
+): ForecastTrend | null {
+  if (!result) return null
+  const byId = new Map(games.map((g) => [g.id, g]))
+  const points = result.rows
+    .map((r) => ({
+      game: byId.get(String(r.group.game)),
+      value: r.values.team_playoff_pct?.value ?? null,
+      runs: r.values.team_forecast_runs?.value ?? null
+    }))
+    .filter(
+      (x): x is { game: TeamGame; value: number; runs: number | null } =>
+        x.game !== undefined && x.value !== null
+    )
+    .sort((a, b) => (a.game.date < b.game.date ? -1 : a.game.date > b.game.date ? 1 : 0))
+  if (points.length === 0) return null
+  return {
+    series: {
+      id: 'playoff_odds',
+      label: 'Playoff odds',
+      points: points.map(({ game, value }) => ({
+        key: game.id,
+        label: shortDay(game.date),
+        title: `${shortDay(game.date)} ${opponentText(game)}`,
+        value: value * 100
+      }))
+    },
+    runs: points[points.length - 1].runs
+  }
+}
+
+/** The trend's note: whose odds they are, and how many runs. */
+export const forecastTrendNote = (runs: number | null): string =>
+  `A model’s odds, computed by Metis from Elo${
+    runs === null ? '' : ` · ${runs.toLocaleString('en-US')} runs`
+  }`
 
 /** The margin of each game played, for the Overview's chart. */
 export function marginSeries(games: readonly TeamGame[]): ChartSeries {

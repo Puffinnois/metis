@@ -2,6 +2,9 @@ import type { Entity, GameType } from '@shared/stats/types'
 import type { StatsDb } from '../db'
 import { inspect, type Have } from '../derived/sql'
 import { COMPOSITES_BUILDER } from './boxComposites'
+import { TEAM_ELO } from './teamElo'
+import { ADJUSTED_RATINGS } from './adjustedRatings'
+import { FORECAST_BUILDER } from './forecast'
 import { STABILITY_BUILDER } from './metricStability'
 import { TEAM_STRENGTH } from './teamStrength'
 
@@ -85,6 +88,12 @@ export const MODEL_BUILDERS: readonly ModelBuilder[] = [
   TEAM_STRENGTH,
   // Plan T1005: Oliver's ratings, PER, Win Shares, BPM and VORP per team, season and season type.
   COMPOSITES_BUILDER,
+  // Plan T1002: Elo before and after every game, carried from season to season.
+  TEAM_ELO,
+  // Plan T1004: offense and defense per 100 possessions, adjusted for opponent and site.
+  ADJUSTED_RATINGS,
+  // Plan T1003: the season simulation, each team's forecast as of dates through the season.
+  FORECAST_BUILDER,
   // Plan T1006: every metric's stability, last, since it reads every table above through the engine.
   STABILITY_BUILDER
 ]

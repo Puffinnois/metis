@@ -764,6 +764,33 @@ Tolerance 0.005, half the printed hundredth; every MOV is inside it. The gaps ab
 
 - **The season in progress:** 2026-27's remaining schedule is in `game`, rows with `played` false: on Nov 13, 2026, 170 regular-season games played and 1,036 still to come, 6 of them with a side not named yet (the Cup's knockout dates), so 1,206 of the season's 1,230; the other 24 games are listed once the Cup's group stage sets them. A team's games left therefore read up to two short until then (Boston: 12 played and 68 left). Plan T1003's simulation reads the same rows.
 
+## Elo (Plan T1002)
+
+`scripts/check-elo.mjs` on a copy of the Stage 9 gate load, after a real refresh, every season from 1993-94 (the model is in [stats-database.md](stats-database.md), "Elo"):
+
+- **Recounted apart:** Elo run again in the script with its own code for the rules, from the games read by its own SQL, equals the table on every game of every season: 41,817 played games and 1,030 of 2026-27 still to come, the ratings before and after and the probability, to 0 (the same arithmetic). No game is missing and no row is extra.
+- **Conserved:** a game moves no points in or out (largest imbalance 2.3·10⁻¹³), so each season's ratings sum at the end to what they started at, within 3·10⁻¹¹.
+- **Neutral sites:** 211 games: 37 that ESPN marks (games abroad from 2012-13, the 2023-24 Cup final and the Cup's knockout games from 2024-25), the 2 Cup semifinals of 2023-24 it does not mark (read from its note), and 172 games of the 2020 bubble (Lake Buena Vista; 9 more rows there are not games in `game`). Not identified: the 11 games abroad before 2012-13, which ESPN's schedule does not mark and FiveThirtyEight's file does (Yokohama 1994, Tokyo 1996 and 1999, Mexico City 1997, Saitama 2003, London 2011); they keep home court. The Raptors' 2020-21 season in Tampa and the Spurs' games in Austin keep it too, as home games.
+- **Franchises:** Toronto and Vancouver enter 1995-96 at 1300, and Charlotte 2004-05 (its id is the old Hornets', away two seasons). Vancouver to Memphis, Seattle to Oklahoma City and New Jersey to Brooklyn keep their id and their rating; Charlotte's 2001-02 rating (1553.6) carries to New Orleans in 2002-03 (1536.6 regressed), linked because it is the one team new and the one team gone.
+- **Burn-in:** every team starts at 1500 in 1993-94. Run instead from FiveThirtyEight's ratings of the time, every team's final rating is within 44 points in 1993-94, 4.2 in 1994-95, 1.5 in 1995-96 and 0.2 by 2000-01; from random starts of 1300 to 1700, within 2.0 to 9.2 in 1995-96. So the metrics read from 1995-96, and the first two seasons say "starts in 1995-96" rather than show ratings that are still settling.
+- **Against FiveThirtyEight:** its published file (`nba-elo/nbaallelo.csv`, 1946-47 to 2014-15, a one-off download used by the check, not shipped) has the same games matched to a team on all 54,958 team-games from 1993-94. With 538's values (home 100, carry 0.75) and its ratings at the start of 1993-94, our games give its end-of-season ratings to a mean gap of 0.0 to 0.1 points (largest 6.9 in 1994-95, the Yokohama games it plays neutral), and its pre-game probabilities to 0.0001 on average over 6,323 games of 2010-11 to 2014-15: the rules are its rules. With 538's values from 1500 each, the gap is the burn-in: 7.2 in 1993-94, 1.9 in 1995-96, 0.1 by 2004-05. The table itself, with home court 80 and carry 0.65, sits 3.1 to 4.5 points from 538 on average (largest 12.2).
+
+**How well it predicts.** The home side's pre-game probability against what happened, every game from 1995-96, beside two baselines: the league's home win rate that season (in sample, 0.5 at a neutral site), and SRS to date as a normal on the margin (spread 13 and home court 4.25 points, fitted on 1993-94 and 1994-95). The Cup final is with the regular season, the play-in with the playoffs. The script prints every season.
+
+| Seasons                | Regular games | Elo Brier | Elo log loss | Home rate | SRS to date | Playoff games | Elo Brier | Home rate | SRS to date |
+| ---------------------- | ------------- | --------- | ------------ | --------- | ----------- | ------------- | --------- | --------- | ----------- |
+| 1995-96                | 1,189         | 0.1933    | 0.5684       | 0.2392    | 0.2006      | 68            | 0.1850    | 0.2189    | 0.1781      |
+| 2005-06                | 1,230         | 0.2151    | 0.6192       | 0.2393    | 0.2225      | 89            | 0.2175    | 0.2197    | 0.2135      |
+| 2015-16                | 1,230         | 0.1993    | 0.5828       | 0.2420    | 0.2098      | 86            | 0.1981    | 0.2196    | 0.1982      |
+| 2020-21                | 1,080         | 0.2295    | 0.6505       | 0.2481    | 0.2402      | 91            | 0.2300    | 0.2432    | 0.2257      |
+| 2025-26                | 1,231         | 0.2065    | 0.6008       | 0.2471    | 0.2094      | 91            | 0.2300    | 0.2463    | 0.2347      |
+| 2026-27 so far         | 170           | 0.2108    | 0.6060       | 0.2499    | 0.2336      | –             | –         | –         | –           |
+| **1995-96 to 2026-27** | 36,908        | 0.2085    | 0.6037       | 0.2419    | 0.2156      | 2,545         | 0.2163    | 0.2302    | 0.2153      |
+
+Over all 39,453 games: Elo 0.2090 (log loss 0.6049), the home rate 0.2412, SRS to date 0.2156; 538's values on the same games 0.2101 (0.6075). Elo beats both baselines in the regular season; in the playoffs it ties SRS (0.2163 against 0.2153), whose final regular-season rating holds the whole season at once. Calibration by tenths of the home side's probability: with 538's values the home side won 1.6 to 4.4 points less often than predicted in every tenth from 20 % up; with home court 80 the gap is within 2.4 points in every tenth but the first (21 games, 4.1) and within 1 point from 60 % up.
+
+**Tuning, out of sample.** A grid of K (12 to 28), home court (60 to 110) and the share kept between seasons (0.55 to 0.85), fitted on 1995-96 to 2009-10 and scored on 2010-11 to 2026-27 (20,667 games): the best fit, K 20, home 80, keep 0.65, scores 0.21345 there against 0.21526 for 538's values, a gain of 0.00181 with a standard error of 0.00016 game by game. Kept. The best values in hindsight on the later seasons (home 60) would score 0.21282: home court has kept shrinking.
+
 ## Box-score composites, per season (Plan T1005)
 
 Oliver's points produced and individual ratings, PER, Win Shares, BPM 2.0 and VORP, computed by Metis from its own box scores by the methods Basketball-Reference documents; how they are built is in [stats-database.md](stats-database.md), "Box-score composites". Measured on 2026-11-13 on a fresh copy of the Stage 9 gate load after a real refresh (`~/.cache/metis-dev/t1005`), by `scripts/check-composites.mjs`.
@@ -860,6 +887,165 @@ Oliver's points produced and individual ratings, PER, Win Shares, BPM 2.0 and VO
 - **Playoff BPM** reads 0.4 to 0.8 off the publisher's on three of four runs (Jordan 1995-96 10.0 against 10.6, LeBron James 2015-16 11.7 against 10.9, Jokić 2022-23 12.2 against 12.8, Olajuwon 1993-94 8.6 against 8.4), in both directions. Before the opponents' strength was added to the team rating they read 8.9, 10.5, 12.1 and 7.6, a mean absolute gap of 0.9 against 0.6 now. How the publisher rates a team over a few playoff series is not stated.
 - **A traded player's stints** (Vince Carter 2004-05: 0.8 at Toronto against 2.3, 7.6 at New Jersey against 6.9) split differently while his season (6.1 against 6.0) agrees; Harden's 2020-21 stints agree within 0.5. Placing a traded player once for the season, the position and role over all their stints, made Harden's stints worse (Houston 5.6 against 4.7) and was dropped. Not explained.
 
+## The playoff field, per season (Plan T1003)
+
+`scripts/check-playoff-field.mjs` feeds each completed regular season, with no game left, to the season simulation's standings, tiebreakers, play-in and bracket (`src/main/stats/models/standings.ts`, `playoffs.ts`, bundled by the script so the code checked is the code that ships), and compares what they produce with what happened. Run on a copy of the Stage 9 gate load, every season from 1993-94 to 2025-26, both conferences (66):
+
+- **The field and the first-round pairs** actually played (each team's first playoff opponent, after the play-in fed with its real results): 66 of 66.
+- **The second round:** each real second-round series joins the winners of two pairs of the same half of the code's bracket (one-eight with four-five, two-seven with three-six): 66 of 66.
+- **Home court in every first-round series** against the host of its first game: 64 of 64 (2019-20's were at one site).
+- **The seeds against the published ones**, one to eight (one to ten with the play-in):
+
+| Seasons            | Published seeds                                                                                                  | Result                                                                                        |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| 1993-94, 1994-95   | None in the load                                                                                                 | Field, pairs, second round and home court only: all reproduced                                |
+| 1995-96 to 2000-01 | The dashboard's (1995-96) and the NBA's `playoff_rank`: the seeds in some seasons, the order by record in others | All 12 agree with the code's seeds, or with its order by record (1998-99 West), ties accepted |
+| 2001-02 to 2019-20 | ESPN's `playoffSeed`, which carries the division winners' protected seeds                                        | All 38 exact, 2019-20's bubble play-in included                                               |
+| 2020-21 to 2025-26 | The NBA's `playoff_rank` one to ten before the play-in; ESPN's seeds after it                                    | All 12 exact after the play-in; before it, 11 of 12 exact, the twelfth is the source's error  |
+
+The one difference: the NBA's 2020-21 West ranks Memphis eighth and Golden State ninth. Both finished 38-34 and Golden State won their games 2-1, so the tiebreaker makes it eighth, and the play-in played says so too: the Lakers hosted Golden State (seventh against eighth) and Memphis hosted San Antonio (ninth against tenth).
+
+**The play-in, fed with its real results** (2019-20's West and every conference from 2020-21, 13 in all): the seventh and eighth seeds it produces are the teams that played the first and second seeds in the first round, 13 of 13.
+
+**The rules, per era.** Today's are implemented in full; each earlier era's as far as its fields need, all reproduced above:
+
+| Seasons            | Seeds                                                                                   | Home court                    | Series                                   | Tiebreakers                         |
+| ------------------ | --------------------------------------------------------------------------------------- | ----------------------------- | ---------------------------------------- | ----------------------------------- |
+| 1993-94 to 2003-04 | The two division winners first and second, then by record                               | By seed; the Finals by record | First round best of five through 2001-02 | Conference record before division's |
+| 2004-05, 2005-06   | The three division winners first to third                                               | By record                     | Best of seven                            | Today's                             |
+| 2006-07 to 2014-15 | The division winners and the best other team one to four, by record                     | By record                     | The Finals 2-3-2 through 2012-13         | Today's                             |
+| 2015-16 to 2018-19 | By record alone                                                                         | By record                     | 2-2-1-1-1                                | Today's                             |
+| 2019-20            | By winning percentage; the ninth, within four games of the eighth, had to beat it twice | One site, none                | 2-2-1-1-1                                | Today's                             |
+| 2020-21 on         | By record; seventh to tenth play in for the last two seeds                              | By record                     | 2-2-1-1-1                                | Today's, eligible = best ten        |
+
+Today's tiebreakers are the NBA's published "Play-In and Playoff Tie-Break Procedures" (nba.com's standings page, read in November 2026): for two teams the games between them, a division winner over a team that is not, division record (same division), conference record, the records against the own and the other conference's teams eligible for the postseason, point differential; for three or more the division winners first, then the games among them, division record (all in one division), conference record, the record against the own conference's eligible teams, point differential. A partial break starts the rest again from the first step, and a tie nothing breaks goes to a drawing (a seeded draw here). "Eligible" is the best ten records of the conference, ties included, from 2020-21, the best eight before.
+
+The earlier procedure is not in the load, nor found in full: two ties decide it. In 2002-03 San Antonio and Dallas finished 60-22 and 2-2, and San Antonio won the Midwest on conference record (36-16 to 34-18) though Dallas had the better division record (18-6 to 17-7). In 2005-06 Indiana and Chicago finished 41-41 and 2-2, and Indiana took sixth on division record (6-10 to 4-12) though Chicago had the better conference record (30-22 to 24-28). So the code reads conference record first through 2003-04 and division record first from 2004-05, the season of the realignment, which no tie in between decides; the other steps keep today's order in every era. Home court went by record from 2004-05, not 2006-07: in 2005-06 the sixth-seeded Clippers (47-35) hosted the third, Denver (44-38). For the Finals, the code breaks a tie in record by the same two-team steps; the NBA's text names no separate procedure.
+
+## The season forecast, checked (Plan T1003)
+
+`scripts/check-forecast.mjs` on a fresh copy of the Stage 9 gate load after a real refresh:
+
+- **The margin's spread** around Elo's expected margin, regular season 1995-96 to 2025-26 (36,735 games): 12.38 points, mean −0.08. The simulation draws margins with 12.4.
+- **The table:** twenty snapshots for every season from 1995-96 (500 runs each) and three so far for 2026-27 (10,000). In all 618 snapshots holding every team, the odds add up across the league: sixteen playoff teams, eight in the second round, four, two and one champion, and from 2020-21 twelve top-six seeds and eight in the play-in. Five snapshots lost a team's row to the next one on the same game (a team idle between them, the 2020-21 pauses among them) and are not counted.
+- **Calibration** of the past seasons' forecasts, 1995-96 to 2025-26, 921 team-seasons at each point: the playoff odds at a quarter, half and three quarters of the season (the fifth, tenth and fifteenth snapshots) against the teams that played a playoff series, and the title odds against the champion. The baseline is the standings as they stood: 1 for a team in its conference's top eight by winning percentage that day, 0 otherwise; for the title, 1/16 for a team in the top eight.
+
+| Point          | Playoffs: Brier | Baseline | Title: Brier | Baseline |
+| -------------- | --------------- | -------- | ------------ | -------- |
+| A quarter      | 0.116           | 0.195    | 0.028        | 0.032    |
+| Half           | 0.081           | 0.112    | 0.027        | 0.032    |
+| Three quarters | 0.051           | 0.074    | 0.026        | 0.032    |
+
+By decile the playoff odds track what happened: at a quarter of the season the teams given 90 to 100 % (210, a mean of 96.6 %) made it 96.7 % of the time, those given 30 to 40 % (61, 34.5 %) 34.4 %, those under 10 % (159, 3.1 %) 0.6 %. The middle deciles hold 25 to 70 teams each, so a gap of ten points there is within their noise (at half the season 30 to 40 %: 30 teams, 33.9 % given, 23.3 % made it). The full tables are in the script's report. The forecast beats the standings everywhere, by the most early in the season, when the standings know least; the title odds beat a flat 1/16 by a little, as a title is hard to call.
+
+## Adjusted ratings (Plan T1004)
+
+`scripts/check-adjusted.mjs` on a copy of the Stage 9 gate load, after a real refresh, every season from 1993-94 (2026-27 as of Nov 12, 2026, 170 games in), with the builder's prior of 250 possessions:
+
+- **The fit recomputed apart:** the observations read from `team_game` (one row per offense, where the builder joins `game` to both sides), the ridge normal equations built one observation at a time and solved by Cholesky without constraint rows, as of every game day. Every row of `adjusted_rating`, 78,218 in all, equals it within 4·10⁻¹² (ratings, home court, league average and possessions), ten games in as well as at season's end; no team-day is missing or extra.
+- **Identities:** adjusted ORtg − adjusted DRtg − adjusted NRtg is under 1.4·10⁻¹⁴ on every row; the teams' mean adjusted ORtg and DRtg after the last game day equal the league's points per 100 possessions, recounted by SQL, within 3·10⁻¹².
+- **Games left out:** the 5 games of 1993-94 and the 5 of 1995-96 without a box score on both sides, none since.
+- **Neutral sites** come from `neutralSitesSql`, shared with Elo: 1 to 5 regular-season games a season from 2012-13 (abroad, the Cup semifinals), the 88 Orlando games of 2019-20 and three abroad that season, none in 2020-21 and 2021-22. Against this builder's first rule (ESPN's mark, and the restart from July 30, 2020), only the two 2023-24 Cup semifinals changed: ESPN's note marks them and its flag does not.
+- **Home court** at season's end: +2.5 to +4.1 net points per 100 possessions from 1993-94 to 2016-17, +1.6 to +2.6 since, and +0.9 in 2020-21, played mostly without crowds.
+
+**Against SRS.** Final values: each team's last row of `adjusted_rating` and of `team_strength`. The net rating is put on SRS's per-game scale by the league's possessions per team-game (91.6 in 1998-99 to 102.8 in 2019-20). r is the correlation with SRS; MAD the mean absolute difference from it, in points a game. "No prior" is the same fit with the prior at 0.01 possessions; "Plain" is 100 × (points − points allowed) / possessions over the season, the baseline the adjustment starts from. The last column names the two teams furthest from SRS (adjusted per game less SRS) and the part that explains most of the gap: pace (the net rating × the team's possessions a game less the league's / 100, which SRS counts and a per-possession rating does not), blowouts (the margin a game beyond ±20 points, which SRS counts in full), prior (what the pull toward 0 moves the rating, per game), each named when it is at least 0.25 and runs the way of the gap, and overtime games when a team had eight or more.
+
+| Season  | League poss/game | Adjusted r | Adjusted MAD | No prior r | No prior MAD | Plain r | Plain MAD | Differing most (adjusted − SRS, what explains it)                   |
+| ------- | ---------------- | ---------- | ------------ | ---------- | ------------ | ------- | --------- | ------------------------------------------------------------------- |
+| 1993-94 | 97.8             | 1.000      | 0.17         | 1.000      | 0.09         | 0.999   | 0.27      | LAC +0.40 (blowouts +0.99); DAL +0.38 (blowouts +0.84)              |
+| 1994-95 | 95.6             | 0.991      | 0.30         | 0.991      | 0.27         | 0.990   | 0.39      | MIN -3.07 (schedule); GSW +0.53 (blowouts +0.80, 8 OT games)        |
+| 1995-96 | 94.4             | 1.000      | 0.17         | 1.000      | 0.10         | 1.000   | 0.17      | CHI -0.55 (blowouts -1.28); SEA -0.49 (blowouts -1.34)              |
+| 1996-97 | 92.8             | 1.000      | 0.17         | 1.000      | 0.12         | 0.998   | 0.36      | BOS +0.54 (blowouts +0.73); PHI +0.46 (blowouts +0.63)              |
+| 1997-98 | 93.1             | 1.000      | 0.17         | 1.000      | 0.08         | 0.996   | 0.43      | LAL -0.56 (blowouts -1.07); TOR +0.49 (blowouts +1.43)              |
+| 1998-99 | 91.6             | 1.000      | 0.19         | 1.000      | 0.07         | 0.994   | 0.43      | LAC +0.59 (blowouts +0.96); VAN +0.55 (blowouts +0.56)              |
+| 1999-00 | 95.7             | 1.000      | 0.10         | 1.000      | 0.08         | 0.998   | 0.29      | GSW +0.41 (blowouts +0.70); LAC +0.37 (blowouts +1.55)              |
+| 2000-01 | 93.9             | 1.000      | 0.14         | 1.000      | 0.07         | 0.993   | 0.47      | SAC -0.49 (blowouts -0.88, 13 OT games); GSW +0.46 (blowouts +1.20) |
+| 2001-02 | 93.3             | 1.000      | 0.11         | 1.000      | 0.06         | 0.996   | 0.31      | SAC -0.54 (blowouts -1.37); GSW +0.39 (blowouts +0.34)              |
+| 2002-03 | 93.8             | 1.000      | 0.13         | 1.000      | 0.08         | 0.993   | 0.45      | CLE +0.56 (blowouts +1.27); SAC -0.46 (blowouts -1.01)              |
+| 2003-04 | 92.6             | 1.000      | 0.13         | 1.000      | 0.08         | 0.988   | 0.58      | CHI +0.35 (blowouts +0.67); SAC -0.33 (blowouts -0.52)              |
+| 2004-05 | 93.6             | 1.000      | 0.11         | 1.000      | 0.08         | 0.995   | 0.38      | PHX -0.55 (blowouts -0.73); ATL +0.35 (blowouts +0.74)              |
+| 2005-06 | 93.2             | 0.999      | 0.09         | 0.999      | 0.08         | 0.998   | 0.22      | PHX -0.52 (blowouts -0.56); CHA +0.22 (schedule, 8 OT games)        |
+| 2006-07 | 94.6             | 1.000      | 0.09         | 1.000      | 0.07         | 0.996   | 0.33      | PHX -0.46 (blowouts -0.65); MIL +0.19 (blowouts +0.37)              |
+| 2007-08 | 94.8             | 0.999      | 0.15         | 0.999      | 0.13         | 0.997   | 0.33      | SEA +0.58 (blowouts +1.44); LAL -0.50 (blowouts -1.04)              |
+| 2008-09 | 94.2             | 1.000      | 0.13         | 1.000      | 0.10         | 0.999   | 0.26      | SAC +0.48 (blowouts +1.71); LAL -0.48 (blowouts -0.49)              |
+| 2009-10 | 95.1             | 1.000      | 0.13         | 1.000      | 0.09         | 0.999   | 0.21      | MIN +0.56 (blowouts +1.33); GSW +0.32 (schedule)                    |
+| 2010-11 | 94.6             | 1.000      | 0.13         | 1.000      | 0.08         | 0.997   | 0.29      | MIN +0.43 (blowouts +0.63); WAS +0.37 (blowouts +0.59, 8 OT games)  |
+| 2011-12 | 93.9             | 1.000      | 0.15         | 1.000      | 0.07         | 0.994   | 0.45      | CHA +0.45 (blowouts +2.77); OKC -0.42 (blowouts -0.38)              |
+| 2012-13 | 94.6             | 1.000      | 0.12         | 1.000      | 0.07         | 0.995   | 0.41      | SAS -0.38 (blowouts -1.11); DEN -0.36 (blowouts -0.32)              |
+| 2013-14 | 96.5             | 1.000      | 0.16         | 1.000      | 0.10         | 0.991   | 0.59      | PHI +0.85 (blowouts +1.95); LAL +0.44 (blowouts +1.32)              |
+| 2014-15 | 96.4             | 1.000      | 0.12         | 1.000      | 0.08         | 0.996   | 0.40      | GSW -0.66 (blowouts -1.34); PHI +0.44 (blowouts +1.50)              |
+| 2015-16 | 98.2             | 1.000      | 0.13         | 1.000      | 0.08         | 0.999   | 0.22      | GSW -0.71 (blowouts -1.15); PHI +0.45 (blowouts +1.21)              |
+| 2016-17 | 98.8             | 1.000      | 0.14         | 1.000      | 0.09         | 0.996   | 0.33      | GSW -0.72 (blowouts -2.27); BKN +0.50 (blowouts +0.56)              |
+| 2017-18 | 99.6             | 1.000      | 0.11         | 1.000      | 0.06         | 0.999   | 0.19      | PHX +0.45 (blowouts +1.99); CHI +0.30 (blowouts +1.73)              |
+| 2018-19 | 102.5            | 1.000      | 0.12         | 1.000      | 0.08         | 0.997   | 0.34      | MIL -0.46 (blowouts -1.22); ATL +0.38 (blowouts +0.77)              |
+| 2019-20 | 102.8            | 1.000      | 0.15         | 1.000      | 0.09         | 0.996   | 0.39      | MIL -0.58 (blowouts -1.75); ATL +0.46 (blowouts +2.09)              |
+| 2020-21 | 101.4            | 1.000      | 0.13         | 1.000      | 0.07         | 1.000   | 0.17      | OKC +0.43 (blowouts +2.96); HOU +0.39 (blowouts +0.72)              |
+| 2021-22 | 100.4            | 1.000      | 0.11         | 1.000      | 0.06         | 1.000   | 0.17      | HOU +0.40 (blowouts +1.10); PHX -0.31 (blowouts -0.94)              |
+| 2022-23 | 101.6            | 1.000      | 0.09         | 1.000      | 0.04         | 0.999   | 0.17      | SAS +0.51 (blowouts +2.51); CHA +0.27 (blowouts +0.67)              |
+| 2023-24 | 100.8            | 1.000      | 0.15         | 1.000      | 0.08         | 0.998   | 0.32      | WAS +0.64 (blowouts +1.48); DET +0.38 (blowouts +1.09)              |
+| 2024-25 | 101.2            | 1.000      | 0.13         | 1.000      | 0.07         | 0.998   | 0.34      | WAS +0.59 (blowouts +2.30); OKC -0.49 (blowouts -2.07)              |
+| 2025-26 | 101.8            | 1.000      | 0.15         | 1.000      | 0.09         | 0.999   | 0.23      | WAS +0.50 (blowouts +2.41); UTA +0.45 (blowouts +1.54)              |
+| 2026-27 | 101.6            | 0.980      | 2.12         | 0.993      | 0.71         | 0.897   | 3.14      | CHA +4.57 (blowouts +5.36); CHI +4.54 (blowouts +4.80)              |
+
+Over the 33 completed seasons: adjusted r 1.000 and MAD 0.14; with no prior r 1.000 and MAD 0.09; plain r 0.996 and MAD 0.33. So the opponent adjustment is what SRS's schedule term does, per possession instead of per game: with no prior the two agree within 0.09 points a game on average, against 0.33 for the plain net rating, and 1994-95 (0.27; Minnesota's gap is schedule) is the only completed season past 0.13. The prior adds about 0.05. What is left on the teams furthest from SRS is blowouts: SRS counts a 40-point win at 40, and a rating per possession weighs it by its possessions like any other game, so a team that wins or loses big (2015-16 Golden State, 2024-25 Washington) reads closer to average here. Pace never explains the largest gap. 2026-27, a dozen games in, is where the prior does its job: SRS of +11 after a dozen games is not a +11 team.
+
+**Ten games in, and what the prior moves.** "Ten games in" is the first day the median team had played ten. r: adjusted net rating against SRS that day. Moved: the mean absolute change in adjusted net rating from no prior to 250 possessions; spread: the standard deviation of the unshrunk net ratings.
+
+| Season  | Ten games in | r then | Moved then | Spread then | Moved at the end | Spread at the end |
+| ------- | ------------ | ------ | ---------- | ----------- | ---------------- | ----------------- |
+| 1993-94 | 1993-11-24   | 0.994  | 0.86       | 5.73        | 0.14             | 5.15              |
+| 1994-95 | 1994-11-23   | 0.992  | 1.01       | 6.01        | 0.13             | 5.15              |
+| 1995-96 | 1995-11-21   | 0.947  | 1.24       | 6.28        | 0.13             | 5.23              |
+| 1996-97 | 1996-11-20   | 0.995  | 1.05       | 6.25        | 0.15             | 5.61              |
+| 1997-98 | 1997-11-18   | 0.997  | 1.17       | 6.53        | 0.15             | 5.62              |
+| 1998-99 | 1999-02-22   | 0.976  | 1.31       | 5.85        | 0.21             | 4.67              |
+| 1999-00 | 1999-11-20   | 0.977  | 1.08       | 5.95        | 0.11             | 4.75              |
+| 2000-01 | 2000-11-18   | 0.988  | 1.03       | 5.77        | 0.12             | 4.63              |
+| 2001-02 | 2001-11-17   | 0.988  | 1.29       | 6.53        | 0.11             | 4.28              |
+| 2002-03 | 2002-11-16   | 0.968  | 0.99       | 5.65        | 0.11             | 4.38              |
+| 2003-04 | 2003-11-16   | 0.987  | 1.00       | 4.96        | 0.12             | 4.27              |
+| 2004-05 | 2004-11-21   | 0.988  | 0.94       | 5.76        | 0.11             | 4.25              |
+| 2005-06 | 2005-11-20   | 0.960  | 1.01       | 5.27        | 0.10             | 3.98              |
+| 2006-07 | 2006-11-19   | 0.975  | 0.80       | 3.95        | 0.10             | 3.97              |
+| 2007-08 | 2007-11-18   | 0.980  | 1.34       | 6.43        | 0.15             | 5.53              |
+| 2008-09 | 2008-11-16   | 0.991  | 1.30       | 6.05        | 0.11             | 4.80              |
+| 2009-10 | 2009-11-14   | 0.987  | 1.21       | 6.38        | 0.13             | 4.71              |
+| 2010-11 | 2010-11-14   | 0.993  | 1.42       | 6.11        | 0.12             | 4.72              |
+| 2011-12 | 2012-01-11   | 0.936  | 1.22       | 6.30        | 0.15             | 4.99              |
+| 2012-13 | 2012-11-18   | 0.989  | 1.35       | 6.05        | 0.12             | 4.68              |
+| 2013-14 | 2013-11-16   | 0.985  | 0.94       | 5.34        | 0.13             | 4.83              |
+| 2014-15 | 2014-11-16   | 0.977  | 1.17       | 5.66        | 0.12             | 4.87              |
+| 2015-16 | 2015-11-14   | 0.997  | 1.16       | 5.90        | 0.11             | 4.90              |
+| 2016-17 | 2016-11-13   | 0.989  | 1.06       | 5.96        | 0.09             | 4.10              |
+| 2017-18 | 2017-11-05   | 0.996  | 1.09       | 5.93        | 0.10             | 4.22              |
+| 2018-19 | 2018-11-05   | 0.994  | 1.21       | 6.79        | 0.10             | 4.52              |
+| 2019-20 | 2019-11-11   | 0.994  | 1.27       | 6.03        | 0.13             | 4.61              |
+| 2020-21 | 2021-01-10   | 0.993  | 0.68       | 4.16        | 0.12             | 4.60              |
+| 2021-22 | 2021-11-07   | 0.995  | 1.09       | 5.64        | 0.11             | 4.56              |
+| 2022-23 | 2022-11-06   | 0.997  | 1.14       | 5.75        | 0.08             | 3.73              |
+| 2023-24 | 2023-11-12   | 0.992  | 1.14       | 5.95        | 0.13             | 5.23              |
+| 2024-25 | 2024-11-10   | 0.996  | 1.01       | 6.59        | 0.13             | 5.61              |
+| 2025-26 | 2025-11-09   | 0.993  | 1.29       | 7.07        | 0.14             | 5.80              |
+| 2026-27 | 2026-11-08   | 0.968  | 2.77       | 9.03        | 1.65             | 8.05              |
+
+Ten games in, the prior takes about 1.1 points per 100 off the unshrunk ratings (spread about 6); at season's end about 0.12 (spread about 4.8), a fortieth.
+
+**Choosing the prior.** Each day's games predicted from the fit as of the day before (mean + offense + defense + home court), every day after the first of every season: root mean square error in points per 100, weighted by possessions, overall and where the offense had played fewer than 20 games.
+
+| Prior (possessions) | RMSE, every day | RMSE, offense under 20 games |
+| ------------------- | --------------- | ---------------------------- |
+| 0.01                | 11.125          | 12.672                       |
+| 100                 | 10.690          | 11.119                       |
+| **250**             | 10.609          | 10.848                       |
+| 500                 | 10.560          | 10.703                       |
+| 1000                | 10.535          | 10.644                       |
+| 1500                | 10.537          | 10.651                       |
+| 2000                | 10.548          | 10.670                       |
+| 3000                | 10.579          | 10.711                       |
+| 5000                | 10.640          | 10.772                       |
+
+1,000 possessions predicts best (10.535); no prior is far worst (11.125). The prior is 250 (10.609), not 1,000: these ratings sit beside the plain ORtg, DRtg and NRtg and beside SRS as a record of the season, and 1,000 pulls a season's final ratings a tenth of the way to average (0.45 points per 100 on average; 2015-16 Golden State 9.1 against 9.8 here), which reads as a wrong number beside them. 250 costs 0.07 points per 100 of prediction error, keeps most of the early-season gain over no prior (10.848 against 12.672 for an offense under 20 games), and moves final ratings by about 0.12.
+
 ## Metric stability (Plan T1006)
 
 `scripts/check-stability.mjs` on a copy of the Stage 9 gate load after a real refresh, regular seasons from 1993-94 (or a metric's first season) through 2025-26:
@@ -887,7 +1073,9 @@ Oliver's points produced and individual ratings, PER, Win Shares, BPM 2.0 and VO
   - NBA `season_type_id`: 2 regular, 4 playoffs, 5 play-in, 6 NBA Cup final.
   - NBA schedule: `regular-season` (1,230 games), `playoffs` (85), `play-in` (6), `nba-cup` (1), `all-star` (7), `preseason` (71).
 - **ESPN files All-Star games under regular season** (teams `STARS`, `STRIPES`, `WORLD`): 1,235 "regular" games against the NBA's 1,230. Filter them or league totals are wrong.
+- **ESPN files some games twice, the copy under another team.** The game has its box score; the copy, on the same day with the same score and one side the same, has none, and its other side is the team whose ESPN number ends the copy's id (old ids are the date and the home team: `150611010` is Houston at home on 1995-06-11). 1995's Finals Game 3, Houston 106 Orlando 103, has the copy `150611014` with Miami at home, which put Miami in the Finals (17 teams with a playoff game that season) and counted the game twice. Eight copies to 2001-02: 1993-12-05 (a home side, ESPN team 75, that is no league team), 1995-06-11, 1997-04-29 and 05-01, 1997-12-09, and three of 2000's first round. Only the first two are in ESPN-only seasons; from 1996-97 the NBA's schedule decides what is a game and the copies never link. Metis leaves out a row with no box score that matches a box-scored row this way. Left in, the 1995 copy gave Miami 7.3 Elo points and cost Orlando 7.1 at the end of 1994-95 (Houston 0.2), under 0.3 a season later and nothing from 1997-98.
 - **The NBA Cup final is not a regular-season game** in the NBA's own count.
+- **ESPN's `neutral_site` misses neutral games.** It marks games abroad only from 2012-13 (London, Mexico City, Paris, Berlin), the Cup's semifinals from 2024-25 and its finals from 2023-24. The 2023-24 semifinals in Las Vegas, the 2020 bubble at Lake Buena Vista (181 rows) and the 11 games abroad before 2012-13 read `false`. Its `notes_headline` names the Cup's rounds ("NBA In-Season Tournament - Semifinals") and its venue city the bubble; nothing marks the older games abroad.
 - **Ids differ.** NBA game ids are text with leading zeros (`0022500001`), ESPN's are numeric-looking (`401809234`). `nba_schedule_crosswalk` maps them per season from label 2002 (1,415 rows for 2026). With the same teams within a day as a fallback, every regular-season game from 1996-97 links, except 21 that ESPN does not have.
 - **The player crosswalk** starts in 2002 and matches on names, so it misses players spelled differently (Yao Ming is `Ming Yao` at the NBA, Nene is `Nene Hilario`). `nba_player_aliases` comes from the same crosswalk and adds nothing earlier. Matching box-score lines finds them, and the players before 2002: see `player_ids` in [stats-database.md](stats-database.md).
 - **No table has every name right.** Of 2,913 players, 23 differ between the box scores, the rosters and the published season stats. The box scores say `Ming Yao` and `Nene Hilario`. The other two say `Ha Ha` for Seung-Jin Ha, `Sun Sun` for Yue Sun and `Cui Cui` for Cui Yongxi. Accents and suffixes such as `Jr.` come and go in all three.
@@ -917,6 +1105,7 @@ Oliver's points produced and individual ratings, PER, Win Shares, BPM 2.0 and VO
 - **The NBA's team ORB% and TOV% are its own.** Its `oreb_pct` runs 3 to 4.5 points above rebounds over available rebounds in the box score, and `tm_tov_pct` about 2 points above turnovers over estimated plays, so they read as different measures. Same-named stats keep different ids (D14).
 - **The NBA's 2003-04 standings repeat the overall record** as `conference_record` and `division_record`, for all 29 teams. Every other season is fine, so the screen reads a repeat on every team as not published. Early in a season a team can truly have played only its conference: 11 did in 2026-27.
 - **ESPN's standings have no real conference or division records in 2001-02 and 2002-03:** they read `0-0`. Its records, games back and streaks agree with the NBA's on all 26 seasons.
+- **The NBA's `playoff_rank` is not always the seed:** before 2001-02 it is the seed in some seasons and the order by record in others, with ties unbroken (1996-97 West ranks Houston second at 57-25 where the seed went to Seattle, a division winner at 57-25; 2000-01 West ranks Utah and Dallas both fourth). In 2004-05 and 2005-06 it ranks by record though the division winners were seeded first to third (2005-06 West: Dallas second at 60-22, seeded fourth), and in the play-in seasons it is the order before the play-in. ESPN's `playoffSeed` (from 2001-02) is the seed, after the play-in. The NBA's 2020-21 West has Memphis eighth, against the tiebreaker and the play-in played.
 - **The standings' `clinch_indicator` is not reliable in old seasons.** 2002-03 marks teams 15th in their conference `x`, clinched a playoff spot, and 2014-15 has `pi`, the play-in, six seasons before there was one. They are not shown.
 - **Scores by period come and go:** ESPN's `home_linescores` hold values through 2000-01 and from 2019-20, and are empty between.
 - **ESPN undercounts overtime in 2001-02:** `status_period` has 30 overtime games to the box scores' 70. Read overtime from the team's minutes.

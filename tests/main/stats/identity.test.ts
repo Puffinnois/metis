@@ -274,6 +274,26 @@ describe('game', () => {
       { game_id: 'espn:1' }
     ])
   })
+
+  it('leaves out a copy of a game with no box score: 1995’s Finals Game 3 filed again under Miami', async () => {
+    await db.exec(
+      `INSERT INTO src_nba_schedule VALUES ${nbaGame('0029600001', 1997, '1996-11-01')}`
+    )
+    // The game, Boston at home with its box score, and ESPN's copy: the same day and score, the same
+    // away side, the home side swapped for team 3, no box score. A game of the same score between
+    // other teams on the same day with its own box score is a game, not a copy.
+    await db.exec(`INSERT INTO src_espn_schedule VALUES
+      (150611002, 1995, 1995, 3, DATE '1995-06-11', 2, 1, 106, 103, true),
+      (150611003, 1995, 1995, 3, DATE '1995-06-11', 3, 1, 106, 103, true),
+      (150611099, 1995, 1995, 2, DATE '1995-06-11', 3, 2, 106, 103, true)`)
+    await db.exec(`INSERT INTO src_espn_player_box VALUES
+      (150611002, 1995, 1995, 7, 'Ana Guard', 30, 5, 5, 20, 2),
+      (150611099, 1995, 1995, 8, 'Bea Wing', 20, 5, 5, 15, 2)`)
+    await buildIdentity(db)
+    expect(
+      await db.all("SELECT game_id FROM game WHERE source = 'espn' AND season = 1995 ORDER BY 1")
+    ).toEqual([{ game_id: 'espn:150611002' }, { game_id: 'espn:150611099' }])
+  })
 })
 
 describe('player_ids', () => {

@@ -3,7 +3,10 @@ import { Segmented, StatsSelect } from '@/components/stats/controls'
 import { Loading, MiniTable, Notes, SectionHead } from '@/components/stats/parts'
 import { moveToSeason, type StatsScope } from '@/lib/stats/scope'
 import {
-  STANDINGS_HEAD,
+  forecastCells,
+  forecastNote,
+  forecastQuery,
+  standingsHead,
   standingsNotes,
   standingsTables,
   strengthCells,
@@ -14,7 +17,9 @@ import { useStandings, useStatsQuery, type StatsData } from '@/lib/stats/useStat
 import { seasonLabel } from '@shared/stats/seasons'
 
 const COLUMNS =
-  '24px minmax(190px,1.6fr) 32px 32px 44px 40px 52px 52px 52px 52px 44px 44px 48px 48px 48px 56px 52px 52px'
+  '24px minmax(190px,1.6fr) 32px 32px 44px 40px 52px 52px 52px 52px 44px 44px 48px 48px 48px 56px 52px 52px 52px'
+/** The forecast's three: the projected record and two odds (Plan T1003). */
+const FORECAST_COLUMNS = ' 56px 64px 56px'
 
 /** The published standings of a season, by conference or by division. */
 export function StatsStandings({
@@ -33,6 +38,13 @@ export function StatsStandings({
   // Metis's own columns, beside the published ones; blank until they answer.
   const sq = useMemo(() => strengthQuery(scope.season), [scope.season])
   const strength = strengthCells(useStatsQuery(sq, data.version, { keepLast: false }).result)
+  // The season forecast, for the season in progress only (`forecastQuery` says why).
+  const inProgress = scope.season === data.status?.through?.season
+  const fq = useMemo(
+    () => (inProgress ? forecastQuery(scope.season) : null),
+    [inProgress, scope.season]
+  )
+  const forecast = forecastCells(useStatsQuery(fq, data.version, { keepLast: false }).result)
   return (
     <div className="flex flex-col gap-5 px-8 pt-[22px] pb-8">
       <header className="flex items-end justify-between gap-6">
@@ -67,15 +79,15 @@ export function StatsStandings({
         <Loading error={error} />
       ) : (
         <div className="flex flex-col gap-6">
-          {standingsTables(rows, view, strength).map((t) => (
+          {standingsTables(rows, view, strength, forecast).map((t) => (
             <section key={t.title} className="flex flex-col gap-1">
               <SectionHead title={t.title} />
               <div className="overflow-x-auto">
                 <MiniTable
                   label={`${t.title} standings`}
-                  columns={COLUMNS}
-                  minWidth={1200}
-                  head={STANDINGS_HEAD}
+                  columns={forecast ? COLUMNS + FORECAST_COLUMNS : COLUMNS}
+                  minWidth={forecast ? 1400 : 1200}
+                  head={standingsHead(forecast)}
                   left={[1]}
                   rows={t.rows.map((r) => ({
                     key: r.key,
@@ -95,7 +107,12 @@ export function StatsStandings({
               </div>
             </section>
           ))}
-          <Notes notes={standingsNotes(scope.season, rows)} />
+          <Notes
+            notes={[
+              ...standingsNotes(scope.season, rows),
+              ...(forecast ? [forecastNote(forecast.runs)] : [])
+            ]}
+          />
         </div>
       )}
     </div>

@@ -1,0 +1,98 @@
+[
+  {
+    "size": [1500, 950]
+  },
+  {
+    "wait": 5000
+  },
+  {
+    "eval": "window.sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nwindow.until = async (fn, ms = 10000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (fn()) return true; await sleep(150) } return false };\nwindow.nav = async (name) => { const b = [...document.querySelectorAll('nav button')].find((x) => x.textContent.trim() === name); if (!b) return 'NO NAV ' + name; b.click(); await sleep(1800); return 'nav ' + name };\nwindow.setInput = (input, value) => { const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(input, value); input.dispatchEvent(new Event('input', { bubbles: true })); input.dispatchEvent(new Event('change', { bubbles: true })) };\nwindow.chooseSelect = async (title, value) => { const el = [...document.querySelectorAll('select')].find((x) => x.title === title); if (!el) return 'NO SELECT ' + title; Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(el, String(value)); el.dispatchEvent(new Event('change', { bubbles: true })); await sleep(1500); return title + ' = ' + (el.selectedOptions[0]?.textContent ?? el.value) };\nwindow.clickText = async (text) => { const b = [...document.querySelectorAll('button,[role=tab]')].find((x) => x.textContent.trim() === text); if (!b) return 'NO BUTTON ' + text; b.click(); await sleep(1500); return 'clicked ' + text };\nwindow.cells = (r) => [...r.querySelectorAll('[role=cell],td')].map((c) => c.textContent.trim());\nwindow.boardRow = (name) => { const r = [...document.querySelectorAll('tr,[role=row]')].find((x) => x.textContent.includes(name)); return r ? cells(r) : 'NO ROW ' + name };\nwindow.splitRow = (group, label) => { const t = document.querySelector('[role=table][aria-label=\"' + group + '\"]'); if (!t) return 'NO TABLE ' + group; const r = [...t.querySelectorAll('[role=row]')].find((x) => cells(x)[0] === label); return r ? cells(r) : 'NO ROW ' + label };\nwindow.groupNote = (group) => { const t = document.querySelector('[role=table][aria-label=\"' + group + '\"]'); return t?.closest('section')?.querySelector('div.text-fg-3')?.textContent ?? 'NO NOTE' };\nwindow.openPlayer = async (name) => { const input = document.querySelector('input[aria-label=\"Search players\"]'); if (!input) return 'NO SEARCH'; setInput(input, name); await until(() => [...document.querySelectorAll('aside button')].some((x) => x.textContent.includes(name))); const b = [...document.querySelectorAll('aside button')].find((x) => x.textContent.includes(name)); if (!b) return 'NOT LISTED ' + name; b.click(); await sleep(2000); return 'opened ' + name };\nwindow.check = (label, got, want) => (want.every((w) => JSON.stringify(got).includes(w)) ? 'OK ' : 'MISMATCH ') + label + ' want ' + JSON.stringify(want) + ' got ' + JSON.stringify(got);\nwindow.footer = () => [...document.querySelectorAll('footer div')].map((d) => d.textContent).filter((t) => t.length < 400);\n'helpers ready'"
+  },
+  {
+    "eval": "window.section = (title) => [...document.querySelectorAll('section')].find((s) => s.innerText.trim().startsWith(title))?.innerText.replace(/\\n+/g, ' | ') ?? 'NO SECTION ' + title;\nwindow.titles = (re) => [...document.querySelectorAll('[title]')].map((x) => x.title).filter((t) => re.test(t));\nwindow.heads = () => [...document.querySelectorAll('thead th,[role=columnheader]')].map((t) => t.textContent.trim()).filter(Boolean);\n'helpers 2'"
+  },
+  {
+    "eval": "(async () => [await nav('Standings'), await chooseSelect('Season', 2027)].join(' · '))()"
+  },
+  {
+    "wait": 3000
+  },
+  {
+    "eval": "check('STANDINGS 2026-27: the forecast heads after the published and Metis columns', heads().slice(-4), ['ELO', 'PROJ', 'PLAYOFF%', 'TITLE%'])"
+  },
+  {
+    "eval": "check('STANDINGS 2026-27 Boston: projected record and odds as the table holds', boardRow('Boston Celtics'), ['59-23', '99%', '13%'])"
+  },
+  {
+    "eval": "check('STANDINGS 2026-27 Detroit', boardRow('Detroit Pistons'), ['55-27', '97%', '9%'])"
+  },
+  {
+    "eval": "check('the note says it is a model, by Metis, with the runs', document.body.innerText.split('PROJ, PLAYOFF%')[1]?.slice(0, 200) ?? 'NO NOTE', ['computed by Metis', '10,000 times from its Elo ratings', 'play-in'])"
+  },
+  {
+    "shot": "forecast-01-standings-2026-27"
+  },
+  {
+    "eval": "(async () => [await chooseSelect('Season', 2016)].join(' · '))()"
+  },
+  {
+    "wait": 2500
+  },
+  {
+    "eval": "check('STANDINGS 2015-16: no forecast columns for a past season', [heads().slice(-1), heads().includes('PROJ') ? 'PROJ shown' : 'no PROJ'], ['ELO', 'no PROJ'])"
+  },
+  {
+    "shot": "forecast-02-standings-2015-16"
+  },
+  {
+    "eval": "(async () => [await nav('Teams'), await chooseSelect('Season', 2027), await chooseSelect('Season type', 'regular'), await chooseSelect('Range', 'season'), await chooseSelect('Team', '1610612738')].join(' · '))()"
+  },
+  {
+    "wait": 3500
+  },
+  {
+    "eval": "check('OVERVIEW 2026-27 Boston: the forecast in Team strength', section('Team strength'), ['58.7', '99.1%', '13.2%'])"
+  },
+  {
+    "eval": "check('OVERVIEW 2026-27 Boston: the playoff odds trend, a model by Metis with its runs', section('Playoff odds'), ['computed by Metis from Elo', '10,000 runs'])"
+  },
+  {
+    "shot": "forecast-03-team-2026-27"
+  },
+  {
+    "eval": "(async () => [await chooseSelect('Season', 2016), await chooseSelect('Team', '1610612744')].join(' · '))()"
+  },
+  {
+    "wait": 3500
+  },
+  {
+    "eval": "check('OVERVIEW 2015-16 Golden State: the final forecast, title odds before the playoffs', section('Team strength'), ['73.0', '41.4%'])"
+  },
+  {
+    "eval": "(() => { const s = [...document.querySelectorAll('section')].find((x) => x.innerText.trim().startsWith('Playoff odds')); const dots = s ? s.querySelectorAll('svg circle').length : 0; return check('OVERVIEW 2015-16 Golden State: twenty snapshots of 500 runs in the trend', [section('Playoff odds'), 'points ' + dots], ['500 runs', 'points 20']) })()"
+  },
+  {
+    "shot": "forecast-04-team-2015-16"
+  },
+  {
+    "eval": "(async () => { const r = await chooseSelect('Range', 'dates'); await sleep(600); setInput(document.querySelector('input[title=\"From date\"]'), '2015-10-27'); await sleep(900); setInput(document.querySelector('input[title=\"To date\"]'), '2016-01-31'); await sleep(3500); return r })()"
+  },
+  {
+    "eval": "check('DATE RANGE to Jan 31, 2016: the forecast as it stood', section('Team strength'), ['71.5', '45.0%'])"
+  },
+  {
+    "shot": "forecast-05-team-date-range"
+  },
+  {
+    "eval": "(async () => [await chooseSelect('Range', 'season'), await chooseSelect('Season type', 'playoffs')].join(' · '))()"
+  },
+  {
+    "wait": 3000
+  },
+  {
+    "eval": "check('PLAYOFFS: the forecast reads its reason, and no trend', [section('Team strength').split('Projected wins')[1]?.slice(0, 80) ?? 'NO ROW', section('Playoff odds').startsWith('NO SECTION') ? 'no trend' : 'trend shown'], ['Forecast in the regular season, as of its games.', 'no trend'])"
+  },
+  {
+    "shot": "forecast-06-team-playoffs"
+  }
+]

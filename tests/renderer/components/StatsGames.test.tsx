@@ -195,7 +195,8 @@ beforeEach(() => {
       attendance: 19156,
       note: null,
       periods: { home: [30, 30, 25, 25], away: [25, 25, 26, 26] },
-      officials: []
+      officials: [],
+      elo: null
     })
   )
 })
@@ -365,7 +366,8 @@ describe('the games screen', () => {
         attendance: null,
         note: null,
         periods: null,
-        officials: [{ id: '7', name: 'Ed Malloy' }]
+        officials: [{ id: '7', name: 'Ed Malloy' }],
+        elo: null
       })
     )
     vi.mocked(api.stats.officialCareer).mockResolvedValue({

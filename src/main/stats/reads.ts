@@ -3,6 +3,7 @@ import type {
   GameType,
   StatsGame,
   StatsGameDetail,
+  StatsGameElo,
   StatsLineups,
   StatsLineupUnit,
   StatsMatchupPair,
@@ -30,6 +31,8 @@ import { MATCHUP_PAIRS } from './derived/matchupPairs'
 import { column, inspect, per, type Have } from './derived/sql'
 import { readOfficials } from './availabilityReads'
 import { readScopedMatchups } from './matchupReads'
+import { ELO_GAME_TABLE, ELO_SCHEDULE_TABLE } from './models/teamElo'
+import { ELO_FIRST_SEASON } from '@shared/stats/catalogue/ratings'
 
 /**
  * What the dashboards read beside the query engine: who a player is, the schedule, a game's facts and
@@ -518,11 +521,48 @@ export function parsePeriods(published: string | null): number[] {
 
 const sum = (xs: number[]): number => xs.reduce((a, b) => a + b, 0)
 
+/**
+ * A game's Elo from the home side's row (Plan T1002): of `elo_game` once played, of `elo_schedule`
+ * while still to come. None before the first season the ratings are fit to read: every team starts at
+ * 1500 in 1993-94.
+ */
+async function readGameElo(db: StatsDb, have: Have, id: string): Promise<StatsGameElo | null> {
+  const before = 'neutral, home_court, win_prob, exp_margin, elo_pre, opp_elo_pre'
+  const tables = [
+    have.tables.has(ELO_GAME_TABLE) &&
+      `SELECT ${before}, elo, opp_elo FROM ${ELO_GAME_TABLE} WHERE game_id = $1 AND home AND season >= $2`,
+    have.tables.has(ELO_SCHEDULE_TABLE) &&
+      `SELECT ${before}, NULL::DOUBLE AS elo, NULL::DOUBLE AS opp_elo FROM ${ELO_SCHEDULE_TABLE}
+       WHERE game_id = $1 AND home AND season >= $2`
+  ].filter((x): x is string => typeof x === 'string')
+  if (tables.length === 0) return null
+  const r = await db.get<{
+    neutral: boolean
+    home_court: number
+    win_prob: number
+    exp_margin: number
+    elo_pre: number
+    opp_elo_pre: number
+    elo: number | null
+    opp_elo: number | null
+  }>(`${tables.join(' UNION ALL ')} LIMIT 1`, [id, ELO_FIRST_SEASON])
+  if (!r) return null
+  return {
+    neutral: r.neutral,
+    homeCourt: r.home_court,
+    homeWin: r.win_prob,
+    homeMargin: r.exp_margin,
+    home: { pre: r.elo_pre, post: r.elo },
+    away: { pre: r.opp_elo_pre, post: r.opp_elo }
+  }
+}
+
 export async function readGame(db: StatsDb, id: string): Promise<StatsGameDetail | null> {
   const have = await inspect(db)
   const e = 'src_espn_schedule'
   if (!have.tables.has('game')) return null
   const officials = await readOfficials(db, id)
+  const elo = await readGameElo(db, have, id)
   // The crew comes from the NBA's file, so a game ESPN's schedule lacks can still have one.
   const bare: StatsGameDetail = {
     id,
@@ -531,9 +571,10 @@ export async function readGame(db: StatsDb, id: string): Promise<StatsGameDetail
     attendance: null,
     note: null,
     periods: null,
-    officials
+    officials,
+    elo
   }
-  if (!have.tables.has(e)) return officials.length ? bare : null
+  if (!have.tables.has(e)) return officials.length || elo ? bare : null
   const r = await db.get<{
     venue: string | null
     city: string | null
@@ -555,7 +596,7 @@ export async function readGame(db: StatsDb, id: string): Promise<StatsGameDetail
      WHERE g.game_id = ? LIMIT 1`,
     [id]
   )
-  if (!r) return officials.length ? bare : null
+  if (!r) return officials.length || elo ? bare : null
   const home = parsePeriods(r.home_lines)
   const away = parsePeriods(r.away_lines)
   // Periods that do not add up to the score would contradict the header, so they are not shown.
@@ -567,7 +608,8 @@ export async function readGame(db: StatsDb, id: string): Promise<StatsGameDetail
     attendance: r.attendance && r.attendance > 0 ? r.attendance : null,
     note: r.note,
     periods: agree ? { home, away } : null,
-    officials
+    officials,
+    elo
   }
 }
 

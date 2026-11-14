@@ -3,6 +3,12 @@ import {
   conferenceTables,
   divisionTables,
   fmtGamesBack,
+  fmtOdds,
+  fmtProjected,
+  forecastCells,
+  forecastNote,
+  forecastQuery,
+  standingsHead,
   fmtWinPct,
   fmtSigned,
   standingsNotes,
@@ -12,7 +18,7 @@ import {
   strengthQuery,
   teamPlace
 } from '@/lib/stats/standings'
-import type { StatsStanding } from '@shared/stats/types'
+import type { MetricValue, StatsStanding } from '@shared/stats/types'
 
 const team = (over: Partial<StatsStanding>): StatsStanding => ({
   teamId: '1',
@@ -113,17 +119,18 @@ describe('the tables', () => {
       '+7.7',
       '—',
       '—',
+      '—',
       '—'
     ])
   })
 
   it('writes Metis’s strength columns when they have answered, signs shown', () => {
-    const strength = new Map([['1', [57.4, 7.456, -0.1234]]])
+    const strength = new Map([['1', [57.4, 7.456, -0.1234, 1612.6]]])
     const boston = conferenceTables(ROWS, strength)[0].rows[1]
-    expect(boston.cells.slice(-3)).toEqual(['57.4', '+7.46', '−0.12'])
+    expect(boston.cells.slice(-4)).toEqual(['57.4', '+7.46', '−0.12', '1,613'])
     expect(fmtSigned(0.001, 2)).toBe('0.00')
     expect(strengthQuery(2026)).toMatchObject({
-      metrics: ['team_pyth_w', 'team_srs', 'team_sos'],
+      metrics: ['team_pyth_w', 'team_srs', 'team_sos', 'team_elo'],
       scope: { seasons: [2026], gameTypes: ['regular'] }
     })
   })
@@ -142,7 +149,7 @@ describe('the tables', () => {
 
   it('writes a real minus on a losing differential, and a dash for what is not published', () => {
     const [east] = conferenceTables(ROWS)
-    expect(east.rows[2].cells.at(-4)).toBe('−0.3')
+    expect(east.rows[2].cells.at(-5)).toBe('−0.3')
     const old = conferenceTables([team({ last10: null, streak: null, conferenceRecord: null })])
     expect(old[0].rows[0].cells.slice(7, 10)).toEqual(['—', '—', '—'])
   })
@@ -192,5 +199,83 @@ describe('a team’s place', () => {
     expect(teamPlace(null, '1')).toBeNull()
     expect(teamPlace([team({ divisionRank: null })], '1')).toBe('2nd in the East')
     expect(teamPlace([team({ divisionRank: null, conferenceRank: null })], '1')).toBeNull()
+  })
+})
+
+describe('the season forecast columns (Plan T1003)', () => {
+  const v = (x: number | null): MetricValue => ({
+    value: x,
+    raw: x,
+    sample: 1,
+    qualified: true,
+    percentile: null,
+    rank: null
+  })
+  const result = {
+    grain: 'season' as const,
+    columns: [],
+    total: 1,
+    notes: [],
+    ms: 1,
+    rows: [
+      {
+        id: '1',
+        name: 'Boston Celtics',
+        group: {},
+        games: 12,
+        values: {
+          team_proj_w: v(50.6),
+          team_proj_l: v(31.4),
+          team_playoff_pct: v(0.8712),
+          team_title_pct: v(0.0042),
+          team_forecast_runs: v(10000)
+        }
+      }
+    ]
+  }
+
+  it('reads the season in progress’s forecast, regular season', () => {
+    expect(forecastQuery(2027)).toMatchObject({
+      metrics: [
+        'team_proj_w',
+        'team_proj_l',
+        'team_playoff_pct',
+        'team_title_pct',
+        'team_forecast_runs'
+      ],
+      scope: { seasons: [2027], gameTypes: ['regular'] }
+    })
+  })
+
+  it('writes a projected record that adds up and odds to the point', () => {
+    expect(fmtProjected(50.6, 31.4)).toBe('51-31')
+    expect(fmtProjected(50.5, 31.5)).toBe('51-31')
+    expect(fmtProjected(null, 3)).toBe('—')
+    expect([0, 0.004, 0.5, 0.996, 1, null].map(fmtOdds)).toEqual([
+      '0%',
+      '<1%',
+      '50%',
+      '>99%',
+      '100%',
+      '—'
+    ])
+  })
+
+  it('adds three columns after the published ones and a note, only with a forecast', () => {
+    const f = forecastCells(result as never)!
+    expect(f.cells.get('1')).toEqual(['51-31', '87%', '<1%'])
+    expect(f.runs).toBe(10000)
+    expect(standingsHead(null)).toEqual(STANDINGS_HEAD)
+    expect(standingsHead(f).slice(-3)).toEqual(['PROJ', 'PLAYOFF%', 'TITLE%'])
+    const [east] = conferenceTables(ROWS, null, f)
+    expect(east.rows.find((r) => r.teamId === '1')!.cells.slice(-3)).toEqual([
+      '51-31',
+      '87%',
+      '<1%'
+    ])
+    expect(east.rows.find((r) => r.teamId === '2')!.cells.slice(-3)).toEqual(['—', '—', '—'])
+    expect(conferenceTables(ROWS)[0].rows[0].cells).toHaveLength(STANDINGS_HEAD.length - 2)
+    expect(forecastNote(10000)).toContain('10,000 times from its Elo ratings')
+    expect(forecastCells(null)).toBeNull()
   })
 })
