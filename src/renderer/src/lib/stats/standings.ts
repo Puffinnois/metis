@@ -1,8 +1,11 @@
 import { seasonLabel } from '@shared/stats/seasons'
-import type { StatsStanding } from '@shared/stats/types'
+import type { StatsQuery, StatsResult, StatsStanding } from '@shared/stats/types'
 import { fmtStat, ordinal } from './format'
 
-/** The published standings, by conference or by division. Nothing here is recomputed. */
+/**
+ * The published standings, by conference or by division. Nothing published is recomputed; the last
+ * three columns are Metis's own (Plan T1001), from the final scores, and the screen says so.
+ */
 
 export type StandingsView = 'conference' | 'division'
 
@@ -21,8 +24,43 @@ export const STANDINGS_HEAD = [
   'STRK',
   'PPG',
   'OPP',
-  'DIFF'
+  'DIFF',
+  'PYTH W',
+  'SRS',
+  'SOS'
 ]
+
+/** The team strength columns, computed by Metis, after the published ones. */
+export const STRENGTH_METRICS = ['team_pyth_w', 'team_srs', 'team_sos'] as const
+
+/** Each team's strength over the season's regular season: its final SRS and SOS. */
+export function strengthQuery(season: number): StatsQuery {
+  return {
+    entity: 'team',
+    metrics: [...STRENGTH_METRICS],
+    scope: { seasons: [season], gameTypes: ['regular'] },
+    limit: 40,
+    ranks: false
+  }
+}
+
+/** A team's strength cells by its id, in the order of `STRENGTH_METRICS`. */
+export type StrengthCells = ReadonlyMap<string, readonly (number | null)[]>
+
+export function strengthCells(result: StatsResult | null): StrengthCells | null {
+  if (!result) return null
+  return new Map(
+    result.rows.map((r) => [r.id, STRENGTH_METRICS.map((m) => r.values[m]?.value ?? null)])
+  )
+}
+
+/** "+7.45" or "−2.10": a rating's sign always shows, with a real minus. */
+export function fmtSigned(x: number | null, decimals: number): string {
+  if (x === null) return '—'
+  const text = Math.abs(x).toFixed(decimals)
+  if (Number(text) === 0) return text
+  return x > 0 ? `+${text}` : `−${text}`
+}
 
 export interface StandingRow {
   key: string
@@ -56,10 +94,11 @@ export function fmtGamesBack(x: number | null): string {
 
 const fmtPoints = (x: number | null): string => fmtStat(x, { unit: 'number', decimals: 1 })
 
-function row(s: StatsStanding, by: StandingsView): StandingRow {
+function row(s: StatsStanding, by: StandingsView, strength: StrengthCells | null): StandingRow {
   const rank = by === 'conference' ? s.conferenceRank : s.divisionRank
   const back = by === 'conference' ? s.conferenceGamesBack : s.divisionGamesBack
   const diff = fmtPoints(s.differential)
+  const [pythW, srs, sos] = strength?.get(s.teamId) ?? [null, null, null]
   return {
     key: s.teamId,
     teamId: s.teamId,
@@ -79,7 +118,10 @@ function row(s: StatsStanding, by: StandingsView): StandingRow {
       dash(s.streak),
       fmtPoints(s.pointsPerGame),
       fmtPoints(s.allowedPerGame),
-      s.differential !== null && s.differential > 0 ? `+${diff}` : diff
+      s.differential !== null && s.differential > 0 ? `+${diff}` : diff,
+      pythW === null ? '—' : pythW.toFixed(1),
+      fmtSigned(srs, 2),
+      fmtSigned(sos, 2)
     ]
   }
 }
@@ -87,19 +129,25 @@ function row(s: StatsStanding, by: StandingsView): StandingRow {
 const rankOf = (r: number | null): number => r ?? Number.MAX_SAFE_INTEGER
 
 /** Two tables, East first. */
-export function conferenceTables(rows: readonly StatsStanding[]): StandingsTable[] {
+export function conferenceTables(
+  rows: readonly StatsStanding[],
+  strength: StrengthCells | null = null
+): StandingsTable[] {
   const names = [...new Set(rows.map((r) => r.conference ?? 'Unknown'))].sort()
   return names.map((title) => ({
     title,
     rows: rows
       .filter((r) => (r.conference ?? 'Unknown') === title)
       .sort((a, b) => rankOf(a.conferenceRank) - rankOf(b.conferenceRank))
-      .map((r) => row(r, 'conference'))
+      .map((r) => row(r, 'conference', strength))
   }))
 }
 
 /** A table per division that season, by conference: four until 2003-04, six after. */
-export function divisionTables(rows: readonly StatsStanding[]): StandingsTable[] {
+export function divisionTables(
+  rows: readonly StatsStanding[],
+  strength: StrengthCells | null = null
+): StandingsTable[] {
   const seen = new Map<string, string>()
   for (const r of rows) seen.set(r.division ?? 'Unknown', r.conference ?? 'Unknown')
   const names = [...seen].sort(([a, ca], [b, cb]) => ca.localeCompare(cb) || a.localeCompare(b))
@@ -108,18 +156,24 @@ export function divisionTables(rows: readonly StatsStanding[]): StandingsTable[]
     rows: rows
       .filter((r) => (r.division ?? 'Unknown') === title)
       .sort((a, b) => rankOf(a.divisionRank) - rankOf(b.divisionRank))
-      .map((r) => row(r, 'division'))
+      .map((r) => row(r, 'division', strength))
   }))
 }
 
 export const standingsTables = (
   rows: readonly StatsStanding[],
-  by: StandingsView
-): StandingsTable[] => (by === 'conference' ? conferenceTables(rows) : divisionTables(rows))
+  by: StandingsView,
+  strength: StrengthCells | null = null
+): StandingsTable[] =>
+  by === 'conference' ? conferenceTables(rows, strength) : divisionTables(rows, strength)
 
 /** The first season with published standings, by final year, and with streaks and the last ten. */
 const FIRST_STANDINGS = 1996
 const FIRST_STREAKS = 2002
+
+/** Metis's own columns are not the NBA's, and the table says so. */
+export const STRENGTH_NOTE =
+  'PYTH W, SRS and SOS are computed by Metis from the final scores: Pythagorean wins with the exponent 14, SRS and the strength of schedule solved on the regular season.'
 
 /** What the table depends on, or why there is none. */
 export function standingsNotes(season: number, rows: readonly StatsStanding[]): string[] {
@@ -137,6 +191,7 @@ export function standingsNotes(season: number, rows: readonly StatsStanding[]): 
       `The NBA’s file has no real conference or division records for ${seasonLabel(season)}.`
     )
   }
+  notes.push(STRENGTH_NOTE)
   return notes
 }
 

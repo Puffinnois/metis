@@ -11,6 +11,12 @@ import { addGame, BOS, LAL, MIA } from './boxScores'
  * - after Nov 3: 2·BOS − LAL − MIA = 8 with the sum zero gives BOS 8/3, LAL −2, MIA −2/3.
  *   MOV: BOS +4, LAL −3, MIA −1; SOS: BOS −4/3, LAL +1, MIA +1/3.
  *
+ * Still to come: Miami at Boston on Mar 1, not played. The schedule left, with each opponent's rating
+ * as of the day (a team with no game yet counts as 0):
+ * - after Nov 1: BOS 2 games (MIA twice, 0), LAL 1 (MIA, 0);
+ * - after Nov 2: LAL none, MIA 2 (BOS twice, +8);
+ * - after Nov 3: MIA 1 (BOS, 8/3), BOS 1 (MIA, −2/3).
+ *
  * Games the solve must leave out: a playoff game, an All-Star game ESPN files under the regular
  * season (typed `all-star` in the game table) and a Cup final. 2024-25 has one game: BOS by 6.
  */
@@ -24,6 +30,14 @@ export async function addLeague(db: StatsDb): Promise<void> {
   await addGame(db, { id: 'a', date: '2025-11-01', home: BOS, away: LAL, scores: [110, 100] })
   await addGame(db, { id: 'b', date: '2025-11-02', home: LAL, away: MIA, scores: [104, 100] })
   await addGame(db, { id: 'c', date: '2025-11-03', home: MIA, away: BOS, scores: [102, 100] })
+  await addGame(db, {
+    id: 'later',
+    date: '2026-03-01',
+    home: BOS,
+    away: MIA,
+    scores: [0, 0],
+    played: false
+  })
   await addGame(db, {
     id: 'cup',
     date: '2025-12-16',

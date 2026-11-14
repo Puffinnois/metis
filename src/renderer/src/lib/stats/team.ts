@@ -47,6 +47,20 @@ export const RATINGS_SECTION: SectionDef = {
   metrics: ['team_win_pct', 'team_point_diff', 'team_ortg', 'team_drtg', 'team_nrtg', 'team_pace']
 }
 
+/**
+ * Plan T1001: how strong the team is beyond its record. The margin and Pythagorean wins come from the
+ * scores in scope; SRS and the schedule strengths are solved on the regular season, as of the last
+ * game in scope.
+ */
+export const STRENGTH_SECTION: SectionDef = {
+  title: 'Team strength',
+  note: 'Computed by Metis',
+  metrics: ['team_mov', 'team_pyth_w', 'team_win_resid', 'team_srs', 'team_sos', 'team_sos_left']
+}
+
+/** The two sections of the Overview, read by one query. */
+export const OVERVIEW_METRICS = [...RATINGS_SECTION.metrics, ...STRENGTH_SECTION.metrics]
+
 export const TEAM_SECTIONS: Record<
   'offense' | 'defense' | 'shots_offense' | 'shots_defense' | 'plays',
   SectionDef[]

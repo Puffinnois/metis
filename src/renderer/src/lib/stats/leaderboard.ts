@@ -199,6 +199,10 @@ function familyMetrics(
   const of = pickable(catalogue, tab).filter(
     (m) => m.family === family && (!tab.sides || !m.side || tab.sides.includes(m.side))
   )
+  // Ratings read in the catalogue's order, which builds up to SRS = MOV + SOS: by label they would not.
+  if (IN_CATALOGUE_ORDER.has(family)) {
+    of.sort((a, b) => catalogue.indexOf(a) - catalogue.indexOf(b))
+  }
   const core = of.filter((m) => m.tier === 'core')
   const extended = of.filter((m) => m.tier !== 'core')
   const fill = [
@@ -207,6 +211,9 @@ function familyMetrics(
   ].slice(0, Math.max(0, 12 - core.length))
   return [...core, ...fill].map((m) => m.id)
 }
+
+/** Families whose preset keeps the catalogue's order rather than the labels'. */
+const IN_CATALOGUE_ORDER: ReadonlySet<MetricFamily> = new Set(['ratings'])
 
 /** The families a tab has metrics of, for the family filter. */
 export function familiesOf(catalogue: readonly MetricInfo[], tab: TabDef): MetricFamily[] {
