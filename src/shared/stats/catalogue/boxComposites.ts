@@ -86,14 +86,14 @@ export const BOX_COMPOSITES: MetricDef[] = [
     'bpm',
     'Box Plus/Minus',
     'BPM',
-    `Points per 100 possessions above an average player, version 2.0: the box score weighed by estimated position and role, then adjusted so the team's players add up to its rating. ${METIS}`,
+    `Points per 100 possessions above an average player, version 2.0: the box score weighed by estimated position and role, then adjusted so the team's players add up to its rating. ${METIS} The best players read 0.2 to 0.5 below the published BPM.`,
     perMinute('bpm_num', { tier: 'core' })
   ),
   metric(
     'obpm',
     'Offensive Box Plus/Minus',
     'OBPM',
-    `The offensive part of BPM, from its own regression. ${METIS}`,
+    `The offensive part of BPM, from its own regression. ${METIS} The best players read up to 0.3 below the published OBPM.`,
     perMinute('obpm_num')
   ),
   metric(
@@ -107,7 +107,7 @@ export const BOX_COMPOSITES: MetricDef[] = [
     'vorp',
     'Value Over Replacement Player',
     'VORP',
-    `Points per 100 team possessions above a replacement player (BPM −2.0), times the share of the team's minutes played and its games out of 82. ${METIS}`,
+    `Points per 100 team possessions above a replacement player (BPM −2.0), times the share of the team's minutes played and its games out of 82. ${METIS} It follows BPM, so the best players read up to 0.4 below the published VORP.`,
     total('vorp', { tier: 'core' })
   ),
   metric(
