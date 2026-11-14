@@ -87,7 +87,7 @@
     "wait": 2500
   },
   {
-    "eval": "(async () => { const r = await chooseSelect('Metric family', 'ratings'); await sleep(2500); return [r, check('the Ratings preset with Elo', heads(), ['MOV', 'SRS', 'ELO', 'ELO W', 'W − ELO W']), check('Golden State on it', boardRow('Golden State Warriors'), ['10.38', '1,778', '65.9'])].join(' · ') })()"
+    "eval": "(async () => { const r = await chooseSelect('Metric family', 'ratings'); await sleep(2500); return [r, check('the Ratings preset with Elo', heads(), ['MOV', 'SRS', 'ELO', 'ADJ NRtg', 'ELO W']), check('Golden State on it', boardRow('Golden State Warriors'), ['10.38', '1,778', '65.9'])].join(' · ') })()"
   },
   {
     "shot": "elo-05-ratings-preset"

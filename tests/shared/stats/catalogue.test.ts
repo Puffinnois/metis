@@ -695,7 +695,13 @@ const MODEL_ROW: Record<string, number> = {
   obpm_num: 5000,
   vorp: 3.5,
   position_num: 6000,
-  role_num: 5000
+  role_num: 5000,
+  adj_poss: 950,
+  adj_ortg: 114.5,
+  adj_drtg: 109.25,
+  adj_nrtg: 5.25,
+  adj_league: 112,
+  adj_home: 2.75
 }
 
 /** Team strength from the scores (Plan T1001): 310 points for, 290 against, 2-1. */
@@ -706,6 +712,10 @@ Object.assign(EXPECTED, {
   team_sos: -1.5,
   team_sos_left: 0.5,
   team_games_left: 40,
+  team_adj_ortg: 114.5,
+  team_adj_drtg: 109.25,
+  team_adj_nrtg: 5.25,
+  team_adj_home: 2.75,
   team_mov: 20 / 3,
   team_pyth_pct: PYTH,
   team_pyth_w: 3 * PYTH,

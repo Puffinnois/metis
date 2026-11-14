@@ -3,6 +3,7 @@ import type { StatsDb } from '../db'
 import { inspect, type Have } from '../derived/sql'
 import { COMPOSITES_BUILDER } from './boxComposites'
 import { TEAM_ELO } from './teamElo'
+import { ADJUSTED_RATINGS } from './adjustedRatings'
 import { TEAM_STRENGTH } from './teamStrength'
 
 /**
@@ -75,7 +76,9 @@ export const MODEL_BUILDERS: readonly ModelBuilder[] = [
   // Plan T1005: Oliver's ratings, PER, Win Shares, BPM and VORP per team, season and season type.
   COMPOSITES_BUILDER,
   // Plan T1002: Elo before and after every game, carried from season to season.
-  TEAM_ELO
+  TEAM_ELO,
+  // Plan T1004: offense and defense per 100 possessions, adjusted for opponent and site.
+  ADJUSTED_RATINGS
 ]
 
 /** Bump when the step itself changes how every table is written: every builder recomputes. */
