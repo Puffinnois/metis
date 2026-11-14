@@ -100,8 +100,14 @@ beforeEach(async () => {
 
 const builder = makeForecastBuilder({ current: 60, past: 40 })
 const run = async (season: number, current: number): Promise<Record<string, unknown>[]> => {
-  const rows = await builder.build({ db, have: await inspect(db), season, current })
-  return [...rows[FORECAST_TABLE]]
+  const rows = await builder.build({
+    db,
+    have: await inspect(db),
+    season,
+    current,
+    changed: [season]
+  })
+  return [...(rows?.[FORECAST_TABLE] ?? [])]
 }
 const iso = (x: unknown): string => String(x)
 

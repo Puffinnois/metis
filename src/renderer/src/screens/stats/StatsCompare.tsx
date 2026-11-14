@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { X } from 'lucide-react'
 import { ColumnPicker } from '@/components/stats/ColumnPicker'
 import { Segmented, StatsButton, StatsSelect } from '@/components/stats/controls'
-import { MetricHover } from '@/components/stats/MetricCard'
+import { MetricHover, StabilityMark } from '@/components/stats/MetricCard'
 import { Loading, Notes } from '@/components/stats/parts'
 import { ScopeBar } from '@/components/stats/ScopeBar'
 import { PercentileBar } from '@/components/stats/StatLines'
@@ -479,6 +479,7 @@ function MetricRow({ row }: { row: CompareRow }): React.JSX.Element {
         ) : (
           label
         )}
+        {row.info && <StabilityMark info={row.info} className="self-center text-fg-3" />}
         {row.sub && <span className="font-mono text-[10.5px] text-fg-3">{row.sub}</span>}
       </div>
       {row.cells.map((c, k) =>

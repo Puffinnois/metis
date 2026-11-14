@@ -1,4 +1,5 @@
 import { AssistNetwork } from '@/components/stats/AssistNetwork'
+import { MetricHead } from '@/components/stats/MetricCard'
 import { ShotChart } from '@/components/stats/ShotChart'
 import { shotRequest } from '@/lib/stats/shotChart'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -517,7 +518,7 @@ function History({
   )
   const { result, error } = useStatsQuery(q, data.version, FRESH)
   if (!result) return <Loading error={error} />
-  const head = HISTORY_METRICS.map((id) => data.byId.get(id)?.short ?? id)
+  const head = HISTORY_METRICS.map((id) => <MetricHead key={id} id={id} info={data.byId.get(id)} />)
   return (
     <section className="flex flex-col gap-2.5">
       <SectionHead
@@ -633,7 +634,7 @@ function Players({ data, scope, team, mode, onOpenPlayer }: TabProps): React.JSX
   const { value: listed } = useAvailability(current ? ids : [], data.version)
   const tags = tagsById(listed)
   if (!result) return <Loading error={error} />
-  const head = ROSTER_METRICS.map((id) => data.byId.get(id)?.short ?? id)
+  const head = ROSTER_METRICS.map((id) => <MetricHead key={id} id={id} info={data.byId.get(id)} />)
   return (
     <section className="flex flex-col gap-2.5">
       <SectionHead title="Players" note="Their games for this team, most minutes first" />
@@ -685,7 +686,9 @@ function TeamSplits({ data, scope, team, mode }: TabProps): React.JSX.Element {
   const { results, error } = useStatsQueries(queries, data.version)
   if (!results) return <Loading error={error} />
   const groups = splitTable(results, defs, season, data.byId, mode, TEAM_SPLIT_METRICS)
-  const head = TEAM_SPLIT_METRICS.map((id) => data.byId.get(id)?.short ?? id)
+  const head = TEAM_SPLIT_METRICS.map((id) => (
+    <MetricHead key={id} id={id} info={data.byId.get(id)} />
+  ))
   return (
     <div className="flex flex-col gap-6">
       <SplitTables groups={groups} head={head} />

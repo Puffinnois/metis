@@ -22,6 +22,7 @@ import {
   leaderRows,
   modeWords,
   rankWithinTab,
+  shrunkPatch,
   tabOf,
   tabsOf
 } from '@/lib/stats/leaderboard'
@@ -128,6 +129,7 @@ export function StatsLeaderboard({
       ...next,
       mode: board.mode,
       qualifiedOnly: board.qualifiedOnly,
+      shrunk: board.shrunk ?? false,
       team: board.team,
       split: board.split ?? null
     })
@@ -174,8 +176,9 @@ export function StatsLeaderboard({
             {title}
           </h1>
           <div className="text-[13px] text-fg-3">
-            {scopeLabel(scope, entity)} · {qualifyNote} · Shading is percentile within{' '}
-            {entity === 'player' ? 'position' : 'the league'}
+            {scopeLabel(scope, entity)} · {qualifyNote}
+            {board.shrunk ? ' · Shrunk rates (S) rank every row' : ''} · Shading is percentile
+            within {entity === 'player' ? 'position' : 'the league'}
           </div>
         </div>
         <ScopeBar scope={scope} seasons={data.seasons} entity={entity} onChange={onScope} />
@@ -260,6 +263,13 @@ export function StatsLeaderboard({
             Qualified only
           </CheckToggle>
         )}
+        <CheckToggle
+          on={board.shrunk ?? false}
+          onChange={(on) => update(shrunkPatch(on))}
+          title="Each rate with a measured prior pulled toward the league by it, so a small sample can rank. Hover a value for its raw figure."
+        >
+          Shrunk rates
+        </CheckToggle>
         {entity === 'player' && (
           <StatsSelect
             title="Team"

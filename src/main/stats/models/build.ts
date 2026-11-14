@@ -5,6 +5,7 @@ import { COMPOSITES_BUILDER } from './boxComposites'
 import { TEAM_ELO } from './teamElo'
 import { ADJUSTED_RATINGS } from './adjustedRatings'
 import { FORECAST_BUILDER } from './forecast'
+import { STABILITY_BUILDER } from './metricStability'
 import { TEAM_STRENGTH } from './teamStrength'
 
 /**
@@ -16,8 +17,10 @@ import { TEAM_STRENGTH } from './teamStrength'
  * How the engine reads a model table. `sum`: counts and sums, added over the rows in scope and
  * divided when read, like a box score. `state`: a value that is not a sum (a rating), one row per
  * team or player per game holding the value after that game, read at the last game in scope.
+ * `meta`: a table about the metrics themselves (`metric_stability`), read by the service, never by a
+ * metric; its `entity`, `grain` and empty `components` are not read.
  */
-export type ModelKind = 'sum' | 'state'
+export type ModelKind = 'sum' | 'state' | 'meta'
 
 export interface ModelTable {
   table: string
@@ -48,6 +51,12 @@ export interface ModelContext {
   season: number
   /** The season in progress, by final year. */
   current: number
+  /**
+   * The seasons whose data changed for this builder: every season played when it recomputes them all,
+   * and the seasons an earlier builder recomputed. A builder keyed to more than one season (stability)
+   * reads it to tell whether its rows still stand.
+   */
+  changed: readonly number[]
 }
 
 /** A season's rows for each of a builder's tables, as objects keyed by column name. */
@@ -67,8 +76,11 @@ export interface ModelBuilder {
    * the next (Elo) adds the seasons after them. Default: those seasons.
    */
   seasons?: (changed: readonly number[], played: readonly number[]) => number[]
-  /** One season's rows. What a missing table or column cannot give reads NULL or is left out. */
-  build: (ctx: ModelContext) => Promise<ModelRows>
+  /**
+   * One season's rows. What a missing table or column cannot give reads NULL or is left out. Null
+   * keeps the season's rows as they are: nothing it reads has changed.
+   */
+  build: (ctx: ModelContext) => Promise<ModelRows | null>
 }
 
 export const MODEL_BUILDERS: readonly ModelBuilder[] = [
@@ -81,7 +93,9 @@ export const MODEL_BUILDERS: readonly ModelBuilder[] = [
   // Plan T1004: offense and defense per 100 possessions, adjusted for opponent and site.
   ADJUSTED_RATINGS,
   // Plan T1003: the season simulation, each team's forecast as of dates through the season.
-  FORECAST_BUILDER
+  FORECAST_BUILDER,
+  // Plan T1006: every metric's stability, last, since it reads every table above through the engine.
+  STABILITY_BUILDER
 ]
 
 /** Bump when the step itself changes how every table is written: every builder recomputes. */
@@ -171,6 +185,8 @@ export interface ModelPlan {
   builder: ModelBuilder
   all: boolean
   seasons: number[]
+  /** The seasons whose data changed, which `seasons` came from. */
+  changed: number[]
 }
 
 /**
@@ -194,7 +210,7 @@ export async function planModels(db: StatsDb): Promise<ModelPlan[]> {
     const wanted = new Set(b.seasons ? b.seasons(changed, played) : changed)
     const seasons = played.filter((s) => wanted.has(s))
     for (const s of seasons) carried.add(s)
-    plans.push({ builder: b, all, seasons })
+    plans.push({ builder: b, all, seasons, changed })
   }
   return plans
 }
@@ -237,13 +253,14 @@ export async function buildModels(db: StatsDb, current: number): Promise<number>
   const plans = await planModels(db)
   const have = await inspect(db)
   let written = 0
-  for (const { builder, all, seasons } of plans) {
+  for (const { builder, all, seasons, changed } of plans) {
     for (const t of builder.tables) {
       if (!(await shaped(db, t)))
         await db.exec(`CREATE OR REPLACE TABLE ${t.table} (${createSql(t)})`)
     }
     for (const season of seasons) {
-      const rows = await builder.build({ db, have, season, current })
+      const rows = await builder.build({ db, have, season, current, changed })
+      if (rows === null) continue
       written += await db.transaction(async () => {
         let n = 0
         for (const t of builder.tables) {

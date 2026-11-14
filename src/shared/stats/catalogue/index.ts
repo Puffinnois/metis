@@ -6,6 +6,7 @@ import { TRACKING } from './tracking'
 import { HUSTLE } from './hustle'
 import { AVAILABILITY } from './availability'
 import { IMPACT } from './impact'
+import { leagueIndexes } from './indexes'
 import { MATCHUPS } from './matchups'
 import { ON_COURT } from './onCourt'
 import { PLAY_TYPES } from './playTypes'
@@ -40,6 +41,8 @@ export const CATALOGUE: MetricDef[] = [
   ...RATINGS,
   ...BOX_COMPOSITES
 ]
+// The league indexes read the rates above, so they are added once those are all there.
+CATALOGUE.push(...leagueIndexes(CATALOGUE))
 
 export const METRICS: ReadonlyMap<string, MetricDef> = new Map(CATALOGUE.map((m) => [m.id, m]))
 

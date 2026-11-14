@@ -108,6 +108,7 @@ const FAMILY_LABELS: Record<MetricInfo['family'], string> = {
   composite: 'Composite',
   ratings: 'Ratings',
   box_composites: 'Box-score ratings',
+  indexes: 'League indexes',
   tracking: 'Tracking',
   hustle: 'Hustle',
   play_types: 'Play types',

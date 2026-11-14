@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Popover } from 'radix-ui'
 import { Columns3 } from 'lucide-react'
 import { StatsButton } from '@/components/stats/controls'
+import { StabilityMark } from '@/components/stats/MetricCard'
 import { familyLabel } from '@/lib/stats/format'
 import { MAX_COLUMNS, pickable, searchKey, type TabDef } from '@/lib/stats/leaderboard'
 import { cn } from '@/lib/utils'
@@ -98,6 +99,7 @@ export function ColumnPicker({
                       />
                       <span className="min-w-0 flex-1 truncate text-fg">{m.label}</span>
                       <span className="font-mono text-[11px] text-fg-3">{m.short}</span>
+                      <StabilityMark info={m} className="text-fg-3" />
                     </label>
                   )
                 })}

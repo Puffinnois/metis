@@ -240,7 +240,7 @@ export function SplitTables({
     note?: string
     rows: { key: string; label: string; games: string; cells: string[] }[]
   }[]
-  head: string[]
+  head: React.ReactNode[]
 }): React.JSX.Element {
   const columns = `minmax(150px,1.4fr) 36px ${head.map(() => 'minmax(52px,1fr)').join(' ')}`
   return (

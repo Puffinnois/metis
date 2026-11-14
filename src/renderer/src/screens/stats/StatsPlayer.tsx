@@ -1,4 +1,5 @@
 import { AssistNetwork } from '@/components/stats/AssistNetwork'
+import { MetricHead } from '@/components/stats/MetricCard'
 import { ShotChart } from '@/components/stats/ShotChart'
 import { shotRequest } from '@/lib/stats/shotChart'
 import { useMemo, useState } from 'react'
@@ -709,7 +710,7 @@ function Career({
     mode,
     played === undefined ? null : Number(played)
   )
-  const head = LINE_METRICS.map((id) => data.byId.get(id)?.short ?? id)
+  const head = LINE_METRICS.map((id) => <MetricHead key={id} id={id} info={data.byId.get(id)} />)
   const cells = (r: LineRow): React.ReactNode[] => [
     <span key="l" className="font-sans text-[13px] font-medium">
       {r.label}
@@ -812,7 +813,19 @@ function GameLog({ data, scope, player, onOpenGame }: TabProps): React.JSX.Eleme
             c.pair || c.metric?.endsWith('_pct') ? 'minmax(52px,1fr)' : 'minmax(40px,1fr)'
           ).join(' ')}`}
           minWidth={1340}
-          head={['Date', 'Opp', 'Team', 'Result', ...LOG_COLUMNS.map((c) => c.label)]}
+          head={[
+            'Date',
+            'Opp',
+            'Team',
+            'Result',
+            ...LOG_COLUMNS.map((c) =>
+              c.metric ? (
+                <MetricHead key={c.label} id={c.label} info={data.byId.get(c.metric)} />
+              ) : (
+                c.label
+              )
+            )
+          ]}
           left={[1, 2, 3]}
           rows={[
             ...rows.map((r) => ({
@@ -881,7 +894,7 @@ function Splits({ data, scope, player, mode }: TabProps): React.JSX.Element {
   const { results, error } = useStatsQueries(queries, data.version)
   if (!results) return <Loading error={error} />
   const groups = splitTable(results, defs, season, data.byId, mode)
-  const head = SPLIT_METRICS.map((id) => data.byId.get(id)?.short ?? id)
+  const head = SPLIT_METRICS.map((id) => <MetricHead key={id} id={id} info={data.byId.get(id)} />)
   return (
     <div className="flex flex-col gap-6">
       <SplitTables groups={groups} head={head} />

@@ -1,6 +1,6 @@
 import { CATALOGUE, componentsOf } from '@shared/stats/catalogue'
 import { sampleLabel } from '@shared/stats/samples'
-import type { Entity, Grain, MetricDef, MetricInfo } from '@shared/stats/types'
+import type { Entity, Grain, MetricDef, MetricInfo, MetricStability } from '@shared/stats/types'
 import { PLAYER_SUMS, TEAM_SUMS } from '../derived/game'
 import { gameTable } from '../derived/gameTables'
 import { publishedComponents, publishedTable } from '../derived/published'
@@ -48,8 +48,13 @@ export function grainsOf(def: MetricDef): Grain[] {
   return parts.every((c) => COMPONENTS[def.entity].has(c)) ? ['game', 'season'] : []
 }
 
-/** The catalogue as the renderer reads it: no formulas, and the grains each metric has. */
-export function catalogueInfo(): MetricInfo[] {
+/**
+ * The catalogue as the renderer reads it: no formulas, the grains each metric has, and its stability
+ * once the models have measured it (Plan T1006), so a column head needs no query of its own.
+ */
+export function catalogueInfo(
+  stability: ReadonlyMap<string, MetricStability> = new Map()
+): MetricInfo[] {
   return CATALOGUE.map((def) => {
     const info: Partial<MetricDef> = { ...def }
     delete info.value
@@ -57,7 +62,8 @@ export function catalogueInfo(): MetricInfo[] {
     return {
       ...(info as Omit<MetricDef, 'value' | 'sample'>),
       grains: grainsOf(def),
-      sampleLabel: sampleLabel(def.sample)
+      sampleLabel: sampleLabel(def.sample),
+      stability: stability.get(def.id) ?? null
     }
   })
 }

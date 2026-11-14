@@ -903,6 +903,14 @@ Object.assign(
   )
 )
 
+// A league index reads its rate's formula; the engine divides it by the league's (engine tests).
+Object.assign(
+  EXPECTED,
+  Object.fromEntries(
+    CATALOGUE.filter((m) => m.index !== undefined).map((m) => [m.id, EXPECTED[m.index!]])
+  )
+)
+
 const fill = (m: MetricDef, row: Record<string, number>): string =>
   m.value.replace(TOKEN, (_, c: string) => {
     if (!(c in row)) throw new Error(`${m.id}: no ${c} in the worked row`)

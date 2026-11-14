@@ -106,26 +106,33 @@ describe('the Elo builder', () => {
     expect(home.home_court).toBe(-ELO.homeCourt)
   })
 
-  it('rates the games still to come with the latest ratings, in the season in progress only', async () => {
-    await buildModels(db, 2026)
-    const h = byHand()
-    const later = (await db.get<Record<string, unknown>>(
-      `SELECT elo_pre, opp_elo_pre, win_prob, home, home_court FROM ${ELO_SCHEDULE_TABLE}
+  // With 2026-27 in progress two seasons are complete, so the stability builder measures every metric.
+  it(
+    'rates the games still to come with the latest ratings, in the season in progress only',
+    {
+      timeout: 30_000
+    },
+    async () => {
+      await buildModels(db, 2026)
+      const h = byHand()
+      const later = (await db.get<Record<string, unknown>>(
+        `SELECT elo_pre, opp_elo_pre, win_prob, home, home_court FROM ${ELO_SCHEDULE_TABLE}
        WHERE game_id = 'later' AND team_id = ${BOS}`
-    ))!
-    expect(later).toMatchObject({ home: true, home_court: ELO.homeCourt })
-    expect(later.elo_pre).toBeCloseTo(h.bos, 9)
-    expect(later.opp_elo_pre).toBeCloseTo(h.mia, 9)
-    expect(later.win_prob).toBeCloseTo(winProbability(h.bos + ELO.homeCourt - h.mia), 9)
-    await buildModels(db, 2027)
-    await markModelSeason(db, 0)
-    await buildModels(db, 2027)
-    expect(
-      await db.get(
-        `SELECT count(*)::INTEGER AS n FROM ${ELO_SCHEDULE_TABLE} WHERE game_id = 'later'`
-      )
-    ).toEqual({ n: 0 })
-  })
+      ))!
+      expect(later).toMatchObject({ home: true, home_court: ELO.homeCourt })
+      expect(later.elo_pre).toBeCloseTo(h.bos, 9)
+      expect(later.opp_elo_pre).toBeCloseTo(h.mia, 9)
+      expect(later.win_prob).toBeCloseTo(winProbability(h.bos + ELO.homeCourt - h.mia), 9)
+      await buildModels(db, 2027)
+      await markModelSeason(db, 0)
+      await buildModels(db, 2027)
+      expect(
+        await db.get(
+          `SELECT count(*)::INTEGER AS n FROM ${ELO_SCHEDULE_TABLE} WHERE game_id = 'later'`
+        )
+      ).toEqual({ n: 0 })
+    }
+  )
 
   it('adds expected wins over the games played', async () => {
     await buildModels(db, 2026)
