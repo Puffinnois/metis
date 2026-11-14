@@ -102,14 +102,21 @@ describe('the column picker and presets', () => {
     expect(familyColumns(CATALOGUE, tabOf('team', 'offense'), 'ratings')).toEqual([
       'team_mov',
       'team_srs',
+      'team_adj_nrtg',
       'team_pyth_pct',
       'team_pyth_w',
       'team_pyth_l',
       'team_win_resid',
       'team_sos',
       'team_sos_left',
-      'team_games_left'
+      'team_games_left',
+      'team_adj_ortg',
+      'team_adj_drtg'
     ])
+    // Twelve at most: home court, a league figure, is the thirteenth and stays in the picker.
+    expect(pickable(CATALOGUE, tabOf('team', 'offense')).map((m) => m.id)).toContain(
+      'team_adj_home'
+    )
   })
 
   it('has a preset for each family, and knows which one a board shows', () => {

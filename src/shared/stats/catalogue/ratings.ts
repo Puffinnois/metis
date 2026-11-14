@@ -26,6 +26,21 @@ const solved: Partial<Opts> & Pick<Opts, 'sample'> = {
   model: 'team_strength'
 }
 
+/**
+ * Plan T1004: the adjusted ratings, a ridge regression of points per 100 possessions on offense,
+ * defense and home court, solved on the regular season as of every game day (`models/adjusted.ts`).
+ * Possessions are the box-score estimate the plain ratings divide by.
+ */
+const adjusted: Partial<Opts> & Pick<Opts, 'sample'> = {
+  ...solved,
+  model: 'adjusted_rating',
+  sources: ['Computed by Metis from the box scores'],
+  unit: 'rating',
+  decimals: 1
+}
+
+const NOT_PUBLISHED = "A model computed by Metis, not the NBA's or any publisher's figure."
+
 /** Basketball-Reference's exponent for the NBA, on points for and against. */
 export const PYTHAGOREAN_EXPONENT = 14
 
@@ -111,5 +126,34 @@ export const RATINGS: MetricDef[] = [
     'LEFT',
     'Regular-season games on the schedule after the last game in scope.',
     { ...solved, value: '{games_left}', unit: 'count', decimals: 0, direction: 'neutral' }
+  ),
+  metric(
+    'team_adj_ortg',
+    'Adjusted offensive rating',
+    'ADJ ORtg',
+    `Points scored per 100 estimated possessions against an average defense on a neutral floor: a regression on the regular season so far that adjusts for the defenses faced and home court. ${NOT_PUBLISHED}`,
+    { ...adjusted, value: '{adj_ortg}' }
+  ),
+  metric(
+    'team_adj_drtg',
+    'Adjusted defensive rating',
+    'ADJ DRtg',
+    `Points allowed per 100 estimated possessions against an average offense on a neutral floor: a regression on the regular season so far that adjusts for the offenses faced and home court. ${NOT_PUBLISHED}`,
+    // The offense side, as SRS is, so the team board's Ratings preset shows it beside the others.
+    { ...adjusted, value: '{adj_drtg}', direction: 'lower' }
+  ),
+  metric(
+    'team_adj_nrtg',
+    'Adjusted net rating',
+    'ADJ NRtg',
+    `Adjusted offensive rating minus adjusted defensive rating: points per 100 possessions better than an average team on a neutral floor. ${NOT_PUBLISHED}`,
+    { ...adjusted, value: '{adj_nrtg}', tier: 'core' }
+  ),
+  metric(
+    'team_adj_home',
+    'Home court, per 100 possessions',
+    'HOME',
+    `The net points per 100 possessions a team gains at home over a neutral floor, the league's estimate from the same regression, as of the last game in scope. ${NOT_PUBLISHED}`,
+    { ...adjusted, value: '{adj_home}', direction: 'neutral' }
   )
 ]

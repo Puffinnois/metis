@@ -1,6 +1,7 @@
 import type { Entity, GameType } from '@shared/stats/types'
 import type { StatsDb } from '../db'
 import { inspect, type Have } from '../derived/sql'
+import { ADJUSTED_RATINGS } from './adjustedRatings'
 import { TEAM_STRENGTH } from './teamStrength'
 
 /**
@@ -69,7 +70,9 @@ export interface ModelBuilder {
 
 export const MODEL_BUILDERS: readonly ModelBuilder[] = [
   // Plan T1001: SRS and schedule strength as of every game day.
-  TEAM_STRENGTH
+  TEAM_STRENGTH,
+  // Plan T1004: offense and defense per 100 possessions, adjusted for opponent and site.
+  ADJUSTED_RATINGS
 ]
 
 /** Bump when the step itself changes how every table is written: every builder recomputes. */
