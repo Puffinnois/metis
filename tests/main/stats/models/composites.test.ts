@@ -171,6 +171,13 @@ describe('BPM 2.0', () => {
     expect(out[0].dbpm).toBeCloseTo(out[0].bpm - out[0].obpm, 12)
     expect(out[0].vorp).toBeCloseTo(vorp(out[0].bpm, out[0].share, 82), 12)
   })
+  it('adds the strength of the opponents to the rating, half of it to the offense', () => {
+    const base = teamRatings(cle, league, 1.5)
+    const hard = teamRatings(cle, league, 1.5, 0.5)
+    // Half a point a game over 82 games and 7,966.7 possessions.
+    expect(hard.rating - base.rating).toBeCloseTo((100 * 0.5 * 82) / 7966.716997, 6)
+    expect(hard.offense - base.offense).toBeCloseTo((hard.rating - base.rating) / 2, 12)
+  })
   it('defines VORP from BPM, the share of the floor time and the games', () => {
     expect(vorp(7.6, 0.702863003, 82)).toBeCloseTo(6.747484829, 8)
     expect(vorp(-2, 0.5, 82)).toBe(0)
@@ -194,7 +201,7 @@ describe('a season', () => {
       9
     )
     const per =
-      stints.reduce((s, p) => s + p.per_num, 0) / stints.reduce((s, p) => s + p.minutes, 0)
+      stints.reduce((s, p) => s + p.per_num, 0) / stints.reduce((s, p) => s + p.cmp_minutes, 0)
     expect(per).toBeCloseTo(15, 9)
   })
   it("builds a traded player's season from each stint with its own team", () => {
@@ -209,7 +216,7 @@ describe('a season', () => {
     expect(rows).toHaveLength(3)
     const total = rows.find((r) => r.teamId === null)
     const parts = rows.filter((r) => r.teamId !== null)
-    for (const c of ['ws', 'vorp', 'pprod', 'tot_poss', 'per_num', 'minutes'] as const) {
+    for (const c of ['ws', 'vorp', 'pprod', 'tot_poss', 'per_num', 'cmp_minutes'] as const) {
       expect(total?.[c]).toBeCloseTo(parts[0][c] + parts[1][c], 9)
     }
     // With Golden State's pace and teammates the same line is worth a different amount.

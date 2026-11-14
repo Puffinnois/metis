@@ -1,4 +1,4 @@
-import { div, leagueOf, possessions, type Box, type TeamSeason } from './box'
+import { div, leagueOf, type Box, type TeamSeason } from './box'
 import { bpmForTeam, teamRatings } from './bpm'
 import { oliverDefense, oliverOffense } from './oliver'
 import { aPer, leagueMeanAPer, perLeague, perOf, uPer } from './per'
@@ -24,7 +24,7 @@ export interface CompositeLine {
 
 /** The columns of `player_composite` and `team_composite` that are summed. */
 export const COMPOSITE_SUMS = [
-  'minutes',
+  'cmp_minutes',
   'sc_poss',
   'tot_poss',
   'pprod',
@@ -35,7 +35,6 @@ export const COMPOSITE_SUMS = [
   'ows',
   'dws',
   'ws',
-  'bpm_poss',
   'bpm_num',
   'obpm_num',
   'vorp',
@@ -70,7 +69,8 @@ function addInto(into: CompositeSums, from: CompositeSums): void {
 
 export function seasonComposites(
   lines: readonly CompositeLine[],
-  teams: ReadonlyMap<number, TeamSeason>
+  teams: ReadonlyMap<number, TeamSeason>,
+  schedule?: ReadonlyMap<number, number>
 ): SeasonComposites {
   const league = leagueOf([...teams.values()])
   const perLg = perLeague(league)
@@ -86,8 +86,8 @@ export function seasonComposites(
   for (const [teamId, list] of byTeam) {
     const ts = teams.get(teamId) as TeamSeason
     const lead = div(0.5 * (ts.team.pts - ts.opp.pts), ts.games)
-    const bpm = bpmForTeam(list, ts, teamRatings(ts, league, lead))
-    const teamPoss = possessions(ts)
+    const ratings = teamRatings(ts, league, lead, schedule?.get(teamId) ?? 0)
+    const bpm = bpmForTeam(list, ts, ratings)
     list.forEach((line, i) => {
       const p = line.box
       const off = oliverOffense(p, ts)
@@ -95,12 +95,12 @@ export function seasonComposites(
       const ws = winShares(p, off, def, ts, league)
       const a = aPer(uPer(p, ts, perLg), ts, league)
       const b = bpm[i]
-      const bpmPoss = b.share * teamPoss
+
       computed.push({
         line,
         aPer: a,
         sums: {
-          minutes: p.mp,
+          cmp_minutes: p.mp,
           sc_poss: off.scPoss,
           tot_poss: off.totPoss,
           pprod: off.pprod,
@@ -112,9 +112,8 @@ export function seasonComposites(
           ows: ws.ows,
           dws: ws.dws,
           ws: ws.ws,
-          bpm_poss: bpmPoss,
-          bpm_num: b.bpm * bpmPoss,
-          obpm_num: b.obpm * bpmPoss,
+          bpm_num: b.bpm * p.mp,
+          obpm_num: b.obpm * p.mp,
           vorp: b.vorp,
           position_num: b.position * p.mp,
           role_num: b.role * p.mp

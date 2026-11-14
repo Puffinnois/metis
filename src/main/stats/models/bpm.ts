@@ -201,22 +201,35 @@ export interface BpmResult {
 }
 
 export interface TeamRatings {
-  /** Net points per 100 possessions with half the lead effect: what BPM adds up to. */
+  /**
+   * Net points per 100 possessions, adjusted for the opponents and for half the lead effect: what
+   * BPM adds up to.
+   */
   rating: number
-  /** Points per 100 above the league's, with half of that lead effect: what OBPM adds up to. */
+  /** Points per 100 above the league's, with half of each adjustment: what OBPM adds up to. */
   offense: number
 }
 
 /**
- * The team's ratings the adjustment targets. `averageLead` is the team's mean lead over its minutes;
- * `teamRatings`'s caller estimates it (Plan T1005: half the margin per game).
+ * The team's adjusted ratings the team adjustment targets. `averageLead` is the team's mean lead over
+ * its minutes, and `schedule` the strength of the opponents it played in points per game (the mean
+ * of their SRS); the caller estimates the first (half the margin per game) and reads the second from
+ * Plan T1001's SRS. Both are worth half to the offense and half to the defense.
  */
-export function teamRatings(ts: TeamSeason, l: LeagueSeason, averageLead: number): TeamRatings {
+export function teamRatings(
+  ts: TeamSeason,
+  l: LeagueSeason,
+  averageLead: number,
+  schedule = 0
+): TeamRatings {
   const poss = possessions(ts)
   const lead = (LEAD_EFFECT / 2) * averageLead
+  // Points per game to points per 100 possessions.
+  const opponents = div(100 * schedule * ts.games, poss)
+  const adjust = lead + opponents
   return {
-    rating: div(100 * (ts.team.pts - ts.opp.pts), poss) + lead,
-    offense: div(100 * ts.team.pts, poss) - div(100 * l.totals.pts, l.poss) + lead / 2
+    rating: div(100 * (ts.team.pts - ts.opp.pts), poss) + adjust,
+    offense: div(100 * ts.team.pts, poss) - div(100 * l.totals.pts, l.poss) + adjust / 2
   }
 }
 
