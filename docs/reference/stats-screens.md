@@ -278,7 +278,7 @@ Inside the worker on a copy of the full database, warm, median of five (`scripts
 
 ### Adjusted ratings (Plan T1004)
 
-Inside the worker on a copy of the full database, warm, median of five (`scripts/check-adjusted.mjs`): the Ratings preset with the adjusted ratings over a season 41 ms and over a date range 34 ms; by season over all 34 seasons 174 ms; the team Overview's two sections (15 metrics) 43 ms; one team's adjusted ratings by game over a season 17 ms. `scripts/stage10-adjusted-steps.json` drives the Overview, the board and the Glossary on the built app.
+Inside the worker on a copy of the full database, warm, median of five (`scripts/check-adjusted.mjs`): the Ratings preset with the adjusted ratings over a season 40 ms and over a date range 33 ms; by season over all 34 seasons 165 ms; the team Overview's two sections (15 metrics) 47 ms; one team's adjusted ratings by game over a season 21 ms. `scripts/stage10-adjusted-steps.json` drives the Overview, the board and the Glossary on the built app.
 
 ### Play level (Plan T907)
 

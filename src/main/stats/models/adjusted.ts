@@ -25,8 +25,14 @@ export interface EfficiencyGame<K> {
   neutral: boolean
 }
 
-/** The prior on each team effect, in possessions: chosen by predicting the next day's games. */
-export const RIDGE_POSSESSIONS = 1000
+/**
+ * The prior on each team effect, in possessions: about two and a half games. Predicting each day's
+ * games from the day before, 1,000 does a little better (10.54 points per 100 of error against
+ * 10.61), but it pulls a season's final ratings a tenth of the way to average, and these sit beside
+ * the plain ratings and SRS as a record of the season; 250 pulls them about a fortieth and still
+ * steadies the first weeks (`scripts/check-adjusted.mjs`, section 4).
+ */
+export const RIDGE_POSSESSIONS = 250
 
 export interface AdjustedFit<K> {
   /** League points per 100 possessions over the games: what the ratings are centred on. */

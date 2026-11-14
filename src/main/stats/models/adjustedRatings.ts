@@ -99,7 +99,7 @@ async function build(ctx: ModelContext): Promise<ModelRows> {
 
 export const ADJUSTED_RATINGS: ModelBuilder = {
   name: 'adjusted_rating',
-  version: 1,
+  version: 2,
   tables: ADJUSTED_TABLES,
   build
 }

@@ -33,7 +33,7 @@ if (!folder) {
 }
 
 /** The builder's prior, in possessions (`RIDGE_POSSESSIONS` in src/main/stats/models/adjusted.ts). */
-const LAMBDA = 1000
+const LAMBDA = 250
 const PRIORS = [0.01, 100, 250, 500, 1000, 1500, 2000, 3000, 5000]
 
 const { read, query, close } = openStatsWorker(folder)
@@ -549,7 +549,7 @@ say(
     ])
   ),
   '',
-  `Lowest overall: ${PRIORS[best]} possessions.`,
+  `Lowest overall: ${PRIORS[best]} possessions. The builder's: ${LAMBDA}.`,
   ''
 )
 

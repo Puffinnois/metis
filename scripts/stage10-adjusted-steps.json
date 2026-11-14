@@ -18,7 +18,7 @@
     "wait": 3000
   },
   {
-    "eval": "check('OVERVIEW 2015-16 Golden State: adjusted ratings beside SRS', section('Team strength'), ['Adjusted offensive rating', 'Adjusted defensive rating', 'Adjusted net rating', '111.4', '102.4', '9.1', '10.38'])"
+    "eval": "check('OVERVIEW 2015-16 Golden State: adjusted ratings beside SRS', section('Team strength'), ['Adjusted offensive rating', 'Adjusted defensive rating', 'Adjusted net rating', '112.0', '102.2', '9.8', '10.38'])"
   },
   {
     "shot": "adjusted-01-team-overview"
@@ -27,7 +27,7 @@
     "eval": "(async () => { const r = await chooseSelect('Range', 'dates'); await sleep(600); setInput(document.querySelector('input[title=\"From date\"]'), '2015-10-27'); await sleep(900); setInput(document.querySelector('input[title=\"To date\"]'), '2016-01-31'); await sleep(3500); return r })()"
   },
   {
-    "eval": "check('DATE RANGE to Jan 31, 2016: as it stood', section('Team strength'), ['110.9', '101.1', '9.8', '11.63'])"
+    "eval": "check('DATE RANGE to Jan 31, 2016: as it stood', section('Team strength'), ['111.9', '100.8', '11.1', '11.63'])"
   },
   {
     "shot": "adjusted-02-team-date-range"
@@ -51,13 +51,13 @@
     "wait": 2500
   },
   {
-    "eval": "(async () => { const r = await chooseSelect('Metric family', 'ratings'); await sleep(2500); return [r, check('the Ratings preset', heads(), ['MOV', 'SRS', 'ADJ NRtg', 'ADJ ORtg', 'ADJ DRtg']), check('Golden State on it', boardRow('Golden State Warriors'), ['10.38', '9.1', '111.4', '102.4'])].join('\\n') })()"
+    "eval": "(async () => { const r = await chooseSelect('Metric family', 'ratings'); await sleep(2500); return [r, check('the Ratings preset', heads(), ['MOV', 'SRS', 'ADJ NRtg', 'ADJ ORtg', 'ADJ DRtg']), check('Golden State on it', boardRow('Golden State Warriors'), ['10.38', '9.8', '112.0', '102.2'])].join('\\n') })()"
   },
   {
     "shot": "adjusted-04-ratings-preset"
   },
   {
-    "eval": "(async () => { const r = await chooseSelect('Range', 'dates'); await sleep(600); setInput(document.querySelector('input[title=\"From date\"]'), '2015-10-27'); await sleep(900); setInput(document.querySelector('input[title=\"To date\"]'), '2016-01-31'); await sleep(3500); return [r, check('DATE RANGE on the board', boardRow('Golden State Warriors'), ['11.63', '9.8'])].join('\\n') })()"
+    "eval": "(async () => { const r = await chooseSelect('Range', 'dates'); await sleep(600); setInput(document.querySelector('input[title=\"From date\"]'), '2015-10-27'); await sleep(900); setInput(document.querySelector('input[title=\"To date\"]'), '2016-01-31'); await sleep(3500); return [r, check('DATE RANGE on the board', boardRow('Golden State Warriors'), ['11.63', '11.1'])].join('\\n') })()"
   },
   {
     "shot": "adjusted-05-ratings-date-range"
@@ -72,7 +72,7 @@
     "eval": "(async () => chooseSelect('Season type', 'regular'))()"
   },
   {
-    "eval": "(async () => { const r = await chooseSelect('Season', 1997); await sleep(2500); return [r, check('1996-97 on the board: Chicago', boardRow('Chicago Bulls'), ['10.1'])].join('\\n') })()"
+    "eval": "(async () => { const r = await chooseSelect('Season', 1997); await sleep(2500); return [r, check('1996-97 on the board: Chicago', boardRow('Chicago Bulls'), ['11.1'])].join('\\n') })()"
   },
   {
     "shot": "adjusted-07-ratings-1996-97"
