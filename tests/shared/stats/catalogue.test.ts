@@ -673,6 +673,18 @@ const MODEL_ROW: Record<string, number> = {
   elo_pre: 1580,
   win_prob: 0.6,
   elo_exp_wins: 5.25,
+  // The season forecast (Plan T1003): odds as shares of the runs.
+  runs: 10000,
+  proj_w: 50.4,
+  proj_l: 31.6,
+  p_playoffs: 0.9,
+  p_top6: 0.7,
+  p_play_in: 0.2,
+  p_round2: 0.55,
+  p_conf_finals: 0.3,
+  p_finals: 0.15,
+  p_title: 0.08,
+  mean_seed: 4.25,
   mov: 3.25,
   sos: -1.5,
   srs: 1.75,
@@ -747,7 +759,18 @@ Object.assign(EXPECTED, {
   team_pprod: 1800,
   team_elo: 1587.5,
   team_elo_exp_w: 5.25,
-  team_elo_w_over: 0.75
+  team_elo_w_over: 0.75,
+  team_proj_w: 50.4,
+  team_proj_l: 31.6,
+  team_playoff_pct: 0.9,
+  team_top6_pct: 0.7,
+  team_play_in_pct: 0.2,
+  team_round2_pct: 0.55,
+  team_conf_finals_pct: 0.3,
+  team_finals_pct: 0.15,
+  team_title_pct: 0.08,
+  team_mean_seed: 4.25,
+  team_forecast_runs: 10000
 })
 
 const SHOT_ROW: Record<string, number> = Object.fromEntries(

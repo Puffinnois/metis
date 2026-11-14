@@ -208,28 +208,156 @@ RATINGS.push(
 )
 
 /**
+ * Season forecast (Plan T1003): the season simulation run by Metis on its Elo, as of the last game
+ * in scope: the rest of the regular season played many times, then the play-in and the bracket with
+ * that season's rules (`docs/reference/stats-database.md`, "Season forecast"). The season in progress
+ * runs 10,000 times on every refresh; past seasons keep twenty snapshots of 500 runs.
+ */
+const FORECAST_SOURCES = ['Computed by Metis: the season simulated from its Elo ratings']
+
+const forecast: Partial<Opts> & Pick<Opts, 'sample'> = {
+  ...fromScores,
+  kind: 'model',
+  model: 'team_forecast',
+  sources: FORECAST_SOURCES,
+  firstSeason: ELO_FIRST_SEASON
+}
+
+const odds = (
+  id: string,
+  label: string,
+  short: string,
+  description: string,
+  value: string,
+  o: Partial<Opts> = {}
+): MetricDef =>
+  metric(id, label, short, `${description} A model's odds, as of the last game in scope.`, {
+    ...forecast,
+    value,
+    unit: 'pct',
+    decimals: 1,
+    ...o
+  })
+
+RATINGS.push(
+  metric(
+    'team_proj_w',
+    'Projected wins',
+    'PROJ W',
+    'Regular-season wins, the games played and the rest simulated from Elo: the mean over the runs, as of the last game in scope.',
+    { ...forecast, value: '{proj_w}', decimals: 1 }
+  ),
+  metric(
+    'team_proj_l',
+    'Projected losses',
+    'PROJ L',
+    'Regular-season losses, the games played and the rest simulated from Elo: the mean over the runs, as of the last game in scope.',
+    { ...forecast, value: '{proj_l}', decimals: 1, direction: 'lower' }
+  ),
+  odds(
+    'team_playoff_pct',
+    'Playoff odds',
+    'PLAYOFF%',
+    'The share of runs in which the team reaches the playoffs’ sixteen, through the play-in or not.',
+    '{p_playoffs}'
+  ),
+  odds(
+    'team_top6_pct',
+    'Top-six odds',
+    'TOP 6%',
+    'The share of runs in which the team finishes in its conference’s top six, clear of the play-in.',
+    '{p_top6}',
+    { firstSeason: 2021 }
+  ),
+  odds(
+    'team_play_in_pct',
+    'Play-in odds',
+    'PLAY-IN%',
+    'The share of runs in which the team plays in the play-in: seventh to tenth from 2020-21, 2019-20’s eighth and ninth when theirs was played.',
+    '{p_play_in}',
+    { firstSeason: 2020, direction: 'neutral' }
+  ),
+  odds(
+    'team_round2_pct',
+    'Second-round odds',
+    'R2%',
+    'The share of runs in which the team wins a first-round series.',
+    '{p_round2}'
+  ),
+  odds(
+    'team_conf_finals_pct',
+    'Conference finals odds',
+    'CF%',
+    'The share of runs in which the team reaches its conference’s finals.',
+    '{p_conf_finals}'
+  ),
+  odds(
+    'team_finals_pct',
+    'Finals odds',
+    'FINALS%',
+    'The share of runs in which the team reaches the Finals.',
+    '{p_finals}'
+  ),
+  odds(
+    'team_title_pct',
+    'Title odds',
+    'TITLE%',
+    'The share of runs in which the team wins the title.',
+    '{p_title}'
+  ),
+  metric(
+    'team_mean_seed',
+    'Mean seed',
+    'SEED',
+    'The team’s mean place in its conference over the runs, one to fifteen, before the play-in: as of the last game in scope.',
+    { ...forecast, value: '{mean_seed}', decimals: 1, direction: 'lower' }
+  ),
+  metric(
+    'team_forecast_runs',
+    'Forecast runs',
+    'RUNS',
+    'How many times the season was simulated for the forecast read: 10,000 for the season in progress, 500 for a past season’s snapshots.',
+    { ...forecast, value: '{runs}', unit: 'count', decimals: 0, direction: 'neutral' }
+  )
+)
+
+/**
  * The family's order, which the team board's Ratings preset reads: its core metrics first (the margin,
- * then the three ratings of a team's strength), then the first extended ones up to twelve columns. So
- * those that repeat a preset column (Pythagorean losses, wins over Elo), the games left and the
- * league's home court come last, and are offered in the column picker.
+ * then the three ratings of a team's strength), then the first extended ones up to twelve columns:
+ * projected wins and playoff odds (T1003) next. So those that repeat a preset column (the
+ * Pythagorean percentage and losses, wins over Elo), the schedule left, the league's home court and
+ * the rest of the forecast come last, and are offered in the column picker.
  */
 const ORDER = [
   'team_mov',
   'team_srs',
   'team_elo',
   'team_adj_nrtg',
-  'team_pyth_pct',
+  // Plan T1003: the forecast's two most read numbers, next in the preset.
+  'team_proj_w',
+  'team_playoff_pct',
   'team_pyth_w',
   'team_win_resid',
   'team_sos',
-  'team_sos_left',
   'team_adj_ortg',
   'team_adj_drtg',
   'team_elo_exp_w',
+  // In the picker: the Pythagorean percentage repeats PYTH W, and the schedule left SOS.
+  'team_pyth_pct',
+  'team_sos_left',
   'team_pyth_l',
   'team_games_left',
   'team_elo_w_over',
-  'team_adj_home'
+  'team_adj_home',
+  'team_title_pct',
+  'team_proj_l',
+  'team_mean_seed',
+  'team_top6_pct',
+  'team_play_in_pct',
+  'team_round2_pct',
+  'team_conf_finals_pct',
+  'team_finals_pct',
+  'team_forecast_runs'
 ]
 // A metric not listed keeps its place after those that are.
 const place = (id: string): number => (ORDER.includes(id) ? ORDER.indexOf(id) : ORDER.length)
