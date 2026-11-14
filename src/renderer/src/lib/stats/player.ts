@@ -426,6 +426,10 @@ export const OVERVIEW_SECTION: SectionDef = {
     'trb_pct',
     'gmsc',
     'pie',
+    'per',
+    'ws',
+    'bpm',
+    'vorp',
     'plus_minus'
   ]
 }
@@ -662,7 +666,10 @@ export const LINE_METRICS = [
   'fg3_pct',
   'ft_pct',
   'ts_pct',
-  'plus_minus'
+  'plus_minus',
+  'per',
+  'ws',
+  'bpm'
 ]
 
 /** The scope's game types over a career: its range belongs to one season, so it is left out. */

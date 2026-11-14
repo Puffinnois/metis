@@ -98,25 +98,26 @@ describe('the column picker and presets', () => {
     expect(defense.slice(0, firstOffense).every((m) => m.side === 'defense')).toBe(true)
   })
 
-  it('has a Ratings preset on the team board, in the catalogue’s order', () => {
+  it('has a Ratings preset on the team board, in the family’s order', () => {
+    // Core first (MOV, SRS, Elo, adjusted net rating), then extended up to twelve columns.
     expect(familyColumns(CATALOGUE, tabOf('team', 'offense'), 'ratings')).toEqual([
       'team_mov',
       'team_srs',
+      'team_elo',
       'team_adj_nrtg',
       'team_pyth_pct',
       'team_pyth_w',
-      'team_pyth_l',
       'team_win_resid',
       'team_sos',
       'team_sos_left',
-      'team_games_left',
       'team_adj_ortg',
-      'team_adj_drtg'
+      'team_adj_drtg',
+      'team_elo_exp_w'
     ])
-    // Twelve at most: home court, a league figure, is the thirteenth and stays in the picker.
-    expect(pickable(CATALOGUE, tabOf('team', 'offense')).map((m) => m.id)).toContain(
-      'team_adj_home'
-    )
+    // The rest are in the picker: what the preset's columns already give, or a league figure.
+    const offered = pickable(CATALOGUE, tabOf('team', 'offense')).map((m) => m.id)
+    for (const id of ['team_pyth_l', 'team_games_left', 'team_elo_w_over', 'team_adj_home'])
+      expect(offered).toContain(id)
   })
 
   it('has a preset for each family, and knows which one a board shows', () => {
@@ -130,6 +131,7 @@ describe('the column picker and presets', () => {
       'on_court',
       'scoring',
       'composite',
+      'box_composites',
       'tracking',
       'hustle',
       'play_types',

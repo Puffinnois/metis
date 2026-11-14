@@ -157,3 +157,80 @@ export const RATINGS: MetricDef[] = [
     { ...adjusted, value: '{adj_home}', direction: 'neutral' }
   )
 ]
+
+/**
+ * Elo (Plan T1002): FiveThirtyEight's published NBA Elo, computed by Metis over every game between
+ * teams of the league in date order, playoffs included, carried from season to season. Every team
+ * starts at 1500 in 1993-94, so the first two seasons are a burn-in and the metrics read from 1995-96
+ * (`docs/reference/nba-data-sources.md`, "Elo").
+ */
+export const ELO_FIRST_SEASON = 1996
+
+const ELO_SOURCES = ["Computed by Metis from the final scores, by FiveThirtyEight's NBA Elo"]
+
+const rated: Partial<Opts> & Pick<Opts, 'sample'> = {
+  ...fromScores,
+  kind: 'model',
+  sources: ELO_SOURCES,
+  firstSeason: ELO_FIRST_SEASON
+}
+
+RATINGS.push(
+  metric(
+    'team_elo',
+    'Elo rating',
+    'ELO',
+    'A rating carried from game to game, 1500 an average team: 100 points better wins 64 % of the time on a neutral floor. FiveThirtyEight’s NBA Elo, playoffs included, as of the last game in scope.',
+    { ...rated, model: 'elo_game', value: '{elo}', decimals: 0, tier: 'core' }
+  ),
+  metric(
+    'team_elo_exp_w',
+    'Expected wins by Elo',
+    'ELO W',
+    'The games Elo expected the team to win: its win probability before each game, added over the games in scope.',
+    { ...rated, model: 'elo_wins', value: '{elo_exp_wins}', aggregation: 'sum', totalOnly: true }
+  ),
+  metric(
+    'team_elo_w_over',
+    'Wins over Elo',
+    'W − ELO W',
+    'Wins less the games Elo expected the team to win.',
+    {
+      ...rated,
+      model: 'elo_wins',
+      value: '{wins} - {elo_exp_wins}',
+      aggregation: 'sum',
+      totalOnly: true,
+      decimals: 1,
+      direction: 'neutral'
+    }
+  )
+)
+
+/**
+ * The family's order, which the team board's Ratings preset reads: its core metrics first (the margin,
+ * then the three ratings of a team's strength), then the first extended ones up to twelve columns. So
+ * those that repeat a preset column (Pythagorean losses, wins over Elo), the games left and the
+ * league's home court come last, and are offered in the column picker.
+ */
+const ORDER = [
+  'team_mov',
+  'team_srs',
+  'team_elo',
+  'team_adj_nrtg',
+  'team_pyth_pct',
+  'team_pyth_w',
+  'team_win_resid',
+  'team_sos',
+  'team_sos_left',
+  'team_adj_ortg',
+  'team_adj_drtg',
+  'team_elo_exp_w',
+  'team_pyth_l',
+  'team_games_left',
+  'team_elo_w_over',
+  'team_adj_home'
+]
+// A metric not listed keeps its place after those that are.
+const place = (id: string): number => (ORDER.includes(id) ? ORDER.indexOf(id) : ORDER.length)
+RATINGS.sort((a, b) => place(a.id) - place(b.id))

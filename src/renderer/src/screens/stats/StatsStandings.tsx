@@ -14,7 +14,7 @@ import { useStandings, useStatsQuery, type StatsData } from '@/lib/stats/useStat
 import { seasonLabel } from '@shared/stats/seasons'
 
 const COLUMNS =
-  '24px minmax(190px,1.6fr) 32px 32px 44px 40px 52px 52px 52px 52px 44px 44px 48px 48px 48px 56px 52px 52px'
+  '24px minmax(190px,1.6fr) 32px 32px 44px 40px 52px 52px 52px 52px 44px 44px 48px 48px 48px 56px 52px 52px 52px'
 
 /** The published standings of a season, by conference or by division. */
 export function StatsStandings({

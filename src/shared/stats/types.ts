@@ -33,6 +33,7 @@ export type MetricFamily =
   | 'shots'
   | 'plays'
   | 'ratings'
+  | 'box_composites'
 
 /** `core` shown by default, `extended` in its family and the column picker, `stored` in queries only. */
 export type MetricTier = 'core' | 'extended' | 'stored'
@@ -301,6 +302,22 @@ export interface StatsGameDetail {
   periods: { home: number[]; away: number[] } | null
   /** The crew, from the NBA's officials file; empty when the file has no row for the game. */
   officials: StatsOfficial[]
+  /** Elo before and after the game (Plan T1002); null for a game it does not rate or a burn-in season. */
+  elo: StatsGameElo | null
+}
+
+/** A game's Elo (Plan T1002): played, or still to come with the latest ratings. */
+export interface StatsGameElo {
+  /** No home court: a game abroad, a Cup semifinal or final, the 2020 bubble. */
+  neutral: boolean
+  /** The home court applied, in Elo points. */
+  homeCourt: number
+  /** The home side's win probability and expected margin before the game. */
+  homeWin: number
+  homeMargin: number
+  /** Before the game, and after it (null for a game not played). */
+  home: { pre: number; post: number | null }
+  away: { pre: number; post: number | null }
 }
 
 /** An official of a game, as the NBA's file names them. */

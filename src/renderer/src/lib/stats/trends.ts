@@ -81,6 +81,7 @@ const FAMILIES: MetricFamily[] = [
   'on_court',
   'scoring',
   'composite',
+  'box_composites',
   'ratings',
   'tracking',
   'hustle',

@@ -157,19 +157,30 @@ say(
   ''
 )
 
+/**
+ * A neutral site, written here apart from `models/neutral.ts`: ESPN's mark, a Cup semifinal by ESPN's
+ * note, the 2020 restart by its city. `BEFORE` is the rule this builder used before it took Elo's
+ * helper (the mark, and the restart from July 30, 2020), to count the games that changed.
+ */
+const NEUTRAL = `(coalesce(e.flag, false)
+  OR coalesce(e.notes ILIKE '%semifinal%' AND (e.notes ILIKE '%cup%' OR e.notes ILIKE '%tournament%'), false)
+  OR coalesce(e.city = 'Lake Buena Vista', false))`
+const BEFORE = `(coalesce(e.flag, false) OR (t.season = 2020 AND t.game_date >= DATE '2020-07-30'))`
+
 /** Per season: observations, game days, the table's rows, the recomputed fits. */
 const data = new Map()
 for (const season of seasons) {
   const obs = await read(`
     SELECT strftime(t.game_date, '%Y-%m-%d') AS d, t.team_id AS off, t.opponent_id AS def,
            t.pts::DOUBLE AS pts, t.opp_pts::DOUBLE AS opp, t.poss_sym::DOUBLE AS poss,
-           CASE WHEN coalesce(e.neutral, false)
-                  OR (t.season = 2020 AND t.game_date >= DATE '2020-07-30') THEN 0
-                WHEN t.home THEN 1 ELSE -1 END AS x,
+           CASE WHEN ${NEUTRAL} THEN 0 WHEN t.home THEN 1 ELSE -1 END AS x,
+           (${NEUTRAL}) <> (${BEFORE}) AS changed,
            t.minutes::DOUBLE AS minutes
     FROM team_game t
     JOIN game g ON g.game_id = t.game_id
-    LEFT JOIN (SELECT game_id, bool_or(neutral_site) AS neutral FROM src_espn_schedule GROUP BY 1) e
+    LEFT JOIN (SELECT game_id, bool_or(neutral_site) AS flag, any_value(notes_headline) AS notes,
+                      any_value(venue_address_city) AS city
+               FROM src_espn_schedule GROUP BY 1) e
       ON e.game_id = g.espn_game_id
     WHERE t.season = ${season} AND t.game_type = 'regular' AND t.pts IS NOT NULL
       AND t.opp_pts IS NOT NULL AND t.poss_sym > 0
@@ -262,6 +273,8 @@ for (const season of seasons) {
     )
   data.get(season).fits = finalFits
   data.get(season).teams = teams
+  const neutralGames = obs.filter((o) => o.x === 0).length / 2
+  const changedGames = obs.filter((o) => o.changed).length / 2
   rows1.push([
     label(season),
     obs.length / 2,
@@ -274,7 +287,9 @@ for (const season of seasons) {
     identity.toExponential(1),
     f(league[0].l, 2),
     leagueGap.toExponential(1),
-    sg(end.fit.x[1] * 2, 2)
+    sg(end.fit.x[1] * 2, 2),
+    neutralGames,
+    changedGames
   ])
 }
 say(
@@ -291,7 +306,9 @@ say(
       'ORtg − DRtg − NRtg',
       'League pts/100',
       'Team mean − league',
-      'Home court, final'
+      'Home court, final',
+      'Neutral games',
+      'Changed from the old rule'
     ],
     rows1
   ),
