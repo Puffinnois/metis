@@ -27,7 +27,7 @@ const seasonsPlanned = async (): Promise<number[]> => (await planModels(db))[0].
 
 const final = async (team: number, season = 2026): Promise<Record<string, unknown>> =>
   (await db.get(
-    `SELECT srs_games, mov, sos, srs FROM ${TEAM_STRENGTH_TABLE}
+    `SELECT srs_games, mov, sos, srs, games_left, sos_left FROM ${TEAM_STRENGTH_TABLE}
      WHERE team_id = ? AND season = ? ORDER BY game_date DESC LIMIT 1`,
     [team, season]
   ))!
@@ -54,6 +54,11 @@ describe('the models step', () => {
     expect((await final(LAL)).srs).toBeCloseTo(-2, 10)
     expect((await final(MIA)).srs).toBeCloseTo(-2 / 3, 10)
     expect((await final(BOS, 2025)).srs).toBeCloseTo(3, 10)
+    // The game still to come is left after Boston's and Miami's last games.
+    expect(bos.games_left).toBe(1)
+    expect(bos.sos_left).toBeCloseTo(-2 / 3, 10)
+    expect((await final(MIA)).sos_left).toBeCloseTo(8 / 3, 10)
+    expect(await final(LAL)).toMatchObject({ games_left: 0, sos_left: null })
     expect(await db.get("SELECT version FROM derived_state WHERE name = 'models'")).toEqual({
       version: MODELS_VERSION
     })
@@ -97,6 +102,11 @@ describe('the models step', () => {
     expect(
       await db.get(`SELECT count(*)::INTEGER AS n FROM ${TEAM_STRENGTH_TABLE} WHERE season = 2025`)
     ).toEqual({ n: 0 })
+  })
+
+  it('leaves a game never played out of a past season’s schedule: it was cancelled', async () => {
+    await buildModels(db, 2027)
+    expect(await final(BOS)).toMatchObject({ games_left: 0, sos_left: null })
   })
 
   it('stays due after a failed run, and its rows stand until a run succeeds', async () => {

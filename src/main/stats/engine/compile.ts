@@ -593,7 +593,9 @@ function stateCte(
 ): string {
   const key = keyOfModel(t)
   const dims = c.groupBy.map((d) => `b.${d} AS g_${d}`)
-  const picks = [...parts].map((p) => `arg_max(w.${p}, (w.game_date, w.game_id)) AS ${p}`)
+  // arg_max_null: a value that is null after the last game (none left) stays null; arg_max would
+  // skip that row and read an earlier game's value.
+  const picks = [...parts].map((p) => `arg_max_null(w.${p}, (w.game_date, w.game_id)) AS ${p}`)
   const byTeam = t.entity === 'player' && q.scope.teams !== undefined
   const on =
     c.grain === 'game'

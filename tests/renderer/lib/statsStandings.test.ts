@@ -4,9 +4,12 @@ import {
   divisionTables,
   fmtGamesBack,
   fmtWinPct,
+  fmtSigned,
   standingsNotes,
   standingsTables,
   STANDINGS_HEAD,
+  STRENGTH_NOTE,
+  strengthQuery,
   teamPlace
 } from '@/lib/stats/standings'
 import type { StatsStanding } from '@shared/stats/types'
@@ -107,8 +110,22 @@ describe('the tables', () => {
       'W 2',
       '114.9',
       '107.2',
-      '+7.7'
+      '+7.7',
+      '—',
+      '—',
+      '—'
     ])
+  })
+
+  it('writes Metis’s strength columns when they have answered, signs shown', () => {
+    const strength = new Map([['1', [57.4, 7.456, -0.1234]]])
+    const boston = conferenceTables(ROWS, strength)[0].rows[1]
+    expect(boston.cells.slice(-3)).toEqual(['57.4', '+7.46', '−0.12'])
+    expect(fmtSigned(0.001, 2)).toBe('0.00')
+    expect(strengthQuery(2026)).toMatchObject({
+      metrics: ['team_pyth_w', 'team_srs', 'team_sos'],
+      scope: { seasons: [2026], gameTypes: ['regular'] }
+    })
   })
 
   it('lists each division that season by its rank, games back by the division', () => {
@@ -125,7 +142,7 @@ describe('the tables', () => {
 
   it('writes a real minus on a losing differential, and a dash for what is not published', () => {
     const [east] = conferenceTables(ROWS)
-    expect(east.rows[2].cells.at(-1)).toBe('−0.3')
+    expect(east.rows[2].cells.at(-4)).toBe('−0.3')
     const old = conferenceTables([team({ last10: null, streak: null, conferenceRecord: null })])
     expect(old[0].rows[0].cells.slice(7, 10)).toEqual(['—', '—', '—'])
   })
@@ -150,15 +167,17 @@ describe('what they depend on', () => {
 
   it('says when the last ten and the streak start', () => {
     expect(standingsNotes(2001, ROWS)).toEqual([
-      'The last ten and the streak are published from 2001-02.'
+      'The last ten and the streak are published from 2001-02.',
+      STRENGTH_NOTE
     ])
-    expect(standingsNotes(2002, ROWS)).toEqual([])
+    expect(standingsNotes(2002, ROWS)).toEqual([STRENGTH_NOTE])
   })
 
   it('says when a season has no real conference or division records', () => {
     const rows = [team({ conferenceRecord: null, divisionRecord: null })]
     expect(standingsNotes(2004, rows)).toEqual([
-      'The NBA’s file has no real conference or division records for 2003-04.'
+      'The NBA’s file has no real conference or division records for 2003-04.',
+      STRENGTH_NOTE
     ])
   })
 })

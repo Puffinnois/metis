@@ -409,8 +409,13 @@ export async function refreshStats(
     if (entry.status === 'ok' && entry.rowsWritten > 0 && step.source.tier !== 'published') {
       await markPlaySeason(db, step.season)
     }
-    // A model may read any tier, the published tables included.
-    if (entry.status === 'ok' && entry.rowsWritten > 0) await markModelSeason(db, step.season)
+    // A model may read any tier, the published tables included. A file of every season marks the
+    // season in progress, not every season: the ESPN schedule files and the aliases change every few
+    // days (Plan T1001 measured it), and what they add is this season's games and players. Every
+    // season would recompute every model each time.
+    if (entry.status === 'ok' && entry.rowsWritten > 0) {
+      await markModelSeason(db, step.season === 0 ? current : step.season)
+    }
     if (step.source.tier === 'published' && entry.status === 'ok' && entry.rowsWritten > 0) {
       if (!publishedWrote && canBuildPublished()) await markPublishedStale(db)
       publishedWrote = true
