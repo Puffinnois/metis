@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Checks that two builds of the same code and data give the same tables: the identity tables, the
-// game and season tables and every table built from the plays, compared row by row, per season,
+// game and season tables, every table built from the plays and the models, compared row by row, per season,
 // between two profiles. A difference means a build depends on row order (a tie in an ORDER BY, a
 // window without a full key, a join that can match twice), as the link of ESPN's duplicated 1998-99
 // and 1999-00 games did. Every column but the doubles is compared row by row; each double by its sum
@@ -36,7 +36,17 @@ const TABLES = [
   'unit_game',
   'player_on_court',
   'play_player_game',
-  'play_team_game'
+  'play_team_game',
+  // The models (Stage 10): computed from the tables above, the simulation seeded, so equal too.
+  'team_strength',
+  'player_composite',
+  'team_composite',
+  'elo_game',
+  'elo_wins',
+  'elo_schedule',
+  'adjusted_rating',
+  'team_forecast',
+  'metric_stability'
 ]
 
 const { read, close } = openStatsWorker(a)
