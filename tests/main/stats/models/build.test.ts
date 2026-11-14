@@ -44,7 +44,11 @@ describe('the models step', () => {
 
   it('computes every season played on a database never built', async () => {
     expect(await modelsDue(db)).toBe(true)
-    expect(await planModels(db)).toMatchObject([{ all: true, seasons: [2025, 2026] }])
+    // Every builder, T1001's and T1005's.
+    expect(await planModels(db)).toMatchObject([
+      { all: true, seasons: [2025, 2026] },
+      { all: true, seasons: [2025, 2026] }
+    ])
     // Six team-days in 2025-26 and two in 2024-25; the playoff, All-Star and Cup final games are not solved.
     expect(await buildModels(db, 2026)).toBe(8)
     expect(await modelsDue(db)).toBe(false)
