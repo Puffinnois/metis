@@ -4,6 +4,7 @@ import { publishedBootstrap } from './derived/published'
 import { playDetailBootstrap } from './derived/playDetail'
 import { shotsBootstrap } from './derived/shots'
 import { splitsBootstrap } from './derived/splits'
+import { modelsBootstrap } from './models/build'
 
 /**
  * Created on every open, so a new version replaces them. The tables keep their rows across
@@ -50,7 +51,8 @@ export async function bootstrapStatsDb(db: StatsDb, now: Date): Promise<number> 
     ...playsBootstrap(),
     ...shotsBootstrap(),
     ...splitsBootstrap(),
-    ...playDetailBootstrap()
+    ...playDetailBootstrap(),
+    ...modelsBootstrap()
   ]) {
     await db.exec(sql)
   }

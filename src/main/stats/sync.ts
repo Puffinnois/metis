@@ -11,6 +11,7 @@ import type { Downloads, FetchedFile } from './download'
 import { buildIdentity, canBuildIdentity, identityStale, markIdentityStale } from './identity'
 import { buildPlays, canBuildPlays, markPlaySeason, playsDue } from './derived/playBuilders'
 import { loadSourceFile } from './load'
+import { buildModels, canBuildModels, markModelSeason, modelsDue } from './models/build'
 import type {
   RefreshOptions,
   StatsLogEntry,
@@ -39,6 +40,8 @@ export const STATS_IDENTITY_STEP = `${STATS_LOG_PREFIX}identity`
 export const STATS_DERIVED_STEP = `${STATS_LOG_PREFIX}derived`
 export const STATS_PUBLISHED_STEP = `${STATS_LOG_PREFIX}published`
 export const STATS_PLAYS_STEP = `${STATS_LOG_PREFIX}plays`
+/** Computes the models (Plan Stage 10) from the game tables, last of all. */
+export const STATS_MODELS_STEP = `${STATS_LOG_PREFIX}models`
 
 export interface StatsSyncDeps {
   db: StatsDb
@@ -347,6 +350,19 @@ export async function refreshStats(
     }
   }
 
+  // Last, after the plays: a model reads the game tables, and later ones may read the plays. Only the
+  // seasons whose files wrote rows are computed again (`models/build.ts`).
+  const runModelsBuild = async (): Promise<void> => {
+    if ((await modelsDue(db)) && (await canBuildModels(db))) {
+      log.push(
+        await runLogged(deps, STATS_MODELS_STEP, async () => ({
+          rows: await buildModels(db, current),
+          message: null
+        }))
+      )
+    }
+  }
+
   deps.onProgress?.(due.length > 0 ? { done: 0, total: due.length } : null)
   for (let i = 0; i < due.length; i++) {
     if (deps.cancelled?.()) break
@@ -393,6 +409,8 @@ export async function refreshStats(
     if (entry.status === 'ok' && entry.rowsWritten > 0 && step.source.tier !== 'published') {
       await markPlaySeason(db, step.season)
     }
+    // A model may read any tier, the published tables included.
+    if (entry.status === 'ok' && entry.rowsWritten > 0) await markModelSeason(db, step.season)
     if (step.source.tier === 'published' && entry.status === 'ok' && entry.rowsWritten > 0) {
       if (!publishedWrote && canBuildPublished()) await markPublishedStale(db)
       publishedWrote = true
@@ -416,6 +434,7 @@ export async function refreshStats(
       // Once, at the end, however many of the late files came in; then the plays.
       if (!publishedBuilt || lateWrote) await runPublishedBuild(lateWrote)
       await runPlaysBuild()
+      await runModelsBuild()
     } catch (err) {
       return { steps: log, fatal: err instanceof Error ? err.message : String(err) }
     }
