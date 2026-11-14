@@ -922,6 +922,22 @@ Today's tiebreakers are the NBA's published "Play-In and Playoff Tie-Break Proce
 
 The earlier procedure is not in the load, nor found in full: two ties decide it. In 2002-03 San Antonio and Dallas finished 60-22 and 2-2, and San Antonio won the Midwest on conference record (36-16 to 34-18) though Dallas had the better division record (18-6 to 17-7). In 2005-06 Indiana and Chicago finished 41-41 and 2-2, and Indiana took sixth on division record (6-10 to 4-12) though Chicago had the better conference record (30-22 to 24-28). So the code reads conference record first through 2003-04 and division record first from 2004-05, the season of the realignment, which no tie in between decides; the other steps keep today's order in every era. Home court went by record from 2004-05, not 2006-07: in 2005-06 the sixth-seeded Clippers (47-35) hosted the third, Denver (44-38). For the Finals, the code breaks a tie in record by the same two-team steps; the NBA's text names no separate procedure.
 
+## The season forecast, checked (Plan T1003)
+
+`scripts/check-forecast.mjs` on a fresh copy of the Stage 9 gate load after a real refresh:
+
+- **The margin's spread** around Elo's expected margin, regular season 1995-96 to 2025-26 (36,735 games): 12.38 points, mean −0.08. The simulation draws margins with 12.4.
+- **The table:** twenty snapshots for every season from 1995-96 (500 runs each) and three so far for 2026-27 (10,000). In all 618 snapshots holding every team, the odds add up across the league: sixteen playoff teams, eight in the second round, four, two and one champion, and from 2020-21 twelve top-six seeds and eight in the play-in. Five snapshots lost a team's row to the next one on the same game (a team idle between them, the 2020-21 pauses among them) and are not counted.
+- **Calibration** of the past seasons' forecasts, 1995-96 to 2025-26, 921 team-seasons at each point: the playoff odds at a quarter, half and three quarters of the season (the fifth, tenth and fifteenth snapshots) against the teams that played a playoff series, and the title odds against the champion. The baseline is the standings as they stood: 1 for a team in its conference's top eight by winning percentage that day, 0 otherwise; for the title, 1/16 for a team in the top eight.
+
+| Point          | Playoffs: Brier | Baseline | Title: Brier | Baseline |
+| -------------- | --------------- | -------- | ------------ | -------- |
+| A quarter      | 0.116           | 0.195    | 0.028        | 0.032    |
+| Half           | 0.081           | 0.112    | 0.027        | 0.032    |
+| Three quarters | 0.051           | 0.074    | 0.026        | 0.032    |
+
+By decile the playoff odds track what happened: at a quarter of the season the teams given 90 to 100 % (210, a mean of 96.6 %) made it 96.7 % of the time, those given 30 to 40 % (61, 34.5 %) 34.4 %, those under 10 % (159, 3.1 %) 0.6 %. The middle deciles hold 25 to 70 teams each, so a gap of ten points there is within their noise (at half the season 30 to 40 %: 30 teams, 33.9 % given, 23.3 % made it). The full tables are in the script's report. The forecast beats the standings everywhere, by the most early in the season, when the standings know least; the title odds beat a flat 1/16 by a little, as a title is hard to call.
+
 ## Old seasons
 
 | Season label (file) | Source | Games | Notes                                                  |
