@@ -113,17 +113,18 @@ describe('the tables', () => {
       '+7.7',
       '—',
       '—',
+      '—',
       '—'
     ])
   })
 
   it('writes Metis’s strength columns when they have answered, signs shown', () => {
-    const strength = new Map([['1', [57.4, 7.456, -0.1234]]])
+    const strength = new Map([['1', [57.4, 7.456, -0.1234, 1612.6]]])
     const boston = conferenceTables(ROWS, strength)[0].rows[1]
-    expect(boston.cells.slice(-3)).toEqual(['57.4', '+7.46', '−0.12'])
+    expect(boston.cells.slice(-4)).toEqual(['57.4', '+7.46', '−0.12', '1,613'])
     expect(fmtSigned(0.001, 2)).toBe('0.00')
     expect(strengthQuery(2026)).toMatchObject({
-      metrics: ['team_pyth_w', 'team_srs', 'team_sos'],
+      metrics: ['team_pyth_w', 'team_srs', 'team_sos', 'team_elo'],
       scope: { seasons: [2026], gameTypes: ['regular'] }
     })
   })
@@ -142,7 +143,7 @@ describe('the tables', () => {
 
   it('writes a real minus on a losing differential, and a dash for what is not published', () => {
     const [east] = conferenceTables(ROWS)
-    expect(east.rows[2].cells.at(-4)).toBe('−0.3')
+    expect(east.rows[2].cells.at(-5)).toBe('−0.3')
     const old = conferenceTables([team({ last10: null, streak: null, conferenceRecord: null })])
     expect(old[0].rows[0].cells.slice(7, 10)).toEqual(['—', '—', '—'])
   })
