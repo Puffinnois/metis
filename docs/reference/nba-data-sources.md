@@ -860,6 +860,41 @@ Oliver's points produced and individual ratings, PER, Win Shares, BPM 2.0 and VO
 - **Playoff BPM** reads 0.4 to 0.8 off the publisher's on three of four runs (Jordan 1995-96 10.0 against 10.6, LeBron James 2015-16 11.7 against 10.9, Jokić 2022-23 12.2 against 12.8, Olajuwon 1993-94 8.6 against 8.4), in both directions. Before the opponents' strength was added to the team rating they read 8.9, 10.5, 12.1 and 7.6, a mean absolute gap of 0.9 against 0.6 now. How the publisher rates a team over a few playoff series is not stated.
 - **A traded player's stints** (Vince Carter 2004-05: 0.8 at Toronto against 2.3, 7.6 at New Jersey against 6.9) split differently while his season (6.1 against 6.0) agrees; Harden's 2020-21 stints agree within 0.5. Placing a traded player once for the season, the position and role over all their stints, made Harden's stints worse (Houston 5.6 against 4.7) and was dropped. Not explained.
 
+## The playoff field, per season (Plan T1003)
+
+`scripts/check-playoff-field.mjs` feeds each completed regular season, with no game left, to the season simulation's standings, tiebreakers, play-in and bracket (`src/main/stats/models/standings.ts`, `playoffs.ts`, bundled by the script so the code checked is the code that ships), and compares what they produce with what happened. Run on a copy of the Stage 9 gate load, every season from 1993-94 to 2025-26, both conferences (66):
+
+- **The field and the first-round pairs** actually played (each team's first playoff opponent, after the play-in fed with its real results): 66 of 66.
+- **The second round:** each real second-round series joins the winners of two pairs of the same half of the code's bracket (one-eight with four-five, two-seven with three-six): 66 of 66.
+- **Home court in every first-round series** against the host of its first game: 64 of 64 (2019-20's were at one site).
+- **The seeds against the published ones**, one to eight (one to ten with the play-in):
+
+| Seasons            | Published seeds                                                                                                  | Result                                                                                        |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| 1993-94, 1994-95   | None in the load                                                                                                 | Field, pairs, second round and home court only: all reproduced                                |
+| 1995-96 to 2000-01 | The dashboard's (1995-96) and the NBA's `playoff_rank`: the seeds in some seasons, the order by record in others | All 12 agree with the code's seeds, or with its order by record (1998-99 West), ties accepted |
+| 2001-02 to 2019-20 | ESPN's `playoffSeed`, which carries the division winners' protected seeds                                        | All 38 exact, 2019-20's bubble play-in included                                               |
+| 2020-21 to 2025-26 | The NBA's `playoff_rank` one to ten before the play-in; ESPN's seeds after it                                    | All 12 exact after the play-in; before it, 11 of 12 exact, the twelfth is the source's error  |
+
+The one difference: the NBA's 2020-21 West ranks Memphis eighth and Golden State ninth. Both finished 38-34 and Golden State won their games 2-1, so the tiebreaker makes it eighth, and the play-in played says so too: the Lakers hosted Golden State (seventh against eighth) and Memphis hosted San Antonio (ninth against tenth).
+
+**The play-in, fed with its real results** (2019-20's West and every conference from 2020-21, 13 in all): the seventh and eighth seeds it produces are the teams that played the first and second seeds in the first round, 13 of 13.
+
+**The rules, per era.** Today's are implemented in full; each earlier era's as far as its fields need, all reproduced above:
+
+| Seasons            | Seeds                                                                                   | Home court                    | Series                                   | Tiebreakers                         |
+| ------------------ | --------------------------------------------------------------------------------------- | ----------------------------- | ---------------------------------------- | ----------------------------------- |
+| 1993-94 to 2003-04 | The two division winners first and second, then by record                               | By seed; the Finals by record | First round best of five through 2001-02 | Conference record before division's |
+| 2004-05, 2005-06   | The three division winners first to third                                               | By record                     | Best of seven                            | Today's                             |
+| 2006-07 to 2014-15 | The division winners and the best other team one to four, by record                     | By record                     | The Finals 2-3-2 through 2012-13         | Today's                             |
+| 2015-16 to 2018-19 | By record alone                                                                         | By record                     | 2-2-1-1-1                                | Today's                             |
+| 2019-20            | By winning percentage; the ninth, within four games of the eighth, had to beat it twice | One site, none                | 2-2-1-1-1                                | Today's                             |
+| 2020-21 on         | By record; seventh to tenth play in for the last two seeds                              | By record                     | 2-2-1-1-1                                | Today's, eligible = best ten        |
+
+Today's tiebreakers are the NBA's published "Play-In and Playoff Tie-Break Procedures" (nba.com's standings page, read in November 2026): for two teams the games between them, a division winner over a team that is not, division record (same division), conference record, the records against the own and the other conference's teams eligible for the postseason, point differential; for three or more the division winners first, then the games among them, division record (all in one division), conference record, the record against the own conference's eligible teams, point differential. A partial break starts the rest again from the first step, and a tie nothing breaks goes to a drawing (a seeded draw here). "Eligible" is the best ten records of the conference, ties included, from 2020-21, the best eight before.
+
+The earlier procedure is not in the load, nor found in full: two ties decide it. In 2002-03 San Antonio and Dallas finished 60-22 and 2-2, and San Antonio won the Midwest on conference record (36-16 to 34-18) though Dallas had the better division record (18-6 to 17-7). In 2005-06 Indiana and Chicago finished 41-41 and 2-2, and Indiana took sixth on division record (6-10 to 4-12) though Chicago had the better conference record (30-22 to 24-28). So the code reads conference record first through 2003-04 and division record first from 2004-05, the season of the realignment, which no tie in between decides; the other steps keep today's order in every era. Home court went by record from 2004-05, not 2006-07: in 2005-06 the sixth-seeded Clippers (47-35) hosted the third, Denver (44-38). For the Finals, the code breaks a tie in record by the same two-team steps; the NBA's text names no separate procedure.
+
 ## Old seasons
 
 | Season label (file) | Source | Games | Notes                                                  |
@@ -905,6 +940,8 @@ Oliver's points produced and individual ratings, PER, Win Shares, BPM 2.0 and VO
 - **The NBA's team ORB% and TOV% are its own.** Its `oreb_pct` runs 3 to 4.5 points above rebounds over available rebounds in the box score, and `tm_tov_pct` about 2 points above turnovers over estimated plays, so they read as different measures. Same-named stats keep different ids (D14).
 - **The NBA's 2003-04 standings repeat the overall record** as `conference_record` and `division_record`, for all 29 teams. Every other season is fine, so the screen reads a repeat on every team as not published. Early in a season a team can truly have played only its conference: 11 did in 2026-27.
 - **ESPN's standings have no real conference or division records in 2001-02 and 2002-03:** they read `0-0`. Its records, games back and streaks agree with the NBA's on all 26 seasons.
+- **ESPN filed 1995's Finals game 3 under Miami:** game `espn:150611014`, June 11, 1995, reads Miami 106, Orlando 103; it was Houston at home. Miami played no playoff game that spring. The playoff-field check leaves out a "series" of one or two games; other readers of `game` see a Miami playoff game.
+- **The NBA's `playoff_rank` is not always the seed:** before 2001-02 it is the seed in some seasons and the order by record in others, with ties unbroken (1996-97 West ranks Houston second at 57-25 where the seed went to Seattle, a division winner at 57-25; 2000-01 West ranks Utah and Dallas both fourth). In 2004-05 and 2005-06 it ranks by record though the division winners were seeded first to third (2005-06 West: Dallas second at 60-22, seeded fourth), and in the play-in seasons it is the order before the play-in. ESPN's `playoffSeed` (from 2001-02) is the seed, after the play-in. The NBA's 2020-21 West has Memphis eighth, against the tiebreaker and the play-in played.
 - **The standings' `clinch_indicator` is not reliable in old seasons.** 2002-03 marks teams 15th in their conference `x`, clinched a playoff spot, and 2014-15 has `pi`, the play-in, six seasons before there was one. They are not shown.
 - **Scores by period come and go:** ESPN's `home_linescores` hold values through 2000-01 and from 2019-20, and are empty between.
 - **ESPN undercounts overtime in 2001-02:** `status_period` has 30 overtime games to the box scores' 70. Read overtime from the team's minutes.
