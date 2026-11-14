@@ -226,19 +226,9 @@ for (const season of seasons) {
     if (Array.isArray(seedState))
       seedState = seedState.length === 0 ? 'exact' : seedState.join('; ')
 
-    // 2. The field and the first-round pairs. A "series" of one or two games is a game filed under
-    // the wrong team (1995's Finals game 3 under Miami), listed and left out.
-    for (const [t, list] of seriesOf)
-      for (const s of list)
-        if (s.wins + s.losses < 3 && t !== undefined && league.conference[t] === c)
-          notes.push(`stray playoff game: ${code(t)} v ${s.opp === undefined ? '?' : code(s.opp)}`)
-    for (const [t, list] of seriesOf)
-      seriesOf.set(
-        t,
-        list.filter((s) => s.wins + s.losses >= 3)
-      )
+    // 2. The field and the first-round pairs.
     const realField = [...seriesOf.keys()].filter(
-      (t) => t !== undefined && league.conference[t] === c && seriesOf.get(t).length > 0
+      (t) => t !== undefined && league.conference[t] === c
     )
     const fieldOk =
       realField.length === 8 && realField.every((t) => bracket.includes(t)) && bracket.length === 8

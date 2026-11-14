@@ -1,7 +1,7 @@
 import type { StatsDb } from './db'
 
 /** Bump when these tables change, so the next refresh builds them without downloading anything. */
-export const IDENTITY_VERSION = 4
+export const IDENTITY_VERSION = 5
 
 /**
  * What the identity tables read. They are all in the core tier, so the app can use them as soon as
@@ -66,6 +66,13 @@ const TEAM = `CREATE OR REPLACE TABLE team AS
  * teams are told apart by a team that is not in the league. Rows it files as games but never played
  * (postponed ones have their own row) do not count, and ESPN rows the NBA's schedule has no game for
  * are left out from 1996-97.
+ *
+ * ESPN's schedule also lists some games twice: the game with its box score, and a copy on the same day
+ * with the same score and one side the same, no box score, and the other side swapped for the team
+ * whose ESPN number ends the copy's id. 1995's Finals Game 3, Houston 106 Orlando 103, has a copy
+ * `150611014` with Miami at home (14 is Miami), which put Miami in the Finals. A copy is left out:
+ * a row with no box score when a row that has one matches it. It matters before 1996-97 only, where
+ * ESPN's rows are the games; 8 copies in all to 2001-02 (`nba-data-sources.md`, the traps).
  */
 const GAME = `CREATE OR REPLACE TABLE game AS
   WITH espn AS (
@@ -74,6 +81,16 @@ const GAME = `CREATE OR REPLACE TABLE game AS
     FROM src_espn_schedule
     WHERE coalesce(status_type_completed, true)
     ORDER BY game_id, (season = file_season) DESC, file_season DESC
+  ), espn_box AS (
+    SELECT DISTINCT game_id FROM src_espn_player_box
+  ), espn_copies AS (
+    SELECT b.espn_game_id
+    FROM espn a JOIN espn b ON a.game_date = b.game_date AND a.espn_game_id <> b.espn_game_id
+      AND a.home_score = b.home_score AND a.away_score = b.away_score
+      AND (a.home_id IN (b.home_id, b.away_id) OR a.away_id IN (b.home_id, b.away_id))
+    WHERE a.espn_game_id IN (SELECT game_id FROM espn_box)
+      AND b.espn_game_id NOT IN (SELECT game_id FROM espn_box)
+      AND coalesce(b.home_score, 0) + coalesce(b.away_score, 0) > 0
   ), espn_teams AS (
     SELECT e.*, h.team_id AS home_team_id, a.team_id AS away_team_id
     FROM espn e
@@ -122,7 +139,8 @@ const GAME = `CREATE OR REPLACE TABLE game AS
          e.game_date, e.home_team_id, e.away_team_id, e.home_score, e.away_score,
          coalesce(e.home_score, 0) + coalesce(e.away_score, 0) > 0 AS played, 'espn' AS source
   FROM espn_teams e
-  WHERE e.season < (SELECT season FROM first_nba_season)`
+  WHERE e.season < (SELECT season FROM first_nba_season)
+    AND e.espn_game_id NOT IN (SELECT espn_game_id FROM espn_copies)`
 
 /**
  * ESPN's athletes mapped to NBA ids, first hit wins:

@@ -228,7 +228,7 @@ async function build(ctx: ModelContext): Promise<ModelRows> {
 
 export const COMPOSITES_BUILDER: ModelBuilder = {
   name: 'box_composites',
-  version: 1,
+  version: 2,
   tables: COMPOSITE_TABLES,
   build
 }
