@@ -126,6 +126,63 @@
     "shot": "stability-07-no-measure"
   },
   {
+    "eval": "(async () => {\n      const t = await clickText('Offense')\n      const s = await chooseSelect('Season', 2026)\n      const f = await chooseSelect('Metric family', 'ratings')\n      await until(() => document.querySelector('th[data-metric-head=\"team_elo\"]'))\n      await sleep(1500)\n      const c = await cat()\n      const m = await marks(document.querySelector('thead'))\n      const heads = [...document.querySelectorAll('thead [data-metric-head]')].map((h) => h.dataset.metricHead + ' ' + levelOf(c.get(h.dataset.metricHead)))\n      return [t, s, f, check('RATINGS PRESET: every head, Elo and the adjusted ratings included, carries the mark the catalogue says', [m.heads === m.withMark, m.wrong], [true, []]), check('Elo and the adjusted net rating are on it', ['team_elo', 'team_adj_nrtg'].every((id) => document.querySelector(`th[data-metric-head=\"${id}\"]`)), true), 'heads: ' + heads.join(', ')].join('\\n')\n    })()"
+  },
+  {
+    "hover": "th[data-metric-head=\"team_elo\"]"
+  },
+  {
+    "wait": 1000
+  },
+  {
+    "eval": "(async () => {\n      const m = (await cat()).get('team_elo')\n      return [check('ELO head card', cardLines()?.[0], firstLine(m)), 'card: ' + JSON.stringify(cardLines())].join('\\n')\n    })()"
+  },
+  {
+    "shot": "stability-07b-ratings-preset"
+  },
+  {
+    "eval": "(async () => toggle('Shrunk rates'))()"
+  },
+  {
+    "eval": "(async () => {\n      const c = await cat()\n      const shrunkHeads = [...document.querySelectorAll('th[data-metric-head]')].filter((h) => h.querySelector('[data-shrunk]')).map((h) => h.dataset.metricHead)\n      const expected = [...document.querySelectorAll('th[data-metric-head]')].map((h) => h.dataset.metricHead).filter((id) => { const m = c.get(id); return m.aggregation === 'ratio' && m.stability?.prior != null && !['team_strength', 'adjusted_rating', 'elo_game', 'team_forecast'].includes(m.model) })\n      const scope = { seasons: [2026] }\n      const r = await window.api.stats.query({ entity: 'team', metrics: ['team_elo', 'team_adj_nrtg', 'team_ts_pct_plus', 'team_tsa', 'opp_tov_pct_plus'], scope, shrunk: true, limit: 40 })\n      const raw = await window.api.stats.query({ entity: 'team', metrics: ['team_elo', 'team_adj_nrtg', 'team_ts_pct_plus', 'team_tsa'], scope, limit: 40 })\n      const same = r.rows.every((x) => { const y = raw.rows.find((z) => z.id === x.id); return x.values.team_elo.value === y.values.team_elo.value && x.values.team_adj_nrtg.value === y.values.team_adj_nrtg.value })\n      const w = r.rows.reduce((a, x) => a + x.values.team_ts_pct_plus.raw * x.values.team_tsa.value, 0) / r.rows.reduce((a, x) => a + x.values.team_tsa.value, 0)\n      const rawPlus = raw.rows.reduce((a, x) => a + x.values.team_ts_pct_plus.value * x.values.team_tsa.value, 0) / raw.rows.reduce((a, x) => a + x.values.team_tsa.value, 0)\n      return [\n        check('SHRUNK beside the ratings: S only on rates with a prior, not on Elo, SRS or the adjusted ratings', shrunkHeads.sort(), expected.sort()),\n        check('Elo and the adjusted net rating read the same shrunk or not', same, true),\n        check(\"the teams' TS+, weighted by true shooting attempts, is still 100 (raw and in a shrunk query)\", [rawPlus.toFixed(6), w.toFixed(6)], ['100.000000', '100.000000']),\n        'notes: ' + r.notes.join(' | ')\n      ].join('\\n')\n    })()"
+  },
+  {
+    "shot": "stability-07c-ratings-shrunk"
+  },
+  {
+    "eval": "(async () => toggle('Shrunk rates'))()"
+  },
+  {
+    "eval": "(async () => {\n      nav('Standings')\n      await sleep(2500)\n      const s = await chooseSelect('Season', 2027)\n      await until(() => document.querySelector('[role=table] [data-metric-head=\"team_playoff_pct\"]'))\n      await sleep(1000)\n      const c = await cat()\n      const t = document.querySelector('[role=table]')\n      const m = await marks(t)\n      const heads = [...t.querySelectorAll('[data-metric-head]')].map((h) => h.textContent.trim() + ' ' + h.dataset.metricHead + ' ' + levelOf(c.get(h.dataset.metricHead)))\n      return [s, check('STANDINGS 2026-27: PYTH W, SRS, SOS, ELO and the forecast heads all carry the mark the catalogue says', [m.heads, m.withMark, m.wrong], [7, 7, []]), 'heads: ' + heads.join(', ')].join('\\n')\n    })()"
+  },
+  {
+    "eval": "(async () => into('[role=table] [data-metric-head=\"team_playoff_pct\"]'))()"
+  },
+  {
+    "hover": "[role=table] [data-metric-head=\"team_playoff_pct\"]"
+  },
+  {
+    "wait": 1000
+  },
+  {
+    "eval": "(async () =>\n      [check('PLAYOFF% reads its reason', cardLines()?.[0], 'Not measured: A forecast read at a season’s end is the outcome, so it has no stability to measure.'), check('and its mark says not measured', document.querySelector('[role=table] [data-metric-head=\"team_playoff_pct\"] [data-stability]')?.dataset.stability, 'none')].join('\\n'))()"
+  },
+  {
+    "shot": "stability-07d-standings"
+  },
+  {
+    "eval": "(async () => into('[role=table] [data-metric-head=\"team_elo\"]'))()"
+  },
+  {
+    "hover": "[role=table] [data-metric-head=\"team_elo\"]"
+  },
+  {
+    "wait": 1000
+  },
+  {
+    "eval": "(async () => check('Standings ELO head card', cardLines()?.[0], firstLine((await cat()).get('team_elo'))))()"
+  },
+  {
     "click": "Glossary"
   },
   {

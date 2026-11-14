@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react'
 import { Segmented, StatsSelect } from '@/components/stats/controls'
+import { MetricHead } from '@/components/stats/MetricCard'
 import { Loading, MiniTable, Notes, SectionHead } from '@/components/stats/parts'
 import { moveToSeason, type StatsScope } from '@/lib/stats/scope'
 import {
   forecastCells,
   forecastNote,
   forecastQuery,
+  HEAD_METRICS,
   standingsHead,
   standingsNotes,
   standingsTables,
@@ -87,7 +89,13 @@ export function StatsStandings({
                   label={`${t.title} standings`}
                   columns={forecast ? COLUMNS + FORECAST_COLUMNS : COLUMNS}
                   minWidth={forecast ? 1400 : 1200}
-                  head={standingsHead(forecast)}
+                  head={standingsHead(forecast).map((h) =>
+                    HEAD_METRICS[h] ? (
+                      <MetricHead key={h} id={h} label={h} info={data.byId.get(HEAD_METRICS[h])} />
+                    ) : (
+                      h
+                    )
+                  )}
                   left={[1]}
                   rows={t.rows.map((r) => ({
                     key: r.key,

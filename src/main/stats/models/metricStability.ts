@@ -2,7 +2,16 @@ import { CATALOGUE, covers } from '@shared/stats/catalogue'
 import type { Entity, MetricDef, MetricStability, StatsQuery } from '@shared/stats/types'
 import type { StatsDb } from '../db'
 import type { ModelBuilder, ModelContext, ModelRows, ModelTable } from './build'
+import { FORECAST_TABLE } from './forecast'
 import { stabilityFrom, unmeasured, type StabilityRow } from './stability'
+
+/**
+ * Tables whose value at a season's end is the season's outcome, not a measure of the team: the
+ * forecast's odds read 100 % or 0 %, its projected record the record, its mean seed the seed and its
+ * runs a constant. A year-to-year r of those would be the stability of winning, already measured by
+ * the record's own metrics, so they read a reason instead.
+ */
+const OUTCOME_TABLES: ReadonlySet<string> = new Set([FORECAST_TABLE])
 
 /**
  * The engine, loaded when a measure runs. `build.ts` lists this builder and the engine reads
@@ -41,7 +50,7 @@ type Engine = Awaited<ReturnType<typeof engine>>
 export const STABILITY_TABLE = 'metric_stability'
 
 /** Bump when the measure changes. */
-const BUILDER_VERSION = 1
+const BUILDER_VERSION = 2
 
 /** The leaderboard's player qualifier, which every player metric is measured under as well. */
 const QUALIFIER = 'min'
@@ -80,6 +89,7 @@ export const NOT_MEASURED = {
   oneSeason: 'Published for one season at a time, so it has no seasons to pair.',
   noSeason: 'Cannot be read for whole seasons.',
   playerState: 'A rating as of a game: not measured for players.',
+  outcome: 'A forecast read at a season’s end is the outcome, so it has no stability to measure.',
   coverage: 'Fewer than two completed seasons in its coverage.',
   failed: 'Could not be read for the measure.',
   noValue: 'No value at the end of a season to compare.'
@@ -97,6 +107,7 @@ function notMeasurable(e: Engine, m: MetricDef, through: number): string | null 
   if (m.oneSeason) return NOT_MEASURED.oneSeason
   if (!e.grainsOf(m).includes('season')) return NOT_MEASURED.noSeason
   if (m.entity === 'player' && isState(e, m)) return NOT_MEASURED.playerState
+  if (m.model && OUTCOME_TABLES.has(m.model)) return NOT_MEASURED.outcome
   if (m.firstSeason > through - 1) return NOT_MEASURED.coverage
   return null
 }

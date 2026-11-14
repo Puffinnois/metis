@@ -31,6 +31,20 @@ export const STANDINGS_HEAD = [
   'ELO'
 ]
 
+/**
+ * The heads of Metis's own columns and the metric each shows, so they carry its stability mark and
+ * card (Plan T1006); the published columns are the NBA's, not catalogue metrics.
+ */
+export const HEAD_METRICS: Readonly<Record<string, string>> = {
+  'PYTH W': 'team_pyth_w',
+  SRS: 'team_srs',
+  SOS: 'team_sos',
+  ELO: 'team_elo',
+  PROJ: 'team_proj_w',
+  'PLAYOFF%': 'team_playoff_pct',
+  'TITLE%': 'team_title_pct'
+}
+
 /** The team strength columns, computed by Metis, after the published ones. */
 export const STRENGTH_METRICS = ['team_pyth_w', 'team_srs', 'team_sos', 'team_elo'] as const
 

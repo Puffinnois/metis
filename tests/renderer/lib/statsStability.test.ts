@@ -18,6 +18,7 @@ import {
   stabilityTitle
 } from '@/lib/stats/stability'
 import type { StatsScope } from '@/lib/stats/scope'
+import { FORECAST_HEAD, HEAD_METRICS, STANDINGS_HEAD } from '@/lib/stats/standings'
 import type { MetricInfo, MetricStability, StatsResult, StatsRow } from '@shared/stats/types'
 import { catalogueFixture } from '../../fixtures/catalogue'
 
@@ -67,6 +68,13 @@ describe('stability on screen (Plan T1006)', () => {
     expect(stabilityLevel(info(none))).toBe('none')
     expect(stabilityLines(info(null))).toEqual(['Not measured yet: a refresh measures it.'])
     expect(stabilityTitle(info(null))).toMatch(/^Stability not measured/)
+  })
+
+  it("maps each of the Standings' own columns to its metric, so each carries a mark", () => {
+    const ids = new Set(catalogueFixture().map((m) => m.id))
+    const mapped = [...STANDINGS_HEAD, ...FORECAST_HEAD].filter((h) => HEAD_METRICS[h])
+    expect(mapped).toEqual(['PYTH W', 'SRS', 'SOS', 'ELO', 'PROJ', 'PLAYOFF%', 'TITLE%'])
+    expect(mapped.every((h) => ids.has(HEAD_METRICS[h]))).toBe(true)
   })
 
   it('shrinks only a rate with a prior', () => {

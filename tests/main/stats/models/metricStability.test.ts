@@ -106,8 +106,14 @@ describe('the stability measure, through the engine (Plan T1006)', () => {
 
   it('says why a metric is not measured', async () => {
     const gone = CATALOGUE.find((m) => m.unavailable)!
-    const s = await measureStability(db, 2026, 2027, { metrics: [gone.id, 'touches'] })
+    const s = await measureStability(db, 2026, 2027, {
+      metrics: [gone.id, 'touches', 'team_playoff_pct', 'team_proj_w']
+    })
     expect(s.get(gone.id)).toMatchObject({ reliability: null, reason: NOT_MEASURED.gone })
+    // A forecast at a season's end is the outcome.
+    for (const id of ['team_playoff_pct', 'team_proj_w']) {
+      expect(s.get(id)).toMatchObject({ reliability: null, reason: NOT_MEASURED.outcome })
+    }
     // Tracking has no rows here: nothing to pair, which is a reason, not a label.
     expect(s.get('touches')).toMatchObject({ reliability: null, reason: expect.any(String) })
   })

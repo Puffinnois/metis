@@ -68,22 +68,24 @@ export function StabilityMark({
 
 /**
  * A metric's short label with its stability mark, for a table's column head; hover for the card. A
- * metric the catalogue does not have reads its id.
+ * metric the catalogue does not have reads its id. `label` keeps a table's own head ("ELO").
  */
 export function MetricHead({
   id,
   info,
-  missing
+  missing,
+  label
 }: {
   id: string
   info: MetricInfo | undefined
   missing?: string | null
+  label?: string
 }): React.JSX.Element {
-  if (!info) return <>{id}</>
+  if (!info) return <>{label ?? id}</>
   return (
     <MetricHover info={info} missing={missing}>
       <span className="inline-flex cursor-default items-center gap-1" data-metric-head={info.id}>
-        {info.short}
+        {label ?? info.short}
         <StabilityMark info={info} />
       </span>
     </MetricHover>
