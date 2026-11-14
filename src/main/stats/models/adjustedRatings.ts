@@ -48,20 +48,25 @@ interface GameRow extends EfficiencyGame<number> {
  */
 async function games(ctx: ModelContext): Promise<GameRow[]> {
   const flagged = ctx.have.columns.get('src_espn_schedule')?.has('neutral_site')
-  const neutral = flagged
-    ? `coalesce((SELECT bool_or(e.neutral_site) FROM src_espn_schedule e
-                 WHERE e.game_id = g.espn_game_id), false)`
-    : 'false'
+  const espn = flagged
+    ? 'SELECT game_id, bool_or(neutral_site) AS neutral FROM src_espn_schedule GROUP BY 1'
+    : 'SELECT NULL::BIGINT AS game_id, NULL::BOOLEAN AS neutral'
+  // The season's rows of team_game first: joined whole, the table costs ten times as much.
   return ctx.db.all<GameRow>(
-    `SELECT g.game_id, strftime(g.game_date, '%Y-%m-%d') AS date, g.home_team_id AS home,
+    `WITH t AS (
+       SELECT game_id, team_id, pts, poss_sym FROM team_game
+       WHERE season = $1 AND game_type = 'regular'
+     ), e AS (${espn})
+     SELECT g.game_id, strftime(g.game_date, '%Y-%m-%d') AS date, g.home_team_id AS home,
             g.away_team_id AS away, h.pts::DOUBLE AS "homePts", a.pts::DOUBLE AS "awayPts",
             h.poss_sym::DOUBLE AS poss,
-            ${neutral} OR (g.season = ${RESTART.season} AND g.game_date >= DATE '${RESTART.from}')
-              AS neutral
+            coalesce(e.neutral, false)
+              OR (g.season = ${RESTART.season} AND g.game_date >= DATE '${RESTART.from}') AS neutral
      FROM game g
-     JOIN team_game h ON h.game_id = g.game_id AND h.team_id = g.home_team_id
-     JOIN team_game a ON a.game_id = g.game_id AND a.team_id = g.away_team_id
-     WHERE g.season = ? AND g.game_type = 'regular' AND g.played
+     JOIN t h ON h.game_id = g.game_id AND h.team_id = g.home_team_id
+     JOIN t a ON a.game_id = g.game_id AND a.team_id = g.away_team_id
+     LEFT JOIN e ON e.game_id = g.espn_game_id
+     WHERE g.season = $1 AND g.game_type = 'regular' AND g.played
        AND h.pts IS NOT NULL AND a.pts IS NOT NULL AND h.poss_sym > 0
      ORDER BY g.game_date, g.game_id`,
     [ctx.season]

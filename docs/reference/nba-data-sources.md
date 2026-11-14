@@ -764,6 +764,113 @@ Tolerance 0.005, half the printed hundredth; every MOV is inside it. The gaps ab
 
 - **The season in progress:** 2026-27's remaining schedule is in `game`, rows with `played` false: on Nov 13, 2026, 170 regular-season games played and 1,036 still to come, 6 of them with a side not named yet (the Cup's knockout dates), so 1,206 of the season's 1,230; the other 24 games are listed once the Cup's group stage sets them. A team's games left therefore read up to two short until then (Boston: 12 played and 68 left). Plan T1003's simulation reads the same rows.
 
+## Adjusted ratings (Plan T1004)
+
+`scripts/check-adjusted.mjs` on a copy of the Stage 9 gate load, after a real refresh, every season from 1993-94 (2026-27 as of Nov 12, 2026, 170 games in):
+
+- **The fit recomputed apart:** the observations read from `team_game` (one row per offense, where the builder joins `game` to both sides), the ridge normal equations built one observation at a time and solved by Cholesky without constraint rows, as of every game day. Every row of `adjusted_rating`, 78,218 in all, equals it within 4·10⁻¹² (ratings, home court, league average and possessions), ten games in as well as at season's end; no team-day is missing or extra.
+- **Identities:** adjusted ORtg − adjusted DRtg − adjusted NRtg is under 1.4·10⁻¹⁴ on every row; the teams' mean adjusted ORtg and DRtg after the last game day equal the league's points per 100 possessions, recounted by SQL, within 3·10⁻¹².
+- **Games left out:** the 5 games of 1993-94 and the 5 of 1995-96 without a box score on both sides, none since.
+- **Home court** at season's end: +2.5 to +4.1 net points per 100 possessions from 1993-94 to 2016-17, +1.6 to +2.6 since, and +0.9 in 2020-21, played mostly without crowds.
+
+**Against SRS.** Final values: each team's last row of `adjusted_rating` and of `team_strength`. The net rating is put on SRS's per-game scale by the league's possessions per team-game (91.6 in 1998-99 to 102.8 in 2019-20). r is the correlation with SRS; MAD the mean absolute difference from it, in points a game. "No prior" is the same fit with the prior at 0.01 possessions; "Plain" is 100 × (points − points allowed) / possessions over the season, the baseline the adjustment starts from. The last column names the two teams furthest from SRS (adjusted per game less SRS) and the part that explains most of the gap: pace (the net rating × the team's possessions a game less the league's / 100, which SRS counts and a per-possession rating does not), blowouts (the margin a game beyond ±20 points, which SRS counts in full), prior (what the pull toward 0 moves the rating, per game), each named when it is at least 0.25 and runs the way of the gap, and overtime games when a team had eight or more.
+
+| Season  | League poss/game | Adjusted r | Adjusted MAD | No prior r | No prior MAD | Plain r | Plain MAD | Differing most (adjusted − SRS, what explains it)                   |
+| ------- | ---------------- | ---------- | ------------ | ---------- | ------------ | ------- | --------- | ------------------------------------------------------------------- |
+| 1993-94 | 97.8             | 1.000      | 0.52         | 1.000      | 0.09         | 0.999   | 0.27      | DAL +1.03 (prior +0.91); SEA -0.99 (blowouts -1.17)                 |
+| 1994-95 | 95.6             | 0.991      | 0.51         | 0.991      | 0.27         | 0.990   | 0.39      | MIN -2.15 (schedule); LAC +1.10 (blowouts +1.59)                    |
+| 1995-96 | 94.4             | 1.000      | 0.48         | 1.000      | 0.10         | 1.000   | 0.17      | CHI -1.51 (prior -1.31); VAN +1.05 (blowouts +1.49)                 |
+| 1996-97 | 92.8             | 1.000      | 0.52         | 1.000      | 0.12         | 0.998   | 0.36      | CHI -1.33 (blowouts -1.38); VAN +0.98 (blowouts +1.39)              |
+| 1997-98 | 93.1             | 1.000      | 0.52         | 1.000      | 0.08         | 0.996   | 0.43      | DEN +1.27 (blowouts +1.71); GSW +1.20 (blowouts +1.28)              |
+| 1998-99 | 91.6             | 0.999      | 0.63         | 1.000      | 0.07         | 0.994   | 0.43      | LAC +1.78 (prior +1.71); VAN +1.76 (prior +1.75)                    |
+| 1999-00 | 95.7             | 1.000      | 0.37         | 1.000      | 0.08         | 0.998   | 0.29      | LAC +1.18 (blowouts +1.55); LAL -1.01 (blowouts -1.13)              |
+| 2000-01 | 93.9             | 1.000      | 0.43         | 1.000      | 0.07         | 0.993   | 0.47      | GSW +1.02 (blowouts +1.20); SAC -0.98 (blowouts -0.88, 13 OT games) |
+| 2001-02 | 93.3             | 1.000      | 0.38         | 1.000      | 0.06         | 0.996   | 0.31      | SAC -1.14 (blowouts -1.37); CHI +0.96 (blowouts +1.20)              |
+| 2002-03 | 93.8             | 1.000      | 0.40         | 1.000      | 0.08         | 0.993   | 0.45      | CLE +1.33 (blowouts +1.27); SAC -1.00 (blowouts -1.01)              |
+| 2003-04 | 92.6             | 0.999      | 0.42         | 1.000      | 0.08         | 0.988   | 0.58      | CHI +0.94 (prior +0.80); ORL +0.93 (prior +0.88)                    |
+| 2004-05 | 93.6             | 0.999      | 0.36         | 1.000      | 0.08         | 0.995   | 0.38      | ATL +1.15 (prior +1.10); PHX -1.10 (prior -0.75)                    |
+| 2005-06 | 93.2             | 1.000      | 0.32         | 0.999      | 0.08         | 0.998   | 0.22      | PHX -0.92 (blowouts -0.56); NYK +0.74 (prior +0.71)                 |
+| 2006-07 | 94.6             | 1.000      | 0.33         | 1.000      | 0.07         | 0.996   | 0.33      | PHX -1.03 (prior -0.79); SAS -0.77 (blowouts -1.46)                 |
+| 2007-08 | 94.8             | 1.000      | 0.51         | 0.999      | 0.13         | 0.997   | 0.33      | SEA +1.14 (blowouts +1.44); LAL -1.08 (blowouts -1.04)              |
+| 2008-09 | 94.2             | 1.000      | 0.40         | 1.000      | 0.10         | 0.999   | 0.26      | SAC +1.15 (blowouts +1.71); LAC +1.00 (blowouts +1.41)              |
+| 2009-10 | 95.1             | 1.000      | 0.43         | 1.000      | 0.09         | 0.999   | 0.21      | MIN +1.22 (blowouts +1.33); NJN +0.83 (prior +1.05)                 |
+| 2010-11 | 94.6             | 1.000      | 0.43         | 1.000      | 0.08         | 0.997   | 0.29      | CLE +1.06 (blowouts +1.32); WAS +0.95 (prior +0.80, 8 OT games)     |
+| 2011-12 | 93.9             | 1.000      | 0.51         | 1.000      | 0.07         | 0.994   | 0.45      | CHA +1.90 (blowouts +2.77); SAS -1.14 (prior -1.04)                 |
+| 2012-13 | 94.6             | 1.000      | 0.41         | 1.000      | 0.07         | 0.995   | 0.41      | OKC -1.11 (blowouts -1.34); CHA +0.99 (blowouts +1.54)              |
+| 2013-14 | 96.5             | 0.999      | 0.47         | 1.000      | 0.10         | 0.991   | 0.59      | PHI +1.67 (blowouts +1.95); SAS -0.96 (blowouts -1.13)              |
+| 2014-15 | 96.4             | 1.000      | 0.43         | 1.000      | 0.08         | 0.996   | 0.40      | GSW -1.43 (blowouts -1.34); PHI +1.17 (blowouts +1.50)              |
+| 2015-16 | 98.2             | 1.000      | 0.41         | 1.000      | 0.08         | 0.999   | 0.22      | GSW -1.46 (blowouts -1.15); PHI +1.21 (blowouts +1.21)              |
+| 2016-17 | 98.8             | 1.000      | 0.36         | 1.000      | 0.09         | 0.996   | 0.33      | GSW -1.56 (blowouts -2.27); BKN +1.00 (prior +0.69)                 |
+| 2017-18 | 99.6             | 1.000      | 0.36         | 1.000      | 0.06         | 0.999   | 0.19      | PHX +1.08 (blowouts +1.99); HOU -0.89 (prior -0.87)                 |
+| 2018-19 | 102.5            | 1.000      | 0.38         | 1.000      | 0.08         | 0.997   | 0.34      | MIL -0.99 (blowouts -1.22); PHX +0.94 (blowouts +1.43)              |
+| 2019-20 | 102.8            | 1.000      | 0.48         | 1.000      | 0.09         | 0.996   | 0.39      | MIL -1.30 (blowouts -1.75); ATL +1.10 (blowouts +2.09)              |
+| 2020-21 | 101.4            | 1.000      | 0.43         | 1.000      | 0.07         | 1.000   | 0.17      | OKC +1.26 (blowouts +2.96); UTA -0.99 (blowouts -1.58)              |
+| 2021-22 | 100.4            | 1.000      | 0.40         | 1.000      | 0.06         | 1.000   | 0.17      | HOU +1.01 (blowouts +1.10); POR +0.85 (blowouts +2.90)              |
+| 2022-23 | 101.6            | 1.000      | 0.30         | 1.000      | 0.04         | 0.999   | 0.17      | SAS +1.23 (blowouts +2.51); HOU +0.77 (prior +0.81)                 |
+| 2023-24 | 100.8            | 1.000      | 0.49         | 1.000      | 0.09         | 0.998   | 0.32      | WAS +1.32 (blowouts +1.48); DET +1.08 (blowouts +1.09)              |
+| 2024-25 | 101.2            | 1.000      | 0.48         | 1.000      | 0.07         | 0.998   | 0.34      | WAS +1.49 (blowouts +2.30); OKC -1.46 (blowouts -2.07)              |
+| 2025-26 | 101.8            | 1.000      | 0.51         | 1.000      | 0.09         | 0.999   | 0.23      | WAS +1.35 (blowouts +2.41); OKC -1.25 (blowouts -2.52)              |
+| 2026-27 | 101.6            | 0.946      | 3.93         | 0.993      | 0.71         | 0.897   | 3.14      | CHA +9.43 (prior +8.01); CHI +8.69 (prior +7.74)                    |
+
+Over the 33 completed seasons: adjusted r 1.000 and MAD 0.44; with no prior r 1.000 and MAD 0.09; plain r 0.996 and MAD 0.33. So the opponent adjustment is what SRS's schedule term does, per possession instead of per game: with no prior the two agree within 0.09 points a game on average, against 0.33 for the plain net rating, and 1994-95 (0.27; Minnesota's −2.15 is schedule) is the only completed season past 0.13. The prior then pulls every team toward average by about a tenth of its rating at season's end, which is most of the 0.44: the teams furthest from SRS are the best and worst, where the prior and blowouts both push the same way (SRS counts a 40-point win at 40; a rating per possession weighs it by its possessions like any game). Pace never explains the largest gap: the 0.25 threshold is not reached once. 2026-27, eleven games in, is where the prior does its job: SRS of +11 after a dozen games is not a +11 team.
+
+**Ten games in, and what the prior moves.** "Ten games in" is the first day the median team had played ten. r: adjusted net rating against SRS that day. Moved: the mean absolute change in adjusted net rating from no prior to 1,000 possessions; spread: the standard deviation of the unshrunk net ratings.
+
+| Season  | Ten games in | r then | Moved then | Spread then | Moved at the end | Spread at the end |
+| ------- | ------------ | ------ | ---------- | ----------- | ---------------- | ----------------- |
+| 1993-94 | 1993-11-24   | 0.988  | 2.08       | 5.73        | 0.50             | 5.15              |
+| 1994-95 | 1994-11-23   | 0.982  | 2.39       | 6.01        | 0.46             | 5.15              |
+| 1995-96 | 1995-11-21   | 0.917  | 2.71       | 6.28        | 0.48             | 5.23              |
+| 1996-97 | 1996-11-20   | 0.982  | 2.40       | 6.25        | 0.55             | 5.61              |
+| 1997-98 | 1997-11-18   | 0.991  | 2.75       | 6.53        | 0.53             | 5.62              |
+| 1998-99 | 1999-02-22   | 0.957  | 2.83       | 5.85        | 0.68             | 4.67              |
+| 1999-00 | 1999-11-20   | 0.960  | 2.47       | 5.95        | 0.40             | 4.75              |
+| 2000-01 | 2000-11-18   | 0.984  | 2.41       | 5.77        | 0.45             | 4.63              |
+| 2001-02 | 2001-11-17   | 0.982  | 2.95       | 6.53        | 0.40             | 4.28              |
+| 2002-03 | 2002-11-16   | 0.969  | 2.35       | 5.65        | 0.42             | 4.38              |
+| 2003-04 | 2003-11-16   | 0.975  | 2.26       | 4.96        | 0.44             | 4.27              |
+| 2004-05 | 2004-11-21   | 0.979  | 2.24       | 5.76        | 0.39             | 4.25              |
+| 2005-06 | 2005-11-20   | 0.950  | 2.29       | 5.27        | 0.37             | 3.98              |
+| 2006-07 | 2006-11-19   | 0.961  | 1.73       | 3.95        | 0.37             | 3.97              |
+| 2007-08 | 2007-11-18   | 0.962  | 3.03       | 6.43        | 0.55             | 5.53              |
+| 2008-09 | 2008-11-16   | 0.974  | 2.86       | 6.05        | 0.42             | 4.80              |
+| 2009-10 | 2009-11-14   | 0.978  | 2.82       | 6.38        | 0.46             | 4.71              |
+| 2010-11 | 2010-11-14   | 0.980  | 3.05       | 6.11        | 0.45             | 4.72              |
+| 2011-12 | 2012-01-11   | 0.902  | 2.66       | 6.30        | 0.55             | 4.99              |
+| 2012-13 | 2012-11-18   | 0.976  | 2.80       | 6.05        | 0.44             | 4.68              |
+| 2013-14 | 2013-11-16   | 0.973  | 2.28       | 5.34        | 0.47             | 4.83              |
+| 2014-15 | 2014-11-16   | 0.951  | 2.53       | 5.66        | 0.45             | 4.87              |
+| 2015-16 | 2015-11-14   | 0.985  | 2.67       | 5.90        | 0.41             | 4.90              |
+| 2016-17 | 2016-11-13   | 0.985  | 2.54       | 5.96        | 0.34             | 4.10              |
+| 2017-18 | 2017-11-05   | 0.988  | 2.49       | 5.93        | 0.36             | 4.22              |
+| 2018-19 | 2018-11-05   | 0.983  | 2.85       | 6.79        | 0.37             | 4.52              |
+| 2019-20 | 2019-11-11   | 0.983  | 2.89       | 6.03        | 0.48             | 4.61              |
+| 2020-21 | 2021-01-10   | 0.977  | 1.61       | 4.16        | 0.42             | 4.60              |
+| 2021-22 | 2021-11-07   | 0.987  | 2.46       | 5.64        | 0.39             | 4.56              |
+| 2022-23 | 2022-11-06   | 0.987  | 2.62       | 5.75        | 0.29             | 3.73              |
+| 2023-24 | 2023-11-12   | 0.980  | 2.56       | 5.95        | 0.46             | 5.23              |
+| 2024-25 | 2024-11-10   | 0.990  | 2.53       | 6.59        | 0.48             | 5.61              |
+| 2025-26 | 2025-11-09   | 0.984  | 3.09       | 7.07        | 0.50             | 5.80              |
+| 2026-27 | 2026-11-08   | 0.917  | 4.64       | 9.03        | 3.53             | 8.05              |
+
+Ten games in, the prior takes about 2.5 points per 100 off the unshrunk ratings (spread about 6); at season's end about 0.45 (spread about 4.7), a tenth.
+
+**Choosing the prior.** Each day's games predicted from the fit as of the day before (mean + offense + defense + home court), every day after the first of every season: root mean square error in points per 100, weighted by possessions, overall and where the offense had played fewer than 20 games.
+
+| Prior (possessions) | RMSE, every day | RMSE, offense under 20 games |
+| ------------------- | --------------- | ---------------------------- |
+| 0.01                | 11.125          | 12.672                       |
+| 100                 | 10.690          | 11.119                       |
+| 250                 | 10.609          | 10.848                       |
+| 500                 | 10.560          | 10.703                       |
+| **1000**            | 10.535          | 10.644                       |
+| 1500                | 10.537          | 10.651                       |
+| 2000                | 10.548          | 10.670                       |
+| 3000                | 10.579          | 10.711                       |
+| 5000                | 10.640          | 10.772                       |
+
+1,000 possessions predicts best overall and early (1,500 is within 0.002), so it is the prior: as if every team had also played about ten games of league-average basketball.
+
 ## Old seasons
 
 | Season label (file) | Source | Games | Notes                                                  |

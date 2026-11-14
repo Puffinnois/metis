@@ -316,7 +316,7 @@ for (const season of seasons) {
                WHERE season = ${season} GROUP BY 1),
          s AS (SELECT team_id, arg_max(srs, game_date) AS srs, arg_max(mov, game_date) AS mov
                FROM team_strength WHERE season = ${season} GROUP BY 1)
-    SELECT a.team_id, t.abbreviation AS abbr, a.adj, s.srs, s.mov FROM a JOIN s USING (team_id)
+    SELECT a.team_id, t.code AS abbr, a.adj, s.srs, s.mov FROM a JOIN s USING (team_id)
     JOIN team t ON t.team_id = a.team_id AND t.season = ${season} ORDER BY 1`)
   // Per team from the observations: plain net, own pace, overtime games, the margin beyond 20.
   const per = new Map()
@@ -334,7 +334,9 @@ for (const season of seasons) {
       count(*)::INTEGER AS g
     FROM team_game WHERE season = ${season} AND game_type = 'regular' GROUP BY 1`)
   const mar = new Map(margins.map((m) => [m.team_id, m]))
+  const end = data.get(season).fits.end
   const adj = []
+  const none = []
   const plainPg = []
   const srs = []
   const detail = []
@@ -344,6 +346,9 @@ for (const season of seasons) {
     const plain = (100 * (p.pts - p.opp)) / p.poss
     const a = (r.adj * pace) / 100
     adj.push(r.adj)
+    // The same games with no prior: what the prior's pull toward 0 moves, per game.
+    const unshrunk = rate(end.none, end.index.get(r.team_id)).net
+    none.push(unshrunk)
     srs.push(r.srs)
     plainPg.push({ plain, pg: (plain * pace) / 100 })
     const m = mar.get(r.team_id)
@@ -355,10 +360,12 @@ for (const season of seasons) {
       // What the team's own pace adds to a per-game margin over the league's.
       pacePart: (r.adj * (p.poss / p.g - pace)) / 100,
       blowPart: (m.m - m.capped) / m.g,
+      priorPart: ((r.adj - unshrunk) * pace) / 100,
       ot: p.ot
     })
   }
   const mad = adj.reduce((s, x, i) => s + Math.abs((x * pace) / 100 - srs[i]), 0) / adj.length
+  const madNone = none.reduce((s, x, i) => s + Math.abs((x * pace) / 100 - srs[i]), 0) / none.length
   const madPlain = plainPg.reduce((s, x, i) => s + Math.abs(x.pg - srs[i]), 0) / adj.length
   detail.sort((x, y) => Math.abs(y.diff) - Math.abs(x.diff))
   const reason = (d) => {
@@ -366,13 +373,14 @@ for (const season of seasons) {
     // possession, and the gap runs the other way of each part.
     const parts = [
       ['pace', -d.pacePart],
-      ['blowouts', -d.blowPart]
+      ['blowouts', -d.blowPart],
+      ['prior', d.priorPart]
     ].sort((x, y) => Math.abs(y[1]) - Math.abs(x[1]))
     const main = parts[0]
     const said =
       Math.abs(main[1]) >= 0.25 && Math.sign(main[1]) === Math.sign(d.diff)
         ? `${main[0]} ${sg(main[1])}`
-        : 'schedule and the prior'
+        : 'schedule'
     return `${d.abbr} ${sg(d.diff)} (${said}${d.ot >= 8 ? `, ${d.ot} OT games` : ''})`
   }
   rows3.push([
@@ -381,6 +389,8 @@ for (const season of seasons) {
     f(pace, 1),
     f(corr(adj, srs), 3),
     f(mad, 2),
+    f(corr(none, srs), 3),
+    f(madNone, 2),
     f(
       corr(
         plainPg.map((x) => x.plain),
@@ -441,6 +451,8 @@ say(
       'League poss/game',
       'Adjusted r',
       'Adjusted MAD',
+      'No prior r',
+      'No prior MAD',
       'Plain r',
       'Plain MAD',
       'Differing most (adjusted − SRS, what explains it)'
@@ -449,11 +461,13 @@ say(
   ),
   ''
 )
-const avg = (i) => rows3.reduce((s, r) => s + Number(r[i]), 0) / rows3.length
+// The season in progress is a few games in: left out of the means.
+const done = rows3.slice(0, -1)
+const avg = (i) => done.reduce((s, r) => s + Number(r[i]), 0) / done.length
 say(
-  `Mean over the seasons: adjusted r ${f(avg(3), 3)}, MAD ${f(avg(4), 2)}; plain r ${f(avg(5), 3)}, MAD ${f(avg(6), 2)}.`,
+  `Mean over the completed seasons: adjusted r ${f(avg(3), 3)}, MAD ${f(avg(4), 2)}; with no prior r ${f(avg(5), 3)}, MAD ${f(avg(6), 2)}; plain r ${f(avg(7), 3)}, MAD ${f(avg(8), 2)}.`,
   '',
-  "The parts: pace is the adjusted net rating × (the team's possessions a game − the league's) / 100, what SRS counts and a per-possession rating does not; blowouts is the margin a game beyond ±20 points, which SRS counts in full. A part is named when it is at least 0.25 and runs the way of the gap; otherwise the gap is the schedule weighting (SRS weighs games, the regression possessions, and adjusts for home court) and the prior.",
+  "The parts: pace is the adjusted net rating × (the team's possessions a game − the league's) / 100, what SRS counts and a per-possession rating does not; blowouts is the margin a game beyond ±20 points, which SRS counts in full; prior is what the prior's pull toward 0 moves the adjusted rating, per game. A part is named when it is at least 0.25 and runs the way of the gap; otherwise it is the schedule: SRS weighs games and the regression possessions, and the regression adjusts for home court.",
   ''
 )
 

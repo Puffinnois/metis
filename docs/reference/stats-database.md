@@ -362,6 +362,20 @@ The Ratings family (`catalogue/ratings.ts`) reads it as `team_srs`, `team_sos`, 
 
 Measured on a copy of the Stage 9 gate load (`scripts/load-report.mjs`): computing every season (34, 78,238 rows) takes 19.3 s (10.6 s before the games left were counted); a day with 2026-27's files changed recomputes 2026-27 alone in 0.12 to 0.28 s (340 rows, two runs); a day with no file changed does not run the step. Checked by `scripts/check-team-strength.mjs` (in [nba-data-sources.md](nba-data-sources.md), "Team strength").
 
+### Adjusted ratings (Plan T1004)
+
+`adjusted_rating` (`models/adjustedRatings.ts`, builder version 1; the maths in `models/adjusted.ts`): a `state` table of the regular season, one row per team and game day from 1993-94, the season so far after that day's games, everyone's included: `adj_poss` (the team's possessions), `adj_ortg`, `adj_drtg`, `adj_nrtg`, `adj_league` (the league's points per 100 possessions) and `adj_home` (home court).
+
+Each game is two observations, one per offense: points per 100 possessions = mean + the offense's effect + the defense's effect on points allowed + home court (+h for the home offense, −h for the road one, 0 at a neutral site), weighted by the game's possessions, so the fit is the one a row per possession would give. A ridge prior of 1,000 possessions on each team effect (`RIDGE_POSSESSIONS`) pulls it toward 0, as if every team had also played ten games of league-average basketball; the mean and home court have none. The prior was chosen by predicting each day's games from the fit as of the day before over every season (`scripts/check-adjusted.mjs`, section 4). With it the effects of each side sum to 0, so the ratings are the league's points per 100 plus the effect: adjusted ORtg = league + offense effect, adjusted DRtg = league + defense effect (lower is better), adjusted NRtg = their difference, and the teams' mean of each is the league's. `adj_home` is twice h: the net points per 100 a team gains at home over a neutral floor. Each day's normal equations come from running sums and are solved directly (`linear.ts`), with the effects of each side held to a zero sum by two Lagrange rows, which a prior already satisfies and which pick the centred solution without one.
+
+- **Possessions** are the box-score estimate the plain ratings divide by (`team_game.poss_sym`, the mean of both teams' simple estimates), and the points are the box score's, so the adjusted ratings sit on the plain ratings' scale. A game without a box score on both sides is left out (5 in 1993-94, 5 in 1995-96, none since).
+- **A neutral site** is ESPN's flag (`src_espn_schedule.neutral_site`, from 2012-13: the international games, the Cup's Las Vegas games), plus the 88 games of the 2019-20 restart in Orlando, from July 30, 2020, which ESPN does not flag.
+- **Games:** the regular season as the game table types it, so not the All-Star games ESPN files as regular season or the Cup final. A playoff scope reads "Solved on the regular season.".
+
+The Ratings family reads it as `team_adj_ortg`, `team_adj_drtg`, `team_adj_nrtg` and `team_adj_home`, each described as a model computed by Metis, not the NBA's or any publisher's figure.
+
+Measured on a copy of the Stage 9 gate load (`scripts/load-report.mjs`): this builder alone computes every season (34, 78,218 rows) in 12.9 s (two runs; 14.3 to 14.6 s before its read took the season's rows of `team_game` first, ten times faster than joining the table whole); a day with 2026-27's files changed recomputes 2026-27 with both builders in 0.22 s (680 rows, two runs). Checked by `scripts/check-adjusted.mjs`, with the comparison against SRS (in [nba-data-sources.md](nba-data-sources.md), "Adjusted ratings").
+
 ## Reads beside the engine
 
 `src/main/stats/reads.ts`: plain reads a dashboard needs that are not a metric. A table not loaded yet reads as nothing, and a column a source has dropped as NULL.

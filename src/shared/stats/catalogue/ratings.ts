@@ -153,7 +153,7 @@ export const RATINGS: MetricDef[] = [
     'team_adj_home',
     'Home court, per 100 possessions',
     'HOME',
-    `The net points per 100 possessions a team gains at home over a neutral floor, the league's estimate from the same regression, as of the last game in scope. ${NOT_PUBLISHED}`,
+    `The net points per 100 possessions a team gains at home over a neutral floor, the league's estimate from the regression behind the adjusted ratings, as of the last game in scope. ${NOT_PUBLISHED}`,
     { ...adjusted, value: '{adj_home}', direction: 'neutral' }
   )
 ]
