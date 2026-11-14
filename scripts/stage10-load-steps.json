@@ -1,0 +1,44 @@
+[
+  {
+    "size": [1500, 950]
+  },
+  {
+    "eval": "(() => {\n  const say = (what) => console.warn(`[watch ${new Date().toISOString()}] ${what}`)\n  let heading = ''\n  let tabs = ''\n  new MutationObserver(() => {\n    const h = document.querySelector('h1')?.innerText.replace(/\\n/g, ' ') ?? ''\n    const t = [...document.querySelectorAll('[role=tab][aria-selected=true]')].map((x) => x.textContent.trim()).join(',')\n    if (h !== heading) say(`heading ${JSON.stringify(heading)} -> ${JSON.stringify(h)}`)\n    if (t !== tabs) say(`tabs ${JSON.stringify(tabs)} -> ${JSON.stringify(t)}`)\n    heading = h\n    tabs = t\n  }).observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['aria-selected'] })\n  for (const type of ['keydown', 'pointerdown', 'wheel']) {\n    document.addEventListener(type, (e) => { if (e.isTrusted) say(`trusted ${type} ${e.key ?? ''} on ${e.target?.tagName} ${e.target?.getAttribute?.('aria-label') ?? ''}`) }, { capture: true, passive: true })\n  }\n  window.addEventListener('error', (e) => say(`window error: ${e.message}`))\n  window.addEventListener('unhandledrejection', (e) => say(`unhandled rejection: ${e.reason}`))\n  return 'watching'\n})()"
+  },
+  {
+    "eval": "window.sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nwindow.has = (s) => document.querySelector(s) !== null;\nwindow.statusText = () => [...document.querySelectorAll('nav button')].find((b) => b.title === 'See what is loaded')?.textContent ?? '';\nwindow.navTo = (name) => { const b = [...document.querySelectorAll('nav button')].find((x) => x.textContent.trim() === name); if (b) b.click(); return !!b };\nwindow.until = async (ready, limitMin) => { const t0 = Date.now(); while (!(await ready())) { if (Date.now() - t0 > limitMin * 60000) return false; await sleep(1000) } return true };\nwindow.secs = () => Math.round(performance.now() / 1000);\nwindow.boards = () => document.querySelectorAll('section').length >= 8 && !has('section .animate-pulse') && [...document.querySelectorAll('section')].every((s) => s.querySelectorAll('button').length > 1 || s.textContent.includes('Nobody qualifies'));\nwindow.timed = async (label, click, ready = () => true) => { let last = 0; const obs = new MutationObserver(() => { last = performance.now() }); obs.observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true }); const at = new Date().toISOString(); const t0 = performance.now(); try { click() } catch (e) { obs.disconnect(); return label + ': ' + e.message } while (true) { await sleep(20); const now = performance.now(); if (now > t0 + 30000) { obs.disconnect(); return label + ': TIMED OUT' } if (last > 0 && ready() && now - last > 600) break } obs.disconnect(); await new Promise((r) => requestAnimationFrame(() => setTimeout(r))); return label + ': ' + Math.round(last - t0 + 16) + ' ms at ' + at + ' / ' + statusText() };\n'status at launch: ' + statusText()"
+  },
+  {
+    "eval": "(async () => { const ok = await until(() => { navTo('Leaderboards'); return boards() }, 20); return 'first board on screen: ' + ok + ', ' + secs() + ' s after launch / ' + statusText() })()"
+  },
+  {
+    "shot": "load-first-board"
+  },
+  {
+    "eval": "(async () => { const ok = await until(() => { if (!has('[data-metric=pts]')) navTo('Players'); return has('[data-metric=pts]') }, 20); return 'first player dashboard on screen: ' + ok + ', ' + secs() + ' s after launch / ' + statusText() + ' / ' + document.querySelector('h1')?.innerText.replace(/\\n/g, ' ') })()"
+  },
+  {
+    "shot": "load-first-dashboard"
+  },
+  {
+    "eval": "(async () => { const ok = await until(async () => { const s = await window.api.stats.status(); if (!s.busy) return true; const d = await window.api.stats.data(); const fam = d.families ?? d; return Array.isArray(fam) && fam.length > 0 && fam.every((f) => f.state !== 'waiting' && f.filesLoaded >= f.filesExpected) }, 60); return 'every file in, the play step running: ' + ok + ', ' + secs() + ' s after launch / ' + statusText() + ' / ' + new Date().toISOString() })()"
+  },
+  {
+    "wait": 60000
+  },
+  {
+    "eval": "(async () => {\n  const lines = []\n  const round = async () => {\n    const r = [await timed('Leaderboards', () => navTo('Leaderboards'), boards)]\n    await sleep(400)\n    r.push(await timed('Standings', () => navTo('Standings'), () => has('[role=table] [data-metric-head=\"team_elo\"]')))\n    await sleep(400)\n    r.push(await timed('Teams, the Overview', () => navTo('Teams'), () => has('[data-metric=team_ortg]')))\n    await sleep(400)\n    r.push(await timed('Players, the dashboard', () => navTo('Players'), () => has('[data-metric=pts]') && has('[aria-label=\"Career by season\"]')))\n    return r\n  }\n  while ((await window.api.stats.status()).busy) {\n    lines.push(...(await round()))\n    await sleep(30000)\n  }\n  return lines.join('\\n')\n})()"
+  },
+  {
+    "shot": "load-during-models"
+  },
+  {
+    "eval": "(async () => { const ok = await until(async () => !(await window.api.stats.status()).busy, 60); return 'load finished: ' + ok + ' at ' + Math.round(performance.now() / 6000) / 10 + ' min / ' + statusText() + ' / ' + new Date().toISOString() })()"
+  },
+  {
+    "wait": 4000
+  },
+  {
+    "shot": "load-finished"
+  }
+]
