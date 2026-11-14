@@ -198,7 +198,7 @@ Documented JSON patterns: `https://cdn.nba.com/static/json/liveData/boxscore/box
 - **Usage percentage, BRef (`USG%`)** — `100(P_FGA+0.44P_FTA+P_TOV)×(T_MP/5)/[P_MP×(T_FGA+0.44T_FTA+T_TOV)]`. Estimated finished plays, not possession time, passes, or all creation.
 - **NBA usage / estimated usage (`USG_PCT`, `E_USG_PCT`)** — distinct published used-play-share fields. Retrieve NBA values; the BRef expression must not be asserted to reproduce both. Court-time, free-throw, and team-turnover treatments matter; exact endpoint formulas were not established here.
 - **Relative TS / relative eFG (`rTS%`, `rEFG%`)** — player percentage minus a specified league percentage, in percentage points. Derive with an explicit season/baseline.
-- **Shooting indexes (`TS+`, `eFG+`, `FG+`, `2P+`, `3P+`, `FT+`)** — ratio-to-league convention: `100×player_rate/league_rate`. BRef adjusted shooting. 100 is league average, not 100% accuracy. In Metis (Plan T1006) these and the rate indexes are the League indexes family, the league rate being the league's totals over the same games; a rate where lower is better (turnover percentage, the opponents' shooting) reads `100×(2−rate/league)`, so above 100 is better.
+- **Shooting indexes (`TS+`, `eFG+`, `FG+`, `2P+`, `3P+`, `FT+`)** — ratio-to-league convention: `100×player_rate/league_rate`. BRef adjusted shooting. 100 is league average, not 100% accuracy.
 - **True-shooting points added (`TS Add`)** — `2×TSA×(TS_fraction-league_TS_fraction)`. BRef adjusted shooting or derive with matching baselines.
 - **Field-goal points added (`FG Add`)** — `2×FGA×(eFG_fraction-league_eFG_fraction)`.
 
