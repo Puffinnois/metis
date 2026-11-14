@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react'
-import { MetricHover } from '@/components/stats/MetricCard'
+import { MetricHover, StabilityMark } from '@/components/stats/MetricCard'
 import { cellTitle, fmtStat, heatOf, type Heat } from '@/lib/stats/format'
 import { columnGroups, qualifies, type TabDef } from '@/lib/stats/leaderboard'
+import { rawLine } from '@/lib/stats/stability'
 import { cn } from '@/lib/utils'
 import type { LeaderboardBoard, MetricInfo, StatsResultColumn, StatsRow } from '@shared/stats/types'
 
@@ -80,6 +81,8 @@ export function LeaderTable({
   const player = board.entity === 'player'
   const groups = columnGroups(board.columns, tab, byId)
   const resultCol = new Map(columns.map((c) => [c.id, c]))
+  // A shrunk column ranks every row with a sample, the ones below the qualifier too.
+  const shrunkCol = new Set(columns.filter((c) => c.shrunk).map((c) => c.id))
   const selectedRef = useRef<HTMLTableRowElement | null>(null)
   useEffect(() => {
     selectedRef.current?.scrollIntoView?.({ block: 'center' })
@@ -154,6 +157,17 @@ export function LeaderTable({
               >
                 <span className="inline-flex items-center gap-1">
                   {label}
+                  {shrunkCol.has(id) && (
+                    <span
+                      title="Shrunk toward the league by its prior"
+                      data-shrunk="true"
+                      className="rounded-[3px] bg-cobalt-soft px-[3px] py-[1px] text-[9px] leading-none font-semibold text-cobalt"
+                    >
+                      <span aria-hidden="true">S</span>
+                      <span className="sr-only">shrunk</span>
+                    </span>
+                  )}
+                  {info && <StabilityMark info={info} />}
                   {on && <span className="text-[8px]">{arrow(board.sort.dir)}</span>}
                 </span>
               </th>
@@ -241,16 +255,24 @@ export function LeaderTable({
                     </td>
                   )
                 }
-                const heat = ok && v.qualified ? heatOf(v.percentile, info.direction) : 'n'
+                const shrunk = shrunkCol.has(id)
+                const ranked = shrunk || (ok && v.qualified)
+                const heat = ranked ? heatOf(v.percentile, info.direction) : 'n'
                 const reason = resultCol.get(id)?.reason
+                const raw = shrunk ? rawLine(v, info) : null
+                const title = reason ?? cellTitle(v, info, player ? r.position : null)
                 return (
                   <td
                     key={id}
-                    title={reason ?? cellTitle(v, info, player ? r.position : null)}
+                    title={raw ? `${raw}\n${title}` : title}
                     className="border-b border-line-2 p-0 text-right align-middle font-mono text-[12.5px] leading-[30px] whitespace-nowrap"
                   >
                     <div
-                      className={cn('px-2', HEAT[heat], (!ok || v.value === null) && 'text-fg-3')}
+                      className={cn(
+                        'px-2',
+                        HEAT[heat],
+                        ((!ok && !shrunk) || v.value === null) && 'text-fg-3'
+                      )}
                     >
                       {fmtStat(v.value, info, board.mode)}
                     </div>

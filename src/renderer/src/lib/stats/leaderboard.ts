@@ -12,6 +12,7 @@ import type {
 } from '@shared/stats/types'
 import { familyLabel, isRescaled } from './format'
 import { queryScope, type StatsScope } from './scope'
+import { shrinkable } from './stability'
 
 /** A leaderboard tab: positions for players, an end of the floor for teams, its default columns. */
 export interface TabDef {
@@ -313,9 +314,18 @@ export function leaderboardQuery(
       ...(board.split ? { split: board.split } : {})
     },
     transform: board.mode,
+    ...(board.shrunk ? { shrunk: true } : {}),
     sort: engineSort(fixed, catalogue),
     limit: ROW_LIMIT
   }
+}
+
+/**
+ * Turning shrunk rates on shows every row, since ranking the small samples is what they are for;
+ * turning them off goes back to the qualified rows. Both show on the toggles, so neither is silent.
+ */
+export function shrunkPatch(on: boolean): Pick<LeaderboardBoard, 'shrunk' | 'qualifiedOnly'> {
+  return { shrunk: on, qualifiedOnly: !on }
 }
 
 /** A row qualifies when its sample of the tab's qualifier is large enough (teams always do). */
@@ -327,15 +337,19 @@ export function qualifies(row: StatsRow, tab: TabDef): boolean {
  * Percentiles and ranks among the rows the tab qualifies, per position, as the engine computes them
  * (`percent_rank`, `rank`). The engine ranks a count among every row with a game, since a count's
  * sample has no minimum; the table shows the qualified rows, so it ranks among those. Rows outside
- * the tab's qualifier, or below a metric's own sample, get none. Teams keep the engine's.
+ * the tab's qualifier, or below a metric's own sample, get none. A shrunk column ranks every row with
+ * a sample: pulling small samples toward the league is what lets them rank. Teams keep the engine's.
  */
 export function rankWithinTab(result: StatsResult, tab: TabDef): StatsResult {
   if (!tab.qualifier) return result
   const pools = new Map<string, number[]>()
   const key = (position: string | null, metric: string): string => `${position}|${metric}`
+  const shrunk = new Set(result.columns.filter((c) => c.shrunk).map((c) => c.id))
   const ranked = (r: StatsRow, metric: string): number | null => {
     const v = r.values[metric]
-    return qualifies(r, tab) && v?.qualified && v.value !== null ? v.value : null
+    if (!v || v.value === null) return null
+    if (shrunk.has(metric)) return (v.sample ?? 0) > 0 ? v.value : null
+    return qualifies(r, tab) && v.qualified ? v.value : null
   }
   for (const r of result.rows) {
     for (const c of result.columns) {
@@ -419,7 +433,8 @@ export function leaderboardCsv(
     ...infos.map((m, i) => {
       if (!m) return board.columns[i]
       const per = isRescaled(m, board.mode) ? ` ${MODE_WORDS[board.mode]}` : ''
-      return `${m.label}${per}${m.unit === 'pct' ? ' (%)' : ''}`
+      const shrunk = board.shrunk && shrinkable(m) ? ' shrunk' : ''
+      return `${m.label}${per}${shrunk}${m.unit === 'pct' ? ' (%)' : ''}`
     })
   ]
   const lines = rows.map((r, i) => [

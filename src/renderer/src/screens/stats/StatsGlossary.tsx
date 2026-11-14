@@ -4,11 +4,19 @@ import { Segmented, StatsSelect } from '@/components/stats/controls'
 import { MetricCardBody } from '@/components/stats/MetricCard'
 import { familyLabel } from '@/lib/stats/format'
 import { searchKey } from '@/lib/stats/leaderboard'
+import {
+  glossaryOrder,
+  STABILITY_LEVELS,
+  STABILITY_WORDS,
+  type GlossaryOrder,
+  type StabilityLevel
+} from '@/lib/stats/stability'
 import type { MetricFamily, MetricInfo } from '@shared/stats/types'
 
 const FAMILIES: MetricFamily[] = [
   'traditional',
   'shooting',
+  'indexes',
   'shots',
   'plays',
   'possessions',
@@ -30,24 +38,28 @@ export function StatsGlossary({ catalogue }: { catalogue: MetricInfo[] }): React
   const [entity, setEntity] = useState<'player' | 'team'>('player')
   const [family, setFamily] = useState<MetricFamily | ''>('')
   const [search, setSearch] = useState('')
+  const [level, setLevel] = useState<StabilityLevel | ''>('')
+  const [order, setOrder] = useState<GlossaryOrder>('name')
   const needle = searchKey(search.trim())
-  const shown = catalogue
-    .filter(
+  const shown = glossaryOrder(
+    catalogue.filter(
       (m) =>
         m.tier !== 'stored' &&
         m.entity === entity &&
         (!family || m.family === family) &&
         (!needle || searchKey(`${m.label} ${m.short} ${m.description}`).includes(needle))
-    )
-    .sort((a, b) => a.label.localeCompare(b.label))
+    ),
+    level,
+    order
+  )
   return (
     <div className="flex flex-col gap-5 px-8 pt-[22px] pb-7">
       <header className="flex items-end justify-between gap-6">
         <div className="flex flex-col gap-2">
           <h1 className="m-0 text-[28px] leading-none font-bold tracking-[-0.03em]">Glossary</h1>
           <div className="text-[13px] text-fg-2">
-            {shown.length} {entity} metrics · what each measures, its sample, and the seasons it
-            covers
+            {shown.length} {entity} metrics · what each measures, its sample, the seasons it covers
+            and how much it carries over
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -68,6 +80,24 @@ export function StatsGlossary({ catalogue }: { catalogue: MetricInfo[] }): React
               ...FAMILIES.map((f) => ({ value: f, label: familyLabel(f) }))
             ]}
             onChange={setFamily}
+          />
+          <StatsSelect
+            title="Stability"
+            value={level}
+            options={[
+              { value: '' as const, label: 'Any stability' },
+              ...STABILITY_LEVELS.map((l) => ({ value: l, label: STABILITY_WORDS[l] }))
+            ]}
+            onChange={setLevel}
+          />
+          <StatsSelect
+            title="Order"
+            value={order}
+            options={[
+              { value: 'name' as const, label: 'By name' },
+              { value: 'stability' as const, label: 'Most stable first' }
+            ]}
+            onChange={setOrder}
           />
           <label className="flex h-7 w-[200px] items-center gap-[7px] rounded-[7px] border border-line bg-panel px-2.5 text-fg-3">
             <Search className="size-3.5 shrink-0" />

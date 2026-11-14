@@ -1,4 +1,4 @@
-import { MetricHover } from '@/components/stats/MetricCard'
+import { MetricHover, StabilityMark } from '@/components/stats/MetricCard'
 import type { SectionView, StatLine } from '@/lib/stats/dashboard'
 import { heatColor } from '@/lib/stats/format'
 import { cn } from '@/lib/utils'
@@ -43,11 +43,12 @@ function Line({ line }: { line: StatLine }): React.JSX.Element {
     <span
       tabIndex={0}
       className={cn(
-        'min-w-0 cursor-default truncate text-[12.5px] text-fg-2 outline-none',
+        'flex min-w-0 cursor-default items-center gap-1.5 text-[12.5px] text-fg-2 outline-none',
         line.missing && 'text-fg-3'
       )}
     >
-      {line.label}
+      <span className="truncate">{line.label}</span>
+      {line.info && <StabilityMark info={line.info} className="text-fg-3" />}
     </span>
   )
   return (
