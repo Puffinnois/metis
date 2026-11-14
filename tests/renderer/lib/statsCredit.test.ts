@@ -52,4 +52,18 @@ describe('the data credit', () => {
     )
     for (const id of ['per', 'ows', 'vorp']) expect(metis.has(id)).toBe(true)
   })
+
+  it('names only impact models the dataset still publishes', () => {
+    // DARKO left the dataset; a model named in the credit must have a metric that still reads.
+    const reading = CATALOGUE.filter(
+      (m) => m.label.endsWith('(SportsDataverse)') && !m.unavailable
+    ).map((m) => m.label)
+    const named = CREDIT_WHOSE[1].text.match(/\(([^)]*)\)/)?.[1].split(', ') ?? []
+    expect(named).toEqual(['RAPM', 'SPM', 'BPM', 'WAR'])
+    const labels: Record<string, string> = { WAR: 'Wins above replacement' }
+    for (const name of named) {
+      expect(reading).toContain(`${labels[name] ?? name} (SportsDataverse)`)
+    }
+    expect(creditText()).not.toContain('DARKO')
+  })
 })

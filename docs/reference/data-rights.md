@@ -86,7 +86,7 @@ The NBA's refusal was recorded and not worked around: no other client, header or
 
 ### Other methods
 
-FiveThirtyEight's NBA Elo method (T1002), Dean Oliver's ratings (from Basketball-Reference's pages and his book, T1005) and the SRS (T1001) are methods, implemented in Metis's own code with nothing of their authors' data. FiveThirtyEight's method page no longer exists (it redirects to abcnews.com), so its terms could not be read. SportsDataverse's DARKO columns are its own fit of Kostya Medvedovsky's published model, labelled as SportsDataverse's.
+FiveThirtyEight's NBA Elo method (T1002), Dean Oliver's ratings (from Basketball-Reference's pages and his book, T1005) and the SRS (T1001) are methods, implemented in Metis's own code with nothing of their authors' data. FiveThirtyEight's method page no longer exists (it redirects to abcnews.com), so its terms could not be read. The dataset no longer publishes DARKO (its fit of Kostya Medvedovsky's model): its impact file has had no `darko_*` columns since the November 2026 load, so the catalogue marks those metrics unavailable and the credit does not name it.
 
 ## The credit given
 
@@ -96,8 +96,10 @@ FiveThirtyEight's NBA Elo method (T1002), Dean Oliver's ratings (from Basketball
 
 ## Open questions for the owner
 
-1. **Which licence covers the files: MIT or CC BY 4.0?** The release store's licence file is MIT; its README badge and every producer repository say CC BY 4.0. The credit follows CC BY 4.0's terms; MIT's condition is about copies of the software, and Metis makes none. Options: (a) keep crediting under CC BY 4.0, as now; (b) credit under both; (c) ask SportsDataverse which applies, through an issue on sportsdataverse-data, before `v1.0.0`.
+Questions 2 and 3 are open for the owner. Questions 1, 4 and 5 were decided by the manager of Stage 11.
+
+1. **Which licence covers the files: MIT or CC BY 4.0?** The release store's licence file is MIT; its README badge and every producer repository say CC BY 4.0. The credit follows CC BY 4.0's terms; MIT's condition is about copies of the software, and Metis makes none. Options: (a) keep crediting under CC BY 4.0, as now; (b) credit under both; (c) ask SportsDataverse which applies, through an issue on sportsdataverse-data, before `v1.0.0`. **Decided by the manager, 2026-11-14: (a) keep crediting under CC BY 4.0.**
 2. **NBA.com's terms were not read.** The site refused a plain client. Options: (a) the owner reads https://www.nba.com/termsofuse in a browser and records what it says on data and automated access here; (b) ask the NBA; (c) release without reading them, as `v0.4.0` to `v0.8.0` did (D29).
 3. **ESPN's and the NBA's data reach Metis through a third party.** ESPN's terms forbid building a data set from its products by script, and the NBA's site blocks the datacenter clients SportsDataverse's pipeline avoids by running from a home connection. Neither text speaks to a user of the resulting copy, and Metis never contacts either site. Options: (a) release as now, crediting the source and redistributing nothing; (b) get advice from a lawyer before `v1.0.0`; (c) narrow what Metis downloads (for example, leave out the `nba_stats_*` or `espn_nba_*` families), which would remove most of the app's depth. This task changes nothing in what is downloaded.
-4. **Should Metis say it is unofficial more prominently?** The disclaimer of affiliation is on the Data screen and in the README. Options: (a) keep it there; (b) add a line to the first-run screen or the installer (T1103).
-5. **The Basketball-Reference values in tests and check scripts.** A few hundred published numbers are typed by hand to check the formulas; Sports Reference's data-use page says facts may be reused. Options: (a) keep them; (b) replace them with values worked by hand from the formulas.
+4. **Should Metis say it is unofficial more prominently?** The disclaimer of affiliation is on the Data screen and in the README. Options: (a) keep it there; (b) add a line to the first-run screen or the installer (T1103). **Decided by the manager, 2026-11-14: (a) for now; a line in the installer is left to T1103.**
+5. **The Basketball-Reference values in tests and check scripts.** A few hundred published numbers are typed by hand to check the formulas; Sports Reference's data-use page says facts may be reused. Options: (a) keep them; (b) replace them with values worked by hand from the formulas. **Decided by the manager, 2026-11-14: (a) keep them.**

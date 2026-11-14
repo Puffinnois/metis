@@ -29,7 +29,7 @@ export const CREDIT_WHOSE: { label: string; text: string }[] = [
   },
   {
     label: 'SportsDataverse’s calculations',
-    text: 'Possessions and who was on the floor, from the play by play, and the impact models (RAPM, SPM, BPM, WAR, DARKO), labelled “(SportsDataverse)”.'
+    text: 'Possessions and who was on the floor, from the play by play, and the impact models (RAPM, SPM, BPM, WAR), labelled “(SportsDataverse)”.'
   },
   {
     label: 'Computed by Metis',

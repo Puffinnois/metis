@@ -27,6 +27,9 @@
     "eval": "check('the old one-line credit is gone', document.body.innerText.includes('which republishes ESPN and stats.nba.com'), ['false'])"
   },
   {
+    "eval": "check('the impact models named are the ones still published', [credit()?.innerText.includes('(RAPM, SPM, BPM, WAR)'), credit()?.innerText.includes('DARKO')], ['[true,false]'])"
+  },
+  {
     "eval": "(credit()?.scrollIntoView({ block: 'end' }), 'scrolled')"
   },
   {
