@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import type { StatsDb } from '@main/stats/db'
 import { buildDerived } from '@main/stats/derived/build'
 import { runQuery } from '@main/stats/engine/run'
+import { readGame } from '@main/stats/reads'
 import { buildModels, markModelSeason, planModels } from '@main/stats/models/build'
 import { ELO, eloShift, regress, winProbability } from '@main/stats/models/elo'
 import { ELO_GAME_TABLE, ELO_WINS_TABLE, TEAM_ELO } from '@main/stats/models/teamElo'
@@ -28,11 +29,16 @@ beforeEach(async () => {
  * game never counts. Miami at Boston on Mar 1 is still to come.
  */
 function byHand(): Record<string, number> {
-  const s0 = eloShift(100, 6)
+  const s0 = eloShift(ELO.homeCourt, 6)
   let bos = regress(1500 + s0)
   let lal = regress(1500 - s0)
   let mia: number = ELO.newTeam
-  const play = (home: number, away: number, margin: number, court = 100): [number, number] => {
+  const play = (
+    home: number,
+    away: number,
+    margin: number,
+    court: number = ELO.homeCourt
+  ): [number, number] => {
     const s = eloShift(home + court - away, margin)
     return [home + s, away - s]
   }
@@ -91,7 +97,7 @@ describe('the Elo builder', () => {
     const home = (await db.get<Record<string, number>>(
       `SELECT home_court FROM ${ELO_GAME_TABLE} WHERE game_id = 'a' AND team_id = ${LAL}`
     ))!
-    expect(home.home_court).toBe(-100)
+    expect(home.home_court).toBe(-ELO.homeCourt)
   })
 
   it('rates the games still to come with the latest ratings, in the season in progress only', async () => {
@@ -105,7 +111,7 @@ describe('the Elo builder', () => {
     expect(later.elo).toBeNull()
     expect(later.elo_pre).toBeCloseTo(h.bos, 9)
     expect(later.opp_elo_pre).toBeCloseTo(h.mia, 9)
-    expect(later.win_prob).toBeCloseTo(winProbability(h.bos + 100 - h.mia), 9)
+    expect(later.win_prob).toBeCloseTo(winProbability(h.bos + ELO.homeCourt - h.mia), 9)
     await buildModels(db, 2027)
     await markModelSeason(db, 0)
     await buildModels(db, 2027)
@@ -138,7 +144,7 @@ describe('the Elo builder', () => {
     await db.exec("UPDATE game SET home_score = 130 WHERE game_id = 'old'")
     await markModelSeason(db, 2025)
     await buildModels(db, 2026)
-    const s0 = eloShift(100, 30)
+    const s0 = eloShift(ELO.homeCourt, 30)
     expect(await last(BOS, 2025)).toBeCloseTo(1500 + s0, 9)
     expect(await last(BOS)).not.toBeCloseTo(byHand().bos, 3)
   })
@@ -177,5 +183,19 @@ describe('the Elo builder', () => {
       `SELECT elo FROM ${ELO_GAME_TABLE} WHERE game_id = 'b' AND team_id = ${LAL}`
     )
     expect(lalReg).toBeCloseTo(nov2!.elo, 9)
+  })
+
+  it('gives a game page both sides, played or still to come', async () => {
+    await buildModels(db, 2026)
+    const h = byHand()
+    const later = (await readGame(db, 'later'))?.elo
+    expect(later).toMatchObject({ neutral: false, homeCourt: ELO.homeCourt })
+    expect(later?.home.pre).toBeCloseTo(h.bos, 9)
+    expect(later?.away.pre).toBeCloseTo(h.mia, 9)
+    expect(later?.home.post).toBeNull()
+    expect(later?.homeWin).toBeCloseTo(winProbability(h.bos + ELO.homeCourt - h.mia), 9)
+    expect((await readGame(db, 'cup'))?.elo).toMatchObject({ neutral: true, homeCourt: 0 })
+    // The All-Star game is not rated.
+    expect((await readGame(db, 'star'))?.elo ?? null).toBeNull()
   })
 })

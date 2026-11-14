@@ -220,7 +220,7 @@ function seasons(changed: readonly number[], played: readonly number[]): number[
 
 export const TEAM_ELO: ModelBuilder = {
   name: 'team_elo',
-  version: 1,
+  version: 2,
   tables: TEAM_ELO_TABLES,
   seasons,
   build

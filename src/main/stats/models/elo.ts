@@ -1,8 +1,20 @@
 /**
- * Team Elo (Plan T1002, reference section 13): FiveThirtyEight's published NBA Elo. Every game played
- * counts in date order, and the ratings carry from season to season, regressed a quarter of the way
- * back toward the mean. Pure functions over the schedule, so the model is testable without a database.
+ * Team Elo (Plan T1002, reference section 13): FiveThirtyEight's published NBA Elo, with its home
+ * court and its carry between seasons fitted out of sample. Every game played counts in date order,
+ * and the ratings carry from season to season, regressed toward the mean. Pure functions over the
+ * schedule, so the model is testable without a database.
  */
+
+export interface EloParams {
+  k: number
+  /** Home court in Elo points; 0 at a neutral site. */
+  homeCourt: number
+  /** The share of a rating's distance from the mean kept between seasons. */
+  carry: number
+}
+
+/** FiveThirtyEight's published values: K 20, home court 100, a quarter back to the mean. */
+export const FIVETHIRTYEIGHT: EloParams = { k: 20, homeCourt: 100, carry: 0.75 }
 
 export const ELO = {
   /** Every team's rating at the start of the first season held (1993-94). */
@@ -12,15 +24,17 @@ export const ELO = {
   /** A team that enters the league (an expansion franchise). */
   newTeam: 1300,
   k: 20,
-  /** Home court in Elo points; 0 at a neutral site. */
-  homeCourt: 100,
-  /** The share of a rating's distance from the mean kept between seasons: a quarter regresses. */
-  carry: 0.75,
+  /**
+   * Fitted on 1995-96 to 2009-10 and scored on 2010-11 on (`scripts/check-elo.mjs`): home court 80
+   * and a carry of 0.65 lower the later seasons' Brier score by 0.0018 against 538's 100 and 0.75,
+   * eleven standard errors, and remove most of the home side's overestimate. Home court has shrunk
+   * since 538 set its value.
+   */
+  homeCourt: 80,
+  carry: 0.65,
   /** Elo points per point of margin: 538's Elo point spread is the difference over 28. */
   perPoint: 28
 } as const
-
-export type EloParams = Pick<typeof ELO, 'k' | 'homeCourt' | 'carry'>
 
 /** The win probability of the side with this rating edge (home court included). */
 export const winProbability = (diff: number): number => 1 / (1 + Math.pow(10, -diff / 400))

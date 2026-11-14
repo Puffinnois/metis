@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   brier,
   ELO,
+  FIVETHIRTYEIGHT,
   eloShift,
   expectedMargin,
   logLoss,
@@ -17,7 +18,7 @@ const game = (
   o: Partial<EloGame<string>> & Pick<EloGame<string>, 'game_id' | 'home' | 'away'>
 ): EloGame<string> => ({ date: '2025-11-01', neutral: false, margin: null, ...o })
 
-describe('Elo, as FiveThirtyEight publishes it for the NBA', () => {
+describe('Elo, as FiveThirtyEight publishes it for the NBA, home court and carry fitted', () => {
   it('turns a rating edge into a win probability and an expected margin', () => {
     expect(winProbability(0)).toBe(0.5)
     // 400 points: ten to one. Home court alone, 100 points: 64 %.
@@ -67,7 +68,8 @@ describe('Elo, as FiveThirtyEight publishes it for the NBA', () => {
       new Map([
         ['A', 1500],
         ['B', 1500]
-      ])
+      ]),
+      FIVETHIRTYEIGHT
     )
     expect(rows.map((r) => r.game_id)).toEqual(['a', 'b', 'z'])
     const [a, b, z] = rows
@@ -86,18 +88,33 @@ describe('Elo, as FiveThirtyEight publishes it for the NBA', () => {
     expect(ratings.get('A')! + ratings.get('B')!).toBeCloseTo(3000, 9)
   })
 
+  it('applies home court of 80 unless told otherwise', () => {
+    const { rows } = runSeason(
+      [game({ game_id: 'h', home: 'A', away: 'B', margin: 1 })],
+      new Map([
+        ['A', 1500],
+        ['B', 1500]
+      ])
+    )
+    expect(rows[0].homeCourt).toBe(80)
+    expect(rows[0].homeWin).toBeCloseTo(winProbability(80), 12)
+  })
+
   it('enters a new franchise at 1300', () => {
     const { rows } = runSeason(
       [game({ game_id: 'x', home: 'TOR', away: 'NYK', margin: -12 })],
-      new Map([['NYK', 1600]])
+      new Map([['NYK', 1600]]),
+      FIVETHIRTYEIGHT
     )
     expect(rows[0].homePre).toBe(ELO.newTeam)
     expect(rows[0].homeWin).toBeCloseTo(winProbability(1300 + 100 - 1600), 12)
   })
 
-  it('carries a season: a quarter of the way back to 1505, a moved franchise keeps its rating', () => {
-    expect(regress(1600)).toBe(1576.25)
-    expect(regress(1400)).toBe(1426.25)
+  it('carries a season: 35 % of the way back to 1505, a moved franchise keeps its rating', () => {
+    expect(regress(1600)).toBeCloseTo(1566.75, 12)
+    // FiveThirtyEight's: a quarter of the way.
+    expect(regress(1600, FIVETHIRTYEIGHT.carry)).toBe(1576.25)
+    expect(regress(1400)).toBeCloseTo(1436.75, 12)
     expect(regress(ELO.mean)).toBe(ELO.mean)
     // Charlotte's Hornets moved to New Orleans in 2002 under a new id: the one team gone and the one
     // team new are linked. Toronto arrives with nobody gone: it enters at 1300.
@@ -107,14 +124,14 @@ describe('Elo, as FiveThirtyEight publishes it for the NBA', () => {
     ])
     expect(seasonStart(last, ['NOH', 'BOS'])).toEqual(
       new Map([
-        ['BOS', 1463.75],
-        ['NOH', 1546.25]
+        ['BOS', 1469.25],
+        ['NOH', 1540.75]
       ])
     )
     expect(seasonStart(last, ['CHH', 'BOS', 'TOR'])).toEqual(
       new Map([
-        ['CHH', 1546.25],
-        ['BOS', 1463.75]
+        ['CHH', 1540.75],
+        ['BOS', 1469.25]
       ])
     )
     // Two teams new and one gone cannot be told apart: both enter as new.

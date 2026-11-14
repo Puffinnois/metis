@@ -1,5 +1,6 @@
 import type {
   GameSide,
+  GameType,
   MetricInfo,
   StatsGame,
   StatsGameDetail,
@@ -7,6 +8,8 @@ import type {
   StatsResult,
   StatsRow
 } from '@shared/stats/types'
+import { ELO_FIRST_SEASON } from '@shared/stats/catalogue/ratings'
+import { seasonLabel } from '@shared/stats/seasons'
 import { fmtClock, fmtStat } from './format'
 import { typeTag } from './player'
 import { fullDay, shortDay } from './scope'
@@ -190,6 +193,47 @@ export function periodTable(game: StatsGame, detail: StatsGameDetail | null): Pe
     away: cells(p.away, game.away.score),
     home: cells(p.home, game.home.score)
   }
+}
+
+export interface EloView {
+  /** The ratings and the pre-game win probability, away then home; empty in a burn-in season. */
+  rows: { label: string; away: string; home: string }[]
+  note: string
+}
+
+const ELO_TYPES: readonly GameType[] = ['regular', 'play-in', 'playoffs', 'cup-final']
+
+/**
+ * A game's Elo (Plan T1002): both ratings before it, after it once played, and the win probability
+ * before it, for a game still to come from the latest ratings. Null for a game Elo does not rate
+ * (All-Star, preseason) or before the table is built; a note alone in the burn-in seasons.
+ */
+export function eloView(game: StatsGame, detail: StatsGameDetail | null): EloView | null {
+  if (!ELO_TYPES.includes(game.type)) return null
+  if (game.season < ELO_FIRST_SEASON) {
+    return {
+      rows: [],
+      note: `Elo is read from ${seasonLabel(ELO_FIRST_SEASON)}: every team starts at 1500 in 1993-94, so the first two seasons settle the ratings.`
+    }
+  }
+  const elo = detail?.elo
+  if (!elo) return null
+  const pct = (p: number): string => `${(100 * p).toFixed(0)} %`
+  const rows = [
+    { label: 'Before', away: elo.away.pre.toFixed(0), home: elo.home.pre.toFixed(0) },
+    ...(elo.home.post !== null && elo.away.post !== null
+      ? [{ label: 'After', away: elo.away.post.toFixed(0), home: elo.home.post.toFixed(0) }]
+      : []),
+    { label: 'Win probability', away: pct(1 - elo.homeWin), home: pct(elo.homeWin) }
+  ]
+  const margin = Math.abs(elo.homeMargin)
+  const favourite = elo.homeMargin >= 0 ? game.home.code : game.away.code
+  const expected =
+    margin < 0.05 ? 'Expected: even.' : `Expected: ${favourite} by ${margin.toFixed(1)}.`
+  const court = elo.neutral
+    ? 'Neutral site: no home court.'
+    : `Home court: ${elo.homeCourt} Elo points.`
+  return { rows, note: `${court} ${expected}` }
 }
 
 /** Why a game has no box score. */
