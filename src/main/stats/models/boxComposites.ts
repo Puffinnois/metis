@@ -15,6 +15,7 @@ export const PLAYER_COMPOSITE = 'player_composite'
 export const TEAM_COMPOSITE = 'team_composite'
 
 export const COMPOSITE_TYPES = ['regular', 'playoffs'] as const
+type CompositeType = (typeof COMPOSITE_TYPES)[number]
 
 /** Why a scope with neither has none. */
 export const COMPOSITE_TYPES_REASON = 'Computed for the regular season and the playoffs only.'
@@ -91,7 +92,8 @@ const LISTED: Record<string, number> = { G: 1.5, F: 3.5, C: 5 }
 function teamTurnovers(ctx: ModelContext): string {
   const parts: string[] = []
   if (ctx.have.tables.has('play_team_game')) {
-    parts.push('SELECT game_id, team_id, tov_team AS team_tov FROM play_team_game')
+    parts.push(`SELECT p.game_id, p.team_id, p.tov_team AS team_tov
+        FROM play_team_game p JOIN game g USING (game_id) WHERE g.season = ${ctx.season}`)
   }
   if (ctx.have.tables.has('src_espn_team_box') && ctx.season < 1997) {
     parts.push(`SELECT g.game_id,
@@ -108,23 +110,34 @@ function teamTurnovers(ctx: ModelContext): string {
 
 /**
  * Each team's season with team turnovers added to its own and its opponents' counts. The opponents
- * play the same minutes.
+ * play the same minutes. The counts are `team_season`'s, whose sums skip the few games with no box
+ * score as the player lines do; the turnovers join only the game table's keys, since scanning its
+ * thirty summed columns for one season took a quarter of a second. The turnovers are materialized:
+ * inlined twice, DuckDB planned the joins at 360 ms a season against 8.
  */
-async function teamSeasons(ctx: ModelContext, gameType: string): Promise<Map<number, TeamSeason>> {
-  const own = COUNTS.map((c) => `coalesce(sum(t.${c}), 0)::DOUBLE AS ${c}`)
-  const opp = COUNTS.map((c) => `coalesce(sum(t.opp_${c}), 0)::DOUBLE AS o_${c}`)
+async function teamSeasons(
+  ctx: ModelContext,
+  gameType: CompositeType
+): Promise<Map<number, TeamSeason>> {
+  const own = COUNTS.map((c) => `coalesce(s.${c}, 0)::DOUBLE AS ${c}`)
+  const opp = COUNTS.map((c) => `coalesce(s.opp_${c}, 0)::DOUBLE AS o_${c}`)
   const rows = await ctx.db.all<Row>(
-    `WITH tt AS (${teamTurnovers(ctx)})
-     SELECT t.team_id, count(*) AS games, coalesce(sum(t.minutes), 0)::DOUBLE AS mp,
+    `WITH tt AS MATERIALIZED (${teamTurnovers(ctx)}),
+     turnovers AS (
+       SELECT t.team_id, coalesce(sum(a.team_tov), 0)::DOUBLE AS team_tov,
+              coalesce(sum(b.team_tov), 0)::DOUBLE AS opp_team_tov
+       FROM team_game t
+       LEFT JOIN tt a ON a.game_id = t.game_id AND a.team_id = t.team_id
+       LEFT JOIN tt b ON b.game_id = t.game_id AND b.team_id = t.opponent_id
+       WHERE t.season = ? AND t.game_type = ? AND t.box_games = 1
+       GROUP BY 1
+     )
+     SELECT s.team_id, s.box_games AS games, coalesce(s.minutes, 0)::DOUBLE AS mp,
             ${own.join(', ')}, ${opp.join(', ')},
-            coalesce(sum(a.team_tov), 0)::DOUBLE AS team_tov,
-            coalesce(sum(b.team_tov), 0)::DOUBLE AS opp_team_tov
-     FROM team_game t
-     LEFT JOIN tt a ON a.game_id = t.game_id AND a.team_id = t.team_id
-     LEFT JOIN tt b ON b.game_id = t.game_id AND b.team_id = t.opponent_id
-     WHERE t.season = ? AND t.game_type = ? AND t.box_games = 1
-     GROUP BY 1`,
-    [ctx.season, gameType]
+            coalesce(x.team_tov, 0) AS team_tov, coalesce(x.opp_team_tov, 0) AS opp_team_tov
+     FROM team_season s LEFT JOIN turnovers x USING (team_id)
+     WHERE s.season = ? AND s.game_type = ? AND s.box_games > 0`,
+    [ctx.season, gameType, ctx.season, gameType]
   )
   const teams = new Map<number, TeamSeason>()
   for (const r of rows) {
