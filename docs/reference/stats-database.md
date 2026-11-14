@@ -378,7 +378,7 @@ Measured on a copy of the Stage 9 gate load (`scripts/load-report.mjs`): computi
 
 The Ratings family reads them as `team_elo` (Elo after the last game in scope, every season type it rates, so the playoffs answer), `team_elo_exp_w` (expected wins) and `team_elo_w_over` (wins less expected wins), each with `firstSeason` 1995-96: the first two seasons are a burn-in, read as "Elo rating: starts in 1995-96.". Their rows are kept, since 1995-96 starts from them. The game page reads `elo_game`, or `elo_schedule` for a game to come, through `readGame` (`elo`), from 1995-96.
 
-Measured on a copy of the Stage 9 gate load (`scripts/load-report.mjs`): computing every season takes 24.3 s for Elo's 169,332 rows; a day with 2026-27's files changed recomputes 2026-27 in 0.69 s (3,080 rows with team strength's, twice); a change in 2010-11 recomputes 2010-11 to 2026-27 in 12.1 s (87,188 rows). Checked by `scripts/check-elo.mjs` (in [nba-data-sources.md](nba-data-sources.md), "Elo").
+Measured on a copy of the Stage 9 gate load (`scripts/load-report.mjs`): computing every season takes 24.3 s for Elo's 169,332 rows (169,328 once ESPN's copy of a 1995 Finals game was left out); a day with 2026-27's files changed recomputes 2026-27 in 0.69 s (3,080 rows with team strength's, twice); a change in 2010-11 recomputes 2010-11 to 2026-27 in 12.1 s (87,188 rows). Checked by `scripts/check-elo.mjs` (in [nba-data-sources.md](nba-data-sources.md), "Elo").
 
 ### Box-score composites (Plan T1005)
 
