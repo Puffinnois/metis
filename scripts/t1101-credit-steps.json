@@ -1,0 +1,38 @@
+[
+  {
+    "size": [1500, 950]
+  },
+  {
+    "wait": 5000
+  },
+  {
+    "eval": "window.sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nwindow.check = (label, got, want) => (want.every((w) => JSON.stringify(got).includes(w)) ? 'OK ' : 'MISMATCH ') + label + ' want ' + JSON.stringify(want) + ' got ' + JSON.stringify(got);\nwindow.credit = () => document.querySelector('section[aria-label=\"Data and credit\"]');\n'helpers ready'"
+  },
+  {
+    "eval": "(async () => { const b = [...document.querySelectorAll('nav button')].find((x) => x.title === 'See what is loaded'); if (!b) return 'NO DATA BUTTON'; b.click(); await sleep(2500); return credit() ? 'opened the Data screen' : 'NO CREDIT SECTION' })()"
+  },
+  {
+    "eval": "check('the credit names the source, the licence and the upstreams', credit()?.innerText, ['Data and credit', 'NBA data is published by SportsDataverse under CC BY 4.0, from ESPN and the NBA’s stats site.', 'reshapes it into its own tables and computes stats from it. It shares nothing.'])"
+  },
+  {
+    "eval": "check('the links go to the dataset and the licence', [...(credit()?.querySelectorAll('a') ?? [])].map((a) => a.textContent + ' ' + a.href), ['SportsDataverse https://github.com/sportsdataverse/sportsdataverse-data', 'CC BY 4.0 https://creativecommons.org/licenses/by/4.0/'])"
+  },
+  {
+    "eval": "check('whose each number is', credit()?.innerText, ['As published:', 'SportsDataverse’s calculations:', 'labelled “(SportsDataverse)”', 'Computed by Metis:', 'PER, Win Shares, BPM, VORP'])"
+  },
+  {
+    "eval": "check('no affiliation, names to their owners, the app licence apart', credit()?.innerText, ['Metis is not affiliated with or endorsed by the NBA, ESPN or SportsDataverse.', 'Team and player names, and the NBA and ESPN names, belong to their owners.', 'Metis is open source under the Apache License 2.0. That covers the app, not the data, which keeps its own terms.'])"
+  },
+  {
+    "eval": "check('the old one-line credit is gone', document.body.innerText.includes('which republishes ESPN and stats.nba.com'), ['false'])"
+  },
+  {
+    "eval": "check('the impact models named are the ones still published', [credit()?.innerText.includes('(RAPM, SPM, BPM, WAR)'), credit()?.innerText.includes('DARKO')], ['[true,false]'])"
+  },
+  {
+    "eval": "(credit()?.scrollIntoView({ block: 'end' }), 'scrolled')"
+  },
+  {
+    "shot": "t1101-data-and-credit"
+  }
+]
