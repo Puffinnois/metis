@@ -813,7 +813,19 @@ function GameLog({ data, scope, player, onOpenGame }: TabProps): React.JSX.Eleme
             c.pair || c.metric?.endsWith('_pct') ? 'minmax(52px,1fr)' : 'minmax(40px,1fr)'
           ).join(' ')}`}
           minWidth={1340}
-          head={['Date', 'Opp', 'Team', 'Result', ...LOG_COLUMNS.map((c) => c.label)]}
+          head={[
+            'Date',
+            'Opp',
+            'Team',
+            'Result',
+            ...LOG_COLUMNS.map((c) =>
+              c.metric ? (
+                <MetricHead key={c.label} id={c.label} info={data.byId.get(c.metric)} />
+              ) : (
+                c.label
+              )
+            )
+          ]}
           left={[1, 2, 3]}
           rows={[
             ...rows.map((r) => ({

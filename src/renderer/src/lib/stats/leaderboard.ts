@@ -214,8 +214,11 @@ function familyMetrics(
   return [...core, ...fill].map((m) => m.id)
 }
 
-/** Families whose preset keeps the catalogue's order rather than the labels'. */
-const IN_CATALOGUE_ORDER: ReadonlySet<MetricFamily> = new Set(['ratings'])
+/**
+ * Families whose preset keeps the catalogue's order rather than the labels': the ratings build up to
+ * SRS = MOV + SOS, and the indexes start with the shooting ones (TS+, eFG+), as they are known.
+ */
+const IN_CATALOGUE_ORDER: ReadonlySet<MetricFamily> = new Set(['ratings', 'indexes'])
 
 /** The families a tab has metrics of, for the family filter. */
 export function familiesOf(catalogue: readonly MetricInfo[], tab: TabDef): MetricFamily[] {

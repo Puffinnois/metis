@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   defaultBoard,
+  familyColumns,
   leaderboardCsv,
   leaderboardQuery,
   rankWithinTab,
@@ -163,6 +164,20 @@ describe('the shrunk toggle on the leaderboard (Plan T1006)', () => {
     expect([of('b'), of('a'), of('c')].map((r) => r.values.ts_pct.rank)).toEqual([1, 2, 3])
     expect(of('b').values.fg_pct.rank).toBeNull()
     expect([of('a'), of('c')].map((r) => r.values.fg_pct.rank)).toEqual([1, 2])
+  })
+
+  it('presets the League indexes in the catalogue’s order, the shooting ones first', () => {
+    const player = familyColumns(catalogueFixture(), tabOf('player', 'ALL'), 'indexes')
+    expect(player.slice(0, 6)).toEqual([
+      'ts_pct_plus',
+      'efg_pct_plus',
+      'fg_pct_plus',
+      'fg2_pct_plus',
+      'fg3_pct_plus',
+      'ft_pct_plus'
+    ])
+    const team = familyColumns(catalogueFixture(), tabOf('team', 'offense'), 'indexes')
+    expect(team[0]).toBe('team_ts_pct_plus')
   })
 
   it('says which columns are shrunk in the CSV', () => {

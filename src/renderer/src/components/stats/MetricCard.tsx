@@ -82,7 +82,7 @@ export function MetricHead({
   if (!info) return <>{id}</>
   return (
     <MetricHover info={info} missing={missing}>
-      <span className="inline-flex cursor-default items-center gap-1">
+      <span className="inline-flex cursor-default items-center gap-1" data-metric-head={info.id}>
         {info.short}
         <StabilityMark info={info} />
       </span>

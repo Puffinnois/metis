@@ -145,6 +145,7 @@ export function LeaderTable({
             const head = (
               <th
                 key={id}
+                data-metric-head={id}
                 aria-sort={on ? (board.sort.dir === 'asc' ? 'ascending' : 'descending') : undefined}
                 onClick={() => onSort(id)}
                 className={cn(
