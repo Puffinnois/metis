@@ -662,7 +662,8 @@ Object.assign(EXPECTED, {
  */
 /**
  * One row of a model table's values with the box-score divisors beside them (Plan Stage 10): the
- * ratings read a team's state, so every column differs, and SRS = MOV + SOS.
+ * ratings read a team's state, so every column differs, and SRS = MOV + SOS. The box-score
+ * composites (Plan T1005) store parts that add up: a PER of 20 over 2,000 minutes is 40,000.
  */
 const MODEL_ROW: Record<string, number> = {
   games: 10,
@@ -676,7 +677,25 @@ const MODEL_ROW: Record<string, number> = {
   sos: -1.5,
   srs: 1.75,
   games_left: 40,
-  sos_left: 0.5
+  sos_left: 0.5,
+  minutes: 2000,
+  box_games: 10,
+  cmp_minutes: 2000,
+  sc_poss: 900,
+  tot_poss: 1600,
+  pprod: 1800,
+  stops: 500,
+  d_poss: 1000,
+  drtg_num: 108000,
+  per_num: 40000,
+  ows: 7,
+  dws: 3,
+  ws: 10,
+  bpm_num: 8000,
+  obpm_num: 5000,
+  vorp: 3.5,
+  position_num: 6000,
+  role_num: 5000
 }
 
 /** Team strength from the scores (Plan T1001): 310 points for, 290 against, 2-1. */
@@ -692,6 +711,30 @@ Object.assign(EXPECTED, {
   team_pyth_w: 3 * PYTH,
   team_pyth_l: 3 * (1 - PYTH),
   team_win_resid: 2 - 3 * PYTH,
+  per: 20,
+  ows: 7,
+  dws: 3,
+  ws: 10,
+  ws_48: 0.24,
+  bpm: 4,
+  obpm: 2.5,
+  dbpm: 1.5,
+  vorp: 3.5,
+  pprod: 1800,
+  poss_used: 1600,
+  scoring_poss: 900,
+  floor_pct: 0.5625,
+  ortg_ind: 112.5,
+  drtg_ind: 108,
+  stops: 500,
+  stop_pct: 0.5,
+  bpm_position: 3,
+  bpm_role: 2.5,
+  team_ws: 10,
+  team_ows: 7,
+  team_dws: 3,
+  team_vorp: 3.5,
+  team_pprod: 1800,
   team_elo: 1587.5,
   team_elo_exp_w: 5.25,
   team_elo_w_over: 0.75

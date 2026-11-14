@@ -1,7 +1,7 @@
 import type { GameType } from '@shared/stats/types'
-import { column } from '../derived/sql'
 import type { ModelBuilder, ModelContext, ModelRows, ModelTable } from './build'
 import { ELO, runSeason, seasonStart, type EloGame } from './elo'
+import { neutralSitesSql } from './neutral'
 
 /** Plan T1002: Elo, a team's rating before and after every game, and the games still to come. */
 export const ELO_GAME_TABLE = 'elo_game'
@@ -77,70 +77,25 @@ interface GameRow {
   neutral: boolean
 }
 
-const ESPN = 'src_espn_schedule'
-
-/**
- * Whether a game has no home court, read from ESPN's schedule (`nba-data-sources.md`, "Elo"):
- * its `neutral_site` mark (games abroad from 2012-13, the Cup's semifinals and final from 2024-25);
- * the Cup final and the 2023-24 semifinals, which it does not mark; and the 2020 bubble at Lake Buena
- * Vista, which it does not mark either. Games abroad before 2012-13 carry no mark and keep home court.
- */
-function neutralSql(espn: boolean): string {
-  if (!espn) return `game_type = 'cup-final'`
-  return `(coalesce(neutral_site, false) OR game_type = 'cup-final'
-    OR coalesce(notes ILIKE '%semifinal%' AND (notes ILIKE '%cup%' OR notes ILIKE '%tournament%'), false)
-    OR coalesce(city = 'Lake Buena Vista', false))`
-}
-
 /**
  * The season's games between two named teams of the types Elo rates: those played, with their margin,
- * and in the season in progress those not played yet. A game ESPN's schedule is not linked to (one far
- * ahead) is matched to it by its sides and date, for its neutral mark.
+ * and in the season in progress those not played yet, each with whether it had no home court
+ * (`neutralSitesSql`, shared with the other models).
  */
 async function seasonGames(ctx: ModelContext): Promise<GameRow[]> {
   const types = ELO_GAME_TYPES.map((t) => `'${t}'`).join(', ')
-  const has = ctx.have.tables.has(ESPN)
-  const espn = has
-    ? `espn AS (
-        SELECT DISTINCT ON (game_id) game_id, home_id, away_id, game_date::DATE AS game_date,
-               ${column(ctx.have, ESPN, 's', 'neutral_site', 'BOOLEAN')} AS neutral_site,
-               ${column(ctx.have, ESPN, 's', 'notes_headline', 'VARCHAR')} AS notes,
-               ${column(ctx.have, ESPN, 's', 'venue_address_city', 'VARCHAR')} AS city
-        FROM ${ESPN} s
-        WHERE season BETWEEN ${ctx.season - 1} AND ${ctx.season + 1}
-        ORDER BY game_id, (season = file_season) DESC, file_season DESC
-      ),`
-    : ''
-  const join = has
-    ? `LEFT JOIN espn e ON e.game_id = g.espn_game_id
-       LEFT JOIN team th ON th.team_id = g.home_team_id AND th.season = g.season
-       LEFT JOIN team ta ON ta.team_id = g.away_team_id AND ta.season = g.season
-       LEFT JOIN espn f ON g.espn_game_id IS NULL AND f.home_id = th.espn_team_id
-         AND f.away_id = ta.espn_team_id AND abs(date_diff('day', f.game_date, g.game_date)) <= 1`
-    : ''
-  const x = has
-    ? `x AS (SELECT g.*, coalesce(e.neutral_site, f.neutral_site) AS neutral_site,
-                    coalesce(e.notes, f.notes) AS notes, coalesce(e.city, f.city) AS city
-             FROM g ${join}
-             QUALIFY row_number() OVER (PARTITION BY g.game_id
-               ORDER BY abs(date_diff('day', f.game_date, g.game_date)) NULLS LAST) = 1)`
-    : `x AS (SELECT * FROM g)`
+  const neutral = neutralSitesSql(ctx.have, { from: ctx.season, to: ctx.season })
   return ctx.db.all<GameRow>(
-    `WITH ${espn} g AS (
-       SELECT game_id, espn_game_id, season, game_type, game_date, home_team_id, away_team_id,
-              played, home_score, away_score
-       FROM game
-       WHERE season = ? AND game_type IN (${types})
-         AND home_team_id IS NOT NULL AND away_team_id IS NOT NULL
-         AND ((played AND home_score IS NOT NULL AND away_score IS NOT NULL
-               AND home_score <> away_score) OR (NOT played AND season = ?))
-     ), ${x}
-     SELECT game_id, strftime(game_date, '%Y-%m-%d') AS game_date, game_type,
-            home_team_id AS home, away_team_id AS away,
-            CASE WHEN played THEN (home_score - away_score)::DOUBLE END AS margin,
-            ${neutralSql(has)} AS neutral
-     FROM x
-     ORDER BY game_date, game_id`,
+    `SELECT g.game_id, strftime(g.game_date, '%Y-%m-%d') AS game_date, g.game_type,
+            g.home_team_id AS home, g.away_team_id AS away,
+            CASE WHEN g.played THEN (g.home_score - g.away_score)::DOUBLE END AS margin,
+            coalesce(n.neutral, false) AS neutral
+     FROM game g LEFT JOIN (${neutral}) n USING (game_id)
+     WHERE g.season = ? AND g.game_type IN (${types})
+       AND g.home_team_id IS NOT NULL AND g.away_team_id IS NOT NULL
+       AND ((g.played AND g.home_score IS NOT NULL AND g.away_score IS NOT NULL
+             AND g.home_score <> g.away_score) OR (NOT g.played AND g.season = ?))
+     ORDER BY g.game_date, g.game_id`,
     [ctx.season, ctx.current]
   )
 }

@@ -33,6 +33,7 @@ export type MetricFamily =
   | 'shots'
   | 'plays'
   | 'ratings'
+  | 'box_composites'
 
 /** `core` shown by default, `extended` in its family and the column picker, `stored` in queries only. */
 export type MetricTier = 'core' | 'extended' | 'stored'

@@ -1,6 +1,7 @@
 import type { Entity, GameType } from '@shared/stats/types'
 import type { StatsDb } from '../db'
 import { inspect, type Have } from '../derived/sql'
+import { COMPOSITES_BUILDER } from './boxComposites'
 import { TEAM_ELO } from './teamElo'
 import { TEAM_STRENGTH } from './teamStrength'
 
@@ -71,6 +72,8 @@ export interface ModelBuilder {
 export const MODEL_BUILDERS: readonly ModelBuilder[] = [
   // Plan T1001: SRS and schedule strength as of every game day.
   TEAM_STRENGTH,
+  // Plan T1005: Oliver's ratings, PER, Win Shares, BPM and VORP per team, season and season type.
+  COMPOSITES_BUILDER,
   // Plan T1002: Elo before and after every game, carried from season to season.
   TEAM_ELO
 ]

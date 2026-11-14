@@ -126,6 +126,7 @@ describe('the column picker and presets', () => {
       'on_court',
       'scoring',
       'composite',
+      'box_composites',
       'tracking',
       'hustle',
       'play_types',
