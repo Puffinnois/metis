@@ -44,6 +44,17 @@ if (!target) {
 }
 const ws = new WebSocket(target.webSocketDebuggerUrl)
 await new Promise((r) => ws.addEventListener('open', r))
+let finished = false
+// The page went away mid-step (its renderer crashed, or the app quit): say so and keep the app's
+// log, which the end of the steps would otherwise have written.
+ws.addEventListener('close', async () => {
+  if (finished) return
+  console.log(`the page closed during a step at ${new Date().toISOString()}`)
+  await sleep(1500)
+  writeFileSync(join(shots, 'app.log'), log)
+  child.kill('SIGTERM')
+  process.exit(1)
+})
 let id = 0
 const pending = new Map()
 ws.addEventListener('message', (e) => {
@@ -160,6 +171,7 @@ for (const s of JSON.parse(readFileSync(stepsFile, 'utf8'))) {
     console.log('shot', s.shot)
   }
 }
+finished = true
 ws.close()
 child.kill('SIGTERM')
 await sleep(1500)

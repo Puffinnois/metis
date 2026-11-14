@@ -21,6 +21,9 @@
     "eval": "(async () => { const ok = await until(async () => { const s = await window.api.stats.status(); if (!s.busy) return true; const d = await window.api.stats.data(); const fam = d.families ?? d; return Array.isArray(fam) && fam.length > 0 && fam.every((f) => f.state !== 'waiting' && f.filesLoaded >= f.filesExpected) }, 60); return 'every file in, the play step running: ' + ok + ', ' + secs() + ' s after launch / ' + statusText() + ' / ' + new Date().toISOString() })()"
   },
   {
+    "wait": 60000
+  },
+  {
     "eval": "(async () => {\n  const lines = []\n  const round = async () => {\n    const r = [await timed('Leaderboards', () => navTo('Leaderboards'), boards)]\n    await sleep(400)\n    r.push(await timed('Standings', () => navTo('Standings'), () => has('[role=table] [data-metric-head=\"team_elo\"]')))\n    await sleep(400)\n    r.push(await timed('Teams, the Overview', () => navTo('Teams'), () => has('[data-metric=team_ortg]')))\n    await sleep(400)\n    r.push(await timed('Players, the dashboard', () => navTo('Players'), () => has('[data-metric=pts]') && has('[aria-label=\"Career by season\"]')))\n    return r\n  }\n  while ((await window.api.stats.status()).busy) {\n    lines.push(...(await round()))\n    await sleep(30000)\n  }\n  return lines.join('\\n')\n})()"
   },
   {
