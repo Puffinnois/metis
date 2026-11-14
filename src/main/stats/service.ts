@@ -8,6 +8,7 @@ import type {
   StatsShotChart,
   GameType,
   MetricInfo,
+  MetricStability,
   StatsDataReport,
   StatsGame,
   StatsGameDetail,
@@ -36,6 +37,7 @@ import { createDownloads } from './download'
 import { StatsQueryError } from './engine/compile'
 import { catalogueInfo } from './engine/registry'
 import { runQuery } from './engine/run'
+import { priorsOf, readStability } from './models/metricStability'
 import { summariseFamilies, type FileAttempt, type HeldFile } from './families'
 import type {
   RefreshOptions,
@@ -208,6 +210,16 @@ export async function openStatsService(
     )
     return run
   }
+  // Every metric's stability (Plan T1006), read once and kept until a refresh ends: it rides with the
+  // catalogue, and its priors with each shrunk query, at no cost to either.
+  let stability: Promise<Map<string, MetricStability>> | null = null
+  const stabilityOf = (conn: StatsDb): Promise<Map<string, MetricStability>> => {
+    stability ??= readStability(conn).catch((err) => {
+      stability = null
+      throw err
+    })
+    return stability
+  }
   const free = deps.freeBytes ?? freeBytes
   // A new one for each refresh: a pause aborts one refresh and leaves the next able to run.
   let abort = new AbortController()
@@ -260,6 +272,8 @@ export async function openStatsService(
       } finally {
         busy = false
         progress = null
+        // The models may have measured stability again.
+        stability = null
       }
     },
     status: async () => {
@@ -361,9 +375,10 @@ export async function openStatsService(
         if (!seasonTablesBuilt) {
           throw new StatsQueryError('No stats yet: the first load has not got that far.')
         }
-        return runQuery(reader, query, { currentSeason: currentSeason(new Date()) })
+        const priors = query.shrunk ? priorsOf(await stabilityOf(reader)) : undefined
+        return runQuery(reader, query, { currentSeason: currentSeason(new Date()), priors })
       }),
-    catalogue: async () => catalogueInfo(),
+    catalogue: () => read(async (reader) => catalogueInfo(await stabilityOf(reader))),
     seasons: () =>
       read(async (reader) => {
         const built = await reader.get(

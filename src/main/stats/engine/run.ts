@@ -1,7 +1,13 @@
 import { covers } from '@shared/stats/catalogue'
 import type { GroupBy, MetricValue, StatsQuery, StatsResult } from '@shared/stats/types'
 import type { StatsDb } from '../db'
-import { compileQuery, FULL_SEASON, StatsQueryError, type CompileContext } from './compile'
+import {
+  compileQuery,
+  FULL_SEASON,
+  StatsQueryError,
+  type CompileContext,
+  type Compiled
+} from './compile'
 
 /** A query that runs longer is interrupted and reported. */
 export const QUERY_TIMEOUT_MS = 5_000
@@ -27,28 +33,7 @@ export async function runQuery(
   }, timeoutMs)
   let rows: Record<string, unknown>[]
   try {
-    let factor: string
-    if (compiled.bySeason) {
-      // Each season's own games: a row reads its season's factor.
-      const games = await db.all<{ season: number; games: number; share: number | null }>(
-        compiled.gamesSql,
-        compiled.gamesParams
-      )
-      const when = games.map(
-        (g) =>
-          `WHEN ${Number(g.season)} THEN ${((compiled.rowGames(g.games, 1) * (num(g.share) ?? 1)) / FULL_SEASON).toFixed(6)}`
-      )
-      factor = when.length ? `(CASE a.g_season ${when.join(' ')} ELSE 0 END)` : '0'
-    } else {
-      const scope = await db.get<{ games: number; share: number | null }>(
-        compiled.gamesSql,
-        compiled.gamesParams
-      )
-      const seasons = new Set(query.scope.seasons).size
-      // Under a split, the split's share of the time scales the sample too.
-      const share = num(scope?.share) ?? 1
-      factor = ((compiled.rowGames(scope?.games ?? 0, seasons) * share) / FULL_SEASON).toFixed(6)
-    }
+    const factor = await qualificationFactor(db, compiled, query)
     rows = await db.all(compiled.sql.replaceAll('$factor', factor), compiled.params)
   } catch (err) {
     if (timedOut) throw new StatsQueryError(`the query took longer than ${timeoutMs / 1000} s`)
@@ -68,7 +53,8 @@ export async function runQuery(
       decimals: m.decimals,
       direction: m.direction,
       seasons: compiled.gaps[i] === null ? seasons.filter((s) => covers(m, s)) : [],
-      reason: compiled.gaps[i]
+      reason: compiled.gaps[i],
+      ...(compiled.shrunk[i] ? { shrunk: true } : {})
     })),
     rows: rows.map((r) => ({
       id: String(r.id),
@@ -97,4 +83,34 @@ export async function runQuery(
     notes: compiled.notes,
     ms: Date.now() - started
   }
+}
+
+/**
+ * What `$factor` reads: the share of a full season's games a row covers, which scales `minSample`.
+ * By season, each season's own games (a row reads its season's factor); otherwise the scope's.
+ */
+export async function qualificationFactor(
+  db: StatsDb,
+  compiled: Compiled,
+  query: StatsQuery
+): Promise<string> {
+  if (compiled.bySeason) {
+    const games = await db.all<{ season: number; games: number; share: number | null }>(
+      compiled.gamesSql,
+      compiled.gamesParams
+    )
+    const when = games.map(
+      (g) =>
+        `WHEN ${Number(g.season)} THEN ${((compiled.rowGames(g.games, 1) * (num(g.share) ?? 1)) / FULL_SEASON).toFixed(6)}`
+    )
+    return when.length ? `(CASE a.g_season ${when.join(' ')} ELSE 0 END)` : '0'
+  }
+  const scope = await db.get<{ games: number; share: number | null }>(
+    compiled.gamesSql,
+    compiled.gamesParams
+  )
+  const seasons = new Set(query.scope.seasons).size
+  // Under a split, the split's share of the time scales the sample too.
+  const share = num(scope?.share) ?? 1
+  return ((compiled.rowGames(scope?.games ?? 0, seasons) * share) / FULL_SEASON).toFixed(6)
 }

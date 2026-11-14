@@ -34,6 +34,7 @@ export type MetricFamily =
   | 'plays'
   | 'ratings'
   | 'box_composites'
+  | 'indexes'
 
 /** `core` shown by default, `extended` in its family and the column picker, `stored` in queries only. */
 export type MetricTier = 'core' | 'extended' | 'stored'
@@ -122,6 +123,35 @@ export interface MetricDef {
    * "Models".
    */
   model?: string
+  /**
+   * A league index (Plan T1006): the id of the rate this entry indexes. Its `value` and `sample` are
+   * that rate's; the engine reads it as 100 × the rate over the league's rate in the same scope, the
+   * league's sums over the same games divided when read, so 100 is the league. A rate where lower is
+   * better is mirrored, 100 × (2 − rate / league), so above 100 is still better.
+   */
+  index?: string
+}
+
+/**
+ * How much a metric carries over (Plan T1006), measured on the regular seasons through the last one
+ * completed. `null` figures are not measured; `reason` says why when nothing is.
+ */
+export interface MetricStability {
+  /** Pearson r between a player's (or team's) qualified consecutive seasons, pooled across positions. */
+  yearToYear: number | null
+  pairs: number
+  /** r between the odd and the even games of a qualified season, corrected to a season (Spearman-Brown). */
+  splitHalf: number | null
+  halfPairs: number
+  /** The sample at which a rate is half signal, in its own sample unit: what `shrunk` gives the league. */
+  prior: number | null
+  /** From the year-to-year r: high at 0.6, medium at 0.35, low below; null when not measured. */
+  reliability: 'high' | 'medium' | 'low' | null
+  /** The seasons measured, by final year. */
+  firstSeason: number | null
+  lastSeason: number | null
+  /** Why nothing was measured: "Fewer than 50 pairs of qualified seasons." */
+  reason: string | null
 }
 
 /** A catalogue entry as the engine serves it: the formula left out, where it can be read added. */
@@ -129,6 +159,8 @@ export interface MetricInfo extends Omit<MetricDef, 'value' | 'sample'> {
   grains: Grain[]
   /** What the sample counts, in words: "field-goal attempts". */
   sampleLabel: string
+  /** Null before the models have measured it. */
+  stability: MetricStability | null
 }
 
 export type GroupBy = 'season' | 'team' | 'opponent' | 'month' | 'game'
@@ -186,6 +218,13 @@ export interface StatsQuery {
   }
   groupBy?: GroupBy[]
   transform?: Transform
+  /**
+   * Each rate with a measured prior pulled toward the league's rate in the same scope by it:
+   * (sample × value + prior × league) / (sample + prior). The raw value stays in `raw`; counts and rates
+   * with no prior read unchanged, and the notes name them. Every row with a sample ranks. Not with
+   * `percentile`, `zScore` or `vsLeague`.
+   */
+  shrunk?: boolean
   /** Default: the first metric, best first. */
   sort?: { metric: string; dir: 'asc' | 'desc' }
   /** Default 100, at most 5000. */
@@ -232,6 +271,8 @@ export interface StatsResultColumn {
   seasons: number[]
   /** Why it has none, when it has none: "Recorded from 1996-97." */
   reason: string | null
+  /** Its values are shrunk toward the league (`StatsQuery.shrunk`). */
+  shrunk?: boolean
 }
 
 export interface StatsResult {
@@ -622,6 +663,8 @@ export interface LeaderboardBoard {
   sort: { by: string; dir: 'asc' | 'desc' }
   mode: BoardMode
   qualifiedOnly: boolean
+  /** Rates shrunk toward the league by their priors (Plan T1006); absent in views saved before it. */
+  shrunk?: boolean
   /** An NBA team id; null for every team. */
   team: string | null
   /**

@@ -11,7 +11,8 @@ export function catalogueFixture(): MetricInfo[] {
     return {
       ...(info as Omit<MetricDef, 'value' | 'sample'>),
       grains: def.published ? ['season'] : ['game', 'season'],
-      sampleLabel: sampleLabel(def.sample)
+      sampleLabel: sampleLabel(def.sample),
+      stability: null
     }
   })
 }

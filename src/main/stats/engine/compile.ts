@@ -75,7 +75,17 @@ class Params {
 export interface CompileContext {
   /** The season now, by final year: no query reaches past it. */
   currentSeason: number
+  /** Each metric's measured prior (Plan T1006), the sample `shrunk` gives the league's rate. */
+  priors?: ReadonlyMap<string, number>
+  /**
+   * For the stability measure only, never from a query: no row limit, and each row split into the odd
+   * and the even games of its player or team (`g_half` 1 and 0), each qualified at half the sample.
+   */
+  internal?: { unlimited?: boolean; halves?: boolean }
 }
+
+/** The internal dimension the stability measure splits a season by: odd and even games. */
+const HALF = 'half' as GroupBy
 
 /** What `runQuery` runs: the team games in scope (they scale `minSample`), then the query. */
 export interface Compiled {
@@ -84,6 +94,8 @@ export interface Compiled {
   /** Per metric: why it has no answer to this query, or null when it has one. */
   gaps: (string | null)[]
   transform: Transform
+  /** Per metric: its values are shrunk toward the league by its prior. */
+  shrunk: boolean[]
   gamesSql: string
   gamesParams: Value[]
   /** A row per season: each season qualifies against its own games, so one in progress is fair. */
@@ -141,6 +153,7 @@ const QUERY_FIELDS = [
   'scope',
   'groupBy',
   'transform',
+  'shrunk',
   'sort',
   'limit',
   'ranks'
@@ -258,7 +271,7 @@ function validate(q: StatsQuery, ctx: CompileContext): Checked {
     fail(`unknown split "${String(scope.split)}"; use ${SPLIT_IDS.join(', ')}`)
   }
   if (scope.qualifiedOnly !== undefined) flag(scope.qualifiedOnly, 'scope.qualifiedOnly')
-  const groupBy = q.groupBy ?? []
+  const groupBy = [...(q.groupBy ?? [])]
   for (const g of groupBy) {
     if (!GROUPS.includes(g)) fail(`cannot group by "${g}"`)
   }
@@ -275,6 +288,14 @@ function validate(q: StatsQuery, ctx: CompileContext): Checked {
   if (q.limit !== undefined) integers([q.limit], 'limit', 1, MAX_LIMIT)
   if (q.ranks !== undefined && typeof q.ranks !== 'boolean') fail('ranks must be true or false')
   if (q.ranks === false && transform === 'percentile') fail('percentile needs ranks')
+  if (q.shrunk !== undefined) flag(q.shrunk, 'shrunk')
+  if (
+    q.shrunk &&
+    (transform === 'percentile' || transform === 'zScore' || transform === 'vsLeague')
+  ) {
+    fail('shrunk works with totals, per game, per 36, per 48 and per 100')
+  }
+  if (ctx.internal?.halves) groupBy.push(HALF)
 
   // The season tables answer anything that does not split a season's games.
   const games =
@@ -501,7 +522,8 @@ function publishedCte(
   parts: Set<string>,
   q: StatsQuery,
   c: Checked,
-  params: Params
+  params: Params,
+  base: string
 ): string {
   const key = q.entity === 'player' ? 'player_id' : 'team_id'
   const bySeason = c.groupBy.includes('season')
@@ -516,7 +538,7 @@ function publishedCte(
     SELECT w.${key} AS id, ${bySeason ? 'w.season AS g_season, ' : ''}
            ${[...parts].map((p) => `sum(w.${p}) AS ${p}`).join(', ')}
     FROM ${table} w
-    SEMI JOIN base b ON b.id = w.${key} AND b.season = w.season AND b.game_type = w.game_type
+    SEMI JOIN ${base} b ON b.id = w.${key} AND b.season = w.season AND b.game_type = w.game_type
     ${whole}
     GROUP BY w.${key}${bySeason ? ', w.season' : ''})`
 }
@@ -526,7 +548,13 @@ function publishedCte(
  * so a date range, the last games, a team, an opponent or any other filter on a game holds exactly,
  * and it groups by what the query groups by. Its `games` are the games with a row.
  */
-function gameCte(name: string, table: string, parts: Set<string>, c: Checked): string {
+function gameCte(
+  name: string,
+  table: string,
+  parts: Set<string>,
+  c: Checked,
+  base: string
+): string {
   const t = gameTable(table)
   if (!t) throw new StatsQueryError(`no game table "${table}"`)
   const dims = c.groupBy.map((d) => `b.${d} AS g_${d}`)
@@ -535,7 +563,7 @@ function gameCte(name: string, table: string, parts: Set<string>, c: Checked): s
   )
   return `${name} AS (
     SELECT b.id, ${[...dims, ...sums].join(', ')}
-    FROM ${table} w JOIN base b ON b.id = w.${t.key} AND b.game = w.game_id
+    FROM ${table} w JOIN ${base} b ON b.id = w.${t.key} AND b.game = w.game_id
     GROUP BY b.id${c.groupBy.map((d) => `, b.${d}`).join('')})`
 }
 
@@ -551,7 +579,8 @@ function builtCte(
   parts: Set<string>,
   q: StatsQuery,
   c: Checked,
-  params: Params
+  params: Params,
+  base: string
 ): string {
   const model = modelTable(table)
   const t = model ? { key: keyOfModel(model), zero: undefined } : gameTable(table)
@@ -571,7 +600,7 @@ function builtCte(
       : `b.season = w.season AND b.game_type = w.game_type${byTeam ? ' AND w.team_id = b.row_team' : ''}`
   return `${name} AS (
     SELECT b.id, ${[...dims, ...sums].join(', ')}
-    FROM base b LEFT JOIN ${table} w
+    FROM ${base} b LEFT JOIN ${table} w
       ON b.id = w.${t.key} AND ${on} AND w.season IN ${params.list(q.scope.seasons)}
     GROUP BY b.id${c.groupBy.map((d) => `, b.${d}`).join('')})`
 }
@@ -589,7 +618,8 @@ function stateCte(
   parts: Set<string>,
   q: StatsQuery,
   c: Checked,
-  params: Params
+  params: Params,
+  base: string
 ): string {
   const key = keyOfModel(t)
   const dims = c.groupBy.map((d) => `b.${d} AS g_${d}`)
@@ -603,13 +633,25 @@ function stateCte(
       : `w.season = b.season AND w.game_type = b.game_type${byTeam ? ' AND w.team_id = b.row_team' : ''}`
   return `${name} AS (
     SELECT b.id, ${[...dims, ...picks].join(', ')}
-    FROM base b JOIN ${t.table} w
+    FROM ${base} b JOIN ${t.table} w
       ON w.${key} = b.id AND ${on} AND w.season IN ${params.list(q.scope.seasons)}
     GROUP BY b.id${c.groupBy.map((d) => `, b.${d}`).join('')})`
 }
 
-/** The rows in scope, summed per output row, with each metric's value and sample. */
-function aggregate(q: StatsQuery, c: Checked, params: Params): string {
+/**
+ * The rows in scope, summed per output row, with each metric's value and sample: CTEs named with the
+ * prefix `p`, the last `<p>agg`. With `league`, the last is `<p>league` instead: one row per group of
+ * `c.groupBy`, each wanted metric's formula read on the sums over every row in it (`lv<i>`), so a
+ * league's rate is its own sums divided (data policy 3), never an average of rates.
+ */
+function aggregate(
+  q: StatsQuery,
+  c: Checked,
+  params: Params,
+  p = '',
+  league?: readonly boolean[]
+): string {
+  const base = `${p}base`
   const player = q.entity === 'player'
   const season = c.grain === 'season'
   const table = `${q.entity}_${season ? 'season' : 'game'}`
@@ -637,19 +679,19 @@ function aggregate(q: StatsQuery, c: Checked, params: Params): string {
     if (split !== null && s.lastNOf !== 'team') {
       // Under a split, the last N games are the player's or team's own, then the split within them:
       // a game with no moment in the split still counts as one of the N.
-      ctes.push(`recent AS (
+      ctes.push(`${p}recent AS (
         SELECT w.${key} AS id, w.game_id FROM ${table} w WHERE ${where.join(' AND ')}
         QUALIFY row_number() OVER (PARTITION BY w.${key} ORDER BY w.game_date DESC, w.game_id DESC)
           <= ${params.add(s.lastN)})`)
-      recentJoin = `JOIN recent r ON r.id = w.${key} AND r.game_id = w.game_id`
+      recentJoin = `JOIN ${p}recent r ON r.id = w.${key} AND r.game_id = w.game_id`
     } else if (s.lastNOf === 'team') {
       // The team's last N games: a player who sat some of them out has fewer.
       const inner = [`w.season IN ${seasons}`, `w.game_type IN ${types}`, ...gameWhere(q, params)]
-      ctes.push(`recent AS (
+      ctes.push(`${p}recent AS (
         SELECT w.team_id, w.game_id FROM team_game w WHERE ${inner.join(' AND ')}
         QUALIFY row_number() OVER (PARTITION BY w.team_id ORDER BY w.game_date DESC, w.game_id DESC)
           <= ${params.add(s.lastN)})`)
-      recentJoin = 'JOIN recent r ON r.team_id = w.team_id AND r.game_id = w.game_id'
+      recentJoin = `JOIN ${p}recent r ON r.team_id = w.team_id AND r.game_id = w.game_id`
     } else {
       lastN = `QUALIFY row_number() OVER (PARTITION BY w.${key} ORDER BY w.game_date DESC, w.game_id DESC)
         <= ${params.add(s.lastN)}`
@@ -658,9 +700,13 @@ function aggregate(q: StatsQuery, c: Checked, params: Params): string {
   const teamColumn = player && season ? 'w.last_team_id' : 'w.team_id'
   // The row's own team at the season grain, for a built table: NULL on a player's row of no team,
   // which `builtCte` relies on.
+  // The stability measure's halves: the odd and the even games of each player's (team's) season.
+  const half = c.groupBy.includes(HALF)
+    ? `row_number() OVER (PARTITION BY w.${key}, w.season ORDER BY w.game_date, w.game_id) % 2 AS half,`
+    : ''
   const dimColumns = season
     ? 'w.game_type, w.team_id AS row_team,'
-    : `w.team_id AS team, w.opponent_id AS opponent, month(w.game_date) AS month, w.game_id AS game,`
+    : `w.team_id AS team, w.opponent_id AS opponent, month(w.game_date) AS month, w.game_id AS game, ${half}`
   // Under a split, the counts are the split's rows, joined to the game lines the filters read.
   const splitJoin =
     split === null
@@ -671,18 +717,18 @@ function aggregate(q: StatsQuery, c: Checked, params: Params): string {
         : `JOIN ${SPLIT_TEAM} st ON st.team_id = w.team_id AND st.game_id = w.game_id AND st.split = ${split}`
   const component = (n: string): string =>
     split === null ? `w.${n}` : `(${SPLIT_SQL[q.entity][n] ?? 'NULL'}) AS ${n}`
-  ctes.push(`base AS (
+  ctes.push(`${base} AS (
     SELECT w.${key} AS id, w.season, ${season ? 'w.last_date' : 'w.game_date'} AS ord,
            ${teamColumn} AS team_id, ${player ? 'w.position' : 'NULL::VARCHAR AS position'},
            ${dimColumns}
            ${[...needed].map(component).join(', ')}
     FROM ${table} w ${recentJoin} ${splitJoin}
     WHERE ${where.join(' AND ')} ${lastN})`)
-  ctes.push(`sums AS (
+  ctes.push(`${p}sums AS (
     SELECT id, ${c.groupBy.map((d) => `${d} AS g_${d}, `).join('')}
            arg_max(team_id, ord) AS team_id, max(season) AS last_season, mode(position) AS position,
            ${[...needed].map((n) => `sum(${n}) AS ${n}`).join(', ')}
-    FROM base GROUP BY id${c.groupBy.map((d) => `, ${d}`).join('')})`)
+    FROM ${base} GROUP BY id${c.groupBy.map((d) => `, ${d}`).join('')})`)
 
   // Only the tables some metric can answer from: under a game filter, the game tables.
   const atGames = !season
@@ -700,7 +746,7 @@ function aggregate(q: StatsQuery, c: Checked, params: Params): string {
     published.set(table, parts)
   })
   const tables = [...published.keys()]
-  const alias = (table: string): string => `pub${tables.indexOf(table)}`
+  const alias = (table: string): string => `${p}pub${tables.indexOf(table)}`
   // Built and model tables group by every dimension of the query, as the box scores do.
   const isBuilt = (table: string): boolean =>
     c.metrics.some((m) => m.built === table || m.model === table)
@@ -708,12 +754,12 @@ function aggregate(q: StatsQuery, c: Checked, params: Params): string {
     const model = modelTable(table)
     ctes.push(
       model?.kind === 'state'
-        ? stateCte(alias(table), model, parts, q, c, params)
+        ? stateCte(alias(table), model, parts, q, c, params, base)
         : isBuilt(table)
-          ? builtCte(alias(table), table, parts, q, c, params)
+          ? builtCte(alias(table), table, parts, q, c, params, base)
           : atGames
-            ? gameCte(alias(table), table, parts, c)
-            : publishedCte(alias(table), table, parts, q, c, params)
+            ? gameCte(alias(table), table, parts, c, base)
+            : publishedCte(alias(table), table, parts, q, c, params, base)
     )
   }
   // A game or built table's rows group by every dimension; a published table's by the season at most.
@@ -733,11 +779,45 @@ function aggregate(q: StatsQuery, c: Checked, params: Params): string {
     }
     return m.published && table ? `${alias(table)}.${n}` : `s.${n}`
   }
-  ctes.push(`agg AS (
+  if (league) {
+    const dims = c.groupBy.map((d) => `s.g_${d}`)
+    const values = c.metrics.flatMap((m, i) =>
+      league[i]
+        ? [`(${m.value.replace(TOKEN, (_, n: string) => `sum(${sumOf(m, n)})`)})::DOUBLE AS lv${i}`]
+        : []
+    )
+    ctes.push(`${p}league AS (
+      SELECT ${[...dims, ...values].join(', ')}
+      FROM ${p}sums s ${joins.join(' ')}
+      ${dims.length > 0 ? `GROUP BY ${dims.join(', ')}` : ''})`)
+    return ctes.join(',\n')
+  }
+  ctes.push(`${p}agg AS (
     SELECT s.id, ${c.groupBy.map((d) => `s.g_${d}, `).join('')} s.team_id, s.last_season, s.position,
            s.games::DOUBLE AS games, ${metricColumns(q, c, sumOf).join(', ')}
-    FROM sums s ${joins.join(' ')})`)
+    FROM ${p}sums s ${joins.join(' ')})`)
   return ctes.join(',\n')
+}
+
+/** What narrows the rows rather than the games: the league leaves it out. */
+const NOT_LEAGUE = ['positions', 'teams', 'players', 'starter', 'lastN', 'lastNOf', 'qualifiedOnly']
+
+/**
+ * The league in the same scope, for the indexes and `shrunk` (Plan T1006): every player (or team) over
+ * the same seasons, season types and games (dates, opponents, home or road, a split), whatever the
+ * query's rows are narrowed to (a position, a team, the players compared, the last games). Grouped by
+ * the query's season and month, so a row by season reads its own season's league. `want` marks the
+ * metrics that need it.
+ */
+function leagueCte(q: StatsQuery, c: Checked, params: Params, want: readonly boolean[]): string {
+  const scope = Object.fromEntries(
+    Object.entries(q.scope).filter(([k]) => !NOT_LEAGUE.includes(k))
+  ) as StatsQuery['scope']
+  const groupBy = c.groupBy.filter((d) => d === 'season' || d === 'month')
+  const lq: StatsQuery = { ...q, scope, groupBy }
+  // A metric not wanted reads as a gap, so none of its parts is summed.
+  const lc: Checked = { ...c, groupBy, gaps: c.gaps.map((g, i) => (want[i] ? g : 'not wanted')) }
+  return aggregate(lq, lc, params, 'l_', want)
 }
 
 /** The caveats the answer depends on. */
@@ -808,15 +888,59 @@ function notesOf(q: StatsQuery, c: Checked): string[] {
 export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
   const c = validate(q, ctx)
   const params = new Params()
-  const ctes = aggregate(q, c, params)
+  // The prior each shrunk rate is pulled by: only a rate (a ratio of sums) with one measured.
+  const priors = c.metrics.map((m, i) =>
+    q.shrunk && c.gaps[i] === null && m.aggregation === 'ratio' && !isState(m)
+      ? ctx.priors?.get(m.id)
+      : undefined
+  )
+  const shrunk = priors.map((k) => k !== undefined)
+  // The league in the same scope, for an index and a shrunk rate.
+  const want = c.metrics.map((m, i) => c.gaps[i] === null && (m.index !== undefined || shrunk[i]))
+  const withLeague = want.some(Boolean)
+  const ctes = [aggregate(q, c, params), ...(withLeague ? [leagueCte(q, c, params, want)] : [])]
   const dims = c.groupBy
+  const leagueDims = dims.filter((d) => d === 'season' || d === 'month')
+  if (withLeague) {
+    // An index replaces the value with 100 × value / league (mirrored where lower is better).
+    const indexed = c.metrics.flatMap((m, i) => {
+      if (!want[i] || m.index === undefined) return []
+      const of = `a.v${i} / nullif(l.lv${i}, 0)`
+      const mirrored = METRICS.get(m.index)?.direction === 'lower'
+      return [`100.0 * ${mirrored ? `(2 - ${of})` : of} AS v${i}`]
+    })
+    const replace = indexed.length > 0 ? ` REPLACE (${indexed.join(', ')})` : ''
+    const leagueValues = want.flatMap((w, i) => (w ? [`l.lv${i}`] : []))
+    const on = leagueDims.map((d) => `l.g_${d} IS NOT DISTINCT FROM a.g_${d}`).join(' AND ')
+    ctes.push(`withleague AS (
+      SELECT a.*${replace}, ${leagueValues.join(', ')}
+      FROM agg a LEFT JOIN l_league l ON ${on || 'true'})`)
+  }
+  const rowsFrom = withLeague ? 'withleague' : 'agg'
+  // A shrunk rate: (sample × value + prior × league) / (sample + prior). An index is pulled to 100,
+  // its league; a row whose league has no value keeps its own.
+  const pulled = c.metrics.flatMap((m, i) => {
+    const k = priors[i]
+    if (k === undefined) return []
+    const pk = params.add(k)
+    const lg = m.index !== undefined ? '100.0' : `lv${i}`
+    return [
+      `CASE WHEN v${i} IS NULL OR ${lg} IS NULL THEN v${i}
+         ELSE (s${i} * v${i} + ${pk} * ${lg}) / nullif(s${i} + ${pk}, 0) END AS u${i}`
+    ]
+  })
+  // The value a metric is ranked and shown by, and the rows it ranks among: a shrunk rate ranks every
+  // row with a sample, since that is what shrinking is for.
+  const val = (i: number): string => (shrunk[i] ? `u${i}` : `v${i}`)
+  const okOf = (i: number): string =>
+    shrunk[i] ? `s${i} > 0 AND u${i} IS NOT NULL` : `q${i} AND v${i} IS NOT NULL`
   // Percentiles and ranks among qualified rows of the same position (players) and group.
   const group = [...(q.entity === 'player' ? ['position'] : []), ...dims.map((d) => `g_${d}`)]
   const over = (i: number, order: string): string =>
-    `OVER (PARTITION BY ${[...group, `(q${i} AND v${i} IS NOT NULL)`].join(', ')} ORDER BY v${i} ${order})`
+    `OVER (PARTITION BY ${[...group, `(${okOf(i)})`].join(', ')} ORDER BY ${val(i)} ${order})`
   const among = group.length > 0 ? `PARTITION BY ${group.join(', ')}` : ''
   const ranked = c.metrics.flatMap((m, i) => {
-    const ok = `q${i} AND v${i} IS NOT NULL`
+    const ok = okOf(i)
     const up = m.direction === 'lower' ? 'DESC' : 'ASC'
     const best = m.direction === 'lower' ? 'ASC' : 'DESC'
     const ranks = q.ranks !== false
@@ -843,7 +967,7 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
       case 'vsLeague':
         return `v${i} - m${i} AS t${i}`
       default:
-        return `v${i} AS t${i}`
+        return `${val(i)} AS t${i}`
     }
   })
   const flags = c.metrics.map(
@@ -853,8 +977,10 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
   const lower = c.metrics[sort].direction === 'lower' && c.transform !== 'percentile'
   const dir = q.sort?.dir ?? (lower ? 'asc' : 'desc')
   const player = q.entity === 'player'
-  const sql = `WITH ${ctes},
-    flagged AS (SELECT a.*, ${flags.join(', ')} FROM agg a),
+  // Ranked rows first: the qualified ones, or every row with a sample when the sort is shrunk.
+  const first = shrunk[sort] ? `(s${sort} > 0 AND t${sort} IS NOT NULL)` : `q${sort}`
+  const sql = `WITH ${ctes.join(',\n')},
+    flagged AS (SELECT a.*, ${[...flags, ...pulled].join(', ')} FROM ${rowsFrom} a),
     ranked AS (SELECT *, ${ranked.join(', ')} FROM flagged),
     shaped AS (SELECT *, ${shaped.join(', ')} FROM ranked)
     SELECT x.*, ${player ? 'coalesce(pl.name, x.id::VARCHAR)' : 'coalesce(tm.name, x.id::VARCHAR)'} AS name,
@@ -863,8 +989,8 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
     ${player ? 'LEFT JOIN player pl ON pl.player_id = x.id' : ''}
     LEFT JOIN team tm ON tm.team_id = x.team_id AND tm.season = x.last_season
     ${q.scope.qualifiedOnly && c.gaps[sort] === null ? `WHERE q${sort}` : ''}
-    ORDER BY q${sort} DESC, t${sort} ${dir.toUpperCase()} NULLS LAST, name
-    LIMIT ${q.limit ?? DEFAULT_LIMIT}`
+    ORDER BY ${first} DESC, t${sort} ${dir.toUpperCase()} NULLS LAST, name
+    ${ctx.internal?.unlimited ? '' : `LIMIT ${q.limit ?? DEFAULT_LIMIT}`}`
 
   const bySeason =
     c.groupBy.includes('season') && !c.groupBy.includes('game') && q.scope.lastN === undefined
@@ -887,6 +1013,7 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
     metrics: c.metrics,
     gaps: c.gaps,
     transform: c.transform,
+    shrunk,
     // The games a team played in scope, on average: teams can be a game or two apart mid-season.
     gamesSql: `SELECT ${bySeason ? 'w.season, ' : ''}
                  count(*)::DOUBLE / nullif(count(DISTINCT (w.team_id, w.season)), 0) * ${bySeason ? '1' : 'count(DISTINCT w.season)'} AS games,
@@ -899,6 +1026,8 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
     rowGames: (games, seasons) => {
       if (last !== undefined) return Math.min(games, last)
       if (c.groupBy.includes('game')) return 1
+      // A half of a season is half its games, so it qualifies at half the sample.
+      if (c.groupBy.includes(HALF)) return games / 2
       const bySeasons = c.groupBy.includes('season')
       const perSeason = bySeasons ? games : games / Math.max(1, seasons)
       const span = bySeasons ? 1 : seasons
@@ -907,6 +1036,22 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
       if (c.groupBy.includes('month')) return (perSeason / 6) * span
       return perSeason * span
     },
-    notes: notesOf(q, c)
+    notes: [...notesOf(q, c), ...shrunkNotes(q, c, shrunk)]
   }
+}
+
+const isState = (m: MetricDef): boolean => modelTable(m.model)?.kind === 'state'
+
+/** What `shrunk` did, and the rates it could not shrink. */
+function shrunkNotes(q: StatsQuery, c: Checked, shrunk: boolean[]): string[] {
+  if (!q.shrunk) return []
+  const left = c.metrics.filter(
+    (m, i) => c.gaps[i] === null && m.aggregation === 'ratio' && !shrunk[i]
+  )
+  return [
+    "Shrunk: each rate is pulled toward the league's rate in the same scope by its prior, the sample at which it is half signal. Counts are not shrunk.",
+    ...(left.length > 0
+      ? [`Not shrunk, no prior measured: ${left.map((m) => m.label).join(', ')}.`]
+      : [])
+  ]
 }

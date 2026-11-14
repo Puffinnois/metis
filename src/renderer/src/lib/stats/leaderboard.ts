@@ -149,6 +149,7 @@ export function defaultBoard(
 const FAMILIES: MetricFamily[] = [
   'traditional',
   'shooting',
+  'indexes',
   'shots',
   'plays',
   'possessions',
