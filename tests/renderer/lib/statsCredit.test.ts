@@ -1,0 +1,55 @@
+import { describe, expect, it } from 'vitest'
+import { CC_BY_URL, CREDIT_LEAD, CREDIT_WHOSE, DATASET_URL, creditText } from '@/lib/stats/credit'
+import { CATALOGUE } from '@shared/stats/catalogue'
+
+const links = CREDIT_LEAD.filter((s) => typeof s !== 'string')
+
+describe('the data credit', () => {
+  it('credits the dataset with a link, and links the licence CC BY 4.0 asks for', () => {
+    expect(links).toContainEqual({ text: 'SportsDataverse', url: DATASET_URL })
+    expect(links).toContainEqual({ text: 'CC BY 4.0', url: CC_BY_URL })
+    expect(DATASET_URL).toBe('https://github.com/sportsdataverse/sportsdataverse-data')
+  })
+
+  it('names the upstreams and says what Metis changed', () => {
+    const text = creditText()
+    expect(text).toContain('from ESPN and the NBA’s stats site')
+    expect(text).toContain('reshapes it into its own tables and computes stats from it')
+    expect(text).toContain('It shares nothing.')
+  })
+
+  it('disclaims any affiliation and leaves the names with their owners', () => {
+    const text = creditText()
+    expect(text).toContain(
+      'Metis is not affiliated with or endorsed by the NBA, ESPN or SportsDataverse.'
+    )
+    expect(text).toContain(
+      'Team and player names, and the NBA and ESPN names, belong to their owners.'
+    )
+  })
+
+  it('keeps the app’s licence apart from the data’s terms', () => {
+    expect(creditText()).toContain(
+      'Metis is open source under the Apache License 2.0. That covers the app, not the data'
+    )
+  })
+
+  it('says whose each number is', () => {
+    expect(CREDIT_WHOSE.map((w) => w.label)).toEqual([
+      'As published',
+      'SportsDataverse’s calculations',
+      'Computed by Metis'
+    ])
+  })
+
+  it('matches how the catalogue labels whose a metric is', () => {
+    // The credit says the dataset's models carry "(SportsDataverse)" and Metis's own say so in
+    // their description; the catalogue has to agree, or the credit points at nothing.
+    const sdv = CATALOGUE.filter((m) => m.label.endsWith('(SportsDataverse)'))
+    expect(sdv.length).toBeGreaterThan(0)
+    const metis = new Set(
+      CATALOGUE.filter((m) => m.description.includes('Computed by Metis')).map((m) => m.id)
+    )
+    for (const id of ['per', 'ows', 'vorp']) expect(metis.has(id)).toBe(true)
+  })
+})

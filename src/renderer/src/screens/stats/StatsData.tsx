@@ -2,11 +2,10 @@ import { useCallback, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { api } from '@/lib/api'
 import { errorMessage, relativeTime } from '@/lib/format'
+import { CREDIT_LEAD, CREDIT_NOTES, CREDIT_TITLE, CREDIT_WHOSE } from '@/lib/stats/credit'
 import { byTier, fmtBytes, fmtCount, seasonRange, STATE_LABELS, totals } from '@/lib/stats/data'
 import { cn } from '@/lib/utils'
 import type { StatsDataReport, StatsFamily, StatsStatus } from '@shared/stats/types'
-
-const DATASET_URL = 'https://github.com/sportsdataverse/sportsdataverse-data'
 
 function FamilyRow({ family }: { family: StatsFamily }): React.JSX.Element {
   return (
@@ -36,7 +35,10 @@ interface StatsDataProps {
   status: StatsStatus | null
 }
 
-/** What is loaded, how big it is, and a way to pause a load that is too much right now. */
+/**
+ * What is loaded, how big it is, a way to pause a load that is too much right now, and where the
+ * data comes from: the credit the dataset's licence asks for.
+ */
 export function StatsData({ status }: StatsDataProps): React.JSX.Element {
   const [report, setReport] = useState<StatsDataReport | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -109,14 +111,33 @@ export function StatsData({ status }: StatsDataProps): React.JSX.Element {
           </table>
         </section>
       ))}
-      <p className="mt-8 text-[12px] text-fg-3">
-        NBA data comes from{' '}
-        <a href={DATASET_URL} target="_blank" rel="noreferrer" className="underline">
-          SportsDataverse
-        </a>
-        , which republishes ESPN and stats.nba.com. Metis keeps it on this computer and shares
-        nothing.
-      </p>
+      <section aria-label={CREDIT_TITLE} className="mt-8 max-w-[760px] text-[12px] text-fg-3">
+        <h2 className="text-[12.5px] font-medium text-fg-2">{CREDIT_TITLE}</h2>
+        <p className="mt-1.5">
+          {CREDIT_LEAD.map((s, i) =>
+            typeof s === 'string' ? (
+              s
+            ) : (
+              <a key={i} href={s.url} target="_blank" rel="noreferrer" className="underline">
+                {s.text}
+              </a>
+            )
+          )}
+        </p>
+        <dl className="mt-2 space-y-1">
+          {CREDIT_WHOSE.map((w) => (
+            <div key={w.label}>
+              <dt className="inline text-fg-2">{w.label}: </dt>
+              <dd className="inline">{w.text}</dd>
+            </div>
+          ))}
+        </dl>
+        {CREDIT_NOTES.map((note) => (
+          <p key={note} className="mt-2">
+            {note}
+          </p>
+        ))}
+      </section>
     </div>
   )
 }
