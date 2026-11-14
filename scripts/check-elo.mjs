@@ -159,8 +159,11 @@ say(
 )
 say('## 1. The table against a recount apart', '')
 const tableRows =
-  await read(`SELECT season, game_id, team_id::VARCHAR AS team, home, played, elo_pre,
-  opp_elo_pre, win_prob, elo, opp_elo, home_court FROM elo_game`)
+  await read(`SELECT season, game_id, team_id::VARCHAR AS team, home, true AS played, elo_pre,
+    opp_elo_pre, win_prob, elo, opp_elo, home_court, 'elo_game' AS source FROM elo_game
+  UNION ALL
+  SELECT season, game_id, team_id::VARCHAR, home, false, elo_pre, opp_elo_pre, win_prob, NULL, NULL,
+    home_court, 'elo_schedule' FROM elo_schedule`)
 const homeRows = new Map(tableRows.filter((r) => r.home).map((r) => [r.game_id, r]))
 const rows1 = []
 let worst = 0
@@ -183,10 +186,11 @@ for (const s of seasons) {
     maxPre = Math.max(maxPre, Math.abs(t.elo_pre - m.hp), Math.abs(t.opp_elo_pre - m.ap))
     maxP = Math.max(maxP, Math.abs(t.win_prob - m.p))
     if (g.margin !== null) {
+      if (t.source !== 'elo_game') problems.push(`${g.game_id}: a game played is in elo_schedule`)
       maxPost = Math.max(maxPost, Math.abs(t.elo - m.hpost), Math.abs(t.opp_elo - m.apost))
     } else {
       toCome++
-      if (t.elo !== null) problems.push(`${g.game_id}: a game to come has a rating after it`)
+      if (t.source !== 'elo_schedule') problems.push(`${g.game_id}: a game to come is in elo_game`)
     }
   }
   const extra = tableRows.filter((r) => r.season === s).length - 2 * n
@@ -218,9 +222,9 @@ say(`Largest rating gap anywhere: ${e(worst)} points.`, '')
 say('## 2. Ratings conserved within a season', '')
 const cons = await read(`
   WITH g AS (SELECT season, max(abs(elo + opp_elo - elo_pre - opp_elo_pre)) AS worst
-             FROM elo_game WHERE played GROUP BY 1),
+             FROM elo_game GROUP BY 1),
   t AS (SELECT season, team_id, arg_min(elo_pre, (game_date, game_id)) AS first,
-               arg_max(elo, (game_date, game_id)) FILTER (WHERE played) AS final
+               arg_max(elo, (game_date, game_id)) AS final
         FROM elo_game GROUP BY 1, 2)
   SELECT t.season, sum(first) AS first, sum(final) AS final, count(*) AS teams, any_value(g.worst) AS worst
   FROM t JOIN g USING (season) GROUP BY 1 ORDER BY 1`)
@@ -273,7 +277,9 @@ say(
   ),
   ''
 )
-const tableNeutral = await read(`SELECT count(*) / 2 AS n FROM elo_game WHERE neutral`)
+const tableNeutral = await read(`SELECT (SELECT count(*) FROM elo_game WHERE neutral)
+  + (SELECT count(*) FROM elo_schedule WHERE neutral) AS n`)
+tableNeutral[0].n = Number(tableNeutral[0].n) / 2
 const recountNeutral = games.filter((g) => g.neutral).length
 say(`Neutral games in the table: ${tableNeutral[0].n}; in the recount: ${recountNeutral}.`, '')
 if (Number(tableNeutral[0].n) !== recountNeutral) problems.push('Neutral games differ')
@@ -751,8 +757,30 @@ say(
   `- 1994-95: Elo reads ${burnScope.rows.filter((r) => r.values.team_elo.value !== null).length} values; notes: ${JSON.stringify(burnScope.notes)}.`,
   ''
 )
+const inProgress = await query({
+  entity: 'team',
+  metrics: ['team_elo'],
+  scope: { seasons: [current] },
+  limit: 40
+})
+const lastPlayed = new Map(
+  (
+    await read(`SELECT team_id::VARCHAR AS team, arg_max(elo, (game_date, game_id)) AS elo FROM elo_game
+      WHERE season = ${current} AND game_type = 'regular' GROUP BY 1`)
+  ).map((r) => [r.team, r.elo])
+)
+const blank = inProgress.rows.filter((r) => r.values.team_elo.value === null).length
+const off = inProgress.rows.filter(
+  (r) => Math.abs(r.values.team_elo.value - lastPlayed.get(r.id)) > 1e-9
+).length
+say(
+  `- ${label(current)}, the season in progress, through the engine: ${inProgress.rows.length} teams, ${blank} without a rating, ${off} differing from their last regular-season game played in \`elo_game\`.`,
+  ''
+)
+if (blank || off || inProgress.rows.length === 0)
+  problems.push(`${label(current)}: Elo through the engine is wrong`)
 const someGame = (
-  await read(`SELECT game_id FROM elo_game WHERE season = ${current} AND NOT played LIMIT 1`)
+  await read(`SELECT game_id FROM elo_schedule WHERE season = ${current} LIMIT 1`)
 )[0]?.game_id
 const speeds = [
   [
@@ -821,7 +849,7 @@ const speeds = [
   ],
   [
     'A game page: both sides of one game',
-    await median(() => read(`SELECT * FROM elo_game WHERE game_id = '${someGame}'`))
+    await median(() => read(`SELECT * FROM elo_schedule WHERE game_id = '${someGame}'`))
   ]
 ]
 say(...table(['Read', 'ms (warm, median of five)'], speeds), '')

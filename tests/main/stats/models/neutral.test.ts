@@ -4,7 +4,7 @@ import { buildDerived } from '@main/stats/derived/build'
 import { inspect } from '@main/stats/derived/sql'
 import { buildModels } from '@main/stats/models/build'
 import { neutralSitesSql } from '@main/stats/models/neutral'
-import { ELO_GAME_TABLE } from '@main/stats/models/teamElo'
+import { ELO_GAME_TABLE, ELO_SCHEDULE_TABLE } from '@main/stats/models/teamElo'
 import { emptySources } from '../../../fixtures/boxScores'
 import { addLeague } from '../../../fixtures/models'
 import { openTestDb } from '../../../fixtures/stats'
@@ -68,7 +68,8 @@ describe('the neutral sites', () => {
     await addEspn()
     await buildModels(db, 2026)
     const rows = await db.all<{ game_id: string; home_court: number }>(
-      `SELECT game_id, home_court FROM ${ELO_GAME_TABLE} WHERE home ORDER BY game_id`
+      `SELECT game_id, home_court FROM ${ELO_GAME_TABLE} WHERE home
+       UNION ALL SELECT game_id, home_court FROM ${ELO_SCHEDULE_TABLE} WHERE home`
     )
     expect(Object.fromEntries(rows.map((r) => [r.game_id, r.home_court]))).toMatchObject({
       a: 0,

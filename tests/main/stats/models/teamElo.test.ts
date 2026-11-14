@@ -5,7 +5,12 @@ import { runQuery } from '@main/stats/engine/run'
 import { readGame } from '@main/stats/reads'
 import { buildModels, markModelSeason, planModels } from '@main/stats/models/build'
 import { ELO, eloShift, regress, winProbability } from '@main/stats/models/elo'
-import { ELO_GAME_TABLE, ELO_WINS_TABLE, TEAM_ELO } from '@main/stats/models/teamElo'
+import {
+  ELO_GAME_TABLE,
+  ELO_SCHEDULE_TABLE,
+  ELO_WINS_TABLE,
+  TEAM_ELO
+} from '@main/stats/models/teamElo'
 import type { StatsResult } from '@shared/stats/types'
 import { BOS, emptySources, LAL, MIA } from '../../../fixtures/boxScores'
 import { addLeague } from '../../../fixtures/models'
@@ -52,7 +57,7 @@ function byHand(): Record<string, number> {
 
 const last = async (team: number, season = 2026): Promise<number> =>
   (await db.get<{ elo: number }>(
-    `SELECT elo FROM ${ELO_GAME_TABLE} WHERE team_id = ? AND season = ? AND played
+    `SELECT elo FROM ${ELO_GAME_TABLE} WHERE team_id = ? AND season = ?
        ORDER BY game_date DESC LIMIT 1`,
     [team, season]
   ))!.elo
@@ -69,10 +74,11 @@ describe('the Elo builder', () => {
       `SELECT game_id, count(*)::INTEGER AS n FROM ${ELO_GAME_TABLE} WHERE season = 2026
        GROUP BY 1 ORDER BY 1`
     )
-    // Two rows a game, the All-Star game left out.
-    expect(types).toEqual(
-      ['a', 'b', 'c', 'cup', 'later', 'po'].map((game_id) => ({ game_id, n: 2 }))
-    )
+    // Two rows a game played, the All-Star game left out, the game to come in its own table.
+    expect(types).toEqual(['a', 'b', 'c', 'cup', 'po'].map((game_id) => ({ game_id, n: 2 })))
+    expect(
+      await db.all(`SELECT game_id, count(*)::INTEGER AS n FROM ${ELO_SCHEDULE_TABLE} GROUP BY 1`)
+    ).toEqual([{ game_id: 'later', n: 2 }])
     // The ratings move no points in or out: the season's sum stays what it started at.
     const sum = h.bos + h.lal + h.mia
     expect(sum).toBeCloseTo(regress(1500 + h.s0) + regress(1500 - h.s0) + ELO.newTeam, 9)
@@ -104,11 +110,10 @@ describe('the Elo builder', () => {
     await buildModels(db, 2026)
     const h = byHand()
     const later = (await db.get<Record<string, unknown>>(
-      `SELECT played, elo_pre, opp_elo_pre, win_prob, elo FROM ${ELO_GAME_TABLE}
+      `SELECT elo_pre, opp_elo_pre, win_prob, home, home_court FROM ${ELO_SCHEDULE_TABLE}
        WHERE game_id = 'later' AND team_id = ${BOS}`
     ))!
-    expect(later.played).toBe(false)
-    expect(later.elo).toBeNull()
+    expect(later).toMatchObject({ home: true, home_court: ELO.homeCourt })
     expect(later.elo_pre).toBeCloseTo(h.bos, 9)
     expect(later.opp_elo_pre).toBeCloseTo(h.mia, 9)
     expect(later.win_prob).toBeCloseTo(winProbability(h.bos + ELO.homeCourt - h.mia), 9)
@@ -116,7 +121,9 @@ describe('the Elo builder', () => {
     await markModelSeason(db, 0)
     await buildModels(db, 2027)
     expect(
-      await db.get(`SELECT count(*)::INTEGER AS n FROM ${ELO_GAME_TABLE} WHERE game_id = 'later'`)
+      await db.get(
+        `SELECT count(*)::INTEGER AS n FROM ${ELO_SCHEDULE_TABLE} WHERE game_id = 'later'`
+      )
     ).toEqual({ n: 0 })
   })
 
@@ -147,6 +154,24 @@ describe('the Elo builder', () => {
     const s0 = eloShift(ELO.homeCourt, 30)
     expect(await last(BOS, 2025)).toBeCloseTo(1500 + s0, 9)
     expect(await last(BOS)).not.toBeCloseTo(byHand().bos, 3)
+  })
+
+  it('reads a season in progress through the engine: the rating after the last game played', async () => {
+    await buildModels(db, 2026)
+    const r = await runQuery(
+      db,
+      { entity: 'team', metrics: ['team_elo'], scope: { seasons: [2026] } },
+      { currentSeason: 2026 }
+    )
+    const afterC = await db.get<{ elo: number }>(
+      `SELECT elo FROM ${ELO_GAME_TABLE} WHERE game_id = 'c' AND team_id = ${BOS}`
+    )
+    // Boston still has Miami to come on Mar 1; that game must not blank its rating.
+    expect(r.rows.find((x) => x.id === String(BOS))!.values.team_elo.value).toBeCloseTo(
+      afterC!.elo,
+      9
+    )
+    expect(r.rows.every((x) => x.values.team_elo.value !== null)).toBe(true)
   })
 
   it('reads through the engine: Elo as of the last game in scope, expected wins added', async () => {

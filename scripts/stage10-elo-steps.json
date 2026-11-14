@@ -36,6 +36,24 @@
     "shot": "elo-02-standings-1995-96"
   },
   {
+    "eval": "(async () => { const r = await chooseSelect('Season', 2027); await sleep(2000); return [r, check('STANDINGS 2026-27, the season in progress: Boston (table 1661.2 after its last game played)', boardRow('Boston Celtics'), ['\"1,661\"'])].join(' · ') })()"
+  },
+  {
+    "shot": "elo-02b-standings-2026-27"
+  },
+  {
+    "eval": "(async () => [await nav('Teams'), await chooseSelect('Season', 2027), await chooseSelect('Season type', 'regular'), await chooseSelect('Range', 'season'), await chooseSelect('Team', '1610612738')].join(' · '))()"
+  },
+  {
+    "wait": 3000
+  },
+  {
+    "eval": "check('OVERVIEW 2026-27 Boston, the season in progress: Elo 1661.2', section('Team strength'), ['Elo rating | 1,661'])"
+  },
+  {
+    "shot": "elo-02c-team-overview-2026-27"
+  },
+  {
     "eval": "(async () => [await nav('Teams'), await chooseSelect('Season', 2016), await chooseSelect('Season type', 'regular'), await chooseSelect('Range', 'season'), await chooseSelect('Team', '1610612744')].join(' · '))()"
   },
   {

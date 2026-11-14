@@ -31,7 +31,7 @@ import { MATCHUP_PAIRS } from './derived/matchupPairs'
 import { column, inspect, per, type Have } from './derived/sql'
 import { readOfficials } from './availabilityReads'
 import { readScopedMatchups } from './matchupReads'
-import { ELO_GAME_TABLE } from './models/teamElo'
+import { ELO_GAME_TABLE, ELO_SCHEDULE_TABLE } from './models/teamElo'
 import { ELO_FIRST_SEASON } from '@shared/stats/catalogue/ratings'
 
 /**
@@ -522,11 +522,20 @@ export function parsePeriods(published: string | null): number[] {
 const sum = (xs: number[]): number => xs.reduce((a, b) => a + b, 0)
 
 /**
- * A game's Elo from the home side's row of `elo_game` (Plan T1002), played or still to come. None
- * before the first season the ratings are fit to read: every team starts at 1500 in 1993-94.
+ * A game's Elo from the home side's row (Plan T1002): of `elo_game` once played, of `elo_schedule`
+ * while still to come. None before the first season the ratings are fit to read: every team starts at
+ * 1500 in 1993-94.
  */
 async function readGameElo(db: StatsDb, have: Have, id: string): Promise<StatsGameElo | null> {
-  if (!have.tables.has(ELO_GAME_TABLE)) return null
+  const before = 'neutral, home_court, win_prob, exp_margin, elo_pre, opp_elo_pre'
+  const tables = [
+    have.tables.has(ELO_GAME_TABLE) &&
+      `SELECT ${before}, elo, opp_elo FROM ${ELO_GAME_TABLE} WHERE game_id = $1 AND home AND season >= $2`,
+    have.tables.has(ELO_SCHEDULE_TABLE) &&
+      `SELECT ${before}, NULL::DOUBLE AS elo, NULL::DOUBLE AS opp_elo FROM ${ELO_SCHEDULE_TABLE}
+       WHERE game_id = $1 AND home AND season >= $2`
+  ].filter((x): x is string => typeof x === 'string')
+  if (tables.length === 0) return null
   const r = await db.get<{
     neutral: boolean
     home_court: number
@@ -536,11 +545,7 @@ async function readGameElo(db: StatsDb, have: Have, id: string): Promise<StatsGa
     opp_elo_pre: number
     elo: number | null
     opp_elo: number | null
-  }>(
-    `SELECT neutral, home_court, win_prob, exp_margin, elo_pre, opp_elo_pre, elo, opp_elo
-     FROM ${ELO_GAME_TABLE} WHERE game_id = ? AND home AND season >= ? LIMIT 1`,
-    [id, ELO_FIRST_SEASON]
-  )
+  }>(`${tables.join(' UNION ALL ')} LIMIT 1`, [id, ELO_FIRST_SEASON])
   if (!r) return null
   return {
     neutral: r.neutral,
