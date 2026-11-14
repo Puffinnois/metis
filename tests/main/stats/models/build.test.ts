@@ -10,6 +10,7 @@ import {
   planModels
 } from '@main/stats/models/build'
 import { TEAM_STRENGTH_TABLE } from '@main/stats/models/teamStrength'
+import { CATALOGUE } from '@shared/stats/catalogue'
 import { BOS, emptySources, LAL, MIA } from '../../../fixtures/boxScores'
 import { addLeague } from '../../../fixtures/models'
 import { openTestDb } from '../../../fixtures/stats'
@@ -44,13 +45,15 @@ describe('the models step', () => {
 
   it('computes every season played on a database never built', async () => {
     expect(await modelsDue(db)).toBe(true)
-    // Every builder, T1001's and T1005's.
+    // Every builder, T1001's and T1005's, then T1006's stability, keyed to the latest season played.
     expect(await planModels(db)).toMatchObject([
       { all: true, seasons: [2025, 2026] },
-      { all: true, seasons: [2025, 2026] }
+      { all: true, seasons: [2025, 2026] },
+      { all: true, seasons: [2026] }
     ])
-    // Six team-days in 2025-26 and two in 2024-25; the playoff, All-Star and Cup final games are not solved.
-    expect(await buildModels(db, 2026)).toBe(8)
+    // Six team-days in 2025-26 and two in 2024-25; the playoff, All-Star and Cup final games are not
+    // solved. Stability writes a row per metric: with one completed season, each says why it has none.
+    expect(await buildModels(db, 2026)).toBe(8 + CATALOGUE.length)
     expect(await modelsDue(db)).toBe(false)
     const bos = await final(BOS)
     expect(bos.srs).toBeCloseTo(8 / 3, 10)
@@ -76,6 +79,7 @@ describe('the models step', () => {
     await markModelSeason(db, 2026)
     expect(await modelsDue(db)).toBe(true)
     expect(await seasonsPlanned()).toEqual([2026])
+    // The season in progress changed, no completed one: stability keeps its rows.
     expect(await buildModels(db, 2026)).toBe(6)
     expect(await db.get(`SELECT srs FROM ${TEAM_STRENGTH_TABLE} WHERE game_id = 'x'`)).toEqual({
       srs: 99
@@ -94,7 +98,8 @@ describe('the models step', () => {
     await buildModels(db, 2026)
     await db.exec(`ALTER TABLE ${TEAM_STRENGTH_TABLE} DROP COLUMN sos`)
     expect(await modelsDue(db)).toBe(true)
-    expect(await buildModels(db, 2026)).toBe(8)
+    // Every season of team strength again, so the completed 2024-25 changed: stability measures again.
+    expect(await buildModels(db, 2026)).toBe(8 + CATALOGUE.length)
     expect((await final(BOS)).sos).toBeCloseTo(-4 / 3, 10)
   })
 
@@ -108,10 +113,17 @@ describe('the models step', () => {
     ).toEqual({ n: 0 })
   })
 
-  it('leaves a game never played out of a past season’s schedule: it was cancelled', async () => {
-    await buildModels(db, 2027)
-    expect(await final(BOS)).toMatchObject({ games_left: 0, sos_left: null })
-  })
+  // With 2026-27 in progress, 2024-25 and 2025-26 are complete, so stability measures every metric.
+  it(
+    'leaves a game never played out of a past season’s schedule: it was cancelled',
+    {
+      timeout: 30_000
+    },
+    async () => {
+      await buildModels(db, 2027)
+      expect(await final(BOS)).toMatchObject({ games_left: 0, sos_left: null })
+    }
+  )
 
   it('stays due after a failed run, and its rows stand until a run succeeds', async () => {
     await buildModels(db, 2026)

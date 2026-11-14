@@ -200,18 +200,24 @@ function measuredOf(m: MetricDef, full: Measured, halves: Measured | null): Metr
   )
 }
 
-/** Measures every catalogue metric on the regular seasons up to `through`. */
+/** Measures every catalogue metric (or those named) on the regular seasons up to `through`. */
 export async function measureStability(
   db: StatsDb,
   through: number,
   current: number,
-  /** Each batch as it is measured, for a script timing the measure. */
-  onBatch?: (ids: string[], ms: number) => void
+  options: {
+    /** Each batch as it is measured, for a script timing the measure. */
+    onBatch?: (ids: string[], ms: number) => void
+    /** Only these metrics, for a test. */
+    metrics?: readonly string[]
+  } = {}
 ): Promise<Map<string, MetricStability>> {
+  const { onBatch, metrics } = options
   const e = await engine()
   const out = new Map<string, MetricStability>()
   const measurable: MetricDef[] = []
   for (const m of CATALOGUE) {
+    if (metrics && !metrics.includes(m.id)) continue
     const why = notMeasurable(e, m, through)
     if (why) out.set(m.id, unmeasured(why))
     else measurable.push(m)

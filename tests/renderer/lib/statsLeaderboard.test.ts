@@ -117,6 +117,7 @@ describe('the column picker and presets', () => {
     expect(familiesOf(CATALOGUE, tab)).toEqual([
       'traditional',
       'shooting',
+      'indexes',
       'shots',
       'plays',
       'possessions',
