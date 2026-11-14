@@ -9,8 +9,10 @@ import {
   modelsDue,
   planModels
 } from '@main/stats/models/build'
+import { fitAdjusted, ratingOf } from '@main/stats/models/adjusted'
+import { ADJUSTED_TABLE } from '@main/stats/models/adjustedRatings'
 import { TEAM_STRENGTH_TABLE } from '@main/stats/models/teamStrength'
-import { BOS, emptySources, LAL, MIA } from '../../../fixtures/boxScores'
+import { addNbaTeam, BOS, emptySources, LAL, MIA, type Stats } from '../../../fixtures/boxScores'
 import { addLeague } from '../../../fixtures/models'
 import { openTestDb } from '../../../fixtures/stats'
 
@@ -49,9 +51,10 @@ describe('the models step', () => {
 
   it('computes every season played on a database never built', async () => {
     expect(await modelsDue(db)).toBe(true)
-    // Every builder: T1001's, T1005's, T1002's and T1003's, which writes nothing for a league of
-    // three teams: it cannot fill a bracket.
+    // Every builder: T1001's, T1005's, T1002's, T1004's and T1003's, which writes nothing for a league
+    // of three teams: it cannot fill a bracket.
     expect(await planModels(db)).toMatchObject([
+      { all: true, seasons: [2025, 2026] },
       { all: true, seasons: [2025, 2026] },
       { all: true, seasons: [2025, 2026] },
       { all: true, seasons: [2025, 2026] },
@@ -128,5 +131,70 @@ describe('the models step', () => {
     await expect(buildModels(db, 2026)).rejects.toThrow()
     expect(await modelsDue(db)).toBe(true)
     expect((await final(BOS)).srs).toBeCloseTo(8 / 3, 10)
+  })
+})
+
+/** A team line of 100 estimated possessions (90 FGA + 0.44 × 25 FTA − 10 OREB + 9 TOV) and these points. */
+const line = (pts: number): Stats => [40, 90, 10, 30, 20, 25, 10, 30, 20, 5, 5, 9, 18, pts]
+
+describe('the adjusted ratings', () => {
+  beforeEach(async () => {
+    // Box scores for Nov 1 and Nov 3 and the playoff game; Nov 2 has none, so it is not fitted.
+    await addNbaTeam(db, 'a', BOS, line(110))
+    await addNbaTeam(db, 'a', LAL, line(100))
+    await addNbaTeam(db, 'c', MIA, line(102))
+    await addNbaTeam(db, 'c', BOS, line(100))
+    await addNbaTeam(db, 'po', LAL, line(130))
+    await addNbaTeam(db, 'po', MIA, line(80))
+    await buildDerived(db)
+  })
+
+  const rows = (): Promise<Record<string, unknown>[]> =>
+    db.all(
+      `SELECT team_id, game_id, strftime(game_date, '%Y-%m-%d') AS day, adj_poss, adj_ortg, adj_drtg,
+              adj_nrtg, adj_league, adj_home
+       FROM ${ADJUSTED_TABLE} WHERE season = 2026 ORDER BY game_date, team_id`
+    )
+
+  it('rates each team after each regular-season day it played with a box score', async () => {
+    await buildModels(db, 2026)
+    const all = await rows()
+    expect(all.map((r) => [r.day, r.team_id, r.game_id])).toEqual([
+      ['2025-11-01', BOS, 'a'],
+      ['2025-11-01', LAL, 'a'],
+      ['2025-11-03', BOS, 'c'],
+      ['2025-11-03', MIA, 'c']
+    ])
+    // One game, at home: home court takes the whole margin (it has no prior), the teams none.
+    expect(all[0]).toMatchObject({ adj_league: 105, adj_poss: 100 })
+    expect(all[0].adj_home as number).toBeCloseTo(10, 10)
+    expect(all[0].adj_nrtg as number).toBeCloseTo(0, 10)
+    const fit = fitAdjusted([
+      {
+        date: '2025-11-01',
+        home: BOS,
+        away: LAL,
+        homePts: 110,
+        awayPts: 100,
+        poss: 100,
+        neutral: false
+      },
+      {
+        date: '2025-11-03',
+        home: MIA,
+        away: BOS,
+        homePts: 102,
+        awayPts: 100,
+        poss: 100,
+        neutral: false
+      }
+    ])
+    const bos = all[2]
+    const want = ratingOf(fit, BOS)!
+    expect(bos.adj_poss).toBe(200)
+    expect(bos.adj_ortg as number).toBeCloseTo(want.ortg, 10)
+    expect(bos.adj_drtg as number).toBeCloseTo(want.drtg, 10)
+    expect(bos.adj_nrtg as number).toBeCloseTo(want.net, 10)
+    expect(bos.adj_home as number).toBeCloseTo(want.homeCourt, 10)
   })
 })

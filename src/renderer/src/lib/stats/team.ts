@@ -49,9 +49,10 @@ export const RATINGS_SECTION: SectionDef = {
 
 /**
  * Plan T1001: how strong the team is beyond its record. The margin and Pythagorean wins come from the
- * scores in scope; SRS and the schedule strengths are solved on the regular season, as of the last
- * game in scope. Plan T1002: Elo as of the last game in scope, playoffs included, and the wins it
- * expected over the games in scope. Plan T1003: the season forecast as of the last game in scope.
+ * scores in scope; SRS, the schedule strengths and the adjusted ratings (T1004) are solved on the
+ * regular season, as of the last game in scope. Plan T1002: Elo as of the last game in scope,
+ * playoffs included, and the wins it expected over the games in scope. Plan T1003: the season
+ * forecast as of the last game in scope.
  */
 export const STRENGTH_SECTION: SectionDef = {
   title: 'Team strength',
@@ -65,6 +66,9 @@ export const STRENGTH_SECTION: SectionDef = {
     'team_sos_left',
     'team_elo',
     'team_elo_exp_w',
+    'team_adj_ortg',
+    'team_adj_drtg',
+    'team_adj_nrtg',
     'team_proj_w',
     'team_playoff_pct',
     'team_title_pct'

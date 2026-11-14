@@ -26,6 +26,21 @@ const solved: Partial<Opts> & Pick<Opts, 'sample'> = {
   model: 'team_strength'
 }
 
+/**
+ * Plan T1004: the adjusted ratings, a ridge regression of points per 100 possessions on offense,
+ * defense and home court, solved on the regular season as of every game day (`models/adjusted.ts`).
+ * Possessions are the box-score estimate the plain ratings divide by.
+ */
+const adjusted: Partial<Opts> & Pick<Opts, 'sample'> = {
+  ...solved,
+  model: 'adjusted_rating',
+  sources: ['Computed by Metis from the box scores'],
+  unit: 'rating',
+  decimals: 1
+}
+
+const NOT_PUBLISHED = "A model computed by Metis, not the NBA's or any publisher's figure."
+
 /** Basketball-Reference's exponent for the NBA, on points for and against. */
 export const PYTHAGOREAN_EXPONENT = 14
 
@@ -111,6 +126,35 @@ export const RATINGS: MetricDef[] = [
     'LEFT',
     'Regular-season games on the schedule after the last game in scope.',
     { ...solved, value: '{games_left}', unit: 'count', decimals: 0, direction: 'neutral' }
+  ),
+  metric(
+    'team_adj_ortg',
+    'Adjusted offensive rating',
+    'ADJ ORtg',
+    `Points scored per 100 estimated possessions against an average defense on a neutral floor: a regression on the regular season so far that adjusts for the defenses faced and home court. ${NOT_PUBLISHED}`,
+    { ...adjusted, value: '{adj_ortg}' }
+  ),
+  metric(
+    'team_adj_drtg',
+    'Adjusted defensive rating',
+    'ADJ DRtg',
+    `Points allowed per 100 estimated possessions against an average offense on a neutral floor: a regression on the regular season so far that adjusts for the offenses faced and home court. ${NOT_PUBLISHED}`,
+    // The offense side, as SRS is, so the team board's Ratings preset shows it beside the others.
+    { ...adjusted, value: '{adj_drtg}', direction: 'lower' }
+  ),
+  metric(
+    'team_adj_nrtg',
+    'Adjusted net rating',
+    'ADJ NRtg',
+    `Adjusted offensive rating minus adjusted defensive rating: points per 100 possessions better than an average team on a neutral floor. ${NOT_PUBLISHED}`,
+    { ...adjusted, value: '{adj_nrtg}', tier: 'core' }
+  ),
+  metric(
+    'team_adj_home',
+    'Home court, per 100 possessions',
+    'HOME',
+    `The net points per 100 possessions a team gains at home over a neutral floor, the league's estimate from the regression behind the adjusted ratings, as of the last game in scope. ${NOT_PUBLISHED}`,
+    { ...adjusted, value: '{adj_home}', direction: 'neutral' }
   )
 ]
 
@@ -276,3 +320,45 @@ RATINGS.push(
     { ...forecast, value: '{runs}', unit: 'count', decimals: 0, direction: 'neutral' }
   )
 )
+
+/**
+ * The family's order, which the team board's Ratings preset reads: its core metrics first (the margin,
+ * then the three ratings of a team's strength), then the first extended ones up to twelve columns:
+ * projected wins and playoff odds (T1003) next. So those that repeat a preset column (the
+ * Pythagorean percentage and losses, wins over Elo), the schedule left, the league's home court and
+ * the rest of the forecast come last, and are offered in the column picker.
+ */
+const ORDER = [
+  'team_mov',
+  'team_srs',
+  'team_elo',
+  'team_adj_nrtg',
+  // Plan T1003: the forecast's two most read numbers, next in the preset.
+  'team_proj_w',
+  'team_playoff_pct',
+  'team_pyth_w',
+  'team_win_resid',
+  'team_sos',
+  'team_adj_ortg',
+  'team_adj_drtg',
+  'team_elo_exp_w',
+  // In the picker: the Pythagorean percentage repeats PYTH W, and the schedule left SOS.
+  'team_pyth_pct',
+  'team_sos_left',
+  'team_pyth_l',
+  'team_games_left',
+  'team_elo_w_over',
+  'team_adj_home',
+  'team_title_pct',
+  'team_proj_l',
+  'team_mean_seed',
+  'team_top6_pct',
+  'team_play_in_pct',
+  'team_round2_pct',
+  'team_conf_finals_pct',
+  'team_finals_pct',
+  'team_forecast_runs'
+]
+// A metric not listed keeps its place after those that are.
+const place = (id: string): number => (ORDER.includes(id) ? ORDER.indexOf(id) : ORDER.length)
+RATINGS.sort((a, b) => place(a.id) - place(b.id))

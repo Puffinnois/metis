@@ -98,21 +98,37 @@ describe('the column picker and presets', () => {
     expect(defense.slice(0, firstOffense).every((m) => m.side === 'defense')).toBe(true)
   })
 
-  it('has a Ratings preset on the team board, in the catalogue’s order', () => {
+  it('has a Ratings preset on the team board, in the family’s order', () => {
+    // Core first (MOV, SRS, Elo, adjusted net rating), then projected wins and playoff odds (T1003),
+    // then extended up to twelve columns.
     expect(familyColumns(CATALOGUE, tabOf('team', 'offense'), 'ratings')).toEqual([
       'team_mov',
       'team_srs',
       'team_elo',
-      'team_pyth_pct',
+      'team_adj_nrtg',
+      'team_proj_w',
+      'team_playoff_pct',
       'team_pyth_w',
-      'team_pyth_l',
       'team_win_resid',
       'team_sos',
-      'team_sos_left',
-      'team_games_left',
-      'team_elo_exp_w',
-      'team_elo_w_over'
+      'team_adj_ortg',
+      'team_adj_drtg',
+      'team_elo_exp_w'
     ])
+    // The rest are in the picker: what the preset's columns already give, a league figure, or the
+    // rest of the forecast.
+    const offered = pickable(CATALOGUE, tabOf('team', 'offense')).map((m) => m.id)
+    for (const id of [
+      'team_pyth_pct',
+      'team_sos_left',
+      'team_pyth_l',
+      'team_games_left',
+      'team_elo_w_over',
+      'team_adj_home',
+      'team_title_pct',
+      'team_mean_seed'
+    ])
+      expect(offered).toContain(id)
   })
 
   it('has a preset for each family, and knows which one a board shows', () => {

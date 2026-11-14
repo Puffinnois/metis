@@ -119,7 +119,8 @@ describe('snapshotDays', () => {
   })
 })
 
-describe('the season forecast builder', () => {
+// Each case writes a thirty-team season row by row and runs the simulation: slower than most tests.
+describe('the season forecast builder', { timeout: 30_000 }, () => {
   it('forecasts a past season twenty times, each snapshot adding up across the league', async () => {
     await addSeason(2026)
     const rows = await run(2026, 2027)
