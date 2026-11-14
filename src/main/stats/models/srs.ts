@@ -125,18 +125,51 @@ export function srs<K>(games: readonly MarginGame<K>[]): Map<K, Rating> {
   return ledger.solve()
 }
 
+/** A game on the schedule, played or not: what the schedule strength of the games left reads. */
+export interface Fixture<K> {
+  date: string
+  home: K
+  away: K
+}
+
 export interface DayRating<K> extends Rating {
   date: string
   team: K
+  /** The team's games on the schedule after this day. */
+  gamesLeft: number
+  /**
+   * The average rating, as of this day, of the opponents in those games, one term per game; null
+   * with none left. An opponent with no game yet counts as average, 0.
+   */
+  sosLeft: number | null
 }
+
+const byDate = <T extends { date: string }>(x: T, y: T): number =>
+  x.date < y.date ? -1 : x.date > y.date ? 1 : 0
 
 /**
  * The ratings as of the end of every day with games, for the teams that played that day: a team's
- * row on a day it played is its rating after that day's games, everyone's included. Games need not
- * be sorted.
+ * row on a day it played is its rating after that day's games, everyone's included, with the schedule
+ * strength of its games after that day (`fixtures`: every game of the season, played or not). Games
+ * need not be sorted.
  */
-export function srsByDay<K>(games: readonly MarginGame<K>[]): DayRating<K>[] {
-  const sorted = [...games].sort((x, y) => (x.date < y.date ? -1 : x.date > y.date ? 1 : 0))
+export function srsByDay<K>(
+  games: readonly MarginGame<K>[],
+  fixtures: readonly Fixture<K>[] = []
+): DayRating<K>[] {
+  const sorted = [...games].sort(byDate)
+  // Each team's schedule by date, so the games after a day are a tail of its list.
+  const schedule = new Map<K, Array<{ date: string; opponent: K }>>()
+  for (const f of [...fixtures].sort(byDate)) {
+    for (const [team, opponent] of [
+      [f.home, f.away],
+      [f.away, f.home]
+    ]) {
+      const list = schedule.get(team) ?? []
+      list.push({ date: f.date, opponent })
+      schedule.set(team, list)
+    }
+  }
   const ledger = new Ledger<K>()
   const out: DayRating<K>[] = []
   for (let i = 0; i < sorted.length;) {
@@ -148,7 +181,22 @@ export function srsByDay<K>(games: readonly MarginGame<K>[]): DayRating<K>[] {
       played.add(sorted[i].away)
     }
     const ratings = ledger.solve()
-    for (const team of played) out.push({ date, team, ...ratings.get(team)! })
+    for (const team of played) {
+      let left = 0
+      let total = 0
+      for (const g of schedule.get(team) ?? []) {
+        if (g.date <= date) continue
+        left++
+        total += ratings.get(g.opponent)?.srs ?? 0
+      }
+      out.push({
+        date,
+        team,
+        ...ratings.get(team)!,
+        gamesLeft: left,
+        sosLeft: left > 0 ? total / left : null
+      })
+    }
   }
   return out
 }

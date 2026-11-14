@@ -41,7 +41,9 @@ import {
   marginSeries,
   nextGame,
   noGamesNote,
+  OVERVIEW_METRICS,
   RATINGS_SECTION,
+  STRENGTH_SECTION,
   resultCards,
   ROSTER_METRICS,
   rosterQuery,
@@ -399,7 +401,7 @@ function Overview({
   anyPlayed
 }: TabProps & { anyPlayed: boolean }): React.JSX.Element {
   const rq = useMemo(
-    () => (anyPlayed ? teamPoolQuery(RATINGS_SECTION.metrics, scope, mode) : null),
+    () => (anyPlayed ? teamPoolQuery(OVERVIEW_METRICS, scope, mode) : null),
     [anyPlayed, scope, mode]
   )
   const ratings = useStatsQuery(rq, data.version, FRESH)
@@ -408,8 +410,8 @@ function Overview({
   const through = data.status?.through?.date ?? null
   const next = nextGame(games, through)
   const inScope = gamesInScope(games, scope)
-  const view = ratings.result
-    ? sectionViews([RATINGS_SECTION], ratings.result, team, data.byId, mode, null)[0]
+  const views = ratings.result
+    ? sectionViews([RATINGS_SECTION, STRENGTH_SECTION], ratings.result, team, data.byId, mode, null)
     : null
   const rows = scorerRows(scorers.result, data.byId)
   return (
@@ -461,7 +463,11 @@ function Overview({
                 </span>
               </button>
             )}
-            {view ? <StatSection section={view} /> : <Loading error={ratings.error} />}
+            {views ? (
+              views.map((v) => <StatSection key={v.title} section={v} />)
+            ) : (
+              <Loading error={ratings.error} />
+            )}
             <section className="flex flex-col gap-2.5">
               <SectionHead title="Margin by game" note={rangeLabel(scope, 'team')} />
               <GameChart

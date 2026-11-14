@@ -744,6 +744,26 @@ Fouls: Shooting 779,004; Personal 578,238; Offensive 123,198; Loose Ball 104,568
 
 **Reads,** in the worker on the full load, warm, median of five: a team’s assist network, a season 25 ms; the same over January 23 ms; a player’s assists, a season 23 ms; a team’s assist network, ten seasons 51 ms; a game’s flow 23 ms; a five-metric player leaderboard (engine) 51 ms.
 
+## Team strength (Plan T1001)
+
+`scripts/check-team-strength.mjs` on a copy of the Stage 9 gate load, after a real refresh, every season from 1993-94:
+
+- **SRS = MOV + SOS** on every row of `team_strength`, to 3·10⁻¹⁴. Each team's games and MOV after its last game equal the final scores read from `game` by SQL apart, on every team of every season.
+- **SRS recounted apart** by Basketball-Reference's iteration (rating = MOV + average opponent rating, repeated until it settles, centred on zero) from the margins, as of each team's last game day: equal to the table within 7·10⁻¹² on every team of every season. So each day's solve is centred on zero. The mean of the teams' final rows is 10⁻¹⁵ in the nine seasons where every team plays on the last day and up to 1.7·10⁻³ in the others, whose early finishers' rows are a day or two older (4.8·10⁻² in 2026-27, 170 games in).
+- **MOV and Pythagorean wins** through the engine (`team_mov`, `team_pyth_pct`, `team_pyth_w`, `team_pyth_l`, `team_win_resid`) equal a recount by SQL on `game` within 2·10⁻¹⁴ for every team of every season.
+- **Against Basketball-Reference's published team tables**, every team of four seasons across the eras, matched by name (`LA Clippers` for its "Los Angeles Clippers"):
+
+| Season  | Teams | SRS within 0.005 | SRS within 0.01 | MOV within 0.005 | SOS within 0.005 | Largest SRS gap |
+| ------- | ----- | ---------------- | --------------- | ---------------- | ---------------- | --------------- |
+| 1994-95 | 27    | 27               | 27              | 27               | 24               | 0.005           |
+| 1997-98 | 29    | 26               | 29              | 29               | 27               | 0.008           |
+| 2007-08 | 30    | 25               | 30              | 30               | 29               | 0.006           |
+| 2015-16 | 30    | 29               | 30              | 30               | 29               | 0.005           |
+
+Tolerance 0.005, half the printed hundredth; every MOV is inside it. The gaps above it are at most 0.008 and come from rounding: Basketball-Reference's SRS is its rounded MOV plus its rounded SOS (1997-98 Washington: 0.59 + 0.53 = 1.12, where the unrounded 0.587 + 0.525 give 1.112), and half of them sit on a rounding edge (Charlotte's 2.455 printed 2.46). No team is 0.01 or more apart, so no games are missing from the load in these seasons; 1994-95 is ESPN's games, before the NBA's ids.
+
+- **The season in progress:** 2026-27's remaining schedule is in `game`, rows with `played` false: on Nov 13, 2026, 170 regular-season games played and 1,036 still to come, 6 of them with a side not named yet (the Cup's knockout dates), so 1,206 of the season's 1,230; the other 24 games are listed once the Cup's group stage sets them. A team's games left therefore read up to two short until then (Boston: 12 played and 68 left). Plan T1003's simulation reads the same rows.
+
 ## Old seasons
 
 | Season label (file) | Source | Games | Notes                                                  |

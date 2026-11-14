@@ -111,6 +111,13 @@ describe('the models step', () => {
     ])
   })
 
+  it('records a file of every season as the season in progress', async () => {
+    await run([{ ...CORE, id: 'aliases', allSeasons: true }])
+    expect(vi.mocked(models.markModelSeason).mock.calls.map(([, season]) => season)).toEqual([
+      CURRENT
+    ])
+  })
+
   it('does not run when nothing changed and its versions stand', async () => {
     expect(await run([])).toEqual([])
   })

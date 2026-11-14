@@ -98,6 +98,20 @@ describe('the column picker and presets', () => {
     expect(defense.slice(0, firstOffense).every((m) => m.side === 'defense')).toBe(true)
   })
 
+  it('has a Ratings preset on the team board, in the catalogue’s order', () => {
+    expect(familyColumns(CATALOGUE, tabOf('team', 'offense'), 'ratings')).toEqual([
+      'team_mov',
+      'team_srs',
+      'team_pyth_pct',
+      'team_pyth_w',
+      'team_pyth_l',
+      'team_win_resid',
+      'team_sos',
+      'team_sos_left',
+      'team_games_left'
+    ])
+  })
+
   it('has a preset for each family, and knows which one a board shows', () => {
     const tab = tabOf('player', 'ALL')
     expect(familiesOf(CATALOGUE, tab)).toEqual([

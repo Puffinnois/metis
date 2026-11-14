@@ -147,6 +147,21 @@ describe('a state read from a model table', () => {
     expect(byGame.b).toBeCloseTo(-2, 10)
   })
 
+  it('reads the schedule strengths as they stood, and the margin from the scores in scope', async () => {
+    const metrics = ['team_sos', 'team_sos_left', 'team_games_left', 'team_mov']
+    const day = await team(
+      { scope: { seasons: [2026], dates: ['2025-11-01', '2025-11-02'] } },
+      metrics
+    )
+    expect(value(day, MIA, 'team_sos')).toBeCloseTo(-2, 10)
+    expect(value(day, MIA, 'team_sos_left')).toBeCloseTo(8, 10)
+    expect(value(day, MIA, 'team_games_left')).toBe(2)
+    expect(value(day, MIA, 'team_mov')).toBe(-4)
+    const season = await team({ scope: { seasons: [2026] } }, metrics)
+    expect(value(season, BOS, 'team_mov')).toBe(4)
+    expect(value(season, LAL, 'team_sos_left')).toBeNull()
+  })
+
   it('formulas over its columns hold: MOV + SOS is SRS', async () => {
     const r = await team({ scope: { seasons: [2026] } }, ['team_srs', 'test_srs_plus'])
     for (const id of [BOS, LAL, MIA]) {

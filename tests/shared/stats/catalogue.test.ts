@@ -669,11 +669,24 @@ const MODEL_ROW: Record<string, number> = {
   srs_games: 10,
   mov: 3.25,
   sos: -1.5,
-  srs: 1.75
+  srs: 1.75,
+  games_left: 40,
+  sos_left: 0.5
 }
 
+/** Team strength from the scores (Plan T1001): 310 points for, 290 against, 2-1. */
+const PYTH = 1 / (1 + (290 / 310) ** 14)
+
 Object.assign(EXPECTED, {
-  team_srs: 1.75
+  team_srs: 1.75,
+  team_sos: -1.5,
+  team_sos_left: 0.5,
+  team_games_left: 40,
+  team_mov: 20 / 3,
+  team_pyth_pct: PYTH,
+  team_pyth_w: 3 * PYTH,
+  team_pyth_l: 3 * (1 - PYTH),
+  team_win_resid: 2 - 3 * PYTH
 })
 
 const SHOT_ROW: Record<string, number> = Object.fromEntries(

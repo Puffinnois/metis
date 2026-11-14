@@ -76,6 +76,24 @@ describe('srs', () => {
 })
 
 describe('srsByDay', () => {
+  it('gives the schedule strength of the games left after each day', () => {
+    const fixtures = [...LEAGUE, { date: '12-31', home: 'BOS', away: 'MIA' }]
+    const rows = srsByDay(LEAGUE, fixtures)
+    const at = (date: string, team: string): [number, number | null] => {
+      const r = rows.find((x) => x.date === date && x.team === team)!
+      return [r.gamesLeft, r.sosLeft]
+    }
+    expect(at('11-01', 'BOS')).toEqual([2, 0])
+    expect(at('11-01', 'LAL')).toEqual([1, 0])
+    expect(at('11-02', 'LAL')).toEqual([0, null])
+    expect(at('11-02', 'MIA')[0]).toBe(2)
+    expect(at('11-02', 'MIA')[1]).toBeCloseTo(8, 12)
+    expect(at('11-03', 'MIA')[1]).toBeCloseTo(8 / 3, 12)
+    expect(at('11-03', 'BOS')[1]).toBeCloseTo(-2 / 3, 12)
+    // Without a schedule, nothing is left.
+    expect(srsByDay(LEAGUE).every((r) => r.gamesLeft === 0 && r.sosLeft === null)).toBe(true)
+  })
+
   it('gives each team that played a day its rating after that day', () => {
     const rows = srsByDay([...LEAGUE].reverse())
     const at = (date: string, team: string): number =>
