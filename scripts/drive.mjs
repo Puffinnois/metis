@@ -57,12 +57,31 @@ ws.addEventListener('close', async () => {
 })
 let id = 0
 const pending = new Map()
+// What the page says as it goes, stamped, so a step that dies leaves its last words: errors and
+// warnings in its console, uncaught exceptions, a crashed renderer.
+const stamp = () => new Date().toISOString()
+const pageEvent = (m) => {
+  const p = m.params ?? {}
+  if (m.method === 'Inspector.targetCrashed') console.log(`[page ${stamp()}] the renderer crashed`)
+  if (m.method === 'Inspector.detached') console.log(`[page ${stamp()}] detached: ${p.reason}`)
+  if (m.method === 'Runtime.exceptionThrown') {
+    const d = p.exceptionDetails ?? {}
+    console.log(`[page ${stamp()}] uncaught: ${d.exception?.description ?? d.text}`)
+  }
+  if (m.method === 'Runtime.consoleAPICalled' && ['error', 'warning', 'assert'].includes(p.type)) {
+    const text = (p.args ?? []).map((a) => a.value ?? a.description ?? '').join(' ')
+    console.log(`[page ${stamp()}] console.${p.type}: ${text.slice(0, 500)}`)
+  }
+  if (m.method === 'Log.entryAdded' && ['error', 'warning'].includes(p.entry?.level)) {
+    console.log(`[page ${stamp()}] ${p.entry.level}: ${String(p.entry.text).slice(0, 500)}`)
+  }
+}
 ws.addEventListener('message', (e) => {
   const m = JSON.parse(e.data)
   if (m.id && pending.has(m.id)) {
     pending.get(m.id)(m)
     pending.delete(m.id)
-  }
+  } else if (m.method) pageEvent(m)
 })
 const send = (method, params = {}) =>
   new Promise((r) => {
@@ -70,6 +89,7 @@ const send = (method, params = {}) =>
     pending.set(n, r)
     ws.send(JSON.stringify({ id: n, method, params }))
   })
+for (const domain of ['Runtime', 'Log', 'Inspector']) await send(`${domain}.enable`)
 const evaluate = async (expression) => {
   const r = await send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true })
   // By value, a thrown Error reads as `{}`: a step that fails has to say so.
