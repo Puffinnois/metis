@@ -102,13 +102,16 @@ describe('the column picker and presets', () => {
     expect(familyColumns(CATALOGUE, tabOf('team', 'offense'), 'ratings')).toEqual([
       'team_mov',
       'team_srs',
+      'team_elo',
       'team_pyth_pct',
       'team_pyth_w',
       'team_pyth_l',
       'team_win_resid',
       'team_sos',
       'team_sos_left',
-      'team_games_left'
+      'team_games_left',
+      'team_elo_exp_w',
+      'team_elo_w_over'
     ])
   })
 

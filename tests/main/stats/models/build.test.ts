@@ -23,6 +23,11 @@ beforeEach(async () => {
   await buildDerived(db)
 })
 
+// Elo's rows (Plan T1002): two a game in elo_game, two a game played in elo_wins. 2025-26 has six
+// games it rates, five played (12 + 10); 2024-25 one (2 + 2).
+const ELO_ROWS_2026 = 22
+const ELO_ROWS = ELO_ROWS_2026 + 4
+
 const seasonsPlanned = async (): Promise<number[]> => (await planModels(db))[0].seasons
 
 const final = async (team: number, season = 2026): Promise<Record<string, unknown>> =>
@@ -44,9 +49,9 @@ describe('the models step', () => {
 
   it('computes every season played on a database never built', async () => {
     expect(await modelsDue(db)).toBe(true)
-    expect(await planModels(db)).toMatchObject([{ all: true, seasons: [2025, 2026] }])
+    expect((await planModels(db))[0]).toMatchObject({ all: true, seasons: [2025, 2026] })
     // Six team-days in 2025-26 and two in 2024-25; the playoff, All-Star and Cup final games are not solved.
-    expect(await buildModels(db, 2026)).toBe(8)
+    expect(await buildModels(db, 2026)).toBe(8 + ELO_ROWS)
     expect(await modelsDue(db)).toBe(false)
     const bos = await final(BOS)
     expect(bos.srs).toBeCloseTo(8 / 3, 10)
@@ -72,7 +77,7 @@ describe('the models step', () => {
     await markModelSeason(db, 2026)
     expect(await modelsDue(db)).toBe(true)
     expect(await seasonsPlanned()).toEqual([2026])
-    expect(await buildModels(db, 2026)).toBe(6)
+    expect(await buildModels(db, 2026)).toBe(6 + ELO_ROWS_2026)
     expect(await db.get(`SELECT srs FROM ${TEAM_STRENGTH_TABLE} WHERE game_id = 'x'`)).toEqual({
       srs: 99
     })
@@ -90,7 +95,7 @@ describe('the models step', () => {
     await buildModels(db, 2026)
     await db.exec(`ALTER TABLE ${TEAM_STRENGTH_TABLE} DROP COLUMN sos`)
     expect(await modelsDue(db)).toBe(true)
-    expect(await buildModels(db, 2026)).toBe(8)
+    expect(await buildModels(db, 2026)).toBe(8 + ELO_ROWS)
     expect((await final(BOS)).sos).toBeCloseTo(-4 / 3, 10)
   })
 
