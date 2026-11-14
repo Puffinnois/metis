@@ -124,7 +124,8 @@ describe('a game’s facts', () => {
       attendance: 18984,
       note: 'NBA Cup',
       periods: { home: [60, 40], away: [50, 40] },
-      officials: []
+      officials: [],
+      elo: null
     })
   })
 

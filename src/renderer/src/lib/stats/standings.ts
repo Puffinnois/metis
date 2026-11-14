@@ -4,7 +4,7 @@ import { fmtStat, ordinal } from './format'
 
 /**
  * The published standings, by conference or by division. Nothing published is recomputed; the last
- * three columns are Metis's own (Plan T1001), from the final scores, and the screen says so.
+ * four columns are Metis's own (Plans T1001 and T1002), from the final scores, and the screen says so.
  */
 
 export type StandingsView = 'conference' | 'division'
@@ -27,13 +27,14 @@ export const STANDINGS_HEAD = [
   'DIFF',
   'PYTH W',
   'SRS',
-  'SOS'
+  'SOS',
+  'ELO'
 ]
 
 /** The team strength columns, computed by Metis, after the published ones. */
-export const STRENGTH_METRICS = ['team_pyth_w', 'team_srs', 'team_sos'] as const
+export const STRENGTH_METRICS = ['team_pyth_w', 'team_srs', 'team_sos', 'team_elo'] as const
 
-/** Each team's strength over the season's regular season: its final SRS and SOS. */
+/** Each team's strength over the season's regular season: its final SRS, SOS and Elo. */
 export function strengthQuery(season: number): StatsQuery {
   return {
     entity: 'team',
@@ -98,7 +99,7 @@ function row(s: StatsStanding, by: StandingsView, strength: StrengthCells | null
   const rank = by === 'conference' ? s.conferenceRank : s.divisionRank
   const back = by === 'conference' ? s.conferenceGamesBack : s.divisionGamesBack
   const diff = fmtPoints(s.differential)
-  const [pythW, srs, sos] = strength?.get(s.teamId) ?? [null, null, null]
+  const [pythW, srs, sos, elo] = strength?.get(s.teamId) ?? [null, null, null, null]
   return {
     key: s.teamId,
     teamId: s.teamId,
@@ -121,7 +122,8 @@ function row(s: StatsStanding, by: StandingsView, strength: StrengthCells | null
       s.differential !== null && s.differential > 0 ? `+${diff}` : diff,
       pythW === null ? '—' : pythW.toFixed(1),
       fmtSigned(srs, 2),
-      fmtSigned(sos, 2)
+      fmtSigned(sos, 2),
+      fmtStat(elo, { unit: 'number', decimals: 0 })
     ]
   }
 }
@@ -173,7 +175,7 @@ const FIRST_STREAKS = 2002
 
 /** Metis's own columns are not the NBA's, and the table says so. */
 export const STRENGTH_NOTE =
-  'PYTH W, SRS and SOS are computed by Metis from the final scores: Pythagorean wins with the exponent 14, SRS and the strength of schedule solved on the regular season.'
+  'PYTH W, SRS, SOS and ELO are computed by Metis from the final scores: Pythagorean wins with the exponent 14, SRS and the strength of schedule solved on the regular season, Elo after the last regular-season game.'
 
 /** What the table depends on, or why there is none. */
 export function standingsNotes(season: number, rows: readonly StatsStanding[]): string[] {

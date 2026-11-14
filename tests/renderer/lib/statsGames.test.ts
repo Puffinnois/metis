@@ -7,6 +7,7 @@ import {
   COMPARE_METRICS,
   compareRows,
   defaultDay,
+  eloView,
   gameDays,
   gameHeader,
   gameStatus,
@@ -15,7 +16,13 @@ import {
   railGames,
   stepDay
 } from '@/lib/stats/games'
-import type { StatsGame, StatsResult, StatsRow } from '@shared/stats/types'
+import type {
+  StatsGame,
+  StatsGameDetail,
+  StatsGameElo,
+  StatsResult,
+  StatsRow
+} from '@shared/stats/types'
 import { catalogueFixture } from '../../fixtures/catalogue'
 
 const byId = new Map(catalogueFixture().map((m) => [m.id, m]))
@@ -177,7 +184,8 @@ describe('the header', () => {
       attendance: 18984,
       note: 'NBA Cup',
       periods: null,
-      officials: []
+      officials: [],
+      elo: null
     }
     const v = gameHeader(games[3], games, detail, null)
     expect(v.line).toBe('Jan 5, 2026 · NBA Cup')
@@ -206,7 +214,8 @@ describe('the score by period', () => {
     attendance: null,
     note: null,
     periods: { home, away },
-    officials: []
+    officials: [],
+    elo: null
   })
 
   it('names the periods and ends on the final', () => {
@@ -229,7 +238,8 @@ describe('the score by period', () => {
         attendance: null,
         note: null,
         periods: null,
-        officials: []
+        officials: [],
+        elo: null
       })
     ).toBeNull()
   })
@@ -356,5 +366,56 @@ describe('the box score', () => {
       edge: null,
       missing: 'Recorded from 2008-09.'
     })
+  })
+})
+
+describe('a game’s Elo', () => {
+  const detail = (elo: StatsGameElo | null): StatsGameDetail => ({
+    id: 'g',
+    venue: null,
+    city: null,
+    attendance: null,
+    note: null,
+    periods: null,
+    officials: [],
+    elo
+  })
+  const elo: StatsGameElo = {
+    neutral: false,
+    homeCourt: 80,
+    homeWin: 0.6405,
+    homeMargin: 3.57,
+    home: { pre: 1520.4, post: 1526.6 },
+    away: { pre: 1540.2, post: 1534.0 }
+  }
+
+  it('reads the ratings before and after, and the win probability before the game', () => {
+    expect(eloView(game('g', '2026-01-02'), detail(elo))).toEqual({
+      rows: [
+        { label: 'Before', away: '1,540', home: '1,520' },
+        { label: 'After', away: '1,534', home: '1,527' },
+        { label: 'Win probability', away: '36%', home: '64%' }
+      ],
+      note: 'Home court: 80 Elo points. Expected: BOS by 3.6.'
+    })
+  })
+
+  it('reads a game to come from the latest ratings, and a neutral site without home court', () => {
+    const toCome = { ...elo, neutral: true, homeCourt: 0, homeWin: 0.47, homeMargin: -0.7 }
+    const view = eloView(
+      unplayed('g', '2027-03-01'),
+      detail({ ...toCome, home: { pre: 1520, post: null }, away: { pre: 1540, post: null } })
+    )
+    expect(view?.rows.map((r) => r.label)).toEqual(['Before', 'Win probability'])
+    expect(view?.note).toBe('Neutral site: no home court. Expected: LAL by 0.7.')
+  })
+
+  it('has a note alone in the burn-in seasons, and nothing for a game it does not rate', () => {
+    expect(eloView(game('g', '1995-01-02', { season: 1995 }), detail(null))).toEqual({
+      rows: [],
+      note: 'Elo is read from 1995-96: every team starts at 1500 in 1993-94, so the first two seasons settle the ratings.'
+    })
+    expect(eloView(game('g', '2026-02-15', { type: 'all-star' }), detail(elo))).toBeNull()
+    expect(eloView(game('g', '2026-01-02'), detail(null))).toBeNull()
   })
 })

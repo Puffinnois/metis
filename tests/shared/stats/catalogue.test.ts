@@ -668,6 +668,11 @@ Object.assign(EXPECTED, {
 const MODEL_ROW: Record<string, number> = {
   games: 10,
   srs_games: 10,
+  wins: 6,
+  elo: 1587.5,
+  elo_pre: 1580,
+  win_prob: 0.6,
+  elo_exp_wins: 5.25,
   mov: 3.25,
   sos: -1.5,
   srs: 1.75,
@@ -729,7 +734,10 @@ Object.assign(EXPECTED, {
   team_ows: 7,
   team_dws: 3,
   team_vorp: 3.5,
-  team_pprod: 1800
+  team_pprod: 1800,
+  team_elo: 1587.5,
+  team_elo_exp_w: 5.25,
+  team_elo_w_over: 0.75
 })
 
 const SHOT_ROW: Record<string, number> = Object.fromEntries(

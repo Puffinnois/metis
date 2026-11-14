@@ -10,6 +10,7 @@ import {
   boxSides,
   compareRows,
   defaultDay,
+  eloView,
   gameDays,
   gameHeader,
   noBoxNote,
@@ -282,6 +283,7 @@ function GameBody({
   const { results, error } = useStatsQueries(queries, data.version)
   const header = gameHeader(game, games, detail, through)
   const periods = periodTable(game, detail)
+  const elo = eloView(game, detail)
   const players = results?.get('players')
   const teams = results?.get('teams')
   const sides = players && teams ? boxSides(game, players, teams, data.byId) : null
@@ -336,6 +338,28 @@ function GameBody({
               ]
             }))}
           />
+        </section>
+      )}
+      {elo && (
+        <section className="flex max-w-[520px] flex-col gap-2 self-center" aria-label="Elo">
+          {elo.rows.length > 0 && (
+            <MiniTable
+              label="Elo"
+              columns="150px 64px 64px"
+              head={['Elo', game.away.code, game.home.code]}
+              rows={elo.rows.map((r) => ({
+                key: r.label,
+                cells: [
+                  <span key="l" className="font-sans text-[12.5px] text-fg-2">
+                    {r.label}
+                  </span>,
+                  <span key="a">{r.away}</span>,
+                  <span key="h">{r.home}</span>
+                ]
+              }))}
+            />
+          )}
+          <p className="m-0 text-center text-[12px] text-fg-3">{elo.note}</p>
         </section>
       )}
       {game.played && (
