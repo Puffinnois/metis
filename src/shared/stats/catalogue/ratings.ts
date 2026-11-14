@@ -96,14 +96,14 @@ export const RATINGS: MetricDef[] = [
     'Strength of schedule',
     'SOS',
     'The average SRS of the opponents played, one term per game, so SRS is the margin of victory plus it. Regular season, as of the last game in scope.',
-    { ...solved, value: '{sos}', decimals: 2 }
+    { ...solved, value: '{sos}', decimals: 2, direction: 'neutral' }
   ),
   metric(
     'team_sos_left',
     'Strength of schedule left',
     'SOS LEFT',
     'The average SRS, as of the last game in scope, of the opponents in the regular-season games after it, one term per game. Blank once none are left.',
-    { ...solved, value: '{sos_left}', decimals: 2, direction: 'lower' }
+    { ...solved, value: '{sos_left}', decimals: 2, direction: 'neutral' }
   ),
   metric(
     'team_games_left',
