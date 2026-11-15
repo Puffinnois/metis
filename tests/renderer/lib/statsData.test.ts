@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { byTier, fmtBytes, seasonLabel, seasonRange, totals } from '@/lib/stats/data'
+import { byTier, fmtBytes, seasonLabel, seasonRange, STATE_LABELS, totals } from '@/lib/stats/data'
 import type { StatsFamily } from '@shared/stats/types'
 
 const family = (over: Partial<StatsFamily>): StatsFamily => ({
@@ -62,5 +62,11 @@ describe('totals', () => {
       filesLoaded: 4,
       filesExpected: 5
     })
+  })
+
+  it('counts nothing for a release left out of the build, which says so', () => {
+    const out = family({ state: 'left-out', filesLoaded: 0, filesExpected: 0 })
+    expect(totals([family({}), out])).toEqual({ filesLoaded: 1, filesExpected: 2 })
+    expect(STATE_LABELS[out.state]).toBe('Not in this version')
   })
 })

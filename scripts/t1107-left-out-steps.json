@@ -1,0 +1,32 @@
+[
+  {
+    "size": [1500, 950]
+  },
+  {
+    "wait": 5000
+  },
+  {
+    "eval": "window.sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nwindow.check = (label, got, want) => (want.every((w) => JSON.stringify(got).includes(w)) ? 'OK ' : 'MISMATCH ') + label + ' want ' + JSON.stringify(want) + ' got ' + JSON.stringify(got);\nwindow.nav = async (name) => { const b = [...document.querySelectorAll('nav button')].find((x) => x.textContent.trim() === name); if (!b) return 'NO NAV ' + name; b.click(); await sleep(2500); return 'nav ' + name };\n'helpers ready'"
+  },
+  {
+    "eval": "(async () => { await nav('Leaderboards'); const s = [...document.querySelectorAll('section')]; return check('the leaderboards still answer on box-score stats', [s.length >= 8, s.filter((x) => x.querySelectorAll('button').length > 1).length >= 8, s.map((x) => x.querySelector('h2,h3')?.textContent).slice(0, 4)], ['true,true']) })()"
+  },
+  {
+    "shot": "t1107-01-leaderboards"
+  },
+  {
+    "eval": "(async () => { const r = await window.api.stats.query({ entity: 'player', metrics: ['pts', 'drives', 'sdv_rapm', 'onc_min'], scope: { seasons: [2026] }, sort: { metric: 'pts', dir: 'desc' } }); return check('points answer; tracking, impact and on-court metrics read the reason', [r.columns.map((c) => [c.id, c.reason]), r.rows.slice(0, 2).map((x) => [x.name, x.values.pts?.value])], ['[\"pts\",null]', '[\"drives\",\"Not included in this version.\"]', '[\"sdv_rapm\",\"Not included in this version.\"]', '[\"onc_min\",\"Not included in this version.\"]']) })()"
+  },
+  {
+    "eval": "(async () => { const b = [...document.querySelectorAll('nav button')].find((x) => x.title === 'See what is loaded'); if (!b) return 'NO DATA BUTTON'; b.click(); await sleep(2500); const row = (label) => [...document.querySelectorAll('tr')].find((t) => t.textContent.startsWith(label))?.innerText.replace(/\\s+/g, ' ') ?? 'NO ROW ' + label; return check('the Data screen lists the NBA tags as left out and the core as loaded', [row('League dashboards and tracking (NBA)'), row('Impact models (SportsDataverse)'), row('Play by play (NBA)'), row('Player box scores (NBA)'), row('Schedules (NBA)')], ['tracking (NBA) – 0 of 0', 'Not in this version', 'Player box scores (NBA)', 'Loaded']) })()"
+  },
+  {
+    "eval": "check('no left-out NBA tag reads anything but left out', [...document.querySelectorAll('tr')].map((t) => t.innerText.replace(/\\s+/g, ' ')).filter((t) => /\\(NBA\\)|Impact models|Possessions|Lineups on court|Shooting by distance|Recent shooting/.test(t) && !/^(Schedules|Player box scores) \\(NBA\\)/.test(t)).every((t) => t.endsWith('Not in this version')), ['true'])"
+  },
+  {
+    "shot": "t1107-02-data-screen"
+  },
+  {
+    "eval": "check('the credit still names both sources', document.querySelector('section[aria-label=\"Data and credit\"]')?.innerText, ['from ESPN and NBA.com.'])"
+  }
+]

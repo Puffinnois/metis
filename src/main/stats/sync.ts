@@ -20,7 +20,16 @@ import type {
   StatsSyncResult
 } from './protocol'
 import { INTERRUPTED_MESSAGE } from './schema'
-import { currentSeason, fileUrl, LOAD_TIERS, seasonsOf, SOURCES, type SourceFile } from './sources'
+import { includedSources, leftOutProblem, leftOutSources, leftOutTables } from './leftOut'
+import {
+  currentSeason,
+  fileUrl,
+  LEFT_OUT_RELEASES,
+  LOAD_TIERS,
+  seasonsOf,
+  SOURCES,
+  type SourceFile
+} from './sources'
 
 const HOUR = 60 * 60 * 1000
 const DAY = 24 * HOUR
@@ -42,6 +51,53 @@ export const STATS_PUBLISHED_STEP = `${STATS_LOG_PREFIX}published`
 export const STATS_PLAYS_STEP = `${STATS_LOG_PREFIX}plays`
 /** Computes the models (Plan Stage 10) from the game tables, last of all. */
 export const STATS_MODELS_STEP = `${STATS_LOG_PREFIX}models`
+/** Drops what a release left out of this build had loaded (`leftOut.ts`). */
+export const STATS_LEFT_OUT_STEP = `${STATS_LOG_PREFIX}left-out`
+
+/**
+ * Drops the source tables of the releases left out of this build and forgets their files, then marks
+ * every built table out of date, so the steps rebuild from what is left and an install that had
+ * loaded them ends up as one that never did. Returns how many tables and file records went; 0 once
+ * they are gone, so a later refresh rebuilds nothing.
+ */
+export async function dropLeftOut(
+  db: StatsDb,
+  leftOut: readonly string[],
+  sources: readonly SourceFile[] = SOURCES
+): Promise<number> {
+  const have = new Set(
+    (
+      await db.all<{ table_name: string }>(
+        "SELECT table_name FROM duckdb_tables() WHERE schema_name = 'main'"
+      )
+    ).map((r) => r.table_name)
+  )
+  const tables = leftOutTables(leftOut, sources).filter((t) => have.has(t))
+  const ids = [...new Set(leftOutSources(leftOut, sources).map((s) => s.id))]
+  const held =
+    ids.length === 0
+      ? 0
+      : ((
+          await db.get<{ n: number }>(
+            `SELECT count(*)::INTEGER AS n FROM source_state WHERE source IN (${ids.map(() => '?').join(', ')})`,
+            ids
+          )
+        )?.n ?? 0)
+  if (tables.length === 0 && held === 0) return 0
+  for (const table of tables) await db.exec(`DROP TABLE IF EXISTS ${table}`)
+  if (held > 0) {
+    await db.exec(
+      `DELETE FROM source_state WHERE source IN (${ids.map(() => '?').join(', ')})`,
+      ids
+    )
+  }
+  await markIdentityStale(db)
+  await markDerivedStale(db)
+  if (canBuildPublished()) await markPublishedStale(db)
+  await markPlaySeason(db, 0)
+  await markModelSeason(db, 0)
+  return tables.length + held
+}
 
 export interface StatsSyncDeps {
   db: StatsDb
@@ -231,10 +287,34 @@ type Settled = { ok: true; file: FetchedFile } | { ok: false; error: unknown }
 export async function refreshStats(
   deps: StatsSyncDeps,
   options: RefreshOptions = {},
-  sources: SourceFile[] = SOURCES
+  allSources: SourceFile[] = SOURCES,
+  leftOut: readonly string[] = LEFT_OUT_RELEASES
 ): Promise<StatsSyncResult> {
   const { db, downloads } = deps
   const log: StatsLogEntry[] = []
+  // A list that names a core release, or one Metis does not load, is a build mistake: say so plainly
+  // and load nothing, rather than build tables the rest cannot be keyed to.
+  const problem = leftOutProblem(leftOut, allSources)
+  if (problem !== null) {
+    log.push(
+      await runLogged(deps, STATS_LEFT_OUT_STEP, async () => {
+        throw new Error(problem)
+      })
+    )
+    return { steps: log }
+  }
+  if (leftOut.length > 0) {
+    const dropped = await dropLeftOut(db, leftOut, allSources)
+    if (dropped > 0) {
+      log.push(
+        await runLogged(deps, STATS_LEFT_OUT_STEP, async () => ({
+          rows: 0,
+          message: `${dropped} left out`
+        }))
+      )
+    }
+  }
+  const sources = includedSources(leftOut, allSources)
   let fatal: string | undefined
   let coreWrote = false
   let built = false

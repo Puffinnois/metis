@@ -26,7 +26,8 @@ export const STATE_LABELS: Record<StatsFamilyState, string> = {
   loaded: 'Loaded',
   partial: 'Part loaded',
   waiting: 'Waiting',
-  failed: 'Failed'
+  failed: 'Failed',
+  'left-out': 'Not in this version'
 }
 
 export const TIER_LABELS: Record<StatsFamily['tier'], string> = {

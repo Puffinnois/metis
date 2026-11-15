@@ -15,21 +15,24 @@ export interface FileAttempt {
 
 /**
  * What each release holds, for the Data panel, from what the sync has recorded. A file that is not
- * published yet (the current season's playoffs) is not counted as missing.
+ * published yet (the current season's playoffs) is not counted as missing. A release left out of
+ * this build (`leftOut.ts`) is listed as such, with no files expected.
  */
 export function summariseFamilies(
   sources: SourceFile[],
   current: number,
   held: Map<string, HeldFile>,
-  attempts: Map<string, FileAttempt>
+  attempts: Map<string, FileAttempt>,
+  leftOut: readonly string[] = []
 ): StatsFamily[] {
   const families = new Map<string, StatsFamily>()
   for (const source of sources) {
+    const out = leftOut.includes(source.release)
     const family = families.get(source.release) ?? {
       release: source.release,
       label: RELEASE_LABELS[source.release] ?? source.release,
       tier: source.tier,
-      state: 'waiting',
+      state: out ? 'left-out' : 'waiting',
       filesLoaded: 0,
       filesExpected: 0,
       firstSeason: null,
@@ -40,6 +43,8 @@ export function summariseFamilies(
       lastError: null
     }
     families.set(source.release, family)
+    // Left out of this build: nothing is expected, whatever an older version recorded.
+    if (out) continue
     for (const season of seasonsOf(source, current)) {
       const file = held.get(`${source.id}:${season}`)
       const attempt = attempts.get(stepLogName({ source, season }))
@@ -60,6 +65,7 @@ export function summariseFamilies(
     }
   }
   for (const family of families.values()) {
+    if (family.state === 'left-out') continue
     if (family.lastError !== null) family.state = 'failed'
     else if (family.filesExpected > 0 && family.filesLoaded === family.filesExpected) {
       family.state = 'loaded'

@@ -5,9 +5,9 @@ export const IDENTITY_VERSION = 5
 
 /**
  * What the identity tables read. They are all in the core tier, so the app can use them as soon as
- * that tier has loaded.
+ * that tier has loaded. Their releases can never be left out of a build (`leftOut.ts`).
  */
-const NEEDS = [
+export const IDENTITY_NEEDS = [
   'src_nba_schedule',
   'src_espn_schedule',
   'src_nba_player_box',
@@ -253,7 +253,7 @@ async function hasTables(db: StatsDb, tables: string[]): Promise<boolean> {
   return row?.n === tables.length
 }
 
-export const canBuildIdentity = (db: StatsDb): Promise<boolean> => hasTables(db, NEEDS)
+export const canBuildIdentity = (db: StatsDb): Promise<boolean> => hasTables(db, IDENTITY_NEEDS)
 
 export async function identityStale(db: StatsDb): Promise<boolean> {
   const row = await db.get<{ version: number }>(

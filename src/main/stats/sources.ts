@@ -377,6 +377,15 @@ export const RELEASE_LABELS: Record<string, string> = {
 
 export const SOURCES: SourceFile[] = [...IDS, ...ESPN, ...NBA, ...DASHBOARDS, ...SHARED]
 
+/**
+ * Release tags left out of this build, named exactly (`nba_stats_synergy`, `nba_player_impact`).
+ * Empty: every release loads. A tag listed here is not downloaded; the next refresh drops what it had
+ * loaded and rebuilds from the rest, and its metrics read null with a reason. The releases the game,
+ * team and player tables are built from cannot be listed (`leftOut.ts`).
+ * `docs/reference/stats-database.md`, "Leaving a source out".
+ */
+export const LEFT_OUT_RELEASES: readonly string[] = []
+
 /** The file of one season (0 for a file of all seasons). */
 export function fileName(source: SourceFile, season: number): string {
   return source.allSeasons ? `${source.stem}.parquet` : `${source.stem}_${season}.parquet`
