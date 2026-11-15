@@ -12,6 +12,8 @@ export const DATASET_URL = 'https://github.com/sportsdataverse/sportsdataverse-d
 export const CC_BY_URL = 'https://creativecommons.org/licenses/by/4.0/'
 /** The NBA's terms (section 9) ask any display of its statistics to credit NBA.com prominently. */
 export const NBA_STATS_URL = 'https://www.nba.com/stats'
+/** ESPN is the other source, credited the same way (D31). */
+export const ESPN_NBA_URL = 'https://www.espn.com/nba/'
 
 export const CREDIT_TITLE = 'Data and credit'
 
@@ -20,7 +22,9 @@ export const CREDIT_LEAD: CreditSegment[] = [
   { text: 'SportsDataverse', url: DATASET_URL },
   ' under ',
   { text: 'CC BY 4.0', url: CC_BY_URL },
-  ', from ESPN and ',
+  ', from ',
+  { text: 'ESPN', url: ESPN_NBA_URL },
+  ' and ',
   { text: 'NBA.com', url: NBA_STATS_URL },
   '. Metis downloads it to this computer, reshapes it into its own tables and computes stats from it. It shares nothing.'
 ]

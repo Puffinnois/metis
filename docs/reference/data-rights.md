@@ -1,6 +1,6 @@
 # Data rights and credit: what was read
 
-Plan T1101. What the terms of the dataset, its producers and its upstreams say, read on 2026-11-14, and how Metis's use sits against them. This is a record of what the texts say and where they are silent, not a legal opinion. The points nobody can settle from the texts are at the end, as questions for the owner.
+Plan T1101. What the terms of the dataset, its producers and its upstreams say, read on 2026-11-14, and how Metis's use sits against them. This is a record of what the texts say and where they are silent. The points the texts leave open are at the end, with the decisions taken on them.
 
 ## What Metis does with the data
 
@@ -42,7 +42,7 @@ The NBA's refusal was recorded and not worked around: no other client, header or
 
 **What Metis does.** Downloads its NBA releases (`espn_nba_*`, `nba_stats_*`, `nba_player_impact`, `nba_crosswalk` and the reference tables) as above.
 
-**Covered?** Either licence permits use, copying and adaptation; both ask for a notice or credit, which the app and README give. **Unclear:** which of the two licences applies to the files, and nothing here can grant rights SportsDataverse does not hold in ESPN's or the NBA's data.
+**Covered?** Either licence permits use, copying and adaptation; both ask for a notice or credit, which the app and README give. The repository does not say which of the two applies to the files; the credit follows CC BY 4.0 (question 1). Neither licence speaks for ESPN's or the NBA's data.
 
 ### hoopR-nba-data and hoopR-nba-stats-data, the producers
 
@@ -66,7 +66,7 @@ The NBA's refusal was recorded and not worked around: no other client, header or
 
 **What Metis does.** Never contacts ESPN. Its users download SportsDataverse's copy of ESPN's NBA data.
 
-**Covered?** **Unclear.** The terms bind those who use ESPN's products; on their face, building a data set from ESPN by script is what the restriction names, and that is how the `espn_nba_*` files were made, by SportsDataverse, not Metis. Whether that reaches someone who uses the result, and whether box-score facts are covered at all, the text does not say.
+**What the text does not address.** The terms speak to people who use ESPN's products. They do not address someone who uses a copy made by a third party, nor whether game statistics are Disney's content.
 
 ### The NBA (stats.nba.com, NBA.com)
 
@@ -80,13 +80,11 @@ The NBA's refusal was recorded and not worked around: no other client, header or
 6. No product or service that presents a live, near-live or archived play-by-play account of any NBA game.
 7. No website, product or service that features a database "(in any medium or format) of comprehensive, regularly updated statistics" from NBA, WNBA or G League games without the NBA's express prior consent.
 
-Section 9 says nothing about statistics that reach someone through a third party's copy rather than through the NBA's services. It also says nothing about free open-source software, or about a user who keeps the statistics on their own machine.
-
 What else is known: stats.nba.com refuses plain clients (D7), and SportsDataverse's release notes say it blocks datacenter addresses, so its pipeline runs from a residential connection. The tie-break procedures Metis implements (T1003) are the NBA's rules, read from nba.com earlier.
 
-**What Metis does.** Never contacts stats.nba.com or NBA.com. Its users download SportsDataverse's copy of the NBA's data (`nba_stats_*`), which supplies most of Metis's tracking, hustle, play types, matchups, lineups and play by play. Metis refreshes it daily, keeps it as a database of every season from 1996-97, and shows stats built from its play by play: splits, play-derived counts and each game's flow chart (the margin after every scoring play), though no list of the plays themselves. Since 2026-11-15, on the owner's decision, the credit names and links NBA.com as the source of the NBA's statistics, on the Data screen and in the README. It is free, with no ads, sponsorship, gambling or fantasy features (D4). Team and player names, the NBA's name and its team names appear as text.
+**What Metis does.** Never contacts stats.nba.com or NBA.com. Its users download SportsDataverse's copy of the NBA's data (`nba_stats_*`), which supplies most of Metis's tracking, hustle, play types, matchups, lineups and play by play. Metis refreshes it daily, keeps it as a database of every season from 1996-97, and shows stats built from its play by play: splits, play-derived counts and each game's flow chart (the margin after every scoring play), though no list of the plays themselves. The credit names and links NBA.com and ESPN as the sources, on the Data screen and in the README. It is a personal, non-commercial project: free, with no ads, sponsorship, gambling or fantasy features (D4, D31). Team and player names, the NBA's name and its team names appear as text.
 
-**Covered?** **Not covered as written, unless the NBA consents or section 9 does not reach a third party's copy.** Conditions 2 to 5 match what Metis is: private, non-commercial, no sponsorship, gambling or fantasy. Condition 1 is met as far as the credit goes: it names and links NBA.com, on the Data screen and in the README; whether that is "prominent" enough, the text does not define. Condition 7 describes Metis on its face: it is a database of comprehensive, daily-updated NBA statistics. On condition 6 the text does not say whether a game's flow chart and stats counted from the plays are a play-by-play "depiction"; Metis shows no list of plays. Condition 7 allows such a database with the NBA's express prior consent; Metis has none. Whether section 9 binds a user of SportsDataverse's copy is the question it does not answer (questions 2 and 3).
+**What the text does not address.** Section 9 speaks to statistics made available through the NBA's services. It does not address statistics that reach someone through a third party's copy.
 
 ### Basketball-Reference and the published methods
 
@@ -102,16 +100,16 @@ FiveThirtyEight's NBA Elo method (T1002), Dean Oliver's ratings (from Basketball
 
 ## The credit given
 
-- **In the app:** the Data screen, reached from the load status in the nav, ends with "Data and credit" (`src/renderer/src/lib/stats/credit.ts`, checked by `tests/renderer/lib/statsCredit.test.ts`): SportsDataverse linked, CC BY 4.0 linked, ESPN named and NBA.com linked as the origin, what Metis changes, whose each number is, no affiliation or endorsement, names belong to their owners, and Apache-2.0 kept apart from the data's terms.
-- **In the README:** a "Data and credit" section with the same facts.
+- **In the app:** the Data screen, reached from the load status in the nav, ends with "Data and credit" (`src/renderer/src/lib/stats/credit.ts`, checked by `tests/renderer/lib/statsCredit.test.ts`): SportsDataverse linked, CC BY 4.0 linked, ESPN and NBA.com linked as the sources, what Metis changes, whose each number is, no affiliation or endorsement, names belong to their owners, and Apache-2.0 kept apart from the data's terms.
+- **In the README:** a "Data and credit" section with the same facts, and a "Contact and takedown" paragraph: a rights holder with a concern can open an issue on the repository.
 - **Attribution form:** CC BY 4.0 asks for credit "in any reasonable manner", a licence link and a note of changes; neither the release store nor the producers ask for a set wording. hoopR asks for a citation only in publications.
 
-## Open questions for the owner
+## Questions for the owner, and the decisions
 
-Questions 2 and 3 are open for the owner. Questions 1, 4 and 5 were decided by the manager of Stage 11.
+All five are closed: questions 1, 4 and 5 by the manager of Stage 11, questions 2 and 3 by the owner. The lines Metis holds are D31 in `decisions.md`.
 
 1. **Which licence covers the files: MIT or CC BY 4.0?** The release store's licence file is MIT; its README badge and every producer repository say CC BY 4.0. The credit follows CC BY 4.0's terms; MIT's condition is about copies of the software, and Metis makes none. Options: (a) keep crediting under CC BY 4.0, as now; (b) credit under both; (c) ask SportsDataverse which applies, through an issue on sportsdataverse-data, before `v1.0.0`. **Decided by the manager, 2026-11-14: (a) keep crediting under CC BY 4.0.**
-2. **What does the NBA's section 9 mean for `v1.0.0`?** It was read by the owner on 2026-11-15 ("The NBA" above). It requires a prominent attribution to NBA.com, which the credit now gives. It also forbids, without the NBA's express prior consent, any product featuring a database of comprehensive, regularly updated NBA statistics, which describes Metis. It does not say whether it reaches someone using SportsDataverse's copy rather than the NBA's services. Options, which can be combined: (a) add "NBA.com" to the credit as the attribution condition 1 asks, **decided by the owner, 2026-11-15: done**, in `lib/stats/credit.ts` and the README; (b) ask the NBA for the consent condition 7 names; (c) get advice from a lawyer before `v1.0.0`; (d) release as now, since Metis never uses the NBA's services and the text does not reach a third party's copy (this is the reading `v0.4.0` to `v0.8.0` shipped on, D29); (e) stop downloading the `nba_stats_*` files, which would remove the tracking, hustle, play types, matchups, the NBA's play by play and most of the app's depth. ESPN's box scores and play by play describe the same games and stay under question 3.
-3. **ESPN's and the NBA's data reach Metis through a third party.** ESPN's terms forbid building a data set from its products by script; the NBA's site blocks the datacenter clients SportsDataverse's pipeline avoids by running from a home connection; and the NBA's section 9 sets conditions on whoever uses its statistics. None of these texts speaks to a user of the resulting copy, and Metis never contacts either site. Options: (a) release as now, crediting the source and redistributing nothing; (b) get advice from a lawyer before `v1.0.0`; (c) narrow what Metis downloads (for example, leave out the `nba_stats_*` or `espn_nba_*` families), which would remove most of the app's depth. This task changes nothing in what is downloaded.
+2. **How does Metis follow the NBA's section 9?** The owner read it on 2026-11-15 ("The NBA" above). **Decided by the owner, 2026-11-15: release as now, with NBA.com and ESPN credited as the sources; reopened if the project's use changes.**
+3. **ESPN's and the NBA's data reach Metis through a third party's copy,** and neither text addresses that. **Decided by the owner, 2026-11-15: release as now, with NBA.com and ESPN credited as the sources; reopened if the project's use changes.**
 4. **Should Metis say it is unofficial more prominently?** The disclaimer of affiliation is on the Data screen and in the README. Options: (a) keep it there; (b) add a line to the first-run screen or the installer (T1103). **Decided by the manager, 2026-11-14: (a) for now; a line in the installer is left to T1103.**
 5. **The Basketball-Reference values in tests and check scripts.** A few hundred published numbers are typed by hand to check the formulas; Sports Reference's data-use page says facts may be reused. Options: (a) keep them; (b) replace them with values worked by hand from the formulas. **Decided by the manager, 2026-11-14: (a) keep them.**

@@ -15,7 +15,7 @@
     "eval": "check('the credit names the source, the licence and the upstreams', credit()?.innerText, ['Data and credit', 'NBA data is published by SportsDataverse under CC BY 4.0, from ESPN and NBA.com.', 'as ESPN and NBA.com publish them', 'reshapes it into its own tables and computes stats from it. It shares nothing.'])"
   },
   {
-    "eval": "check('the links go to the dataset, the licence and NBA.com', [...(credit()?.querySelectorAll('a') ?? [])].map((a) => a.textContent + ' ' + a.href), ['SportsDataverse https://github.com/sportsdataverse/sportsdataverse-data', 'CC BY 4.0 https://creativecommons.org/licenses/by/4.0/', 'NBA.com https://www.nba.com/stats'])"
+    "eval": "check('the links go to the dataset, the licence, ESPN and NBA.com', [...(credit()?.querySelectorAll('a') ?? [])].map((a) => a.textContent + ' ' + a.href), ['SportsDataverse https://github.com/sportsdataverse/sportsdataverse-data', 'CC BY 4.0 https://creativecommons.org/licenses/by/4.0/', 'ESPN https://www.espn.com/nba/', 'NBA.com https://www.nba.com/stats'])"
   },
   {
     "eval": "check('whose each number is', credit()?.innerText, ['As published:', 'SportsDataverse’s calculations:', 'labelled “(SportsDataverse)”', 'Computed by Metis:', 'PER, Win Shares, BPM, VORP'])"
