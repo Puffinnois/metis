@@ -1,0 +1,7 @@
+<!-- The Metis mark: an M whose strokes are a line chart, its second peak higher than the first.
+     Colours are the stats palette (D17): the ground is cobalt (#1f5ed9), the line is paper (#fcfdfe).
+     scripts/make-icon.mjs draws every icon file from this one. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <rect width="256" height="256" rx="56" fill="#1f5ed9"/>
+  <path d="M66 192 V98 L128 154 L190 62 V192" fill="none" stroke="#fcfdfe" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

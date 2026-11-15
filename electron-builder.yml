@@ -21,6 +21,9 @@ asarUnpack:
   - node_modules/@duckdb/node-bindings-*/**
 win:
   executableName: Metis
+  # Drawn by scripts/make-icon.mjs from build/icon.svg. The NSIS installer, its uninstaller and
+  # the shortcuts take the same icon.
+  icon: build/icon.ico
   target:
     - nsis
 nsis:
@@ -31,6 +34,7 @@ nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
 linux:
+  icon: build/icon.png
   target:
     - AppImage
   category: Utility
