@@ -6,8 +6,18 @@ import { inspect } from './sql'
 /** Bump when these tables change, so the next refresh builds them without downloading anything. */
 export const DERIVED_VERSION = 1
 
-/** Without the identity tables and one box score there is nothing to build from. */
-const NEEDS = ['game', 'team', 'player_ids', 'src_espn_player_box', 'src_nba_player_box']
+/**
+ * Without the identity tables and one box score there is nothing to build from. The source tables
+ * here can never be left out of a build (`leftOut.ts`).
+ */
+export const DERIVED_NEEDS = [
+  'game',
+  'team',
+  'player_ids',
+  'src_espn_player_box',
+  'src_nba_player_box'
+]
+const NEEDS = DERIVED_NEEDS
 
 export async function canDerive(db: StatsDb): Promise<boolean> {
   const row = await db.get<{ n: number }>(

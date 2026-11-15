@@ -193,6 +193,7 @@ Done 2026-11-14, approved by the owner, and tagged `v0.8.0`. Gate, 2026-11-14, o
 - [ ] **T1103 Installer and updates (M).** Windows installer, signed-update check. Check: install, update from the previous version.
 - [ ] **T1104 Clean machine (M).** The whole first run on Windows: install, load, quit, resume, refresh. Check: the goal above, item by item.
 - [ ] **T1105 Docs and README (S).** What the app does and what was measured, for someone arriving new.
+- [ ] **T1107 Source switch (S).** A source family can be left out of a build: one checked-in list of release tags, empty by default. A tag listed is not downloaded; the next refresh drops what it had loaded and rebuilds from the rest, its metrics read null with a short reason, and the Data screen lists it as left out. Check: tests for the list, the drop, a metric's reason and the Data screen; one refresh of a copy of a full load with the NBA's tags listed, timed and measured.
 - [ ] **T1106 Release (S).** Set `package.json` to `1.0.0` in the closing PR, merge it and tag `v1.0.0`: that tag runs the Release workflow, which leaves a draft to publish (D30).
 
 ## Optional

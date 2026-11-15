@@ -718,7 +718,8 @@ export interface StatsStatus {
   noRoom: { neededBytes: number; freeBytes: number } | null
 }
 
-export type StatsFamilyState = 'loaded' | 'partial' | 'waiting' | 'failed'
+/** `left-out`: a release this build does not load (`src/main/stats/leftOut.ts`). */
+export type StatsFamilyState = 'loaded' | 'partial' | 'waiting' | 'failed' | 'left-out'
 
 /** One release of the dataset, as the Data panel shows it. */
 export interface StatsFamily {

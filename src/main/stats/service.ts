@@ -64,7 +64,7 @@ import { readGameMatchups } from './matchupReads'
 import { readOfficialCareer, readOfficialsSeason } from './officialsReads'
 import { readOnCourtUnits, readWithOrWithout } from './onCourtReads'
 import { bootstrapStatsDb } from './schema'
-import { currentSeason, SOURCES } from './sources'
+import { currentSeason, LEFT_OUT_RELEASES, SOURCES } from './sources'
 import { refreshStats, STATS_DERIVED_STEP } from './sync'
 
 /** The table the status line reads the latest game from. */
@@ -345,7 +345,13 @@ export async function openStatsService(
           attemptRows.map((r) => [r.source, { status: r.status, message: r.message }])
         )
         return {
-          families: summariseFamilies(SOURCES, currentSeason(new Date()), held, attempts),
+          families: summariseFamilies(
+            SOURCES,
+            currentSeason(new Date()),
+            held,
+            attempts,
+            LEFT_OUT_RELEASES
+          ),
           databaseBytes: databaseBytes(init.path),
           freeBytes: free(init.path)
         }

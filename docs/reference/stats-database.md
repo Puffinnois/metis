@@ -488,6 +488,21 @@ Measured on a fresh copy of the Stage 9 gate load (`scripts/load-report.mjs`): t
 
 Each file is one step, logged as `stats:<source>:<season>` (or `stats:<source>` for a file of all seasons) in the file's own `sync_log`. `source_state` holds what each source has per season: rows, size, etag, when it was fetched and whether it is sealed.
 
+## Leaving a source out (Plan T1107)
+
+A source family can be left out of a build. `LEFT_OUT_RELEASES` in `src/main/stats/sources.ts` lists release tags, named exactly (`nba_stats_synergy`, `nba_player_impact`); it is empty, so every release loads. There is no setting for it: listing a tag is a one-line change and a release.
+
+**What then happens** (`src/main/stats/leftOut.ts`):
+
+- **Downloads:** the tag's files are neither downloaded nor checked for freshness.
+- **The next refresh:** it drops the source tables every file of which is left out, and forgets their files in `source_state`, logged as one `stats:left-out` step. It marks the identity, game, published, play and model tables out of date, so each step rebuilds from what is left. A missing source reads NULL in every builder, so nothing fails, and an install that had loaded the tag ends up as one that never did. Later refreshes have nothing to drop and rebuild nothing for it.
+- **Metrics:** one that reads the tag answers null with "Not included in this version.", whatever the season or filter. That covers a published metric whose table's source is left out, a metric on a built table (`GameTable.sources`), and any metric under a split once the NBA's play by play is out. Box-score metrics always answer.
+- **The Data screen** lists the tag as "Not in this version", with no files expected.
+
+**The limit:** six tags can never be left out: `nba_stats_schedules`, `nba_stats_player_boxscores`, `espn_nba_schedules`, `espn_nba_player_boxscores`, `nba_groups` and `nba_crosswalk`. The game, team and player tables, and their keys, are built from them (D13, D28), and every other table is keyed to those. The set is read from what the identity and game-table builds need (`IDENTITY_NEEDS`, `DERIVED_NEEDS`), not typed twice. A list naming one of them, or a tag Metis does not load, is refused: the refresh logs a `stats:left-out` error with a plain message and loads nothing, and a test checks the committed list. Leaving a whole source out (every `nba_stats_` or `espn_nba_` tag) would need those builds to work from one source, which they do not.
+
+**What it does not cover:** reads beside the engine (the shot chart, matchups, lineups, a game's flow) show what the rebuilt tables hold, which is nothing, rather than the reason. Fouls drawn come from ESPN's play by play inside a table built from the NBA's, so with only `espn_nba_pbp` out they read what the table holds, not the reason. The first load's disk check still expects the full download.
+
 ## Measuring a real load
 
 Build first, then point these at a scratch folder, never at the app's own data.

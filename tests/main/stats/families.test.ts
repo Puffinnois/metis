@@ -40,6 +40,21 @@ function summary(
 }
 
 describe('summariseFamilies', () => {
+  it('lists a release left out of the build as such, expecting nothing, whatever it held', () => {
+    const families = summariseFamilies(
+      [source('a'), source('b', { release: 'release_b' })],
+      CURRENT,
+      new Map([['b:2026', file()]]),
+      new Map([['stats:b:2027', { status: 'error', message: 'boom' }]]),
+      ['release_b']
+    )
+    expect(families.map((f) => [f.release, f.state, f.filesExpected, f.filesLoaded])).toEqual([
+      ['release_a', 'waiting', 3, 0],
+      ['release_b', 'left-out', 0, 0]
+    ])
+    expect(families[1].lastError).toBeNull()
+  })
+
   it('waits while nothing is loaded', () => {
     expect(summary([source('a')])[0]).toMatchObject({
       state: 'waiting',

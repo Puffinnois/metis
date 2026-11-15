@@ -27,6 +27,7 @@ import { gameTable } from '../derived/gameTables'
 import { publishedTable } from '../derived/published'
 import { SPLIT_PLAYER, SPLIT_PLAYER_SQL, SPLIT_TEAM, SPLIT_TEAM_SQL } from '../derived/splits'
 import { PUBLISHED_GAME_TYPES } from '../derived/publishedTables'
+import { leftOutGap } from '../leftOut'
 import { modelTable, type ModelTable } from '../models/build'
 import { grainsOf } from './registry'
 
@@ -369,6 +370,9 @@ function gapOf(
   transform: Transform
 ): string | null {
   if (m.unavailable) return m.unavailable
+  // A source this build leaves out answers nothing for any season or filter (`leftOut.ts`).
+  const leftOut = leftOutGap(m, q.scope.split !== undefined)
+  if (leftOut !== null) return leftOut
   const coverage = coverageReason(
     m,
     [...new Set(q.scope.seasons)].sort((a, b) => a - b)
