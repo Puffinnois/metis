@@ -1,6 +1,6 @@
 # Data rights and credit: what was read
 
-Plan T1101. What the terms of the dataset, its producers and its upstreams say, read on 2026-11-14, and how Metis's use sits against them. This is a record of what the texts say and where they are silent, not a legal opinion. The points nobody can settle from the texts are at the end, as questions for the owner.
+Plan T1101. What the terms of the dataset, its producers and its upstreams say, read on 2026-11-14, and how Metis's use sits against them. This is a record of what the texts say and where they are silent. The points the texts leave open are at the end, with the decisions taken on them.
 
 ## What Metis does with the data
 
@@ -16,21 +16,21 @@ The same for every source below:
 
 All fetched on 2026-11-14 with `curl` and its default user agent; GitHub's raw file host and its REST API for the repositories.
 
-| Source                                           | URL                                                                                                                                                   | Result                                                                    |
-| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| sportsdataverse-data `LICENSE`                   | https://github.com/sportsdataverse/sportsdataverse-data/blob/main/LICENSE                                                                             | Read                                                                      |
-| sportsdataverse-data README                      | https://github.com/sportsdataverse/sportsdataverse-data/blob/main/README.md                                                                           | Read                                                                      |
-| Release notes of the NBA tags                    | https://github.com/sportsdataverse/sportsdataverse-data/releases/tag/nba_stats_player_boxscores, `…/espn_nba_player_boxscores`, `…/nba_player_impact` | Read                                                                      |
-| hoopR-nba-data `LICENSE.md`, `DESCRIPTION`       | https://github.com/sportsdataverse/hoopR-nba-data/blob/main/LICENSE.md                                                                                | Read                                                                      |
-| hoopR-nba-stats-data `LICENSE.md`, `DESCRIPTION` | https://github.com/sportsdataverse/hoopR-nba-stats-data/blob/main/LICENSE.md                                                                          | Read                                                                      |
-| hoopR-nba-raw, hoopR-nba-stats-raw `LICENSE.md`  | https://github.com/sportsdataverse/hoopR-nba-raw/blob/main/LICENSE.md, https://github.com/sportsdataverse/hoopR-nba-stats-raw/blob/main/LICENSE.md    | Read                                                                      |
-| hoopR `LICENSE.md`, README                       | https://github.com/sportsdataverse/hoopR/blob/main/LICENSE.md                                                                                         | Read                                                                      |
-| sportsdataverse-py `LICENSE`, README             | https://github.com/sportsdataverse/sportsdataverse-py/blob/main/LICENSE                                                                               | Read                                                                      |
-| ESPN's terms of use                              | https://disneytermsofuse.com/english/ (the "Terms of Use" link in espn.com's footer)                                                                  | Read; "Last Updated: May 24, 2024"                                        |
-| NBA.com's terms of use                           | https://www.nba.com/termsofuse, https://www.nba.com/terms-of-use                                                                                      | **Refused:** HTTP 403 "Access Denied" from the site's CDN, both addresses |
-| Basketball-Reference method pages                | https://www.basketball-reference.com/about/per.html, `…/about/ws.html`, `…/about/bpm2.html`, `…/about/glossary.html`                                  | Read                                                                      |
-| Sports Reference terms and data-use page         | https://www.sports-reference.com/termsofuse.html, https://www.sports-reference.com/data_use.html                                                      | Read; terms "Last Updated: May 19, 2023"                                  |
-| FiveThirtyEight's NBA Elo method                 | https://fivethirtyeight.com/features/how-we-calculate-nba-elo-ratings/                                                                                | Gone: redirects to abcnews.com                                            |
+| Source                                           | URL                                                                                                                                                   | Result                                                                                                                                |
+| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| sportsdataverse-data `LICENSE`                   | https://github.com/sportsdataverse/sportsdataverse-data/blob/main/LICENSE                                                                             | Read                                                                                                                                  |
+| sportsdataverse-data README                      | https://github.com/sportsdataverse/sportsdataverse-data/blob/main/README.md                                                                           | Read                                                                                                                                  |
+| Release notes of the NBA tags                    | https://github.com/sportsdataverse/sportsdataverse-data/releases/tag/nba_stats_player_boxscores, `…/espn_nba_player_boxscores`, `…/nba_player_impact` | Read                                                                                                                                  |
+| hoopR-nba-data `LICENSE.md`, `DESCRIPTION`       | https://github.com/sportsdataverse/hoopR-nba-data/blob/main/LICENSE.md                                                                                | Read                                                                                                                                  |
+| hoopR-nba-stats-data `LICENSE.md`, `DESCRIPTION` | https://github.com/sportsdataverse/hoopR-nba-stats-data/blob/main/LICENSE.md                                                                          | Read                                                                                                                                  |
+| hoopR-nba-raw, hoopR-nba-stats-raw `LICENSE.md`  | https://github.com/sportsdataverse/hoopR-nba-raw/blob/main/LICENSE.md, https://github.com/sportsdataverse/hoopR-nba-stats-raw/blob/main/LICENSE.md    | Read                                                                                                                                  |
+| hoopR `LICENSE.md`, README                       | https://github.com/sportsdataverse/hoopR/blob/main/LICENSE.md                                                                                         | Read                                                                                                                                  |
+| sportsdataverse-py `LICENSE`, README             | https://github.com/sportsdataverse/sportsdataverse-py/blob/main/LICENSE                                                                               | Read                                                                                                                                  |
+| ESPN's terms of use                              | https://disneytermsofuse.com/english/ (the "Terms of Use" link in espn.com's footer)                                                                  | Read; "Last Updated: May 24, 2024"                                                                                                    |
+| NBA.com's terms of use                           | https://www.nba.com/termsofuse, https://www.nba.com/terms-of-use                                                                                      | **Refused:** HTTP 403 "Access Denied" from the site's CDN, both addresses. Section 9 supplied by the owner from a browser, 2026-11-15 |
+| Basketball-Reference method pages                | https://www.basketball-reference.com/about/per.html, `…/about/ws.html`, `…/about/bpm2.html`, `…/about/glossary.html`                                  | Read                                                                                                                                  |
+| Sports Reference terms and data-use page         | https://www.sports-reference.com/termsofuse.html, https://www.sports-reference.com/data_use.html                                                      | Read; terms "Last Updated: May 19, 2023"                                                                                              |
+| FiveThirtyEight's NBA Elo method                 | https://fivethirtyeight.com/features/how-we-calculate-nba-elo-ratings/                                                                                | Gone: redirects to abcnews.com                                                                                                        |
 
 The NBA's refusal was recorded and not worked around: no other client, header or mirror was tried.
 
@@ -42,7 +42,7 @@ The NBA's refusal was recorded and not worked around: no other client, header or
 
 **What Metis does.** Downloads its NBA releases (`espn_nba_*`, `nba_stats_*`, `nba_player_impact`, `nba_crosswalk` and the reference tables) as above.
 
-**Covered?** Either licence permits use, copying and adaptation; both ask for a notice or credit, which the app and README give. **Unclear:** which of the two licences applies to the files, and nothing here can grant rights SportsDataverse does not hold in ESPN's or the NBA's data.
+**Covered?** Either licence permits use, copying and adaptation; both ask for a notice or credit, which the app and README give. The repository does not say which of the two applies to the files; the credit follows CC BY 4.0 (question 1). Neither licence speaks for ESPN's or the NBA's data.
 
 ### hoopR-nba-data and hoopR-nba-stats-data, the producers
 
@@ -66,15 +66,25 @@ The NBA's refusal was recorded and not worked around: no other client, header or
 
 **What Metis does.** Never contacts ESPN. Its users download SportsDataverse's copy of ESPN's NBA data.
 
-**Covered?** **Unclear.** The terms bind those who use ESPN's products; on their face, building a data set from ESPN by script is what the restriction names, and that is how the `espn_nba_*` files were made, by SportsDataverse, not Metis. Whether that reaches someone who uses the result, and whether box-score facts are covered at all, the text does not say.
+**What the text does not address.** The terms speak to people who use ESPN's products. They do not address someone who uses a copy made by a third party, nor whether game statistics are Disney's content.
 
 ### The NBA (stats.nba.com, NBA.com)
 
-**What the text says.** Not read: NBA.com refused both terms addresses to a plain client (HTTP 403). What is known from elsewhere: stats.nba.com refuses plain clients (D7), and SportsDataverse's release notes say it blocks datacenter addresses, so its pipeline runs from a residential connection. The NBA's tie-break procedures Metis implements (T1003) are rules, read from nba.com earlier.
+**What the text says.** NBA.com refused both terms addresses to a plain client (HTTP 403). On 2026-11-15 the owner read the terms in a browser and supplied their section 9, "NBA Statistics"; the rest of the terms and their date were not seen for this record. Section 9 covers statistics the NBA makes available through its services, its own calculations included, from NBA and WNBA games. Anyone using them agrees to seven conditions:
 
-**What Metis does.** Never contacts stats.nba.com or NBA.com. Its users download SportsDataverse's copy of the NBA's data (`nba_stats_*`), which supplies most of Metis's tracking, hustle, play types, matchups, lineups and play by play. Team and player names, the NBA's name and its team names appear as text.
+1. Any use, display or publication carries a prominent attribution to NBA.com.
+2. Use only for legitimate news reporting or private, non-commercial purposes.
+3. No sponsorship or commercial identification.
+4. No gambling, legal gambling included.
+5. No fantasy game or other commercial product or service.
+6. No product or service that presents a live, near-live or archived play-by-play account of any NBA game.
+7. No website, product or service that features a database "(in any medium or format) of comprehensive, regularly updated statistics" from NBA, WNBA or G League games without the NBA's express prior consent.
 
-**Covered?** **Unclear: not read.** Someone has to read NBA.com's terms in a browser before `v1.0.0` (question 2).
+What else is known: stats.nba.com refuses plain clients (D7), and SportsDataverse's release notes say it blocks datacenter addresses, so its pipeline runs from a residential connection. The tie-break procedures Metis implements (T1003) are the NBA's rules, read from nba.com earlier.
+
+**What Metis does.** Never contacts stats.nba.com or NBA.com. Its users download SportsDataverse's copy of the NBA's data (`nba_stats_*`), which supplies most of Metis's tracking, hustle, play types, matchups, lineups and play by play. Metis refreshes it daily, keeps it as a database of every season from 1996-97, and shows stats built from its play by play: splits, play-derived counts and each game's flow chart (the margin after every scoring play), though no list of the plays themselves. The credit names and links NBA.com and ESPN as the sources, on the Data screen and in the README. It is a personal, non-commercial project: free, with no ads, sponsorship, gambling or fantasy features (D4, D31). Team and player names, the NBA's name and its team names appear as text.
+
+**What the text does not address.** Section 9 speaks to statistics made available through the NBA's services. It does not address statistics that reach someone through a third party's copy.
 
 ### Basketball-Reference and the published methods
 
@@ -90,16 +100,16 @@ FiveThirtyEight's NBA Elo method (T1002), Dean Oliver's ratings (from Basketball
 
 ## The credit given
 
-- **In the app:** the Data screen, reached from the load status in the nav, ends with "Data and credit" (`src/renderer/src/lib/stats/credit.ts`, checked by `tests/renderer/lib/statsCredit.test.ts`): SportsDataverse linked, CC BY 4.0 linked, ESPN and the NBA named as the origin, what Metis changes, whose each number is, no affiliation or endorsement, names belong to their owners, and Apache-2.0 kept apart from the data's terms.
-- **In the README:** a "Data and credit" section with the same facts.
+- **In the app:** the Data screen, reached from the load status in the nav, ends with "Data and credit" (`src/renderer/src/lib/stats/credit.ts`, checked by `tests/renderer/lib/statsCredit.test.ts`): SportsDataverse linked, CC BY 4.0 linked, ESPN and NBA.com linked as the sources, what Metis changes, whose each number is, no affiliation or endorsement, names belong to their owners, and Apache-2.0 kept apart from the data's terms.
+- **In the README:** a "Data and credit" section with the same facts, and a "Contact and takedown" paragraph: a rights holder with a concern can open an issue on the repository.
 - **Attribution form:** CC BY 4.0 asks for credit "in any reasonable manner", a licence link and a note of changes; neither the release store nor the producers ask for a set wording. hoopR asks for a citation only in publications.
 
-## Open questions for the owner
+## Questions for the owner, and the decisions
 
-Questions 2 and 3 are open for the owner. Questions 1, 4 and 5 were decided by the manager of Stage 11.
+All five are closed: questions 1, 4 and 5 by the manager of Stage 11, questions 2 and 3 by the owner. The lines Metis holds are D31 in `decisions.md`.
 
 1. **Which licence covers the files: MIT or CC BY 4.0?** The release store's licence file is MIT; its README badge and every producer repository say CC BY 4.0. The credit follows CC BY 4.0's terms; MIT's condition is about copies of the software, and Metis makes none. Options: (a) keep crediting under CC BY 4.0, as now; (b) credit under both; (c) ask SportsDataverse which applies, through an issue on sportsdataverse-data, before `v1.0.0`. **Decided by the manager, 2026-11-14: (a) keep crediting under CC BY 4.0.**
-2. **NBA.com's terms were not read.** The site refused a plain client. Options: (a) the owner reads https://www.nba.com/termsofuse in a browser and records what it says on data and automated access here; (b) ask the NBA; (c) release without reading them, as `v0.4.0` to `v0.8.0` did (D29).
-3. **ESPN's and the NBA's data reach Metis through a third party.** ESPN's terms forbid building a data set from its products by script, and the NBA's site blocks the datacenter clients SportsDataverse's pipeline avoids by running from a home connection. Neither text speaks to a user of the resulting copy, and Metis never contacts either site. Options: (a) release as now, crediting the source and redistributing nothing; (b) get advice from a lawyer before `v1.0.0`; (c) narrow what Metis downloads (for example, leave out the `nba_stats_*` or `espn_nba_*` families), which would remove most of the app's depth. This task changes nothing in what is downloaded.
+2. **How does Metis follow the NBA's section 9?** The owner read it on 2026-11-15 ("The NBA" above). **Decided by the owner, 2026-11-15: release as now, with NBA.com and ESPN credited as the sources; reopened if the project's use changes.**
+3. **ESPN's and the NBA's data reach Metis through a third party's copy,** and neither text addresses that. **Decided by the owner, 2026-11-15: release as now, with NBA.com and ESPN credited as the sources; reopened if the project's use changes.**
 4. **Should Metis say it is unofficial more prominently?** The disclaimer of affiliation is on the Data screen and in the README. Options: (a) keep it there; (b) add a line to the first-run screen or the installer (T1103). **Decided by the manager, 2026-11-14: (a) for now; a line in the installer is left to T1103.**
 5. **The Basketball-Reference values in tests and check scripts.** A few hundred published numbers are typed by hand to check the formulas; Sports Reference's data-use page says facts may be reused. Options: (a) keep them; (b) replace them with values worked by hand from the formulas. **Decided by the manager, 2026-11-14: (a) keep them.**

@@ -6,7 +6,7 @@ Measured 2026-11-05 against [sportsdataverse-data](https://github.com/sportsdata
 
 Free, keyless Parquet files on GitHub releases, updated daily during the season. It fills the role nflverse fills in the template. It republishes two upstreams, ESPN (`espn_nba_*`) and stats.nba.com (`nba_stats_*`), plus derived tables.
 
-**Licence:** the repository's licence file is MIT and its README carries a CC BY 4.0 badge; the repositories that produce the NBA releases license their contents under CC BY 4.0. None of them speaks for the upstream data from ESPN or the NBA. Metis downloads to the user's machine and redistributes nothing. What each text says, the credit given and the questions left open are in [data-rights.md](data-rights.md) (Plan T1101).
+**Licence:** the repository's licence file is MIT and its README carries a CC BY 4.0 badge; the repositories that produce the NBA releases license their contents under CC BY 4.0. None of them speaks for the upstream data from ESPN or the NBA. Metis downloads to the user's machine and redistributes nothing. What each text says, the credit given and the decisions on what the texts leave open are in [data-rights.md](data-rights.md) (Plan T1101).
 
 Which seasons really hold values, table by table and column by column, is in [nba-coverage.md](nba-coverage.md).
 

@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { CC_BY_URL, CREDIT_LEAD, CREDIT_WHOSE, DATASET_URL, creditText } from '@/lib/stats/credit'
+import {
+  CC_BY_URL,
+  CREDIT_LEAD,
+  CREDIT_WHOSE,
+  DATASET_URL,
+  ESPN_NBA_URL,
+  NBA_STATS_URL,
+  creditText
+} from '@/lib/stats/credit'
 import { CATALOGUE } from '@shared/stats/catalogue'
 
 const links = CREDIT_LEAD.filter((s) => typeof s !== 'string')
@@ -8,12 +16,20 @@ describe('the data credit', () => {
   it('credits the dataset with a link, and links the licence CC BY 4.0 asks for', () => {
     expect(links).toContainEqual({ text: 'SportsDataverse', url: DATASET_URL })
     expect(links).toContainEqual({ text: 'CC BY 4.0', url: CC_BY_URL })
+  })
+
+  it('credits NBA.com and ESPN as the sources, each with a link', () => {
+    expect(links).toContainEqual({ text: 'NBA.com', url: NBA_STATS_URL })
+    expect(links).toContainEqual({ text: 'ESPN', url: ESPN_NBA_URL })
+    expect(NBA_STATS_URL).toBe('https://www.nba.com/stats')
+    expect(ESPN_NBA_URL).toBe('https://www.espn.com/nba/')
     expect(DATASET_URL).toBe('https://github.com/sportsdataverse/sportsdataverse-data')
   })
 
   it('names the upstreams and says what Metis changed', () => {
     const text = creditText()
-    expect(text).toContain('from ESPN and the NBA’s stats site')
+    expect(text).toContain('from ESPN and NBA.com.')
+    expect(text).toContain('as ESPN and NBA.com publish them')
     expect(text).toContain('reshapes it into its own tables and computes stats from it')
     expect(text).toContain('It shares nothing.')
   })

@@ -10,6 +10,10 @@ export type CreditSegment = string | { text: string; url: string }
 
 export const DATASET_URL = 'https://github.com/sportsdataverse/sportsdataverse-data'
 export const CC_BY_URL = 'https://creativecommons.org/licenses/by/4.0/'
+/** The NBA's terms (section 9) ask any display of its statistics to credit NBA.com prominently. */
+export const NBA_STATS_URL = 'https://www.nba.com/stats'
+/** ESPN is the other source, credited the same way (D31). */
+export const ESPN_NBA_URL = 'https://www.espn.com/nba/'
 
 export const CREDIT_TITLE = 'Data and credit'
 
@@ -18,14 +22,18 @@ export const CREDIT_LEAD: CreditSegment[] = [
   { text: 'SportsDataverse', url: DATASET_URL },
   ' under ',
   { text: 'CC BY 4.0', url: CC_BY_URL },
-  ', from ESPN and the NBA’s stats site. Metis downloads it to this computer, reshapes it into its own tables and computes stats from it. It shares nothing.'
+  ', from ',
+  { text: 'ESPN', url: ESPN_NBA_URL },
+  ' and ',
+  { text: 'NBA.com', url: NBA_STATS_URL },
+  '. Metis downloads it to this computer, reshapes it into its own tables and computes stats from it. It shares nothing.'
 ]
 
 /** Whose each number is, in the order a reader meets them. */
 export const CREDIT_WHOSE: { label: string; text: string }[] = [
   {
     label: 'As published',
-    text: 'Box scores, play by play, shots, tracking, hustle, play types, matchups, lineups and standings, as ESPN and the NBA publish them.'
+    text: 'Box scores, play by play, shots, tracking, hustle, play types, matchups, lineups and standings, as ESPN and NBA.com publish them.'
   },
   {
     label: 'SportsDataverse’s calculations',

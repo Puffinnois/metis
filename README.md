@@ -13,8 +13,10 @@ A local-first NBA statistics desktop app: a very extensive database of player an
 
 ## Data and credit
 
-- NBA data is published by [SportsDataverse](https://github.com/sportsdataverse/sportsdataverse-data) under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), and comes originally from ESPN and the NBA's stats site.
+- NBA data is published by [SportsDataverse](https://github.com/sportsdataverse/sportsdataverse-data) under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), and comes originally from [ESPN](https://www.espn.com/nba/) and [NBA.com](https://www.nba.com/stats).
 - Metis downloads it on your own machine, reshapes it into its own tables and computes stats from it. The installer contains no data, and Metis shares nothing.
-- Whose numbers are whose: box scores, play by play, tracking and the rest are as ESPN and the NBA publish them; possessions, lineups and the impact models (RAPM, SPM, BPM, WAR) are SportsDataverse's calculations, labelled "(SportsDataverse)"; SRS, Elo, the adjusted ratings, the season forecast, PER, Win Shares, BPM, VORP, Oliver's ratings, the league indexes and stability are computed by Metis from published methods, and say so.
+- Whose numbers are whose: box scores, play by play, tracking and the rest are as ESPN and NBA.com publish them; possessions, lineups and the impact models (RAPM, SPM, BPM, WAR) are SportsDataverse's calculations, labelled "(SportsDataverse)"; SRS, Elo, the adjusted ratings, the season forecast, PER, Win Shares, BPM, VORP, Oliver's ratings, the league indexes and stability are computed by Metis from published methods, and say so.
 - Metis is not affiliated with or endorsed by the NBA, ESPN or SportsDataverse. Team and player names, and the NBA and ESPN names, belong to their owners.
 - Metis's Apache-2.0 licence covers the app, not the data, which keeps its own terms. What was read is in [docs/reference/data-rights.md](docs/reference/data-rights.md).
+
+**Contact and takedown.** Metis is a personal, non-commercial project. A rights holder with a concern about the data it reads can [open an issue](https://github.com/Puffinnois/metis/issues) on this repository, and the request will be answered promptly.
