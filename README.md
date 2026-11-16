@@ -1,19 +1,44 @@
 # Metis
 
-A local-first NBA statistics desktop app: a very extensive database of player and team stats on your own machine, with a dashboard for filtering, sorting and comparing them.
+Metis is a desktop app for NBA statistics that runs on your own computer. It downloads public NBA data into a database on your machine, then lets you rank, filter, sort and compare players and teams across every season from 1993-94 to today. The stats are read from that database, and Metis shares nothing.
 
-**Status: early release.** [Download the latest release](https://github.com/Puffinnois/metis/releases/latest) for Windows. It has the leaderboards, the standings and the player, team and game dashboards from 1993-94 to now, with tracking, hustle, play types, matchups, lineups and play-by-play splits, and Metis's own ratings: SRS, Elo, opponent-adjusted ratings, a season forecast, PER, Win Shares, BPM, the league indexes (TS+) and how stable each stat is from one season to the next. The stages are in [Plan.md](Plan.md), the reasoning in [decisions.md](decisions.md). The previous Rust and Tauri implementation is on the [`archive/rust-tauri`](https://github.com/Puffinnois/metis/tree/archive/rust-tauri) branch.
+**Status: early release, for Windows.** [Download the latest release](https://github.com/Puffinnois/metis/releases/latest). Version 1.0 is being prepared: the stages are in [Plan.md](Plan.md), the reasoning in [decisions.md](decisions.md).
 
-- Stack: Electron, React, TypeScript, DuckDB
-- Data: [sportsdataverse-data](https://github.com/sportsdataverse/sportsdataverse-data), measured in [docs/reference/nba-data-sources.md](docs/reference/nba-data-sources.md)
-- Dev (WSL2, Node 22 through nvm): `npm install && npm run dev`
-- Tests: `npm test`
-- Windows installer, local test build: `npm run build:win`
-- License: Apache-2.0, for the app's code (see "Data and credit" for the data)
+## What it has
+
+| Screen           | What it answers                                                                                                                                                |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Leaderboards** | Who leads on any stat, in any season, season type, date range or last N games; per game, totals, per 36, per 48 or per 100 possessions. Saved views and CSV    |
+| **Players**      | One player's dashboard: overview, scoring, shooting, a shot chart, play by play, tracking, play types, matchups, game log, splits, on/off, profile and combine |
+| **Teams**        | One team's dashboard: record, ratings and strength, shots, players, lineups, splits, schedule, on/off                                                          |
+| **Standings**    | The published standings by conference or division, with Metis's SRS, Elo and, for the season in progress, a forecast of playoff and title odds                 |
+| **Explore**      | Chart any stat against another, compare three players or teams, and follow a stat across a career against the league each season                               |
+| **Games**        | Any day's games: box scores, score by period, a game-flow chart, Elo before and after, officials, and who guarded whom                                         |
+| **Glossary**     | Every metric: what it means, how it is computed, which seasons it covers and how stable it is from one season to the next                                      |
+
+The **Data panel**, opened from the status line, shows what is loaded, lets you pause a load, and gives the data's credit.
+
+**The statistics.** The box score from 1993-94 and the stats built on it (shooting, possessions, ratings, shares, game splits). What the NBA publishes per season: its advanced dashboards, player tracking from 2013-14, play types from 2015-16, hustle from 2016-17, matchups from 2017-18, five-man lineups from 2007-08, the draft combine and the injury reports. Counted from the play by play from 1996-97: shot zones, clutch and quarter splits, on/off and lineups of two to five, turnover and foul types, game flow. Computed by Metis from published methods: SRS, Elo, opponent-adjusted ratings, a season forecast, PER, Win Shares, BPM, VORP, league indexes (TS+) and each stat's stability.
+
+A stat outside its seasons reads blank with the reason, such as "Recorded from 2013-14.", never zero. Each screen is described in [docs/reference/stats-screens.md](docs/reference/stats-screens.md).
+
+## The first run
+
+The installer holds no data. On first launch Metis downloads the dataset and builds its database, measured on the development machine (Stage 10 gate, 2026-11-14; [what was measured](docs/reference/what-was-measured.md)):
+
+- **Time:** about 34 minutes, mostly the download, so it depends on your connection. Earlier loads on a faster connection took 12 to 21 minutes. The leaderboards are usable about 3 to 5 minutes in, while the rest loads.
+- **Disk:** a first load needs 6 GB free. The database ends at 5.3 GB, in `%APPDATA%\Metis`. The download is about 1.6 GB, and each file is deleted once loaded.
+- **Memory:** about 2.7 GB at its peak, across the app's processes.
+
+You can quit during a load: it carries on from where it stopped next time. After that, Metis refreshes at launch and every 6 hours while open: the season in progress is checked daily, older seasons are kept as loaded, and a refresh with nothing new takes about 20 seconds.
+
+These numbers come from loads in WSL on the development machine. A first load on Windows has not been measured yet (Plan T1104).
 
 ## Installing and updating
 
 The Windows installer is not code-signed, so on first install Windows SmartScreen says it "protected your PC". Click **More info**, then **Run anyway**. The installer puts Metis in your user folder without admin rights; uninstalling it keeps your data in `%APPDATA%\Metis`. Updates come from this repository's published releases: Metis checks at launch and every hour, downloads a newer version in the background and checks it against the release's `latest.yml` checksum, then shows **Update to x.y.z** in the top bar. Nothing installs until you choose **Update & restart**.
+
+Installing, uninstalling and updating have not yet been run on a Windows machine; the checklist is [docs/reference/windows-install-check.md](docs/reference/windows-install-check.md).
 
 ## Data and credit
 
@@ -24,3 +49,42 @@ The Windows installer is not code-signed, so on first install Windows SmartScree
 - Metis's Apache-2.0 licence covers the app, not the data, which keeps its own terms. What was read is in [docs/reference/data-rights.md](docs/reference/data-rights.md).
 
 **Contact and takedown.** Metis is a personal, non-commercial project. A rights holder with a concern about the data it reads can [open an issue](https://github.com/Puffinnois/metis/issues) on this repository, and the request will be answered promptly.
+
+How the numbers agree with the sources, season by season, is in [docs/reference/what-was-measured.md](docs/reference/what-was-measured.md).
+
+## Building from source
+
+Electron, React, TypeScript and DuckDB. Development runs in WSL2 with Node 22 through nvm.
+
+```bash
+npm install
+```
+
+```bash
+npm run dev
+```
+
+In WSL, Electron needs `ELECTRON_DISABLE_SANDBOX=1` or `--no-sandbox`. Development data goes to `~/.config/Metis/`.
+
+| Command                             | Does                                                               |
+| ----------------------------------- | ------------------------------------------------------------------ |
+| `npm test`                          | The unit tests                                                     |
+| `npm run typecheck`, `npm run lint` | Types and lint                                                     |
+| `npm run build`                     | Builds the app; `scripts/drive.mjs` then runs it and follows steps |
+| `npm run build:win`                 | A local Windows installer                                          |
+
+How the project is organized and its rules are in [CLAUDE.md](CLAUDE.md). The previous Rust and Tauri implementation is on the [`archive/rust-tauri`](https://github.com/Puffinnois/metis/tree/archive/rust-tauri) branch.
+
+## Read more
+
+[docs/README.md](docs/README.md) lists every reference document and what it is for:
+
+- [The screens](docs/reference/stats-screens.md)
+- [What was measured](docs/reference/what-was-measured.md)
+- [The statistics](docs/reference/nba-statistics.md)
+- [The data sources and their traps](docs/reference/nba-data-sources.md)
+- [The database and query engine](docs/reference/stats-database.md)
+
+## Licence
+
+Apache-2.0, for the app's code. The data keeps its own terms: see "Data and credit".
