@@ -235,6 +235,6 @@ export function registerIpcHandlers(ctx: AppContext): void {
     ctx.statsChanged()
   })
   ipcMain.handle(IPC.updateState, (): UpdateState => ctx.update.state())
-  ipcMain.handle(IPC.updateInstall, (): void => ctx.update.install())
+  ipcMain.handle(IPC.updateInstall, (): Promise<void> => ctx.update.install())
   ipcMain.handle(IPC.appVersion, (): string => app.getVersion())
 }

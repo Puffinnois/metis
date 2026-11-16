@@ -62,6 +62,10 @@ export function UpdateDialog({
           </div>
           {!ready && <p className="text-xs text-muted-foreground">Downloading {percent}%</p>}
         </div>
+        <p className="text-xs text-muted-foreground">
+          Metis closes, installs the update and opens again. A load or refresh in progress stops and
+          carries on after the restart.
+        </p>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Later

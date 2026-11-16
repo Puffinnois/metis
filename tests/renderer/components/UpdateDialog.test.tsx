@@ -33,6 +33,15 @@ describe('UpdateDialog', () => {
     expect(screen.getByText('news').tagName).toBe('STRONG')
   })
 
+  it('says what Update & restart does to a running load', () => {
+    renderDialog(ready)
+    expect(
+      screen.getByText(
+        'Metis closes, installs the update and opens again. A load or refresh in progress stops and carries on after the restart.'
+      )
+    ).toBeTruthy()
+  })
+
   it('falls back when there are no notes', () => {
     renderDialog({ ...ready, notes: null })
     expect(screen.getByText('No release notes for this version.')).toBeTruthy()

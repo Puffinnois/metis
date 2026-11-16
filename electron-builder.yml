@@ -32,7 +32,15 @@ nsis:
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
   oneClick: false
+  # The install-mode page offers "Only for me", selected, which installs under
+  # %LOCALAPPDATA%\Programs\Metis without admin rights; "Anyone who uses this computer" asks for them.
+  perMachine: false
   allowToChangeInstallationDirectory: true
+  # The uninstaller removes the program, its shortcuts and its registry entries, and keeps
+  # %APPDATA%\Metis: the stats file takes a long load to rebuild, and deleting it is the user's call.
+  deleteAppDataOnUninstall: false
+  # The welcome page's independence statement.
+  include: build/installer.nsh
 linux:
   icon: build/icon.png
   target:

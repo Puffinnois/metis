@@ -154,7 +154,16 @@ app.whenReady().then(async () => {
     update: installAutoUpdater({
       enabled: app.isPackaged && process.platform === 'win32',
       updater: autoUpdater,
-      onChange: (state) => mainWindow?.webContents.send(IPC.updateChanged, state)
+      onChange: (state) => mainWindow?.webContents.send(IPC.updateChanged, state),
+      // The same close as quitting: a running load or refresh stops and resumes on next launch.
+      beforeInstall: async () => {
+        await stats?.close()
+      },
+      // The stats are closed by then, so start again rather than run without them.
+      onInstallFailed: () => {
+        app.relaunch()
+        app.quit()
+      }
     })
   }
   registerIpcHandlers(ctx)
