@@ -54,6 +54,8 @@ Stage 9's gate, the same day on main at `d06be7d` (`~/.cache/metis-dev/gate9`), 
 
 An earlier run the same day, before ESPN's plays became a view, took 26.1 minutes on a busy machine, with 2.88 GB of memory and a 5.57 GB peak.
 
+**With the models (Stage 10's gate).** Measured 2026-11-14 through the real window on a clean profile (`~/.cache/metis-dev/gate10`), the models step new and last: 3,025 files, no errors, 33.7 minutes, peak memory 2.73 GB, the file 5.32 GB at its end and 5.33 GB at its peak; the boards at 213 seconds and a player dashboard at 214. `stats:plays` took 546 seconds and `stats:models` 200 (372,222 rows). The 13 minutes over Stage 9's 20.7 are mostly the downloads, which came at 0.60 to 1.73 MB/s by tier against Stage 9's 0.83 to 3.01. A second load from nothing on a quiet machine (`gate10b`): 35.2 minutes, 2.74 GB, the file 5.32 GB and 5.34 at its peak, `stats:models` 161 seconds. The details are in Plan.md, Stage 10.
+
 **A full rebuild of the play step** (every season due, as after a version bump), on a fresh copy of T901's load with `scripts/load-report.mjs`, the file sampled every half second:
 
 | Build                                      | Rows written | `stats:plays`, s | File before, peak, after (GB) | Memory  |
