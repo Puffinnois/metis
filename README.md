@@ -38,7 +38,7 @@ These numbers come from loads in WSL on the development machine. A first load on
 
 The Windows installer is not code-signed, so on first install Windows SmartScreen says it "protected your PC". Click **More info**, then **Run anyway**. The installer puts Metis in your user folder without admin rights; uninstalling it keeps your data in `%APPDATA%\Metis`. Updates come from this repository's published releases: Metis checks at launch and every hour, downloads a newer version in the background and checks it against the release's `latest.yml` checksum, then shows **Update to x.y.z** in the top bar. Nothing installs until you choose **Update & restart**.
 
-Installing, uninstalling and updating have not yet been run on a Windows machine; the checklist is [docs/reference/windows-install-check.md](docs/reference/windows-install-check.md).
+Installing, uninstalling and an update were run on Windows 11 on 2026-11-16, with test builds of 0.8.1 and 0.8.2 and a local update feed. The installer asked for no admin rights, quitting did not install the update, Update & restart did, and the uninstall kept the data folder. Not yet run on Windows: SmartScreen on a browser download, an update from this repository's published releases, and a first load ([docs/reference/windows-install-check.md](docs/reference/windows-install-check.md)).
 
 ## Data and credit
 
