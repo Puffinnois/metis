@@ -6,7 +6,7 @@ import { afterAll, describe, expect, it } from 'vitest'
 
 // scripts/check-installer-identity.mjs fails a test build of the installer that shares anything
 // with the real one. The fixtures are trimmed from electron-builder's debug output and 7-Zip
-// listings of run 43936470914, with the test executable renamed as it is now; test-shared.log is
+// listings of run 43936470914, with the test executable renamed as it is now; test-shared-log.txt is
 // the first test builds' mistake, the real executable name kept.
 
 const fixtures = resolve('tests/scripts/fixtures/installer-identity')
@@ -43,9 +43,9 @@ describe('check-installer-identity', () => {
   it('passes a test build that shares nothing, and prints both identities', () => {
     const r = run(
       '--real-log',
-      log('real.log'),
+      log('real-log.txt'),
       '--test-log',
-      log('test-separate.log'),
+      log('test-separate-log.txt'),
       '--real-listing',
       log('real-listing.txt'),
       '--test-listing',
@@ -69,7 +69,7 @@ describe('check-installer-identity', () => {
   })
 
   it('fails the first test builds, which kept the real executable name', () => {
-    const r = run('--real-log', log('real.log'), '--test-log', log('test-shared.log'))
+    const r = run('--real-log', log('real-log.txt'), '--test-log', log('test-shared-log.txt'))
     expect(r.code).toBe(1)
     expect(r.err).toContain('APP_FILENAME: both Metis')
     expect(r.err).toContain('installFolder: both %LOCALAPPDATA%\\Programs\\Metis')
@@ -81,12 +81,12 @@ describe('check-installer-identity', () => {
     const close = join(dir, 'close.log')
     writeFileSync(
       close,
-      readFileSync(log('test-separate.log'), 'utf8').replaceAll(
+      readFileSync(log('test-separate-log.txt'), 'utf8').replaceAll(
         'UpdateTestBuild',
         'MetisUpdateTest'
       )
     )
-    const r = run('--real-log', log('real.log'), '--test-log', close)
+    const r = run('--real-log', log('real-log.txt'), '--test-log', close)
     expect(r.code).toBe(1)
     expect(r.err).toContain('APP_FILENAME: Metis and MetisUpdateTest contain each other')
   })
@@ -94,7 +94,7 @@ describe('check-installer-identity', () => {
   it('fails when a value is missing, such as a log without makensis', () => {
     const empty = join(dir, 'empty.log')
     writeFileSync(empty, 'no installer was built\n')
-    const r = run('--real-log', log('real.log'), '--test-log', empty)
+    const r = run('--real-log', log('real-log.txt'), '--test-log', empty)
     expect(r.code).toBe(1)
     expect(r.err).toContain('APP_FILENAME: missing')
   })
@@ -102,9 +102,9 @@ describe('check-installer-identity', () => {
   it('fails when the data folders are the same', () => {
     const r = run(
       '--real-log',
-      log('real.log'),
+      log('real-log.txt'),
       '--test-log',
-      log('test-separate.log'),
+      log('test-separate-log.txt'),
       '--real-asar',
       asar('a.asar', { name: 'metis', productName: 'Metis' }),
       '--test-asar',
