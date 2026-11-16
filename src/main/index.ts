@@ -31,7 +31,10 @@ function createWindow(): void {
     show: false,
     autoHideMenuBar: true,
     backgroundColor: '#18181b',
-    ...(process.platform === 'linux' ? { icon } : {}),
+    // Windows and Linux take the window and taskbar icon from here; packaged on Windows the
+    // executable's own icon matches it, but in development the window would show Electron's.
+    // macOS uses the app bundle's icon.
+    ...(process.platform !== 'darwin' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,

@@ -1,0 +1,9 @@
+[
+  { "size": [1280, 800] },
+  { "wait": 2500 },
+  {
+    "eval": "JSON.stringify({ title: document.title, heading: document.querySelector('h1')?.textContent })"
+  },
+  { "shot": "window" },
+  { "wait": 8000 }
+]

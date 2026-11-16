@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <!-- The Metis mark: the owl of counsel, with basketballs for eyes. An original drawing. -->
+  <rect width="256" height="256" rx="56" fill="#3a1d78"/>
+  <path d="M24 34 Q60 100 128 100 Q196 100 232 34 Q242 112 216 156 Q190 206 128 236 Q66 206 40 156 Q14 112 24 34 Z" fill="#f6ead8"/>
+  <circle cx="84" cy="142" r="34" fill="#f08a24"/>
+  <circle cx="172" cy="142" r="34" fill="#f08a24"/>
+  <g fill="none" stroke="#2a1554" stroke-width="4">
+    <path d="M84 108 V176 M50 142 H118 M60 118 Q75 142 60 166 M108 118 Q93 142 108 166"/>
+    <path d="M172 108 V176 M138 142 H206 M148 118 Q163 142 148 166 M196 118 Q181 142 196 166"/>
+  </g>
+  <path d="M116 188 L128 180 L140 188 L128 216 Z" fill="#2a1554"/>
+</svg>
