@@ -1,6 +1,6 @@
 # What was measured
 
-The headline numbers, each with its date and where it came from. The detail is in the documents linked from each section. Every number here was measured on the development machine, in WSL on 16 cores and 23 GB of memory, unless it says otherwise. **Nothing has been measured on Windows yet** apart from the build and the packaged self-test in CI: installing, a first load, quitting, resuming and updating on Windows are Plan T1104.
+The headline numbers, each with its date and where it came from. The detail is in the documents linked from each section. Every number here was measured on the development machine, in WSL on 16 cores and 23 GB of memory, unless it says otherwise. On Windows, apart from the build and the packaged self-test in CI, only the installer, the uninstaller and an update have been run so far: on 2026-11-16, with test builds and a local update feed ([windows-install-check.md](windows-install-check.md)). A first load, quitting, resuming and a refresh on Windows are Plan T1104.
 
 ## The first load
 
@@ -84,7 +84,7 @@ Which seasons really hold values, table by table and column by column, is in [nb
 
 ## Not measured or not checked
 
-- **Windows:** installing, the first load, quitting and resuming, a refresh and an update on Windows (Plan T1103 and T1104). The checklist is in [windows-install-check.md](windows-install-check.md).
+- **Windows:** the first load, quitting and resuming, and a refresh (Plan T1104). Also not yet checked: SmartScreen on a browser download, an update from the published releases on GitHub, a differential update download, and the real installer's pages on a clean machine. What was run on 2026-11-16 is in [windows-install-check.md](windows-install-check.md).
 - **The download size at the Stage 9 and 10 gates:** each says "Not checked: the size of the downloads". The 1,554 MB above is from the asset list on 2026-11-05; the Stage 7 and 8 gates report 1.64 GB of downloads.
 - **Why the first attempt at the Stage 10 gate lost its page** 14 minutes into the load: it left no log, and it did not recur on two later loads with the capture on (Plan, Stage 10 gate).
 - **How fast a click is during the heaviest writes of the play step:** only five clicks were timed, 106 to 354 ms (Plans T907 and Stage 9 gate).
