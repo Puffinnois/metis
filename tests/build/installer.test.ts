@@ -23,6 +23,18 @@ describe('the Windows installer', () => {
     expect(setting('nsis', 'perMachine')).toBe('false')
   })
 
+  it('keeps the identity existing installs update in place by', () => {
+    // electron-builder derives the uninstall and install registry keys from appId, and the install
+    // folder, executable and uninstaller from win.executableName. Changing either makes the next
+    // version a second app beside the installed one. package.json's name sets the updater cache,
+    // its productName the data folder, %APPDATA%\Metis.
+    expect(builder.match(/^appId: (.+)$/m)?.[1]).toBe('com.yhabie.metis')
+    expect(builder.match(/^productName: (.+)$/m)?.[1]).toBe('Metis')
+    expect(setting('win', 'executableName')).toBe('Metis')
+    const pkg = JSON.parse(text('package.json'))
+    expect([pkg.name, pkg.productName]).toEqual(['metis', 'Metis'])
+  })
+
   it("keeps the user's data on uninstall", () => {
     expect(setting('nsis', 'deleteAppDataOnUninstall')).toBe('false')
   })
