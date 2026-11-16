@@ -7,7 +7,7 @@
 // usage: npx electron scripts/make-icon.mjs
 //        npx electron scripts/make-icon.mjs --sheet <out.png> <icon.svg>
 // The second form draws a preview of one SVG at 256, 48, 32 and 16 px (and 16 px enlarged) on a
-// light and a dark strip, which is how the candidates were compared.
+// light and a dark strip, to see how the mark holds up when small (docs/icon/preview.png).
 import { app, BrowserWindow } from 'electron'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -15,6 +15,14 @@ import { fileURLToPath } from 'node:url'
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)))
 const ICO_SIZES = [16, 24, 32, 48, 64, 128, 256]
+
+// An SVG with only a viewBox has no size of its own, and an image of it can be laid out at
+// 300 x 150 and stretched. Give the root a square size when it has none.
+function sized(svg) {
+  return svg.replace(/<svg\b[^>]*>/, (tag) =>
+    /\swidth=/.test(tag) ? tag : tag.replace('<svg', '<svg width="256" height="256"')
+  )
+}
 
 // Runs in the hidden page: draws the SVG at each size and returns its pixels and a PNG of each.
 const RASTER = `async (svg, sizes) => {
@@ -129,13 +137,13 @@ async function main() {
 
   if (args[0] === '--sheet') {
     const [, out, svgPath] = args
-    const png = await run(SHEET, readFileSync(svgPath, 'utf8'))
+    const png = await run(SHEET, sized(readFileSync(svgPath, 'utf8')))
     writeFileSync(out, Buffer.from(png, 'base64'))
     console.log(`wrote ${out}`)
     return
   }
 
-  const svg = readFileSync(join(ROOT, 'build/icon.svg'), 'utf8')
+  const svg = sized(readFileSync(join(ROOT, 'build/icon.svg'), 'utf8'))
   const drawn = await run(RASTER, svg, [...ICO_SIZES, 512])
   const bySize = new Map(drawn.map((d) => [d.n, d]))
   const images = ICO_SIZES.map((n) => ({ n, rgba: Buffer.from(bySize.get(n).rgba, 'base64') }))

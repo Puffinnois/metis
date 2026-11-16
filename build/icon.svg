@@ -1,7 +1,12 @@
-<!-- The Metis mark: an M whose strokes are a line chart, its second peak higher than the first.
-     Colours are the stats palette (D17): the ground is cobalt (#1f5ed9), the line is paper (#fcfdfe).
-     scripts/make-icon.mjs draws every icon file from this one. -->
-<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
-  <rect width="256" height="256" rx="56" fill="#1f5ed9"/>
-  <path d="M66 192 V98 L128 154 L190 62 V192" fill="none" stroke="#fcfdfe" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <!-- The Metis mark: the owl of counsel, with basketballs for eyes. An original drawing. -->
+  <rect width="256" height="256" rx="56" fill="#3a1d78"/>
+  <path d="M30 52 Q70 84 128 84 Q186 84 226 52 Q232 110 214 150 Q190 204 128 232 Q66 204 42 150 Q24 110 30 52 Z" fill="#f6ead8"/>
+  <circle cx="88" cy="132" r="38" fill="#f08a24"/>
+  <circle cx="168" cy="132" r="38" fill="#f08a24"/>
+  <g fill="none" stroke="#2a1554" stroke-width="4.5">
+    <path d="M88 94 V170 M50 132 H126 M61 105 Q78 132 61 159 M115 105 Q98 132 115 159"/>
+    <path d="M168 94 V170 M130 132 H206 M141 105 Q158 132 141 159 M195 105 Q178 132 195 159"/>
+  </g>
+  <path d="M116 177 L128 169 L140 177 L128 207 Z" fill="#2a1554"/>
 </svg>
