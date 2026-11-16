@@ -32,7 +32,7 @@ The installer holds no data. On first launch Metis downloads the dataset and bui
 
 You can quit during a load: it carries on from where it stopped next time. After that, Metis refreshes at launch and every 6 hours while open: the season in progress is checked daily, older seasons are kept as loaded, and a refresh with nothing new takes about 20 seconds.
 
-These numbers come from loads in WSL on the development machine. A first load on Windows has not been measured yet (Plan T1104).
+These numbers come from loads in WSL on the development machine. One first load on Windows, on a machine in use for other things, took 76 minutes, of which about 20 for the download, with a 5.3 GB file and about 2 GB of memory at the peak (2026-11-16, Plan T1104).
 
 ## Installing and updating
 

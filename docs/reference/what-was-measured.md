@@ -1,6 +1,6 @@
 # What was measured
 
-The headline numbers, each with its date and where it came from. The detail is in the documents linked from each section. Every number here was measured on the development machine, in WSL on 16 cores and 23 GB of memory, unless it says otherwise. On Windows, apart from the build and the packaged self-test in CI, only the installer, the uninstaller and an update have been run so far: on 2026-11-16, with test builds and a local update feed ([windows-install-check.md](windows-install-check.md)). A first load, quitting, resuming and a refresh on Windows are Plan T1104.
+The headline numbers, each with its date and where it came from. The detail is in the documents linked from each section. Every number here was measured on the development machine, in WSL on 16 cores and 23 GB of memory, unless it says otherwise. On Windows, apart from the build and the packaged self-test in CI, the installer, the uninstaller and an update were run on 2026-11-16, with test builds and a local update feed ([windows-install-check.md](windows-install-check.md)), and a first load with a quit and resume the same day ("On Windows", below). A refresh on Windows and a clean machine remain (Plan T1104).
 
 ## The first load
 
@@ -20,6 +20,24 @@ A first load downloads every file the dataset publishes, builds the tables and c
 Earlier gates on the same data loaded the same 3,025 files in 12.2 minutes (Stage 7, 2026-11-10), 12.7 (Stage 8, 2026-11-11) and 20.7 (Stage 9, 2026-11-13). The difference is the network and the machine: Stage 10's builds kept their time, and its downloads were slower ("The load took 13 minutes longer than Stage 9's", Plan, Stage 10 gate). The tier-by-tier breakdown and the play step's cost are in [nba-data-sources.md](nba-data-sources.md), "The first full load".
 
 What the steps cost at the Stage 10 gate: building the game tables 12.7 seconds, the published tables 3.7 and 13.9 seconds, the play tables (34.9 million rows) 546 seconds, and the models (Elo, team strength, the adjusted ratings, the composites, the forecast and stability, 372,222 rows) 200 seconds.
+
+### On Windows
+
+One first load on Windows, 2026-11-16, measured by the manager (Plan T1104). The machine was the owner's: Windows 11 Home build 26300, an Intel i7-13620H, 31.7 GB of memory (9.1 GB free at the start) and 151.5 GB of free disk. It was in use for other things during the run, a browser playing video and other apps, so it was a clean profile, not a clean machine. The build was the test build 0.8.1 of run 43939122396, the app as on main at that run with its own data folder, installed silently for the current user.
+
+| What                 | Measured                                                                                                                                                                                         |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Files                | 3,025 of 3,025 loaded (Data panel), all in by about 15:29, about 20 minutes after launch                                                                                                         |
+| Time                 | 76.1 minutes from launch to the last write (15:08:51 to 16:24:57), one second of it closed. About 20 minutes for the downloads and file loads, about 56 for the build steps after them           |
+| First screens        | The leaderboards with 2026-27 data between 3 min 10 s and 4 min 15 s after launch (807 of 3,070 files at 3:10, the leaderboards up with 1,339 at about 4:15)                                     |
+| Quit and resume      | Quit at 15:13:05 with 1,339 files in: every process gone within 1 second, no WAL beside the 533,737,472-byte file. Relaunched at once, the leaderboards showed and the load carried on           |
+| Database file        | 5,319,176,192 bytes at the end. Free disk went from 151.5 to 146.4 GB                                                                                                                            |
+| Peak memory          | 2,031 MB working set and 2,022 MB private, summed over the app's four processes, sampled every 15 seconds, both at 16:24:00                                                                      |
+| CPU                  | 5,620 CPU-seconds in the main process, about 1.2 cores on average over the run                                                                                                                   |
+| After the load       | The player dashboard, the standings with SRS and a game's page with Elo and the game-flow chart answered. Quitting took 7.5 seconds; relaunched, the app opened with data and did not load again |
+| Against D22's limits | The file and memory are inside. The time, 76 minutes, is outside, on a machine in use                                                                                                            |
+
+The build steps took about 56 minutes, against about 13 in WSL at the Stage 10 gate. Only the file's size over time is known (4,679 MB until after 15:39, 4,704 at 15:49, 4,845 at 15:59, 5,073 from 16:09): the profile was deleted before the sync log was read, so the time of each step was not. Why they ran four to five times slower than in WSL is not established. Candidates, none tested: other load on the machine, Windows scheduling a background window's process on efficiency cores, real-time antivirus scanning of the database file, and DuckDB's thread count on Windows.
 
 ## Refreshing
 
@@ -84,7 +102,7 @@ Which seasons really hold values, table by table and column by column, is in [nb
 
 ## Not measured or not checked
 
-- **Windows:** the first load, quitting and resuming, and a refresh (Plan T1104). Also not yet checked: SmartScreen on a browser download, an update from the published releases on GitHub, a differential update download, and the real installer's pages on a clean machine. What was run on 2026-11-16 is in [windows-install-check.md](windows-install-check.md).
+- **Windows:** a refresh, the time of each build step, the credit section by eye, a clean machine, and the real installer's first run (the first load used a test build) (Plan T1104). Why the build steps ran four to five times slower than in WSL. Also not yet checked: SmartScreen on a browser download, an update from the published releases on GitHub, a differential update download, and the real installer's pages on a clean machine. What was run on 2026-11-16 is in [windows-install-check.md](windows-install-check.md).
 - **The download size at the Stage 9 and 10 gates:** each says "Not checked: the size of the downloads". The 1,554 MB above is from the asset list on 2026-11-05; the Stage 7 and 8 gates report 1.64 GB of downloads.
 - **Why the first attempt at the Stage 10 gate lost its page** 14 minutes into the load: it left no log, and it did not recur on two later loads with the capture on (Plan, Stage 10 gate).
 - **How fast a click is during the heaviest writes of the play step:** only five clicks were timed, 106 to 354 ms (Plans T907 and Stage 9 gate).
