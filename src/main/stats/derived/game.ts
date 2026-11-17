@@ -117,7 +117,10 @@ const ON_COURT: Record<string, string> = {
   x_stl_den: `${SHARE} * t.poss_sym`,
   x_blk_den: `${SHARE} * (t.opp_fga - t.opp_fg3a)`,
   x_usg_den: `${SHARE} * (t.fga + 0.44 * t.fta + t.tov)`,
-  on_poss: `${SHARE} * t.poss_sym`
+  on_poss: `${SHARE} * t.poss_sym`,
+  // The NBA's published PIE divides by the game's total scaled the same way (reference 14.1). A side
+  // plays five slots, so the share is the player's minutes over one slot's, overtime included.
+  x_pie_den: `${SHARE} * t.pie_total`
 }
 
 /** Every summed column of `player_game` and `player_season`. */

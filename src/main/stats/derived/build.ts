@@ -4,7 +4,7 @@ import { buildSeasonTables } from './season'
 import { inspect } from './sql'
 
 /** Bump when these tables change, so the next refresh builds them without downloading anything. */
-export const DERIVED_VERSION = 1
+export const DERIVED_VERSION = 2
 
 /**
  * Without the identity tables and one box score there is nothing to build from. The source tables

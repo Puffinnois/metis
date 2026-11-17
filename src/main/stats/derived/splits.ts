@@ -465,7 +465,8 @@ export const SPLIT_PLAYER_SQL: Readonly<Record<string, string>> = (() => {
     x_stl_den: `${share} * 0.5 * (st.poss + st.opp_poss)`,
     x_blk_den: `${share} * (st.opp_fga - st.opp_fg3a)`,
     x_usg_den: `${share} * (st.fga + 0.44 * st.fta + st.tov)`,
-    on_poss: `${share} * 0.5 * (st.poss + st.opp_poss)`
+    on_poss: `${share} * 0.5 * (st.poss + st.opp_poss)`,
+    x_pie_den: `${share} * ((${pieOf('st.')}) + (${pieOf('st.opp_')}))`
   }
 })()
 

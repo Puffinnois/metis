@@ -267,7 +267,7 @@ function advanced(entity: 'player' | 'team'): MetricDef[] {
         short: 'PIE NBA',
         description:
           entity === 'player'
-            ? `The NBA's published PIE. It reads higher than the box-score PIE here, and behaves like a share of what happened while the player was on the floor. ${WEIGHTED}`
+            ? `The NBA's published PIE: the player's share of what both teams did while they were on the floor. ${WEIGHTED}`
             : `The NBA's published PIE for the team: its share of what both teams did. ${WEIGHTED}`,
         family: 'composite'
       },

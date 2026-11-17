@@ -41,9 +41,9 @@ export const COMPOSITE: MetricDef[] = [
     'pie',
     'Player Impact Estimate',
     'PIE',
-    "The player's share of everything both teams did in their games, counted the way the NBA's PIE counts it. The NBA's published season figure reads higher: it behaves like a share of what happened while the player was on the floor.",
+    "The player's share of everything both teams did while they were on the floor, counted the way the NBA's PIE counts it. Each game's total is scaled by their share of its minutes, as the NBA's published figure is.",
     {
-      value: `${PIE} / nullif({pie_total}, 0)`,
+      value: `${PIE} / nullif({x_pie_den}, 0)`,
       sample: 'minutes',
       unit: 'pct',
       minSample: 1000,
