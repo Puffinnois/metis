@@ -540,7 +540,13 @@ const WNBA_DASHBOARDS: SourceFile[] = [
   wDashboard('standings', 'team-season')
 ]
 
-const wIds = (table: string, stem: string, grain: string, firstSeason: number, all = false) =>
+const wIds = (
+  table: string,
+  stem: string,
+  grain: string,
+  firstSeason: number,
+  all = false
+): SourceFile =>
   source(
     table,
     table.startsWith('src_xwalk') ? 'wnba_crosswalk' : 'wnba_groups',

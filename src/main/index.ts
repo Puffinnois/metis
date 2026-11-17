@@ -13,7 +13,8 @@ import { registerDevHandlers } from '@main/dev/ipc'
 import { createDevMode } from '@main/dev/mode'
 import { registerIpcHandlers, type AppContext } from '@main/ipc/handlers'
 import { createChangeNotifier } from '@main/stats/changes'
-import { startStatsWorker, type StatsClient } from '@main/stats/client'
+import { startStatsWorker } from '@main/stats/client'
+import { createLeagueControl } from '@main/stats/leagueControl'
 import { installAutoUpdater } from '@main/updater'
 import { IPC } from '@shared/ipc'
 import { DEFAULT_LEAGUE, LEAGUES, type LeagueId } from '@shared/leagues'
@@ -84,31 +85,6 @@ function openAppDatabase(): Db {
   }
 }
 
-/**
- * One stats worker per league that has data, each opening only its own file in the data folder (D36):
- * one league's refresh never waits behind another's write. A failure turns that league's stats off and
- * leaves the app running, where it says so. A league with no data yet gets no worker and no file.
- */
-function openStats(onStep: (league: LeagueId) => void): Map<LeagueId, StatsClient> {
-  const dataDir = app.getPath('userData')
-  const clients = new Map<LeagueId, StatsClient>()
-  for (const league of Object.values(LEAGUES)) {
-    if (!league.hasData) continue
-    try {
-      clients.set(
-        league.id,
-        startStatsWorker(
-          { league: league.id, dataDir, tempDir: join(dataDir, 'stats-tmp', league.id) },
-          () => onStep(league.id)
-        )
-      )
-    } catch (err) {
-      console.error(`could not start the ${league.name} stats worker; its stats are off`, err)
-    }
-  }
-  return clients
-}
-
 /** How often a window left open looks for new games; each file still decides if it is due. */
 const REFRESH_INTERVAL_MS = 6 * 60 * 60 * 1000
 
@@ -174,26 +150,26 @@ app.whenReady().then(async () => {
     ])
   )
   const statsChanged = (league: LeagueId): void => notifiers.get(league)?.()
-  const stats = openStats(statsChanged)
-  const refresh = (league: LeagueId): void => {
-    stats
-      .get(league)
-      ?.refresh()
-      .then(
-        () => statsChanged(league),
-        (err) => console.error(`the ${league} stats refresh failed`, err)
-      )
-  }
-  const refreshAll = (): void => {
-    for (const league of stats.keys()) refresh(league)
-  }
-  const closeStats = (): Promise<unknown> =>
-    Promise.allSettled([...stats.values()].map((client) => client.close()))
+  // One stats worker per league with something to read, each opening only its own file in the data
+  // folder (D36): one league's refresh never waits behind another's write. Which leagues download is
+  // the user's choice (`leagueDownloads`); on a clean profile nothing starts until the first run's
+  // question is answered.
+  const dataDir = app.getPath('userData')
+  const leagues = createLeagueControl({
+    db,
+    dataDir,
+    start: (league) =>
+      startStatsWorker({ league, dataDir, tempDir: join(dataDir, 'stats-tmp', league) }, () =>
+        statsChanged(league)
+      ),
+    onChanged: statsChanged
+  })
+  leagues.open()
+  const closeStats = (): Promise<unknown> => leagues.close()
   const ctx: AppContext = {
     db,
     getWindow: () => mainWindow,
-    stats: (league) => stats.get(league) ?? null,
-    refreshStats: refresh,
+    leagues,
     statsChanged,
     update: installAutoUpdater({
       enabled: app.isPackaged && process.platform === 'win32',
@@ -219,8 +195,7 @@ app.whenReady().then(async () => {
   })
   createWindow()
 
-  refreshAll()
-  setInterval(refreshAll, REFRESH_INTERVAL_MS)
+  setInterval(() => leagues.refreshAll(), REFRESH_INTERVAL_MS)
 
   // The process must not exit while DuckDB runs a statement (Electron aborts), so the first quit
   // closes the stats worker, which interrupts a running refresh, and then quits again.

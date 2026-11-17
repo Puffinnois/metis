@@ -84,13 +84,16 @@ export async function runQuery(
 }
 
 /**
- * The engine's answer for a league with no data yet (`League.hasData` false): the query is still
- * checked, so a bad one is refused as it would be, and every column says why it has no value. No file
- * is opened.
+ * The engine's answer for a league with no stats to read: off with no file (`League.noData`, the
+ * default) or with its tables not built (`League.notBuilt`). The query is still checked, so a bad one
+ * is refused as it would be, and every column says why it has no value. No file is opened.
  */
-export function noDataResult(query: StatsQuery, ctx: CompileContext): StatsResult {
+export function noDataResult(
+  query: StatsQuery,
+  ctx: CompileContext,
+  reason: string = ctx.league.noData
+): StatsResult {
   const compiled = compileQuery(query, ctx)
-  const reason = ctx.league.noData
   return {
     grain: compiled.grain,
     columns: compiled.metrics.map((m) => ({

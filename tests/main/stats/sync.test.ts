@@ -9,6 +9,7 @@ import {
   ATTEMPT_INTERVAL_MS,
   ERROR_RETRY_MS,
   isDue,
+  isSealed,
   PARALLEL_DOWNLOADS,
   planSteps,
   PRIOR_SEASON_FRESHNESS_MS,
@@ -18,7 +19,7 @@ import {
   type SourceState
 } from '@main/stats/sync'
 import { openTestDb, tempDir, writeFixture } from '../../fixtures/stats'
-import { LEAGUES } from '@shared/leagues'
+import { inSeason, LEAGUES, seasonEnd } from '@shared/leagues'
 
 // These tests follow the file steps alone; the published tables' own step is tested in
 // `syncIdentity.test.ts`, and would otherwise follow every run here.
@@ -37,12 +38,14 @@ const state = (fetchedAt: string, sealed = false, version = 1): SourceState => (
   sealed,
   rows: 1,
   etag: null,
-  bytes: null
+  bytes: null,
+  modifiedAt: null
 })
 const due = (over: Partial<DueInput>): boolean =>
   isDue({
     season: CURRENT,
     current: CURRENT,
+    ended: false,
     force: false,
     now: NOW.getTime(),
     attempt: null,
@@ -81,6 +84,112 @@ describe('isDue', () => {
     expect(due({ season: 2026, state: state(ago(PRIOR_SEASON_FRESHNESS_MS)) })).toBe(true)
     expect(due({ season: 2024, state: state(recent, true) })).toBe(false)
     expect(due({ season: 2024, state: state(recent, false) })).toBe(true)
+  })
+
+  it('checks a season that has ended weekly, and a sealed one never', () => {
+    const recent = ago(3 * 24 * HOUR)
+    expect(due({ ended: true, state: state(recent) })).toBe(false)
+    expect(due({ ended: true, state: state(ago(PRIOR_SEASON_FRESHNESS_MS)) })).toBe(true)
+    expect(due({ ended: true, state: state(ago(PRIOR_SEASON_FRESHNESS_MS), true) })).toBe(false)
+    expect(due({ season: 2026, state: state(ago(PRIOR_SEASON_FRESHNESS_MS), true) })).toBe(false)
+    // A file of all seasons is never sealed.
+    expect(due({ season: 0, ended: false, state: state(recent, true) })).toBe(true)
+  })
+})
+
+describe('the season rule, per league', () => {
+  const wnba = LEAGUES.wnba
+  const nba = LEAGUES.nba
+  const day = 24 * HOUR
+  /** What a refresh on `date` decides for a file of `season` last changed on `modified`. */
+  const rule = (
+    league: typeof wnba,
+    date: string,
+    season: number,
+    modified: string | null
+  ): { inSeason: boolean; ended: boolean; sealed: boolean; dueDaily: boolean } => {
+    const now = new Date(date)
+    const current = league.currentSeason(now)
+    const ended = now.getTime() >= seasonEnd(league, season).getTime()
+    return {
+      inSeason: inSeason(league, now),
+      ended,
+      sealed: isSealed({ season, current, ended, now: now.getTime(), modifiedAt: modified }),
+      dueDaily: isDue({
+        season,
+        current,
+        ended,
+        force: false,
+        now: now.getTime(),
+        attempt: null,
+        version: 1,
+        state: { ...state(new Date(now.getTime() - 2 * day).toISOString()), modifiedAt: modified }
+      })
+    }
+  }
+
+  it('ends the WNBA season after October and the NBA season after June', () => {
+    expect(seasonEnd(wnba, 2026).toISOString()).toBe('2026-11-01T00:00:00.000Z')
+    expect(seasonEnd(nba, 2026).toISOString()).toBe('2026-07-01T00:00:00.000Z')
+  })
+
+  it('refreshes the WNBA season daily from May through October', () => {
+    expect(rule(wnba, '2026-04-30T12:00:00Z', 2026, null)).toMatchObject({
+      inSeason: false,
+      ended: false,
+      sealed: false,
+      dueDaily: true
+    })
+    expect(rule(wnba, '2026-05-01T12:00:00Z', 2026, null)).toMatchObject({
+      inSeason: true,
+      dueDaily: true
+    })
+    expect(rule(wnba, '2026-10-31T23:00:00Z', 2026, '2026-10-31T13:00:00Z')).toMatchObject({
+      inSeason: true,
+      ended: false,
+      sealed: false,
+      dueDaily: true
+    })
+  })
+
+  it('seals the season just ended once its files have not changed for two weeks', () => {
+    // Finals ended on 2026-10-29; the game logs last changed on 2026-10-31.
+    const logs = '2026-10-31T13:14:25Z'
+    expect(rule(wnba, '2026-11-01T12:00:00Z', 2026, logs)).toMatchObject({
+      inSeason: false,
+      ended: true,
+      sealed: false,
+      dueDaily: false
+    })
+    expect(rule(wnba, '2026-11-14T13:00:00Z', 2026, logs).sealed).toBe(false)
+    expect(rule(wnba, '2026-11-14T13:15:00Z', 2026, logs).sealed).toBe(true)
+    // A file republished on 2026-11-15 waits two weeks from then.
+    expect(rule(wnba, '2026-11-17T12:00:00Z', 2026, '2026-11-15T09:00:00Z').sealed).toBe(false)
+    // Its Last-Modified unknown, it is never sealed by the rule while it is the current season.
+    expect(rule(wnba, '2026-12-20T12:00:00Z', 2026, null).sealed).toBe(false)
+  })
+
+  it('treats the WNBA prior season like the NBA’s, and seals two back on load', () => {
+    expect(rule(wnba, '2026-11-17T12:00:00Z', 2025, '2025-10-20T00:00:00Z').sealed).toBe(true)
+    expect(rule(wnba, '2026-11-17T12:00:00Z', 2025, null).sealed).toBe(false)
+    expect(rule(wnba, '2026-11-17T12:00:00Z', 2024, null).sealed).toBe(true)
+  })
+
+  it('keeps the NBA current season daily through June and over the summer’s turn', () => {
+    expect(rule(nba, '2027-06-20T12:00:00Z', 2027, '2027-06-19T00:00:00Z')).toMatchObject({
+      ended: false,
+      dueDaily: true
+    })
+    expect(rule(nba, '2027-07-20T12:00:00Z', 2027, '2027-06-21T00:00:00Z')).toMatchObject({
+      ended: true,
+      sealed: true
+    })
+    // In August the label turns: the new season is current and refreshed daily before it starts.
+    expect(rule(nba, '2027-08-02T12:00:00Z', 2028, null)).toMatchObject({
+      inSeason: false,
+      ended: false,
+      dueDaily: true
+    })
   })
 })
 

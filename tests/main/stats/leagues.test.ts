@@ -87,11 +87,25 @@ describe('a league with no worker', () => {
     expect((await reads.catalogue()).every((m) => m.unavailable)).toBe(true)
     expect(await reads.seasons()).toEqual([])
     expect((await reads.shots({} as never)).reason).toBe(wnba.noData)
-    await expect(reads.data()).rejects.toThrow(wnba.noData)
+    // The Data panel still lists the league's releases, none loaded.
+    const data = await reads.data()
+    expect(data.families.length).toBe(37)
+    expect(data.families.every((f) => f.filesLoaded === 0 && f.state === 'waiting')).toBe(true)
+  })
+
+  it('answers with the reason it is given: the tables not built yet', async () => {
+    const reads = offlineStats(wnba, wnba.notBuilt)
+    expect((await reads.status()).noData).toBe(wnba.notBuilt)
+    const result = await reads.query({
+      entity: 'player',
+      metrics: ['pts'],
+      scope: { seasons: [2026] }
+    })
+    expect(result.notes).toEqual([wnba.notBuilt])
   })
 
   it('says the stats are off for a league whose worker did not start', async () => {
-    const reads = offlineStats(nba)
+    const reads = offlineStats(nba, null)
     expect((await reads.status()).noData).toBeUndefined()
     await expect(
       reads.query({ entity: 'player', metrics: ['pts'], scope: { seasons: [2026] } })

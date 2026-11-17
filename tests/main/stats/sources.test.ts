@@ -149,7 +149,12 @@ describe('the WNBA sources', () => {
       'https://github.com/sportsdataverse/sportsdataverse-data/releases/download/wnba_stats_player_game_logs/player_game_logs_2026.parquet'
     )
     expect(logs.grain).toBe('player-game and team-game')
-    expect(seasonsOf(wnba.find((s) => s.id === 'wnba_player_box')!, 2026)).toEqual([2026])
+    expect(
+      seasonsOf(
+        wnba.find((s) => s.id === 'wnba_player_box')!,
+        2026
+      )
+    ).toEqual([2026])
   })
 
   it('mark the six releases the keys are built from', () => {

@@ -3,8 +3,8 @@ import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { Db } from '@main/db/connection'
 import { deleteStatsView, listStatsViews, saveStatsView } from '@main/db/repos/statsViews'
-import type { StatsClient } from '@main/stats/client'
-import { offlineStats, type StatsReads } from '@main/stats/offline'
+import type { LeagueControl } from '@main/stats/leagueControl'
+import type { StatsReads } from '@main/stats/offline'
 import type { installAutoUpdater } from '@main/updater'
 import { IPC } from '@shared/ipc'
 import { leagueOf, type LeagueId } from '@shared/leagues'
@@ -39,6 +39,7 @@ import type {
   StatsSeason,
   StatsStanding,
   StatsStatus,
+  LeagueDownloads,
   StatsView
 } from '@shared/stats/types'
 import type { UpdateState } from '@shared/types'
@@ -47,12 +48,10 @@ export interface AppContext {
   db: Db
   getWindow: () => BrowserWindow | null
   /**
-   * A league's stats worker: null for a league with no data yet, or when its worker could not start
-   * (the app runs and says so). One worker per league, each opening only its own file (D36).
+   * The stats workers, one per league with something to read, each opening only its own file (D36),
+   * and which leagues download.
    */
-  stats: (league: LeagueId) => StatsClient | null
-  /** Runs a league's refresh in the background; each file still decides if it is due. */
-  refreshStats: (league: LeagueId) => void
+  leagues: LeagueControl
   /** Tells the window to read a league's status again. */
   statsChanged: (league: LeagueId) => void
   update: ReturnType<typeof installAutoUpdater>
@@ -63,8 +62,7 @@ export interface AppContext {
  * answers of a league with no worker (`offlineStats`).
  */
 function readsFor(ctx: AppContext, id: LeagueId): StatsReads {
-  const league = leagueOf(id)
-  return ctx.stats(league.id) ?? offlineStats(league)
+  return ctx.leagues.reads(leagueOf(id).id)
 }
 
 export function registerIpcHandlers(ctx: AppContext): void {
@@ -232,9 +230,21 @@ export function registerIpcHandlers(ctx: AppContext): void {
   })
   ipcMain.handle(IPC.statsResume, async (_e, league: LeagueId): Promise<void> => {
     await readsFor(ctx, league).resume()
-    ctx.refreshStats(league)
+    ctx.leagues.refresh(league)
     ctx.statsChanged(league)
   })
+  // Which leagues download (D35): read through one call, for the first run and the Data panel.
+  ipcMain.handle(IPC.leagueDownloads, (): LeagueDownloads => ctx.leagues.downloads())
+  ipcMain.handle(
+    IPC.leagueSetDownloads,
+    (_e, choice: Partial<Record<LeagueId, boolean>>): Promise<LeagueDownloads> => {
+      for (const id of Object.keys(choice)) leagueOf(id as LeagueId)
+      return ctx.leagues.setDownloads(choice)
+    }
+  )
+  ipcMain.handle(IPC.leagueDeleteFile, (_e, league: LeagueId): Promise<LeagueDownloads> =>
+    ctx.leagues.deleteFile(leagueOf(league).id)
+  )
   ipcMain.handle(IPC.updateState, (): UpdateState => ctx.update.state())
   ipcMain.handle(IPC.updateInstall, (): Promise<void> => ctx.update.install())
   ipcMain.handle(IPC.appVersion, (): string => app.getVersion())

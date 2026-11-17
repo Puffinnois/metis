@@ -932,3 +932,27 @@ export interface StatsGameFlow {
   summary: FlowSummary | null
   reason: string | null
 }
+
+/** One league's download, as the main process reads it (`leagueDownloads`). */
+export interface LeagueDownload {
+  league: LeagueId
+  /** The user's choice: its files are downloaded and kept up to date. */
+  on: boolean
+  /** Its stats file is in the data folder; a league turned off keeps its file until it is deleted. */
+  hasFile: boolean
+  /** The file with its log, as it is on disk; 0 without one. */
+  fileBytes: number
+  /** Something to read: on, or a file kept from before. */
+  hasData: boolean
+  /** The free space its first load still needs; 0 once loaded. */
+  roomNeeded: number
+}
+
+/** Which leagues download, for the first run and the Data panel. */
+export interface LeagueDownloads {
+  /** False on a clean profile until the user has chosen; nothing is downloaded before. */
+  decided: boolean
+  leagues: LeagueDownload[]
+  /** Free space in the data folder; null when the system will not say. */
+  freeBytes: number | null
+}
