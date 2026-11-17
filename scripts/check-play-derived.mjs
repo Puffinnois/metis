@@ -21,7 +21,8 @@
 //
 // Tolerance: "exact" means equal; nothing is tuned. Box-score rows only (`box_games = 1`).
 //
-// usage: node scripts/check-play-derived.mjs <folder holding stats.duckdb> [out.md]
+// usage: node scripts/check-play-derived.mjs <folder holding stats-<league>.duckdb> [out.md]
+// --league=<id> anywhere picks the league (default nba).
 import { readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'

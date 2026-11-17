@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { compileQuery } from '@main/stats/engine/compile'
 import { LEFT_OUT_REASON } from '@main/stats/leftOut'
 import type { StatsQuery } from '@shared/stats/types'
+import { LEAGUES } from '@shared/leagues'
 
 // A build that leaves out the league dashboards, the on-court lineups and the NBA's play by play.
 vi.mock('@main/stats/sources', async (actual) => ({
@@ -9,7 +10,7 @@ vi.mock('@main/stats/sources', async (actual) => ({
   LEFT_OUT_RELEASES: ['nba_stats_leaguedash', 'nba_stats_game_lineups', 'nba_stats_pbp']
 }))
 
-const CTX = { currentSeason: 2027 }
+const CTX = { league: LEAGUES.nba, currentSeason: 2027 }
 const query = (metrics: string[], scope: Partial<StatsQuery['scope']> = {}): StatsQuery => ({
   entity: 'player',
   metrics,

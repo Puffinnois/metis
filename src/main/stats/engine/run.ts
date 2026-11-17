@@ -1,13 +1,7 @@
 import { covers } from '@shared/stats/catalogue'
 import type { GroupBy, MetricValue, StatsQuery, StatsResult } from '@shared/stats/types'
 import type { StatsDb } from '../db'
-import {
-  compileQuery,
-  FULL_SEASON,
-  StatsQueryError,
-  type CompileContext,
-  type Compiled
-} from './compile'
+import { compileQuery, StatsQueryError, type CompileContext, type Compiled } from './compile'
 
 /** A query that runs longer is interrupted and reported. */
 export const QUERY_TIMEOUT_MS = 5_000
@@ -16,7 +10,8 @@ const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFi
 
 /**
  * Runs one `StatsQuery` on a read connection: compiles it, counts the team games in scope
- * (qualification scales `minSample` to them), runs it under a timeout, and shapes the rows.
+ * (qualification scales `minSample` to them), runs it under a timeout, and shapes the rows. The
+ * context names the league, whose file the connection reads.
  */
 export async function runQuery(
   db: StatsDb,
@@ -89,6 +84,33 @@ export async function runQuery(
 }
 
 /**
+ * The engine's answer for a league with no data yet (`League.hasData` false): the query is still
+ * checked, so a bad one is refused as it would be, and every column says why it has no value. No file
+ * is opened.
+ */
+export function noDataResult(query: StatsQuery, ctx: CompileContext): StatsResult {
+  const compiled = compileQuery(query, ctx)
+  const reason = ctx.league.noData
+  return {
+    grain: compiled.grain,
+    columns: compiled.metrics.map((m) => ({
+      id: m.id,
+      label: m.label,
+      short: m.short,
+      unit: compiled.transform === 'percentile' ? 'number' : m.unit,
+      decimals: m.decimals,
+      direction: m.direction,
+      seasons: [],
+      reason
+    })),
+    rows: [],
+    total: 0,
+    notes: [reason],
+    ms: 0
+  }
+}
+
+/**
  * What `$factor` reads: the share of a full season's games a row covers, which scales `minSample`.
  * By season, each season's own games (a row reads its season's factor); otherwise the scope's.
  */
@@ -104,7 +126,7 @@ export async function qualificationFactor(
     )
     const when = games.map(
       (g) =>
-        `WHEN ${Number(g.season)} THEN ${((compiled.rowGames(g.games, 1) * (num(g.share) ?? 1)) / FULL_SEASON).toFixed(6)}`
+        `WHEN ${Number(g.season)} THEN ${((compiled.rowGames(g.games, 1) * (num(g.share) ?? 1)) / compiled.fullSeason).toFixed(6)}`
     )
     return when.length ? `(CASE a.g_season ${when.join(' ')} ELSE 0 END)` : '0'
   }
@@ -115,5 +137,5 @@ export async function qualificationFactor(
   const seasons = new Set(query.scope.seasons).size
   // Under a split, the split's share of the time scales the sample too.
   const share = num(scope?.share) ?? 1
-  return ((compiled.rowGames(scope?.games ?? 0, seasons) * share) / FULL_SEASON).toFixed(6)
+  return ((compiled.rowGames(scope?.games ?? 0, seasons) * share) / compiled.fullSeason).toFixed(6)
 }

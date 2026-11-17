@@ -1,4 +1,4 @@
-import { seasonLabel } from '@shared/stats/seasons'
+import { seasonLabel } from '@/lib/stats/league'
 import { SPLIT_GROUPS, SPLITS, SPLITS_FIRST_SEASON } from '@shared/stats/splits'
 import type { BoardMode, StatsQuery, StatsResult, StatsSeason } from '@shared/stats/types'
 import { splitDefs, splitNotes, type SplitDef } from './player'

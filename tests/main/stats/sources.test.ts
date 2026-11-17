@@ -2,7 +2,6 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
-  currentSeason,
   fileName,
   fileUrl,
   LOAD_TIERS,
@@ -10,6 +9,7 @@ import {
   SOURCES,
   type SourceFile
 } from '@main/stats/sources'
+import { LEAGUES } from '@shared/leagues'
 
 /** The releases as listed by `scripts/inventory-sources.mjs`. */
 const inventory = new Set(
@@ -109,9 +109,9 @@ describe('the sources', () => {
 
 describe('currentSeason', () => {
   it('labels a season by its final year, turning in August', () => {
-    expect(currentSeason(new Date('2026-11-05T12:00:00Z'))).toBe(2027)
-    expect(currentSeason(new Date('2027-06-13T12:00:00Z'))).toBe(2027)
-    expect(currentSeason(new Date('2027-07-31T12:00:00Z'))).toBe(2027)
-    expect(currentSeason(new Date('2027-08-01T12:00:00Z'))).toBe(2028)
+    expect(LEAGUES.nba.currentSeason(new Date('2026-11-05T12:00:00Z'))).toBe(2027)
+    expect(LEAGUES.nba.currentSeason(new Date('2027-06-13T12:00:00Z'))).toBe(2027)
+    expect(LEAGUES.nba.currentSeason(new Date('2027-07-31T12:00:00Z'))).toBe(2027)
+    expect(LEAGUES.nba.currentSeason(new Date('2027-08-01T12:00:00Z'))).toBe(2028)
   })
 })

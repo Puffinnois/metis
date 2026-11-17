@@ -17,7 +17,7 @@ afterEach(async () => {
 async function open(): Promise<StatsService> {
   const dir = tempDir()
   mkdirSync(join(dir, 'tmp'))
-  service = await openStatsService({ path: join(dir, 'stats.duckdb'), tempDir: join(dir, 'tmp') })
+  service = await openStatsService({ league: 'nba', dataDir: dir, tempDir: join(dir, 'tmp') })
   return service
 }
 

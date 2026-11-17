@@ -1,5 +1,5 @@
 import { covers, coverageReason } from '@shared/stats/coverage'
-import { seasonLabel } from '@shared/stats/seasons'
+import { currentLeague, seasonLabel } from '@/lib/stats/league'
 import type {
   BoardMode,
   Entity,
@@ -56,9 +56,6 @@ export function trendSubject(
 
 /** The metric Trends opens on, when none is picked. */
 export const DEFAULT_METRIC: Record<TrendEntity, string> = { player: 'pts', team: 'team_nrtg' }
-
-/** The first season with box scores, 1993-94. */
-export const FIRST_SEASON = 1994
 
 /** The leaderboard's qualifier for players: minutes, scaled to each season's games. */
 export const QUALIFIER = 'min'
@@ -133,10 +130,11 @@ export function trendMetric(
   return catalogue.find((m) => trendable(m, entity))?.id ?? null
 }
 
-/** Every season in the data: 1993-94 through the one the data runs through. */
+/** Every season in the data: the league's first (1993-94 in the NBA) through the one it runs through. */
 export function trendSeasons(status: StatsStatus | null, now = new Date()): number[] {
-  const last = Math.max(FIRST_SEASON, status?.through?.season ?? now.getUTCFullYear())
-  return Array.from({ length: last - FIRST_SEASON + 1 }, (_, i) => FIRST_SEASON + i)
+  const first = currentLeague().firstSeason
+  const last = Math.max(first, status?.through?.season ?? now.getUTCFullYear())
+  return Array.from({ length: last - first + 1 }, (_, i) => first + i)
 }
 
 /** The scope bar's season type; its season and range do not limit a career. */
@@ -499,7 +497,7 @@ export function trendNotes(
   if (columnReason) notes.push(columnReason)
   const before = span.filter((s) => s < info.firstSeason)
   if (before.length) {
-    const reason = coverageReason(info, before)
+    const reason = coverageReason(info, before, currentLeague())
     if (reason) notes.push(reason)
   }
   const missing = span.filter((s) => s >= info.firstSeason && info.missingSeasons?.includes(s))

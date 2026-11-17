@@ -10,6 +10,7 @@ import {
 import { MATCHUP_COUNTS } from '@main/stats/derived/publishedTables'
 import { bootstrapStatsDb } from '@main/stats/schema'
 import { openTestDb } from '../../../fixtures/stats'
+import { LEAGUES } from '@shared/leagues'
 
 vi.mock('@main/stats/derived/publishedTables', async (actual) => {
   const real = await actual<typeof import('@main/stats/derived/publishedTables')>()
@@ -92,7 +93,7 @@ describe('the published tables', () => {
       `CREATE TABLE published_test_widgets (player_id BIGINT, season INTEGER, game_type VARCHAR)`
     )
     await db.exec(`INSERT INTO published_test_widgets VALUES (1, 2026, 'regular')`)
-    await bootstrapStatsDb(db, new Date())
+    await bootstrapStatsDb(db, new Date(), LEAGUES.nba)
     expect(await widgets()).toMatchObject([{ player_id: 1, widgets: null }])
   })
 

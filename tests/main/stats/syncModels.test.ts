@@ -5,6 +5,7 @@ import type { Downloads } from '@main/stats/download'
 import type { SourceFile } from '@main/stats/sources'
 import { refreshStats, STATS_MODELS_STEP, STATS_PLAYS_STEP } from '@main/stats/sync'
 import { openTestDb, tempDir, writeFixture } from '../../fixtures/stats'
+import { LEAGUES } from '@shared/leagues'
 
 vi.mock('@main/stats/identity', () => ({
   canBuildIdentity: vi.fn(async () => true),
@@ -86,7 +87,11 @@ async function run(sources: SourceFile[]): Promise<string[]> {
     fetchFile: async () => ({ kind: 'file', path: file, etag: null, bytes: 1 }),
     removeFile: async () => undefined
   }
-  const { steps } = await refreshStats({ db, downloads, now: () => NOW }, {}, sources)
+  const { steps } = await refreshStats(
+    { db, league: LEAGUES.nba, downloads, now: () => NOW },
+    {},
+    sources
+  )
   return steps.map((s) => `${s.source} ${s.status}`)
 }
 

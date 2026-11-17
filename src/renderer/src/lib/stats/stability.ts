@@ -1,4 +1,4 @@
-import { seasonLabel } from '@shared/stats/seasons'
+import { seasonLabel } from '@/lib/stats/league'
 import type { MetricInfo, MetricValue } from '@shared/stats/types'
 import { fmtStat } from './format'
 

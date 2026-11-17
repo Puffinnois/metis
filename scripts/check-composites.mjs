@@ -18,7 +18,8 @@
 // Tolerance: identities and recounts within 1e-6 (doubles summed in another order); the gaps in
 // 2 and 3 are measured, not judged.
 //
-// usage: node scripts/check-composites.mjs <folder holding stats.duckdb> [out.md]
+// usage: node scripts/check-composites.mjs <folder holding stats-<league>.duckdb> [out.md]
+// --league=<id> anywhere picks the league (default nba).
 import { writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { openStatsWorker } from './lib/stats-worker.mjs'

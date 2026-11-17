@@ -10,7 +10,7 @@ import { errorMessage } from '@/lib/format'
 import { familyLabel } from '@/lib/stats/format'
 import {
   bestFirst,
-  BOARD_MODES,
+  boardModes,
   csvFileName,
   defaultBoard,
   engineSort,
@@ -30,7 +30,7 @@ import { rangeLabel, scopeLabel, seasonOf, type StatsScope } from '@/lib/stats/s
 import { MOMENTS } from '@/lib/stats/splits'
 import { useStatsQuery, type StatsData } from '@/lib/stats/useStats'
 import { cn } from '@/lib/utils'
-import { seasonLabel } from '@shared/stats/seasons'
+import { seasonLabel } from '@/lib/stats/league'
 import type { Entity, LeaderboardBoard, MetricFamily, StatsView } from '@shared/stats/types'
 
 /** Rows rendered at a time; "Show more" adds as many. */
@@ -245,7 +245,7 @@ export function StatsLeaderboard({
         <Segmented
           label="Totals or rates"
           value={board.mode}
-          options={BOARD_MODES}
+          options={boardModes()}
           onChange={(mode) => update({ mode })}
         />
         <StatsSelect

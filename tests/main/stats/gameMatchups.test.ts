@@ -11,8 +11,9 @@ import { METRICS } from '@shared/stats/catalogue'
 import type { StatsQuery, StatsResult, StatsRow } from '@shared/stats/types'
 import { addGame, addNbaLine, BOS, emptySources, LAL } from '../../fixtures/boxScores'
 import { openTestDb } from '../../fixtures/stats'
+import { LEAGUES } from '@shared/leagues'
 
-const CTX = { currentSeason: 2027 }
+const CTX = { league: LEAGUES.nba, currentSeason: 2027 }
 let db: StatsDb
 
 /** The game file's columns, as published, minus whatever a test leaves out. */
@@ -267,7 +268,7 @@ describe('a game’s pairs', () => {
   })
 
   it('lists who guarded whom, each defending side longest first, with names', async () => {
-    const m = await readGameMatchups(db, 'a')
+    const m = await readGameMatchups(db, 'a', LEAGUES.nba)
     expect(m.reason).toBeNull()
     expect(m.pairs.map((p) => [p.defName, p.offName, p.minutes, p.pts])).toEqual([
       ['Ana Boston', 'Bea Laker', 300.5 / 60, 6],
@@ -277,15 +278,15 @@ describe('a game’s pairs', () => {
   })
 
   it('says why a game before 2017-18, or a game the file lacks, has none', async () => {
-    expect(await readGameMatchups(db, 'old')).toEqual({
+    expect(await readGameMatchups(db, 'old', LEAGUES.nba)).toEqual({
       pairs: [],
       reason: 'Tracked from 2017-18.'
     })
-    expect((await readGameMatchups(db, 'e')).reason).toBe(
+    expect((await readGameMatchups(db, 'e', LEAGUES.nba)).reason).toBe(
       'The NBA’s file has no matchups for this game.'
     )
-    expect(await readGameMatchups(db, 'nope')).toEqual({ pairs: [], reason: null })
-    expect(await readGameMatchups(db, "a'; DROP")).toEqual({ pairs: [], reason: null })
+    expect(await readGameMatchups(db, 'nope', LEAGUES.nba)).toEqual({ pairs: [], reason: null })
+    expect(await readGameMatchups(db, "a'; DROP", LEAGUES.nba)).toEqual({ pairs: [], reason: null })
   })
 })
 

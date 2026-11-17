@@ -12,6 +12,7 @@ import {
 import { PLAY_TABLES } from '@main/stats/derived/plays'
 import { openTestDb } from '../../../fixtures/stats'
 import { createIdentity, createNbaPbp, GAME, HOU, OKC } from '../../../fixtures/plays'
+import { LEAGUES } from '@shared/leagues'
 
 let db: StatsDb
 
@@ -34,7 +35,7 @@ describe('which seasons are rebuilt', () => {
   })
 
   it('none once built, until a file of a season writes rows', async () => {
-    await buildPlays(db)
+    await buildPlays(db, LEAGUES.nba)
     expect(await playsDue(db)).toBe(false)
     expect(await seasonsToBuild(db)).toEqual({ all: false, seasons: [] })
     await markPlaySeason(db, 2026)
@@ -43,22 +44,22 @@ describe('which seasons are rebuilt', () => {
   })
 
   it('every season after a file of every season, or a new version', async () => {
-    await buildPlays(db)
+    await buildPlays(db, LEAGUES.nba)
     await markPlaySeason(db, 0)
     expect(await seasonsToBuild(db)).toEqual({ all: true, seasons: [2025, 2026] })
-    await buildPlays(db)
+    await buildPlays(db, LEAGUES.nba)
     await db.exec("UPDATE derived_state SET version = 0 WHERE name = 'plays'")
     expect(await seasonsToBuild(db)).toEqual({ all: true, seasons: [2025, 2026] })
   })
 
   it('leaves the other seasons as they are when one season’s files changed', async () => {
-    await buildPlays(db)
+    await buildPlays(db, LEAGUES.nba)
     // A row only the earlier season holds: rebuilding 2026 must not touch it.
     await db.exec(
       `INSERT INTO ${PLAY_TABLES.nba} (game_id, season, seq) VALUES ('0022400001', 2025, 1)`
     )
     await markPlaySeason(db, 2026)
-    const rows = await buildPlays(db)
+    const rows = await buildPlays(db, LEAGUES.nba)
     // The NBA's 26 plays and what the later builders made of them: the on-court tables' rows of the
     // season (one unit a team: the fixture has no lineup file, so no players), and the rest.
     const onCourt = await db.get<{ n: number }>(
@@ -85,11 +86,11 @@ describe('which seasons are rebuilt', () => {
   })
 
   it('rebuilds a table whose columns changed, and drops seasons no longer played', async () => {
-    await buildPlays(db)
+    await buildPlays(db, LEAGUES.nba)
     await db.exec(`ALTER TABLE ${PLAY_TABLES.nba} DROP COLUMN possession`)
     await db.exec(`INSERT INTO ${PLAY_TABLES.nba} (game_id, season, seq) VALUES ('x', 1990, 1)`)
     expect((await seasonsToBuild(db)).all).toBe(true)
-    await buildPlays(db)
+    await buildPlays(db, LEAGUES.nba)
     expect(await db.all(`SELECT DISTINCT season FROM ${PLAY_TABLES.nba} ORDER BY 1`)).toEqual([
       { season: 2026 }
     ])
@@ -123,11 +124,11 @@ describe('a reader during a rebuild', () => {
     const size = { n: 1000 }
     extra = sized(size)
     PLAY_BUILDERS.push(extra)
-    await buildPlays(db)
+    await buildPlays(db, LEAGUES.nba)
     extra.select = (_, season) =>
       season === 2026 ? 'SELECT no_such_column FROM game' : `SELECT ${season}, 5`
     await markPlaySeason(db, 2026)
-    await expect(buildPlays(db)).rejects.toThrow()
+    await expect(buildPlays(db, LEAGUES.nba)).rejects.toThrow()
     expect(
       await db.all('SELECT season, count(*)::INTEGER AS n FROM test_counts GROUP BY 1 ORDER BY 1')
     ).toEqual([
@@ -142,13 +143,13 @@ describe('a reader during a rebuild', () => {
     const size = { n: 50_000 }
     extra = sized(size)
     PLAY_BUILDERS.push(extra)
-    await buildPlays(db)
+    await buildPlays(db, LEAGUES.nba)
     size.n = 200_000
     await markPlaySeason(db, 0)
     const reader = await db.connect()
     const seen = new Set<number>()
     let done = false
-    const build = buildPlays(db).finally(() => {
+    const build = buildPlays(db, LEAGUES.nba).finally(() => {
       done = true
     })
     while (!done) {
@@ -178,16 +179,16 @@ describe('the order rows are written in', () => {
       select: (_h, s) => `SELECT ${s} AS season`,
       order: 'game_id, seq'
     }
-    expect(insertSql(sorted, have, 2026)).toBe(
+    expect(insertSql(sorted, have, 2026, LEAGUES.nba)).toBe(
       'INSERT INTO t SELECT * FROM (SELECT 2026 AS season) AS s(season) ORDER BY game_id, seq'
     )
-    expect(insertSql({ ...sorted, order: undefined }, have, 2026)).toBe(
+    expect(insertSql({ ...sorted, order: undefined }, have, 2026, LEAGUES.nba)).toBe(
       'INSERT INTO t SELECT 2026 AS season'
     )
   })
 
   it('writes every play table in game order', async () => {
-    await buildPlays(db)
+    await buildPlays(db, LEAGUES.nba)
     const rows = await db.all<{ game_id: string; seq: number }>(
       `SELECT game_id, seq FROM ${PLAY_TABLES.nba}`
     )
@@ -202,7 +203,7 @@ describe('the order rows are written in', () => {
 
 describe('the game the fixtures play', () => {
   it('is the one the plays are keyed to', async () => {
-    await buildPlays(db)
+    await buildPlays(db, LEAGUES.nba)
     expect(await db.get(`SELECT DISTINCT game_id FROM ${PLAY_TABLES.nba}`)).toEqual({
       game_id: GAME
     })

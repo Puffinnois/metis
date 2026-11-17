@@ -8,7 +8,7 @@ import {
   stabilityTitle
 } from '@/lib/stats/stability'
 import { cn } from '@/lib/utils'
-import { seasonLabel } from '@shared/stats/seasons'
+import { seasonLabel } from '@/lib/stats/league'
 import type { MetricInfo } from '@shared/stats/types'
 
 const sampleWords = (info: MetricInfo): string => {

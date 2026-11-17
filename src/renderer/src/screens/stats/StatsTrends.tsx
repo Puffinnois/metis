@@ -2,7 +2,7 @@ import { useId, useState } from 'react'
 import { Segmented } from '@/components/stats/controls'
 import { Loading } from '@/components/stats/parts'
 import { TrendChart } from '@/components/stats/TrendChart'
-import { DASHBOARD_MODES } from '@/lib/stats/dashboard'
+import { dashboardModes } from '@/lib/stats/dashboard'
 import { familyLabel, fmtStat, isRescaled } from '@/lib/stats/format'
 import { typeLabel, type StatsScope } from '@/lib/stats/scope'
 import {
@@ -36,7 +36,7 @@ import {
 } from '@/lib/stats/trends'
 import { useStatsQueries, useStatsQuery, type StatsData } from '@/lib/stats/useStats'
 import { cn } from '@/lib/utils'
-import { seasonLabel } from '@shared/stats/seasons'
+import { currentLeague, seasonLabel } from '@/lib/stats/league'
 import { coverageReason } from '@shared/stats/coverage'
 
 const FRESH = { keepLast: false }
@@ -172,7 +172,8 @@ export function StatsTrends({
     start !== null && info
       ? coverageReason(
           info,
-          span.filter((s) => s < start)
+          span.filter((s) => s < start),
+          currentLeague()
         )
       : null
   const table = trendRows(points, info, mode)
@@ -223,7 +224,7 @@ export function StatsTrends({
           <Segmented
             label="Totals or rates"
             value={state.mode}
-            options={DASHBOARD_MODES.filter((m) => m.value === 'raw' || isRescaled(info, m.value))}
+            options={dashboardModes().filter((m) => m.value === 'raw' || isRescaled(info, m.value))}
             onChange={(m) => set({ mode: m })}
           />
         )}

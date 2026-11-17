@@ -8,6 +8,7 @@ import {
   TURNOVER_KINDS,
   type FlowPoint
 } from '@shared/stats/playDetail'
+import { LEAGUES } from '@shared/leagues'
 
 /** Scoring plays from a list of [seconds since the tip, side, points, field goal]. */
 function points(list: [number, 'h' | 'a', number, boolean?][]): FlowPoint[] {
@@ -77,16 +78,16 @@ describe('the game-flow rules', () => {
   it('carries a run and a drought over the end of regulation into overtime', () => {
     const s = flowSummary(
       points([
-        [elapsedAt(4, 10), 'a', 2],
-        [elapsedAt(5, 280), 'a', 3]
+        [elapsedAt(LEAGUES.nba, 2026, 4, 10), 'a', 2],
+        [elapsedAt(LEAGUES.nba, 2026, 5, 280), 'a', 3]
       ]),
-      gameLength(5)
+      gameLength(LEAGUES.nba, 2026, 5)
     )
-    expect(gameLength(5)).toBe(3180)
+    expect(gameLength(LEAGUES.nba, 2026, 5)).toBe(3180)
     expect(s.away.bestRun).toBe(5)
     // The home side never scored: the whole game is its drought.
     expect(s.home.drought).toBe(3180)
-    expect(s.away.drought).toBe(elapsedAt(4, 10))
+    expect(s.away.drought).toBe(elapsedAt(LEAGUES.nba, 2026, 4, 10))
   })
 
   it('times a field-goal drought apart from free throws, to the end of the game', () => {

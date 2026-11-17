@@ -245,10 +245,10 @@ beforeEach(() => {
   vi.mocked(api.stats.catalogue).mockResolvedValue(catalogueFixture())
   vi.mocked(api.stats.seasons).mockResolvedValue(SEASONS)
   vi.mocked(api.stats.views).mockResolvedValue([])
-  vi.mocked(api.stats.query).mockImplementation((q) => Promise.resolve(answer(q)))
+  vi.mocked(api.stats.query).mockImplementation((_league, q) => Promise.resolve(answer(q)))
   vi.mocked(api.stats.game).mockResolvedValue(null)
-  vi.mocked(api.stats.games).mockImplementation((s) => Promise.resolve(GAMES[s] ?? []))
-  vi.mocked(api.stats.standings).mockImplementation((s) =>
+  vi.mocked(api.stats.games).mockImplementation((_league, s) => Promise.resolve(GAMES[s] ?? []))
+  vi.mocked(api.stats.standings).mockImplementation((_league, s) =>
     Promise.resolve(s === 2009 ? [STANDING] : [])
   )
   vi.mocked(api.stats.player).mockResolvedValue(null)

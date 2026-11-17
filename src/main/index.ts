@@ -16,6 +16,7 @@ import { createChangeNotifier } from '@main/stats/changes'
 import { startStatsWorker, type StatsClient } from '@main/stats/client'
 import { installAutoUpdater } from '@main/updater'
 import { IPC } from '@shared/ipc'
+import { DEFAULT_LEAGUE, LEAGUES, type LeagueId } from '@shared/leagues'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -83,20 +84,29 @@ function openAppDatabase(): Db {
   }
 }
 
-/** A failure here turns the stats off and leaves the app running, where it says so. */
-function openStats(onStep: () => void): StatsClient | null {
-  try {
-    return startStatsWorker(
-      {
-        path: join(app.getPath('userData'), 'stats.duckdb'),
-        tempDir: join(app.getPath('userData'), 'stats-tmp')
-      },
-      onStep
-    )
-  } catch (err) {
-    console.error('could not start the stats worker; the stats are off', err)
-    return null
+/**
+ * One stats worker per league that has data, each opening only its own file in the data folder (D36):
+ * one league's refresh never waits behind another's write. A failure turns that league's stats off and
+ * leaves the app running, where it says so. A league with no data yet gets no worker and no file.
+ */
+function openStats(onStep: (league: LeagueId) => void): Map<LeagueId, StatsClient> {
+  const dataDir = app.getPath('userData')
+  const clients = new Map<LeagueId, StatsClient>()
+  for (const league of Object.values(LEAGUES)) {
+    if (!league.hasData) continue
+    try {
+      clients.set(
+        league.id,
+        startStatsWorker(
+          { league: league.id, dataDir, tempDir: join(dataDir, 'stats-tmp', league.id) },
+          () => onStep(league.id)
+        )
+      )
+    } catch (err) {
+      console.error(`could not start the ${league.name} stats worker; its stats are off`, err)
+    }
   }
+  return clients
 }
 
 /** How often a window left open looks for new games; each file still decides if it is due. */
@@ -115,7 +125,11 @@ async function runStatsSelfTest(out: string): Promise<number> {
   let result: object
   let code = 1
   try {
-    const client = startStatsWorker({ path: join(dir, 'stats.duckdb'), tempDir: join(dir, 'tmp') })
+    const client = startStatsWorker({
+      league: DEFAULT_LEAGUE,
+      dataDir: dir,
+      tempDir: join(dir, 'tmp')
+    })
     const test = await client.selfTest()
     await client.close()
     code = test.parquet && test.json && test.icu && test.query && test.rows === 1000 ? 0 : 1
@@ -152,15 +166,33 @@ app.whenReady().then(async () => {
   app.on('browser-window-created', (_, window) => optimizer.watchWindowShortcuts(window))
 
   const db = openAppDatabase()
-  const statsChanged = createChangeNotifier(() => mainWindow?.webContents.send(IPC.statsChanged))
+  // Each league's changes are told apart, so a refresh of one never makes the other's screens query.
+  const notifiers = new Map(
+    Object.values(LEAGUES).map((l) => [
+      l.id,
+      createChangeNotifier(() => mainWindow?.webContents.send(IPC.statsChanged, l.id))
+    ])
+  )
+  const statsChanged = (league: LeagueId): void => notifiers.get(league)?.()
   const stats = openStats(statsChanged)
-  const refresh = (): void => {
-    stats?.refresh().then(statsChanged, (err) => console.error('the stats refresh failed', err))
+  const refresh = (league: LeagueId): void => {
+    stats
+      .get(league)
+      ?.refresh()
+      .then(
+        () => statsChanged(league),
+        (err) => console.error(`the ${league} stats refresh failed`, err)
+      )
   }
+  const refreshAll = (): void => {
+    for (const league of stats.keys()) refresh(league)
+  }
+  const closeStats = (): Promise<unknown> =>
+    Promise.allSettled([...stats.values()].map((client) => client.close()))
   const ctx: AppContext = {
     db,
     getWindow: () => mainWindow,
-    stats,
+    stats: (league) => stats.get(league) ?? null,
     refreshStats: refresh,
     statsChanged,
     update: installAutoUpdater({
@@ -169,7 +201,7 @@ app.whenReady().then(async () => {
       onChange: (state) => mainWindow?.webContents.send(IPC.updateChanged, state),
       // The same close as quitting: a running load or refresh stops and resumes on next launch.
       beforeInstall: async () => {
-        await stats?.close()
+        await closeStats()
       },
       // The stats are closed by then, so start again rather than run without them.
       onInstallFailed: () => {
@@ -187,8 +219,8 @@ app.whenReady().then(async () => {
   })
   createWindow()
 
-  refresh()
-  setInterval(refresh, REFRESH_INTERVAL_MS)
+  refreshAll()
+  setInterval(refreshAll, REFRESH_INTERVAL_MS)
 
   // The process must not exit while DuckDB runs a statement (Electron aborts), so the first quit
   // closes the stats worker, which interrupts a running refresh, and then quits again.
@@ -196,7 +228,7 @@ app.whenReady().then(async () => {
   app.on('will-quit', (event) => {
     if (closed) return
     event.preventDefault()
-    void Promise.resolve(ctx.stats?.close()).finally(() => {
+    void closeStats().finally(() => {
       closed = true
       app.quit()
     })

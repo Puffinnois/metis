@@ -18,7 +18,8 @@
 //
 // Tolerance: correlations equal within 1e-9 with the same pairs; indexes within 1e-9.
 //
-// usage: node scripts/check-stability.mjs <folder holding stats.duckdb> [out.md]
+// usage: node scripts/check-stability.mjs <folder holding stats-<league>.duckdb> [out.md]
+// --league=<id> anywhere picks the league (default nba).
 import { writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { openStatsWorker } from './lib/stats-worker.mjs'

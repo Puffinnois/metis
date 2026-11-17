@@ -1,5 +1,5 @@
-import { seasonLabel } from './seasons'
-import type { MetricDef } from './types'
+import { seasonLabel, type League } from '../leagues'
+import type { MetricCoverage, MetricDef } from './types'
 
 type Coverage = Pick<MetricDef, 'firstSeason' | 'missingSeasons'>
 
@@ -23,10 +23,60 @@ export const covers = (def: Coverage, season: number): boolean =>
   season >= def.firstSeason && !def.missingSeasons?.includes(season)
 
 /** Why a metric has no value in these seasons, in a short sentence; null when it has one. */
-export function coverageReason(def: Coverage, seasons: readonly number[]): string | null {
+export function coverageReason(
+  def: Coverage,
+  seasons: readonly number[],
+  league: League
+): string | null {
   if (seasons.some((s) => covers(def, s))) return null
   if (seasons.some((s) => s < def.firstSeason)) {
-    return `Recorded from ${seasonLabel(def.firstSeason)}.`
+    return `Recorded from ${seasonLabel(league, def.firstSeason)}.`
   }
-  return `Not in the source for ${seasons.map(seasonLabel).join(', ')}.`
+  return `Not in the source for ${seasons.map((s) => seasonLabel(league, s)).join(', ')}.`
+}
+
+/** Why a metric has no value at all in a league that does not have it. */
+export const notInLeague = (league: League): string => `Not recorded for the ${league.name}.`
+
+/**
+ * A metric's coverage in a league: what its `leagues` states for it, else its own fields where the
+ * league takes them (`metricsByDefault`); null when the league does not have it.
+ */
+export function coverageIn(def: MetricDef, league: League): MetricCoverage | null {
+  const stated = def.leagues?.[league.id]
+  if (stated !== undefined) return stated
+  if (!league.metricsByDefault) return null
+  return {
+    firstSeason: def.firstSeason,
+    ...(def.missingSeasons ? { missingSeasons: def.missingSeasons } : {}),
+    ...(def.unavailable ? { unavailable: def.unavailable } : {})
+  }
+}
+
+const resolved = new Map<string, WeakMap<MetricDef, MetricDef>>()
+
+/**
+ * The metric as one league reads it: its coverage fields are that league's, and a league without it
+ * reads it as unavailable with the reason. A league taking the metric's own fields gets the same
+ * object back, so the NBA's catalogue is exactly as it was.
+ */
+export function metricIn(def: MetricDef, league: League): MetricDef {
+  if (def.leagues?.[league.id] === undefined && league.metricsByDefault) return def
+  let cache = resolved.get(league.id)
+  if (!cache) resolved.set(league.id, (cache = new WeakMap()))
+  const hit = cache.get(def)
+  if (hit) return hit
+  const coverage = coverageIn(def, league)
+  const out: MetricDef = { ...def, missingSeasons: undefined, unavailable: undefined }
+  delete out.missingSeasons
+  delete out.unavailable
+  if (coverage === null) {
+    out.unavailable = notInLeague(league)
+  } else {
+    out.firstSeason = coverage.firstSeason
+    if (coverage.missingSeasons) out.missingSeasons = coverage.missingSeasons
+    if (coverage.unavailable) out.unavailable = coverage.unavailable
+  }
+  cache.set(def, out)
+  return out
 }

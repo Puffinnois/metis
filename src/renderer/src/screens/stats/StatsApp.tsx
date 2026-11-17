@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { StatsNav } from '@/components/stats/StatsNav'
 import { api } from '@/lib/api'
+import { useLeague } from '@/lib/stats/league'
 import { useNoteScreen } from '@/lib/dev/noteContext'
 import { errorMessage } from '@/lib/format'
 import type { NavLocation } from '@/lib/navHistory'
@@ -107,13 +108,15 @@ export function StatsApp({
   const [views, setViews] = useState<StatsView[]>([])
   const [viewsError, setViewsError] = useState<string | null>(null)
 
+  // Saved views are the league's own (D35).
+  const league = useLeague().id
   useEffect(() => {
     if (!data.version) return
     void api.stats
-      .views()
+      .views(league)
       .then(setViews)
       .catch((err) => setViewsError(errorMessage(err)))
-  }, [data.version])
+  }, [data.version, league])
 
   // The query hook keys on the query's text, so a new object each render runs nothing again.
   const leaders = useStatsQuery(
@@ -202,7 +205,7 @@ export function StatsApp({
   }
   const openView = (v: StatsView): void => openBoard(normalizeBoard(v.board, data.byId), null)
   const saveView = async (name: string, board: LeaderboardBoard): Promise<void> => {
-    const saved = await api.stats.saveView(name, board)
+    const saved = await api.stats.saveView(league, name, board)
     setViews((vs) =>
       [...vs.filter((v) => v.id !== saved.id), saved].sort((a, b) =>
         a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
@@ -210,7 +213,7 @@ export function StatsApp({
     )
   }
   const deleteView = async (view: StatsView): Promise<void> => {
-    await api.stats.deleteView(view.id)
+    await api.stats.deleteView(league, view.id)
     setViews((vs) => vs.filter((v) => v.id !== view.id))
   }
 

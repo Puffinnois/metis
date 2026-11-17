@@ -11,7 +11,7 @@ import {
 } from '@/lib/stats/leaderboard'
 import type { RailPosition } from '@/lib/stats/player'
 import { queryScope, rangeLabel, typeLabel, type StatsScope } from '@/lib/stats/scope'
-import { seasonLabel } from '@shared/stats/seasons'
+import { seasonLabel } from '@/lib/stats/league'
 import type {
   BoardMode,
   Entity,
@@ -659,6 +659,7 @@ const MODE_WORDS: Record<BoardMode, string> = {
   raw: 'totals',
   perGame: 'per game',
   per36: 'per 36 minutes',
+  per40: 'per 40 minutes',
   per48: 'per 48 minutes',
   per100: 'per 100 possessions'
 }

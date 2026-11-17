@@ -6,7 +6,8 @@ import {
   type LineupColumn,
   type LineupGroup
 } from '@shared/stats/lineups'
-import { seasonLabel } from '@shared/stats/seasons'
+import { seasonLabel } from '@/lib/stats/league'
+import { PER_MINUTE } from '@shared/leagues'
 import type { BoardMode, GameType, StatsLineupUnit } from '@shared/stats/types'
 import { fmtClock, fmtStat } from './format'
 import type { StatsScope } from './scope'
@@ -62,7 +63,7 @@ export interface LineupCell {
 const NO_UNIT = 'The NBA’s file for these measures does not list this unit.'
 const NO_POSSESSIONS = 'The NBA does not publish possessions for this unit.'
 const NO_MINUTES = 'The unit has no minutes.'
-const PER: Partial<Record<BoardMode, number>> = { per36: 36, per48: 48, per100: 100 }
+const PER: Partial<Record<BoardMode, number>> = { ...PER_MINUTE, per100: 100 }
 
 /** A unit's number for a column in a mode, with the reason when it has none. */
 export function unitValue(

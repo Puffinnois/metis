@@ -8,6 +8,7 @@
  * The NBA's play by play is the source (its `sub_type`, kept in `play_nba.subtype`), except fouls
  * drawn: the NBA's feed never names the fouled player, ESPN's does from 2005-06 to 2016-17, read from 2006-07.
  */
+import { elapsedSeconds, gameSeconds, type League } from '../leagues'
 
 /** The NBA's play by play starts here, 1996-97. */
 export const PLAY_DETAIL_FIRST_SEASON = 1997
@@ -306,10 +307,10 @@ export function flowSummary(points: readonly FlowPoint[], length: number): FlowS
   }
 }
 
-/** Seconds of a game that reached this period: 12-minute quarters, 5-minute overtimes. */
-export const gameLength = (lastPeriod: number): number =>
-  lastPeriod <= 4 ? 2880 : 2880 + (lastPeriod - 4) * 300
+/** Seconds of a game that reached this period, by the league's periods that season. */
+export const gameLength = (league: League, season: number, lastPeriod: number): number =>
+  gameSeconds(league, season, lastPeriod)
 
 /** Seconds since the tip-off at this period and clock, as `elapsedSql` in the play tables. */
-export const elapsedAt = (period: number, clock: number): number =>
-  period <= 4 ? (period - 1) * 720 + 720 - clock : 2880 + (period - 5) * 300 + 300 - clock
+export const elapsedAt = (league: League, season: number, period: number, clock: number): number =>
+  elapsedSeconds(league, season, period, clock)

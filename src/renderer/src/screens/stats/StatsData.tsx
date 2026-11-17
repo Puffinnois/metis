@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { api } from '@/lib/api'
+import { useLeague } from '@/lib/stats/league'
 import { errorMessage, relativeTime } from '@/lib/format'
 import { CREDIT_LEAD, CREDIT_NOTES, CREDIT_TITLE, CREDIT_WHOSE } from '@/lib/stats/credit'
 import { byTier, fmtBytes, fmtCount, seasonRange, STATE_LABELS, totals } from '@/lib/stats/data'
@@ -42,18 +43,19 @@ interface StatsDataProps {
 export function StatsData({ status }: StatsDataProps): React.JSX.Element {
   const [report, setReport] = useState<StatsDataReport | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const league = useLeague().id
 
   const read = useCallback(() => {
     void api.stats
-      .data()
+      .data(league)
       .then(setReport)
       .catch((err) => setError(errorMessage(err)))
-  }, [])
+  }, [league])
 
   useEffect(() => {
     read()
-    return api.stats.onChanged(read)
-  }, [read])
+    return api.stats.onChanged((changed) => changed === league && read())
+  }, [read, league])
 
   if (error) return <div className="py-20 text-center text-[13px] text-bad">{error}</div>
   if (!report) return <div className="py-20" />
@@ -74,7 +76,7 @@ export function StatsData({ status }: StatsDataProps): React.JSX.Element {
             variant="outline"
             size="xs"
             className="ml-auto"
-            onClick={() => void (paused ? api.stats.resume() : api.stats.pause())}
+            onClick={() => void (paused ? api.stats.resume(league) : api.stats.pause(league))}
           >
             {paused ? 'Resume' : 'Pause'}
           </Button>

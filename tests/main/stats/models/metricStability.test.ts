@@ -31,6 +31,7 @@ import {
   type FixtureLine
 } from '../../../fixtures/stability'
 import { openTestDb } from '../../../fixtures/stats'
+import { LEAGUES } from '@shared/leagues'
 
 let db: StatsDb
 
@@ -79,7 +80,9 @@ function halves(value: (lines: FixtureLine[]) => number): number {
 
 describe('the stability measure, through the engine (Plan T1006)', () => {
   it('equals the correlations recounted from the lines', async () => {
-    const s = await measureStability(db, 2026, 2027, { metrics: ['ft_pct', 'stl', 'qd4'] })
+    const s = await measureStability(db, 2026, 2027, LEAGUES.nba, {
+      metrics: ['ft_pct', 'stl', 'qd4']
+    })
     const ft = s.get('ft_pct')!
     const r = yearToYear(ftPct)
     expect(ft.pairs).toBe(PLAYERS * 2)
@@ -106,7 +109,7 @@ describe('the stability measure, through the engine (Plan T1006)', () => {
 
   it('says why a metric is not measured', async () => {
     const gone = CATALOGUE.find((m) => m.unavailable)!
-    const s = await measureStability(db, 2026, 2027, {
+    const s = await measureStability(db, 2026, 2027, LEAGUES.nba, {
       metrics: [gone.id, 'touches', 'team_playoff_pct', 'team_proj_w']
     })
     expect(s.get(gone.id)).toMatchObject({ reliability: null, reason: NOT_MEASURED.gone })
@@ -127,7 +130,7 @@ describe('the stability measure, through the engine (Plan T1006)', () => {
       // 2026-27 under way: one game played.
       await addGame(db, { id: 'now', season: 2027, date: '2026-11-01', scores: [100, 99] })
       await buildDerived(db)
-      await buildModels(db, 2027)
+      await buildModels(db, 2027, LEAGUES.nba)
       const rows = await db.all<{ season: number; through: number; n: number }>(
         `SELECT season, through, count(*)::INTEGER AS n FROM ${STABILITY_TABLE} GROUP BY ALL`
       )
@@ -139,11 +142,11 @@ describe('the stability measure, through the engine (Plan T1006)', () => {
       // A day of the season in progress keeps the rows (a marked row survives)...
       await db.exec(`UPDATE ${STABILITY_TABLE} SET pairs = -1 WHERE metric_id = 'ft_pct'`)
       await markModelSeason(db, 2027)
-      await buildModels(db, 2027)
+      await buildModels(db, 2027, LEAGUES.nba)
       expect((await readStability(db)).get('ft_pct')?.pairs).toBe(-1)
       // ...and a change to a completed season measures again.
       await markModelSeason(db, 2025)
-      await buildModels(db, 2027)
+      await buildModels(db, 2027, LEAGUES.nba)
       expect((await readStability(db)).get('ft_pct')?.pairs).toBe(PLAYERS * 2)
     }
   )
@@ -176,7 +179,7 @@ describe('shrunk rates and league indexes, through the engine (Plan T1006)', () 
         scope: { seasons: [season], players: ['1', '60'] },
         shrunk: true
       },
-      { currentSeason: 2027, priors: new Map([['ft_pct', 30]]) }
+      { league: LEAGUES.nba, currentSeason: 2027, priors: new Map([['ft_pct', 30]]) }
     )
     for (const p of [1, 60]) {
       const row = r.rows.find((x) => x.id === String(p))!
@@ -201,7 +204,7 @@ describe('shrunk rates and league indexes, through the engine (Plan T1006)', () 
         shrunk: true,
         limit: 100
       },
-      { currentSeason: 2027, priors: new Map([['ft_pct', 30]]) }
+      { league: LEAGUES.nba, currentSeason: 2027, priors: new Map([['ft_pct', 30]]) }
     )
     const shown = r.rows.map((x) => x.values.ft_pct.value!)
     expect(shown).toEqual([...shown].sort((a, b) => b - a))
@@ -220,7 +223,7 @@ describe('shrunk rates and league indexes, through the engine (Plan T1006)', () 
           shrunk: true,
           transform: 'zScore'
         },
-        { currentSeason: 2027 }
+        { league: LEAGUES.nba, currentSeason: 2027 }
       )
     ).rejects.toThrow(/shrunk/)
   })
@@ -234,7 +237,7 @@ describe('shrunk rates and league indexes, through the engine (Plan T1006)', () 
         scope: { seasons: [season] },
         limit: 100
       },
-      { currentSeason: 2027 }
+      { league: LEAGUES.nba, currentSeason: 2027 }
     )
     const leagueTov = tovPct(all)
     for (const row of r.rows) {
@@ -266,7 +269,7 @@ describe('shrunk rates and league indexes, through the engine (Plan T1006)', () 
         metrics: ['ft_pct_plus'],
         scope: { seasons: [season], players: ['1'], positions: ['G'] }
       },
-      { currentSeason: 2027 }
+      { league: LEAGUES.nba, currentSeason: 2027 }
     )
     expect(one.rows[0].values.ft_pct_plus.value).toBeCloseTo(
       leagueIndex(ftPct(of(1, season)), leagueFt, false),
@@ -280,7 +283,7 @@ describe('shrunk rates and league indexes, through the engine (Plan T1006)', () 
         scope: { seasons: SEASONS, players: ['1'] },
         groupBy: ['season']
       },
-      { currentSeason: 2027 }
+      { league: LEAGUES.nba, currentSeason: 2027 }
     )
     for (const row of by.rows) {
       const s = Number(row.group.season)
@@ -299,7 +302,7 @@ describe('shrunk rates and league indexes, through the engine (Plan T1006)', () 
         metrics: ['team_ft_pct_plus', 'opp_ft_pct_plus'],
         scope: { seasons: [season] }
       },
-      { currentSeason: 2027 }
+      { league: LEAGUES.nba, currentSeason: 2027 }
     )
     const plus = r.rows.map((x) => x.values.team_ft_pct_plus.value!)
     const opp = r.rows.map((x) => x.values.opp_ft_pct_plus.value!)

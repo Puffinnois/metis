@@ -6,6 +6,7 @@ import * as identity from '@main/stats/identity'
 import type { SourceFile } from '@main/stats/sources'
 import { refreshStats } from '@main/stats/sync'
 import { openTestDb, tempDir, writeFixture } from '../../fixtures/stats'
+import { LEAGUES } from '@shared/leagues'
 
 vi.mock('@main/stats/identity', () => ({
   canBuildIdentity: vi.fn(async () => true),
@@ -78,7 +79,7 @@ async function run(
         : { kind: 'file', path: file, etag: null, bytes: 1 },
     removeFile: async () => undefined
   }
-  return refreshStats({ db, downloads, now: () => NOW }, {}, sources)
+  return refreshStats({ db, league: LEAGUES.nba, downloads, now: () => NOW }, {}, sources)
 }
 
 describe('the identity and derived steps', () => {

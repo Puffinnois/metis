@@ -1,6 +1,6 @@
 import type { ExploreSubject } from '@/lib/stats/explore'
 import { covers } from '@shared/stats/coverage'
-import { seasonLabel } from '@shared/stats/seasons'
+import { seasonLabel } from '@/lib/stats/league'
 import type {
   BoardMode,
   Entity,

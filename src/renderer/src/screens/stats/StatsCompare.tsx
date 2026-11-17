@@ -33,7 +33,7 @@ import {
   type CompareRow,
   type CompareState
 } from '@/lib/stats/compare'
-import { DASHBOARD_MODES } from '@/lib/stats/dashboard'
+import { dashboardModes } from '@/lib/stats/dashboard'
 import { familyLabel } from '@/lib/stats/format'
 import { familiesOf } from '@/lib/stats/leaderboard'
 import type { StatsScope } from '@/lib/stats/scope'
@@ -163,7 +163,7 @@ export function StatsCompare({
         <Segmented
           label="Totals or rates"
           value={mode}
-          options={DASHBOARD_MODES}
+          options={dashboardModes()}
           onChange={(m) => update((s) => ({ ...s, mode: m }))}
         />
         <div className="ml-auto flex items-center gap-2">

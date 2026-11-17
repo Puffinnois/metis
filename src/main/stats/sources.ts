@@ -4,6 +4,8 @@
  * `scripts/inventory-sources.mjs` lists the releases at development time, and a test compares that
  * list with this one.
  */
+import type { LeagueId } from '@shared/leagues'
+
 export const RELEASES_URL =
   'https://github.com/sportsdataverse/sportsdataverse-data/releases/download'
 
@@ -378,6 +380,15 @@ export const RELEASE_LABELS: Record<string, string> = {
 export const SOURCES: SourceFile[] = [...IDS, ...ESPN, ...NBA, ...DASHBOARDS, ...SHARED]
 
 /**
+ * Each league's files, the registry's `releases.registry`. The WNBA's come in T1301.4; until then it
+ * has none, and nothing is downloaded for it.
+ */
+export const SOURCES_BY_LEAGUE: Readonly<Record<LeagueId, readonly SourceFile[]>> = {
+  nba: SOURCES,
+  wnba: []
+}
+
+/**
  * Release tags left out of this build, named exactly (`nba_stats_synergy`, `nba_player_impact`).
  * Empty: every release loads. A tag listed here is not downloaded; the next refresh drops what it had
  * loaded and rebuilds from the rest, and its metrics read null with a reason. The releases the game,
@@ -401,12 +412,4 @@ export function seasonsOf(source: SourceFile, current: number): number[] {
   const seasons: number[] = []
   for (let s = source.firstSeason; s <= current; s++) seasons.push(s)
   return seasons
-}
-
-/**
- * A season is labelled by its final year (D10). The next season's schedule appears over the
- * summer, so the label turns in August; a file not published yet is skipped, not an error.
- */
-export function currentSeason(now: Date): number {
-  return now.getUTCFullYear() + (now.getUTCMonth() >= 7 ? 1 : 0)
 }

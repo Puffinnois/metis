@@ -9,7 +9,7 @@ import type {
   StatsRow
 } from '@shared/stats/types'
 import { ELO_FIRST_SEASON } from '@shared/stats/catalogue/ratings'
-import { seasonLabel } from '@shared/stats/seasons'
+import { seasonLabel } from '@/lib/stats/league'
 import { fmtClock, fmtStat } from './format'
 import { typeTag } from './player'
 import { fullDay, shortDay } from './scope'

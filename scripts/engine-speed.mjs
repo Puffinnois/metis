@@ -4,7 +4,8 @@
 //
 // With --plays, the play level's reads instead (Plan T907), each cold in a new worker, then warm.
 //
-// usage: node scripts/engine-speed.mjs <folder holding stats.duckdb> [season] [--plays]
+// usage: node scripts/engine-speed.mjs <folder holding stats-<league>.duckdb> [season] [--plays]
+// --league=<id> anywhere picks the league (default nba).
 import { resolve } from 'node:path'
 import { openStatsWorker } from './lib/stats-worker.mjs'
 

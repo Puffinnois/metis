@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { BandPoint, TrendPoint } from '@/lib/stats/trends'
-import { seasonLabel } from '@shared/stats/seasons'
+import { seasonLabel } from '@/lib/stats/league'
 
 const COLOR = 'var(--s1)'
 

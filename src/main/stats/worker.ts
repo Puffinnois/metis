@@ -8,8 +8,8 @@ import {
 import { openStatsService, type StatsService } from './service'
 
 /**
- * Worker entry, bundled to `out/main/statsWorker.js`: the only thread that opens `stats.duckdb`.
- * Writes run one after another, in arrival order; reads run at once, so a screen never waits behind
+ * Worker entry, bundled to `out/main/statsWorker.js`: the only thread that opens its league's stats
+ * file (one worker per league, D36). Writes run one after another, in arrival order; reads run at once, so a screen never waits behind
  * a refresh.
  */
 const port = parentPort

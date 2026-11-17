@@ -4,6 +4,7 @@ import { buildDerived } from '@main/stats/derived/build'
 import { readOfficialCareer, readOfficialsSeason } from '@main/stats/officialsReads'
 import { addGame, addNbaLine, BOS, emptySources, LAL } from '../../fixtures/boxScores'
 import { openTestDb } from '../../fixtures/stats'
+import { LEAGUES } from '@shared/leagues'
 
 let db: StatsDb
 
@@ -62,7 +63,7 @@ beforeEach(async () => {
 
 describe('a season’s officials', () => {
   it('adds up the box scores of the games each worked, once a game, beside the league', async () => {
-    const s = await readOfficialsSeason(db, 2026, ['regular'])
+    const s = await readOfficialsSeason(db, 2026, ['regular'], LEAGUES.nba)
     expect(s.reason).toBeNull()
     expect(s.coverage).toEqual({ games: 3, withCrew: 3, crewSizes: { 2: 3 } })
     expect(s.league).toEqual({
@@ -85,28 +86,30 @@ describe('a season’s officials', () => {
   })
 
   it('reads the playoffs apart', async () => {
-    const s = await readOfficialsSeason(db, 2026, ['playoffs'])
+    const s = await readOfficialsSeason(db, 2026, ['playoffs'], LEAGUES.nba)
     expect(s.officials.map((o) => [o.id, o.totals.games])).toEqual([['10', 1]])
     expect(s.coverage.crewSizes).toEqual({ 1: 1 })
   })
 
   it('says why a season before 2003-04 reads no rates', async () => {
-    const s = await readOfficialsSeason(db, 2003, ['regular'])
+    const s = await readOfficialsSeason(db, 2003, ['regular'], LEAGUES.nba)
     expect(s.coverage).toEqual({ games: 2, withCrew: 1, crewSizes: { 1: 1 } })
     expect(s.reason).toBe('Crews are listed for 1 of 2 games in 2002-03; rates start in 2003-04.')
     expect(s.officials).toHaveLength(1)
   })
 
   it('is empty for a season type that is not one, or without the file', async () => {
-    expect((await readOfficialsSeason(db, 2026, ['nope' as 'regular'])).officials).toEqual([])
+    expect(
+      (await readOfficialsSeason(db, 2026, ['nope' as 'regular'], LEAGUES.nba)).officials
+    ).toEqual([])
     await db.exec('DROP TABLE src_nba_officials')
-    expect((await readOfficialsSeason(db, 2026, ['regular'])).officials).toEqual([])
+    expect((await readOfficialsSeason(db, 2026, ['regular'], LEAGUES.nba)).officials).toEqual([])
   })
 })
 
 describe('an official’s seasons', () => {
   it('lists each season newest first, beside the league’s line for it, with its reason', async () => {
-    const c = await readOfficialCareer(db, '10', ['regular'])
+    const c = await readOfficialCareer(db, '10', ['regular'], LEAGUES.nba)
     expect(c?.name).toBe('Ed Malloy')
     expect(c?.jersey).toBe('7')
     expect(c?.seasons.map((s) => [s.season, s.totals.games, s.league.games, s.reason])).toEqual([
@@ -116,7 +119,7 @@ describe('an official’s seasons', () => {
   })
 
   it('is null for an id the file lacks or that is not one', async () => {
-    expect(await readOfficialCareer(db, '99', ['regular'])).toBeNull()
-    expect(await readOfficialCareer(db, '1; DROP', ['regular'])).toBeNull()
+    expect(await readOfficialCareer(db, '99', ['regular'], LEAGUES.nba)).toBeNull()
+    expect(await readOfficialCareer(db, '1; DROP', ['regular'], LEAGUES.nba)).toBeNull()
   })
 })

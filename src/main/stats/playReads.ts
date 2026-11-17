@@ -1,5 +1,5 @@
 import { flowSummary, gameLength, PLAY_DETAIL_FIRST_SEASON } from '@shared/stats/playDetail'
-import { seasonLabel } from '@shared/stats/seasons'
+import { seasonLabel, type League } from '@shared/leagues'
 import {
   GAME_TYPES,
   type StatsAssistNetwork,
@@ -53,12 +53,13 @@ function checked(r: StatsAssistRequest): StatsAssistRequest | null {
  */
 export async function readAssistNetwork(
   db: StatsDb,
-  raw: StatsAssistRequest
+  raw: StatsAssistRequest,
+  league: League
 ): Promise<StatsAssistNetwork> {
   const r = checked(raw)
   if (!r) return none(null)
   if (r.seasons.every((s) => s < PLAY_DETAIL_FIRST_SEASON)) {
-    return none(`Recorded from ${seasonLabel(PLAY_DETAIL_FIRST_SEASON)}.`)
+    return none(`Recorded from ${seasonLabel(league, PLAY_DETAIL_FIRST_SEASON)}.`)
   }
   const have = await inspect(db)
   const box = r.entity === 'player' ? 'player_game' : 'team_game'
@@ -130,10 +131,15 @@ export async function readAssistNetwork(
 }
 
 /** A game's scoring plays in order, from `play_nba`, and its flow by the rules of `flowSummary`. */
-export async function readGameFlow(db: StatsDb, gameId: string): Promise<StatsGameFlow> {
+export async function readGameFlow(
+  db: StatsDb,
+  gameId: string,
+  league: League
+): Promise<StatsGameFlow> {
   const empty = (reason: string | null): StatsGameFlow => ({
     points: [],
-    periods: 4,
+    // The league's periods now: a game not found has no season of its own.
+    periods: league.periods[league.periods.length - 1].periods,
     homeTeam: '',
     awayTeam: '',
     summary: null,
@@ -150,7 +156,7 @@ export async function readGameFlow(db: StatsDb, gameId: string): Promise<StatsGa
   const teams = { homeTeam: String(game.home), awayTeam: String(game.away) }
   const season = Number(game.season)
   if (!(season >= PLAY_DETAIL_FIRST_SEASON)) {
-    return { ...empty(`Recorded from ${seasonLabel(PLAY_DETAIL_FIRST_SEASON)}.`), ...teams }
+    return { ...empty(`Recorded from ${seasonLabel(league, PLAY_DETAIL_FIRST_SEASON)}.`), ...teams }
   }
   const rows = await db.all<{
     t: number
@@ -163,7 +169,7 @@ export async function readGameFlow(db: StatsDb, gameId: string): Promise<StatsGa
     away_score: number
   }>(
     `SELECT t, period, clock, home, pts, fgm, home_score, away_score
-     FROM (${scoringRowsSql(`(SELECT * FROM ${PLAY_TABLES.nba} WHERE season = ${season} AND game_id = $1)`)})
+     FROM (${scoringRowsSql(`(SELECT * FROM ${PLAY_TABLES.nba} WHERE season = ${season} AND game_id = $1)`, league)})
      ORDER BY ord`,
     [gameId]
   )
@@ -188,7 +194,7 @@ export async function readGameFlow(db: StatsDb, gameId: string): Promise<StatsGa
     points,
     periods,
     ...teams,
-    summary: flowSummary(points, gameLength(periods)),
+    summary: flowSummary(points, gameLength(league, game.season, periods)),
     reason: null
   }
 }

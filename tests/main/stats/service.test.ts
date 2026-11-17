@@ -9,7 +9,7 @@ let service: StatsService | null
 
 beforeEach(async () => {
   dir = mkdtempSync(join(tmpdir(), 'metis-service-'))
-  service = await openStatsService({ path: join(dir, 'stats.duckdb'), tempDir: join(dir, 'tmp') })
+  service = await openStatsService({ league: 'nba', dataDir: dir, tempDir: join(dir, 'tmp') })
 })
 
 afterEach(async () => {
@@ -44,7 +44,7 @@ describe('the stats service', () => {
     await expect(service!.refresh({})).resolves.toEqual({ steps: [] })
     await service!.close()
     service = await openStatsService(
-      { path: join(dir, 'stats.duckdb'), tempDir: join(dir, 'tmp') },
+      { league: 'nba', dataDir: dir, tempDir: join(dir, 'tmp') },
       () => {},
       { freeBytes: () => 1 }
     )
@@ -56,7 +56,7 @@ describe('the stats service', () => {
   it('does not start a first load without room for it, and says so', async () => {
     await service!.close()
     service = await openStatsService(
-      { path: join(dir, 'stats.duckdb'), tempDir: join(dir, 'tmp') },
+      { league: 'nba', dataDir: dir, tempDir: join(dir, 'tmp') },
       () => {},
       { freeBytes: () => 1024 }
     )

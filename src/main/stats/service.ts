@@ -31,9 +31,11 @@ import type {
   StatsCoach,
   StatsStatus
 } from '@shared/stats/types'
+import { leagueOf, type League } from '@shared/leagues'
 import { sqlString, StatsDb, type Row } from './db'
 import { databaseBytes, freeBytes, roomNeeded } from './disk'
 import { createDownloads } from './download'
+import { adoptFormerStatsFile, statsFilePath } from './files'
 import { StatsQueryError } from './engine/compile'
 import { catalogueInfo } from './engine/registry'
 import { runQuery } from './engine/run'
@@ -64,7 +66,7 @@ import { readGameMatchups } from './matchupReads'
 import { readOfficialCareer, readOfficialsSeason } from './officialsReads'
 import { readOnCourtUnits, readWithOrWithout } from './onCourtReads'
 import { bootstrapStatsDb } from './schema'
-import { currentSeason, LEFT_OUT_RELEASES, SOURCES } from './sources'
+import { LEFT_OUT_RELEASES, SOURCES_BY_LEAGUE } from './sources'
 import { refreshStats, STATS_DERIVED_STEP } from './sync'
 
 /** The table the status line reads the latest game from. */
@@ -75,7 +77,7 @@ const PAUSED_KEY = 'paused'
  * The engine answers a team query over a throwaway schema, which proves the catalogue, the compiler and
  * DuckDB's window functions in the packaged worker.
  */
-async function selfTestQuery(db: StatsDb): Promise<boolean> {
+async function selfTestQuery(db: StatsDb, league: League): Promise<boolean> {
   await db.exec('CREATE SCHEMA IF NOT EXISTS self_test')
   await db.exec('SET search_path = self_test')
   try {
@@ -90,7 +92,7 @@ async function selfTestQuery(db: StatsDb): Promise<boolean> {
     const result = await runQuery(
       db,
       { entity: 'team', metrics: ['team_win_pct'], scope: { seasons: [2026] } },
-      { currentSeason: 2026 }
+      { league, currentSeason: 2026 }
     )
     return (
       result.rows.map((r) => `${r.team} ${r.values.team_win_pct.percentile}`).join(',') ===
@@ -181,14 +183,20 @@ export async function openStatsService(
   onStep: (entry: StatsLogEntry) => void = () => {},
   deps: StatsServiceDeps = {}
 ): Promise<StatsService> {
+  // The league is this worker's context: resolved once, then handed to the engine and the builders.
+  const league = leagueOf(init.league)
+  const sources = SOURCES_BY_LEAGUE[league.id]
+  // Before DuckDB opens anything: `stats.duckdb` becomes `stats-nba.duckdb` on the first start.
+  adoptFormerStatsFile(init.dataDir, league)
+  const path = statsFilePath(init.dataDir, league)
   // Files a closed app left mid-step are never read again.
   rmSync(init.tempDir, { recursive: true, force: true })
   mkdirSync(init.tempDir, { recursive: true })
-  const db = await StatsDb.open(init.path, {
+  const db = await StatsDb.open(path, {
     tempDirectory: join(init.tempDir, 'duckdb'),
     memoryLimit: init.memoryLimit
   })
-  await bootstrapStatsDb(db, new Date())
+  await bootstrapStatsDb(db, new Date(), league)
   // Each read gets its own connection, so it runs while a refresh writes, never waits behind another
   // read, and its timeout interrupts only itself.
   const reading = new Set<StatsDb>()
@@ -246,8 +254,8 @@ export async function openStatsService(
     async refresh(options) {
       noRoom = null
       if (paused || cancelled) return { steps: [] }
-      const neededBytes = roomNeeded(databaseBytes(init.path))
-      const available = free(init.path)
+      const neededBytes = roomNeeded(databaseBytes(path))
+      const available = free(path)
       if (neededBytes > 0 && available !== null && available < neededBytes) {
         noRoom = { neededBytes, freeBytes: available }
         return { steps: [] }
@@ -258,6 +266,7 @@ export async function openStatsService(
         const result = await refreshStats(
           {
             db,
+            league,
             downloads: createDownloads({ dir: init.tempDir, signal: abort.signal }),
             onStep,
             onProgress: (p) => {
@@ -265,7 +274,8 @@ export async function openStatsService(
             },
             cancelled: () => cancelled || paused
           },
-          options
+          options,
+          sources
         )
         if (result.fatal !== undefined) invalidated = true
         return result
@@ -346,14 +356,14 @@ export async function openStatsService(
         )
         return {
           families: summariseFamilies(
-            SOURCES,
-            currentSeason(new Date()),
+            sources,
+            league.currentSeason(new Date()),
             held,
             attempts,
             LEFT_OUT_RELEASES
           ),
-          databaseBytes: databaseBytes(init.path),
-          freeBytes: free(init.path)
+          databaseBytes: databaseBytes(path),
+          freeBytes: free(path)
         }
       }),
     async pause() {
@@ -382,9 +392,13 @@ export async function openStatsService(
           throw new StatsQueryError('No stats yet: the first load has not got that far.')
         }
         const priors = query.shrunk ? priorsOf(await stabilityOf(reader)) : undefined
-        return runQuery(reader, query, { currentSeason: currentSeason(new Date()), priors })
+        return runQuery(reader, query, {
+          league,
+          currentSeason: league.currentSeason(new Date()),
+          priors
+        })
       }),
-    catalogue: () => read(async (reader) => catalogueInfo(await stabilityOf(reader))),
+    catalogue: () => read(async (reader) => catalogueInfo(league, await stabilityOf(reader))),
     seasons: () =>
       read(async (reader) => {
         const built = await reader.get(
@@ -440,23 +454,23 @@ export async function openStatsService(
     standings: (season) => read((reader) => readStandings(reader, season)),
     matchups: (player, season, scope) =>
       read((reader) => readMatchups(reader, player, season, scope)),
-    gameMatchups: (game) => read((reader) => readGameMatchups(reader, game)),
+    gameMatchups: (game) => read((reader) => readGameMatchups(reader, game, league)),
     officialsSeason: (season, gameTypes) =>
-      read((reader) => readOfficialsSeason(reader, season, gameTypes)),
+      read((reader) => readOfficialsSeason(reader, season, gameTypes, league)),
     officialCareer: (official, gameTypes) =>
-      read((reader) => readOfficialCareer(reader, official, gameTypes)),
+      read((reader) => readOfficialCareer(reader, official, gameTypes, league)),
     onCourtUnits: (team, season, scope, size) =>
-      read((reader) => readOnCourtUnits(reader, team, season, scope, size)),
+      read((reader) => readOnCourtUnits(reader, team, season, scope, size, league)),
     withOrWithout: (player, teammate, season, scope) =>
-      read((reader) => readWithOrWithout(reader, player, teammate, season, scope)),
+      read((reader) => readWithOrWithout(reader, player, teammate, season, scope, league)),
     profile: (player) => read((reader) => readProfile(reader, player)),
     lineups: (team, season, gameType, group) =>
       read((reader) => readLineups(reader, team, season, gameType, group)),
     availability: (players) => read((reader) => readAvailability(reader, players)),
     coaches: (team, season) => read((reader) => readCoaches(reader, team, season)),
-    shots: (request) => read((reader) => readShotChart(reader, request)),
-    assists: (request) => read((reader) => readAssistNetwork(reader, request)),
-    gameFlow: (game) => read((reader) => readGameFlow(reader, game)),
+    shots: (request) => read((reader) => readShotChart(reader, request, league)),
+    assists: (request) => read((reader) => readAssistNetwork(reader, request, league)),
+    gameFlow: (game) => read((reader) => readGameFlow(reader, game, league)),
     /** Write, read, a Parquet round trip, `read_json` and an ICU time zone, through the real file. */
     async selfTest() {
       await db.exec('CREATE OR REPLACE TABLE self_test AS SELECT range AS x FROM range(1000)')
@@ -479,7 +493,7 @@ export async function openStatsService(
         parquet: back?.n === 1000,
         json: json?.x === 1,
         icu: icu?.hour === 21,
-        query: await selfTestQuery(db)
+        query: await selfTestQuery(db, league)
       }
     },
     cancel() {

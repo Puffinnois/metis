@@ -1,3 +1,4 @@
+import { elapsedSql, periodStartSql, type League } from '@shared/leagues'
 import type { PlayBuilder } from './playBuilders'
 import { column, type Have } from './sql'
 
@@ -138,14 +139,6 @@ export const onCourtBootstrap = (): string[] => [
   createSql(PLAYER_ON_COURT, PLAYER_ON_COURT_COLUMNS)
 ]
 
-/** Seconds since the tip-off: 720 a quarter, 300 an overtime. */
-const elapsed = (period: string, clock: string): string =>
-  `CASE WHEN ${period} <= 4 THEN (${period} - 1) * 720 + 720 - ${clock}
-        ELSE 2880 + (${period} - 5) * 300 + 300 - ${clock} END`
-
-const periodStart = (period: string): string =>
-  `CASE WHEN ${period} <= 4 THEN (${period} - 1) * 720 ELSE 2880 + (${period} - 5) * 300 END`
-
 /** A list of ids as a unit's key: the distinct players known, ascending. */
 const known = (list: string): string =>
   `list_sort(list_distinct(list_filter(${list}, x -> x IS NOT NULL)))`
@@ -154,7 +147,11 @@ const known = (list: string): string =>
  * One season's units, from `play_nba`, the lineup file and the possessions file. What the sources
  * lack reads NULL: no lineup file, no units; no possessions file, no possessions.
  */
-export function unitGameSql(have: Have, season: number): string {
+export function unitGameSql(have: Have, season: number, league: League): string {
+  // Seconds since the tip-off, by the season's periods (the registry's).
+  const elapsed = (period: string, clock: string): string =>
+    elapsedSql(league, String(season), period, clock)
+  const periodStart = (period: string): string => periodStartSql(league, String(season), period)
   const lt = 'src_nba_game_lineups'
   const pt = 'src_nba_pbp'
   const st = 'src_nba_possessions'

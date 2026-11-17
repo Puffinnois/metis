@@ -19,9 +19,10 @@ describe('stats views repo', () => {
   it('saves, lists by name and deletes', () => {
     const db = openDatabase(':memory:')
     migrate(db)
-    const guards = saveStatsView(db, '  Scoring guards ', board(), 't1')
+    const guards = saveStatsView(db, 'nba', '  Scoring guards ', board(), 't1')
     saveStatsView(
       db,
+      'nba',
       'Fast teams',
       board({ entity: 'team', tab: 'offense', columns: ['team_pace'] }),
       't1'
@@ -32,18 +33,18 @@ describe('stats views repo', () => {
       board: board(),
       updatedAt: 't1'
     })
-    expect(listStatsViews(db).map((v) => v.name)).toEqual(['Fast teams', 'Scoring guards'])
-    deleteStatsView(db, guards.id)
-    expect(listStatsViews(db).map((v) => v.name)).toEqual(['Fast teams'])
+    expect(listStatsViews(db, 'nba').map((v) => v.name)).toEqual(['Fast teams', 'Scoring guards'])
+    deleteStatsView(db, 'nba', guards.id)
+    expect(listStatsViews(db, 'nba').map((v) => v.name)).toEqual(['Fast teams'])
   })
 
   it('replaces a view of the same name, whatever its case', () => {
     const db = openDatabase(':memory:')
     migrate(db)
-    const first = saveStatsView(db, 'Shooters', board(), 't1')
-    const second = saveStatsView(db, 'shooters', board({ mode: 'per36' }), 't2')
+    const first = saveStatsView(db, 'nba', 'Shooters', board(), 't1')
+    const second = saveStatsView(db, 'nba', 'shooters', board({ mode: 'per36' }), 't2')
     expect(second.id).toBe(first.id)
-    expect(listStatsViews(db)).toEqual([
+    expect(listStatsViews(db, 'nba')).toEqual([
       { id: first.id, name: 'shooters', board: board({ mode: 'per36' }), updatedAt: 't2' }
     ])
   })
@@ -51,8 +52,8 @@ describe('stats views repo', () => {
   it('rejects an empty or long name', () => {
     const db = openDatabase(':memory:')
     migrate(db)
-    expect(() => saveStatsView(db, '  ', board(), 't')).toThrow('A view needs a name')
-    expect(() => saveStatsView(db, 'x'.repeat(61), board(), 't')).toThrow('at most 60')
+    expect(() => saveStatsView(db, 'nba', '  ', board(), 't')).toThrow('A view needs a name')
+    expect(() => saveStatsView(db, 'nba', 'x'.repeat(61), board(), 't')).toThrow('at most 60')
   })
 
   it('refuses a malformed board and skips a corrupt row', () => {
@@ -61,17 +62,17 @@ describe('stats views repo', () => {
     const bad =
       (b: unknown): (() => unknown) =>
       () =>
-        saveStatsView(db, 'x', b as LeaderboardBoard, 't')
+        saveStatsView(db, 'nba', 'x', b as LeaderboardBoard, 't')
     expect(bad(undefined)).toThrow('This view cannot be saved')
     expect(bad({ ...board(), entity: 'coach' })).toThrow('This view cannot be saved')
     expect(bad({ ...board(), columns: 'pts' })).toThrow('This view cannot be saved')
     expect(bad({ ...board(), columns: Array(41).fill('pts') })).toThrow('This view cannot be saved')
     expect(bad({ ...board(), sort: { by: 'pts', dir: 'up' } })).toThrow('This view cannot be saved')
     expect(bad({ ...board(), mode: 'perWeek' })).toThrow('This view cannot be saved')
-    saveStatsView(db, 'Good', board(), 't')
+    saveStatsView(db, 'nba', 'Good', board(), 't')
     db.prepare(
-      "INSERT INTO stats_views (name, board_json, created_at, updated_at) VALUES ('Broken', '{not json', 't', 't'), ('Odd', '{}', 't', 't')"
+      "INSERT INTO stats_views (league, name, board_json, created_at, updated_at) VALUES ('nba', 'Broken', '{not json', 't', 't'), ('nba', 'Odd', '{}', 't', 't')"
     ).run()
-    expect(listStatsViews(db).map((v) => v.name)).toEqual(['Good'])
+    expect(listStatsViews(db, 'nba').map((v) => v.name)).toEqual(['Good'])
   })
 })

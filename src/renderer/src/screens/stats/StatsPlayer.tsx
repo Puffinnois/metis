@@ -23,7 +23,7 @@ import { statusTag } from '@/lib/stats/availability'
 import { ScopeBar } from '@/components/stats/ScopeBar'
 import { StatSection, StatSections } from '@/components/stats/StatLines'
 import { useNoteContext } from '@/lib/dev/noteContext'
-import { DASHBOARD_MODES, sectionMetrics, sectionViews } from '@/lib/stats/dashboard'
+import { dashboardModes, sectionMetrics, sectionViews } from '@/lib/stats/dashboard'
 import type { ExploreSubject } from '@/lib/stats/explore'
 import { amongWords, fmtStat } from '@/lib/stats/format'
 import { qualifies, tabOf } from '@/lib/stats/leaderboard'
@@ -78,7 +78,7 @@ import {
   type Fact
 } from '@/lib/stats/profile'
 import { rangeLabel, scopeLabel, seasonOf, typeLabel, type StatsScope } from '@/lib/stats/scope'
-import { seasonLabel } from '@shared/stats/seasons'
+import { seasonLabel } from '@/lib/stats/league'
 import {
   useAvailability,
   useMatchups,
@@ -234,7 +234,7 @@ export function StatsPlayer({
                 <Segmented
                   label="Totals or rates"
                   value={mode}
-                  options={DASHBOARD_MODES}
+                  options={dashboardModes()}
                   onChange={setMode}
                 />
               </div>

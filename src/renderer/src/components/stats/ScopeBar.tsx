@@ -8,7 +8,7 @@ import {
   type StatsRange,
   type StatsScope
 } from '@/lib/stats/scope'
-import { seasonLabel } from '@shared/stats/seasons'
+import { seasonLabel } from '@/lib/stats/league'
 import type { Entity, StatsSeason } from '@shared/stats/types'
 
 const DATE_INPUT =

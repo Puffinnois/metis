@@ -16,6 +16,7 @@ import { CATALOGUE } from '@shared/stats/catalogue'
 import { addNbaTeam, BOS, emptySources, LAL, MIA, type Stats } from '../../../fixtures/boxScores'
 import { addLeague } from '../../../fixtures/models'
 import { openTestDb } from '../../../fixtures/stats'
+import { LEAGUES } from '@shared/leagues'
 
 let db: StatsDb
 
@@ -64,7 +65,7 @@ describe('the models step', () => {
     ])
     // Six team-days in 2025-26 and two in 2024-25; the playoff, All-Star and Cup final games are not
     // solved. Stability writes a row per metric: with one completed season, each says why it has none.
-    expect(await buildModels(db, 2026)).toBe(8 + ELO_ROWS + CATALOGUE.length)
+    expect(await buildModels(db, 2026, LEAGUES.nba)).toBe(8 + ELO_ROWS + CATALOGUE.length)
     expect(await modelsDue(db)).toBe(false)
     const bos = await final(BOS)
     expect(bos.srs).toBeCloseTo(8 / 3, 10)
@@ -83,7 +84,7 @@ describe('the models step', () => {
   })
 
   it('computes only the seasons whose files wrote rows, leaving the others as they are', async () => {
-    await buildModels(db, 2026)
+    await buildModels(db, 2026, LEAGUES.nba)
     // A row only 2024-25 holds: recomputing 2025-26 must not touch it.
     await db.exec(`INSERT INTO ${TEAM_STRENGTH_TABLE} (season, game_type, team_id, game_id, srs)
       VALUES (2025, 'regular', 1, 'x', 99)`)
@@ -91,7 +92,7 @@ describe('the models step', () => {
     expect(await modelsDue(db)).toBe(true)
     expect(await seasonsPlanned()).toEqual([2026])
     // The season in progress changed, no completed one: stability keeps its rows.
-    expect(await buildModels(db, 2026)).toBe(6 + ELO_ROWS_2026)
+    expect(await buildModels(db, 2026, LEAGUES.nba)).toBe(6 + ELO_ROWS_2026)
     expect(await db.get(`SELECT srs FROM ${TEAM_STRENGTH_TABLE} WHERE game_id = 'x'`)).toEqual({
       srs: 99
     })
@@ -99,26 +100,26 @@ describe('the models step', () => {
   })
 
   it('computes every season after a file of every season, a new version or a new shape', async () => {
-    await buildModels(db, 2026)
+    await buildModels(db, 2026, LEAGUES.nba)
     await markModelSeason(db, 0)
     expect(await seasonsPlanned()).toEqual([2025, 2026])
-    await buildModels(db, 2026)
+    await buildModels(db, 2026, LEAGUES.nba)
     await db.exec("UPDATE derived_state SET version = 0 WHERE name = 'model:team_strength'")
     expect(await modelsDue(db)).toBe(true)
     expect(await seasonsPlanned()).toEqual([2025, 2026])
-    await buildModels(db, 2026)
+    await buildModels(db, 2026, LEAGUES.nba)
     await db.exec(`ALTER TABLE ${TEAM_STRENGTH_TABLE} DROP COLUMN sos`)
     expect(await modelsDue(db)).toBe(true)
     // Every season of team strength again, so the completed 2024-25 changed: stability measures again.
-    expect(await buildModels(db, 2026)).toBe(8 + ELO_ROWS + CATALOGUE.length)
+    expect(await buildModels(db, 2026, LEAGUES.nba)).toBe(8 + ELO_ROWS + CATALOGUE.length)
     expect((await final(BOS)).sos).toBeCloseTo(-4 / 3, 10)
   })
 
   it('drops a season no longer played when it computes them all', async () => {
-    await buildModels(db, 2026)
+    await buildModels(db, 2026, LEAGUES.nba)
     await db.exec('DELETE FROM game WHERE season = 2025')
     await markModelSeason(db, 0)
-    await buildModels(db, 2026)
+    await buildModels(db, 2026, LEAGUES.nba)
     expect(
       await db.get(`SELECT count(*)::INTEGER AS n FROM ${TEAM_STRENGTH_TABLE} WHERE season = 2025`)
     ).toEqual({ n: 0 })
@@ -131,16 +132,16 @@ describe('the models step', () => {
       timeout: 30_000
     },
     async () => {
-      await buildModels(db, 2027)
+      await buildModels(db, 2027, LEAGUES.nba)
       expect(await final(BOS)).toMatchObject({ games_left: 0, sos_left: null })
     }
   )
 
   it('stays due after a failed run, and its rows stand until a run succeeds', async () => {
-    await buildModels(db, 2026)
+    await buildModels(db, 2026, LEAGUES.nba)
     await markModelSeason(db, 2026)
     await db.exec('ALTER TABLE game RENAME COLUMN home_score TO hs')
-    await expect(buildModels(db, 2026)).rejects.toThrow()
+    await expect(buildModels(db, 2026, LEAGUES.nba)).rejects.toThrow()
     expect(await modelsDue(db)).toBe(true)
     expect((await final(BOS)).srs).toBeCloseTo(8 / 3, 10)
   })
@@ -169,7 +170,7 @@ describe('the adjusted ratings', () => {
     )
 
   it('rates each team after each regular-season day it played with a box score', async () => {
-    await buildModels(db, 2026)
+    await buildModels(db, 2026, LEAGUES.nba)
     const all = await rows()
     expect(all.map((r) => [r.day, r.team_id, r.game_id])).toEqual([
       ['2025-11-01', BOS, 'a'],

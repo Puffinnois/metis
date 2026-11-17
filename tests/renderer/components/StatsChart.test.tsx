@@ -135,14 +135,14 @@ afterEach(() => {
 
 describe('the chart', () => {
   it('opens on the first preset, plots every qualified player, and opens a dot’s dashboard', async () => {
-    query.mockImplementation(async (q) => answer(q))
+    query.mockImplementation(async (_league, q) => answer(q))
     const onOpenPlayer = vi.fn()
     render(<Harness onOpenPlayer={onOpenPlayer} />)
     expect(
       screen.getByRole('heading', { name: 'True shooting percentage vs usage percentage' })
     ).toBeTruthy()
     await waitFor(() => expect(dots()).toHaveLength(15))
-    expect(query.mock.calls[0][0]).toMatchObject({
+    expect(query.mock.calls[0][1]).toMatchObject({
       entity: 'player',
       metrics: ['usg_pct', 'ts_pct', 'min'],
       transform: 'perGame'
@@ -153,7 +153,7 @@ describe('the chart', () => {
   })
 
   it('switches preset and axes, and sizes and colours the dots', async () => {
-    query.mockImplementation(async (q) => answer(q))
+    query.mockImplementation(async (_league, q) => answer(q))
     render(<Harness />)
     await waitFor(() => expect(dots()).toHaveLength(15))
     fireEvent.click(screen.getByRole('button', { name: 'Threes: volume vs accuracy' }))
@@ -170,7 +170,7 @@ describe('the chart', () => {
       expect(screen.getByRole('heading', { name: 'Drives vs points' })).toBeTruthy()
     )
     await waitFor(() =>
-      expect(query.mock.lastCall?.[0].metrics).toEqual(['pts', 'drives', 'ast', 'min'])
+      expect(query.mock.lastCall?.[1].metrics).toEqual(['pts', 'drives', 'ast', 'min'])
     )
     await waitFor(() => expect(dots()).toHaveLength(15))
     const fills = new Set(
@@ -188,7 +188,7 @@ describe('the chart', () => {
   })
 
   it('shows a season-grain metric’s reason under a date range, and offers the whole season', async () => {
-    query.mockImplementation(async (q) => answer(q))
+    query.mockImplementation(async (_league, q) => answer(q))
     const onScope = vi.fn()
     const dates: StatsScope = {
       ...SEASON,
@@ -209,7 +209,7 @@ describe('the chart', () => {
   })
 
   it('says too few qualify, how many and why, and can show the rest', async () => {
-    query.mockImplementation(async (q) => {
+    query.mockImplementation(async (_league, q) => {
       const r = answer(q)
       // Only four players have enough minutes.
       r.rows = r.rows.map((row, i) => ({
@@ -232,7 +232,7 @@ describe('the chart', () => {
   })
 
   it('picks up to three points with shift-click and sends them to Compare', async () => {
-    query.mockImplementation(async (q) => answer(q))
+    query.mockImplementation(async (_league, q) => answer(q))
     const onCompare = vi.fn()
     render(<Harness onCompare={onCompare} />)
     await waitFor(() => expect(dots()).toHaveLength(15))
@@ -249,7 +249,7 @@ describe('the chart', () => {
   })
 
   it('charts teams, coloured by conference, and opens a team', async () => {
-    query.mockImplementation(async (q) => answer(q))
+    query.mockImplementation(async (_league, q) => answer(q))
     const onOpenTeam = vi.fn()
     render(<Harness onOpenTeam={onOpenTeam} />)
     await waitFor(() => expect(dots()).toHaveLength(15))
@@ -260,7 +260,7 @@ describe('the chart', () => {
       ).toBeTruthy()
     )
     await waitFor(() => expect(dots()).toHaveLength(12))
-    expect(query.mock.lastCall?.[0]).toMatchObject({
+    expect(query.mock.lastCall?.[1]).toMatchObject({
       entity: 'team',
       metrics: ['team_ortg', 'team_drtg']
     })

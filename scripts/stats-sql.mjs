@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Runs SQL against a loaded stats database, for measuring and checking a real load.
 //
-// usage: node scripts/stats-sql.mjs <folder holding stats.duckdb> <file of statements>
+// usage: node scripts/stats-sql.mjs <folder holding stats-<league>.duckdb> <file of statements>
+// --league=<id> anywhere picks the league (default nba).
 // Statements are separated by a line holding only `;`. Each result prints as one JSON row a line.
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'

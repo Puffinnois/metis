@@ -3,11 +3,12 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { sqlString, StatsDb } from '@main/stats/db'
 import { bootstrapStatsDb } from '@main/stats/schema'
+import { LEAGUES } from '@shared/leagues'
 
 /** An in-memory stats database with the bookkeeping tables. */
 export async function openTestDb(): Promise<StatsDb> {
   const db = await StatsDb.open(':memory:')
-  await bootstrapStatsDb(db, new Date())
+  await bootstrapStatsDb(db, new Date(), LEAGUES.nba)
   return db
 }
 

@@ -1,3 +1,4 @@
+import { PER_MINUTE, type LeagueId } from '@shared/leagues'
 import type { LeaderboardBoard, StatsView } from '@shared/stats/types'
 import type { Db } from '../connection'
 
@@ -8,7 +9,7 @@ interface ViewRow {
   updated_at: string
 }
 
-const MODES = ['raw', 'perGame', 'per36', 'per48', 'per100']
+const MODES = ['raw', 'perGame', ...Object.keys(PER_MINUTE), 'per100']
 
 const text = (v: unknown): v is string => typeof v === 'string' && v.length > 0 && v.length <= 64
 
@@ -44,22 +45,24 @@ function toView(r: ViewRow): StatsView | null {
   return isBoard(board) ? { id: r.id, name: r.name, board, updatedAt: r.updated_at } : null
 }
 
-/** Every saved view, by name. */
-export function listStatsViews(db: Db): StatsView[] {
+/** A league's saved views, by name (D35: each league keeps its own). */
+export function listStatsViews(db: Db, league: LeagueId): StatsView[] {
   return (
     db
       .prepare(
-        'SELECT id, name, board_json, updated_at FROM stats_views ORDER BY name COLLATE NOCASE'
+        `SELECT id, name, board_json, updated_at FROM stats_views WHERE league = ?
+         ORDER BY name COLLATE NOCASE`
       )
-      .all() as unknown as ViewRow[]
+      .all(league) as unknown as ViewRow[]
   )
     .map(toView)
     .filter((v): v is StatsView => v !== null)
 }
 
-/** Saves a view under `name`; a view of the same name (any case) is replaced. */
+/** Saves a league's view under `name`; its view of the same name (any case) is replaced. */
 export function saveStatsView(
   db: Db,
+  league: LeagueId,
   name: string,
   board: LeaderboardBoard,
   now: string
@@ -70,15 +73,17 @@ export function saveStatsView(
   if (trimmed.length > 60) throw new Error('A view name is at most 60 characters')
   const row = db
     .prepare(
-      `INSERT INTO stats_views (name, board_json, created_at, updated_at) VALUES (?, ?, ?, ?)
-       ON CONFLICT(name) DO UPDATE SET name = excluded.name, board_json = excluded.board_json,
+      `INSERT INTO stats_views (league, name, board_json, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(league, name) DO UPDATE SET name = excluded.name, board_json = excluded.board_json,
          updated_at = excluded.updated_at
        RETURNING id, name, board_json, updated_at`
     )
-    .get(trimmed, JSON.stringify(board), now, now) as unknown as ViewRow
+    .get(league, trimmed, JSON.stringify(board), now, now) as unknown as ViewRow
   return toView(row)!
 }
 
-export function deleteStatsView(db: Db, id: number): void {
-  db.prepare('DELETE FROM stats_views WHERE id = ?').run(id)
+/** Deletes a view of this league only: an id from another league's list deletes nothing. */
+export function deleteStatsView(db: Db, league: LeagueId, id: number): void {
+  db.prepare('DELETE FROM stats_views WHERE id = ? AND league = ?').run(id, league)
 }

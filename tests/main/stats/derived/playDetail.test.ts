@@ -24,8 +24,9 @@ import {
 import type { StatsQuery, StatsResult } from '@shared/stats/types'
 import { addGame, addNbaLine, BOS, emptySources, LAL } from '../../../fixtures/boxScores'
 import { openTestDb } from '../../../fixtures/stats'
+import { LEAGUES } from '@shared/leagues'
 
-const CTX = { currentSeason: 2027 }
+const CTX = { league: LEAGUES.nba, currentSeason: 2027 }
 let db: StatsDb
 
 // Boston (home) against the Lakers in game 'a'. Boston: 1 Ana, 3 Cy. The Lakers: 2 Bea, 4 Di.
@@ -223,7 +224,7 @@ async function build(): Promise<void> {
   const have = await inspect(db)
   for (const b of PLAY_DETAIL_BUILDERS) {
     await db.exec(`DELETE FROM ${b.table} WHERE season = 2026`)
-    await db.exec(`INSERT INTO ${b.table} ${b.select(have, 2026)}`)
+    await db.exec(`INSERT INTO ${b.table} ${b.select(have, 2026, LEAGUES.nba)}`)
   }
 }
 
@@ -235,7 +236,7 @@ const flowPoints = (): FlowPoint[] => {
     if (p.team === BOS) home += p.pts ?? 0
     else away += p.pts ?? 0
     return {
-      t: elapsedAt(p.period, p.clock),
+      t: elapsedAt(LEAGUES.nba, 2026, p.period, p.clock),
       home: p.team === BOS,
       pts: p.pts ?? 0,
       fg: p.kind === 'field_goal',
@@ -356,7 +357,7 @@ describe('the play-derived tables', () => {
   })
 
   it('works out the flow as the shared rules do: changes, ties, leads, runs and droughts', async () => {
-    const s = flowSummary(flowPoints(), gameLength(5))
+    const s = flowSummary(flowPoints(), gameLength(LEAGUES.nba, 2026, 5))
     // The rules on this game, by hand: the Lakers lead 2-0, Boston leads 3-2 (a change), 6-2, the
     // Lakers' free throw ends Boston's 6-0 run, 6-6 ties it, and 6-8 in overtime is a second change.
     expect(s.leadChanges).toBe(2)
@@ -367,7 +368,7 @@ describe('the play-derived tables', () => {
     // 1 + 3 + 2: a run carries over the period breaks into overtime.
     expect(s.away.bestRun).toBe(6)
     expect(s.length).toBe(3180)
-    expect(s.home.drought).toBe(3180 - elapsedAt(1, 540))
+    expect(s.home.drought).toBe(3180 - elapsedAt(LEAGUES.nba, 2026, 1, 540))
     expect(s.home.timeLeading + s.away.timeLeading + s.timeTied).toBeCloseTo(3180)
     const rows = await db.all<Record<string, number>>(
       `SELECT * FROM ${PLAY_DETAIL_TEAM_GAME} ORDER BY team_id = ${BOS} DESC`
@@ -403,7 +404,7 @@ describe('the play-derived tables', () => {
                    WHERE kind = 'free_throw' AND pts = 1 AND team_id = ${LAL}`)
     await build()
     expect(await db.all(`SELECT * FROM ${PLAY_DETAIL_TEAM_GAME} ORDER BY team_id`)).toEqual(before)
-    const flow = await readGameFlow(db, 'a')
+    const flow = await readGameFlow(db, 'a', LEAGUES.nba)
     expect(flow.points[4]).toMatchObject({ homeScore: 6, awayScore: 3 })
   })
 
@@ -414,7 +415,7 @@ describe('the play-derived tables', () => {
                    WHERE seq IN (4, 6)`)
     await build()
     expect(await db.all(`SELECT * FROM ${PLAY_DETAIL_TEAM_GAME} ORDER BY team_id`)).toEqual(before)
-    const flow = await readGameFlow(db, 'a')
+    const flow = await readGameFlow(db, 'a', LEAGUES.nba)
     expect(flow.points.slice(2, 4).map((p) => p.homeScore)).toEqual([5, 6])
   })
 
@@ -514,12 +515,16 @@ describe('the reads', () => {
   const scope = { gameTypes: ['regular' as const] }
 
   it('list a team’s passers and scorers, and a player’s both ways', async () => {
-    const team = await readAssistNetwork(db, {
-      entity: 'team',
-      id: String(BOS),
-      seasons: [2026],
-      scope
-    })
+    const team = await readAssistNetwork(
+      db,
+      {
+        entity: 'team',
+        id: String(BOS),
+        seasons: [2026],
+        scope
+      },
+      LEAGUES.nba
+    )
     expect(team.pairs).toEqual([
       {
         passer: String(CY),
@@ -531,38 +536,54 @@ describe('the reads', () => {
         points: 2
       }
     ])
-    const di = await readAssistNetwork(db, {
-      entity: 'player',
-      id: String(DI),
-      seasons: [2026],
-      scope
-    })
+    const di = await readAssistNetwork(
+      db,
+      {
+        entity: 'player',
+        id: String(DI),
+        seasons: [2026],
+        scope
+      },
+      LEAGUES.nba
+    )
     expect(di.pairs.map((p) => [p.passer, p.scorer])).toEqual([[String(DI), String(BEA)]])
-    const none = await readAssistNetwork(db, {
-      entity: 'team',
-      id: String(BOS),
-      seasons: [2026],
-      scope: { ...scope, dates: ['2026-01-01', '2026-01-31'] }
-    })
+    const none = await readAssistNetwork(
+      db,
+      {
+        entity: 'team',
+        id: String(BOS),
+        seasons: [2026],
+        scope: { ...scope, dates: ['2026-01-01', '2026-01-31'] }
+      },
+      LEAGUES.nba
+    )
     expect(none.pairs).toEqual([])
-    const early = await readAssistNetwork(db, {
-      entity: 'team',
-      id: String(BOS),
-      seasons: [1995],
-      scope
-    })
+    const early = await readAssistNetwork(
+      db,
+      {
+        entity: 'team',
+        id: String(BOS),
+        seasons: [1995],
+        scope
+      },
+      LEAGUES.nba
+    )
     expect(early.reason).toBe('Recorded from 1996-97.')
-    const bad = await readAssistNetwork(db, {
-      entity: 'team',
-      id: '1; DROP TABLE x',
-      seasons: [2026],
-      scope
-    })
+    const bad = await readAssistNetwork(
+      db,
+      {
+        entity: 'team',
+        id: '1; DROP TABLE x',
+        seasons: [2026],
+        scope
+      },
+      LEAGUES.nba
+    )
     expect(bad).toEqual({ pairs: [], total: 0, reason: null })
   })
 
   it('give a game’s scoring in order with its flow', async () => {
-    const flow = await readGameFlow(db, 'a')
+    const flow = await readGameFlow(db, 'a', LEAGUES.nba)
     expect(flow.periods).toBe(5)
     expect(flow.points.map((p) => [p.homeScore, p.awayScore])).toEqual([
       [0, 2],
@@ -573,7 +594,7 @@ describe('the reads', () => {
       [6, 6],
       [6, 8]
     ])
-    expect(flow.summary).toEqual(flowSummary(flowPoints(), gameLength(5)))
-    expect((await readGameFlow(db, 'nope')).reason).toBeNull()
+    expect(flow.summary).toEqual(flowSummary(flowPoints(), gameLength(LEAGUES.nba, 2026, 5)))
+    expect((await readGameFlow(db, 'nope', LEAGUES.nba)).reason).toBeNull()
   })
 })

@@ -3,7 +3,8 @@
 // each run seven times, median and worst in milliseconds. Build first. Point it at a copy of a gate
 // profile: the worker bootstraps new tables when it opens a database.
 //
-// usage: node scripts/read-speed.mjs <folder holding stats.duckdb> [season]
+// usage: node scripts/read-speed.mjs <folder holding stats-<league>.duckdb> [season]
+// --league=<id> anywhere picks the league (default nba).
 import { resolve } from 'node:path'
 import { openStatsWorker } from './lib/stats-worker.mjs'
 

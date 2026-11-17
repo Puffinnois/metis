@@ -10,7 +10,7 @@
 // Build first with `npm run build`. B is attached read-only; neither may be open in the app.
 import { writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { openStatsWorker } from './lib/stats-worker.mjs'
+import { leagueArg, openStatsWorker } from './lib/stats-worker.mjs'
 
 const [a, b, mdFile] = process.argv.slice(2).map((p) => resolve(p))
 if (!a || !b) {
@@ -50,7 +50,8 @@ const TABLES = [
 ]
 
 const { read, close } = openStatsWorker(a)
-await read(`ATTACH '${join(b, 'stats.duckdb').replaceAll("'", "''")}' AS other (READ_ONLY)`)
+const other = join(b, `stats-${leagueArg()}.duckdb`)
+await read(`ATTACH '${other.replaceAll("'", "''")}' AS other (READ_ONLY)`)
 
 const out = [
   '# Two builds compared',

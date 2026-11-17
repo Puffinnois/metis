@@ -19,7 +19,7 @@ export interface FileAttempt {
  * this build (`leftOut.ts`) is listed as such, with no files expected.
  */
 export function summariseFamilies(
-  sources: SourceFile[],
+  sources: readonly SourceFile[],
   current: number,
   held: Map<string, HeldFile>,
   attempts: Map<string, FileAttempt>,

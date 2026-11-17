@@ -16,7 +16,8 @@
 // Games are the counted types (regular season, play-in, playoffs, NBA Cup final) with an NBA box
 // score, the one the app trusts.
 //
-// usage: node scripts/check-plays.mjs <folder holding stats.duckdb> [out.md]
+// usage: node scripts/check-plays.mjs <folder holding stats-<league>.duckdb> [out.md]
+// --league=<id> anywhere picks the league (default nba).
 import { writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { openStatsWorker } from './lib/stats-worker.mjs'

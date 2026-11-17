@@ -4,6 +4,7 @@
 // Build first with `npm run build`. Point it at a scratch folder, never at the app's own data.
 //
 // usage: node scripts/load-report.mjs <folder> <report.json> [--stop-after=<steps>] [--force]
+//   --league      the league to load (--league=nba, the default); its file is stats-<league>.duckdb
 //   --stop-after  closes the worker after that many steps, as a quit does
 //   --force       checks recent seasons even if tried within the day
 //   --memory      DuckDB's memory limit, to measure another setting than the app's (--memory=1GB)
@@ -19,6 +20,7 @@ const [folder, reportFile] = args.filter((a) => !a.startsWith('--')).map((p) => 
 const stopAfter = Number(args.find((a) => a.startsWith('--stop-after='))?.split('=')[1] ?? Infinity)
 const force = args.includes('--force')
 const memoryLimit = args.find((a) => a.startsWith('--memory='))?.split('=')[1]
+const league = args.find((a) => a.startsWith('--league='))?.split('=')[1] ?? 'nba'
 if (!folder || !reportFile) {
   console.error('usage: node scripts/load-report.mjs <folder> <report.json> [--stop-after=n]')
   process.exit(2)
@@ -29,10 +31,12 @@ mkdirSync(folder, { recursive: true })
 const registry = ts.transpileModule(readFileSync(join(ROOT, 'src/main/stats/sources.ts'), 'utf8'), {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 }
 }).outputText
-const { SOURCES, LOAD_TIERS } = await import(`data:text/javascript,${encodeURIComponent(registry)}`)
-const tierOf = new Map(SOURCES.map((s) => [s.id, s.tier]))
+const { SOURCES_BY_LEAGUE, LOAD_TIERS } = await import(
+  `data:text/javascript,${encodeURIComponent(registry)}`
+)
+const tierOf = new Map(SOURCES_BY_LEAGUE[league].map((s) => [s.id, s.tier]))
 
-const dbPath = join(folder, 'stats.duckdb')
+const dbPath = join(folder, `stats-${league}.duckdb`)
 const fileSize = () => {
   let bytes = 0
   for (const path of [dbPath, `${dbPath}.wal`]) {
@@ -48,7 +52,7 @@ const MB = 1024 * 1024
 const round = (x, places = 1) => Number(x.toFixed(places))
 
 const worker = new Worker(join(ROOT, 'out/main/statsWorker.js'), {
-  workerData: { path: dbPath, tempDir: join(folder, 'tmp'), memoryLimit }
+  workerData: { league, dataDir: folder, tempDir: join(folder, 'tmp'), memoryLimit }
 })
 const pending = new Map()
 let nextId = 1

@@ -15,6 +15,7 @@ import type { StatsResult } from '@shared/stats/types'
 import { BOS, emptySources, LAL, MIA } from '../../../fixtures/boxScores'
 import { addLeague } from '../../../fixtures/models'
 import { openTestDb } from '../../../fixtures/stats'
+import { LEAGUES } from '@shared/leagues'
 
 let db: StatsDb
 
@@ -64,7 +65,7 @@ const last = async (team: number, season = 2026): Promise<number> =>
 
 describe('the Elo builder', () => {
   it('rates every played game of the types it counts, in order, carried from the season before', async () => {
-    await buildModels(db, 2026)
+    await buildModels(db, 2026, LEAGUES.nba)
     const h = byHand()
     expect(await last(BOS, 2025)).toBeCloseTo(1500 + h.s0, 9)
     expect(await last(BOS)).toBeCloseTo(h.bos, 9)
@@ -85,7 +86,7 @@ describe('the Elo builder', () => {
   })
 
   it('holds both sides of a game, with no home court at a neutral site', async () => {
-    await buildModels(db, 2026)
+    await buildModels(db, 2026, LEAGUES.nba)
     const cup = await db.all<Record<string, unknown>>(
       `SELECT team_id, home, neutral, home_court, win_prob, exp_margin, elo_pre, opp_elo_pre, elo, opp_elo
        FROM ${ELO_GAME_TABLE} WHERE game_id = 'cup' ORDER BY home DESC`
@@ -113,7 +114,7 @@ describe('the Elo builder', () => {
       timeout: 30_000
     },
     async () => {
-      await buildModels(db, 2026)
+      await buildModels(db, 2026, LEAGUES.nba)
       const h = byHand()
       const later = (await db.get<Record<string, unknown>>(
         `SELECT elo_pre, opp_elo_pre, win_prob, home, home_court FROM ${ELO_SCHEDULE_TABLE}
@@ -123,9 +124,9 @@ describe('the Elo builder', () => {
       expect(later.elo_pre).toBeCloseTo(h.bos, 9)
       expect(later.opp_elo_pre).toBeCloseTo(h.mia, 9)
       expect(later.win_prob).toBeCloseTo(winProbability(h.bos + ELO.homeCourt - h.mia), 9)
-      await buildModels(db, 2027)
+      await buildModels(db, 2027, LEAGUES.nba)
       await markModelSeason(db, 0)
-      await buildModels(db, 2027)
+      await buildModels(db, 2027, LEAGUES.nba)
       expect(
         await db.get(
           `SELECT count(*)::INTEGER AS n FROM ${ELO_SCHEDULE_TABLE} WHERE game_id = 'later'`
@@ -135,7 +136,7 @@ describe('the Elo builder', () => {
   )
 
   it('adds expected wins over the games played', async () => {
-    await buildModels(db, 2026)
+    await buildModels(db, 2026, LEAGUES.nba)
     const rows = await db.all<{ team_id: number; w: number; n: number }>(
       `SELECT team_id, sum(elo_exp_wins) AS w, count(*)::INTEGER AS n FROM ${ELO_WINS_TABLE}
        WHERE season = 2026 GROUP BY 1`
@@ -146,29 +147,29 @@ describe('the Elo builder', () => {
   })
 
   it('recomputes from the earliest season changed on', async () => {
-    await buildModels(db, 2026)
+    await buildModels(db, 2026, LEAGUES.nba)
     await markModelSeason(db, 2025)
     const plan = (await planModels(db)).find((p) => p.builder === TEAM_ELO)!
     expect(plan.seasons).toEqual([2025, 2026])
     await markModelSeason(db, 2026)
-    await buildModels(db, 2026)
+    await buildModels(db, 2026, LEAGUES.nba)
     await markModelSeason(db, 2026)
     expect((await planModels(db)).find((p) => p.builder === TEAM_ELO)!.seasons).toEqual([2026])
     // A change in 2024-25's scores reaches 2025-26's ratings.
     await db.exec("UPDATE game SET home_score = 130 WHERE game_id = 'old'")
     await markModelSeason(db, 2025)
-    await buildModels(db, 2026)
+    await buildModels(db, 2026, LEAGUES.nba)
     const s0 = eloShift(ELO.homeCourt, 30)
     expect(await last(BOS, 2025)).toBeCloseTo(1500 + s0, 9)
     expect(await last(BOS)).not.toBeCloseTo(byHand().bos, 3)
   })
 
   it('reads a season in progress through the engine: the rating after the last game played', async () => {
-    await buildModels(db, 2026)
+    await buildModels(db, 2026, LEAGUES.nba)
     const r = await runQuery(
       db,
       { entity: 'team', metrics: ['team_elo'], scope: { seasons: [2026] } },
-      { currentSeason: 2026 }
+      { league: LEAGUES.nba, currentSeason: 2026 }
     )
     const afterC = await db.get<{ elo: number }>(
       `SELECT elo FROM ${ELO_GAME_TABLE} WHERE game_id = 'c' AND team_id = ${BOS}`
@@ -182,7 +183,7 @@ describe('the Elo builder', () => {
   })
 
   it('reads through the engine: Elo as of the last game in scope, expected wins added', async () => {
-    await buildModels(db, 2026)
+    await buildModels(db, 2026, LEAGUES.nba)
     const h = byHand()
     const r: StatsResult = await runQuery(
       db,
@@ -191,7 +192,7 @@ describe('the Elo builder', () => {
         metrics: ['team_elo', 'team_elo_exp_w', 'team_elo_w_over'],
         scope: { seasons: [2026], gameTypes: ['regular', 'playoffs', 'cup-final'] }
       },
-      { currentSeason: 2027 }
+      { league: LEAGUES.nba, currentSeason: 2027 }
     )
     const of = (team: number, id: string): number | null =>
       r.rows.find((x) => x.id === String(team))!.values[id].value
@@ -208,7 +209,7 @@ describe('the Elo builder', () => {
     const reg = await runQuery(
       db,
       { entity: 'team', metrics: ['team_elo'], scope: { seasons: [2026] } },
-      { currentSeason: 2027 }
+      { league: LEAGUES.nba, currentSeason: 2027 }
     )
     const lalReg = reg.rows.find((x) => x.id === String(LAL))!.values.team_elo.value
     const nov2 = await db.get<{ elo: number }>(
@@ -218,7 +219,7 @@ describe('the Elo builder', () => {
   })
 
   it('gives a game page both sides, played or still to come', async () => {
-    await buildModels(db, 2026)
+    await buildModels(db, 2026, LEAGUES.nba)
     const h = byHand()
     const later = (await readGame(db, 'later'))?.elo
     expect(later).toMatchObject({ neutral: false, homeCourt: ELO.homeCourt })

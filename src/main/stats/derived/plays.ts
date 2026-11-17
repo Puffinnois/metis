@@ -1,3 +1,4 @@
+import { elapsedSql, type League } from '@shared/leagues'
 import { eventsBootstrap } from './events'
 import { onCourtBootstrap } from './onCourt'
 import { column, type Have } from './sql'
@@ -101,11 +102,6 @@ export const PLAY_COLUMNS: ReadonlyArray<readonly [string, string]> = [
   ['possession', 'INTEGER'],
   ...PLAY_FLAGS.map((f) => [f, 'UTINYINT'] as const)
 ]
-
-/** Seconds of a period: 12 minutes in regulation, 5 in overtime. */
-export const elapsedSql = (period: string, clock: string): string =>
-  `CASE WHEN ${period} <= 4 THEN (${period} - 1) * 720 + 720 - ${clock}
-        ELSE 2880 + (${period} - 5) * 300 + 300 - ${clock} END`
 
 /** "PT11M36.00S", the NBA's clock, in seconds. */
 const isoClock = (c: string): string =>
@@ -466,8 +462,8 @@ export const espnPlaysViewSql = (have: Have): string =>
  * of stored: the seconds since the tip-off, and the score before the play (the score after, less
  * the points the play scored).
  */
-export const playsViewSql = (): string => {
-  const extra = `${elapsedSql('period', 'clock')} AS elapsed,
+export const playsViewSql = (league: League): string => {
+  const extra = `${elapsedSql(league, 'season', 'period', 'clock')} AS elapsed,
      home_after - CASE WHEN home THEN pts ELSE 0 END AS home_before,
      away_after - CASE WHEN NOT home THEN pts ELSE 0 END AS away_before`
   return `CREATE OR REPLACE VIEW ${PLAYS_VIEW} AS
@@ -480,7 +476,7 @@ export const playsViewSql = (): string => {
  * The tables, empty, and the views, for whatever a build has not reached: a read gets no rows rather
  * than a missing table. Created on every open; an existing table or view is left as it is.
  */
-export function playsBootstrap(): string[] {
+export function playsBootstrap(league: League): string[] {
   const columns = PLAY_COLUMNS.map(([n, ty]) => `${n} ${ty}`).join(', ')
   const none = PLAY_COLUMNS.map(([n, ty]) => `NULL::${ty} AS ${n}`).join(', ')
   return [
@@ -488,7 +484,7 @@ export function playsBootstrap(): string[] {
     // ESPN's plays are a view (`espnPlaysViewSql`), empty until a build. A database built before
     // Plan T907 still holds them as a table: the next build drops it.
     `CREATE VIEW IF NOT EXISTS ${PLAY_TABLES.espn} AS SELECT ${none} WHERE false`,
-    playsViewSql().replace('CREATE OR REPLACE VIEW', 'CREATE VIEW IF NOT EXISTS'),
+    playsViewSql(league).replace('CREATE OR REPLACE VIEW', 'CREATE VIEW IF NOT EXISTS'),
     ...eventsBootstrap(),
     ...onCourtBootstrap()
   ]

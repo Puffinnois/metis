@@ -24,7 +24,8 @@
 //    each season against ours, and the same games run from its ratings of the time.
 // 8. The reads: the screens' queries, warm, median of five, under 500 ms.
 //
-// usage: node scripts/check-elo.mjs <folder holding stats.duckdb> [out.md] [--fte=<nbaallelo.csv>]
+// usage: node scripts/check-elo.mjs <folder holding stats-<league>.duckdb> [out.md] [--fte=<nbaallelo.csv>]
+// --league=<id> anywhere picks the league (default nba).
 import { readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { openStatsWorker } from './lib/stats-worker.mjs'

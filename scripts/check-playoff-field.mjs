@@ -16,7 +16,8 @@
 //    half of the bracket the code built (one-eight with four-five, two-seven with three-six).
 // 4. Home court in each first-round series: the code's side against the host of its first game.
 //
-// usage: node scripts/check-playoff-field.mjs <folder holding stats.duckdb> [out.md]
+// usage: node scripts/check-playoff-field.mjs <folder holding stats-<league>.duckdb> [out.md]
+// --league=<id> anywhere picks the league (default nba).
 import { build } from 'esbuild'
 import { writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'

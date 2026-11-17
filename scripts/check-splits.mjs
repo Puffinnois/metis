@@ -16,7 +16,8 @@
 // Clutch totals against the NBA's own clutch tables: no loaded table holds them (searched on a full
 // load, `nba-data-sources.md`), so there is nothing to compare with.
 //
-// usage: node scripts/check-splits.mjs <folder holding stats.duckdb> [out.md]
+// usage: node scripts/check-splits.mjs <folder holding stats-<league>.duckdb> [out.md]
+// --league=<id> anywhere picks the league (default nba).
 import { writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { openStatsWorker } from './lib/stats-worker.mjs'

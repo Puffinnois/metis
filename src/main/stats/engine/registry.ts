@@ -1,4 +1,5 @@
-import { CATALOGUE, componentsOf } from '@shared/stats/catalogue'
+import type { League } from '@shared/leagues'
+import { CATALOGUE, componentsOf, metricIn } from '@shared/stats/catalogue'
 import { sampleLabel } from '@shared/stats/samples'
 import type { Entity, Grain, MetricDef, MetricInfo, MetricStability } from '@shared/stats/types'
 import { PLAYER_SUMS, TEAM_SUMS } from '../derived/game'
@@ -49,16 +50,21 @@ export function grainsOf(def: MetricDef): Grain[] {
 }
 
 /**
- * The catalogue as the renderer reads it: no formulas, the grains each metric has, and its stability
- * once the models have measured it (Plan T1006), so a column head needs no query of its own.
+ * The catalogue as the renderer reads it in one league: no formulas, the grains each metric has, its
+ * coverage in that league (a metric the league lacks reads unavailable, with the reason), and its
+ * stability once the models have measured it (Plan T1006), so a column head needs no query of its own.
  */
 export function catalogueInfo(
+  league: League,
   stability: ReadonlyMap<string, MetricStability> = new Map()
 ): MetricInfo[] {
-  return CATALOGUE.map((def) => {
+  return CATALOGUE.map((stated) => {
+    const def = metricIn(stated, league)
     const info: Partial<MetricDef> = { ...def }
     delete info.value
     delete info.sample
+    // Resolved into the fields above for this league.
+    delete info.leagues
     return {
       ...(info as Omit<MetricDef, 'value' | 'sample'>),
       grains: grainsOf(def),

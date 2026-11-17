@@ -1,3 +1,4 @@
+import type { LeagueId } from '@shared/leagues'
 import type { LineupGroup } from '@shared/stats/lineups'
 import type {
   GameType,
@@ -10,7 +11,7 @@ import type {
 
 export type StatsStepStatus = 'ok' | 'error' | 'skipped' | 'running' | 'interrupted'
 
-/** One row of `stats.duckdb`'s own `sync_log`. */
+/** One row of a league's stats file's own `sync_log`. */
 export interface StatsLogEntry {
   id: number
   source: string
@@ -38,10 +39,12 @@ export interface StatsProgress {
   total: number
 }
 
-/** What the stats worker is started with. */
+/** What a stats worker is started with: one worker per league, each opening only its own file. */
 export interface StatsWorkerInit {
-  /** `stats.duckdb`. */
-  path: string
+  /** The league the worker answers for; every request it serves is that league's. */
+  league: LeagueId
+  /** The data folder: the worker opens the league's `statsFile` in it (D36). */
+  dataDir: string
   /** Downloads and DuckDB's spill files. */
   tempDir: string
   /** Overrides the default, for scripts measuring another setting. */

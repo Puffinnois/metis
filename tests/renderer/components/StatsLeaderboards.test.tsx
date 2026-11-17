@@ -128,13 +128,13 @@ function renderApp(): void {
   )
 }
 
-const lastQuery = (): StatsQuery => vi.mocked(api.stats.query).mock.lastCall![0]
+const lastQuery = (): StatsQuery => vi.mocked(api.stats.query).mock.lastCall![1]
 
 /** The home's boards end on a team's: this is the last one a player board asked. */
 const lastPlayerQuery = (): StatsQuery =>
   vi
     .mocked(api.stats.query)
-    .mock.calls.map(([q]) => q)
+    .mock.calls.map(([, q]) => q)
     .filter((q) => q.entity === 'player')
     .at(-1)!
 
@@ -144,10 +144,10 @@ beforeEach(() => {
   vi.mocked(api.stats.seasons).mockResolvedValue(SEASONS)
   vi.mocked(api.stats.views).mockResolvedValue([])
   vi.mocked(api.stats.query).mockReset()
-  vi.mocked(api.stats.query).mockImplementation(async (q) => answer(q))
+  vi.mocked(api.stats.query).mockImplementation(async (_league, q) => answer(q))
   vi.mocked(api.stats.games).mockResolvedValue([])
   vi.mocked(api.stats.standings).mockResolvedValue([])
-  vi.mocked(api.stats.player).mockImplementation(async (id) => ({
+  vi.mocked(api.stats.player).mockImplementation(async (_league, id) => ({
     id,
     name: 'Luka Dončić',
     position: 'G',
@@ -250,7 +250,7 @@ describe('the scope bar', () => {
     // A team's board reads its own last games.
     const team = vi
       .mocked(api.stats.query)
-      .mock.calls.map(([q]) => q)
+      .mock.calls.map(([, q]) => q)
       .filter((q) => q.entity === 'team')
       .at(-1)!
     expect(team.scope).toMatchObject({ lastN: 5 })
@@ -400,14 +400,14 @@ describe('re-reading', () => {
     const changed = vi.mocked(api.stats.onChanged).mock.lastCall![0]
     await waitFor(() => expect(api.stats.query).toHaveBeenCalledTimes(8))
     vi.mocked(api.stats.status).mockResolvedValue({ ...BUILT, busy: true })
-    changed()
+    changed('nba')
     await screen.findByText(/updating/)
     expect(api.stats.query).toHaveBeenCalledTimes(8)
     vi.mocked(api.stats.status).mockResolvedValue({
       ...BUILT,
       builtAt: '2026-11-06T13:00:00Z'
     })
-    changed()
+    changed('nba')
     await waitFor(() => expect(api.stats.query).toHaveBeenCalledTimes(16))
   })
 })

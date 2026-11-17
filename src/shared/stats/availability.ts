@@ -1,4 +1,4 @@
-import { seasonLabel } from './seasons'
+import { LEAGUES, seasonLabel } from '../leagues'
 
 /**
  * The NBA's official injury reports (reference 18.3). A report is a list, per team and per game, of
@@ -17,7 +17,8 @@ export const REPORT_STATUSES = ['Out', 'Doubtful', 'Questionable', 'Probable', '
 export type ReportStatus = (typeof REPORT_STATUSES)[number]
 
 /** Why the games-missed counts have no value before the reports start. */
-export const AVAILABILITY_REASON = `Recorded from ${seasonLabel(AVAILABILITY_FIRST_SEASON)}.`
+// The NBA's official injury report: no other league publishes one in the data (wnba-data-sources.md).
+export const AVAILABILITY_REASON = `Recorded from ${seasonLabel(LEAGUES.nba, AVAILABILITY_FIRST_SEASON)}.`
 
 export const AVAILABILITY_SOURCES = ["The NBA's official injury reports"]
 

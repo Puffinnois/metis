@@ -1,3 +1,4 @@
+import type { LeagueId } from './leagues'
 import type { DevNote, NewNote, NoteError, NoteStatus } from './devNotes'
 import type { LineupGroup } from './stats/lineups'
 import type {
@@ -75,39 +76,54 @@ export interface Api {
       copy(ids: string[]): Promise<void>
     }
   }
+  /** Every call names its league first (D35): the renderer holds the current one in one place. */
   stats: {
     /** What the database holds, for the nav's status line. */
-    status(): Promise<StatsStatus>
+    status(league: LeagueId): Promise<StatsStatus>
     /** What is loaded, for the Data panel. */
-    data(): Promise<StatsDataReport>
+    data(league: LeagueId): Promise<StatsDataReport>
     /** Stops a running load and holds off any other, across launches, until `resume`. */
-    pause(): Promise<void>
-    resume(): Promise<void>
+    pause(league: LeagueId): Promise<void>
+    resume(league: LeagueId): Promise<void>
     /** One query of the catalogue; rejects with a readable message. */
-    query(query: StatsQuery): Promise<StatsResult>
-    catalogue(): Promise<MetricInfo[]>
+    query(league: LeagueId, query: StatsQuery): Promise<StatsResult>
+    catalogue(league: LeagueId): Promise<MetricInfo[]>
     /** What each season holds, newest first; empty until the first tables are built. */
-    seasons(): Promise<StatsSeason[]>
+    seasons(league: LeagueId): Promise<StatsSeason[]>
     /** Who a player is; null for an id nobody has. */
-    player(id: string): Promise<StatsPlayerInfo | null>
+    player(league: LeagueId, id: string): Promise<StatsPlayerInfo | null>
     /** Every game on a season's schedule, by date; empty until the tables are built. */
-    games(season: number): Promise<StatsGame[]>
-    game(id: string): Promise<StatsGameDetail | null>
+    games(league: LeagueId, season: number): Promise<StatsGame[]>
+    game(league: LeagueId, id: string): Promise<StatsGameDetail | null>
     /** The published standings of a season; empty before they start, in 1995-96. */
-    standings(season: number): Promise<StatsStanding[]>
+    standings(league: LeagueId, season: number): Promise<StatsStanding[]>
     /**
      * A player's matchups in a season, from 2017-18: the pair file for a whole regular season, the game
      * matchups for any other scope; empty lists outside them.
      */
-    matchups(player: string, season: number, scope?: StatsMatchupScope): Promise<StatsMatchups>
+    matchups(
+      league: LeagueId,
+      player: string,
+      season: number,
+      scope?: StatsMatchupScope
+    ): Promise<StatsMatchups>
     /** Who guarded whom in a game, or the reason there is nothing to show. */
-    gameMatchups(game: string): Promise<StatsGameMatchups>
+    gameMatchups(league: LeagueId, game: string): Promise<StatsGameMatchups>
     /** Every official of a season and season types, beside the league's totals. */
-    officialsSeason(season: number, gameTypes: GameType[]): Promise<StatsOfficialsSeason | null>
+    officialsSeason(
+      league: LeagueId,
+      season: number,
+      gameTypes: GameType[]
+    ): Promise<StatsOfficialsSeason | null>
     /** One official's seasons, each beside the league's totals. */
-    officialCareer(official: string, gameTypes: GameType[]): Promise<StatsOfficialCareer | null>
+    officialCareer(
+      league: LeagueId,
+      official: string,
+      gameTypes: GameType[]
+    ): Promise<StatsOfficialCareer | null>
     /** A team's groups of two to five players on the floor, counted from the plays, from 1996-97. */
     onCourtUnits(
+      league: LeagueId,
       team: string,
       season: number,
       scope: StatsOnCourtScope,
@@ -115,6 +131,7 @@ export interface Api {
     ): Promise<StatsOnCourtUnits>
     /** A player's team with a teammate on and off the floor, counted from the plays. */
     withOrWithout(
+      league: LeagueId,
       player: string,
       teammate: string | null,
       season: number,
@@ -122,31 +139,35 @@ export interface Api {
     ): Promise<StatsWithOrWithout>
     /** A team's published five-man units, from 2007-08; empty outside them. */
     lineups(
+      league: LeagueId,
       team: string,
       season: number,
       gameType: string,
       group: LineupGroup
     ): Promise<StatsLineups>
     /** A player's bio, draft and combines; what the data does not hold reads as null or empty. */
-    profile(player: string): Promise<StatsProfile>
+    profile(league: LeagueId, player: string): Promise<StatsProfile>
     /** Players' status on the latest official injury report; those it does not list are left out. */
-    availability(players: string[]): Promise<StatsAvailability[]>
+    availability(league: LeagueId, players: string[]): Promise<StatsAvailability[]>
     /** A team's head and assistant coaches for a season; empty when the file has none. */
-    coaches(team: string, season: number): Promise<StatsCoach[]>
+    coaches(league: LeagueId, team: string, season: number): Promise<StatsCoach[]>
     /** The shots a chart draws for a player or team in a scope, or why there are none. */
-    shots(request: StatsShotRequest): Promise<StatsShotChart>
+    shots(league: LeagueId, request: StatsShotRequest): Promise<StatsShotChart>
     /** Who assisted whom for a team or a player in a scope, or why there is none. */
-    assists(request: StatsAssistRequest): Promise<StatsAssistNetwork>
+    assists(league: LeagueId, request: StatsAssistRequest): Promise<StatsAssistNetwork>
     /** One game's scoring in order and its flow, or why there is none. */
-    gameFlow(game: string): Promise<StatsGameFlow>
-    views(): Promise<StatsView[]>
+    gameFlow(league: LeagueId, game: string): Promise<StatsGameFlow>
+    views(league: LeagueId): Promise<StatsView[]>
     /** Saves under a name; the same name, in any case, replaces. Rejects with a readable message. */
-    saveView(name: string, board: LeaderboardBoard): Promise<StatsView>
-    deleteView(id: number): Promise<void>
+    saveView(league: LeagueId, name: string, board: LeaderboardBoard): Promise<StatsView>
+    deleteView(league: LeagueId, id: number): Promise<void>
     /** Asks where to save; resolves to the path, null if cancelled. */
     exportCsv(fileName: string, csv: string): Promise<string | null>
-    /** Fires as a refresh progresses and when it ends; returns the unsubscribe function. */
-    onChanged(listener: () => void): () => void
+    /**
+     * Fires as a league's refresh progresses and when it ends, with the league; returns the
+     * unsubscribe function.
+     */
+    onChanged(listener: (league: LeagueId) => void): () => void
   }
 }
 

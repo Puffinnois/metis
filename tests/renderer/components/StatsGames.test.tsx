@@ -183,11 +183,13 @@ beforeEach(() => {
   vi.mocked(api.stats.catalogue).mockResolvedValue(catalogueFixture())
   vi.mocked(api.stats.seasons).mockResolvedValue(SEASONS)
   vi.mocked(api.stats.views).mockResolvedValue([])
-  vi.mocked(api.stats.query).mockImplementation((q) => Promise.resolve(answer(q)))
-  vi.mocked(api.stats.games).mockImplementation((s) => Promise.resolve(s === 2026 ? GAMES : []))
+  vi.mocked(api.stats.query).mockImplementation((_league, q) => Promise.resolve(answer(q)))
+  vi.mocked(api.stats.games).mockImplementation((_league, s) =>
+    Promise.resolve(s === 2026 ? GAMES : [])
+  )
   vi.mocked(api.stats.standings).mockResolvedValue([])
   vi.mocked(api.stats.player).mockResolvedValue(null)
-  vi.mocked(api.stats.game).mockImplementation((id) =>
+  vi.mocked(api.stats.game).mockImplementation((_league, id) =>
     Promise.resolve({
       id,
       venue: 'TD Garden',
@@ -223,7 +225,7 @@ describe('the games screen', () => {
   it('asks the engine for one game by its id', async () => {
     await openGames()
     await screen.findByRole('table', { name: 'BOS box score' })
-    const asked = vi.mocked(api.stats.query).mock.calls.map(([q]) => q)
+    const asked = vi.mocked(api.stats.query).mock.calls.map(([, q]) => q)
     expect(asked.some((q) => q.scope.games?.[0] === 'last' && q.entity === 'player')).toBe(true)
   })
 
@@ -240,7 +242,7 @@ describe('the games screen', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Final/OT' })).toBeTruthy()
     await waitFor(() =>
       expect(
-        vi.mocked(api.stats.query).mock.calls.some(([q]) => q.scope.games?.[0] === 'second')
+        vi.mocked(api.stats.query).mock.calls.some(([, q]) => q.scope.games?.[0] === 'second')
       ).toBe(true)
     )
   })
@@ -256,9 +258,9 @@ describe('the games screen', () => {
       await screen.findByText('Preseason games have no box score in either source.')
     ).toBeTruthy()
     expect(screen.queryByRole('table', { name: 'BOS box score' })).toBeNull()
-    expect(vi.mocked(api.stats.query).mock.calls.some(([q]) => q.scope.games?.[0] === 'pre')).toBe(
-      false
-    )
+    expect(
+      vi.mocked(api.stats.query).mock.calls.some(([, q]) => q.scope.games?.[0] === 'pre')
+    ).toBe(false)
   })
 
   it('says when a season has nothing on the schedule', async () => {
@@ -335,7 +337,7 @@ describe('the games screen', () => {
     expect(lal.getByText('LeBron James')).toBeTruthy()
     expect(lal.getByText('7:14')).toBeTruthy()
     expect(screen.getByRole('table', { name: 'BOS on defense' })).toBeTruthy()
-    expect(vi.mocked(api.stats.gameMatchups)).toHaveBeenCalledWith('last')
+    expect(vi.mocked(api.stats.gameMatchups)).toHaveBeenCalledWith('nba', 'last')
   })
 
   it('says why a game has no pairs', async () => {
@@ -358,7 +360,7 @@ describe('the games screen', () => {
       awayPts: 110 * games,
       homeWins: games
     })
-    vi.mocked(api.stats.game).mockImplementation((id) =>
+    vi.mocked(api.stats.game).mockImplementation((_league, id) =>
       Promise.resolve({
         id,
         venue: null,
@@ -397,7 +399,7 @@ describe('the games screen', () => {
     expect(seasons.getByText('2025-26')).toBeTruthy()
     expect(seasons.getByText('League')).toBeTruthy()
     expect(seasons.getByText('4 games: few')).toBeTruthy()
-    expect(vi.mocked(api.stats.officialCareer)).toHaveBeenCalledWith('7', ['regular'])
+    expect(vi.mocked(api.stats.officialCareer)).toHaveBeenCalledWith('nba', '7', ['regular'])
     fireEvent.click(screen.getByRole('button', { name: 'The game' }))
     expect(await screen.findByRole('table', { name: 'BOS box score' })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Officials of 2025-26' }))

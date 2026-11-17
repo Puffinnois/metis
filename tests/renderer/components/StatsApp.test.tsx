@@ -80,7 +80,7 @@ describe('the shell', () => {
       progress: { done: 3, total: 3107 }
     })
     const changed = vi.mocked(api.stats.onChanged).mock.lastCall?.[0]
-    changed?.()
+    changed?.('nba')
     expect(await screen.findByText('Loading the stats · 3 of 3,107 files')).toBeTruthy()
     expect(screen.getByText(/^NBA data is loading\./)).toBeTruthy()
   })

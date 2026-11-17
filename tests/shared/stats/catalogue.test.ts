@@ -7,7 +7,9 @@ import { modelTable } from '@main/stats/models/build'
 import { CATALOGUE, componentsOf, coverageReason, covers, TOKEN } from '@shared/stats/catalogue'
 import { PLAY_TYPE_SIDES } from '@shared/stats/playTypes'
 import { SAMPLE_LABELS } from '@shared/stats/samples'
-import { seasonLabel } from '@shared/stats/seasons'
+import { LEAGUES } from '@shared/leagues'
+
+const seasonLabel = (season: number): string => LEAGUES.nba.seasonLabel(season)
 import type { StatsDb } from '@main/stats/db'
 import type { MetricDef } from '@shared/stats/types'
 import { openTestDb } from '../../fixtures/stats'
@@ -1127,10 +1129,10 @@ describe('coverage', () => {
   })
 
   it('gives a reason only when no season in scope has it', () => {
-    expect(coverageReason(plusMinus, [1996])).toBe('Recorded from 1996-97.')
-    expect(coverageReason(plusMinus, [1996, 1997])).toBeNull()
-    expect(coverageReason(paint, [2018])).toBe('Not in the source for 2017-18.')
-    expect(coverageReason(paint, [2008])).toBe('Recorded from 2008-09.')
+    expect(coverageReason(plusMinus, [1996], LEAGUES.nba)).toBe('Recorded from 1996-97.')
+    expect(coverageReason(plusMinus, [1996, 1997], LEAGUES.nba)).toBeNull()
+    expect(coverageReason(paint, [2018], LEAGUES.nba)).toBe('Not in the source for 2017-18.')
+    expect(coverageReason(paint, [2008], LEAGUES.nba)).toBe('Recorded from 2008-09.')
   })
 
   it('writes a season as the screens do', () => {

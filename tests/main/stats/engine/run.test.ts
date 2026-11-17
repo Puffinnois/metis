@@ -16,8 +16,9 @@ import {
   type Stats
 } from '../../../fixtures/boxScores'
 import { openTestDb } from '../../../fixtures/stats'
+import { LEAGUES } from '@shared/leagues'
 
-const CTX = { currentSeason: 2027 }
+const CTX = { league: LEAGUES.nba, currentSeason: 2027 }
 
 /** A line that only scores: `pts` points on `pts` free throws, so sums read at a glance. */
 const scoring = (pts: number): Stats => [0, 0, 0, 0, pts, pts, 0, 0, 0, 0, 0, 0, 0, pts]

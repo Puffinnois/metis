@@ -3,7 +3,8 @@
 // season, and writes the tables `nba-data-sources.md` quotes. Build first with `npm run build`; run it
 // on a copy of a loaded profile, never the app's own data.
 //
-// usage: node scripts/check-on-off.mjs <folder holding stats.duckdb> [report.md]
+// usage: node scripts/check-on-off.mjs <folder holding stats-<league>.duckdb> [report.md]
+// --league=<id> anywhere picks the league (default nba).
 //
 // What it checks, regular season unless said:
 // 1. Each team-game's counts summed over its units against the team box score, and the possessions

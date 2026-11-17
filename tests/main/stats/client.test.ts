@@ -35,7 +35,7 @@ beforeEach(() => {
   workers.length = 0
 })
 
-const INIT = { path: '/data/stats.duckdb', tempDir: '/data/stats-tmp' }
+const INIT = { league: 'nba' as const, dataDir: '/data', tempDir: '/data/stats-tmp' }
 const STATUS = { available: true, through: null, updatedAt: null, busy: false }
 
 describe('startStatsWorker', () => {

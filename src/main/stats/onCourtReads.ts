@@ -1,4 +1,4 @@
-import { seasonLabel } from '@shared/stats/seasons'
+import { seasonLabel, type League } from '@shared/leagues'
 import {
   GAME_TYPES,
   type GameType,
@@ -26,9 +26,9 @@ const SLOTS = ['p1', 'p2', 'p3', 'p4', 'p5']
 const PARTS = ['secs', ...ON_COURT_COUNTS, ...ON_COURT_COUNTS.map((c) => `opp_${c}`)]
 
 /** Why there is nothing to read for a season; null when it can be read. */
-export function onCourtReason(season: number): string | null {
+export function onCourtReason(season: number, league: League): string | null {
   return season < ON_COURT_FIRST_SEASON
-    ? `Counted from ${seasonLabel(ON_COURT_FIRST_SEASON)}, when the NBA's play by play starts.`
+    ? `Counted from ${seasonLabel(league, ON_COURT_FIRST_SEASON)}, when the ${league.name}'s play by play starts.`
     : null
 }
 
@@ -120,9 +120,10 @@ export async function readOnCourtUnits(
   team: string,
   season: number,
   scope: StatsOnCourtScope,
-  size: number
+  size: number,
+  league: League
 ): Promise<StatsOnCourtUnits> {
-  const reason = onCourtReason(season)
+  const reason = onCourtReason(season, league)
   const none: StatsOnCourtUnits = { units: [], reason }
   const c = check(season, scope)
   if (reason || !c || !ID.test(team) || ![2, 3, 4, 5].includes(size)) return none
@@ -159,9 +160,10 @@ export async function readWithOrWithout(
   player: string,
   teammate: string | null,
   season: number,
-  scope: StatsOnCourtScope
+  scope: StatsOnCourtScope,
+  league: League
 ): Promise<StatsWithOrWithout> {
-  const reason = onCourtReason(season)
+  const reason = onCourtReason(season, league)
   const none: StatsWithOrWithout = {
     teamId: null,
     teammate: null,

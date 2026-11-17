@@ -18,6 +18,7 @@ import {
   type SourceState
 } from '@main/stats/sync'
 import { openTestDb, tempDir, writeFixture } from '../../fixtures/stats'
+import { LEAGUES } from '@shared/leagues'
 
 // These tests follow the file steps alone; the published tables' own step is tested in
 // `syncIdentity.test.ts`, and would otherwise follow every run here.
@@ -154,7 +155,7 @@ const sync = (
   over: { now?: Date; force?: boolean; cancelled?: () => boolean } = {}
 ): ReturnType<typeof refreshStats> =>
   refreshStats(
-    { db, downloads, now: () => over.now ?? NOW, cancelled: over.cancelled },
+    { db, league: LEAGUES.nba, downloads, now: () => over.now ?? NOW, cancelled: over.cancelled },
     { force: over.force },
     sources
   )
@@ -360,6 +361,7 @@ describe('refreshStats', () => {
       {
         db,
         downloads: fakeDownloads({}),
+        league: LEAGUES.nba,
         now: () => NOW,
         onProgress: (p) => seen.push(p)
       },

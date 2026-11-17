@@ -10,6 +10,7 @@ import type { StatsQuery, StatsResult } from '@shared/stats/types'
 import { addNbaLine, BOS, emptySources, LAL, MIA } from '../../../fixtures/boxScores'
 import { addLeague } from '../../../fixtures/models'
 import { openTestDb } from '../../../fixtures/stats'
+import { LEAGUES } from '@shared/leagues'
 
 /**
  * The composites' builder through the models step, and their read through the engine (Plan T1005).
@@ -18,7 +19,7 @@ import { openTestDb } from '../../../fixtures/stats'
  * Lakers in the playoff game.
  */
 let db: StatsDb
-const CTX = { currentSeason: 2027 }
+const CTX = { league: LEAGUES.nba, currentSeason: 2027 }
 
 beforeEach(async () => {
   db = await openTestDb()
@@ -37,7 +38,7 @@ beforeEach(async () => {
   await addNbaLine(db, 'po', 4, LAL)
   await addNbaLine(db, 'po', 4, MIA)
   await buildDerived(db)
-  await buildModels(db, 2026)
+  await buildModels(db, 2026, LEAGUES.nba)
 })
 
 const player = (

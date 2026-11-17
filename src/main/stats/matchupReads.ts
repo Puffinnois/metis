@@ -1,4 +1,4 @@
-import { seasonLabel } from '@shared/stats/seasons'
+import { seasonLabel, type League } from '@shared/leagues'
 import {
   GAME_TYPES,
   type StatsGameMatchup,
@@ -22,7 +22,11 @@ const GAME_ID = /^[a-z0-9:]{1,24}$/
 const DATE = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/
 
 /** The pairs of a game, each defending side's longest first, or why there are none to show. */
-export async function readGameMatchups(db: StatsDb, gameId: string): Promise<StatsGameMatchups> {
+export async function readGameMatchups(
+  db: StatsDb,
+  gameId: string,
+  league: League
+): Promise<StatsGameMatchups> {
   const have = await inspect(db)
   if (!GAME_ID.test(gameId) || !have.tables.has('game')) return { pairs: [], reason: null }
   const game = await db.get<{ season: number; played: boolean }>(
@@ -31,7 +35,7 @@ export async function readGameMatchups(db: StatsDb, gameId: string): Promise<Sta
   )
   if (!game) return { pairs: [], reason: null }
   if (game.season < MATCHUPS_FIRST_SEASON) {
-    return { pairs: [], reason: `Tracked from ${seasonLabel(MATCHUPS_FIRST_SEASON)}.` }
+    return { pairs: [], reason: `Tracked from ${seasonLabel(league, MATCHUPS_FIRST_SEASON)}.` }
   }
   if (!have.tables.has(GAME_MATCHUPS)) return { pairs: [], reason: null }
   const named = have.tables.has('player')

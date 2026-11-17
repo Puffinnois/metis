@@ -9,6 +9,7 @@ import { METRICS } from '@shared/stats/catalogue'
 import type { MetricDef, StatsQuery, StatsResult, StatsRow } from '@shared/stats/types'
 import { addGame, addNbaLine, BOS, emptySources, LAL, MIA } from '../../../fixtures/boxScores'
 import { openTestDb } from '../../../fixtures/stats'
+import { LEAGUES } from '@shared/leagues'
 
 const WIDGET_TABLE = 'published_test_widgets'
 
@@ -97,7 +98,7 @@ vi.mock('@shared/stats/catalogue', async (actual) => {
   }
 })
 
-const CTX = { currentSeason: 2027 }
+const CTX = { league: LEAGUES.nba, currentSeason: 2027 }
 const GONE = 'The dataset no longer publishes widgets.'
 let db: StatsDb
 

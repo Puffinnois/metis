@@ -3,7 +3,8 @@
 // info. A block shared by several tables' small segments is split among them evenly, so the tables
 // add up to the blocks in use. Build first.
 //
-// usage: node scripts/table-sizes.mjs <folder holding stats.duckdb> [table to break down by column]...
+// usage: node scripts/table-sizes.mjs <folder holding stats-<league>.duckdb> [table to break down by column]...
+// --league=<id> anywhere picks the league (default nba).
 import { resolve } from 'node:path'
 import { openStatsWorker } from './lib/stats-worker.mjs'
 
