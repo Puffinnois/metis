@@ -1,0 +1,278 @@
+import type { GameType } from './stats/types'
+
+/**
+ * The league registry (D34 to D36): the one place a league's facts live. Everything that differs
+ * between leagues is read from here, and the league reaches every part of the app as context: the
+ * worker is started for one, the engine, the catalogue and the builders are handed its entry, and every
+ * IPC call names it. No code outside this file branches on a league's id.
+ * `docs/reference/stats-database.md`, "Leagues", describes the mechanism.
+ */
+export const LEAGUE_IDS = ['nba', 'wnba'] as const
+export type LeagueId = (typeof LEAGUE_IDS)[number]
+
+/** The league the app opens on, and the one every row saved before leagues belongs to (D35). */
+export const DEFAULT_LEAGUE: LeagueId = 'nba'
+
+/** The per-minute modes, each named by its base: per 36 minutes divides minutes by 36. */
+export const PER_MINUTE = { per36: 36, per40: 40, per48: 48 } as const
+export type PerMinuteMode = keyof typeof PER_MINUTE
+
+/** How a game was divided from a season on: four 12-minute quarters, two 20-minute halves. */
+export interface PeriodEra {
+  /** The first season of this format; it holds until the next era's first season. */
+  from: number
+  /** Periods in regulation. */
+  periods: number
+  /** Minutes in each. */
+  minutes: number
+  /** What a period is called on screen. */
+  name: 'quarter' | 'half'
+}
+
+export interface League {
+  id: LeagueId
+  /** As the screens write it: "NBA". */
+  name: string
+  /** The league's full name, for the Data panel and the credit. */
+  fullName: string
+  /** Minutes in a game's regulation: 48 or 40. */
+  gameMinutes: number
+  /**
+   * The per-minute modes a board offers, in order: the NBA's per 36 and per 48, a 40-minute league's
+   * per 36 and per 40 (D35). The last is the league's game length.
+   */
+  perMinute: readonly PerMinuteMode[]
+  /** Periods by season, oldest first; the first era starts at `firstSeason`. */
+  periods: readonly PeriodEra[]
+  /** Minutes in an overtime. */
+  overtimeMinutes: number
+  /** How a season reads on screen: the data's `2026` is the NBA's `2025-26` and the WNBA's `2026`. */
+  seasonLabel(season: number): string
+  /** The season a date falls in, by the data's label: what is current, and what a refresh fetches. */
+  currentSeason(now: Date): number
+  /**
+   * The months a season is played in, 1 to 12, first to last (the NBA's runs October to June, over
+   * the new year). Outside them the league's season is complete, not stale (Plan T1301.3).
+   */
+  seasonMonths: { first: number; last: number }
+  /** The game types the league has, in the order the screens offer them (D12 holds the set). */
+  seasonTypes: readonly GameType[]
+  /** The types that count as "the regular season and after". */
+  countedTypes: readonly GameType[]
+  /** What the screens call a type where the league's name differs (the NBA Cup final). */
+  typeNames: Partial<Record<GameType, string>>
+  /** The first season any of its data holds, by the data's label. */
+  firstSeason: number
+  /**
+   * The qualifying minimums' base: the catalogue states each `minSample` over this many team games,
+   * and a row's minimum scales by the team games in scope over it (D33).
+   */
+  minimumsGames: number
+  /**
+   * The game length the minimums are stated in: a minimum counted in minutes scales by the league's
+   * `gameMinutes` over this.
+   */
+  minimumsMinutes: number
+  /** The league's stats file in the data folder (D36). */
+  statsFile: string
+  /** Where its files come from. The source registry itself stays in `src/main/stats/sources.ts`. */
+  releases: {
+    /** The release tags' prefixes on sportsdataverse-data. */
+    prefixes: readonly string[]
+    /** The source registry's entry for this league: `SOURCES_BY_LEAGUE[id]`. */
+    registry: string
+    /** What `docs/reference/` measured of them. */
+    reference: string
+  }
+  /**
+   * False while nothing loads for the league: no worker starts, nothing is downloaded, and every
+   * question answers `noData` with no error.
+   */
+  hasData: boolean
+  /** What a screen says when the league has no data yet. */
+  noData: string
+  /**
+   * Whether a metric that states nothing for this league exists in it, over the metric's own
+   * `firstSeason`. True for the league the catalogue was written for; a league added later lists its
+   * metrics in each one's `leagues` (`catalogueIn`).
+   */
+  metricsByDefault: boolean
+}
+
+const finalYear = (season: number): string =>
+  `${season - 1}-${String(season % 100).padStart(2, '0')}`
+
+const NBA: League = {
+  id: 'nba',
+  name: 'NBA',
+  fullName: 'National Basketball Association',
+  gameMinutes: 48,
+  perMinute: ['per36', 'per48'],
+  periods: [{ from: 1994, periods: 4, minutes: 12, name: 'quarter' }],
+  overtimeMinutes: 5,
+  seasonLabel: finalYear,
+  // A season is labelled by its final year (D10). The next season's schedule appears over the summer,
+  // so the label turns in August; a file not published yet is skipped, not an error.
+  currentSeason: (now) => now.getUTCFullYear() + (now.getUTCMonth() >= 7 ? 1 : 0),
+  seasonMonths: { first: 10, last: 6 },
+  seasonTypes: ['regular', 'play-in', 'playoffs', 'cup-final', 'all-star', 'preseason'],
+  countedTypes: ['regular', 'play-in', 'playoffs', 'cup-final'],
+  typeNames: { 'cup-final': 'NBA Cup final' },
+  firstSeason: 1994,
+  minimumsGames: 82,
+  minimumsMinutes: 48,
+  statsFile: 'stats-nba.duckdb',
+  releases: {
+    prefixes: ['espn_nba_', 'nba_stats_', 'nba_'],
+    registry: 'SOURCES_BY_LEAGUE.nba in src/main/stats/sources.ts',
+    reference: 'docs/reference/nba-data-sources.md'
+  },
+  hasData: true,
+  noData: 'No NBA stats yet.',
+  metricsByDefault: true
+}
+
+/**
+ * Facts from `docs/reference/wnba-data-sources.md` (T1301.1). Nothing loads for it until T1301.4, and
+ * its catalogue coverage and qualifying rule are T1301.6's: until then the minimums are the NBA's,
+ * scaled to the games in scope, as that part's text states.
+ */
+const WNBA: League = {
+  id: 'wnba',
+  name: 'WNBA',
+  fullName: "Women's National Basketball Association",
+  gameMinutes: 40,
+  perMinute: ['per36', 'per40'],
+  // Two 20-minute halves to 2005, four 10-minute quarters from 2006.
+  periods: [
+    { from: 1997, periods: 2, minutes: 20, name: 'half' },
+    { from: 2006, periods: 4, minutes: 10, name: 'quarter' }
+  ],
+  overtimeMinutes: 5,
+  // A season is the year it was played: `…_2026` holds May to October 2026.
+  seasonLabel: (season) => String(season),
+  currentSeason: (now) => now.getUTCFullYear(),
+  seasonMonths: { first: 5, last: 10 },
+  // No play-in and no preseason are published; the Commissioner's Cup final and the All-Star Game are
+  // ESPN's only.
+  seasonTypes: ['regular', 'playoffs', 'cup-final', 'all-star'],
+  countedTypes: ['regular', 'playoffs', 'cup-final'],
+  typeNames: { 'cup-final': "Commissioner's Cup final" },
+  firstSeason: 1997,
+  minimumsGames: 82,
+  minimumsMinutes: 48,
+  statsFile: 'stats-wnba.duckdb',
+  releases: {
+    prefixes: ['espn_wnba_', 'wnba_stats_', 'wnba_'],
+    registry: 'SOURCES_BY_LEAGUE.wnba in src/main/stats/sources.ts',
+    reference: 'docs/reference/wnba-data-sources.md'
+  },
+  hasData: false,
+  noData: 'No WNBA stats yet: they come in a later version.',
+  metricsByDefault: false
+}
+
+export const LEAGUES: Readonly<Record<LeagueId, League>> = { nba: NBA, wnba: WNBA }
+
+export const isLeagueId = (value: unknown): value is LeagueId =>
+  typeof value === 'string' && (LEAGUE_IDS as readonly string[]).includes(value)
+
+/** The registry's entry; throws on an id it does not know, so a bad IPC argument fails loudly. */
+export function leagueOf(id: LeagueId): League {
+  if (!isLeagueId(id)) throw new Error(`unknown league "${String(id)}"`)
+  return LEAGUES[id]
+}
+
+/** "2025-26" in the NBA, "2026" in the WNBA. */
+export const seasonLabel = (league: League, season: number): string => league.seasonLabel(season)
+
+/** The game's format in a season: the era it falls in. */
+export function periodsIn(league: League, season: number): PeriodEra {
+  let era = league.periods[0]
+  for (const e of league.periods) if (season >= e.from) era = e
+  return era
+}
+
+/** Whether a date is inside the league's season months. */
+export function inSeason(league: League, now: Date): boolean {
+  const month = now.getUTCMonth() + 1
+  const { first, last } = league.seasonMonths
+  return first <= last ? month >= first && month <= last : month >= first || month <= last
+}
+
+/** Seconds from the tip-off at the end of `period` with `clock` seconds left in it. */
+export function elapsedSeconds(
+  league: League,
+  season: number,
+  period: number,
+  clock: number
+): number {
+  const era = periodsIn(league, season)
+  const regulation = era.minutes * 60
+  const overtime = league.overtimeMinutes * 60
+  if (period <= era.periods) return (period - 1) * regulation + regulation - clock
+  return era.periods * regulation + (period - era.periods - 1) * overtime + overtime - clock
+}
+
+/** Seconds from the tip-off when `period` starts. */
+export function periodStartSeconds(league: League, season: number, period: number): number {
+  const era = periodsIn(league, season)
+  const regulation = era.minutes * 60
+  if (period <= era.periods) return (period - 1) * regulation
+  return era.periods * regulation + (period - era.periods - 1) * league.overtimeMinutes * 60
+}
+
+/** A game's whole length in seconds, with `lastPeriod` periods played. */
+export function gameSeconds(league: League, season: number, lastPeriod: number): number {
+  const era = periodsIn(league, season)
+  const regulation = era.periods * era.minutes * 60
+  return regulation + Math.max(0, lastPeriod - era.periods) * league.overtimeMinutes * 60
+}
+
+/**
+ * SQL for one era's expression, or a CASE over `seasonSql` when the league changed format. A league with
+ * one era writes the same SQL as before leagues, so its queries are unchanged.
+ */
+function byEra(league: League, seasonSql: string, sql: (era: PeriodEra) => string): string {
+  if (league.periods.length === 1) return sql(league.periods[0])
+  const eras = [...league.periods].reverse()
+  const whens = eras
+    .slice(0, -1)
+    .map((e) => `WHEN ${seasonSql} >= ${e.from} THEN ${sql(e)}`)
+    .join(' ')
+  return `(CASE ${whens} ELSE ${sql(eras[eras.length - 1])} END)`
+}
+
+/** SQL: seconds since the tip-off at `clock` seconds left in `period`, as `elapsedSeconds`. */
+export function elapsedSql(
+  league: League,
+  seasonSql: string,
+  period: string,
+  clock: string
+): string {
+  const ot = league.overtimeMinutes * 60
+  return byEra(league, seasonSql, (e) => {
+    const q = e.minutes * 60
+    return `CASE WHEN ${period} <= ${e.periods} THEN (${period} - 1) * ${q} + ${q} - ${clock}
+        ELSE ${e.periods * q} + (${period} - ${e.periods + 1}) * ${ot} + ${ot} - ${clock} END`
+  })
+}
+
+/** SQL: seconds since the tip-off when `period` starts, as `periodStartSeconds`. */
+export function periodStartSql(league: League, seasonSql: string, period: string): string {
+  const ot = league.overtimeMinutes * 60
+  return byEra(league, seasonSql, (e) => {
+    const q = e.minutes * 60
+    return `CASE WHEN ${period} <= ${e.periods} THEN (${period} - 1) * ${q} ELSE ${e.periods * q} + (${period} - ${e.periods + 1}) * ${ot} END`
+  })
+}
+
+/** SQL: a period's length in seconds, regulation or overtime. */
+export function periodLengthSql(league: League, seasonSql: string, period: string): string {
+  return byEra(
+    league,
+    seasonSql,
+    (e) =>
+      `CASE WHEN ${period} <= ${e.periods} THEN ${e.minutes * 60}.0 ELSE ${league.overtimeMinutes * 60}.0 END`
+  )
+}
