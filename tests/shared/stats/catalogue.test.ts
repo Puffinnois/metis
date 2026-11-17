@@ -110,6 +110,8 @@ const POSS_SYM = 0.5 * (possOf(TEAM) + possOf(OPP))
 const PIE_TOTAL = pieOf(TEAM) + pieOf(OPP)
 const POSS_BREF = 180.5
 const ON_POSS = 22.5
+// An hour of the team's eight: a side plays five slots, so 0.625 of one slot's minutes.
+const X_PIE_DEN = ((5 * SECONDS) / TEAM_SECONDS) * PIE_TOTAL
 
 /** The stored components of a player's row. */
 const PLAYER_ROW: Record<string, number> = {
@@ -136,7 +138,8 @@ const PLAYER_ROW: Record<string, number> = {
   x_stl_den: 22,
   x_blk_den: 15,
   x_usg_den: 40,
-  on_poss: ON_POSS
+  on_poss: ON_POSS,
+  x_pie_den: X_PIE_DEN
 }
 
 /** The stored components of a team's row. */
@@ -253,7 +256,7 @@ const EXPECTED: Record<string, number> = {
   blk_pct: 2 / 15,
   usg_pct: (tsa(PLAYER) + PLAYER.tov) / 40,
   player_on_poss: ON_POSS,
-  pie: pieOf(PLAYER) / PIE_TOTAL,
+  pie: pieOf(PLAYER) / X_PIE_DEN,
   share_pts: share('pts'),
   share_fgm: share('fgm'),
   share_fga: share('fga'),

@@ -550,8 +550,12 @@ const ESTIMATES = [
   ['pie', 'pie', 'PIE']
 ]
 const finished = games.map((g) => g.season).filter((s) => s >= 1997 && s !== current)
-const GAME_MINUTES = 48
+// Plan T1203: a player matches the published PIE within half a point. The published figure counts
+// what happened while the player was on the floor, and ours guesses it from their share of each
+// game's minutes, so a closer match is not expected; it is rounded to a tenth of a point besides.
+const PIE_TOLERANCE = 0.005
 const formulaRows = []
+const pieRows = []
 const estimateRows = []
 const teamRows = []
 const median = (xs) => {
@@ -601,17 +605,6 @@ for (const season of finished) {
     }
     estimate.push(gaps.length ? (100 * median(gaps)).toFixed(2) : '–')
   }
-  // The NBA's PIE reads as a share of what happened while the player was on the floor: scaling ours
-  // by their share of the game's minutes brings it most of the way there.
-  const onCourt = publishedRows.flatMap((p) => {
-    const r = byId.get(p.player_id)
-    const v = r?.values.pie?.value
-    const minutes = r?.values.min?.value
-    if (p.measure_type !== 'advanced' || p.pie === null || !v || !minutes) return []
-    if (!r.values.usg_pct.qualified) return []
-    return [Math.abs((v * r.games * GAME_MINUTES) / minutes - p.pie)]
-  })
-  estimate.push(onCourt.length ? (100 * median(onCourt)).toFixed(2) : '–')
   estimateRows.push(estimate)
 
   const teams = await query({
@@ -653,6 +646,35 @@ for (const season of finished) {
     teamGap('team_orb_pct', 'oreb_pct', 100)
   ])
 }
+// PIE against the published figure in every season it exists, the current one too, among players
+// with 1,000 minutes per 82 games (scaled to the games played so far).
+for (const season of [...finished, current]) {
+  const ours = await query({
+    entity: 'player',
+    metrics: ['pie', 'usg_pct'],
+    scope: { seasons: [season] },
+    limit: 5000
+  })
+  const byId = new Map(ours.rows.map((r) => [Number(r.id), r]))
+  const published = await read(`SELECT player_id, pie FROM src_nba_player_season
+    WHERE season = ${season} AND per_mode = 'totals' AND season_type = 'regular-season'
+      AND measure_type = 'advanced' AND pie IS NOT NULL`)
+  const gaps = published.flatMap((p) => {
+    const r = byId.get(p.player_id)
+    const v = r?.values.pie?.value
+    return v === null || v === undefined || !r.values.usg_pct.qualified ? [] : [v - p.pie]
+  })
+  if (!gaps.length) continue
+  const within = (t) => pct(gaps.filter((g) => Math.abs(g) <= t + 1e-9).length, gaps.length)
+  pieRows.push([
+    label(season),
+    COUNT.format(gaps.length),
+    (100 * median(gaps.map(Math.abs))).toFixed(2),
+    (100 * (gaps.reduce((a, b) => a + b, 0) / gaps.length)).toFixed(2),
+    within(0.002),
+    within(PIE_TOLERANCE)
+  ])
+}
 out.push(
   '',
   '## Formulas against what is published',
@@ -661,9 +683,18 @@ out.push(
   '',
   table(['Season', ...EXACT.map((e) => `${e[3]} %`)], formulaRows),
   '',
-  "These are estimates, and the NBA publishes its own measure of the same idea, so they are not meant to match. The median difference in percentage points, among players with 1,000 minutes per 82 games: the estimates guess a player's on-court team totals from their minutes, where the NBA counts them, and the NBA's usage counts plays differently. **PIE** follows the reference: a share of whole games. The NBA's published season figure reads higher, and **PIE, scaled to minutes** shows why: it behaves like a share of what happened while the player was on the floor.",
+  "These are estimates, and the NBA publishes its own measure of the same idea, so they are not meant to match. The median difference in percentage points, among players with 1,000 minutes per 82 games: the estimates guess a player's on-court team totals from their minutes, where the NBA counts them, and the NBA's usage counts plays differently. **PIE** divides by each game's total scaled by the player's share of its minutes (Plan T1203); the table below has it in full.",
   '',
-  table(['Season', ...ESTIMATES.map((e) => `${e[2]}`), 'PIE, scaled to minutes'], estimateRows),
+  table(['Season', ...ESTIMATES.map((e) => `${e[2]}`)], estimateRows),
+  '',
+  '### PIE against the published figure',
+  '',
+  `The player's PIE through the engine against \`nba_stats_player_season_stats\`'s \`pie\`, every regular season it is published, the current one so far, among players with 1,000 minutes per 82 games. Gaps in percentage points; the mean is ours minus the published, so it shows a lean. The tolerance is half a point (${100 * PIE_TOLERANCE}): the NBA counts what happened while the player was on the floor, ours guesses it from their share of each game's minutes, and the published figure is rounded to a tenth of a point.`,
+  '',
+  table(
+    ['Season', 'Players', 'Median gap', 'Mean gap', 'Within 0.2 %', `Within ${100 * PIE_TOLERANCE} %`],
+    pieRows
+  ),
   '',
   "Team estimates against `nba_stats_team_season_stats`, as the median difference across the league: points per 100 for the ratings, possessions per 48 for pace, percentage points for the rest. The NBA's ratings count possessions from the play by play; its `e_` columns are its own box-score estimates.",
   '',

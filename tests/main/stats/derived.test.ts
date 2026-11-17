@@ -525,6 +525,21 @@ describe('what a player line knows about the game', () => {
     expect((await playerRow(db, 1)).pie_total).toBeCloseTo(c(us) + c(them), 6)
   })
 
+  it("scales PIE's total by their share of one slot's minutes, as the NBA publishes it", async () => {
+    await buildDerived(db)
+    // By hand: 100 + 40 + 10 - 80 - 20 + 30 + 5 + 25 + 8 + 2.5 - 20 - 12 = 88.5 for us and
+    // 90 + 35 + 12 - 85 - 15 + 28 + 6 + 20 + 6 + 2 - 18 - 14 = 67 for them, 155.5 in all; 24 of 48
+    // minutes is half of it.
+    expect((await playerRow(db, 1)).x_pie_den).toBeCloseTo(77.75, 6)
+  })
+
+  it('counts overtime in the slot, so every minute of an overtime game is the whole game', async () => {
+    await db.exec(`UPDATE src_nba_team_box SET minutes = '265:00' WHERE team_id = ${BOS}`)
+    await db.exec(`UPDATE src_nba_player_box SET minutes = '53:00' WHERE person_id = 1`)
+    await buildDerived(db)
+    expect((await playerRow(db, 1)).x_pie_den).toBeCloseTo(155.5, 6)
+  })
+
   it('leaves the estimates empty rather than dividing by zero', async () => {
     await db.exec(`UPDATE src_nba_team_box SET minutes = '0:00' WHERE team_id = ${BOS}`)
     await buildDerived(db)
