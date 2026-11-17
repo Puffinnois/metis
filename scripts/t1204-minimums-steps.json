@@ -1,0 +1,42 @@
+[
+  { "size": [1500, 950] },
+  { "wait": 5000 },
+  {
+    "eval": "window.sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nwindow.until = async (fn, ms = 15000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (fn()) return true; await sleep(150) } return false };\nwindow.nav = async (name) => { const b = [...document.querySelectorAll('nav button')].find((x) => x.textContent.trim() === name); if (!b) return 'NO NAV ' + name; b.click(); await sleep(2500); return 'nav ' + name };\nwindow.chooseSelect = async (title, value) => { const el = [...document.querySelectorAll('select')].find((x) => x.title === title); if (!el) return 'NO SELECT ' + title; Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(el, String(value)); el.dispatchEvent(new Event('change', { bubbles: true })); await sleep(2500); return title + ' = ' + (el.selectedOptions[0]?.textContent ?? el.value) };\nwindow.press = async (text) => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === text); if (!b) return 'NO BUTTON ' + text; b.click(); await sleep(2500); return 'pressed ' + text };\nwindow.toggle = async (label) => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim().endsWith(label)); if (!b) return 'NO TOGGLE ' + label; b.click(); await sleep(2500); return label + ' ' + b.getAttribute('aria-pressed') };\nwindow.pressed = (label) => [...document.querySelectorAll('button')].find((x) => x.textContent.trim().endsWith(label))?.getAttribute('aria-pressed');\nwindow.rows = () => [...document.querySelectorAll('tbody tr')].filter((r) => r.querySelector('td'));\nwindow.nq = () => [...document.querySelectorAll('span[title=\"Below the qualifying sample\"]')].length;\nwindow.has = (text) => document.body.innerText.includes(text);\nwindow.check = (label, got, want) => (want.every((w) => JSON.stringify(got).includes(w)) ? 'OK ' : 'MISMATCH ') + label + ' want ' + JSON.stringify(want) + ' got ' + JSON.stringify(got);\n'helpers ready'"
+  },
+  {
+    "eval": "(async () => { const at = Date.now(); let busy = true; for (let i = 0; i < 360 && busy; i++) { busy = (await window.api.stats.status()).busy; if (busy) await sleep(5000) } return 'idle: ' + !busy + ' after ' + Math.round((Date.now() - at) / 1000) + ' s' })()"
+  },
+  {
+    "eval": "(async () => { const q = (metric, season) => window.api.stats.query({ entity: 'player', metrics: [metric], scope: { seasons: [season], qualifiedOnly: true }, limit: 3 }); const top = async (m, s) => (await q(m, s)).rows.map((x) => x.name + ' ' + (100 * x.values[m].value).toFixed(1) + ' on ' + x.values[m].sample); return [check('2011-12 FG%, qualified on 300 x 66 / 82 = 241 makes: the NBA leader leads', await top('fg_pct', 2012), ['Tyson Chandler 67.9']), check('1998-99 FT%', await top('ft_pct', 1999), ['Reggie Miller 91.5']), check('1998-99 3P%', await top('fg3_pct', 1999), ['Dell Curry 47.6']), check('2015-16 FG%', await top('fg_pct', 2016), ['DeAndre Jordan 70.3'])].join('\\n') })()"
+  },
+  {
+    "eval": "(async () => { const c = await window.api.stats.catalogue(); const all = c.metrics ?? c; const m = (id) => all.find((x) => x.id === id); return check('the catalogue: FG% counts makes, minutes count games', [m('fg_pct').minSample, m('fg_pct').qualifyLabel, m('fg3_pct').minSample, m('fg3_pct').qualifyLabel, m('ft_pct').minSample, m('ft_pct').qualifyLabel, m('min').minSample, m('min').qualifyLabel, m('ts_pct').minSample, m('ts_pct').qualifyLabel], ['300,\"field goals made\",82,\"3-pointers made\",125,\"free throws made\",58,\"games\"']) })()"
+  },
+  {
+    "eval": "(async () => [await nav('Leaderboards'), await chooseSelect('Season', 2012)].join(' / '))()"
+  },
+  {
+    "eval": "(async () => { await until(() => has('Per game')); return check('the home says the per-game rule', document.querySelector('h1')?.parentElement?.innerText.replace(/\\n/g, ' '), ['Per game: 58 games of 82 to qualify']) })()"
+  },
+  { "shot": "t1204-01-home-2011-12" },
+  { "eval": "(async () => press('All →'))()" },
+  {
+    "eval": "(async () => { await until(() => rows().length > 0); window.onRows = rows().length; return check('Qualified only ON: every row qualifies, the note states the rule', [pressed('Qualified only'), window.onRows, nq(), has(\"Qualified: the NBA's 58 games of 82, scaled to the games in range\")], ['\"true\"', ',0,true']) })()"
+  },
+  { "shot": "t1204-02-leaderboard-qualified-on" },
+  { "eval": "(async () => toggle('Qualified only'))()" },
+  {
+    "eval": "(async () => { await until(() => nq() > 0); return check('Qualified only OFF: more rows, the ones below 47 games marked NQ', [pressed('Qualified only'), rows().length > window.onRows, nq() > 0, rows().length, nq()], ['\"false\",true,true']) })()"
+  },
+  { "shot": "t1204-03-leaderboard-qualified-off" },
+  { "eval": "(async () => toggle('Shrunk rates'))()" },
+  {
+    "eval": "(async () => { await until(() => nq() > 0); const marked = rows().filter((r) => r.querySelector('span[title=\"Below the qualifying sample\"]')).slice(0, 3).map((r) => r.innerText.split('\\n').slice(0, 2).join(' ')); return check('Shrunk rates ON: Qualified only off, small samples ranked and marked NQ', [pressed('Shrunk rates'), pressed('Qualified only'), nq() > 0, !!document.querySelector('[data-shrunk]'), marked], ['\"true\",\"false\",true,true']) })()"
+  },
+  { "shot": "t1204-04-leaderboard-shrunk-nq" },
+  { "eval": "(async () => toggle('Shrunk rates'))()" },
+  {
+    "eval": "(async () => { await until(() => nq() === 0); return check('Shrunk rates OFF: Qualified only back on, no NQ', [pressed('Shrunk rates'), pressed('Qualified only'), nq()], ['\"false\",\"true\",0']) })()"
+  }
+]

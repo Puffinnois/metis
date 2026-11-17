@@ -37,9 +37,10 @@ export const BOARD_ROWS = 6
 
 /**
  * A per-game leader needs the NBA's 58 games of 82 (D33), scaled to the games in scope as the league
- * scales it in a shortened season: a player with ten great games should not lead a season.
+ * scales it in a shortened season, rounded as the engine rounds it: a player with ten great games
+ * should not lead a season.
  */
-export const gamesToQualify = (most: number): number => Math.ceil((most * NBA_MINIMUMS.games) / 82)
+export const gamesToQualify = (most: number): number => Math.round((most * NBA_MINIMUMS.games) / 82)
 
 /** Every qualified row, sorted by the engine. Counts per game when asked. */
 export function boardQuery(board: BoardDef, scope: StatsScope, perGame: boolean): StatsQuery {

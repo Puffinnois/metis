@@ -982,9 +982,10 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
     }
   })
   // A row with a sample qualifies when its qualifying count (`k`: makes for the NBA's shooting
-  // leaders, else the sample itself) reaches the minimum scaled to the games in scope.
+  // leaders, else the sample itself) reaches the minimum scaled to the games in scope, rounded to a
+  // whole count as the NBA rounds a shortened season's: 300 × 66 / 82 is 241.5, and it asked 241.
   const flags = c.metrics.map(
-    (m, i) => `(s${i} > 0 AND coalesce(k${i}, 0) >= ${m.minSample ?? 0} * $factor) AS q${i}`
+    (m, i) => `(s${i} > 0 AND coalesce(k${i}, 0) >= round(${m.minSample ?? 0} * $factor)) AS q${i}`
   )
   const sort = q.sort ? q.metrics.indexOf(q.sort.metric) : 0
   const lower = c.metrics[sort].direction === 'lower' && c.transform !== 'percentile'

@@ -370,8 +370,15 @@ describe('ranks and qualification', () => {
     expect(ids(only)).not.toContain('3')
   })
 
+  it('rounds the scaled minimum to a whole count, as the NBA rounds a shortened season', async () => {
+    // 125 over 82 games is 4.07 over 2.7, so 4 makes: unrounded, 4 would fall short.
+    await db.exec(`UPDATE player_season SET ftm = 4 WHERE player_id = 3`)
+    const r = await run({ metrics: ['ft_pct'], scope: { seasons: [2026] } })
+    expect(row(r, '3').values.ft_pct).toMatchObject({ sample: 11, qualified: true })
+  })
+
   it('scales the makes a rate needs with the games in scope', async () => {
-    // One game in scope: 125 made over 82 games is 1.5 in one. Player 3 made 1 of 5 that night.
+    // One game in scope: 125 made over 82 games is 1.5 in one, so 2. Player 3 made 1 of 5 that night.
     await db.exec(`UPDATE player_game SET ftm = 1 WHERE player_id = 3 AND game_id = 'a'`)
     const night = { seasons: [2026], dates: ['2025-11-01', '2025-11-01'] as [string, string] }
     const one = await run({ metrics: ['ft_pct'], scope: night })
@@ -379,7 +386,7 @@ describe('ranks and qualification', () => {
     await db.exec(`UPDATE player_game SET ftm = 2 WHERE player_id = 3 AND game_id = 'a'`)
     const two = await run({ metrics: ['ft_pct'], scope: night })
     expect(row(two, '3').values.ft_pct.qualified).toBe(true)
-    // The last game of each player scales the same way: one game, 1.5 makes.
+    // The last game of each player scales the same way: one game, 2 makes.
     const last = await run({ metrics: ['ft_pct'], scope: { seasons: [2026], lastN: 1 } })
     expect(row(last, '2').values.ft_pct).toMatchObject({ sample: 17, qualified: true })
   })

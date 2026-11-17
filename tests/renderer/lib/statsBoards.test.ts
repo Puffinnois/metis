@@ -74,8 +74,8 @@ describe('a board’s rows', () => {
 
   it('scales the games to a shortened season, as the NBA does', () => {
     expect(gamesToQualify(82)).toBe(58)
-    // 1998-99 had 50 games, 2011-12 had 66: 58 × 50 / 82 is 35.4, 58 × 66 / 82 is 46.7.
-    expect(gamesToQualify(50)).toBe(36)
+    // 1998-99 had 50 games, 2011-12 had 66: 58 × 50 / 82 is 35.4, 58 × 66 / 82 is 46.7, rounded.
+    expect(gamesToQualify(50)).toBe(35)
     expect(gamesToQualify(66)).toBe(47)
     const view = boardView(
       result([row('a', 30, 46), row('b', 20, 47), row('c', 10, 66)]),

@@ -49,8 +49,8 @@ type Engine = Awaited<ReturnType<typeof engine>>
 
 export const STABILITY_TABLE = 'metric_stability'
 
-/** Bump when the measure changes. */
-const BUILDER_VERSION = 2
+/** Bump when the measure changes. 3: rows qualify on the scaled minimum rounded to a whole count (D33). */
+const BUILDER_VERSION = 3
 
 /** The leaderboard's player qualifier, which every player metric is measured under as well. */
 const QUALIFIER = 'min'
