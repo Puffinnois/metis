@@ -1109,6 +1109,10 @@ So 72.8 to 96.4 % of qualified players are within half a point in a completed se
 
 **Stability measured again**, since the catalogue's signature changed: `pie` stays **high**. Year to year 0.842 to 0.838 on the same 6,261 pairs; split half 0.970 to 0.929 on 8,342; the prior 57 to 142 minutes. `team_pie` (0.653) and `nba_pie` (0.832) are unchanged, and the counts of labels across the catalogue stay 858 high, 307 medium, 254 low and 33 none.
 
+## The impact file's `boban_*` columns (Plan T1205)
+
+In progress.
+
 ## Old seasons
 
 | Season label (file) | Source | Games | Notes                                                  |
