@@ -11,10 +11,14 @@ import { cn } from '@/lib/utils'
 import { seasonLabel } from '@shared/stats/seasons'
 import type { MetricInfo } from '@shared/stats/types'
 
-const sampleWords = (info: MetricInfo): string =>
-  info.minSample
-    ? `${info.minSample.toLocaleString('en-US')} ${info.sampleLabel} over 82 games to qualify`
-    : info.sampleLabel
+const sampleWords = (info: MetricInfo): string => {
+  if (!info.minSample) return info.sampleLabel
+  const min = info.minSample.toLocaleString('en-US')
+  // The NBA's per-game leaders qualify on games alone (D33).
+  if (info.qualifyBy === 'games') return `${min} games of 82 to qualify, the NBA's minimum`
+  const nba = info.qualifyBy ? ", the NBA's minimum" : ''
+  return `${min} ${info.qualifyLabel} over 82 games to qualify${nba}`
+}
 
 const whoWords = (info: MetricInfo): string => {
   if (info.entity === 'player') return 'Players'

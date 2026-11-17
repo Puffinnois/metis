@@ -12,11 +12,14 @@ import {
   leaderboardCsv,
   leaderboardQuery,
   leaderRows,
+  ownQualifiers,
+  qualifiesFor,
   normalizeBoard,
   pickable,
   PLAYER_TABS,
   qualifies,
   rankWithinTab,
+  rowQualifies,
   searchKey,
   tabOf,
   tabsOf,
@@ -400,6 +403,87 @@ describe('qualification and ranks', () => {
   it('finds a name without its accents', () => {
     expect(searchKey('Luka Dončić')).toBe('luka doncic')
     expect(searchKey("D'Angelo")).toBe('dangelo')
+  })
+})
+
+describe("the NBA's minimums, each metric by its own rule (D33)", () => {
+  const tab = tabOf('player', 'ALL')
+  const column = (id: string, own: boolean): StatsResult['columns'][number] => ({
+    id,
+    label: id,
+    short: id,
+    unit: 'number',
+    decimals: 1,
+    direction: 'higher',
+    seasons: [2026],
+    reason: null,
+    ...(own ? { ownQualifier: true } : {})
+  })
+  const result = (rows: StatsRow[]): StatsResult => ({
+    grain: 'season',
+    columns: [
+      column('fg_pct', true),
+      column('pts', true),
+      column('ts_pct', false),
+      column('min', false)
+    ],
+    rows,
+    total: rows.length,
+    notes: [],
+    ms: 1
+  })
+  const line = (
+    id: string,
+    games: number,
+    q: { min: boolean; pts: boolean; fg: boolean; ts: boolean },
+    v: number
+  ): StatsRow =>
+    row(id, {
+      games,
+      values: {
+        min: value(1000 + v, q.min),
+        pts: value(20 + v, q.pts),
+        fg_pct: value(0.5 + v / 100, q.fg),
+        ts_pct: value(0.55 + v / 100, q.ts)
+      }
+    })
+  // 300 field goals made in 55 games, under 1,000 minutes: FG% only.
+  const makes = line('makes', 55, { min: false, pts: false, fg: true, ts: true }, 4)
+  // 60 games and few minutes: points per game only.
+  const games = line('games', 60, { min: false, pts: true, fg: false, ts: true }, 3)
+  // 52 games and 1,700 minutes: every uncovered metric, as on main, and not points per game.
+  const minutes = line('minutes', 52, { min: true, pts: false, fg: false, ts: true }, 2)
+  const all = line('all', 70, { min: true, pts: true, fg: true, ts: true }, 1)
+  const r = result([makes, games, minutes, all])
+  const own = ownQualifiers(r)
+
+  it('reads which metrics qualify alone from the result', () => {
+    expect([...own].sort()).toEqual(['fg_pct', 'pts'])
+    expect(qualifiesFor(makes, tab, 'fg_pct', own)).toBe(true)
+    expect(qualifiesFor(makes, tab, 'ts_pct', own)).toBe(false)
+    expect(qualifiesFor(games, tab, 'pts', own)).toBe(true)
+    expect(qualifiesFor(minutes, tab, 'ts_pct', own)).toBe(true)
+    expect(qualifiesFor(minutes, tab, 'pts', own)).toBe(false)
+  })
+
+  it('ranks each metric among the rows it qualifies, by its own rule', () => {
+    const ranked = rankWithinTab(r, tab)
+    const ranks = (metric: string): string[] =>
+      ranked.rows.filter((x) => x.values[metric].rank !== null).map((x) => x.id)
+    expect(ranks('fg_pct')).toEqual(['makes', 'all'])
+    expect(ranks('pts')).toEqual(['games', 'all'])
+    expect(ranks('ts_pct')).toEqual(['minutes', 'all'])
+    expect(ranked.rows[0].values.fg_pct).toMatchObject({ rank: 1, percentile: 100 })
+  })
+
+  it('keeps, under Qualified only, the rows that qualify for the sorted column', () => {
+    const sorted = (by: string): string[] =>
+      leaderRows(r, board({ sort: { by, dir: 'desc' } }), '').map((x) => x.id)
+    expect(sorted('fg_pct')).toEqual(['makes', 'all'])
+    expect(sorted('pts')).toEqual(['games', 'all'])
+    expect(sorted('ts_pct')).toEqual(['minutes', 'all'])
+    expect(rowQualifies(makes, tab, 'fg_pct', own)).toBe(true)
+    expect(rowQualifies(makes, tab, 'ts_pct', own)).toBe(false)
   })
 })
 

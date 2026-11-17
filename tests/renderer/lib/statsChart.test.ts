@@ -390,7 +390,7 @@ describe('words', () => {
     expect(
       fewNote(4, { entity: 'player', position: 'C' }, { ...SCOPE, seasonType: 'play-in' })
     ).toBe(
-      '4 centers qualify on both axes in the 2025-26 play-in. A scatter needs at least 10: a player qualifies with enough minutes for the games in scope, and enough of each axis’s own sample.'
+      '4 centers qualify on both axes in the 2025-26 play-in. A scatter needs at least 10: a player qualifies with enough minutes for the games in scope, and enough of each axis’s own sample, or the NBA’s own minimum alone for its leader stats.'
     )
     expect(
       fewNote(

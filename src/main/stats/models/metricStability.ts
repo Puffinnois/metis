@@ -49,8 +49,9 @@ type Engine = Awaited<ReturnType<typeof engine>>
 
 export const STABILITY_TABLE = 'metric_stability'
 
-/** Bump when the measure changes. */
-const BUILDER_VERSION = 2
+/** Bump when the measure changes. 3: rows qualify on the scaled minimum rounded to a whole count (D33). 4: a metric with the NBA's
+ * minimum pools by it alone, not by the minutes qualifier. */
+const BUILDER_VERSION = 4
 
 /** The leaderboard's player qualifier, which every player metric is measured under as well. */
 const QUALIFIER = 'min'
@@ -163,17 +164,22 @@ async function rowsOf(
   })
   const factor = await e.qualificationFactor(db, compiled, query)
   const qi = query.metrics.indexOf(QUALIFIER)
+  // A metric with the NBA's minimum (D33) qualifies by it alone, as the leaderboard ranks it; every
+  // other player metric needs the minutes qualifier as well.
+  const own = batch.map((m) => m.qualifyBy !== undefined)
   // Only what the measure reads, and only the players the leaderboard would rank: carrying every
   // column of every row back took 2 s a batch, the query itself 50 ms.
   const columns = [
     'id',
     'g_season',
     ...(halves ? ['g_half'] : []),
+    ...(entity === 'player' ? [`q${qi}`] : []),
     ...batch.flatMap((_, i) => [`v${i}`, `s${i}`, `q${i}`])
   ]
+  const kept = [`q${qi}`, ...batch.flatMap((_, i) => (own[i] ? [`q${i}`] : []))]
   const raw = await db.all<Record<string, unknown>>(
     `SELECT ${columns.join(', ')} FROM (${compiled.sql.replaceAll('$factor', factor)})
-     ${entity === 'player' ? `WHERE q${qi}` : ''}`,
+     ${entity === 'player' ? `WHERE ${kept.join(' OR ')}` : ''}`,
     compiled.params
   )
   return batch.map((m, i): Measured => {
@@ -185,7 +191,8 @@ async function rowsOf(
       const season = Number(r.g_season)
       if (typeof v !== 'number' || !Number.isFinite(v)) return []
       values++
-      return r[`q${i}`] === true && covers(m, season)
+      const ranks = entity !== 'player' || own[i] || r[`q${qi}`] === true
+      return r[`q${i}`] === true && ranks && covers(m, season)
         ? [
             {
               id: String(r.id),
@@ -280,6 +287,7 @@ export function catalogueSignature(catalogue: readonly MetricDef[] = CATALOGUE):
       m.value,
       m.sample,
       m.minSample ?? null,
+      m.qualifyBy ?? null,
       m.aggregation,
       m.firstSeason,
       m.missingSeasons ?? null,

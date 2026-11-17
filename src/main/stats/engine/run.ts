@@ -54,7 +54,8 @@ export async function runQuery(
       direction: m.direction,
       seasons: compiled.gaps[i] === null ? seasons.filter((s) => covers(m, s)) : [],
       reason: compiled.gaps[i],
-      ...(compiled.shrunk[i] ? { shrunk: true } : {})
+      ...(compiled.shrunk[i] ? { shrunk: true } : {}),
+      ...(m.qualifyBy !== undefined ? { ownQualifier: true } : {})
     })),
     rows: rows.map((r) => ({
       id: String(r.id),

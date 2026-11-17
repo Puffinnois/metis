@@ -80,7 +80,7 @@ function Board({
 }): React.JSX.Element {
   const info = data.byId.get(board.metric)
   const { result, loading, error } = useStatsQuery(
-    info ? boardQuery(board, scope, perGame) : null,
+    info ? boardQuery(board, scope, perGame, info.aggregation) : null,
     data.version
   )
   const view = result && info ? boardView(result, info, perGame) : null
@@ -163,9 +163,7 @@ export function StatsHome({
           </h1>
           <div className="text-[13px] text-fg-2">
             {scopeLabel(scope)}
-            {perGame && (
-              <span className="text-fg-3"> · Per game: 70 % of the games to qualify</span>
-            )}
+            {perGame && <span className="text-fg-3"> · Per game: 58 games of 82 to qualify</span>}
           </div>
         </div>
         <div className="flex items-center gap-3">

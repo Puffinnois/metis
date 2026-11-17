@@ -336,11 +336,44 @@ export function qualifies(row: StatsRow, tab: TabDef): boolean {
   return !tab.qualifier || row.values[tab.qualifier]?.qualified === true
 }
 
+/** The metrics of a result that qualify by their own minimum alone, the NBA's (D33). */
+export function ownQualifiers(result: Pick<StatsResult, 'columns'>): Set<string> {
+  return new Set(result.columns.filter((c) => c.ownQualifier).map((c) => c.id))
+}
+
+/**
+ * Whether a row qualifies for one metric: its own flag, and the tab's qualifier too unless the metric
+ * carries the NBA's minimum, which qualifies alone (300 field goals made in 55 games is enough).
+ */
+export function qualifiesFor(
+  row: StatsRow,
+  tab: TabDef,
+  metric: string,
+  own: ReadonlySet<string>
+): boolean {
+  const flag = row.values[metric]?.qualified === true
+  return own.has(metric) ? flag : qualifies(row, tab) && flag
+}
+
+/**
+ * Whether a row stands on a board sorted by `sort`: by the sorted metric's own minimum when it carries
+ * the NBA's, otherwise by the tab's qualifier, as before.
+ */
+export function rowQualifies(
+  row: StatsRow,
+  tab: TabDef,
+  sort: string,
+  own: ReadonlySet<string>
+): boolean {
+  return own.has(sort) ? row.values[sort]?.qualified === true : qualifies(row, tab)
+}
+
 /**
  * Percentiles and ranks among the rows the tab qualifies, per position, as the engine computes them
  * (`percent_rank`, `rank`). The engine ranks a count among every row with a game, since a count's
  * sample has no minimum; the table shows the qualified rows, so it ranks among those. Rows outside
- * the tab's qualifier, or below a metric's own sample, get none. A shrunk column ranks every row with
+ * the tab's qualifier, or below a metric's own sample, get none; a metric with the NBA's minimum
+ * ranks by that minimum alone (`qualifiesFor`). A shrunk column ranks every row with
  * a sample: pulling small samples toward the league is what lets them rank. Teams keep the engine's.
  */
 export function rankWithinTab(result: StatsResult, tab: TabDef): StatsResult {
@@ -348,11 +381,12 @@ export function rankWithinTab(result: StatsResult, tab: TabDef): StatsResult {
   const pools = new Map<string, number[]>()
   const key = (position: string | null, metric: string): string => `${position}|${metric}`
   const shrunk = new Set(result.columns.filter((c) => c.shrunk).map((c) => c.id))
+  const own = ownQualifiers(result)
   const ranked = (r: StatsRow, metric: string): number | null => {
     const v = r.values[metric]
     if (!v || v.value === null) return null
     if (shrunk.has(metric)) return (v.sample ?? 0) > 0 ? v.value : null
-    return qualifies(r, tab) && v.qualified ? v.value : null
+    return qualifiesFor(r, tab, metric, own) ? v.value : null
   }
   for (const r of result.rows) {
     for (const c of result.columns) {
@@ -405,8 +439,10 @@ export function leaderRows(
 ): StatsRow[] {
   const needle = searchKey(search.trim())
   const tab = tabOf(board.entity, board.tab)
+  const own = ownQualifiers(result)
   const rows = result.rows.filter((r) => {
-    if (board.qualifiedOnly && !qualifies(r, tab) && r.id !== keep) return false
+    if (board.qualifiedOnly && !rowQualifies(r, tab, board.sort.by, own) && r.id !== keep)
+      return false
     return !needle || searchKey(r.name).includes(needle)
   })
   if (board.sort.by !== 'name') return rows

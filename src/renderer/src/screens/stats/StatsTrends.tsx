@@ -136,7 +136,10 @@ export function StatsTrends({
   const poolKey = JSON.stringify([entity, metric, mode, scope.seasonType, span])
   const [refined, setRefined] = useState<{ key: string; parts: number[][] } | null>(null)
   const parts = refined?.key === poolKey ? refined.parts : poolParts(entity, span)
-  const poolQs = metric && parts.length ? poolQueries(entity, metric, parts, scope, mode) : null
+  // A metric with the NBA's minimum qualifies by it alone, not by the minutes qualifier (D33).
+  const own = info?.qualifyBy !== undefined
+  const poolQs =
+    metric && parts.length ? poolQueries(entity, metric, parts, scope, mode, own) : null
   const { results: poolResults, error: poolError } = useStatsQueries(poolQs, data.version)
   const halves = poolResults ? refineParts(parts, poolResults) : null
   if (halves) setRefined({ key: poolKey, parts: halves })
@@ -158,7 +161,7 @@ export function StatsTrends({
   const points = metric
     ? trendLine(subject, rows, id ?? '', metric, span, entity, info, teams, unavailable)
     : []
-  const band = metric ? trendBand(rows, metric, span, entity, unavailable) : []
+  const band = metric ? trendBand(rows, metric, span, entity, unavailable, own) : []
   const column = subject?.columns.find((c) => c.id === metric)
   const notes = [
     ...trendNotes(info, span, mode, data.status, column?.reason ?? null),

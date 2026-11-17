@@ -1,5 +1,14 @@
 import type { MetricDef } from '../types'
-import { allSides, count, metric, NBA_FIRST_SEASON, NBA_SOURCES, share, type Opts } from './define'
+import {
+  allSides,
+  count,
+  metric,
+  NBA_FIRST_SEASON,
+  NBA_MINIMUMS,
+  NBA_SOURCES,
+  share,
+  type Opts
+} from './define'
 
 /** Reference section 3: traditional box scores and participation. */
 const f = { family: 'traditional' } as const
@@ -7,6 +16,15 @@ const f = { family: 'traditional' } as const
 /** A shooting percentage: its minimum applies to players, since teams always qualify. */
 const pct = (a: string, b: string, minSample: number, tier: MetricDef['tier'] = 'extended'): Opts =>
   share(a, b, b, { ...f, minSample, tier })
+
+/** One of the NBA's per-game leaders: qualified on 58 games of 82 alone, as the league does (D33). */
+const nbaPerGame = { minSample: NBA_MINIMUMS.games, qualifyBy: 'games' } as const
+
+/** One of the NBA's shooting leaders: qualified on makes alone, as the league does (D33). */
+const nbaPct = (made: 'fgm' | 'fg3m' | 'ftm', attempts: string): Opts => ({
+  ...pct(made, attempts, NBA_MINIMUMS[made], 'core'),
+  qualifyBy: made
+})
 
 export const TRADITIONAL: MetricDef[] = [
   metric('gp', 'Games played', 'G', 'Games the player appeared in. Being listed does not count.', {
@@ -28,6 +46,7 @@ export const TRADITIONAL: MetricDef[] = [
       ...count('minutes', {
         ...f,
         sample: 'minutes',
+        // The leaderboards' row qualifier for every metric the NBA's rule does not cover (D33).
         minSample: 1000,
         unit: 'minutes',
         perGameOnly: true,
@@ -100,7 +119,13 @@ export const TRADITIONAL: MetricDef[] = [
     })
   ),
 
-  metric('pts', 'Points', 'PTS', 'Points scored.', count('pts', { ...f, tier: 'core' })),
+  metric(
+    'pts',
+    'Points',
+    'PTS',
+    'Points scored.',
+    count('pts', { ...f, ...nbaPerGame, tier: 'core' })
+  ),
   ...allSides(
     'fgm',
     'Field goals made',
@@ -120,7 +145,7 @@ export const TRADITIONAL: MetricDef[] = [
     'Field-goal percentage',
     'FG%',
     'Field goals made per attempt.',
-    pct('fgm', 'fga', 500, 'core')
+    nbaPct('fgm', 'fga')
   ),
   ...allSides('fg_miss', 'Missed field goals', 'FGMX', 'Field-goal attempts minus makes.', {
     ...count('fga', { ...f, value: '{fga} - {fgm}', kind: 'derived', direction: 'neutral' })
@@ -157,7 +182,7 @@ export const TRADITIONAL: MetricDef[] = [
     'Three-point percentage',
     '3P%',
     'Threes made per attempt.',
-    pct('fg3m', 'fg3a', 200, 'core')
+    nbaPct('fg3m', 'fg3a')
   ),
   ...allSides('ftm', 'Free throws made', 'FTM', 'Free throws made.', count('ftm', f)),
   ...allSides('fta', 'Free-throw attempts', 'FTA', 'Free-throw attempts.', count('fta', f)),
@@ -166,7 +191,7 @@ export const TRADITIONAL: MetricDef[] = [
     'Free-throw percentage',
     'FT%',
     'Free throws made per attempt.',
-    pct('ftm', 'fta', 125, 'core')
+    nbaPct('ftm', 'fta')
   ),
   ...allSides('ft_miss', 'Missed free throws', 'FTMX', 'Free-throw attempts minus makes.', {
     ...count('fta', { ...f, value: '{fta} - {ftm}', kind: 'derived', direction: 'lower' })
@@ -191,11 +216,11 @@ export const TRADITIONAL: MetricDef[] = [
     'REB',
     'Offensive and defensive rebounds. Team rebounds are not in this box score.',
     {
-      ...count('reb', { ...f, tier: 'core' })
+      ...count('reb', { ...f, ...nbaPerGame, tier: 'core' })
     }
   ),
   ...allSides('ast', 'Assists', 'AST', 'Passes credited as leading to a made field goal.', {
-    ...count('ast', { ...f, tier: 'core' })
+    ...count('ast', { ...f, ...nbaPerGame, tier: 'core' })
   }),
   ...allSides(
     'tov',
@@ -206,8 +231,20 @@ export const TRADITIONAL: MetricDef[] = [
       ...count('tov', { ...f, direction: 'lower', tier: 'core' })
     }
   ),
-  ...allSides('stl', 'Steals', 'STL', 'Steals.', count('stl', { ...f, tier: 'core' })),
-  ...allSides('blk', 'Blocks', 'BLK', 'Blocked shots.', count('blk', { ...f, tier: 'core' })),
+  ...allSides(
+    'stl',
+    'Steals',
+    'STL',
+    'Steals.',
+    count('stl', { ...f, ...nbaPerGame, tier: 'core' })
+  ),
+  ...allSides(
+    'blk',
+    'Blocks',
+    'BLK',
+    'Blocked shots.',
+    count('blk', { ...f, ...nbaPerGame, tier: 'core' })
+  ),
   ...allSides('pf', 'Personal fouls', 'PF', 'Personal fouls charged.', {
     ...count('pf', { ...f, direction: 'lower' })
   }),

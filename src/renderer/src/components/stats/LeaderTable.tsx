@@ -1,7 +1,13 @@
 import { useEffect, useRef } from 'react'
 import { MetricHover, StabilityMark } from '@/components/stats/MetricCard'
 import { cellTitle, fmtStat, heatOf, type Heat } from '@/lib/stats/format'
-import { columnGroups, qualifies, type TabDef } from '@/lib/stats/leaderboard'
+import {
+  columnGroups,
+  ownQualifiers,
+  qualifies,
+  rowQualifies,
+  type TabDef
+} from '@/lib/stats/leaderboard'
 import { rawLine } from '@/lib/stats/stability'
 import { cn } from '@/lib/utils'
 import type { LeaderboardBoard, MetricInfo, StatsResultColumn, StatsRow } from '@shared/stats/types'
@@ -83,6 +89,8 @@ export function LeaderTable({
   const resultCol = new Map(columns.map((c) => [c.id, c]))
   // A shrunk column ranks every row with a sample, the ones below the qualifier too.
   const shrunkCol = new Set(columns.filter((c) => c.shrunk).map((c) => c.id))
+  // The NBA's leader statistics qualify by their own minimum alone, not the tab's qualifier.
+  const own = ownQualifiers({ columns })
   const selectedRef = useRef<HTMLTableRowElement | null>(null)
   useEffect(() => {
     selectedRef.current?.scrollIntoView?.({ block: 'center' })
@@ -186,7 +194,9 @@ export function LeaderTable({
       </thead>
       <tbody>
         {rows.map((r, i) => {
-          const ok = qualifies(r, tab)
+          // The row's NQ: below the sorted metric's own minimum where it has the NBA's, else the tab's.
+          const ok = rowQualifies(r, tab, board.sort.by, own)
+          const tabOk = qualifies(r, tab)
           const isSel = r.id === selected
           return (
             <tr
@@ -257,7 +267,8 @@ export function LeaderTable({
                   )
                 }
                 const shrunk = shrunkCol.has(id)
-                const ranked = shrunk || (ok && v.qualified)
+                const cellOk = own.has(id) ? v.qualified : tabOk
+                const ranked = shrunk || (cellOk && v.qualified)
                 const heat = ranked ? heatOf(v.percentile, info.direction) : 'n'
                 const reason = resultCol.get(id)?.reason
                 const raw = shrunk ? rawLine(v, info) : null
@@ -272,7 +283,7 @@ export function LeaderTable({
                       className={cn(
                         'px-2',
                         HEAT[heat],
-                        ((!ok && !shrunk) || v.value === null) && 'text-fg-3'
+                        ((!cellOk && !shrunk) || v.value === null) && 'text-fg-3'
                       )}
                     >
                       {fmtStat(v.value, info, board.mode)}

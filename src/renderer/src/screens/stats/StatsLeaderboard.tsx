@@ -163,7 +163,7 @@ export function StatsLeaderboard({
 
   const title = `${seasonLabel(scope.season)} ${tab.title} leaderboard`
   const qualifyNote = tab.qualifier
-    ? `Qualified: 1,000 minutes over 82 games, scaled to the games in range`
+    ? `Qualified: 1,000 minutes over 82 games, scaled to the games in range; the NBA's leader stats by their own minimum`
     : 'Every team qualifies'
   const sortLabel =
     board.sort.by === 'name' ? 'name' : (data.byId.get(board.sort.by)?.label ?? board.sort.by)

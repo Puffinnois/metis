@@ -49,10 +49,19 @@ export const METRICS: ReadonlyMap<string, MetricDef> = new Map(CATALOGUE.map((m)
 /** A component in a formula: `{fga}`. */
 export const TOKEN = /\{([a-z0-9_]+)\}/g
 
-/** Every component a metric reads, its sample and per-game divisor included. */
-export function componentsOf(def: Pick<MetricDef, 'value' | 'sample' | 'perGameBy'>): string[] {
+/** Every component a metric reads, its sample, qualifying count and per-game divisor included. */
+export function componentsOf(
+  def: Pick<MetricDef, 'value' | 'sample' | 'perGameBy' | 'qualifyBy'>
+): string[] {
   const names = [...def.value.matchAll(TOKEN)].map((m) => m[1])
-  return [...new Set([...names, def.sample, ...(def.perGameBy ? [def.perGameBy] : [])])]
+  return [
+    ...new Set([
+      ...names,
+      def.sample,
+      ...(def.qualifyBy ? [def.qualifyBy] : []),
+      ...(def.perGameBy ? [def.perGameBy] : [])
+    ])
+  ]
 }
 
 export {

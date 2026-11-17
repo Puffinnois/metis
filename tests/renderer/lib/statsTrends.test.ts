@@ -292,14 +292,28 @@ describe('ranking a season in its own pool', () => {
 })
 
 describe("the metric's own qualifying rule", () => {
-  it('pools a shooting rate by its attempts as well as the minutes, as the leaderboard does', () => {
-    // fg3_pct qualifies on three-point attempts; the engine's flag is read, not a copy of its number.
+  it('pools a rate by its own sample as well as the minutes, as the leaderboard does', () => {
+    // The engine's flag is read, not a copy of its number.
+    const rows = [
+      row('1', 2016, { ts_pct: val(0.6, true, 900), min: val(2500) }),
+      row('2', 2016, { ts_pct: val(0.7, false, 12), min: val(2500) }),
+      row('3', 2016, { ts_pct: val(0.58, true, 600), min: val(800, false) })
+    ]
+    expect([...seasonPool(rows, 2016, 'ts_pct', 'player')]).toEqual([['1', 0.6]])
+  })
+
+  it("pools one of the NBA's leader stats by its own minimum alone (D33)", () => {
+    // fg3_pct qualifies on 82 threes made: player 3 has them in under 1,000 minutes.
     const rows = [
       row('1', 2016, { fg3_pct: val(0.45, true, 300), min: val(2500) }),
       row('2', 2016, { fg3_pct: val(0.6, false, 12), min: val(2500) }),
       row('3', 2016, { fg3_pct: val(0.4, true, 250), min: val(800, false) })
     ]
-    expect([...seasonPool(rows, 2016, 'fg3_pct', 'player')]).toEqual([['1', 0.45]])
+    expect([...seasonPool(rows, 2016, 'fg3_pct', 'player', true)]).toEqual([
+      ['1', 0.45],
+      ['3', 0.4]
+    ])
+    expect(trendBand(rows, 'fg3_pct', [2016], 'player', new Set(), true)[0].n).toBe(2)
     const line = trendLine(
       result([row('2', 2016, { fg3_pct: val(0.6, false, 12), min: val(2500) })]),
       rows,
@@ -309,7 +323,7 @@ describe("the metric's own qualifying rule", () => {
       'player',
       info('fg3_pct')
     )
-    expect(line[0]).toMatchObject({ value: 0.6, qualified: false, rank: null, of: 1 })
+    expect(line[0]).toMatchObject({ value: 0.6, qualified: false, rank: null, of: 2 })
   })
 })
 

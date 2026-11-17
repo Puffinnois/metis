@@ -1,8 +1,9 @@
 import type { ExploreSubject } from '@/lib/stats/explore'
 import { familyLabel, fmtStat } from '@/lib/stats/format'
 import {
+  ownQualifiers,
   pickable,
-  qualifies,
+  qualifiesFor,
   rankWithinTab,
   searchKey,
   tabOf,
@@ -277,10 +278,10 @@ export function chartView(
   const ranked = rankWithinTab(result, tab)
   const metrics = [axes.x, axes.y, ...chartExtras(state, axes)]
   const rows = ranked.rows.filter((r) => valueOf(r, axes.x) !== null && valueOf(r, axes.y) !== null)
+  // Each axis by its own rule: the NBA's minimum alone, or the tab's qualifier and its own sample.
+  const own = ownQualifiers(result)
   const ok = (r: StatsRow): boolean =>
-    qualifies(r, tab) &&
-    r.values[axes.x]?.qualified === true &&
-    r.values[axes.y]?.qualified === true
+    qualifiesFor(r, tab, axes.x, own) && qualifiesFor(r, tab, axes.y, own)
   const pool = rows.filter(ok)
   const plotted = state.qualifiedOnly ? pool : rows
   if (plotted.length < MIN_DOTS) return { kind: 'few', qualified: pool.length, all: rows.length }
@@ -431,7 +432,8 @@ export function whoWords(state: Pick<ChartState, 'entity' | 'position'>): string
 /**
  * The designed state when too few qualify: how many, in what scope, and why.
  * "6 centers qualify on both axes in the last 5 games. A scatter needs at least 10: a player
- * qualifies with enough minutes for the games in scope, and enough of each axis's own sample."
+ * qualifies with enough minutes for the games in scope, and enough of each axis's own sample, or the
+ * NBA's own minimum alone for its leader stats."
  */
 export function fewNote(
   qualified: number,
@@ -447,7 +449,7 @@ export function fewNote(
         : lowerFirst(range.replace("Team's", "their team's"))
   const why =
     state.entity === 'player'
-      ? 'a player qualifies with enough minutes for the games in scope, and enough of each axis’s own sample'
+      ? 'a player qualifies with enough minutes for the games in scope, and enough of each axis’s own sample, or the NBA’s own minimum alone for its leader stats'
       : 'a team qualifies with enough of each axis’s own sample'
   const verb = qualified === 1 ? 'qualifies' : 'qualify'
   const who = qualified === 1 ? whoWords(state).replace(/s$/, '') : whoWords(state)

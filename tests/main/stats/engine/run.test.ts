@@ -342,18 +342,72 @@ describe('ranks and qualification', () => {
   })
 
   it('scales a minimum to the team games in scope, so a short season qualifies fairly', async () => {
-    // 500 attempts over 82 games is about 18 over the 3 games a team played here.
+    // A team played 8 / 3 = 2.7 games here on average, so 300 makes over 82 games is about 10.
     const r = await run({ metrics: ['fg_pct', 'pts'], scope: { seasons: [2026] } })
     // Nobody here shot a field goal, so nobody has the sample.
     expect(row(r, '1').values.fg_pct).toMatchObject({ qualified: false, value: null, rank: null })
     expect(row(r, '1').values.pts.qualified).toBe(true)
 
     const minutes = await run({ metrics: ['min'], scope: { seasons: [2026] } })
-    // 1,000 minutes over 82 games is 36.6 over 3. Player 2 has 66, player 3 has 60.
+    // 1,000 minutes over 82 games is 33 over 2.7. Player 2 has 66, player 3 has 60.
     expect(row(minutes, '2').values.min.qualified).toBe(true)
     await db.exec(`UPDATE player_season SET minutes = 30 WHERE player_id = 3`)
     const fewer = await run({ metrics: ['min'], scope: { seasons: [2026] } })
     expect(row(fewer, '3').values.min.qualified).toBe(false)
+  })
+
+  it('qualifies a shooting rate on makes, as the NBA does, while its sample stays the attempts', async () => {
+    // 125 free throws made over 82 games is 4.1 over the 2.7 a team played here. Player 3 took 11
+    // and made 3: enough attempts for the old minimum of 125 attempts, too few makes for the NBA's.
+    await db.exec(`UPDATE player_season SET ftm = 3 WHERE player_id = 3`)
+    const r = await run({ metrics: ['ft_pct'], scope: { seasons: [2026] } })
+    expect(row(r, '3').values.ft_pct).toMatchObject({ sample: 11, qualified: false, rank: null })
+    expect(row(r, '3').values.ft_pct.value).toBeCloseTo(3 / 11, 6)
+    // Player 2 made all 41.
+    expect(row(r, '2').values.ft_pct).toMatchObject({ sample: 41, qualified: true, rank: 1 })
+    const only = await run({ metrics: ['ft_pct'], scope: { seasons: [2026], qualifiedOnly: true } })
+    expect(ids(only)).not.toContain('3')
+  })
+
+  it('rounds the scaled minimum to a whole count, as the NBA rounds a shortened season', async () => {
+    // 125 over 82 games is 4.07 over 2.7, so 4 makes: unrounded, 4 would fall short.
+    await db.exec(`UPDATE player_season SET ftm = 4 WHERE player_id = 3`)
+    const r = await run({ metrics: ['ft_pct'], scope: { seasons: [2026] } })
+    expect(row(r, '3').values.ft_pct).toMatchObject({ sample: 11, qualified: true })
+  })
+
+  it('scales the makes a rate needs with the games in scope', async () => {
+    // One game in scope: 125 made over 82 games is 1.5 in one, so 2. Player 3 made 1 of 5 that night.
+    await db.exec(`UPDATE player_game SET ftm = 1 WHERE player_id = 3 AND game_id = 'a'`)
+    const night = { seasons: [2026], dates: ['2025-11-01', '2025-11-01'] as [string, string] }
+    const one = await run({ metrics: ['ft_pct'], scope: night })
+    expect(row(one, '3').values.ft_pct).toMatchObject({ sample: 5, qualified: false })
+    await db.exec(`UPDATE player_game SET ftm = 2 WHERE player_id = 3 AND game_id = 'a'`)
+    const two = await run({ metrics: ['ft_pct'], scope: night })
+    expect(row(two, '3').values.ft_pct.qualified).toBe(true)
+    // The last game of each player scales the same way: one game, 2 makes.
+    const last = await run({ metrics: ['ft_pct'], scope: { seasons: [2026], lastN: 1 } })
+    expect(row(last, '2').values.ft_pct).toMatchObject({ sample: 17, qualified: true })
+  })
+
+  it("qualifies the NBA's per-game leaders on games alone, and says which metrics do", async () => {
+    // 58 games of 82 is 1.9 of the 2.7 a team played. Player 3 played 2, and only 2 minutes.
+    await db.exec(`UPDATE player_season SET minutes = 2 WHERE player_id = 3`)
+    const few = await run({ metrics: ['pts', 'min', 'ts_pct'], scope: { seasons: [2026] } })
+    // Games without minutes: points qualify, the minutes qualifier does not.
+    expect(row(few, '3').values.pts).toMatchObject({ sample: 2, qualified: true })
+    expect(row(few, '3').values.min.qualified).toBe(false)
+    // The result says which columns qualify by their own minimum alone.
+    expect(few.columns.map((c) => [c.id, c.ownQualifier ?? false])).toEqual([
+      ['pts', true],
+      ['min', false],
+      ['ts_pct', false]
+    ])
+    await db.exec(`UPDATE player_season SET games = 1, minutes = 500 WHERE player_id = 3`)
+    const one = await run({ metrics: ['pts', 'min'], scope: { seasons: [2026] } })
+    // Minutes without games: the minutes qualify, points do not.
+    expect(row(one, '3').values.pts.qualified).toBe(false)
+    expect(row(one, '3').values.min.qualified).toBe(true)
   })
 
   it('keeps only qualified rows when asked', async () => {
