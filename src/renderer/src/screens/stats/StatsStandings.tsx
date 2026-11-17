@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { Segmented, StatsSelect } from '@/components/stats/controls'
 import { MetricHead } from '@/components/stats/MetricCard'
 import { Loading, MiniTable, Notes, SectionHead } from '@/components/stats/parts'
+import { useScreenState } from '@/lib/stats/session'
 import { moveToSeason, type StatsScope } from '@/lib/stats/scope'
 import {
   forecastCells,
@@ -35,7 +36,7 @@ export function StatsStandings({
   onScope: (scope: StatsScope) => void
   onOpenTeam: (team: string) => void
 }): React.JSX.Element {
-  const [view, setView] = useState<StandingsView>('conference')
+  const [view, setView] = useScreenState<StandingsView>('standings', 'view', 'conference')
   const { value: rows, error } = useStandings(scope.season, data.version)
   // Metis's own columns, beside the published ones; blank until they answer.
   const sq = useMemo(() => strengthQuery(scope.season), [scope.season])

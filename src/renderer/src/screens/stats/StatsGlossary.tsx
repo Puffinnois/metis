@@ -1,7 +1,7 @@
-import { useState } from 'react'
 import { Search } from 'lucide-react'
 import { Segmented, StatsSelect } from '@/components/stats/controls'
 import { MetricCardBody } from '@/components/stats/MetricCard'
+import { useScreenState } from '@/lib/stats/session'
 import { familyLabel } from '@/lib/stats/format'
 import { searchKey } from '@/lib/stats/leaderboard'
 import {
@@ -35,11 +35,11 @@ const FAMILIES: MetricFamily[] = [
 
 /** Every metric the screens show, by family or search, with its sample, seasons and source. */
 export function StatsGlossary({ catalogue }: { catalogue: MetricInfo[] }): React.JSX.Element {
-  const [entity, setEntity] = useState<'player' | 'team'>('player')
-  const [family, setFamily] = useState<MetricFamily | ''>('')
-  const [search, setSearch] = useState('')
-  const [level, setLevel] = useState<StabilityLevel | ''>('')
-  const [order, setOrder] = useState<GlossaryOrder>('name')
+  const [entity, setEntity] = useScreenState<'player' | 'team'>('glossary', 'entity', 'player')
+  const [family, setFamily] = useScreenState<MetricFamily | ''>('glossary', 'family', '')
+  const [search, setSearch] = useScreenState('glossary', 'search', '')
+  const [level, setLevel] = useScreenState<StabilityLevel | ''>('glossary', 'level', '')
+  const [order, setOrder] = useScreenState<GlossaryOrder>('glossary', 'order', 'name')
   const needle = searchKey(search.trim())
   const shown = glossaryOrder(
     catalogue.filter(

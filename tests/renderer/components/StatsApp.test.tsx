@@ -57,7 +57,12 @@ describe('the shell', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Games' }))
     expect(screen.getByRole('heading', { name: 'Games' })).toBeTruthy()
     await waitFor(() =>
-      expect(onLocation).toHaveBeenLastCalledWith({ screen: 'games', team: null, player: null })
+      expect(onLocation).toHaveBeenLastCalledWith({
+        league: 'nba',
+        screen: 'games',
+        team: null,
+        player: null
+      })
     )
   })
 

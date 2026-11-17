@@ -1,11 +1,14 @@
 import { useCallback, useRef, useState } from 'react'
 import type { StatsScreen } from '@/lib/stats/screens'
+import type { LeagueId } from '@shared/leagues'
 
 /**
- * A page Back returns to: a screen and, on a dashboard, its player or team. Tabs, scopes and filters
- * stay as they are.
+ * A page Back returns to: a league, a screen and, on a dashboard, its player or team. Tabs, scopes
+ * and filters stay as they are. A page carries its league, so Back to a page of the other league
+ * switches back to it, and never shows one league's player, team or game under the other's name.
  */
 export interface NavLocation {
+  league: LeagueId
   screen: StatsScreen
   team: string | null
   player: { id: string; position: string | null } | null
@@ -21,7 +24,7 @@ const keyOf = (l: NavLocation): string => JSON.stringify({ ...l, player: l.playe
 
 /** A dashboard that was waiting for its default, now showing it: the same page. */
 function fillsIn(was: NavLocation, now: NavLocation): boolean {
-  if (was.screen !== now.screen) return false
+  if (was.screen !== now.screen || was.league !== now.league) return false
   return (
     (was.screen === 'team' && was.team === null) || (was.screen === 'player' && was.player === null)
   )
