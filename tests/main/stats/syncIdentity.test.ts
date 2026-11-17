@@ -4,9 +4,9 @@ import * as published from '@main/stats/derived/published'
 import type { Downloads } from '@main/stats/download'
 import * as identity from '@main/stats/identity'
 import type { SourceFile } from '@main/stats/sources'
-import { refreshStats } from '@main/stats/sync'
+import { notBuilt, refreshStats } from '@main/stats/sync'
 import { openTestDb, tempDir, writeFixture } from '../../fixtures/stats'
-import { LEAGUES } from '@shared/leagues'
+import { LEAGUES, type League } from '@shared/leagues'
 
 vi.mock('@main/stats/identity', () => ({
   canBuildIdentity: vi.fn(async () => true),
@@ -68,7 +68,8 @@ beforeEach(() => {
 
 async function run(
   sources: SourceFile[],
-  missing: SourceFile[] = []
+  missing: SourceFile[] = [],
+  league: League = LEAGUES.nba
 ): Promise<ReturnType<typeof refreshStats>> {
   const db = await openTestDb()
   const file = await writeFixture(db, tempDir(), 'a.parquet', 'SELECT 1 AS x')
@@ -79,8 +80,40 @@ async function run(
         : { kind: 'file', path: file, etag: null, bytes: 1 },
     removeFile: async () => undefined
   }
-  return refreshStats({ db, league: LEAGUES.nba, downloads, now: () => NOW }, {}, sources)
+  return refreshStats({ db, league, downloads, now: () => NOW }, {}, sources)
 }
+
+describe("the steps a league's entry lists", () => {
+  // The WNBA's entry with the NBA's calendar, so the same files are due.
+  const wnba: League = { ...LEAGUES.wnba, currentSeason: () => CURRENT }
+
+  it('build the identity alone, with its own recipe, and say why nothing else is built', async () => {
+    const { steps } = await run([CORE, PUBLISHED], [], wnba)
+    expect(steps.map((s) => [s.source, s.status])).toEqual([
+      ['stats:core_file:2027', 'ok'],
+      ['stats:identity', 'ok'],
+      ['stats:published_file:2027', 'ok'],
+      ['stats:derived', 'skipped']
+    ])
+    expect(identity.buildIdentity).toHaveBeenCalledWith(expect.anything(), wnba)
+    expect(identity.canBuildIdentity).toHaveBeenCalledWith(expect.anything(), wnba)
+    expect(derived.buildDerived).not.toHaveBeenCalled()
+    expect(published.buildPublished).not.toHaveBeenCalled()
+    expect(steps[3].message).toBe(notBuilt(wnba))
+    expect(steps[3].message).toMatch(/only its game, team and player tables are built/)
+  })
+
+  it('build nothing for a league that lists no tables', async () => {
+    const none: League = { ...wnba, builds: [] }
+    const { steps } = await run([CORE], [], none)
+    expect(steps.map((s) => [s.source, s.status])).toEqual([
+      ['stats:core_file:2027', 'ok'],
+      ['stats:derived', 'skipped']
+    ])
+    expect(identity.buildIdentity).not.toHaveBeenCalled()
+    expect(steps[1].message).toMatch(/nothing is built from them/)
+  })
+})
 
 describe('the identity and derived steps', () => {
   it('run as soon as the core tier has loaded, not at the end of the whole load', async () => {

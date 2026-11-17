@@ -1,0 +1,47 @@
+[
+  {
+    "size": [1500, 950]
+  },
+  {
+    "wait": 6000
+  },
+  {
+    "eval": "window.sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nwindow.until = async (fn, ms = 15000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await fn()) return true; await sleep(500) } return false };\nwindow.nav = async (name) => { const b = [...document.querySelectorAll('nav button')].find((x) => x.textContent.trim() === name); if (!b) return 'NO NAV ' + name; b.click(); await sleep(2500); return 'nav ' + name };\nwindow.BOARD = { entity: 'player', metrics: ['pts', 'reb', 'ast', 'stl', 'blk', 'ts_pct'], scope: { seasons: [2026] } };\nwindow.timeBoard = async () => { const t0 = performance.now(); const r = await window.api.stats.query('nba', BOARD); return { ms: Math.round(performance.now() - t0), rows: r.rows.length, top: r.rows[0]?.name } };\nwindow.check = (label, ok, got) => (ok ? 'OK ' : 'MISMATCH ') + label + ' got ' + JSON.stringify(got);\n'helpers ready'"
+  },
+  {
+    "eval": "(async () => { const d = await window.api.leagues.downloads(); return check('the profile has both leagues on, each with its file', d.decided && d.leagues.every((l) => l.on && l.hasFile), d.leagues.map((l) => ({ league: l.league, on: l.on, hasFile: l.hasFile }))) })()"
+  },
+  {
+    "eval": "(async () => { const t0 = Date.now(); const idle = await until(async () => { const [n, w] = await Promise.all([window.api.stats.status('nba'), window.api.stats.status('wnba')]); return !n.busy && !w.busy }, 15 * 60000); const n = await window.api.stats.status('nba'); const w = await window.api.stats.status('wnba'); return check('both leagues finish the refresh the launch starts', idle, { seconds: Math.round((Date.now() - t0) / 1000), nba: { busy: n.busy, updatedAt: n.updatedAt, builtAt: n.builtAt }, wnba: { busy: w.busy, updatedAt: w.updatedAt, noData: w.noData } }) })()"
+  },
+  {
+    "eval": "(async () => { const w = await window.api.stats.status('wnba'); return check('the WNBA, its identity built, still says its stat tables are not built', w.available && /tables built from them come in a later version/.test(w.noData ?? ''), { available: w.available, noData: w.noData }) })()"
+  },
+  {
+    "eval": "(async () => { const q = await window.api.stats.query('wnba', { entity: 'player', metrics: ['pts'], scope: { seasons: [2026] } }); const st = await window.api.stats.standings('wnba', 2026); const g = await window.api.stats.games('wnba', 2026); const p = await window.api.stats.player('wnba', 1628895); return check('the WNBA reads its reason on every screen: no rows, no error', q.rows.length === 0 && /later version/.test(q.notes[0]) && st.length === 0 && g.length === 0 && p === null, { notes: q.notes, standings: st.length, games: g.length, player: p }) })()"
+  },
+  {
+    "eval": "(async () => { const runs = []; for (let i = 0; i < 5; i++) runs.push(await timeBoard()); return check('an NBA leaderboard reads as before', runs.every((r) => r.rows >= 100), { ms: runs.map((r) => r.ms).sort((a, b) => a - b), top: runs[0].top, rows: runs[0].rows }) })()"
+  },
+  {
+    "eval": "(async () => { const st = await window.api.stats.standings('nba', 2016); const g = await window.api.stats.games('nba', 2016); const p = await window.api.stats.player('nba', 201939); return check('the NBA standings, games and a player read as before', st.length === 30 && g.length > 1300 && p?.name === 'Stephen Curry', { standings: st.length, games: g.length, player: p?.name }) })()"
+  },
+  {
+    "eval": "(async () => { await nav('Leaderboards'); await sleep(2500); return check('an NBA leaderboard on screen', /leaderboard/i.test(document.querySelector('h1')?.textContent ?? ''), document.querySelector('h1')?.textContent) })()"
+  },
+  {
+    "shot": "t1301e-01-nba-leaderboard"
+  },
+  {
+    "eval": "(async () => { await nav('Standings'); await sleep(2500); return check('the NBA standings on screen', /standings/i.test(document.body.innerText), document.querySelector('h1')?.textContent) })()"
+  },
+  {
+    "shot": "t1301e-02-nba-standings"
+  },
+  {
+    "eval": "(async () => { document.querySelector('[title=\"See what is loaded\"]').click(); await sleep(2500); const w = document.querySelector('section[aria-label=\"WNBA\"]')?.innerText ?? ''; return check('the Data panel still shows the WNBA loaded', /1,492 of 1,49\\d files/.test(w), w.split('\\n').filter(Boolean).slice(0, 3)) })()"
+  },
+  {
+    "shot": "t1301e-03-data"
+  }
+]

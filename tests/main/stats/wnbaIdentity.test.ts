@@ -61,8 +61,8 @@ beforeAll(async () => {
   await buildIdentity(db, wnba)
 }, 30_000)
 
-const game = (id: string): Promise<Record<string, unknown> | undefined> =>
-  db.get(`SELECT * FROM game WHERE game_id = ?`, [id])
+const game = (id: string): Promise<Record<string, unknown> | null> =>
+  db.get<Record<string, unknown>>(`SELECT * FROM game WHERE game_id = ?`, [id])
 
 describe('the recipe', () => {
   it('is the one the registry names, with its own needs and version', async () => {
