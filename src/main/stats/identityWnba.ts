@@ -54,10 +54,11 @@ const CUP_FINAL_HEADLINE = "WNBA Commissioner's Cup Championship"
  * change), ESPN's id from the alias table, and the conference from the groups table. The WNBA has no
  * divisions: the column is NULL.
  *
- * A team id that comes back after seasons with no games is a new club, as the 2026 Portland Fire are
- * after the 2000-2002 one (D28's way: one key per club, no collision): the later club's rows take the
- * negative of the id, which no league id equals. A source row reaches it as `abs(team_id)` in its
- * season.
+ * A team id the alias table gives a second span of seasons, after a gap, is a new club: the 2026
+ * Portland Fire, after the 2000-2002 one (Utah's and San Antonio's spans touch, so they are one
+ * franchise). D28's way: one key per club, no collision; the later club's rows take the negative of
+ * the id, which no league id equals. A source row reaches it as `abs(team_id)` in its season. A third
+ * club on one id would need another key; none exists.
  */
 const TEAM = `CREATE OR REPLACE TABLE team AS
   WITH listed AS (
@@ -76,14 +77,22 @@ const TEAM = `CREATE OR REPLACE TABLE team AS
     FROM (SELECT * FROM listed UNION ALL SELECT * FROM logged)
     WHERE team_id > 0
     GROUP BY 1, 2
-  ), runs AS (
-    SELECT *, season - dense_rank() OVER (PARTITION BY team_id ORDER BY season) AS run FROM seasons
-  ), clubs AS (
-    SELECT *, dense_rank() OVER (PARTITION BY team_id ORDER BY run) AS club FROM runs
   ), alias AS (
     SELECT TRY_CAST(team_id AS INTEGER) AS espn_team_id, TRY_CAST(source_id AS BIGINT) AS team_id,
            valid_from, valid_to
     FROM src_team_aliases WHERE source = 'wnba_stats'
+  ), spans AS (
+    SELECT team_id, valid_from, valid_to,
+           1 + sum(came_back::INTEGER) OVER (PARTITION BY team_id ORDER BY valid_from) AS club
+    FROM (SELECT DISTINCT team_id, valid_from, valid_to,
+                 coalesce(valid_from > 1 + max(valid_to) OVER (
+                   PARTITION BY team_id ORDER BY valid_from
+                   ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING), false) AS came_back
+          FROM (SELECT DISTINCT team_id, valid_from, valid_to FROM alias))
+  ), clubs AS (
+    SELECT s.*, coalesce((SELECT max(p.club) FROM spans p WHERE p.team_id = s.team_id
+                            AND s.season BETWEEN p.valid_from AND p.valid_to), 1) AS club
+    FROM seasons s
   ), espn AS (
     SELECT c.season, c.team_id, min(a.espn_team_id) AS espn_team_id
     FROM clubs c JOIN alias a ON a.team_id = c.team_id AND c.season BETWEEN a.valid_from AND a.valid_to
@@ -226,8 +235,9 @@ const gameSql = (league: League, standings: boolean): string => {
            coalesce(coalesce(g.home_score, 0) + coalesce(g.away_score, 0) = 0
              AND e.status_type_name = 'STATUS_FORFEIT', false) AS forfeit,
            g.source, e.neutral_site AS neutral,
-           CASE WHEN m.minutes IS NOT NULL THEN round((m.minutes - ${regulation}) / ${overtime})::INTEGER
-                WHEN e.status_period >= e.format_regulation_periods
+           CASE WHEN m.minutes >= ${regulation} THEN round((m.minutes - ${regulation}) / ${overtime})::INTEGER
+                WHEN e.status_type_name = 'STATUS_FINAL'
+                  AND e.status_period >= e.format_regulation_periods
                 THEN (e.status_period - e.format_regulation_periods)::INTEGER END AS overtimes
     FROM league_games g
     LEFT JOIN link l USING (game_id)
@@ -250,7 +260,8 @@ const gameSql = (league: League, standings: boolean): string => {
          o.game_type, o.game_date, o.home_key, o.away_key, o.home_score, o.away_score,
          true AS played, 'espn' AS source, o.neutral_site,
          ${regulationPeriodsSql(league, 'o.season')} AS periods,
-         CASE WHEN o.status_period >= o.format_regulation_periods
+         CASE WHEN o.status_type_name = 'STATUS_FINAL'
+                AND o.status_period >= o.format_regulation_periods
               THEN (o.status_period - o.format_regulation_periods)::INTEGER END AS overtimes,
          NULL::BIGINT AS forfeit_winner_id
   FROM espn_only o
