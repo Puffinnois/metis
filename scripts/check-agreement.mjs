@@ -692,7 +692,14 @@ out.push(
   `The player's PIE through the engine against \`nba_stats_player_season_stats\`'s \`pie\`, every regular season it is published, the current one so far, among players with 1,000 minutes per 82 games. Gaps in percentage points; the mean is ours minus the published, so it shows a lean. The tolerance is half a point (${100 * PIE_TOLERANCE}): the NBA counts what happened while the player was on the floor, ours guesses it from their share of each game's minutes, and the published figure is rounded to a tenth of a point.`,
   '',
   table(
-    ['Season', 'Players', 'Median gap', 'Mean gap', 'Within 0.2 %', `Within ${100 * PIE_TOLERANCE} %`],
+    [
+      'Season',
+      'Players',
+      'Median gap',
+      'Mean gap',
+      'Within 0.2 %',
+      `Within ${100 * PIE_TOLERANCE} %`
+    ],
     pieRows
   ),
   '',

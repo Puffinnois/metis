@@ -1,0 +1,50 @@
+[
+  {
+    "size": [1500, 950]
+  },
+  {
+    "wait": 5000
+  },
+  {
+    "eval": "window.sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nwindow.check = (label, got, want) => (want.every((w) => JSON.stringify(got).includes(w)) ? 'OK ' : 'MISMATCH ') + label + ' want ' + JSON.stringify(want) + ' got ' + JSON.stringify(got);\nwindow.nav = async (name) => { const b = [...document.querySelectorAll('nav button')].find((x) => x.textContent.trim() === name); if (!b) return 'NO NAV ' + name; b.click(); await sleep(2500); return 'nav ' + name };\n'helpers ready'"
+  },
+  {
+    "eval": "(async () => { const at = Date.now(); let busy = true; for (let i = 0; i < 360 && busy; i++) { busy = (await window.api.stats.status()).busy; if (busy) await sleep(10000) } return 'refresh finished: ' + !busy + ' after ' + Math.round((Date.now() - at) / 1000) + ' s at ' + new Date().toISOString() })()"
+  },
+  {
+    "eval": "(async () => { const r = await window.api.stats.query({ entity: 'player', metrics: ['pie', 'nba_pie', 'min'], scope: { seasons: [2026] }, sort: { metric: 'min', dir: 'desc' }, limit: 8 }); const rows = r.rows.map((x) => [x.name, +(100 * x.values.pie.value).toFixed(1), +(100 * x.values.nba_pie.value).toFixed(1)]); return check('2025-26 PIE beside the published one, minutes leaders, within half a point', [rows, rows.every((x) => Math.abs(x[1] - x[2]) <= 0.5)], ['true']) })()"
+  },
+  {
+    "eval": "(async () => { await nav('Players'); for (let i = 0; i < 20 && !document.querySelector('[data-metric=pie]'); i++) await sleep(500); const line = (id) => document.querySelector('[data-metric=' + id + ']')?.innerText.replace(/\\s+/g, ' ') ?? 'NO LINE ' + id; return check('the player dashboard shows PIE in its rankings', [document.querySelector('h1')?.innerText.replace(/\\n/g, ' '), line('pie')], ['Player Impact Estimate']) })()"
+  },
+  {
+    "eval": "(() => { const el = document.querySelector('[data-metric=nba_pie]') ?? document.querySelector('[data-metric=pie]'); el?.scrollIntoView({ block: 'center' }); return 'scrolled to ' + (el?.getAttribute('data-metric') ?? 'nothing') })()"
+  },
+  {
+    "wait": 1000
+  },
+  {
+    "shot": "t1203-01-player-pie"
+  },
+  {
+    "eval": "(async () => { const n = await nav('Explore'); for (let i = 0; i < 20 && !document.querySelector('select[title=\"Y axis\"]'); i++) await sleep(500); return n + ' / axes: ' + !!document.querySelector('select[title=\"Y axis\"]') })()"
+  },
+  {
+    "select": ["Y axis", "nba_pie"]
+  },
+  {
+    "select": ["X axis", "pie"]
+  },
+  {
+    "wait": 3000
+  },
+  {
+    "eval": "(() => { const t = document.querySelector('[aria-label=\"Chart table\"]'); const rows = t ? [...t.querySelectorAll('[role=row]')].slice(0, 7).map((r) => r.innerText.replace(/\\s+/g, ' ')) : ['NO TABLE']; return check('the chart plots PIE NBA against PIE, with both in its table', [document.querySelector('select[title=\"Y axis\"]')?.value, document.querySelector('select[title=\"X axis\"]')?.value, rows], ['\"nba_pie\"', '\"pie\"']) })()"
+  },
+  {
+    "shot": "t1203-02-chart-pie-against-published"
+  },
+  {
+    "eval": "(async () => { const c = await window.api.stats.catalogue(); const all = c.metrics ?? c; const m = (id) => all.find((x) => x.id === id); return check('the catalogue carries the new descriptions', [m('pie')?.description, m('nba_pie')?.description, m('pie')?.stability ?? null], ['while they were on the floor', 'scaled by their share of its minutes']) })()"
+  }
+]

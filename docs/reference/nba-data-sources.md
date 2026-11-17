@@ -173,7 +173,7 @@ Measured season by season on the full load: the tables are in [nba-agreement.md]
 | Season tables against published totals: all players               | Games 99.8–100 %, points 97.7–100 %, rebounds 98–100 %, assists 98.2–100 %. Wins and losses 100 % for every team                                                                                                                                                                                                                                    |
 | Plus-minus: a team's players sum to five times the margin         | 96.2–100 %, from 1996-97                                                                                                                                                                                                                                                                                                                            |
 | The catalogue's formulas against the NBA's published rates        | FG%, 3P%, FT%, eFG%, TS%, 3PAr and scoring shares: 96.6–100 % of players within rounding, 100 % in most seasons from 2007-08                                                                                                                                                                                                                        |
-| Estimates against the NBA's measures, median difference           | USG% 0.4–0.7 points, AST% 0.2–0.3, TRB% about 1. Team ratings and pace about 1 against its counts, 0.7 against its own estimates                                                                                                                                                                                                                    |
+| Estimates against the NBA's measures, median difference           | PIE 0.15–0.31 points, 72.8–96.4 % of players within half a point (Plan T1203). USG% 0.4–0.7 points, AST% 0.2–0.3, TRB% about 1. Team ratings and pace about 1 against its counts, 0.7 against its own estimates                                                                                                                                     |
 
 So the box scores can be trusted season by season, and the sources cross-check. **Possessions are a derived table, not an official one:** SportsDataverse works them out from the NBA's play by play. Its `lineup_source` read `pbp_fallback` on 99.6 % of 2025-26 until the file was republished; on the 2026-11-10 download it reads `quarter_box` on every row of every season. Anything built on them has to state that tolerance.
 
@@ -1061,6 +1061,54 @@ Ten games in, the prior takes about 1.1 points per 100 off the unshrunk ratings 
 - **The prior** reads in the metric's own sample: free throws 26 attempts, true shooting 187 field-goal attempts, three-point percentage 382 three-point attempts, restricted-area FG% 76 attempts, usage 27 minutes, a team's offensive rating 451 possessions, its opponents' three-point percentage 2,061 three-point attempts. They are small where the true spread between players is wide (free throws: 50 % to 90 %), which shrinking toward the whole league inherits.
 - **TS+** through the engine equals 100 × TS% / the league's TS% by SQL (the league's totals) within 10⁻⁹ for eight player-seasons: Curry 2015-16 123.7 (66.9 % against 54.1 %), LeBron James 2012-13 119.8, O'Neal 1999-00 110.6, Nash 2006-07 120.8, Jokić 2023-24 112.1, Gobert 2021-22 129.4, Jordan 1995-96 107.3, Iverson 2000-01 100.1. The league's own index, every player's TS+ weighted by true shooting attempts, is 100.000000000 in 1993-94, 2004-05, 2015-16 and 2025-26.
 
+## PIE against the published figure (Plan T1203)
+
+Measured on 2026-11-17 on a copy of the Stage 10 gate load (`~/.cache/metis-dev/t1203`), after a real refresh with the new formula, through the engine by `scripts/check-agreement.mjs` (its table in [nba-agreement.md](nba-agreement.md) has the mean gap too). The catalogue's `pie` against the NBA's published `pie` (`nba_stats_player_season_stats`, advanced, totals), every regular season it is published, 1996-97 to the current one so far, among players with 1,000 minutes per 82 games (scaled to the games played).
+
+**The formula.** Each game's PIE total, both teams' `C` (reference section 14.1), is scaled by the player's share of one of their team's five slots, 5 × their seconds over the team's, and stored per game (`x_pie_den`); a season or any group of games divides the summed numerator by the summed denominator. The team's seconds include overtime, so a player on the floor for all of an overtime game has the whole game.
+
+**Which scaling, and why.** Three were compared on the same players before the change, by SQL on the game tables: one slot's share as above; a fixed 48 minutes (the player's minutes over 48, the scaling of the Stage 5 check, `games × 48 / minutes` on a season); and both teams' `C` counted from the play by play while the player was on the floor (`player_on_court`, from 1996-97). The fixed 48 minutes reads a median the same or up to 0.04 points closer than one slot's share in 27 of the 31 seasons (up to 0.01 further in the other four), but it leans low in every season (mean −0.06 to −0.15) and counts more than the whole game for a player on the floor through an overtime game. One slot's share has no lean (mean −0.07 to 0.00). So one slot's share is the formula. The play-by-play count is closest by far: median 0.07 to 0.10 points, 80 to 99 % of players within 0.2. That is what the published figure is, a share of the on-court totals. The task named only the minute-share scaling, so the play-by-play count was not adopted; it would also leave the three seasons before 1996-97 without a value.
+
+**Tolerance: half a point** (0.005) per player. The published figure counts the on-court totals that ours guesses from minutes, and it is rounded to a tenth of a point. Against the 0.2 measured in Stage 5: the median gap is 0.2 or under in 14 of the 31 seasons and 0.21 to 0.31 in the other 17. That is the same as the Stage 5 check (0.15 to 0.30), whose "within 0.2" was a typical median, not every season's. Before the change the median gap was 3.6 to 4.4 points in every season.
+
+| Season  | Players | Median gap | Within 0.5 % |
+| ------- | ------- | ---------- | ------------ |
+| 1996-97 | 237     | 0.17       | 89.0         |
+| 1997-98 | 251     | 0.22       | 83.7         |
+| 1998-99 | 246     | 0.31       | 72.8         |
+| 1999-00 | 245     | 0.28       | 78.0         |
+| 2000-01 | 242     | 0.18       | 87.6         |
+| 2001-02 | 247     | 0.22       | 84.6         |
+| 2002-03 | 244     | 0.21       | 86.1         |
+| 2003-04 | 238     | 0.24       | 79.0         |
+| 2004-05 | 264     | 0.23       | 83.0         |
+| 2005-06 | 254     | 0.22       | 88.2         |
+| 2006-07 | 260     | 0.19       | 87.7         |
+| 2007-08 | 254     | 0.23       | 85.0         |
+| 2008-09 | 259     | 0.25       | 83.4         |
+| 2009-10 | 252     | 0.22       | 84.1         |
+| 2010-11 | 255     | 0.25       | 86.3         |
+| 2011-12 | 260     | 0.24       | 81.2         |
+| 2012-13 | 263     | 0.20       | 87.5         |
+| 2013-14 | 259     | 0.25       | 84.9         |
+| 2014-15 | 274     | 0.23       | 87.2         |
+| 2015-16 | 274     | 0.21       | 89.4         |
+| 2016-17 | 282     | 0.20       | 87.2         |
+| 2017-18 | 275     | 0.18       | 89.5         |
+| 2018-19 | 276     | 0.17       | 91.3         |
+| 2019-20 | 280     | 0.17       | 92.1         |
+| 2020-21 | 283     | 0.18       | 91.2         |
+| 2021-22 | 272     | 0.17       | 94.1         |
+| 2022-23 | 263     | 0.16       | 92.4         |
+| 2023-24 | 266     | 0.16       | 95.5         |
+| 2024-25 | 270     | 0.15       | 95.6         |
+| 2025-26 | 279     | 0.15       | 96.4         |
+| 2026-27 | 272     | 0.27       | 77.2         |
+
+So 72.8 to 96.4 % of qualified players are within half a point in a completed season, more in recent seasons. The current season, about a month in, is 77.2 %: fewer games per player, so each game's guess weighs more. On the built app's Explore chart, the 272 qualified players of 2026-27 correlate at r 0.99 between the two, with the same qualified mean, 9.9 %.
+
+**Stability measured again**, since the catalogue's signature changed: `pie` stays **high**. Year to year 0.842 to 0.838 on the same 6,261 pairs; split half 0.970 to 0.929 on 8,342; the prior 57 to 142 minutes. `team_pie` (0.653) and `nba_pie` (0.832) are unchanged, and the counts of labels across the catalogue stay 858 high, 307 medium, 254 low and 33 none.
+
 ## Old seasons
 
 | Season label (file) | Source | Games | Notes                                                  |
@@ -1103,7 +1151,7 @@ Ten games in, the prior takes about 1.1 points per 100 off the unshrunk ratings 
 - **The schedule lists All-Star games that were not played:** 1998-99's was cancelled, and 1997-98 has a stray row in April. Read the date from a game that was played.
 - **The NBA's box scores round minutes in two seasons:** 81 % of lines in 2003-04 and 90 % in 2004-05 are whole minutes, so a season's minutes can differ from the published total by up to 39. Other seasons match within one minute on 95.9 % of players or more.
 - **ESPN's points by kind are not all real:** `-1` means not recorded, and each column holds zeros before its first real season. Points in the paint start in 2008-09 (1,673 of 2,630 team-games that season) and are missing in 2017-18. Fast-break points start in 2001-02, and look low until 2004-05: about 5 a game against 11 to 15 after. Points off turnovers start in 1994-95.
-- **The NBA's published PIE is not a share of whole games.** The reference defines PIE over both teams' game totals, and that is what the catalogue computes. The published season figure reads about 4 points higher, and scaling ours by a player's share of the game's minutes brings it within 0.2: it behaves like a share of what happened while they were on the floor. The published one comes with the league dashboards (Plan T702), beside this one.
+- **The NBA's published PIE is not a share of whole games.** It divides by both teams' contributions while the player was on the floor. Over whole-game totals a player's PIE reads about 4 points under it in every season; since Plan T1203 the catalogue's `pie` scales each game's total by the player's share of one slot's minutes, and the match is in "PIE against the published figure" above. The published one is `nba_pie`, beside it (Plan T702).
 - **The NBA's free-throw share of points is what its other two leave:** `pct_pts_ft` equals 1 minus `pct_pts_2pt` and `pct_pts_3pt` on every player read, so it can be off by one more in the last place.
 - **The NBA's team ORB% and TOV% are its own.** Its `oreb_pct` runs 3 to 4.5 points above rebounds over available rebounds in the box score, and `tm_tov_pct` about 2 points above turnovers over estimated plays, so they read as different measures. Same-named stats keep different ids (D14).
 - **The NBA's 2003-04 standings repeat the overall record** as `conference_record` and `division_record`, for all 29 teams. Every other season is fine, so the screen reads a repeat on every team as not published. Early in a season a team can truly have played only its conference: 11 did in 2026-27.

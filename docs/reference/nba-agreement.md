@@ -364,40 +364,78 @@ The catalogue's formulas, read through the query engine over a whole regular sea
 | 2024-25 | 100.0 | 100.0 | 100.0 | 100.0  | 100.0 | 100.0  | 100.0      | 100.0     |
 | 2025-26 | 99.8  | 100.0 | 100.0 | 99.8   | 99.8  | 100.0  | 100.0      | 100.0     |
 
-These are estimates, and the NBA publishes its own measure of the same idea, so they are not meant to match. The median difference in percentage points, among players with 1,000 minutes per 82 games: the estimates guess a player's on-court team totals from their minutes, where the NBA counts them, and the NBA's usage counts plays differently. **PIE** follows the reference: a share of whole games. The NBA's published season figure reads higher, and **PIE, scaled to minutes** shows why: it behaves like a share of what happened while the player was on the floor.
+These are estimates, and the NBA publishes its own measure of the same idea, so they are not meant to match. The median difference in percentage points, among players with 1,000 minutes per 82 games: the estimates guess a player's on-court team totals from their minutes, where the NBA counts them, and the NBA's usage counts plays differently. **PIE** divides by each game's total scaled by the player's share of its minutes (Plan T1203); the table below has it in full.
 
-| Season  | USG% | AST% | TRB% | PIE  | PIE, scaled to minutes |
-| ------- | ---- | ---- | ---- | ---- | ---------------------- |
-| 1996-97 | 0.43 | 0.22 | 1.01 | 3.58 | 0.16                   |
-| 1997-98 | 0.41 | 0.24 | 1.04 | 3.90 | 0.21                   |
-| 1998-99 | 0.44 | 0.29 | 1.07 | 3.81 | 0.30                   |
-| 1999-00 | 0.45 | 0.26 | 0.99 | 3.84 | 0.24                   |
-| 2000-01 | 0.45 | 0.23 | 1.02 | 3.73 | 0.18                   |
-| 2001-02 | 0.42 | 0.23 | 1.05 | 3.81 | 0.22                   |
-| 2002-03 | 0.41 | 0.27 | 1.09 | 3.75 | 0.22                   |
-| 2003-04 | 0.46 | 0.26 | 1.01 | 3.75 | 0.24                   |
-| 2004-05 | 0.46 | 0.29 | 1.06 | 3.91 | 0.21                   |
-| 2005-06 | 0.44 | 0.24 | 1.08 | 3.78 | 0.21                   |
-| 2006-07 | 0.44 | 0.21 | 1.04 | 3.80 | 0.18                   |
-| 2007-08 | 0.44 | 0.23 | 0.97 | 3.82 | 0.21                   |
-| 2008-09 | 0.40 | 0.23 | 1.01 | 3.68 | 0.22                   |
-| 2009-10 | 0.45 | 0.21 | 0.96 | 3.91 | 0.19                   |
-| 2010-11 | 0.44 | 0.24 | 0.98 | 3.98 | 0.22                   |
-| 2011-12 | 0.45 | 0.26 | 1.02 | 4.13 | 0.26                   |
-| 2012-13 | 0.44 | 0.21 | 1.03 | 4.15 | 0.18                   |
-| 2013-14 | 0.42 | 0.25 | 0.91 | 4.01 | 0.23                   |
-| 2014-15 | 0.45 | 0.24 | 0.99 | 4.32 | 0.24                   |
-| 2015-16 | 0.46 | 0.25 | 0.95 | 4.27 | 0.20                   |
-| 2016-17 | 0.42 | 0.20 | 0.97 | 4.14 | 0.20                   |
-| 2017-18 | 0.55 | 0.24 | 0.96 | 4.21 | 0.17                   |
-| 2018-19 | 0.56 | 0.25 | 0.96 | 4.36 | 0.17                   |
-| 2019-20 | 0.53 | 0.22 | 0.99 | 4.22 | 0.17                   |
-| 2020-21 | 0.54 | 0.29 | 0.93 | 4.21 | 0.17                   |
-| 2021-22 | 0.56 | 0.22 | 0.94 | 4.09 | 0.17                   |
-| 2022-23 | 0.54 | 0.19 | 0.95 | 4.06 | 0.15                   |
-| 2023-24 | 0.57 | 0.27 | 0.95 | 4.05 | 0.17                   |
-| 2024-25 | 0.61 | 0.23 | 1.01 | 4.14 | 0.15                   |
-| 2025-26 | 0.67 | 0.24 | 1.14 | 4.31 | 0.15                   |
+| Season  | USG% | AST% | TRB% | PIE  |
+| ------- | ---- | ---- | ---- | ---- |
+| 1996-97 | 0.43 | 0.22 | 1.01 | 0.17 |
+| 1997-98 | 0.41 | 0.24 | 1.04 | 0.22 |
+| 1998-99 | 0.44 | 0.29 | 1.07 | 0.31 |
+| 1999-00 | 0.45 | 0.26 | 0.99 | 0.28 |
+| 2000-01 | 0.45 | 0.23 | 1.02 | 0.18 |
+| 2001-02 | 0.42 | 0.23 | 1.05 | 0.22 |
+| 2002-03 | 0.41 | 0.27 | 1.09 | 0.21 |
+| 2003-04 | 0.46 | 0.26 | 1.01 | 0.24 |
+| 2004-05 | 0.46 | 0.29 | 1.06 | 0.23 |
+| 2005-06 | 0.44 | 0.24 | 1.08 | 0.22 |
+| 2006-07 | 0.44 | 0.21 | 1.04 | 0.19 |
+| 2007-08 | 0.44 | 0.23 | 0.97 | 0.23 |
+| 2008-09 | 0.40 | 0.23 | 1.01 | 0.25 |
+| 2009-10 | 0.45 | 0.21 | 0.96 | 0.22 |
+| 2010-11 | 0.44 | 0.24 | 0.98 | 0.25 |
+| 2011-12 | 0.45 | 0.26 | 1.02 | 0.24 |
+| 2012-13 | 0.44 | 0.21 | 1.03 | 0.20 |
+| 2013-14 | 0.42 | 0.25 | 0.91 | 0.25 |
+| 2014-15 | 0.45 | 0.24 | 0.99 | 0.23 |
+| 2015-16 | 0.46 | 0.25 | 0.95 | 0.21 |
+| 2016-17 | 0.42 | 0.20 | 0.97 | 0.20 |
+| 2017-18 | 0.55 | 0.24 | 0.96 | 0.18 |
+| 2018-19 | 0.56 | 0.25 | 0.96 | 0.17 |
+| 2019-20 | 0.53 | 0.22 | 0.99 | 0.17 |
+| 2020-21 | 0.54 | 0.29 | 0.93 | 0.18 |
+| 2021-22 | 0.56 | 0.22 | 0.94 | 0.17 |
+| 2022-23 | 0.54 | 0.19 | 0.95 | 0.16 |
+| 2023-24 | 0.57 | 0.27 | 0.95 | 0.16 |
+| 2024-25 | 0.61 | 0.23 | 1.01 | 0.15 |
+| 2025-26 | 0.67 | 0.24 | 1.14 | 0.15 |
+
+### PIE against the published figure
+
+The player's PIE through the engine against `nba_stats_player_season_stats`'s `pie`, every regular season it is published, the current one so far, among players with 1,000 minutes per 82 games. Gaps in percentage points; the mean is ours minus the published, so it shows a lean. The tolerance is half a point (0.5): the NBA counts what happened while the player was on the floor, ours guesses it from their share of each game's minutes, and the published figure is rounded to a tenth of a point.
+
+| Season  | Players | Median gap | Mean gap | Within 0.2 % | Within 0.5 % |
+| ------- | ------- | ---------- | -------- | ------------ | ------------ |
+| 1996-97 | 237     | 0.17       | -0.04    | 57.0         | 89.0         |
+| 1997-98 | 251     | 0.22       | -0.07    | 49.0         | 83.7         |
+| 1998-99 | 246     | 0.31       | -0.06    | 32.1         | 72.8         |
+| 1999-00 | 245     | 0.28       | -0.04    | 38.4         | 78.0         |
+| 2000-01 | 242     | 0.18       | -0.06    | 53.3         | 87.6         |
+| 2001-02 | 247     | 0.22       | -0.06    | 44.9         | 84.6         |
+| 2002-03 | 244     | 0.21       | -0.05    | 46.3         | 86.1         |
+| 2003-04 | 238     | 0.24       | -0.05    | 40.8         | 79.0         |
+| 2004-05 | 264     | 0.23       | -0.04    | 44.3         | 83.0         |
+| 2005-06 | 254     | 0.22       | -0.02    | 45.3         | 88.2         |
+| 2006-07 | 260     | 0.19       | -0.02    | 52.3         | 87.7         |
+| 2007-08 | 254     | 0.23       | 0.00     | 45.7         | 85.0         |
+| 2008-09 | 259     | 0.25       | -0.02    | 43.6         | 83.4         |
+| 2009-10 | 252     | 0.22       | -0.05    | 43.3         | 84.1         |
+| 2010-11 | 255     | 0.25       | -0.02    | 40.8         | 86.3         |
+| 2011-12 | 260     | 0.24       | -0.03    | 41.5         | 81.2         |
+| 2012-13 | 263     | 0.20       | -0.04    | 50.6         | 87.5         |
+| 2013-14 | 259     | 0.25       | -0.02    | 44.0         | 84.9         |
+| 2014-15 | 274     | 0.23       | -0.02    | 45.6         | 87.2         |
+| 2015-16 | 274     | 0.21       | -0.02    | 48.2         | 89.4         |
+| 2016-17 | 282     | 0.20       | -0.01    | 50.7         | 87.2         |
+| 2017-18 | 275     | 0.18       | -0.03    | 53.5         | 89.5         |
+| 2018-19 | 276     | 0.17       | -0.02    | 58.0         | 91.3         |
+| 2019-20 | 280     | 0.17       | -0.02    | 58.2         | 92.1         |
+| 2020-21 | 283     | 0.18       | -0.01    | 53.7         | 91.2         |
+| 2021-22 | 272     | 0.17       | -0.02    | 55.5         | 94.1         |
+| 2022-23 | 263     | 0.16       | 0.00     | 60.5         | 92.4         |
+| 2023-24 | 266     | 0.16       | 0.00     | 60.2         | 95.5         |
+| 2024-25 | 270     | 0.15       | -0.01    | 61.5         | 95.6         |
+| 2025-26 | 279     | 0.15       | 0.00     | 61.6         | 96.4         |
+| 2026-27 | 272     | 0.27       | -0.02    | 39.3         | 77.2         |
 
 Team estimates against `nba_stats_team_season_stats`, as the median difference across the league: points per 100 for the ratings, possessions per 48 for pace, percentage points for the rest. The NBA's ratings count possessions from the play by play; its `e_` columns are its own box-score estimates.
 
