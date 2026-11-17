@@ -81,8 +81,10 @@ export interface MetricDef {
    */
   minSample?: number
   /**
-   * The component `minSample` counts, when it is not the sample: the NBA qualifies its shooting leaders
-   * on makes (300 field goals), while the rate's sample, what shrinking weighs, stays the attempts.
+   * The component `minSample` counts, set on the statistics the NBA publishes leaders in (D33): makes
+   * for the shooting percentages (300 field goals), games for the per-game leaders (58). Such a metric
+   * qualifies by its own minimum alone: the leaderboard's row qualifier (1,000 minutes) does not gate
+   * it. A rate's sample, what shrinking weighs, stays the attempts.
    */
   qualifyBy?: string
   /** What a total divides by to be per game, when not `games`: a box score's count, not the record's. */
@@ -283,6 +285,11 @@ export interface StatsResultColumn {
   reason: string | null
   /** Its values are shrunk toward the league (`StatsQuery.shrunk`). */
   shrunk?: boolean
+  /**
+   * It qualifies by its own minimum alone, the NBA's (`MetricDef.qualifyBy`): a screen ranks and keeps
+   * its rows by its own `qualified` flag, not by the row qualifier.
+   */
+  ownQualifier?: boolean
 }
 
 export interface StatsResult {

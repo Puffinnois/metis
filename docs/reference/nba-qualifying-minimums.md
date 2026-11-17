@@ -59,11 +59,12 @@ The page gives each shortened season's own numbers, and every one is the full-se
 
 ## What Metis does with it
 
-- **One rule for every season: the NBA's since 2013-14,** per 82 games: **58 games** for the per-game leaders, **300 field goals made** for FG%, **82 threes made** for 3P%, **125 free throws made** for FT%. They are `NBA_MINIMUMS` in `src/shared/stats/catalogue/define.ts`.
+- **The statistics the rule covers are the ones the source lists for the NBA:** points, rebounds, assists, steals and blocks per game (58 games), FG% (300 field goals made), 3P% (82 threes made) and FT% (125 free throws made). One rule for every season, the NBA's since 2013-14, per 82 games. The numbers are `NBA_MINIMUMS` in `src/shared/stats/catalogue/define.ts`. Minutes per game, the sixth per-game category the page lists, is the exception below.
 - **They scale with the games in scope,** as before: a season's minimum is multiplied by the team games played over 82, so a shortened season and a season in progress scale as the NBA scales them, and a date range or the last N games scale the same way. **The scaled minimum is rounded to the nearest whole count,** as the page's shortened-season numbers are: 300 × 66 / 82 = 241.5 → 241. Unrounded, 2011-12's NBA field-goal leader, Tyson Chandler, who made exactly 241, would not qualify. Three of the page's 2011-12 numbers are rounded down where the nearest would be one more (321 assists, 100 steals, 100 free throws); only a player at exactly that number is affected.
-- **The shooting percentages qualify on makes,** where they used to count attempts (500 FGA, 200 3PA, 125 FTA). A metric's `qualifyBy` names the column its `minSample` counts; its sample, the attempts, is still what shrinking weighs and what the tables show as "on N attempts".
-- **Minutes per game (`min`) qualifies on games,** 58 of 82, where it used to need 1,000 minutes. It is the leaderboards' qualifier for players, so every player tab, the scatter's pool and the trend's pool now admit players by games, as the NBA's leaders do. The home boards hold a per-game leader to the same 58 of 82, scaled to the most games played in the result (it was 70 %).
-- **Points, rebounds, assists, steals and blocks per game** are counts: they have no minimum of their own, and qualify through the tab's qualifier (`min`) and the home boards' games, both the 58 games above.
+- **Each covered statistic qualifies by its own minimum alone,** as the NBA's do: no games gate on a percentage and no minutes gate on either. A player with 300 field goals made in 55 games qualifies for FG%; one with 60 games and few minutes qualifies for points per game. A metric's `qualifyBy` names the column its `minSample` counts (makes, or games); its sample, the attempts for a rate, is still what shrinking weighs and what the tables show as "on N attempts". The engine tells the screens which columns these are (`ownQualifier`), and the leaderboard, the scatter, the trend's pool, the player rail and the stability measure rank such a column, and keep its rows under "Qualified only", by its own flag.
+- **Every other player metric qualifies as before:** 1,000 minutes over 82 games for the player (the row qualifier, `min`), and the metric's own sample. On a leaderboard that mixes both kinds, "Qualified only" keeps the rows that qualify for the sorted column; a cell below its own minimum reads NQ as before.
+- **Minutes per game stays on 1,000 minutes,** not the NBA's 58 games: `min` is the row qualifier of every uncovered metric, and one metric cannot qualify two ways. So minutes per game is the one category the source lists that Metis does not hold to the NBA's minimum.
+- **The home boards** hold a per-game leader to 58 games of 82, scaled and rounded, and a total to no minimum, as the NBA's totals have none.
 
 ### Not the NBA's rule before 2013-14
 
@@ -75,7 +76,7 @@ The page gives no NBA minimum for the playoffs (its playoff rows are Basketball-
 
 ### What keeps its Stage 5 minimum
 
-Every metric the NBA's rule does not cover keeps its own minimum, unchanged, per 82 games and scaled the same way:
+Every metric the NBA's rule does not cover keeps its own minimum, unchanged, per 82 games and scaled the same way, and for players the 1,000 minutes of the row qualifier as well:
 
 - **Other shooting rates:** 2P% (400 FGA), eFG%, TS%, points per shot, the attempt rates and shares (500 FGA or true-shooting attempts), assist-to-turnover (100 turnovers).
 - **Estimated rates and box composites:** the rebound, assist, steal, block, turnover and usage percentages, PER, Game Score and the rest (1,000 minutes).

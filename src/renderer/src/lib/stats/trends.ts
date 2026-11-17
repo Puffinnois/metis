@@ -60,7 +60,7 @@ export const DEFAULT_METRIC: Record<TrendEntity, string> = { player: 'pts', team
 /** The first season with box scores, 1993-94. */
 export const FIRST_SEASON = 1994
 
-/** The leaderboard's qualifier for players: minutes per game, which qualifies on games (D33). */
+/** The leaderboard's qualifier for players: minutes, scaled to each season's games. */
 export const QUALIFIER = 'min'
 
 /**
@@ -206,16 +206,18 @@ const partKey = (seasons: readonly number[]): string =>
 
 /**
  * The pool each season ranks in, one query a part of the span. `qualifiedOnly` with the sort on
- * minutes leaves out players under the leaderboard's qualifier, 58 games of 82; the metric's own sample
- * (attempts for a shooting rate) is applied from each row's `qualified` flag in `seasonPool`, as
- * the leaderboard's `rankWithinTab` does. Every team is in.
+ * minutes leaves out players under the leaderboard's qualifier, 1,000 minutes over 82 games; the
+ * metric's own sample (attempts for a shooting rate) is applied from each row's `qualified` flag in
+ * `seasonPool`, as the leaderboard's `rankWithinTab` does. A metric with the NBA's minimum (`own`)
+ * sorts and keeps rows by its own flag instead. Every team is in.
  */
 export function poolQueries(
   entity: TrendEntity,
   metric: string,
   parts: readonly (readonly number[])[],
   scope: StatsScope,
-  mode: BoardMode
+  mode: BoardMode,
+  own = false
 ): Map<string, StatsQuery> {
   return new Map(
     parts.map((seasons) => [
@@ -230,7 +232,7 @@ export function poolQueries(
         },
         groupBy: ['season'],
         transform: mode,
-        sort: { metric: entity === 'player' ? QUALIFIER : metric, dir: 'desc' },
+        sort: { metric: entity === 'player' && !own ? QUALIFIER : metric, dir: 'desc' },
         limit: ROW_LIMIT
       } satisfies StatsQuery
     ])
@@ -296,9 +298,12 @@ export function careerSpan(result: StatsResult | null, seasons: readonly number[
   return seasons.slice(first, last + 1)
 }
 
-/** A row's value when it counts for the pool: the qualifier (players) and the metric's own sample. */
-function pooled(r: StatsRow, metric: string, entity: TrendEntity): number | null {
-  if (entity === 'player' && r.values[QUALIFIER]?.qualified !== true) return null
+/**
+ * A row's value when it counts for the pool: the qualifier (players) and the metric's own sample, or
+ * the metric's own minimum alone when it carries the NBA's (D33).
+ */
+function pooled(r: StatsRow, metric: string, entity: TrendEntity, own: boolean): number | null {
+  if (entity === 'player' && !own && r.values[QUALIFIER]?.qualified !== true) return null
   const v = r.values[metric]
   return v?.qualified && v.value !== null && Number.isFinite(v.value) ? v.value : null
 }
@@ -308,12 +313,14 @@ export function seasonPool(
   rows: readonly StatsRow[],
   season: number,
   metric: string,
-  entity: TrendEntity
+  entity: TrendEntity,
+  /** The metric qualifies by its own minimum alone, the NBA's (`StatsResultColumn.ownQualifier`). */
+  own = false
 ): Map<string, number> {
   const out = new Map<string, number>()
   for (const r of rows) {
     if (seasonOf(r) !== season) continue
-    const v = pooled(r, metric, entity)
+    const v = pooled(r, metric, entity, own)
     if (v !== null) out.set(r.id, v)
   }
   return out
@@ -364,12 +371,13 @@ export function trendBand(
   metric: string,
   seasons: readonly number[],
   entity: TrendEntity,
-  unavailable: ReadonlySet<number> = new Set()
+  unavailable: ReadonlySet<number> = new Set(),
+  own = false
 ): BandPoint[] {
   return seasons.map((season) => {
     const vs = unavailable.has(season)
       ? []
-      : [...seasonPool(rows, season, metric, entity).values()].sort((a, b) => a - b)
+      : [...seasonPool(rows, season, metric, entity, own).values()].sort((a, b) => a - b)
     return {
       season,
       n: vs.length,
@@ -446,7 +454,9 @@ export function trendLine(
     const raw = covered && played ? (row?.values[metric]?.value ?? null) : null
     const value = raw !== null && Number.isFinite(raw) ? raw : null
     const pooled = !unavailable.has(season)
-    const members = pooled ? seasonPool(pool, season, metric, entity) : new Map<string, number>()
+    const members = pooled
+      ? seasonPool(pool, season, metric, entity, info?.qualifyBy !== undefined)
+      : new Map<string, number>()
     const mine = members.get(id)
     const place =
       value !== null && mine !== undefined ? rankIn([...members.values()], mine, direction) : null

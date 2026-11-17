@@ -1,5 +1,5 @@
 import { NBA_MINIMUMS } from '@shared/stats/catalogue/define'
-import type { Entity, StatsQuery, StatsResult } from '@shared/stats/types'
+import type { Entity, MetricInfo, StatsQuery, StatsResult } from '@shared/stats/types'
 import { fmtStat, type ValueFormat } from './format'
 import { queryScope, type StatsScope } from './scope'
 
@@ -42,12 +42,24 @@ export const BOARD_ROWS = 6
  */
 export const gamesToQualify = (most: number): number => Math.round((most * NBA_MINIMUMS.games) / 82)
 
-/** Every qualified row, sorted by the engine. Counts per game when asked. */
-export function boardQuery(board: BoardDef, scope: StatsScope, perGame: boolean): StatsQuery {
+/**
+ * Every qualified row, sorted by the engine. Counts per game when asked. A total has no minimum, as
+ * the NBA's totals have none; a rate, and a count per game, keep only the rows that qualify for the
+ * metric (the NBA's 58 games for points, rebounds, assists, steals and blocks, D33).
+ */
+export function boardQuery(
+  board: BoardDef,
+  scope: StatsScope,
+  perGame: boolean,
+  aggregation: MetricInfo['aggregation']
+): StatsQuery {
   return {
     entity: board.entity,
     metrics: [board.metric],
-    scope: { ...queryScope(scope, board.entity), qualifiedOnly: true },
+    scope: {
+      ...queryScope(scope, board.entity),
+      ...(perGame || aggregation !== 'sum' ? { qualifiedOnly: true } : {})
+    },
     transform: perGame ? 'perGame' : 'raw',
     limit: 1000
   }

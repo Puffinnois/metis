@@ -477,9 +477,9 @@ function metricColumns(
   sumOf: (m: MetricDef, component: string) => string
 ): string[] {
   return c.metrics.flatMap((m, i) => {
-    // `k` is what `minSample` counts when it is not the sample (`qualifyBy`); only those metrics
-    // carry it, since a sum per metric costs a wide leaderboard time.
-    const qualifyBy = m.qualifyBy
+    // `k` is what `minSample` counts when it is not the sample (`qualifyBy`: makes); only those
+    // metrics carry it, since a sum per metric costs a wide leaderboard time.
+    const qualifyBy = m.qualifyBy !== m.sample ? m.qualifyBy : undefined
     if (c.gaps[i] !== null) {
       return [
         `NULL::DOUBLE AS v${i}`,
@@ -991,7 +991,8 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
   // leaders, else the sample itself) reaches the minimum scaled to the games in scope, rounded to a
   // whole count as the NBA rounds a shortened season's: 300 × 66 / 82 is 241.5, and it asked 241.
   const flags = c.metrics.map((m, i) => {
-    const count = m.qualifyBy !== undefined ? `coalesce(k${i}, 0)` : `s${i}`
+    const count =
+      m.qualifyBy !== undefined && m.qualifyBy !== m.sample ? `coalesce(k${i}, 0)` : `s${i}`
     return `(s${i} > 0 AND ${count} >= round(${m.minSample ?? 0} * $factor)) AS q${i}`
   })
   const sort = q.sort ? q.metrics.indexOf(q.sort.metric) : 0

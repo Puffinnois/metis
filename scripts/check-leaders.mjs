@@ -4,7 +4,8 @@
 // (`src_nba_player_season`, 1996-97 on) by the NBA's minimums, twice: by the rule Metis applies (D33,
 // the NBA's since 2013-14, scaled to each season's games) and by the NBA's rule of that season, as
 // `docs/reference/nba-qualifying-minimums.md` lists it. The engine's side is a real query, as the
-// leaderboard asks it: per-game counts among players `min` qualifies, rates with Qualified only on.
+// leaderboard asks it: each statistic sorted, with Qualified only on, so each qualifies by its own
+// minimum. Minutes per game is the leaderboards' row qualifier and stays on 1,000 minutes (D33).
 //
 // usage: node scripts/check-leaders.mjs <folder holding stats.duckdb> [out.md] [seasons, comma-separated]
 // Build first with `npm run build`.
@@ -70,9 +71,13 @@ function qualifiesInEra(p, stat, season, teamGames, inProgress) {
   return p[stat.made] >= (short ? round(need) : need * onPace)
 }
 
-/** By the rule Metis applies: the minimum scaled to the season's games and rounded, as the engine does. */
+/**
+ * By the rule Metis applies: the minimum scaled to the season's games and rounded, as the engine does.
+ * Minutes per game is the row qualifier, on 1,000 minutes.
+ */
 function qualifiesInMetis(p, stat, teamGames) {
   const factor = teamGames / 82
+  if (stat.id === 'min') return p.min >= Math.round(1000 * factor)
   return stat.col ? p.gp >= Math.round(58 * factor) : p[stat.made] >= Math.round(stat.min * factor)
 }
 
@@ -98,27 +103,17 @@ const games = new Map(
 )
 
 async function engineTop(stat, season) {
-  if (stat.col) {
-    const metrics = stat.id === 'min' ? ['min'] : [stat.id, 'min']
-    const r = await query({
-      entity: 'player',
-      metrics,
-      scope: { seasons: [season] },
-      transform: 'perGame',
-      limit: 5000
-    })
-    return r.rows
-      .filter((x) => x.values.min.qualified && x.values[stat.id].value !== null)
-      .map((x) => ({ id: x.id, name: x.name, value: x.values[stat.id].value }))
-      .sort((a, b) => b.value - a.value || a.name.localeCompare(b.name))
-  }
   const r = await query({
     entity: 'player',
     metrics: [stat.id],
     scope: { seasons: [season], qualifiedOnly: true },
+    transform: stat.col ? 'perGame' : 'raw',
     limit: 50
   })
-  return r.rows.map((x) => ({ id: x.id, name: x.name, value: x.values[stat.id].value }))
+  return r.rows
+    .filter((x) => x.values[stat.id].value !== null)
+    .map((x) => ({ id: x.id, name: x.name, value: x.values[stat.id].value }))
+    .sort((a, b) => b.value - a.value || a.name.localeCompare(b.name))
 }
 
 const fmt = (stat, v) => (stat.col ? v.toFixed(1) : (100 * v).toFixed(1))

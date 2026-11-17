@@ -14,7 +14,16 @@ import type {
 } from '@shared/stats/types'
 import type { ChartPoint, ChartSeries, SectionDef } from './dashboard'
 import { cellTitle, fmtClock, fmtStat, heatOf, ordinal, type Heat } from './format'
-import { bestFirst, qualifies, rankWithinTab, ROW_LIMIT, searchKey, tabOf } from './leaderboard'
+import {
+  bestFirst,
+  ownQualifiers,
+  qualifies,
+  rankWithinTab,
+  ROW_LIMIT,
+  rowQualifies,
+  searchKey,
+  tabOf
+} from './leaderboard'
 import { queryScope, shortDay, type StatsScope } from './scope'
 
 /** The player dashboard: a rail to pick from, a header, and one set of tabs for every position. */
@@ -597,9 +606,11 @@ export function railRows(
   const ranked = rankWithinTab(result, tab)
   const info = byId.get(metric)
   const needle = searchKey(search.trim())
+  // A metric with the NBA's minimum lists who qualifies for it, not who has the minutes (D33).
+  const own = ownQualifiers(result)
   let place = 0
   return ranked.rows.flatMap((r) => {
-    const ok = qualifies(r, tab)
+    const ok = rowQualifies(r, tab, metric, own)
     const rank = ok ? ++place : null
     if (needle ? !searchKey(r.name).includes(needle) : !ok && r.id !== selected) return []
     const v = r.values[metric]
@@ -622,7 +633,8 @@ export function railRows(
 export function defaultPlayer(result: StatsResult | null): string | null {
   if (!result) return null
   const tab = poolTab(null)
-  return (result.rows.find((r) => qualifies(r, tab)) ?? result.rows[0])?.id ?? null
+  const own = ownQualifiers(result)
+  return (result.rows.find((r) => rowQualifies(r, tab, 'pts', own)) ?? result.rows[0])?.id ?? null
 }
 
 /** "LeBron" and "James"; a single name goes on the big line. */

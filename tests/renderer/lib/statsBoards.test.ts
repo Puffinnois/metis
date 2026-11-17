@@ -49,14 +49,20 @@ describe('the home boards', () => {
   })
 
   it('asks for the qualified rows of the scope, per game when asked', () => {
-    const q = boardQuery(BOARDS[0], SCOPE, true)
+    const q = boardQuery(BOARDS[0], SCOPE, true, 'sum')
     expect(q).toMatchObject({
       entity: 'player',
       metrics: ['pts'],
       transform: 'perGame',
       scope: { seasons: [2026], gameTypes: ['playoffs'], qualifiedOnly: true }
     })
-    expect(boardQuery(BOARDS[0], SCOPE, false).transform).toBe('raw')
+    expect(boardQuery(BOARDS[0], SCOPE, false, 'sum').transform).toBe('raw')
+  })
+
+  it('asks for every row of a total, which has no minimum, but only the qualified of a rate', () => {
+    expect(boardQuery(BOARDS[0], SCOPE, false, 'sum').scope.qualifiedOnly).toBeUndefined()
+    const ts = BOARDS.find((b) => b.metric === 'ts_pct')!
+    expect(boardQuery(ts, SCOPE, false, 'ratio').scope.qualifiedOnly).toBe(true)
   })
 })
 

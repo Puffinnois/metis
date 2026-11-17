@@ -80,7 +80,7 @@ function Board({
 }): React.JSX.Element {
   const info = data.byId.get(board.metric)
   const { result, loading, error } = useStatsQuery(
-    info ? boardQuery(board, scope, perGame) : null,
+    info ? boardQuery(board, scope, perGame, info.aggregation) : null,
     data.version
   )
   const view = result && info ? boardView(result, info, perGame) : null

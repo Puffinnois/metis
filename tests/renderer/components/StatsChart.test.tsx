@@ -211,7 +211,7 @@ describe('the chart', () => {
   it('says too few qualify, how many and why, and can show the rest', async () => {
     query.mockImplementation(async (q) => {
       const r = answer(q)
-      // Only four players have enough games.
+      // Only four players have enough minutes.
       r.rows = r.rows.map((row, i) => ({
         ...row,
         values: { ...row.values, min: { ...row.values.min, qualified: i < 4 } }
@@ -223,7 +223,7 @@ describe('the chart', () => {
     expect(within(status).getByText('Too few qualifiers to chart')).toBeTruthy()
     expect(
       within(status).getByText(
-        /^4 players qualify on both axes in the 2025-26 regular season\. A scatter needs at least 10: a player qualifies with enough games/
+        /^4 players qualify on both axes in the 2025-26 regular season\. A scatter needs at least 10: a player qualifies with enough minutes/
       )
     ).toBeTruthy()
     fireEvent.click(within(status).getByRole('button', { name: 'Show all 15 players' }))
