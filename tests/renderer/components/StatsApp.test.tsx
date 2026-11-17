@@ -3,6 +3,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { api } from '@/lib/api'
 import { StatsApp } from '@/screens/stats/StatsApp'
+import { setLeague, useLeague } from '@/lib/stats/league'
+import { createSessionStore, SessionContext } from '@/lib/stats/session'
+import { useState } from 'react'
 
 vi.mock('@/lib/api', () => ({
   api: {
@@ -34,7 +37,11 @@ function renderApp(onLocation = vi.fn()): void {
   )
 }
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  setLeague('nba')
+  localStorage.clear()
+})
 
 describe('the shell', () => {
   it('opens on Leaderboards, says the database is empty, and has no fantasy link', async () => {
@@ -119,5 +126,81 @@ describe('the shell', () => {
     vi.mocked(api.stats.status).mockRejectedValue(new Error('worker gone'))
     renderApp()
     expect(await screen.findByText('worker gone')).toBeTruthy()
+  })
+})
+
+describe('the league menu', () => {
+  const NO_WNBA = 'No WNBA stats yet: they come in a later version.'
+
+  // As App builds it: the shell again for each league, the sessions kept above it.
+  function Shell({ onLocation }: { onLocation: (l: unknown) => void }): React.JSX.Element {
+    const league = useLeague()
+    const [store] = useState(createSessionStore)
+    return (
+      <SessionContext.Provider value={store}>
+        <StatsApp
+          key={league.id}
+          update={{ status: 'idle' }}
+          version="1.0.0"
+          onOpenUpdate={() => {}}
+          onToggleTheme={() => {}}
+          onLocation={onLocation}
+        />
+      </SessionContext.Provider>
+    )
+  }
+
+  function pick(name: RegExp): void {
+    fireEvent.keyDown(screen.getByRole('button', { name: /^League: / }), { key: 'Enter' })
+    fireEvent.click(screen.getByRole('menuitemradio', { name }))
+  }
+
+  it('lists every league by name and switches, keeping the screen', async () => {
+    vi.mocked(api.stats.status).mockImplementation((league) =>
+      Promise.resolve(
+        league === 'wnba' ? { ...EMPTY, available: false, noData: NO_WNBA } : { ...EMPTY }
+      )
+    )
+    const onLocation = vi.fn()
+    render(<Shell onLocation={onLocation} />)
+    expect(await screen.findByText('No stats yet')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Games' }))
+
+    fireEvent.keyDown(screen.getByRole('button', { name: 'League: NBA' }), { key: 'Enter' })
+    expect(screen.getByRole('menuitemradio', { name: /^NBA/ }).getAttribute('aria-checked')).toBe(
+      'true'
+    )
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /^WNBA/ }))
+
+    // The WNBA's Games, with its reason and no error.
+    expect(await screen.findByText(NO_WNBA)).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Games' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'No WNBA stats yet' })).toBeTruthy()
+    expect(screen.queryByText(/could not be opened/)).toBeNull()
+    expect(screen.getByRole('button', { name: 'League: WNBA' })).toBeTruthy()
+    await waitFor(() =>
+      expect(onLocation).toHaveBeenLastCalledWith({
+        league: 'wnba',
+        screen: 'games',
+        team: null,
+        player: null
+      })
+    )
+    expect(localStorage.getItem('metis.league')).toBe('wnba')
+
+    // And back: the NBA's Games.
+    pick(/^NBA/)
+    expect(await screen.findByText('No stats yet')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Games' })).toBeTruthy()
+  })
+
+  it('reads the reason on the Data panel too, not the panel’s error', async () => {
+    vi.mocked(api.stats.status).mockResolvedValue({ ...EMPTY, available: false, noData: NO_WNBA })
+    setLeague('wnba')
+    render(<Shell onLocation={() => {}} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'No WNBA stats yet' }))
+    expect(await screen.findByRole('heading', { name: 'Data' })).toBeTruthy()
+    expect(screen.getByText(NO_WNBA)).toBeTruthy()
+    expect(api.stats.data).not.toHaveBeenCalledWith('wnba')
   })
 })

@@ -79,7 +79,7 @@ import {
   type Fact
 } from '@/lib/stats/profile'
 import { rangeLabel, scopeLabel, seasonOf, typeLabel, type StatsScope } from '@/lib/stats/scope'
-import { seasonLabel } from '@/lib/stats/league'
+import { currentLeague, seasonLabel } from '@/lib/stats/league'
 import {
   useAvailability,
   useMatchups,
@@ -292,9 +292,13 @@ function Profile({ data, player }: TabProps): React.JSX.Element {
       <div className="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] items-start gap-x-10 gap-y-7">
         <FactList
           title="Bio"
-          note={value.bio ? `NBA roster, ${seasonLabel(value.bio.season)}` : undefined}
+          note={
+            value.bio
+              ? `${currentLeague().name} roster, ${seasonLabel(value.bio.season)}`
+              : undefined
+          }
           facts={value.bio ? bioFacts(value.bio) : []}
-          empty="No NBA roster lists them."
+          empty={`No ${currentLeague().name} roster lists them.`}
         />
         <FactList title="Draft" facts={draft.facts} empty={draft.note ?? ''} />
       </div>

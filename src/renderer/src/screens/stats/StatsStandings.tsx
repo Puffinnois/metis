@@ -17,7 +17,7 @@ import {
   type StandingsView
 } from '@/lib/stats/standings'
 import { useStandings, useStatsQuery, type StatsData } from '@/lib/stats/useStats'
-import { seasonLabel } from '@/lib/stats/league'
+import { currentLeague, seasonLabel } from '@/lib/stats/league'
 
 const COLUMNS =
   '24px minmax(190px,1.6fr) 32px 32px 44px 40px 52px 52px 52px 52px 44px 44px 48px 48px 48px 56px 52px 52px 52px'
@@ -56,7 +56,7 @@ export function StatsStandings({
             {seasonLabel(scope.season)} standings
           </h1>
           <div className="text-[13px] text-fg-2">
-            Regular season, as the NBA publishes it
+            Regular season, as the {currentLeague().name} publishes it
             {scope.season === data.status?.through?.season ? ', to date' : ''}
           </div>
         </div>

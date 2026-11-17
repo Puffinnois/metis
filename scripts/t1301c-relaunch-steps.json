@@ -1,0 +1,15 @@
+[
+  { "size": [1500, 950] },
+  { "wait": 7000 },
+  {
+    "eval": "window.sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nwindow.until = async (fn, ms = 15000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (fn()) return true; await sleep(150) } return false };\nwindow.check = (label, ok, got) => (ok ? 'OK ' : 'MISMATCH ') + label + ' got ' + JSON.stringify(got);\nwindow.trigger = () => document.querySelector('button[aria-label^=\"League: \"]');\nwindow.league = () => trigger()?.getAttribute('aria-label')?.replace('League: ', '') ?? null;\nwindow.statusLine = () => document.querySelector('[title=\"See what is loaded\"]')?.textContent.trim() ?? null;\nwindow.selected = (title) => [...document.querySelectorAll('select')].find((x) => x.title === title)?.selectedOptions[0]?.textContent ?? null;\nwindow.switchTo = async (name) => { const t = trigger(); t.focus(); t.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); await until(() => document.querySelectorAll('[role=menuitemradio]').length > 0, 3000); [...document.querySelectorAll('[role=menuitemradio]')].find((x) => x.textContent.startsWith(name)).click(); await until(() => league() === name, 5000); await sleep(3500); return league() };\n'helpers ready'"
+  },
+  {
+    "eval": "(async () => check('relaunched on the league it was left on, the WNBA, reading its reason', league() === 'WNBA' && /No WNBA stats yet/.test(document.querySelector('main').innerText) && statusLine() === 'No WNBA stats yet', { league: league(), status: statusLine(), text: document.querySelector('main').innerText.slice(0, 120) }))()"
+  },
+  { "shot": "relaunch-01-wnba" },
+  {
+    "eval": "(async () => { const n = await switchTo('NBA'); return check('the NBA opens on its own defaults: the latest season, as at any launch', n === 'NBA' && selected('Season') !== '2015-16' && /^Data through/.test(statusLine()), { league: n, season: selected('Season'), status: statusLine() }) })()"
+  },
+  { "shot": "relaunch-02-nba" }
+]
