@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
+  BUILT_TABLES,
+  builds,
   DEFAULT_LEAGUE,
   elapsedSeconds,
   gameSeconds,
@@ -11,6 +13,7 @@ import {
   PER_MINUTE,
   periodsIn,
   periodStartSeconds,
+  regulationPeriodsSql,
   seasonLabel
 } from '@shared/leagues'
 import { GAME_TYPES } from '@shared/stats/types'
@@ -93,10 +96,21 @@ describe('the league registry', () => {
     expect(gameSeconds(wnba, 2026, 5)).toBe(2700)
   })
 
-  it('builds no WNBA tables yet, and says so', () => {
-    expect(nba.derived).toBe(true)
-    expect(wnba.derived).toBe(false)
+  it("says which built tables each league has, the WNBA's identity alone so far", () => {
+    expect(nba.builds).toEqual(BUILT_TABLES)
+    expect(wnba.builds).toEqual(['identity'])
+    expect(builds(wnba, 'identity')).toBe(true)
+    expect(builds(wnba, 'derived')).toBe(false)
+    expect(nba.identity).toBe('nba')
+    expect(wnba.identity).toBe('wnba')
     expect(wnba.noData).toMatch(/WNBA/)
     expect(wnba.notBuilt).toMatch(/WNBA/)
+  })
+
+  it('writes the periods of regulation per season as SQL', () => {
+    expect(regulationPeriodsSql(nba, 'season')).toBe('4')
+    expect(regulationPeriodsSql(wnba, 'season')).toBe(
+      '(CASE WHEN season >= 2006 THEN 4 ELSE 2 END)'
+    )
   })
 })

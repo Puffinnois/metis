@@ -1,4 +1,4 @@
-import { seasonEnd, type League } from '@shared/leagues'
+import { builds, seasonEnd, type BuiltTables, type League } from '@shared/leagues'
 import type { StatsDb } from './db'
 import { buildDerived, canDerive, derivedStale, markDerivedStale } from './derived/build'
 import {
@@ -273,9 +273,11 @@ function toEntry(row: Record<string, unknown>): StatsLogEntry {
 /** Thrown by a step body to log `skipped` instead of `error`. */
 class SkipStep extends Error {}
 
-/** Why a league's refresh builds nothing (`League.derived` false). */
+/** Why a league's refresh builds no game or season tables (`League.builds` lacks `derived`). */
 export const notBuilt = (league: League): string =>
-  `No ${league.name} game, team, player or season tables yet: its files are loaded, and nothing is built from them.`
+  builds(league, 'identity')
+    ? `No ${league.name} game or season stat tables yet: its files are loaded, and only its game, team and player tables are built from them.`
+    : `No ${league.name} game, team, player or season tables yet: its files are loaded, and nothing is built from them.`
 
 /** Runs one step under a `sync_log` row; never throws (errors are logged). */
 async function runLogged(
@@ -431,26 +433,32 @@ export async function refreshStats(
     )
   }
 
-  // A league whose game and season tables are not built yet (`League.derived`) loads its files and
-  // builds nothing: the builders read the NBA's tables, which its file does not have.
-  const builds = deps.league.derived
+  // Each step runs only for a league whose registry entry lists its tables (`League.builds`): a later
+  // builder reads tables the league may not have yet. The identity tables are built by the recipe the
+  // entry names.
+  const league = deps.league
+  const runs = (tables: BuiltTables): boolean => builds(league, tables)
 
   // Built as soon as the core tier is in, so the app can use them long before the load ends. New
   // core files rebuild everything; otherwise only a table a new version made stale, and the game and
   // season tables after a rebuilt identity, since they join through its links (an ESPN id).
   const runBuilds = async (): Promise<void> => {
     built = true
-    if (!builds) return
     let identityBuilt = false
-    if ((coreWrote || (await identityStale(db))) && (await canBuildIdentity(db))) {
+    if (
+      runs('identity') &&
+      (coreWrote || (await identityStale(db, league))) &&
+      (await canBuildIdentity(db, league))
+    ) {
       identityBuilt = true
       log.push(
         await runLogged(deps, STATS_IDENTITY_STEP, async () => ({
-          rows: await buildIdentity(db),
+          rows: await buildIdentity(db, league),
           message: null
         }))
       )
     }
+    if (!runs('derived')) return
     if ((coreWrote || identityBuilt || (await derivedStale(db))) && (await canDerive(db))) {
       log.push(
         await runLogged(deps, STATS_DERIVED_STEP, async () => ({
@@ -464,7 +472,7 @@ export async function refreshStats(
   // Built once the published tier is in, so its numbers can be read while the events and plays load.
   const runPublishedBuild = async (force = false): Promise<void> => {
     publishedBuilt = true
-    if (!builds) return
+    if (!runs('published')) return
     if (canBuildPublished() && (force || publishedWrote || (await publishedStale(db)))) {
       log.push(
         await runLogged(deps, STATS_PUBLISHED_STEP, async () => ({
@@ -479,7 +487,7 @@ export async function refreshStats(
   // tables, and they are the largest build, so nothing else waits behind it. Only the seasons whose
   // files wrote rows are rebuilt (`playBuilders.ts`).
   const runPlaysBuild = async (): Promise<void> => {
-    if (!builds) return
+    if (!runs('plays')) return
     if ((await playsDue(db)) && (await canBuildPlays(db))) {
       log.push(
         await runLogged(deps, STATS_PLAYS_STEP, async () => ({
@@ -493,7 +501,7 @@ export async function refreshStats(
   // Last, after the plays: a model reads the game tables, and later ones may read the plays. Only the
   // seasons whose files wrote rows are computed again (`models/build.ts`).
   const runModelsBuild = async (): Promise<void> => {
-    if (!builds) return
+    if (!runs('models')) return
     if ((await modelsDue(db)) && (await canBuildModels(db))) {
       log.push(
         await runLogged(deps, STATS_MODELS_STEP, async () => ({
@@ -593,7 +601,7 @@ export async function refreshStats(
       if (!publishedBuilt || lateWrote) await runPublishedBuild(lateWrote)
       await runPlaysBuild()
       await runModelsBuild()
-      if (!builds && log.some((e) => e.status === 'ok' && e.rowsWritten > 0)) {
+      if (!runs('derived') && log.some((e) => e.status === 'ok' && e.rowsWritten > 0)) {
         log.push(
           await runLogged(deps, STATS_DERIVED_STEP, async () => {
             throw new SkipStep(notBuilt(deps.league))

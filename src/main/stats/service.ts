@@ -31,7 +31,7 @@ import type {
   StatsCoach,
   StatsStatus
 } from '@shared/stats/types'
-import { leagueOf, type League } from '@shared/leagues'
+import { builds, leagueOf, type League } from '@shared/leagues'
 import { sqlString, StatsDb, type Row } from './db'
 import { databaseBytes, freeBytes, roomNeeded } from './disk'
 import { createDownloads } from './download'
@@ -508,9 +508,10 @@ export async function openStatsService(
       db.close()
     }
   }
-  if (league.derived) return service
+  if (builds(league, 'derived')) return service
   // A league whose game and season tables are not built yet loads and lists its files, and every
-  // screen's read answers with the reason, never an error: its file has none of the tables they read.
+  // screen's read answers with the reason, never an error: its file has none of the tables they read
+  // (its game, team and player tables may be there, but no screen reads them alone).
   const none = offlineStats(league, league.notBuilt)
   return {
     ...service,

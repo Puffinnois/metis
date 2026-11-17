@@ -1,13 +1,31 @@
+import { DEFAULT_LEAGUE, leagueOf, type IdentityRecipeName, type League } from '@shared/leagues'
 import type { StatsDb } from './db'
-
-/** Bump when these tables change, so the next refresh builds them without downloading anything. */
-export const IDENTITY_VERSION = 5
+import { hasTables, NAME_KEY, playerIdsSql } from './identityShared'
+import { WNBA_IDENTITY } from './identityWnba'
 
 /**
- * What the identity tables read. They are all in the core tier, so the app can use them as soon as
- * that tier has loaded. Their releases can never be left out of a build (`leftOut.ts`).
+ * The game, team and player tables, built per league by the recipe its registry entry names
+ * (`League.identity`). Every recipe writes the same tables with the same columns and meaning, so the
+ * builders, the engine and the screens after it read them unchanged; what a recipe shares with the
+ * others is in `identityShared.ts`. `docs/reference/stats-database.md`, "Identity" and "Leagues".
  */
-export const IDENTITY_NEEDS = [
+export interface IdentityRecipe {
+  /** Bump when the recipe's tables change, so the next refresh builds them with nothing downloaded. */
+  version: number
+  /**
+   * The source tables it cannot build without. All in the core tier, so the app can use the tables
+   * as soon as that tier has loaded. Their releases can never be left out of a build (`leftOut.ts`).
+   */
+  needs: readonly string[]
+  /** Builds `team`, `game`, `player_ids` and `player`, each replacing the old one in one statement. */
+  build(db: StatsDb, league: League): Promise<void>
+}
+
+/** The NBA recipe's version; each recipe keeps its own, so changing one never rebuilds another. */
+export const IDENTITY_VERSION = 5
+
+/** What the NBA's identity tables read. */
+const NBA_NEEDS = [
   'src_nba_schedule',
   'src_espn_schedule',
   'src_nba_player_box',
@@ -17,10 +35,6 @@ export const IDENTITY_NEEDS = [
   'src_xwalk_game',
   'src_xwalk_player'
 ]
-
-/** Spellings of a name that compare equal: no accents, punctuation or suffixes. */
-const NAME_KEY = `CREATE OR REPLACE TEMP MACRO name_key(n) AS trim(regexp_replace(
-  regexp_replace(strip_accents(lower(n)), '[^a-z ]', '', 'g'), ' (jr|sr|ii|iii|iv|v)$', ''))`
 
 /**
  * One row per team per season, on NBA team ids. `src_team_aliases` maps ESPN's ids to the NBA's. Its
@@ -142,69 +156,14 @@ const GAME = `CREATE OR REPLACE TABLE game AS
   WHERE e.season < (SELECT season FROM first_nba_season)
     AND e.espn_game_id NOT IN (SELECT espn_game_id FROM espn_copies)`
 
-/**
- * ESPN's athletes mapped to NBA ids, first hit wins:
- *
- * 1. the crosswalk, which matches on names and misses those spelled too differently (Yao Ming, Nene);
- * 2. the same box-score lines in the same games, whatever the names (Tyrone Bogues is Muggsy), with
- *    a clear winner and at least two lines that are not all zeros;
- * 3. the same name in the same season, when only one player has it.
- *
- * Whoever is left never played a game the NBA's data covers, so has no NBA id: they get the negative
- * of their ESPN id, which no NBA id can equal.
- */
-const PLAYER_IDS = `CREATE OR REPLACE TABLE player_ids AS
-  WITH crosswalk AS (
-    SELECT DISTINCT TRY_CAST(espn_athlete_id AS BIGINT) AS espn_athlete_id,
+/** ESPN's athletes mapped to NBA ids (`playerIdsSql`), over the NBA's box scores. */
+const PLAYER_IDS = playerIdsSql({
+  crosswalk: `SELECT DISTINCT TRY_CAST(espn_athlete_id AS BIGINT) AS espn_athlete_id,
            TRY_CAST(nba_player_id AS BIGINT) AS player_id
-    FROM src_xwalk_player WHERE nba_player_id IS NOT NULL AND espn_athlete_id IS NOT NULL
-  ), espn_players AS (
-    SELECT athlete_id AS espn_athlete_id, any_value(athlete_display_name) AS name
-    FROM src_espn_player_box WHERE athlete_id IS NOT NULL GROUP BY 1
-  ), open_players AS (
-    SELECT p.* FROM espn_players p ANTI JOIN crosswalk c USING (espn_athlete_id)
-  ), lines AS (
-    SELECT e.athlete_id AS espn_athlete_id, n.person_id AS player_id, count(*) AS same
-    FROM src_espn_player_box e
-    JOIN open_players o ON o.espn_athlete_id = e.athlete_id
-    JOIN game g ON g.espn_game_id = e.game_id AND g.nba_game_id IS NOT NULL
-    JOIN src_nba_player_box n ON n.game_id = g.nba_game_id
-      AND n.points = e.points AND n.rebounds_total = e.rebounds AND n.assists = e.assists
-      AND n.field_goals_attempted = e.field_goals_attempted AND n.fouls_personal = e.fouls
-    WHERE e.season = e.file_season
-      AND coalesce(e.points, 0) + coalesce(e.rebounds, 0) + coalesce(e.assists, 0)
-        + coalesce(e.field_goals_attempted, 0) > 0
-    GROUP BY 1, 2
-  ), ranked AS (
-    SELECT *, row_number() OVER (PARTITION BY espn_athlete_id ORDER BY same DESC) AS place,
-           lead(same) OVER (PARTITION BY espn_athlete_id ORDER BY same DESC) AS next_same
-    FROM lines
-  ), by_lines AS (
-    SELECT espn_athlete_id, player_id FROM ranked
-    WHERE place = 1 AND same >= 2 AND same > 2 * coalesce(next_same, 0)
-  ), after_lines AS (
-    SELECT o.* FROM open_players o ANTI JOIN by_lines b USING (espn_athlete_id)
-  ), espn_names AS (
-    SELECT DISTINCT athlete_id AS espn_athlete_id, season, name_key(athlete_display_name) AS k
-    FROM src_espn_player_box
-    WHERE athlete_id IN (SELECT espn_athlete_id FROM after_lines) AND season = file_season
-  ), nba_names AS (
-    SELECT DISTINCT person_id AS player_id, season, name_key(first_name || ' ' || family_name) AS k
-    FROM src_nba_player_box
-  ), unique_names AS (
-    SELECT season, k, any_value(player_id) AS player_id FROM nba_names
-    GROUP BY 1, 2 HAVING count(*) = 1
-  ), by_name AS (
-    SELECT e.espn_athlete_id, any_value(u.player_id) AS player_id
-    FROM espn_names e JOIN unique_names u USING (season, k)
-    GROUP BY 1 HAVING count(DISTINCT u.player_id) = 1
-  )
-  SELECT espn_athlete_id, player_id, 'crosswalk' AS method FROM crosswalk
-  UNION ALL SELECT espn_athlete_id, player_id, 'box score' FROM by_lines
-  UNION ALL SELECT espn_athlete_id, player_id, 'name' FROM by_name
-  UNION ALL
-  SELECT a.espn_athlete_id, -a.espn_athlete_id, 'espn only'
-  FROM after_lines a ANTI JOIN by_name b USING (espn_athlete_id)`
+    FROM src_xwalk_player WHERE nba_player_id IS NOT NULL AND espn_athlete_id IS NOT NULL`,
+  lines: 'src_nba_player_box',
+  name: "first_name || ' ' || family_name"
+})
 
 /**
  * One row per person. The name is the NBA's latest spelling, else ESPN's. A player the NBA's data has
@@ -245,21 +204,43 @@ const playerTable = (rosters: boolean): string => `CREATE OR REPLACE TABLE playe
   FROM nba n FULL JOIN espn e USING (player_id)
   LEFT JOIN roster r ON r.player_id = coalesce(n.player_id, e.player_id)`
 
-async function hasTables(db: StatsDb, tables: string[]): Promise<boolean> {
-  const row = await db.get<{ n: number }>(
-    `SELECT count(*) AS n FROM duckdb_tables()
-     WHERE schema_name = 'main' AND table_name IN (${tables.map((t) => `'${t}'`).join(', ')})`
-  )
-  return row?.n === tables.length
+/** The NBA's recipe: its schedule from 1996-97, ESPN's before, players from its box scores. */
+const NBA_IDENTITY: IdentityRecipe = {
+  version: IDENTITY_VERSION,
+  needs: NBA_NEEDS,
+  async build(db) {
+    await db.exec(TEAM)
+    await db.exec(GAME)
+    await db.exec(PLAYER_IDS)
+    await db.exec(playerTable(await hasTables(db, ['src_nba_rosters'])))
+  }
 }
 
-export const canBuildIdentity = (db: StatsDb): Promise<boolean> => hasTables(db, IDENTITY_NEEDS)
+/** Every recipe, by the name a league's registry entry gives (`League.identity`). */
+export const IDENTITY_RECIPES: Readonly<Record<IdentityRecipeName, IdentityRecipe>> = {
+  nba: NBA_IDENTITY,
+  wnba: WNBA_IDENTITY
+}
 
-export async function identityStale(db: StatsDb): Promise<boolean> {
+/** Every table any recipe reads: whatever the league, their releases cannot be left out. */
+export const IDENTITY_NEEDS = [
+  ...new Set(Object.values(IDENTITY_RECIPES).flatMap((r) => r.needs))
+].sort()
+
+// A script or test that names no league builds the NBA's, the league every file was before leagues.
+const NBA = leagueOf(DEFAULT_LEAGUE)
+
+/** The recipe a league's registry entry names. */
+export const identityRecipe = (league: League): IdentityRecipe => IDENTITY_RECIPES[league.identity]
+
+export const canBuildIdentity = (db: StatsDb, league: League = NBA): Promise<boolean> =>
+  hasTables(db, identityRecipe(league).needs)
+
+export async function identityStale(db: StatsDb, league: League = NBA): Promise<boolean> {
   const row = await db.get<{ version: number }>(
     "SELECT version FROM derived_state WHERE name = 'identity'"
   )
-  return (row?.version ?? 0) < IDENTITY_VERSION
+  return (row?.version ?? 0) < identityRecipe(league).version
 }
 
 /** Marks the tables out of date, so a build the app never got to still happens on the next refresh. */
@@ -267,17 +248,15 @@ export async function markIdentityStale(db: StatsDb): Promise<void> {
   await db.exec("INSERT OR REPLACE INTO derived_state VALUES ('identity', 0)")
 }
 
-/** Rebuilds the tables; each replaces the old one in its own statement. Returns how many games. */
-export async function buildIdentity(db: StatsDb): Promise<number> {
+/**
+ * Rebuilds the tables with the league's recipe; each replaces the old one in its own statement.
+ * Returns how many games.
+ */
+export async function buildIdentity(db: StatsDb, league: League = NBA): Promise<number> {
+  const recipe = identityRecipe(league)
   await db.exec(NAME_KEY)
-  await db.exec(TEAM)
-  await db.exec(GAME)
-  await db.exec(PLAYER_IDS)
-  await db.exec(playerTable(await hasTables(db, ['src_nba_rosters'])))
-  await db.exec('INSERT OR REPLACE INTO derived_state VALUES (?, ?)', [
-    'identity',
-    IDENTITY_VERSION
-  ])
+  await recipe.build(db, league)
+  await db.exec('INSERT OR REPLACE INTO derived_state VALUES (?, ?)', ['identity', recipe.version])
   const games = await db.get<{ n: number }>('SELECT count(*) AS n FROM game')
   return games?.n ?? 0
 }
