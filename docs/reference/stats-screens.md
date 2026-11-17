@@ -12,7 +12,8 @@ What each screen shows and where its numbers come from. Screens are added here a
 | It says                                               | When                                                                  |
 | ----------------------------------------------------- | --------------------------------------------------------------------- |
 | No stats yet                                          | Nothing is loaded, and nothing is running                             |
-| No WNBA stats yet                                     | The league has no data (the registry's `hasData`); not an error       |
+| No WNBA stats yet                                     | The league is off, with no file; not an error                         |
+| WNBA files loaded · no tables yet                     | On and loaded, its tables not built yet (the registry's `derived`)    |
 | Loading the stats · 412 of 3,070 files                | The first load, before any box score                                  |
 | Data through Nov 4, 2026 · updating 71 of 3,070 files | A load or a refresh is running                                        |
 | Data through Nov 4, 2026 · updated 2 h ago            | Nothing is running, in the league's season months                     |
@@ -27,7 +28,7 @@ The status line opens the Data panel.
 
 ## League menu
 
-D35: the whole app shows one league at a time. The menu sits beside the wordmark and names the league on screen (by name, never colour: D17). It lists every league in the registry (`LEAGUES`), each with its full name, and "No stats yet" beside a league with no data. It is a Radix menu: Enter, Space or ↓ opens it, the arrows move, Enter picks, Esc closes, and the focus comes back to the menu's button after a switch.
+D35: the whole app shows one league at a time. The menu sits beside the wordmark and names the league on screen (by name, never colour: D17). It lists every league in the registry (`LEAGUES`), each with its full name and a note from its real state (`api.leagues.downloads()`, read through `useLeagueDownloads`): "No stats yet" beside a league that is off with no file, "No tables yet" beside one whose files are loaded and whose tables are not built (the registry's `derived`, false for the WNBA until T1301.5 and T1301.6), and nothing beside one that is ready. It is a Radix menu: Enter, Space or ↓ opens it, the arrows move, Enter picks, Esc closes, and the focus comes back to the menu's button after a switch.
 
 **What a switch keeps.** The shell is built again for the league picked (`App` keys `StatsApp` by it), so every screen, board, search and Glossary entry reads that league: its seasons, catalogue, season labels, season types and per-minute modes, all from the registry. The sessions live above the shell (`lib/stats/session.ts`):
 
@@ -44,7 +45,7 @@ D35: the whole app shows one league at a time. The menu sits beside the wordmark
 | A team's dashboard                                            | The new league's team dashboard, on the team left there, else the best record in scope        |
 | Games, with a game open                                       | The new league's Games, on the day or game left there, else its latest day                    |
 | Compare with picked players or teams                          | The new league's Compare, with its own picks, else none                                       |
-| The Data panel                                                | The new league's Data panel                                                                   |
+| The Data panel                                                | The Data panel, which lists every league                                                      |
 
 Switching back gives the first league everything as it was left, the same player's dashboard included.
 
@@ -54,7 +55,12 @@ Switching back gives the first league everything as it was left, the same player
 
 **Saved views** are the league's own (`stats_views` is keyed by league): the Views menu lists the league on screen's, a view saved there belongs to it, and opening one opens it in that league. Nothing switches league from a view.
 
-**A league with no data** (the WNBA until T1301.4): every screen, the Data panel included, shows its name and the registry's `noData` ("No WNBA stats yet: …"), never an error, a spinner that does not end, or a table without words. The status line reads "No WNBA stats yet". Where to turn the league on is one named place, `TURN_ON` in `lib/stats/league.ts`: null until the Data panel can turn a league on, and once set every screen's reason links to it.
+**A league with nothing to read.** Every screen but the Data panel shows its name and the reason the league's status carries. It never shows an error, a spinner that does not end, or a table without words.
+
+- **Off, with no file:** the screen reads the registry's `noData` ("No WNBA stats yet: turn the WNBA on in the Data panel to download it.") and the status line reads "No WNBA stats yet". A button under the reason, `TURN_ON` in `lib/stats/league.ts` ("Turn it on in the Data panel"), opens the Data panel, where the league is turned on.
+- **On and loaded, with no tables built yet:** the screen reads the registry's `notBuilt` ("No WNBA stats yet: its files are loaded, and the tables built from them come in a later version."). The status line says what the load is doing, then "WNBA files loaded · no tables yet".
+
+The Data panel always opens, whatever the league holds, and shows every league.
 
 ## Scope bar
 
@@ -408,11 +414,17 @@ No screen asks for a split by season (the leaderboards and Trends do not group a
 
 ## Data panel
 
-What is loaded, from `stats.data()`. It reads again as a load goes.
+Every league's data, whichever league is on screen (D35), from `api.leagues.downloads()` and each league's `stats.data()` and `stats.status()`. It reads a league again as its load goes.
 
-- **Header:** files loaded of those published, the database's size on disk, the free space beside it. Pause while something is running; Resume while paused.
-- **Pause** stops a load at once and holds off any other, across launches, until Resume. The step it stopped is not counted as an attempt.
-- **Not enough room:** a first load needs 6 GB free, the limit in D22, less what is already on disk. Without it, the load does not start and the panel says what it needs and what is free. Once the database has passed 4 GB, a refresh needs no check.
-- **One row per release of the dataset,** grouped by load tier, in load order: its name, the seasons held, files loaded of those published, the size as downloaded, when it was last fetched, its state.
+- **Header:** the disk the leagues' files take together, and the free space beside them.
+- **One section per league,** in the registry's order: its name; a line with its state (On, Loading with files done of the total, Paused, Not enough disk space, Off, or Off: kept, not refreshed), files loaded of those published and its file's size on disk; and its buttons: Pause while it loads, Resume while paused, Turn the league on or off, and Delete its data for a league that is off and still has a file.
+- **Turn off** stops the league's refreshing and keeps its stats readable; **Delete its data** asks first ("Delete the WNBA's data?", naming the file and its size) and removes the file; turning the league on again downloads it all. A league off with no file says what turning it on downloads and takes on disk, from its measured `size`.
+- **Pause** stops a league's load at once and holds off any other of that league, across launches, until Resume. The step it stopped is not counted as an attempt. The other league is not paused.
+- **Not enough room:** a league's first load needs its measured room free (6 GB for the NBA, D22's limit; the WNBA's in `wnba-data-sources.md`), less what is already on disk. Without it, the load does not start and its section says what it needs and what is free. Once its file is past the size of a loaded league, a refresh needs no check.
+- **One row per release of the league,** grouped by load tier, in load order: its name, the seasons held, written the league's way (`1996-97` in the NBA, `1997` in the WNBA), files loaded of those published, the size as downloaded, when it was last fetched, its state. A league with no file lists its releases, none loaded.
 - **State:** Loaded, Part loaded, Waiting, or Failed with the latest error still standing. A file not published yet, such as the current season's playoffs, does not count as missing. A release left out of the build (Plan T1107) reads "Not in this version", with no files expected.
-- **Data and credit** (Plan T1101), at the end: SportsDataverse under CC BY 4.0, ESPN and NBA.com linked as the sources, what Metis changes, whose each number is (as published, SportsDataverse's calculations, computed by Metis), no affiliation or endorsement, and the Apache-2.0 licence covering the app, not the data. The text is in `src/renderer/src/lib/stats/credit.ts`, and the README carries the same section.
+- **Data and credit** (Plan T1101), at the end of the Data panel: SportsDataverse under CC BY 4.0, ESPN and NBA.com linked as the NBA's sources and ESPN and WNBA.com as the WNBA's, what Metis changes, whose each number is (as published, SportsDataverse's calculations, computed by Metis), no affiliation or endorsement, and the Apache-2.0 licence covering the app, not the data. The text is in `src/renderer/src/lib/stats/credit.ts`, and the README carries the same section.
+
+## First run
+
+On a clean profile (no choice saved and no stats file), the app asks which leagues to download before anything is fetched: each league with its full name, what it downloads, what it takes on disk and the free space it needs while it loads, the NBA ticked. Download is refused, with the reason, when nothing is chosen or when the chosen leagues together need more room than is free. The dialog cannot be dismissed without an answer. An existing profile is never asked: it keeps the NBA on and the WNBA off. The answer can be changed in the Data panel.

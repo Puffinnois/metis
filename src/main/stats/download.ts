@@ -14,9 +14,10 @@ export class StatsHttpError extends Error {
 
 /** What asking for a file found. */
 export type FetchedFile =
-  | { kind: 'file'; path: string; etag: string | null; bytes: number }
+  /** `modified`: the file's Last-Modified as published, ISO time; null when the server sends none. */
+  | { kind: 'file'; path: string; etag: string | null; bytes: number; modified?: string | null }
   /** It still matches the etag asked about, so nothing was downloaded. */
-  | { kind: 'unchanged' }
+  | { kind: 'unchanged'; modified?: string | null }
   /** Not published (404). */
   | { kind: 'missing' }
 
@@ -44,6 +45,13 @@ function isRetryable(status: number): boolean {
   return status === 429 || status >= 500
 }
 
+/** A Last-Modified header as ISO time; null when absent or unreadable. */
+export function modifiedOf(res: Response): string | null {
+  const header = res.headers.get('last-modified')
+  const time = header === null ? NaN : Date.parse(header)
+  return Number.isNaN(time) ? null : new Date(time).toISOString()
+}
+
 function waitFor(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) return reject(new Error('aborted'))
@@ -69,17 +77,17 @@ export function createDownloads(options: DownloadOptions): Downloads {
       // A plain client name: Metis never passes for a browser.
       headers: { 'user-agent': 'Metis', ...(etag ? { 'if-none-match': etag } : {}) }
     })
-    if (res.status === 304) return { kind: 'unchanged' }
+    if (res.status === 304) return { kind: 'unchanged', modified: modifiedOf(res) }
     if (res.status === 404) return { kind: 'missing' }
     if (!res.ok) throw new StatsHttpError(res.status, url)
     const published = res.headers.get('etag')
     // A server may ignore the condition and send the file anyway.
-    if (etag && published === etag) return { kind: 'unchanged' }
+    if (etag && published === etag) return { kind: 'unchanged', modified: modifiedOf(res) }
     const body = new Uint8Array(await res.arrayBuffer())
     await mkdir(options.dir, { recursive: true })
     const path = join(options.dir, `${randomUUID()}.parquet`)
     await writeFile(path, body)
-    return { kind: 'file', path, etag: published, bytes: body.length }
+    return { kind: 'file', path, etag: published, bytes: body.length, modified: modifiedOf(res) }
   }
 
   return {

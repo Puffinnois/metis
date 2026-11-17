@@ -55,11 +55,19 @@ export function freshness(
   league: League = currentLeague()
 ): string {
   if (!status) return ''
-  if (status.noData) return `No ${league.name} stats yet`
+  const files = filesDone(status)
+  if (status.noData) {
+    // Off, with no worker: nothing to read. On, with its files loading or loaded and no tables built
+    // from them (the registry's `derived`): what the load is doing, then that the tables are not built.
+    if (!status.available) return `No ${league.name} stats yet`
+    if (status.noRoom) return 'Not enough disk space'
+    if (status.paused) return 'Loading paused'
+    if (status.busy) return files ? `Loading the stats · ${files}` : 'Loading the stats…'
+    return `${league.name} files loaded · no tables yet`
+  }
   if (!status.available) return 'Stats unavailable'
   if (status.noRoom) return 'Not enough disk space'
   if (status.paused && !status.through) return 'Loading paused'
-  const files = filesDone(status)
   if (!status.through) {
     if (!status.busy) return 'No stats yet'
     return files ? `Loading the stats · ${files}` : 'Loading the stats…'

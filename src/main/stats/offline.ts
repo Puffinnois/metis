@@ -3,6 +3,8 @@ import type { GameType, StatsOfficialsSeason, StatsStatus } from '@shared/stats/
 import type { StatsClient } from './client'
 import { catalogueInfo } from './engine/registry'
 import { noDataResult } from './engine/run'
+import { summariseFamilies } from './families'
+import { LEFT_OUT_RELEASES, SOURCES_BY_LEAGUE } from './sources'
 
 /**
  * What a screen reads: a league's worker less what starts, checks or stops it. A league with no worker
@@ -27,23 +29,39 @@ export const STATS_OFF: StatsStatus = {
 export const STATS_ARE_OFF = 'The stats are off on this computer.'
 
 /**
- * The answers for a league with no worker: one with no data yet (`League.hasData` false), where the
- * engine still checks a query and answers it with the reason, never an error; or one whose worker
- * could not start, where the app runs and says the stats are off. Nothing here opens a file.
+ * The answers for a league with nothing to read, given the reason: one that is off with no file
+ * (`League.noData`), or with its tables not built (`League.notBuilt`), where the engine still checks a
+ * query and answers it with the reason, never an error. With no reason, the league's worker could not
+ * start: the app runs and says the stats are off. Either way the Data panel lists the league's
+ * releases, none loaded. Nothing here opens a file.
  */
-export function offlineStats(league: League): StatsReads {
-  const noData = !league.hasData
-  const off = (): Promise<never> =>
-    Promise.reject(new Error(noData ? league.noData : STATS_ARE_OFF))
+export function offlineStats(league: League, reason: string | null = league.noData): StatsReads {
+  const noData = reason !== null
+  const off = (): Promise<never> => Promise.reject(new Error(reason ?? STATS_ARE_OFF))
   return {
-    status: () => Promise.resolve(noData ? { ...STATS_OFF, noData: league.noData } : STATS_OFF),
-    data: off,
+    status: () => Promise.resolve(noData ? { ...STATS_OFF, noData: reason } : STATS_OFF),
+    data: () =>
+      Promise.resolve({
+        families: summariseFamilies(
+          SOURCES_BY_LEAGUE[league.id],
+          league.currentSeason(new Date()),
+          new Map(),
+          new Map(),
+          LEFT_OUT_RELEASES
+        ),
+        databaseBytes: 0,
+        freeBytes: null
+      }),
     pause: () => Promise.resolve(),
     resume: () => Promise.resolve(),
     query: (query) =>
       noData
         ? Promise.resolve().then(() =>
-            noDataResult(query, { league, currentSeason: league.currentSeason(new Date()) })
+            noDataResult(
+              query,
+              { league, currentSeason: league.currentSeason(new Date()) },
+              reason ?? undefined
+            )
           )
         : off(),
     // The catalogue needs no file: in a league with no data every metric reads why.
@@ -54,17 +72,17 @@ export function offlineStats(league: League): StatsReads {
     game: () => Promise.resolve(null),
     standings: () => Promise.resolve([]),
     matchups: () => Promise.resolve({ guarded: [], guardedBy: [], source: 'season' }),
-    gameMatchups: () => Promise.resolve({ pairs: [], reason: noData ? league.noData : null }),
+    gameMatchups: () => Promise.resolve({ pairs: [], reason: reason }),
     officialsSeason: () => Promise.resolve(null),
     officialCareer: () => Promise.resolve(null),
-    onCourtUnits: () => Promise.resolve({ units: [], reason: noData ? league.noData : null }),
+    onCourtUnits: () => Promise.resolve({ units: [], reason: reason }),
     withOrWithout: () =>
       Promise.resolve({
         teamId: null,
         teammate: null,
         teammates: [],
         splits: null,
-        reason: noData ? league.noData : null
+        reason: reason
       }),
     lineups: () => Promise.resolve({ units: [], floorMinutes: null }),
     profile: () =>
@@ -84,9 +102,9 @@ export function offlineStats(league: League): StatsReads {
         made: 0,
         capped: false,
         zones: [],
-        reason: noData ? league.noData : null
+        reason: reason
       }),
-    assists: () => Promise.resolve({ pairs: [], total: 0, reason: noData ? league.noData : null }),
+    assists: () => Promise.resolve({ pairs: [], total: 0, reason: reason }),
     gameFlow: () =>
       Promise.resolve({
         points: [],
@@ -94,7 +112,7 @@ export function offlineStats(league: League): StatsReads {
         homeTeam: '',
         awayTeam: '',
         summary: null,
-        reason: noData ? league.noData : null
+        reason: reason
       })
   }
 }

@@ -63,7 +63,7 @@ export const perMinuteModes = (): { value: keyof typeof PER_MINUTE; label: strin
   current.perMinute.map((m) => ({ value: m, label: `Per ${PER_MINUTE[m]}` }))
 
 /**
- * Where a league with no data is turned on: the one place a screen's "No WNBA stats yet" links to.
- * Null until the Data panel can turn a league on (Plan T1301.4), so the reason stands alone.
+ * Where a league that is off is turned on: the Data panel, which every screen's "No WNBA stats yet"
+ * links to (Plan T1301.4 gave it the control).
  */
-export const TURN_ON: { label: string } | null = null
+export const TURN_ON = { label: 'Turn it on in the Data panel' }

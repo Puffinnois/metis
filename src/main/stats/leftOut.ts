@@ -4,7 +4,7 @@ import { gameTable } from './derived/gameTables'
 import { publishedTable } from './derived/published'
 import { SPLIT_SOURCES } from './derived/splits'
 import { IDENTITY_NEEDS } from './identity'
-import { LEFT_OUT_RELEASES, SOURCES, type SourceFile } from './sources'
+import { LEFT_OUT_RELEASES, SOURCES, SOURCES_BY_LEAGUE, type SourceFile } from './sources'
 
 /**
  * A source family left out of a build (`LEFT_OUT_RELEASES` in `sources.ts`): which tags may be
@@ -17,11 +17,27 @@ export const LEFT_OUT_REASON = 'Not included in this version.'
 
 /**
  * The releases that can never be left out: the game, team and player tables are built from them, and
- * every other table is keyed to those (D13, D28). Read from what the builds need, not typed again.
+ * every other table is keyed to those (D13, D28). Read from what the builds need, not typed again,
+ * plus the files a league marks `keys` while its builders do not exist yet (the WNBA's six: both
+ * schedules, the game logs, ESPN's player box scores, the crosswalk and the groups).
  */
 export function requiredReleases(sources: readonly SourceFile[] = SOURCES): string[] {
   const tables = new Set<string>([...IDENTITY_NEEDS, ...DERIVED_NEEDS])
-  return [...new Set(sources.filter((s) => tables.has(s.table)).map((s) => s.release))].sort()
+  return [
+    ...new Set(sources.filter((s) => s.keys || tables.has(s.table)).map((s) => s.release))
+  ].sort()
+}
+
+/**
+ * The part of the list one league's refresh acts on. `LEFT_OUT_RELEASES` is one list for every league,
+ * since every tag names its league (`nba_stats_shots`, `wnba_stats_shots`): a tag of another league is
+ * that league's, and a tag no league loads stays, so `leftOutProblem` names it.
+ */
+export function leftOutIn(list: readonly string[], sources: readonly SourceFile[]): string[] {
+  const all = Object.values(SOURCES_BY_LEAGUE).flat()
+  return list.filter(
+    (tag) => sources.some((s) => s.release === tag) || !all.some((s) => s.release === tag)
+  )
 }
 
 /** Why a list of tags cannot be built, in plain words; null when it can. */

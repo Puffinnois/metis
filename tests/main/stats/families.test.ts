@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { FIRST_LOAD_BYTES, LOADED_BYTES, roomNeeded } from '@main/stats/disk'
+import { roomNeeded } from '@main/stats/disk'
+import { LEAGUES } from '@shared/leagues'
 import { summariseFamilies, type FileAttempt, type HeldFile } from '@main/stats/families'
-import { RELEASE_LABELS, SOURCES, type SourceFile } from '@main/stats/sources'
+import { RELEASE_LABELS, SOURCES, WNBA_SOURCES, type SourceFile } from '@main/stats/sources'
 
 const source = (id: string, over: Partial<SourceFile> = {}): SourceFile => ({
   id,
@@ -122,18 +123,27 @@ describe('summariseFamilies', () => {
   })
 
   it('has a label for every release in the registry', () => {
-    const missing = [...new Set(SOURCES.map((s) => s.release))].filter((r) => !RELEASE_LABELS[r])
+    const missing = [...new Set([...SOURCES, ...WNBA_SOURCES].map((s) => s.release))].filter(
+      (r) => !RELEASE_LABELS[r]
+    )
     expect(missing).toEqual([])
   })
 })
 
 describe('roomNeeded', () => {
+  const GB = 1024 ** 3
   it('asks for the whole load at the start, and less as it goes', () => {
-    expect(roomNeeded(0)).toBe(FIRST_LOAD_BYTES)
-    expect(roomNeeded(1024 ** 3)).toBe(FIRST_LOAD_BYTES - 1024 ** 3)
+    expect(roomNeeded(LEAGUES.nba, 0)).toBe(6 * GB)
+    expect(roomNeeded(LEAGUES.nba, GB)).toBe(5 * GB)
   })
 
   it('asks for nothing once the first load is done', () => {
-    expect(roomNeeded(LOADED_BYTES)).toBe(0)
+    expect(roomNeeded(LEAGUES.nba, 4 * GB)).toBe(0)
+  })
+
+  it('asks each league for its own load', () => {
+    expect(roomNeeded(LEAGUES.wnba, 0)).toBe(LEAGUES.wnba.size.roomBytes)
+    expect(roomNeeded(LEAGUES.wnba, LEAGUES.wnba.size.loadedBytes)).toBe(0)
+    expect(LEAGUES.wnba.size.roomBytes).toBeLessThan(LEAGUES.nba.size.roomBytes)
   })
 })

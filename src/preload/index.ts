@@ -43,6 +43,11 @@ const api: Api = {
       copy: (ids) => ipcRenderer.invoke(IPC.devNotesCopy, ids)
     }
   },
+  leagues: {
+    downloads: () => ipcRenderer.invoke(IPC.leagueDownloads),
+    setDownloads: (choice) => ipcRenderer.invoke(IPC.leagueSetDownloads, choice),
+    deleteFile: (league) => ipcRenderer.invoke(IPC.leagueDeleteFile, league)
+  },
   stats: {
     status: (league) => ipcRenderer.invoke(IPC.statsStatus, league),
     data: (league) => ipcRenderer.invoke(IPC.statsData, league),

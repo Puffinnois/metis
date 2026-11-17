@@ -90,12 +90,26 @@ export interface League {
     reference: string
   }
   /**
-   * False while nothing loads for the league: no worker starts, nothing is downloaded, and every
-   * question answers `noData` with no error.
+   * What a first load of the league takes, as measured: the files it downloads, the stats file it
+   * leaves, the free space it needs with DuckDB's working files (refused below it, D22), and the size
+   * past which the file counts as loaded and a refresh needs only megabytes. Whether a league loads at
+   * all is the user's choice, kept in `metis.db` (`leagueDownloads` in the main process), not a fact
+   * of the registry.
    */
-  hasData: boolean
-  /** What a screen says when the league has no data yet. */
+  size: { downloadBytes: number; fileBytes: number; roomBytes: number; loadedBytes: number }
+  /** What a screen says while the league has no data: it is off and has no file. */
   noData: string
+  /**
+   * Whether its game, team, player and season tables, and everything built from them, are built yet.
+   * False: a refresh loads its files and builds nothing, saying so in its log, and every question
+   * answers `notBuilt` with no error (T1301.5 and T1301.6 build the WNBA's).
+   */
+  derived: boolean
+  /**
+   * What a screen says while the league's tables are not built: before its first load gets that far,
+   * or always while `derived` is false.
+   */
+  notBuilt: string
   /**
    * Whether a metric that states nothing for this league exists in it, over the metric's own
    * `firstSeason`. True for the league the catalogue was written for; a league added later lists its
@@ -103,6 +117,9 @@ export interface League {
    */
   metricsByDefault: boolean
 }
+
+const MB = 1024 ** 2
+const GB = 1024 ** 3
 
 const finalYear = (season: number): string =>
   `${season - 1}-${String(season % 100).padStart(2, '0')}`
@@ -133,8 +150,17 @@ const NBA: League = {
     registry: 'SOURCES_BY_LEAGUE.nba in src/main/stats/sources.ts',
     reference: 'docs/reference/nba-data-sources.md'
   },
-  hasData: true,
-  noData: 'No NBA stats yet.',
+  // Measured: 1,554 MB of files (nba-data-sources.md, "The first full load") and the 5.47 GB file of
+  // the Stage 12 profile; a first load is refused under 6 GB free, and done past 4 GB.
+  size: {
+    downloadBytes: 1554 * MB,
+    fileBytes: 5_467_811_840,
+    roomBytes: 6 * GB,
+    loadedBytes: 4 * GB
+  },
+  noData: 'No NBA stats yet: turn the NBA on in the Data panel to download it.',
+  derived: true,
+  notBuilt: 'No NBA stats yet: the first load has not got that far.',
   metricsByDefault: true
 }
 
@@ -173,8 +199,18 @@ const WNBA: League = {
     registry: 'SOURCES_BY_LEAGUE.wnba in src/main/stats/sources.ts',
     reference: 'docs/reference/wnba-data-sources.md'
   },
-  hasData: false,
-  noData: 'No WNBA stats yet: they come in a later version.',
+  // Measured on the first load of T1301.4 (wnba-data-sources.md, "The first load, measured"): 294 MB
+  // of files and a 666 MB file in 3.7 minutes; a first load asks one and a half times the file free.
+  size: {
+    downloadBytes: 294 * MB,
+    fileBytes: 697_839_616,
+    roomBytes: 1 * GB,
+    loadedBytes: 512 * MB
+  },
+  noData: 'No WNBA stats yet: turn the WNBA on in the Data panel to download it.',
+  derived: false,
+  notBuilt:
+    'No WNBA stats yet: its files are loaded, and the tables built from them come in a later version.',
   metricsByDefault: false
 }
 
@@ -197,6 +233,15 @@ export function periodsIn(league: League, season: number): PeriodEra {
   let era = league.periods[0]
   for (const e of league.periods) if (season >= e.from) era = e
   return era
+}
+
+/**
+ * When a season's last month is over, as an instant: the first day of the month after `seasonMonths.last`
+ * in the year of its label. Both leagues label a season by the year it ends in (the NBA's `2026` ends
+ * in June 2026, the WNBA's in October 2026), so the label's year is the year of the last month.
+ */
+export function seasonEnd(league: League, season: number): Date {
+  return new Date(Date.UTC(season, league.seasonMonths.last, 1))
 }
 
 /** Whether a date is inside the league's season months. */

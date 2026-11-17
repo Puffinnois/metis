@@ -11,6 +11,10 @@ import { catalogueFixture } from '../../fixtures/catalogue'
 
 vi.mock('@/lib/api', () => ({
   api: {
+    // An existing profile: the first run's question has its answer.
+    leagues: {
+      downloads: vi.fn().mockResolvedValue({ decided: true, leagues: [], freeBytes: null })
+    },
     stats: {
       status: vi.fn(),
       data: vi.fn(),

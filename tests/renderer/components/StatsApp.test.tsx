@@ -3,12 +3,18 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { api } from '@/lib/api'
 import { StatsApp } from '@/screens/stats/StatsApp'
-import { setLeague, useLeague } from '@/lib/stats/league'
+import { setLeague, TURN_ON, useLeague } from '@/lib/stats/league'
+import { LEAGUES } from '@shared/leagues'
+import type { LeagueDownload, LeagueDownloads } from '@shared/stats/types'
 import { createSessionStore, SessionContext } from '@/lib/stats/session'
 import { useState } from 'react'
 
 vi.mock('@/lib/api', () => ({
   api: {
+    // An existing profile: the first run's question has its answer.
+    leagues: {
+      downloads: vi.fn().mockResolvedValue({ decided: true, leagues: [], freeBytes: null })
+    },
     stats: { status: vi.fn(), data: vi.fn(), onChanged: vi.fn(() => () => {}) },
     dev: { mode: vi.fn().mockResolvedValue(false), onModeChanged: vi.fn(() => () => {}) }
   }
@@ -130,7 +136,21 @@ describe('the shell', () => {
 })
 
 describe('the league menu', () => {
-  const NO_WNBA = 'No WNBA stats yet: they come in a later version.'
+  const NO_WNBA = LEAGUES.wnba.noData
+  const NOT_BUILT = LEAGUES.wnba.notBuilt
+  const download = (league: 'nba' | 'wnba', hasData: boolean): LeagueDownload => ({
+    league,
+    on: hasData,
+    hasFile: hasData,
+    fileBytes: hasData ? 1 : 0,
+    hasData,
+    roomNeeded: 0
+  })
+  const downloads = (wnba: boolean): LeagueDownloads => ({
+    decided: true,
+    leagues: [download('nba', true), download('wnba', wnba)],
+    freeBytes: null
+  })
 
   // As App builds it: the shell again for each league, the sessions kept above it.
   function Shell({ onLocation }: { onLocation: (l: unknown) => void }): React.JSX.Element {
@@ -155,7 +175,16 @@ describe('the league menu', () => {
     fireEvent.click(screen.getByRole('menuitemradio', { name }))
   }
 
-  it('lists every league by name and switches, keeping the screen', async () => {
+  afterEach(() => {
+    vi.mocked(api.leagues.downloads).mockResolvedValue({
+      decided: true,
+      leagues: [],
+      freeBytes: null
+    })
+  })
+
+  it('lists every league by name with its real state, and switches, keeping the screen', async () => {
+    vi.mocked(api.leagues.downloads).mockResolvedValue(downloads(false))
     vi.mocked(api.stats.status).mockImplementation((league) =>
       Promise.resolve(
         league === 'wnba' ? { ...EMPTY, available: false, noData: NO_WNBA } : { ...EMPTY }
@@ -167,17 +196,20 @@ describe('the league menu', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Games' }))
 
     fireEvent.keyDown(screen.getByRole('button', { name: 'League: NBA' }), { key: 'Enter' })
-    expect(screen.getByRole('menuitemradio', { name: /^NBA/ }).getAttribute('aria-checked')).toBe(
-      'true'
-    )
-    fireEvent.click(screen.getByRole('menuitemradio', { name: /^WNBA/ }))
+    const nba = screen.getByRole('menuitemradio', { name: /^NBA/ })
+    const wnba = screen.getByRole('menuitemradio', { name: /^WNBA/ })
+    expect(nba.getAttribute('aria-checked')).toBe('true')
+    expect(nba.textContent).not.toMatch(/No stats yet|No tables yet/)
+    expect(wnba.textContent).toMatch(/No stats yet$/)
+    fireEvent.click(wnba)
 
-    // The WNBA's Games, with its reason and no error.
+    // The WNBA's Games, off: its reason, no error, and the way to turn it on.
     expect(await screen.findByText(NO_WNBA)).toBeTruthy()
     expect(screen.getByRole('heading', { name: 'Games' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'No WNBA stats yet' })).toBeTruthy()
     expect(screen.queryByText(/could not be opened/)).toBeNull()
     expect(screen.getByRole('button', { name: 'League: WNBA' })).toBeTruthy()
+    expect(await screen.findByRole('button', { name: TURN_ON.label })).toBeTruthy()
     await waitFor(() =>
       expect(onLocation).toHaveBeenLastCalledWith({
         league: 'wnba',
@@ -194,13 +226,31 @@ describe('the league menu', () => {
     expect(screen.getByRole('heading', { name: 'Games' })).toBeTruthy()
   })
 
-  it('reads the reason on the Data panel too, not the panel’s error', async () => {
+  it('opens the Data panel from a league that is off, where it is turned on', async () => {
+    vi.mocked(api.leagues.downloads).mockResolvedValue(downloads(false))
     vi.mocked(api.stats.status).mockResolvedValue({ ...EMPTY, available: false, noData: NO_WNBA })
     setLeague('wnba')
     render(<Shell onLocation={() => {}} />)
-    fireEvent.click(await screen.findByRole('button', { name: 'No WNBA stats yet' }))
+    fireEvent.click(await screen.findByRole('button', { name: TURN_ON.label }))
     expect(await screen.findByRole('heading', { name: 'Data' })).toBeTruthy()
-    expect(screen.getByText(NO_WNBA)).toBeTruthy()
-    expect(api.stats.data).not.toHaveBeenCalledWith('wnba')
+    expect(screen.queryByText(NO_WNBA)).toBeNull()
+  })
+
+  it('reads a loaded league with no tables yet as such, on screen, in the menu and the status line', async () => {
+    vi.mocked(api.leagues.downloads).mockResolvedValue(downloads(true))
+    vi.mocked(api.stats.status).mockResolvedValue({ ...EMPTY, noData: NOT_BUILT })
+    setLeague('wnba')
+    render(<Shell onLocation={() => {}} />)
+    expect(await screen.findByText(NOT_BUILT)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'WNBA files loaded · no tables yet' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: TURN_ON.label })).toBeNull()
+    expect(screen.queryByText(/could not be opened/)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Standings' }))
+    expect(screen.getByRole('heading', { name: 'Standings' })).toBeTruthy()
+    expect(screen.getByText(NOT_BUILT)).toBeTruthy()
+    fireEvent.keyDown(screen.getByRole('button', { name: 'League: WNBA' }), { key: 'Enter' })
+    expect(screen.getByRole('menuitemradio', { name: /^WNBA/ }).textContent).toMatch(
+      /No tables yet$/
+    )
   })
 })

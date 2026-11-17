@@ -24,11 +24,28 @@ describe('createDownloads', () => {
   it('asks with the etag it has and a plain client name', async () => {
     const fetchImpl = vi.fn(respond(304))
     const downloads = createDownloads({ dir: tempDir(), fetchImpl })
-    expect(await downloads.fetchFile('https://x/f.parquet', '"v1"')).toEqual({ kind: 'unchanged' })
+    expect(await downloads.fetchFile('https://x/f.parquet', '"v1"')).toEqual({
+      kind: 'unchanged',
+      modified: null
+    })
     expect(fetchImpl.mock.calls[0][1]?.headers).toEqual({
       'user-agent': 'Metis',
       'if-none-match': '"v1"'
     })
+  })
+
+  it('reads when the file last changed from its Last-Modified', async () => {
+    const modified = { etag: '"v2"', 'last-modified': 'Sat, 31 Oct 2026 13:14:25 GMT' }
+    const got = await createDownloads({
+      dir: tempDir(),
+      fetchImpl: respond(200, 'abc', modified)
+    }).fetchFile('https://x/f.parquet')
+    expect(got).toMatchObject({ kind: 'file', modified: '2026-10-31T13:14:25.000Z' })
+    const same = await createDownloads({
+      dir: tempDir(),
+      fetchImpl: respond(304, '', { 'last-modified': 'Sat, 31 Oct 2026 13:14:25 GMT' })
+    }).fetchFile('https://x/f.parquet', '"v2"')
+    expect(same).toEqual({ kind: 'unchanged', modified: '2026-10-31T13:14:25.000Z' })
   })
 
   it('sends no condition without an etag', async () => {
@@ -43,7 +60,10 @@ describe('createDownloads', () => {
       dir,
       fetchImpl: respond(200, 'abc', { etag: '"v1"' })
     })
-    expect(await downloads.fetchFile('https://x/f.parquet', '"v1"')).toEqual({ kind: 'unchanged' })
+    expect(await downloads.fetchFile('https://x/f.parquet', '"v1"')).toEqual({
+      kind: 'unchanged',
+      modified: null
+    })
     expect(existsSync(dir)).toBe(false)
   })
 

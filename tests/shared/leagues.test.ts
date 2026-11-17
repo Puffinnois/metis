@@ -93,9 +93,10 @@ describe('the league registry', () => {
     expect(gameSeconds(wnba, 2026, 5)).toBe(2700)
   })
 
-  it('has nothing to load for the WNBA yet, and says so', () => {
-    expect(nba.hasData).toBe(true)
-    expect(wnba.hasData).toBe(false)
+  it('builds no WNBA tables yet, and says so', () => {
+    expect(nba.derived).toBe(true)
+    expect(wnba.derived).toBe(false)
     expect(wnba.noData).toMatch(/WNBA/)
+    expect(wnba.notBuilt).toMatch(/WNBA/)
   })
 })

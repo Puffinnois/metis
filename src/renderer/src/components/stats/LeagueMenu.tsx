@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { DropdownMenu } from 'radix-ui'
 import { Check, ChevronDown } from 'lucide-react'
+import { downloadOf, leagueHolds, menuNote, useLeagueDownloads } from '@/lib/stats/downloads'
 import { setLeague, useLeague } from '@/lib/stats/league'
 import { cn } from '@/lib/utils'
 import { LEAGUE_IDS, LEAGUES, type LeagueId } from '@shared/leagues'
@@ -11,10 +12,12 @@ let refocus = false
 
 /**
  * The league menu beside the mark (D35): the league on screen by name, never by colour (D17), and
- * every league in the registry. Picking one switches every screen to it.
+ * every league in the registry, with a note on one that is off or has no tables built yet: its real
+ * state, from the download setting. Picking one switches every screen to it.
  */
 export function LeagueMenu(): React.JSX.Element {
   const league = useLeague()
+  const downloads = useLeagueDownloads()
   const button = useRef<HTMLButtonElement>(null)
   useEffect(() => {
     if (!refocus) return
@@ -55,6 +58,7 @@ export function LeagueMenu(): React.JSX.Element {
           <DropdownMenu.RadioGroup value={league.id} onValueChange={pick}>
             {LEAGUE_IDS.map((id) => {
               const l = LEAGUES[id]
+              const note = downloads && menuNote(leagueHolds(l, downloadOf(downloads, id)))
               return (
                 <DropdownMenu.RadioItem
                   key={id}
@@ -75,10 +79,8 @@ export function LeagueMenu(): React.JSX.Element {
                       {l.fullName}
                     </span>
                   </span>
-                  {!l.hasData && (
-                    <span className="shrink-0 text-[11px] leading-none text-fg-3">
-                      No stats yet
-                    </span>
+                  {note !== null && (
+                    <span className="shrink-0 text-[11px] leading-none text-fg-3">{note}</span>
                   )}
                 </DropdownMenu.RadioItem>
               )

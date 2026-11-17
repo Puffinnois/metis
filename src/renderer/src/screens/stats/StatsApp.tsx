@@ -31,7 +31,9 @@ import {
 import { defaultTeam, defaultTeamQuery, type TeamTab } from '@/lib/stats/team'
 import { trendsFor, type TrendsState } from '@/lib/stats/trends'
 import { useStatsData, useStatsQuery } from '@/lib/stats/useStats'
+import { downloadOf, leagueHolds, useLeagueDownloads } from '@/lib/stats/downloads'
 import { StatsData } from '@/screens/stats/StatsData'
+import { FirstRunLeagues } from '@/components/stats/FirstRunLeagues'
 import { StatsExplore } from '@/screens/stats/StatsExplore'
 import { StatsGames } from '@/screens/stats/StatsGames'
 import { StatsGlossary } from '@/screens/stats/StatsGlossary'
@@ -101,6 +103,7 @@ export function StatsApp({
   // league's, and comes back as it was left when the league does (`lib/stats/session.ts`).
   const leagueEntry = useLeague()
   const league = leagueEntry.id
+  const downloads = useLeagueDownloads()
   const data = useStatsData()
   const outer = useContext(SessionContext)
   const [own] = useState(createSessionStore)
@@ -263,8 +266,11 @@ export function StatsApp({
     setViews((vs) => vs.filter((v) => v.id !== view.id))
   }
 
-  // A league with no data is not a fault: every screen, the Data panel too, says so instead.
+  // A league with no data, or with its files loaded and no tables built from them, is not a fault:
+  // every screen says why (its status carries the reason). One that is off links to the Data panel,
+  // where it is turned on.
   const noData = data.status?.noData ?? null
+  const holds = downloads && leagueHolds(leagueEntry, downloadOf(downloads, league))
   const unavailable = data.status !== null && !data.status.available && noData === null
   const error = data.error ?? viewsError
   // The tables and their catalogue are read once they are built, so a screen waits for all of it.
@@ -275,7 +281,7 @@ export function StatsApp({
     <div className="py-20 text-center">
       <h1 className="text-[15px] font-semibold">{label}</h1>
       <p className="mt-2 text-[13px] text-fg-3">{emptyScreenNote(data.status, leagueEntry)}</p>
-      {noData !== null && TURN_ON !== null && (
+      {noData !== null && holds === 'off' && (
         <button
           type="button"
           onClick={() => setScreen('data')}
@@ -291,6 +297,7 @@ export function StatsApp({
   return (
     <SessionContext.Provider value={store}>
       <div className="flex h-full flex-col bg-paper text-fg">
+        <FirstRunLeagues />
         <StatsNav
           current={screen}
           onNavigate={setScreen}
@@ -307,15 +314,11 @@ export function StatsApp({
             <div className="py-20 text-center text-[13px] text-bad">
               {error ?? 'The stats database could not be opened on this computer.'}
             </div>
+          ) : screen === 'data' ? (
+            // Every league's data, where a league is turned on: it opens whatever the league holds.
+            <StatsData />
           ) : noData !== null ? (
             empty
-          ) : screen === 'data' ? (
-            // Once the status is read: a league with no data never asks for its Data panel's report.
-            data.status === null ? (
-              <div className="py-20" />
-            ) : (
-              <StatsData status={data.status} />
-            )
           ) : !ready ? (
             empty
           ) : screen === 'home' ? (
