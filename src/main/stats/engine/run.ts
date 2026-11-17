@@ -55,13 +55,15 @@ export async function runQuery(
       seasons: compiled.gaps[i] === null ? seasons.filter((s) => covers(m, s)) : [],
       reason: compiled.gaps[i],
       ...(compiled.shrunk[i] ? { shrunk: true } : {}),
-      ...(m.qualifyBy !== undefined ? { ownQualifier: true } : {})
+      ...(m.qualifyBy !== undefined ? { ownQualifier: true } : {}),
+      ...(m.published && compiled.adds.includes(m.published) ? { addsRows: true } : {})
     })),
     rows: rows.map((r) => ({
       id: String(r.id),
       name: String(r.name),
       team: (r.team_code as string | null) ?? null,
       position: (r.position as string | null) ?? null,
+      ...(r.no_line === true ? { noLine: true as const } : {}),
       group: Object.fromEntries(
         groupBy.map((g) => [g, (r[`g_${g}`] as string | number | null) ?? null])
       ),

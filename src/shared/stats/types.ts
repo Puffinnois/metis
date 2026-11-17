@@ -270,6 +270,11 @@ export interface StatsRow {
   group: Partial<Record<GroupBy, string | number | null>>
   games: number
   values: Record<string, MetricValue>
+  /**
+   * The player has no box-score line in scope: a table that adds rows listed them (games out of a
+   * whole season or playoff run). Their box-score stats are null and they never qualify.
+   */
+  noLine?: true
 }
 
 export interface StatsResultColumn {
@@ -290,6 +295,11 @@ export interface StatsResultColumn {
    * its rows by its own `qualified` flag, not by the row qualifier.
    */
   ownQualifier?: boolean
+  /**
+   * Its table added rows for players with no box-score line (games out of a whole season): sorted by
+   * it, a screen lists every row with a sample, since a count of games out has no minimum to reach.
+   */
+  addsRows?: boolean
 }
 
 export interface StatsResult {

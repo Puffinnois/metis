@@ -137,6 +137,29 @@ describe('games out, from the injury reports', () => {
     expect(r).toEqual({ games: null, minutes: null, possessions: null })
   })
 
+  it('says who a row is for: the team of the last report, the roster position and the printed name', async () => {
+    // Player 8 is listed by team 7, then traded to team 9: the row's team is the newer.
+    await db.exec(`INSERT INTO src_nba_injury_report (report_datetime, team_id, report_player_name,
+      current_status, reason, game_id, person_id) VALUES
+      (TIMESTAMP '2026-01-01 15:00:00', 7, 'Butler III, Jimmy', 'Out', '${INJURY}', 'g1', 8),
+      (TIMESTAMP '2026-01-03 15:00:00', 9, 'Butler III, Jimmy', 'Out', '${INJURY}', 'g2', 8)`)
+    await db.exec(
+      'CREATE TABLE src_nba_rosters (player_id BIGINT, season INTEGER, position VARCHAR)'
+    )
+    await db.exec(`INSERT INTO src_nba_rosters VALUES (8, 2026, 'F-C'), (8, 2025, 'G')`)
+    await buildPublished(db)
+    const who = await db.all<{ id: number; team: number; position: string; name: string }>(
+      `SELECT player_id AS id, row_team_id AS team, row_position AS position, row_name AS name
+       FROM pub_player_availability WHERE game_type = 'regular' AND player_id IN (1, 8)
+       ORDER BY player_id`
+    )
+    // Player 1 has no roster row and the report printed no name: both NULL, never made up.
+    expect(who).toEqual([
+      { id: 1, team: 7, position: null, name: null },
+      { id: 8, team: 9, position: 'F', name: 'Jimmy Butler III' }
+    ])
+  })
+
   it('builds empty, and does not fail, without the reports or without the games', async () => {
     await db.exec('DROP TABLE src_nba_injury_report')
     await buildPublished(db)

@@ -1,12 +1,17 @@
 import type { StatsDb } from '../db'
-import { PUBLISHED_TABLES, type PublishedColumn, type PublishedTable } from './publishedTables'
+import {
+  ADDED_ROW_COLUMNS,
+  PUBLISHED_TABLES,
+  type PublishedColumn,
+  type PublishedTable
+} from './publishedTables'
 import { column, gameType, inspect, type Have } from './sql'
 import { LINEUPS, lineupsBootstrap, lineupsSql } from './lineups'
 import { MATCHUP_PAIRS, matchupPairsBootstrap, matchupPairsSql } from './matchupPairs'
 import { GAME_MATCHUPS, gameMatchupsBootstrap, gameMatchupsSql } from './gameMatchups'
 
 /** Bump when a table changes, so the next refresh builds them without downloading anything. */
-export const PUBLISHED_VERSION = 11
+export const PUBLISHED_VERSION = 12
 
 /**
  * Sources of a later tier that a table here reads: the game matchups are in the events tier, which
@@ -48,7 +53,13 @@ export function publishedBootstrap(): string[] {
          .join(', ')})`,
       ...publishedComponents(t).map(
         (c) => `ALTER TABLE ${t.table} ADD COLUMN IF NOT EXISTS ${c} DOUBLE`
-      )
+      ),
+      // A table built before it added rows reads NULL for who they are until it is built again.
+      ...(t.addsRows
+        ? Object.entries(ADDED_ROW_COLUMNS).map(
+            ([c, type]) => `ALTER TABLE ${t.table} ADD COLUMN IF NOT EXISTS ${c} ${type}`
+          )
+        : [])
     ])
   ]
 }

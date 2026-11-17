@@ -44,7 +44,22 @@ export interface PublishedTable {
   replacedBy?: PublishedReplacement | readonly PublishedReplacement[]
   /** A table that is not the source's totals but built from its rows: the statement that builds it. */
   sql?: (have: Have) => string
+  /**
+   * Its own rows add rows to the engine's result (Plan T1206): a player it counts something for, with
+   * no box-score line in that season and season type, is listed with the box-score stats null. Such a
+   * row never qualifies, so it never ranks or enters a league's mean. The table then holds who the
+   * row is for, in `ADDED_ROW_COLUMNS`, each NULL where its source has none. Read at the season grain
+   * only, as every published table is.
+   */
+  addsRows?: true
 }
+
+/** What a table that adds rows holds about each row's player, beside its counts. */
+export const ADDED_ROW_COLUMNS = {
+  row_team_id: 'BIGINT',
+  row_position: 'VARCHAR',
+  row_name: 'VARCHAR'
+} as const
 
 /** See `PublishedTable.replacedBy`. */
 export interface PublishedReplacement {
@@ -622,6 +637,8 @@ export const PUBLISHED_TABLES: readonly PublishedTable[] = [
     games: null,
     minutes: null,
     columns: [...AVAILABILITY_COUNTS],
-    sql: availabilitySql
+    sql: availabilitySql,
+    // A player out of every game of a season or a playoff run has no line, and is still listed.
+    addsRows: true
   }
 ]
