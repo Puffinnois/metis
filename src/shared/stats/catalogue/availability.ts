@@ -5,16 +5,17 @@ import { metric, type Opts } from './define'
 /**
  * Reference section 18.3: games missed, counted by game and not by report. A game counts once for a
  * player however many reports listed it, by the last report that lists them before the game. Counted
- * for the players with a box-score line that season, from 2019-20, for the regular season and the
- * playoffs. A status is a published listing, not a statement that the player did or did not play: the
- * box scores agree with an Out on all but four games in ten thousand (`nba-data-sources.md`).
+ * from 2019-20, for the regular season and the playoffs, for every player listed: one who missed every
+ * game has no box-score line and is still listed (the table adds rows, Plan T1206). A status is a
+ * published listing, not a statement that the player did or did not play: the box scores agree with an
+ * Out on all but four games in ten thousand (`nba-data-sources.md`).
  */
 const TABLE = 'pub_player_availability'
 
 const LAST_REPORT =
   'A game counts once however many reports listed the player, by the last report that lists them before tip-off.'
 const WHOLE_SEASONS =
-  'Counted for players with a box-score line in the season, so a player who missed every game is not listed.'
+  'A player who missed every game is listed too, with no stats, and does not qualify.'
 
 /**
  * A count of games, summed; its own sample, so a player with none has no rank among those with some.

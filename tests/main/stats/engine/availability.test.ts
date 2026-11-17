@@ -28,7 +28,8 @@ const INJURY = 'Injury/Illness - Left Ankle; Sprain'
  * and is listed out of a playoff game they have no line in (out for the whole playoff run), and out
  * of a game they did play. Player 3 never plays: Boston lists them out of three regular-season games
  * for an injury, so they are out for the whole regular season. They are in no box score, so only the
- * report names them, and the roster gives their position.
+ * report names them, and the roster gives their position. Player 2 has no roster row, so their
+ * playoff row takes the position of their regular-season line.
  */
 beforeEach(async () => {
   db = await openTestDb()
@@ -38,9 +39,7 @@ beforeEach(async () => {
     (2026, ${LAL}, 13, 'LAL', 'Los Angeles Lakers', 'west', 'pacific')`)
   await db.exec(`CREATE TABLE player (player_id BIGINT, name VARCHAR)`)
   await db.exec(`INSERT INTO player VALUES (1, 'Ana Boston'), (2, 'Bea Laker')`)
-  await db.exec(
-    `INSERT INTO src_nba_rosters VALUES (1, 2026, 'G'), (2, 2026, 'G'), (3, 2026, 'F-C')`
-  )
+  await db.exec(`INSERT INTO src_nba_rosters VALUES (1, 2026, 'G'), (3, 2026, 'F-C')`)
   const game = (id: string, date: string, type = 'regular'): Promise<void> =>
     addGame(db, { id, date, home: BOS, away: LAL, scores: [100, 90], season: 2026, type })
   await game('a', '2025-11-01')
@@ -168,7 +167,17 @@ describe('a player with games out and no box-score line (Plan T1206)', () => {
   it('lists a player out for the whole playoff run', async () => {
     const r = await run({ scope: { seasons: [2026], gameTypes: ['playoffs'] } })
     expect(ids(r)).toEqual(['1', '2'])
-    expect(row(r, '2')).toMatchObject({ name: 'Bea Laker', team: 'LAL', games: 0, noLine: true })
+    // No roster row: the position of their regular-season line, the same player that season.
+    expect(row(r, '2')).toMatchObject({
+      name: 'Bea Laker',
+      team: 'LAL',
+      position: 'G',
+      games: 0,
+      noLine: true
+    })
+    expect(
+      ids(await run({ scope: { seasons: [2026], gameTypes: ['playoffs'], positions: ['G'] } }))
+    ).toEqual(['1', '2'])
     expect(row(r, '2').values.games_out_injury.value).toBe(1)
     expect(row(r, '1').values.games_out_injury.value).toBeFalsy()
   })

@@ -892,18 +892,27 @@ function addedCte(
         )
       )
     ]
+    // A player's position: the roster's that season, else their own line's in the season's other
+    // type (out of the whole playoff run after a regular season played), else NULL.
+    const position = player ? 'coalesce(w.row_position, ps.position)' : 'NULL::VARCHAR'
     const where = [
       `w.season IN ${seasons}`,
       `w.game_type IN ${types}`,
       `(${counts.map((x) => `w.${x} > 0`).join(' OR ') || 'false'})`
     ]
     if (s.teams) where.push(`w.row_team_id IN ${params.list(s.teams.map(Number))}`)
-    if (s.positions) where.push(`w.row_position IN ${params.list(s.positions)}`)
+    if (s.positions) where.push(`${position} IN ${params.list(s.positions)}`)
     if (s.players) where.push(`w.${key} IN ${params.list(s.players.map(Number))}`)
+    const seasonPosition = player
+      ? `LEFT JOIN (
+          SELECT player_id, season, mode(position) AS position FROM player_season
+          WHERE team_id IS NULL AND season IN ${seasons} GROUP BY 1, 2
+        ) ps ON ps.player_id = w.player_id AND ps.season = w.season`
+      : ''
     return `SELECT w.${key} AS id, w.season, NULL::DATE AS ord, w.row_team_id AS team_id,
-             w.row_position AS position, w.game_type, w.row_team_id AS row_team,
+             ${position} AS position, w.game_type, w.row_team_id AS row_team,
              w.row_name AS added_name, true AS no_line
-      FROM ${table} w
+      FROM ${table} w ${seasonPosition}
       WHERE ${where.join(' AND ')}
         AND NOT EXISTS (
           SELECT 1 FROM ${q.entity}_season o

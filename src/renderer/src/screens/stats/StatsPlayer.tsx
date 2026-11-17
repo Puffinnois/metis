@@ -727,7 +727,7 @@ function Career({
           <span
             key={id}
             title={(i === 0 && r.outTitle) || undefined}
-            className="whitespace-nowrap text-fg-3"
+            className="block text-left whitespace-nowrap text-fg-3"
           >
             {i === 0 ? (r.out ?? 'No games') : ''}
           </span>
@@ -757,7 +757,11 @@ function Career({
           head={['Season', 'Team', 'G', ...head]}
           left={[1]}
           rows={[
-            ...rows.map((r) => ({ key: r.key, cells: cells(r) })),
+            ...rows.map((r) => ({
+              key: r.key,
+              cells: cells(r),
+              ...(r.out ? { spill: true, title: r.outTitle } : {})
+            })),
             ...(total ? [{ key: total.key, cells: cells(total), strong: true }] : [])
           ]}
         />
