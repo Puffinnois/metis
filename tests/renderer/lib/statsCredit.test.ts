@@ -5,7 +5,9 @@ import {
   CREDIT_WHOSE,
   DATASET_URL,
   ESPN_NBA_URL,
+  ESPN_WNBA_URL,
   NBA_STATS_URL,
+  WNBA_STATS_URL,
   creditText
 } from '@/lib/stats/credit'
 import { CATALOGUE } from '@shared/stats/catalogue'
@@ -26,10 +28,18 @@ describe('the data credit', () => {
     expect(DATASET_URL).toBe('https://github.com/sportsdataverse/sportsdataverse-data')
   })
 
+  it('credits the WNBA’s sources as the NBA’s are, each with a link', () => {
+    expect(links).toContainEqual({ text: 'WNBA.com', url: WNBA_STATS_URL })
+    expect(links).toContainEqual({ text: 'ESPN', url: ESPN_WNBA_URL })
+    expect(creditText()).toContain(
+      'WNBA data is published by SportsDataverse under CC BY 4.0, from ESPN and WNBA.com.'
+    )
+  })
+
   it('names the upstreams and says what Metis changed', () => {
     const text = creditText()
     expect(text).toContain('from ESPN and NBA.com.')
-    expect(text).toContain('as ESPN and NBA.com publish them')
+    expect(text).toContain('as ESPN, NBA.com and WNBA.com publish them')
     expect(text).toContain('reshapes it into its own tables and computes stats from it')
     expect(text).toContain('It shares nothing.')
   })
@@ -37,10 +47,10 @@ describe('the data credit', () => {
   it('disclaims any affiliation and leaves the names with their owners', () => {
     const text = creditText()
     expect(text).toContain(
-      'Metis is not affiliated with or endorsed by the NBA, ESPN or SportsDataverse.'
+      'Metis is not affiliated with or endorsed by the NBA, the WNBA, ESPN or SportsDataverse.'
     )
     expect(text).toContain(
-      'Team and player names, and the NBA and ESPN names, belong to their owners.'
+      'Team and player names, and the NBA, WNBA and ESPN names, belong to their owners.'
     )
   })
 

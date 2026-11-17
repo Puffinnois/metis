@@ -139,7 +139,7 @@ Measured on the downloaded files. A file is skipped only when proven to repeat o
 | `wnba_stats_player_boxscores_2026` against the game logs                                  | Equal on points, rebounds and assists on all 4,011 lines both hold; it alone has the other 150 games                                                                                                                                       | Yes                                                                    |
 | `*_season_stats_2026`, `standings_2026`, `team_boxscores_2026`, `wnba_stats_lineups_2026` | Not compared with the dashboards or game logs in this part                                                                                                                                                                                 | Yes (not proven)                                                       |
 
-The skipped files are 90 masters (106.6 MB), plus the four small mislabelled or repeated files (2.8 MB), if T1301.4 confirms these comparisons in its loader tests.
+The skipped files are 90 masters (106.6 MB), plus the four small mislabelled or repeated files (2.8 MB). T1301.4 confirmed the four in its loader tests (`tests/main/stats/wnbaLoad.test.ts`, on fixtures cut from game 1022600001): the 2026 file under a schedule's name holds the game logs' rows exactly, and `play_by_play_2026` the same plays as `wnba_play_by_play_2026` on game, action number, clock, period, score and description; the registry leaves them out (`SOURCES_BY_LEAGUE.wnba`, 1,492 files).
 
 ## Do the numbers agree?
 
@@ -257,7 +257,7 @@ ESPN's counts include rows that are not real regular-season games (postponed and
 
 ## The first load, estimated
 
-Not measured: this part runs no load (the machine is shared). Estimated from the NBA's measured load (`nba-data-sources.md`, "The first full load"; WSL, 16 cores) by size and rows:
+Not measured in T1301.1 (the machine is shared). Estimated from the NBA's measured load (`nba-data-sources.md`, "The first full load"; WSL, 16 cores) by size and rows:
 
 | Step                      | NBA, measured                                          | WNBA                      | WNBA, estimated                                |
 | ------------------------- | ------------------------------------------------------ | ------------------------- | ---------------------------------------------- |
@@ -267,7 +267,99 @@ Not measured: this part runs no load (the machine is shared). Estimated from the
 | Database file             | 5.32 GB from 1,554 MB (3.4 times)                      | 296 MB                    | About 1 GB                                     |
 | Peak memory               | 2.7 GB (DuckDB's limit is 1 GB)                        |                           | Under the NBA's: bounded by the same limit     |
 
-Well inside D22's limits (a 6 GB file, an hour, 4 GB of memory) for the WNBA alone. With both leagues each in its own file (D36), the NBA's numbers do not change; two first loads on one machine would add the WNBA's minutes to the NBA's. T1301.4 measures it with `scripts/load-report.mjs`.
+Well inside D22's limits (a 6 GB file, an hour, 4 GB of memory) for the WNBA alone. With both leagues each in its own file (D36), the NBA's numbers do not change; two first loads on one machine would add the WNBA's minutes to the NBA's.
+
+## The first load, measured
+
+Plan T1301.4, 2026-11-17: `node scripts/load-report.mjs ~/.cache/metis-dev/t1301d-clean ~/.cache/metis-dev/t1301d-load.json --league=wnba`, the built worker under plain Node, on a clean folder, WSL, 16 cores, the machine otherwise idle. The folder is kept as the WNBA's gate load for T1301.5 on (`~/.cache/metis-dev/t1301d-clean/stats-wnba.duckdb`). Nothing is built from the files yet (`League.derived` is false): the load ends with one `stats:derived` step logged `skipped`, "No WNBA game, team, player or season tables yet: its files are loaded, and nothing is built from them."
+
+| Tier      | Files | Rows       | Downloaded | Minutes | File at its end | Peak memory |
+| --------- | ----- | ---------- | ---------- | ------- | --------------- | ----------- |
+| Core      | 571   | 768,477    | 16.2 MB    | 0.8     | 73 MB           | 928 MB      |
+| Published | 751   | 1,781,527  | 121.7 MB   | 1.6     | 370 MB          | 1,474 MB    |
+| Events    | 115   | 5,831,765  | 42.9 MB    | 0.3     | 371 MB          | 1,221 MB    |
+| Plays     | 55    | 5,140,447  | 112.7 MB   | 0.7     | 659 MB          | 1,732 MB    |
+| **All**   | 1,492 | 13,522,216 | 293.5 MB   | **3.7** | **666 MB**      | **1.73 GB** |
+
+- **Steps:** 1,494: 1,492 files `ok` with no error, `coaches_2019` `skipped` (not published), and the `stats:derived` step `skipped`.
+- **Against D22:** a 666 MB file (697,839,616 bytes) against 6 GB, 3.7 minutes against an hour, 1.73 GB of memory against 4 GB; and against the estimate, about 1 GB and 4 to 6 minutes: both lower. The registry's `size` for the WNBA is these numbers: 294 MB downloaded, the 666 MB file, 1 GB of free space asked before a first load (one and a half times the file, as the NBA's 6 GB is for its 5.1 GB), and loaded past 512 MB.
+- **Widened types:** two, both integers made BIGINT (`src_wnba_coaches.sort_sequence`, empty in 2025 and 2026; `src_dash_standings.playoff_seeding`). ESPN's `game_date_time`, timestamp with time zone in most seasons and plain timestamp in 2023–2025, reads as timestamp with time zone in every file with this DuckDB (1.5.6), so it was not widened; ESPN's 2002 `athlete_jersey`, published with no type, reads as an empty INTEGER and the text column stays.
+- **A read during the load:** the script's leaderboard read on ESPN's 2026 box scores took 2 to 17 ms in each tier.
+
+**Rows, table by table,** against the raw files' own counts (`scripts/check-source-rows.mjs ~/.cache/metis-dev/t1301d-clean ~/.cache/metis-dev/wnba-raw --league=wnba`: DuckDB's `count(*)` over every file the registry names, in the files downloaded for T1301.1 that morning). 67 of 68 tables equal their files and what the load recorded. The one that differs, `src_espn_injuries`, is ESPN's daily snapshot file: it was republished at 21:33 UTC with the 2026-11-17 snapshot (44 rows), and its 3,231 rows up to 2026-11-16 equal the raw file.
+
+| Table                             | Files | Raw rows  | Table rows | Recorded  | Equal  |
+| --------------------------------- | ----- | --------- | ---------- | --------- | ------ |
+| `src_dash_lineups_advanced`       | 30    | 258,539   | 258,539    | 258,539   | yes    |
+| `src_dash_lineups_base`           | 30    | 258,539   | 258,539    | 258,539   | yes    |
+| `src_dash_lineups_fourfactors`    | 30    | 258,539   | 258,539    | 258,539   | yes    |
+| `src_dash_lineups_misc`           | 30    | 258,539   | 258,539    | 258,539   | yes    |
+| `src_dash_lineups_opponent`       | 30    | 258,539   | 258,539    | 258,539   | yes    |
+| `src_dash_lineups_scoring`        | 30    | 258,539   | 258,539    | 258,539   | yes    |
+| `src_dash_player_bio`             | 30    | 7,124     | 7,124      | 7,124     | yes    |
+| `src_dash_player_stats_advanced`  | 30    | 7,125     | 7,125      | 7,125     | yes    |
+| `src_dash_player_stats_base`      | 30    | 7,125     | 7,125      | 7,125     | yes    |
+| `src_dash_player_stats_defense`   | 30    | 5,999     | 5,999      | 5,999     | yes    |
+| `src_dash_player_stats_misc`      | 30    | 7,125     | 7,125      | 7,125     | yes    |
+| `src_dash_player_stats_scoring`   | 30    | 7,125     | 7,125      | 7,125     | yes    |
+| `src_dash_player_stats_usage`     | 30    | 7,125     | 7,125      | 7,125     | yes    |
+| `src_dash_standings`              | 30    | 380       | 380        | 380       | yes    |
+| `src_dash_team_stats_advanced`    | 30    | 588       | 588        | 588       | yes    |
+| `src_dash_team_stats_base`        | 30    | 588       | 588        | 588       | yes    |
+| `src_dash_team_stats_defense`     | 30    | 588       | 588        | 588       | yes    |
+| `src_dash_team_stats_fourfactors` | 30    | 588       | 588        | 588       | yes    |
+| `src_dash_team_stats_misc`        | 30    | 588       | 588        | 588       | yes    |
+| `src_dash_team_stats_opponent`    | 30    | 588       | 588        | 588       | yes    |
+| `src_dash_team_stats_scoring`     | 30    | 588       | 588        | 588       | yes    |
+| `src_espn_draft`                  | 9     | 335       | 335        | 335       | yes    |
+| `src_espn_game_rosters`           | 25    | 137,887   | 137,887    | 137,887   | yes    |
+| `src_espn_games_in_repo`          | 1     | 5,986     | 5,986      | 5,986     | yes    |
+| `src_espn_injuries`               | 1     | 3,231     | 3,275      | 3,275     | **no** |
+| `src_espn_officials`              | 24    | 14,830    | 14,830     | 14,830    | yes    |
+| `src_espn_pbp`                    | 25    | 2,297,871 | 2,297,871  | 2,297,871 | yes    |
+| `src_espn_player_box`             | 25    | 135,532   | 135,532    | 135,532   | yes    |
+| `src_espn_player_core`            | 25    | 4,244     | 4,244      | 4,244     | yes    |
+| `src_espn_player_season`          | 30    | 205,835   | 205,835    | 205,835   | yes    |
+| `src_espn_rosters`                | 3     | 568       | 568        | 568       | yes    |
+| `src_espn_schedule`               | 30    | 7,042     | 7,042      | 7,042     | yes    |
+| `src_espn_schedule_master`        | 1     | 7,042     | 7,042      | 7,042     | yes    |
+| `src_espn_shots`                  | 25    | 1,014,207 | 1,014,207  | 1,014,207 | yes    |
+| `src_espn_standings`              | 25    | 7,173     | 7,173      | 7,173     | yes    |
+| `src_espn_team_box`               | 24    | 11,302    | 11,302     | 11,302    | yes    |
+| `src_espn_team_season`            | 30    | 16,380    | 16,380     | 16,380    | yes    |
+| `src_group_aliases`               | 1     | 17        | 17         | 17        | yes    |
+| `src_group_seasons`               | 1     | 90        | 90         | 90        | yes    |
+| `src_groups`                      | 1     | 3         | 3          | 3         | yes    |
+| `src_player_aliases`              | 1     | 3,512     | 3,512      | 3,512     | yes    |
+| `src_team_aliases`                | 1     | 68        | 68         | 68        | yes    |
+| `src_team_groups`                 | 30    | 380       | 380        | 380       | yes    |
+| `src_team_groups_all`             | 1     | 380       | 380        | 380       | yes    |
+| `src_wnba_coaches`                | 29    | 480       | 480        | 480       | yes    |
+| `src_wnba_draft`                  | 30    | 1,246     | 1,246      | 1,246     | yes    |
+| `src_wnba_game_lineups`           | 30    | 2,842,576 | 2,842,576  | 2,842,576 | yes    |
+| `src_wnba_game_logs`              | 30    | 147,465   | 147,465    | 147,465   | yes    |
+| `src_wnba_game_rosters`           | 30    | 4,805     | 4,805      | 4,805     | yes    |
+| `src_wnba_impact`                 | 30    | 7,329     | 7,329      | 7,329     | yes    |
+| `src_wnba_impact_averages`        | 30    | 580       | 580        | 580       | yes    |
+| `src_wnba_lineups`                | 1     | 36,800    | 36,800     | 36,800    | yes    |
+| `src_wnba_metric_curves`          | 30    | 114,212   | 114,212    | 114,212   | yes    |
+| `src_wnba_officials`              | 23    | 16,554    | 16,554     | 16,554    | yes    |
+| `src_wnba_pbp`                    | 30    | 2,842,576 | 2,842,576  | 2,842,576 | yes    |
+| `src_wnba_player_box`             | 1     | 8,539     | 8,539      | 8,539     | yes    |
+| `src_wnba_player_season`          | 1     | 3,960     | 3,960      | 3,960     | yes    |
+| `src_wnba_possessions`            | 30    | 1,065,895 | 1,065,895  | 1,065,895 | yes    |
+| `src_wnba_rolling_windows`        | 30    | 18,128    | 18,128     | 18,128    | yes    |
+| `src_wnba_rosters`                | 30    | 4,599     | 4,599      | 4,599     | yes    |
+| `src_wnba_schedule`               | 30    | 7,021     | 7,021      | 7,021     | yes    |
+| `src_wnba_shots`                  | 30    | 909,087   | 909,087    | 909,087   | yes    |
+| `src_wnba_standings`              | 1     | 15        | 15         | 15        | yes    |
+| `src_wnba_team_box`               | 1     | 704       | 704        | 704       | yes    |
+| `src_wnba_team_season`            | 1     | 322       | 322        | 322       | yes    |
+| `src_xwalk_game`                  | 25    | 6,032     | 6,032      | 6,032     | yes    |
+| `src_xwalk_player`                | 25    | 4,536     | 4,536      | 4,536     | yes    |
+| `src_xwalk_team`                  | 25    | 318       | 318        | 318       | yes    |
+
+**Sealed after the load** (`source_state`, the rule in `stats-database.md`, "Sync"): 1,473 files sealed, 19 not. Every season to 2024 is sealed on load. Of 2026's 60 files, 54 had not changed for two weeks and are sealed; 6 changed after 2026-11-03 and are checked weekly until they settle (ESPN's injuries, rosters and player season stats, the impact file and its averages, the possessions). Of 2025's 53, 48 are sealed and 5 republished in the last two weeks are not. The 8 files of every season are never sealed and are checked daily.
 
 ## Traps
 

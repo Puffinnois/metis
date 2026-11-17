@@ -23,6 +23,7 @@ import { defaultTeam, defaultTeamQuery, type TeamTab } from '@/lib/stats/team'
 import { DEFAULT_TRENDS, trendsFor, type TrendsState } from '@/lib/stats/trends'
 import { useStatsData, useStatsQuery } from '@/lib/stats/useStats'
 import { StatsData } from '@/screens/stats/StatsData'
+import { FirstRunLeagues } from '@/components/stats/FirstRunLeagues'
 import { StatsExplore } from '@/screens/stats/StatsExplore'
 import { StatsGames } from '@/screens/stats/StatsGames'
 import { StatsGlossary } from '@/screens/stats/StatsGlossary'
@@ -57,6 +58,7 @@ interface StatsAppProps {
  * done, so it does not mean the data is in: what is running decides, and a stopped load says so.
  */
 function emptyScreenNote(status: StatsStatus | null): string {
+  if (status?.noData) return status.noData
   if (status?.builtAt) return 'This screen is not built yet.'
   if (status?.noRoom) return 'Not enough disk space to load NBA data. See the Data panel.'
   if (status?.paused) return 'Loading is paused. Resume it in the Data panel.'
@@ -217,7 +219,8 @@ export function StatsApp({
     setViews((vs) => vs.filter((v) => v.id !== view.id))
   }
 
-  const unavailable = data.status !== null && !data.status.available
+  // A league with no data says why on each screen; only a worker that failed is an error.
+  const unavailable = data.status !== null && !data.status.available && !data.status.noData
   const error = data.error ?? viewsError
   // The tables and their catalogue are read once they are built, so a screen waits for all of it.
   const ready = data.version !== null && data.catalogue.length > 0 && data.seasons.length > 0
@@ -232,6 +235,7 @@ export function StatsApp({
   const teamBoard = screen === 'teams'
   return (
     <div className="flex h-full flex-col bg-paper text-fg">
+      <FirstRunLeagues />
       <StatsNav
         current={screen}
         onNavigate={setScreen}
@@ -249,7 +253,7 @@ export function StatsApp({
             {error ?? 'The stats database could not be opened on this computer.'}
           </div>
         ) : screen === 'data' ? (
-          <StatsData status={data.status} />
+          <StatsData />
         ) : !ready ? (
           empty
         ) : screen === 'home' ? (

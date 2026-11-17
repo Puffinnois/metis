@@ -1,17 +1,34 @@
 #!/usr/bin/env node
-// Lists every NBA Parquet file in the sportsdataverse-data releases and writes the list to
-// tests/fixtures/nba-inventory.tsv, where a test compares it with src/main/stats/sources.ts.
+// Lists every Parquet file of one league in the sportsdataverse-data releases and writes the list to
+// tests/fixtures/<league>-inventory.tsv, where a test compares it with SOURCES_BY_LEAGUE in
+// src/main/stats/sources.ts. `--league=wnba` for the WNBA; the NBA's by default.
 // Development only: it needs the GitHub CLI signed in, since a release listing takes more calls
 // than GitHub's anonymous allowance. The app itself never lists a release.
 //
 // Run it, then `npx vitest run tests/main/stats/sources.test.ts`: a failure names what changed.
+//
+//   node scripts/inventory-sources.mjs --league=wnba
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const REPO = 'sportsdataverse/sportsdataverse-data'
-const OUT = join(dirname(fileURLToPath(import.meta.url)), '../tests/fixtures/nba-inventory.tsv')
+// The release prefixes of each league, as `releases.prefixes` in src/shared/leagues.ts states them.
+const PREFIXES = {
+  nba: ['espn_nba_', 'nba_stats_', 'nba_'],
+  wnba: ['espn_wnba_', 'wnba_stats_', 'wnba_']
+}
+const league =
+  process.argv.find((a) => a.startsWith('--league='))?.slice('--league='.length) ?? 'nba'
+if (!(league in PREFIXES)) {
+  console.error(`unknown league "${league}": ${Object.keys(PREFIXES).join(', ')}`)
+  process.exit(1)
+}
+const OUT = join(
+  dirname(fileURLToPath(import.meta.url)),
+  `../tests/fixtures/${league}-inventory.tsv`
+)
 
 function gh(path, jq) {
   const output = execFileSync('gh', ['api', '--paginate', path, '--jq', jq], {
@@ -21,10 +38,9 @@ function gh(path, jq) {
   return output.split('\n').filter(Boolean)
 }
 
-const releases = gh(
-  `repos/${REPO}/releases?per_page=100`,
-  '.[] | select(.tag_name|test("nba";"i")) | select(.tag_name|test("wnba";"i")|not) | [.id,.tag_name] | @tsv'
-).map((line) => line.split('\t'))
+const releases = gh(`repos/${REPO}/releases?per_page=100`, '.[] | [.id,.tag_name] | @tsv')
+  .map((line) => line.split('\t'))
+  .filter(([, tag]) => PREFIXES[league].some((prefix) => tag.startsWith(prefix)))
 
 const files = []
 let bytes = 0

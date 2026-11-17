@@ -1,6 +1,18 @@
 import { describe, expect, it } from 'vitest'
-import { byTier, fmtBytes, seasonLabel, seasonRange, STATE_LABELS, totals } from '@/lib/stats/data'
-import type { StatsFamily } from '@shared/stats/types'
+import {
+  byTier,
+  defaultChoice,
+  firstRunRows,
+  fmtBytes,
+  leagueState,
+  roomProblem,
+  seasonLabel,
+  seasonRange,
+  STATE_LABELS,
+  totals
+} from '@/lib/stats/data'
+import { LEAGUES } from '@shared/leagues'
+import type { LeagueDownload, LeagueDownloads, StatsFamily, StatsStatus } from '@shared/stats/types'
 
 const family = (over: Partial<StatsFamily>): StatsFamily => ({
   release: 'r',
@@ -68,5 +80,74 @@ describe('totals', () => {
     const out = family({ state: 'left-out', filesLoaded: 0, filesExpected: 0 })
     expect(totals([family({}), out])).toEqual({ filesLoaded: 1, filesExpected: 2 })
     expect(STATE_LABELS[out.state]).toBe('Not in this version')
+  })
+})
+
+describe('which leagues download', () => {
+  const GB = 1024 ** 3
+  const dl = (league: 'nba' | 'wnba', over: Partial<LeagueDownload> = {}): LeagueDownload => ({
+    league,
+    on: false,
+    hasFile: false,
+    fileBytes: 0,
+    hasData: false,
+    roomNeeded: league === 'nba' ? 6 * GB : 2 * GB,
+    ...over
+  })
+  const clean: LeagueDownloads = {
+    decided: false,
+    leagues: [dl('nba'), dl('wnba')],
+    freeBytes: 7 * GB
+  }
+
+  it('offers the default league ticked and the others not', () => {
+    expect(defaultChoice()).toEqual({ nba: true, wnba: false })
+  })
+
+  it('states each league’s measured size and whether the free space covers it', () => {
+    const rows = firstRunRows({ ...clean, freeBytes: 3 * GB })
+    expect(rows.map((r) => [r.league.id, r.fits])).toEqual([
+      ['nba', false],
+      ['wnba', true]
+    ])
+    expect(rows[1].downloadBytes).toBe(LEAGUES.wnba.size.downloadBytes)
+    expect(firstRunRows({ ...clean, freeBytes: null }).every((r) => r.fits)).toBe(true)
+  })
+
+  it('refuses a choice whose loads together need more room than is free', () => {
+    expect(roomProblem({ nba: true }, clean)).toBeNull()
+    expect(roomProblem({ nba: true, wnba: true }, clean)).toBe(
+      'Not enough disk space: this needs 8.0 GB, and 7.0 GB is free.'
+    )
+    expect(roomProblem({ nba: true, wnba: true }, { ...clean, freeBytes: null })).toBeNull()
+  })
+
+  it('says whether a league downloads and what it is doing', () => {
+    const status: StatsStatus = {
+      available: true,
+      through: null,
+      updatedAt: null,
+      builtAt: null,
+      busy: false,
+      progress: null,
+      paused: false,
+      noRoom: null
+    }
+    expect(leagueState(dl('wnba'), null)).toBe('Off')
+    expect(leagueState(dl('wnba', { hasFile: true }), status)).toBe('Off: kept, not refreshed')
+    expect(leagueState(dl('nba', { on: true }), status)).toBe('On')
+    expect(leagueState(dl('nba', { on: true }), { ...status, paused: true })).toBe('Paused')
+    expect(
+      leagueState(dl('nba', { on: true }), {
+        ...status,
+        busy: true,
+        progress: { done: 1200, total: 3025 }
+      })
+    ).toBe('Loading: 1,200 of 3,025 files')
+  })
+
+  it('writes a range of seasons as the league named writes them', () => {
+    expect(seasonRange(1997, 2026, LEAGUES.wnba)).toBe('1997 to 2026')
+    expect(seasonRange(1997, 2026, LEAGUES.nba)).toBe('1996-97 to 2025-26')
   })
 })

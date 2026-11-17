@@ -65,6 +65,7 @@ import {
 import { readGameMatchups } from './matchupReads'
 import { readOfficialCareer, readOfficialsSeason } from './officialsReads'
 import { readOnCourtUnits, readWithOrWithout } from './onCourtReads'
+import { offlineStats } from './offline'
 import { bootstrapStatsDb } from './schema'
 import { LEFT_OUT_RELEASES, SOURCES_BY_LEAGUE } from './sources'
 import { refreshStats, STATS_DERIVED_STEP } from './sync'
@@ -250,11 +251,11 @@ export async function openStatsService(
         value ? '1' : '0'
       ])
     )
-  return {
+  const service: StatsService = {
     async refresh(options) {
       noRoom = null
       if (paused || cancelled) return { steps: [] }
-      const neededBytes = roomNeeded(databaseBytes(path))
+      const neededBytes = roomNeeded(league, databaseBytes(path))
       const available = free(path)
       if (neededBytes > 0 && available !== null && available < neededBytes) {
         noRoom = { neededBytes, freeBytes: available }
@@ -388,9 +389,7 @@ export async function openStatsService(
             "SELECT 1 AS yes FROM duckdb_tables() WHERE schema_name = 'main' AND table_name = 'player_season'"
           ))
         }
-        if (!seasonTablesBuilt) {
-          throw new StatsQueryError('No stats yet: the first load has not got that far.')
-        }
+        if (!seasonTablesBuilt) throw new StatsQueryError(league.notBuilt)
         const priors = query.shrunk ? priorsOf(await stabilityOf(reader)) : undefined
         return runQuery(reader, query, {
           league,
@@ -508,5 +507,31 @@ export async function openStatsService(
       await Promise.allSettled([...inFlight])
       db.close()
     }
+  }
+  if (league.derived) return service
+  // A league whose game and season tables are not built yet loads and lists its files, and every
+  // screen's read answers with the reason, never an error: its file has none of the tables they read.
+  const none = offlineStats(league, league.notBuilt)
+  return {
+    ...service,
+    query: none.query,
+    seasons: none.seasons,
+    player: none.player,
+    games: none.games,
+    game: none.game,
+    standings: none.standings,
+    matchups: none.matchups,
+    gameMatchups: none.gameMatchups,
+    officialCareer: none.officialCareer,
+    onCourtUnits: none.onCourtUnits,
+    withOrWithout: none.withOrWithout,
+    lineups: none.lineups,
+    profile: none.profile,
+    availability: none.availability,
+    coaches: none.coaches,
+    shots: none.shots,
+    assists: none.assists,
+    gameFlow: none.gameFlow,
+    status: async () => ({ ...(await service.status()), noData: league.notBuilt })
   }
 }

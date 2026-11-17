@@ -48,7 +48,7 @@ describe('reading through the service', () => {
     const s = await open()
     await expect(
       s.query({ entity: 'player', metrics: ['pts'], scope: { seasons: [2026] } })
-    ).rejects.toThrow('No stats yet: the first load has not got that far.')
+    ).rejects.toThrow('No NBA stats yet: the first load has not got that far.')
     await expect(s.seasons()).resolves.toEqual([])
   })
 

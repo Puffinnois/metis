@@ -1,19 +1,41 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
 import { api } from '@/lib/api'
-import { useLeague } from '@/lib/stats/league'
 import { errorMessage, relativeTime } from '@/lib/format'
 import { CREDIT_LEAD, CREDIT_NOTES, CREDIT_TITLE, CREDIT_WHOSE } from '@/lib/stats/credit'
-import { byTier, fmtBytes, fmtCount, seasonRange, STATE_LABELS, totals } from '@/lib/stats/data'
+import {
+  byTier,
+  fmtBytes,
+  fmtCount,
+  leagueState,
+  seasonRange,
+  STATE_LABELS,
+  totals
+} from '@/lib/stats/data'
 import { cn } from '@/lib/utils'
-import type { StatsDataReport, StatsFamily, StatsStatus } from '@shared/stats/types'
+import { LEAGUES, leagueOf, type League, type LeagueId } from '@shared/leagues'
+import type {
+  LeagueDownload,
+  LeagueDownloads,
+  StatsDataReport,
+  StatsFamily,
+  StatsStatus
+} from '@shared/stats/types'
 
-function FamilyRow({ family }: { family: StatsFamily }): React.JSX.Element {
+function FamilyRow({ family, league }: { family: StatsFamily; league: League }): React.JSX.Element {
   return (
     <tr className="border-t border-line align-top">
       <td className="py-1.5 pr-4 text-fg">{family.label}</td>
       <td className="py-1.5 pr-4 text-fg-2">
-        {family.filesLoaded > 0 ? seasonRange(family.firstSeason, family.lastSeason) : '–'}
+        {family.filesLoaded > 0 ? seasonRange(family.firstSeason, family.lastSeason, league) : '–'}
       </td>
       <td className="py-1.5 pr-4 text-right text-fg-2 tabular-nums">
         {fmtCount(family.filesLoaded)} of {fmtCount(family.filesExpected)}
@@ -32,68 +54,81 @@ function FamilyRow({ family }: { family: StatsFamily }): React.JSX.Element {
   )
 }
 
-interface StatsDataProps {
+interface LeagueRead {
+  report: StatsDataReport | null
   status: StatsStatus | null
+  error: string | null
 }
 
-/**
- * What is loaded, how big it is, a way to pause a load that is too much right now, and where the
- * data comes from: the credit the dataset's licence asks for.
- */
-export function StatsData({ status }: StatsDataProps): React.JSX.Element {
-  const [report, setReport] = useState<StatsDataReport | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const league = useLeague().id
+interface LeagueSectionProps {
+  league: League
+  download: LeagueDownload
+  read: LeagueRead
+  onTurn: (on: boolean) => void
+  onDelete: () => void
+}
 
-  const read = useCallback(() => {
-    void api.stats
-      .data(league)
-      .then(setReport)
-      .catch((err) => setError(errorMessage(err)))
-  }, [league])
-
-  useEffect(() => {
-    read()
-    return api.stats.onChanged((changed) => changed === league && read())
-  }, [read, league])
-
-  if (error) return <div className="py-20 text-center text-[13px] text-bad">{error}</div>
-  if (!report) return <div className="py-20" />
-
-  const { filesLoaded, filesExpected } = totals(report.families)
+/** One league: whether it downloads, what it is doing, its disk, and its releases by tier. */
+function LeagueSection({
+  league,
+  download,
+  read,
+  onTurn,
+  onDelete
+}: LeagueSectionProps): React.JSX.Element {
+  const { report, status, error } = read
+  const { filesLoaded, filesExpected } = totals(report?.families ?? [])
   const paused = status?.paused ?? false
   return (
-    <div className="mx-auto w-full max-w-[1000px] px-6 py-6">
-      <div className="flex items-center gap-4">
-        <h1 className="text-[15px] font-semibold">Data</h1>
+    <section aria-label={league.name} className="mt-6 border-t border-line pt-4">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+        <h2 className="text-[14px] font-semibold">{league.name}</h2>
         <p className="text-[12.5px] text-fg-3">
-          {fmtCount(filesLoaded)} of {fmtCount(filesExpected)} files ·{' '}
-          {fmtBytes(report.databaseBytes)} on disk
-          {report.freeBytes !== null && ` · ${fmtBytes(report.freeBytes)} free`}
+          {leagueState(download, status)} · {fmtCount(filesLoaded)} of {fmtCount(filesExpected)}{' '}
+          files · {download.hasFile ? fmtBytes(download.fileBytes) : 'nothing'} on disk
         </p>
-        {(paused || status?.busy) && (
-          <Button
-            variant="outline"
-            size="xs"
-            className="ml-auto"
-            onClick={() => void (paused ? api.stats.resume(league) : api.stats.pause(league))}
-          >
-            {paused ? 'Resume' : 'Pause'}
+        <div className="ml-auto flex gap-2">
+          {download.on && (paused || status?.busy) && (
+            <Button
+              variant="outline"
+              size="xs"
+              onClick={() =>
+                void (paused ? api.stats.resume(league.id) : api.stats.pause(league.id))
+              }
+            >
+              {paused ? 'Resume' : 'Pause'}
+            </Button>
+          )}
+          {!download.on && download.hasFile && (
+            <Button variant="outline" size="xs" onClick={onDelete}>
+              Delete its data
+            </Button>
+          )}
+          <Button variant="outline" size="xs" onClick={() => onTurn(!download.on)}>
+            {download.on ? `Turn the ${league.name} off` : `Turn the ${league.name} on`}
           </Button>
-        )}
+        </div>
       </div>
-      {status?.noRoom && (
-        <p className="mt-3 text-[13px] text-bad">
-          Not enough disk space to load the data: it needs {fmtBytes(status.noRoom.neededBytes)},
-          and {fmtBytes(status.noRoom.freeBytes)} is free.
+      {!download.on && (
+        <p className="mt-2 text-[12.5px] text-fg-2">
+          {download.hasFile
+            ? 'Not refreshed. Its stats stay on this computer until you delete them.'
+            : `Not downloaded. Turning it on downloads about ${fmtBytes(league.size.downloadBytes)} and takes about ${fmtBytes(league.size.fileBytes)} on disk.`}
         </p>
       )}
-      {paused && (
-        <p className="mt-3 text-[13px] text-fg-2">Paused. Nothing downloads until you resume.</p>
+      {status?.noRoom && (
+        <p className="mt-2 text-[13px] text-bad">
+          Not enough disk space to load the {league.name}: it needs{' '}
+          {fmtBytes(status.noRoom.neededBytes)}, and {fmtBytes(status.noRoom.freeBytes)} is free.
+        </p>
       )}
-      {byTier(report.families).map((group) => (
-        <section key={group.tier} className="mt-6">
-          <h2 className="text-[12.5px] font-medium text-fg-2">{group.label}</h2>
+      {download.on && paused && (
+        <p className="mt-2 text-[13px] text-fg-2">Paused. Nothing downloads until you resume.</p>
+      )}
+      {error && <p className="mt-2 text-[13px] text-bad">{error}</p>}
+      {byTier(report?.families ?? []).map((group) => (
+        <div key={group.tier} className="mt-4">
+          <h3 className="text-[12.5px] font-medium text-fg-2">{group.label}</h3>
           <table className="mt-1.5 w-full table-fixed text-[12.5px]">
             <thead className="text-left text-[11px] font-normal text-fg-3">
               <tr>
@@ -107,12 +142,113 @@ export function StatsData({ status }: StatsDataProps): React.JSX.Element {
             </thead>
             <tbody>
               {group.families.map((family) => (
-                <FamilyRow key={family.release} family={family} />
+                <FamilyRow key={family.release} family={family} league={league} />
               ))}
             </tbody>
           </table>
-        </section>
+        </div>
       ))}
+    </section>
+  )
+}
+
+const EMPTY: LeagueRead = { report: null, status: null, error: null }
+
+/**
+ * Every league's data, whichever is on screen (D35): whether it downloads, what is loaded and how big
+ * it is, a way to pause a load or turn a league off, deleting a league's file as its own confirmed
+ * action, and where the data comes from: the credit the dataset's licence asks for.
+ */
+export function StatsData(): React.JSX.Element {
+  const [downloads, setDownloads] = useState<LeagueDownloads | null>(null)
+  const [reads, setReads] = useState<Partial<Record<LeagueId, LeagueRead>>>({})
+  const [error, setError] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState<LeagueId | null>(null)
+
+  const readLeague = useCallback((league: LeagueId) => {
+    void Promise.all([api.stats.data(league), api.stats.status(league)]).then(
+      ([report, status]) => setReads((r) => ({ ...r, [league]: { report, status, error: null } })),
+      (err) => setReads((r) => ({ ...r, [league]: { ...EMPTY, error: errorMessage(err) } }))
+    )
+  }, [])
+  const readDownloads = useCallback(() => {
+    void api.leagues
+      .downloads()
+      .then(setDownloads)
+      .catch((err) => setError(errorMessage(err)))
+  }, [])
+
+  useEffect(() => {
+    readDownloads()
+    for (const league of Object.values(LEAGUES)) readLeague(league.id)
+    return api.stats.onChanged((changed) => {
+      readDownloads()
+      readLeague(changed)
+    })
+  }, [readDownloads, readLeague])
+
+  const settle = (league: LeagueId, change: Promise<LeagueDownloads>): void => {
+    void change
+      .then((d) => {
+        setDownloads(d)
+        readLeague(league)
+      })
+      .catch((err) => setError(errorMessage(err)))
+  }
+
+  if (error) return <div className="py-20 text-center text-[13px] text-bad">{error}</div>
+  if (!downloads) return <div className="py-20" />
+
+  const used = downloads.leagues.reduce((sum, d) => sum + d.fileBytes, 0)
+  const doomed = deleting ? downloads.leagues.find((d) => d.league === deleting) : undefined
+  return (
+    <div className="mx-auto w-full max-w-[1000px] px-6 py-6">
+      <div className="flex items-center gap-4">
+        <h1 className="text-[15px] font-semibold">Data</h1>
+        <p className="text-[12.5px] text-fg-3">
+          {fmtBytes(used)} on disk
+          {downloads.freeBytes !== null && ` · ${fmtBytes(downloads.freeBytes)} free`}
+        </p>
+      </div>
+      {downloads.leagues.map((download) => (
+        <LeagueSection
+          key={download.league}
+          league={leagueOf(download.league)}
+          download={download}
+          read={reads[download.league] ?? EMPTY}
+          onTurn={(on) =>
+            settle(download.league, api.leagues.setDownloads({ [download.league]: on }))
+          }
+          onDelete={() => setDeleting(download.league)}
+        />
+      ))}
+      <Dialog open={doomed !== undefined} onOpenChange={(open) => !open && setDeleting(null)}>
+        {doomed && (
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Delete the {leagueOf(doomed.league).name}’s data?</DialogTitle>
+              <DialogDescription>
+                This removes {leagueOf(doomed.league).statsFile} ({fmtBytes(doomed.fileBytes)}) from
+                this computer. Turning the {leagueOf(doomed.league).name} on again downloads it all
+                again.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDeleting(null)}>
+                Keep it
+              </Button>
+              <Button
+                onClick={() => {
+                  setDeleting(null)
+                  settle(doomed.league, api.leagues.deleteFile(doomed.league))
+                }}
+              >
+                Delete
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        )}
+      </Dialog>
       <section aria-label={CREDIT_TITLE} className="mt-8 max-w-[760px] text-[12px] text-fg-3">
         <h2 className="text-[12.5px] font-medium text-fg-2">{CREDIT_TITLE}</h2>
         <p className="mt-1.5">

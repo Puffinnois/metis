@@ -31,7 +31,8 @@ import type {
   StatsSeason,
   StatsStanding,
   StatsStatus,
-  StatsView
+  StatsView,
+  LeagueDownloads
 } from './stats/types'
 import type { UpdateState } from './types'
 
@@ -75,6 +76,17 @@ export interface Api {
       /** Copies the notes' sections, image paths made absolute, to the clipboard. */
       copy(ids: string[]): Promise<void>
     }
+  }
+  /**
+   * Which leagues download (D35), for the first run and the Data panel. A change sends `stats:changed`
+   * for each league it touched.
+   */
+  leagues: {
+    downloads(): Promise<LeagueDownloads>
+    /** Turns the leagues named on or off; off stops refreshing and keeps the file. */
+    setDownloads(choice: Partial<Record<LeagueId, boolean>>): Promise<LeagueDownloads>
+    /** Deletes a league's stats file; refused while it is on. */
+    deleteFile(league: LeagueId): Promise<LeagueDownloads>
   }
   /** Every call names its league first (D35): the renderer holds the current one in one place. */
   stats: {
@@ -219,5 +231,8 @@ export const IPC = {
   statsViews: 'stats:views',
   statsSaveView: 'stats:saveView',
   statsDeleteView: 'stats:deleteView',
-  statsExportCsv: 'stats:exportCsv'
+  statsExportCsv: 'stats:exportCsv',
+  leagueDownloads: 'leagues:downloads',
+  leagueSetDownloads: 'leagues:setDownloads',
+  leagueDeleteFile: 'leagues:deleteFile'
 } as const

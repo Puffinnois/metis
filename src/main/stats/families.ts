@@ -1,6 +1,6 @@
 import type { StatsFamily } from '@shared/stats/types'
 import { LOAD_TIERS, RELEASE_LABELS, seasonsOf, type SourceFile } from './sources'
-import { stepLogName } from './sync'
+import { stepLogName } from './steps'
 
 export interface HeldFile {
   rows: number

@@ -1,4 +1,4 @@
-import type { League } from '@shared/leagues'
+import { seasonEnd, type League } from '@shared/leagues'
 import type { StatsDb } from './db'
 import { buildDerived, canDerive, derivedStale, markDerivedStale } from './derived/build'
 import {
@@ -21,7 +21,14 @@ import type {
   StatsSyncResult
 } from './protocol'
 import { INTERRUPTED_MESSAGE } from './schema'
-import { includedSources, leftOutProblem, leftOutSources, leftOutTables } from './leftOut'
+import { STATS_LOG_PREFIX, stepLogName, type PlannedStep } from './steps'
+import {
+  includedSources,
+  leftOutIn,
+  leftOutProblem,
+  leftOutSources,
+  leftOutTables
+} from './leftOut'
 import {
   fileUrl,
   LEFT_OUT_RELEASES,
@@ -37,12 +44,16 @@ const DAY = 24 * HOUR
 export const ATTEMPT_INTERVAL_MS = DAY
 /** A failed one sooner: a network blip during the first load should not cost a day. */
 export const ERROR_RETRY_MS = HOUR
-/** The prior season is checked weekly. */
+/** The prior season, and the current one once its last month is over, are checked weekly. */
 export const PRIOR_SEASON_FRESHNESS_MS = 7 * DAY
+/**
+ * A season that has ended is sealed once a file has not changed for this long: the producers rebuild
+ * the files daily while games are played and correct them for some days after, then stop.
+ */
+export const SETTLED_MS = 14 * DAY
 /** Files fetched ahead of the one being loaded; loading itself runs one file at a time. */
 export const PARALLEL_DOWNLOADS = 4
-/** Prefix of every stats step in `sync_log`. */
-export const STATS_LOG_PREFIX = 'stats:'
+export { STATS_LOG_PREFIX, stepLogName, type PlannedStep }
 /** Builds `game`, `team`, `player_ids` and `player` from the core tier. */
 export const STATS_IDENTITY_STEP = `${STATS_LOG_PREFIX}identity`
 /** Builds `player_game`, `team_game`, `player_season` and `team_season` from the identity tables. */
@@ -111,11 +122,6 @@ export interface StatsSyncDeps {
   cancelled?: () => boolean
 }
 
-export interface PlannedStep {
-  source: SourceFile
-  season: number
-}
-
 /**
  * The load order (D21): tier by tier, and inside a tier the files of all seasons, then the newest
  * season back, so a load cut short leaves the seasons people look at most.
@@ -139,12 +145,6 @@ export function planSteps(
     .map(({ step }) => step)
 }
 
-export function stepLogName(step: PlannedStep): string {
-  return step.source.allSeasons
-    ? `${STATS_LOG_PREFIX}${step.source.id}`
-    : `${STATS_LOG_PREFIX}${step.source.id}:${step.season}`
-}
-
 export interface SourceState {
   version: number
   fetchedAt: string
@@ -153,6 +153,8 @@ export interface SourceState {
   etag: string | null
   /** The size of the file as downloaded. */
   bytes: number | null
+  /** When the file last changed, ISO time (`isSealed`). */
+  modifiedAt: string | null
 }
 
 export interface LastAttempt {
@@ -163,6 +165,8 @@ export interface LastAttempt {
 export interface DueInput {
   season: number
   current: number
+  /** The season's last month is over (`seasonEnd`). */
+  ended: boolean
   force: boolean
   now: number
   attempt: LastAttempt | null
@@ -172,8 +176,9 @@ export interface DueInput {
 
 /**
  * Not again soon after the last attempt (unless forced, for recent seasons and files of all
- * seasons). A new version or no state is due; the current season and files of all seasons daily, the
- * prior season weekly, older seasons until sealed.
+ * seasons). A new version or no state is due; files of all seasons daily; a sealed season never; the
+ * current season daily until its last month is over, then weekly, as is the prior season; older
+ * seasons until sealed.
  */
 export function isDue(input: DueInput): boolean {
   const { season, current, now, state, attempt } = input
@@ -182,9 +187,33 @@ export function isDue(input: DueInput): boolean {
   const attempted = attempt !== null && now - Date.parse(attempt.startedAt) < wait
   if (attempted && !(input.force && recent)) return false
   if (!state || state.version < input.version) return true
-  if (season === 0 || season === current) return true
-  if (season === current - 1) return now - Date.parse(state.fetchedAt) >= PRIOR_SEASON_FRESHNESS_MS
-  return !state.sealed
+  if (season === 0) return true
+  if (state.sealed) return false
+  if (season === current && !input.ended) return true
+  if (season >= current - 1) return now - Date.parse(state.fetchedAt) >= PRIOR_SEASON_FRESHNESS_MS
+  return true
+}
+
+export interface SealInput {
+  season: number
+  current: number
+  ended: boolean
+  now: number
+  /** When the file last changed, ISO time; null when not known. */
+  modifiedAt: string | null
+}
+
+/**
+ * Whether a file is never fetched again. Two seasons back and older: sealed when loaded, as always. A
+ * season that has ended (the WNBA's in November, the NBA's in July): sealed once the file has not
+ * changed for `SETTLED_MS`, by its Last-Modified as published, else by when Metis last saw its content
+ * change. A season still being played, and a file of all seasons: never.
+ */
+export function isSealed(input: SealInput): boolean {
+  const { season, current, ended, now, modifiedAt } = input
+  if (season === 0) return false
+  if (season <= current - 2) return true
+  return ended && modifiedAt !== null && now - Date.parse(modifiedAt) >= SETTLED_MS
 }
 
 /** Every source's state at once: a first load asks about 3,107 files. */
@@ -198,8 +227,9 @@ async function readStates(db: StatsDb): Promise<Map<string, SourceState>> {
     rows_written: number
     etag: string | null
     bytes: number | null
+    modified_at: string | null
   }>(
-    'SELECT source, season, version, fetched_at, sealed, rows_written, etag, bytes FROM source_state'
+    'SELECT source, season, version, fetched_at, sealed, rows_written, etag, bytes, modified_at FROM source_state'
   )
   return new Map(
     rows.map((r) => [
@@ -210,7 +240,8 @@ async function readStates(db: StatsDb): Promise<Map<string, SourceState>> {
         sealed: r.sealed,
         rows: r.rows_written,
         etag: r.etag,
-        bytes: r.bytes
+        bytes: r.bytes,
+        modifiedAt: r.modified_at
       }
     ])
   )
@@ -241,6 +272,10 @@ function toEntry(row: Record<string, unknown>): StatsLogEntry {
 
 /** Thrown by a step body to log `skipped` instead of `error`. */
 class SkipStep extends Error {}
+
+/** Why a league's refresh builds nothing (`League.derived` false). */
+export const notBuilt = (league: League): string =>
+  `No ${league.name} game, team, player or season tables yet: its files are loaded, and nothing is built from them.`
 
 /** Runs one step under a `sync_log` row; never throws (errors are logged). */
 async function runLogged(
@@ -293,9 +328,10 @@ export async function refreshStats(
   deps: StatsSyncDeps,
   options: RefreshOptions = {},
   allSources: readonly SourceFile[] = SOURCES,
-  leftOut: readonly string[] = LEFT_OUT_RELEASES
+  everyLeague: readonly string[] = LEFT_OUT_RELEASES
 ): Promise<StatsSyncResult> {
   const { db, downloads } = deps
+  const leftOut = leftOutIn(everyLeague, allSources)
   const log: StatsLogEntry[] = []
   // A list that names a core release, or one Metis does not load, is a build mistake: say so plainly
   // and load nothing, rather than build tables the rest cannot be keyed to.
@@ -329,6 +365,8 @@ export async function refreshStats(
   let lateWrote = false
   const today = nowOf(deps)
   const current = deps.league.currentSeason(today)
+  const ended = (season: number): boolean =>
+    season !== 0 && today.getTime() >= seasonEnd(deps.league, season).getTime()
   const states = await readStates(db)
   const attempts = await readAttempts(db)
   const stateOf = (step: PlannedStep): SourceState | null =>
@@ -337,6 +375,7 @@ export async function refreshStats(
     isDue({
       season: step.season,
       current,
+      ended: ended(step.season),
       force: options.force ?? false,
       now: today.getTime(),
       attempt: attempts.get(stepLogName(step)) ?? null,
@@ -364,30 +403,44 @@ export async function refreshStats(
     step: PlannedStep,
     rows: number,
     etag: string | null,
-    bytes: number | null
+    bytes: number | null,
+    modifiedAt: string | null
   ): Promise<void> => {
+    const at = nowOf(deps)
     await db.exec(
       `INSERT OR REPLACE INTO source_state
-         (source, season, version, rows_written, fetched_at, sealed, etag, bytes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+         (source, season, version, rows_written, fetched_at, sealed, etag, bytes, modified_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         step.source.id,
         step.season,
         step.source.version,
         rows,
-        nowOf(deps).toISOString(),
-        step.season !== 0 && step.season <= current - 2,
+        at.toISOString(),
+        isSealed({
+          season: step.season,
+          current,
+          ended: ended(step.season),
+          now: at.getTime(),
+          modifiedAt
+        }),
         etag,
-        bytes
+        bytes,
+        modifiedAt
       ]
     )
   }
+
+  // A league whose game and season tables are not built yet (`League.derived`) loads its files and
+  // builds nothing: the builders read the NBA's tables, which its file does not have.
+  const builds = deps.league.derived
 
   // Built as soon as the core tier is in, so the app can use them long before the load ends. New
   // core files rebuild everything; otherwise only a table a new version made stale, and the game and
   // season tables after a rebuilt identity, since they join through its links (an ESPN id).
   const runBuilds = async (): Promise<void> => {
     built = true
+    if (!builds) return
     let identityBuilt = false
     if ((coreWrote || (await identityStale(db))) && (await canBuildIdentity(db))) {
       identityBuilt = true
@@ -411,6 +464,7 @@ export async function refreshStats(
   // Built once the published tier is in, so its numbers can be read while the events and plays load.
   const runPublishedBuild = async (force = false): Promise<void> => {
     publishedBuilt = true
+    if (!builds) return
     if (canBuildPublished() && (force || publishedWrote || (await publishedStale(db)))) {
       log.push(
         await runLogged(deps, STATS_PUBLISHED_STEP, async () => ({
@@ -425,6 +479,7 @@ export async function refreshStats(
   // tables, and they are the largest build, so nothing else waits behind it. Only the seasons whose
   // files wrote rows are rebuilt (`playBuilders.ts`).
   const runPlaysBuild = async (): Promise<void> => {
+    if (!builds) return
     if ((await playsDue(db)) && (await canBuildPlays(db))) {
       log.push(
         await runLogged(deps, STATS_PLAYS_STEP, async () => ({
@@ -438,6 +493,7 @@ export async function refreshStats(
   // Last, after the plays: a model reads the game tables, and later ones may read the plays. Only the
   // seasons whose files wrote rows are computed again (`models/build.ts`).
   const runModelsBuild = async (): Promise<void> => {
+    if (!builds) return
     if ((await modelsDue(db)) && (await canBuildModels(db))) {
       log.push(
         await runLogged(deps, STATS_MODELS_STEP, async () => ({
@@ -465,13 +521,25 @@ export async function refreshStats(
         if (fetched.file.kind === 'missing') throw new SkipStep('not published yet')
         if (fetched.file.kind === 'unchanged') {
           const state = stateOf(step)
-          await saveState(step, state?.rows ?? 0, state?.etag ?? null, state?.bytes ?? null)
+          await saveState(
+            step,
+            state?.rows ?? 0,
+            state?.etag ?? null,
+            state?.bytes ?? null,
+            fetched.file.modified ?? state?.modifiedAt ?? null
+          )
           return { rows: 0, message: 'unchanged' }
         }
         const file = fetched.file
         try {
           const loaded = await loadSourceFile(db, step.source, step.season, file.path)
-          await saveState(step, loaded.rows, file.etag, file.bytes)
+          await saveState(
+            step,
+            loaded.rows,
+            file.etag,
+            file.bytes,
+            file.modified ?? nowOf(deps).toISOString()
+          )
           return { rows: loaded.rows, message: loaded.notes.join('; ') || null }
         } finally {
           await downloads.removeFile(file.path)
@@ -525,6 +593,13 @@ export async function refreshStats(
       if (!publishedBuilt || lateWrote) await runPublishedBuild(lateWrote)
       await runPlaysBuild()
       await runModelsBuild()
+      if (!builds && log.some((e) => e.status === 'ok' && e.rowsWritten > 0)) {
+        log.push(
+          await runLogged(deps, STATS_DERIVED_STEP, async () => {
+            throw new SkipStep(notBuilt(deps.league))
+          })
+        )
+      }
     } catch (err) {
       return { steps: log, fatal: err instanceof Error ? err.message : String(err) }
     }

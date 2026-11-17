@@ -35,6 +35,8 @@ const BOOTSTRAP = [
    )`,
   'ALTER TABLE source_state ADD COLUMN IF NOT EXISTS etag VARCHAR',
   'ALTER TABLE source_state ADD COLUMN IF NOT EXISTS bytes BIGINT',
+  // When the file last changed: its Last-Modified as published, else when Metis last saw new content.
+  'ALTER TABLE source_state ADD COLUMN IF NOT EXISTS modified_at VARCHAR',
   'CREATE TABLE IF NOT EXISTS derived_state (name VARCHAR PRIMARY KEY, version INTEGER NOT NULL)',
   'CREATE TABLE IF NOT EXISTS stats_settings (key VARCHAR PRIMARY KEY, value VARCHAR)'
 ]
