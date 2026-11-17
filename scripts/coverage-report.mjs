@@ -4,7 +4,8 @@
 // null nor zero, and text when it is neither null nor empty. Writes the column-level list and a table
 // of what it found by source table. Later stages read each metric's first season from here.
 //
-// usage: node scripts/coverage-report.mjs <folder holding stats.duckdb> <out.tsv> <out.md>
+// usage: node scripts/coverage-report.mjs <folder holding stats-<league>.duckdb> <out.tsv> <out.md>
+// --league=<id> anywhere picks the league (default nba).
 import { writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { openStatsWorker } from './lib/stats-worker.mjs'

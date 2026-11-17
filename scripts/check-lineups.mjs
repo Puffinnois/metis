@@ -18,7 +18,8 @@
 
 //
 
-// usage: node scripts/check-lineups.mjs <folder holding stats.duckdb> [out.md]
+// usage: node scripts/check-lineups.mjs <folder holding stats-<league>.duckdb> [out.md]
+// --league=<id> anywhere picks the league (default nba).
 
 import { readFileSync, writeFileSync } from 'node:fs'
 

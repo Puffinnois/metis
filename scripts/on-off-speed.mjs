@@ -2,7 +2,8 @@
 // Times the on-court reads and queries (Plan T904) on a loaded profile, in the worker, warm: the median
 // and the worst of seven runs each. Build first; run it on a copy, never the app's own data.
 //
-// usage: node scripts/on-off-speed.mjs <folder holding stats.duckdb> [season] [team id] [player id]
+// usage: node scripts/on-off-speed.mjs <folder holding stats-<league>.duckdb> [season] [team id] [player id]
+// --league=<id> anywhere picks the league (default nba).
 import { resolve } from 'node:path'
 import { openStatsWorker } from './lib/stats-worker.mjs'
 

@@ -4,7 +4,8 @@
 // games out held by players with no box-score line, which the engine left out before T1206.
 // Build first with `npm run build`.
 //
-// usage: node scripts/check-games-out.mjs <folder holding stats.duckdb>
+// usage: node scripts/check-games-out.mjs <folder holding stats-<league>.duckdb>
+// --league=<id> anywhere picks the league (default nba).
 import { resolve } from 'node:path'
 import { openStatsWorker } from './lib/stats-worker.mjs'
 

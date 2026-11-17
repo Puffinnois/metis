@@ -6,10 +6,23 @@ import { Worker } from 'node:worker_threads'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../..')
 
+/**
+ * The league a script reads: `--league=wnba` anywhere among its arguments, else the NBA. Its file is
+ * `stats-<league>.duckdb` in the folder (D36); the worker renames an old `stats.duckdb` first.
+ */
+export function leagueArg(argv = process.argv) {
+  return argv.find((a) => a.startsWith('--league='))?.slice('--league='.length) ?? 'nba'
+}
+
+/** A script's arguments less `--league=…`, so the positional ones keep their places. */
+export const positional = (argv = process.argv.slice(2)) =>
+  argv.filter((a) => !a.startsWith('--league='))
+
 export function openStatsWorker(folder, options = {}) {
   const worker = new Worker(join(ROOT, 'out/main/statsWorker.js'), {
     workerData: {
-      path: join(folder, 'stats.duckdb'),
+      league: options.league ?? leagueArg(),
+      dataDir: folder,
       tempDir: join(folder, 'tmp-script'),
       memoryLimit: options.memoryLimit
     }

@@ -7,7 +7,7 @@ Plan T1101. What the terms of the dataset, its producers and its upstreams say, 
 The same for every source below:
 
 - **Downloads** the dataset's Parquet files from `github.com/sportsdataverse/sportsdataverse-data/releases`, on the user's own machine, with a plain client. That is the only host it fetches data from (`src/main/stats/sources.ts`).
-- **Stores** them locally in `stats.duckdb`, reshapes them into its own tables and computes stats from them (Stage 10's ratings and composites).
+- **Stores** them locally in a stats file per league (`stats-nba.duckdb`), reshapes them into its own tables and computes stats from them (Stage 10's ratings and composites).
 - **Redistributes nothing.** The installer ships no data (D6, D29); nothing is uploaded or shared.
 - **Shows** the numbers in a free, open-source desktop app (Apache-2.0), with no account, ads or payment.
 - **Never calls ESPN or stats.nba.com,** and never disguises a client (D7). It shows no logos, photos or video: only names and numbers.

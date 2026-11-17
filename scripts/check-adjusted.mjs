@@ -21,7 +21,8 @@
 // 5. The reads: a playoff scope gives its reason; a mid-season date range reads the rating as it
 //    stood; the screens' queries, warm, median of five, under 500 ms.
 //
-// usage: node scripts/check-adjusted.mjs <folder holding stats.duckdb> [out.md]
+// usage: node scripts/check-adjusted.mjs <folder holding stats-<league>.duckdb> [out.md]
+// --league=<id> anywhere picks the league (default nba).
 import { writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { openStatsWorker } from './lib/stats-worker.mjs'

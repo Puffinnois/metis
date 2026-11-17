@@ -3,7 +3,8 @@
 // by season, and writes the result as a report. Every comparison is exact unless its table says
 // otherwise. Exits 1 if a finished season has the wrong number of regular-season games or teams.
 //
-// usage: node scripts/check-agreement.mjs <folder holding stats.duckdb> <out.md>
+// usage: node scripts/check-agreement.mjs <folder holding stats-<league>.duckdb> <out.md>
+// --league=<id> anywhere picks the league (default nba).
 import { writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { openStatsWorker } from './lib/stats-worker.mjs'

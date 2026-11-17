@@ -12,7 +12,8 @@
 // official with the most games of 2025-26 recounted by hand from the raw officials file and the raw
 // team box scores, against the read, with the league's line beside it.
 //
-// usage: node scripts/check-matchups-officials.mjs <folder holding stats.duckdb> [out.md]
+// usage: node scripts/check-matchups-officials.mjs <folder holding stats-<league>.duckdb> [out.md]
+// --league=<id> anywhere picks the league (default nba).
 import { writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { openStatsWorker } from './lib/stats-worker.mjs'

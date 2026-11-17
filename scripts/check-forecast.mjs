@@ -16,7 +16,8 @@
 //    team then in the top eight.
 // 4. The reads the screens make, warm, median of five, under 500 ms.
 //
-// usage: node scripts/check-forecast.mjs <folder holding stats.duckdb> [out.md]
+// usage: node scripts/check-forecast.mjs <folder holding stats-<league>.duckdb> [out.md]
+// --league=<id> anywhere picks the league (default nba).
 import { writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { openStatsWorker } from './lib/stats-worker.mjs'

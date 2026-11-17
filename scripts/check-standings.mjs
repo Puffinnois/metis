@@ -2,7 +2,8 @@
 // Compares what the window showed with the raw standings files, on every column of every row, for the
 // seasons scripts/stage6-team-steps.json visits. Build first, and save drive.mjs's output to a file.
 //
-// usage: node scripts/check-standings.mjs <drive.mjs output> <folder holding stats.duckdb>
+// usage: node scripts/check-standings.mjs <drive.mjs output> <folder holding stats-<league>.duckdb>
+// --league=<id> anywhere picks the league (default nba).
 import { readFileSync } from 'node:fs'
 import { openStatsWorker } from './lib/stats-worker.mjs'
 

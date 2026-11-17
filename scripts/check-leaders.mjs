@@ -7,7 +7,8 @@
 // leaderboard asks it: each statistic sorted, with Qualified only on, so each qualifies by its own
 // minimum. Minutes per game is the leaderboards' row qualifier and stays on 1,000 minutes (D33).
 //
-// usage: node scripts/check-leaders.mjs <folder holding stats.duckdb> [out.md] [seasons, comma-separated]
+// usage: node scripts/check-leaders.mjs <folder holding stats-<league>.duckdb> [out.md] [seasons, comma-separated]
+// --league=<id> anywhere picks the league (default nba).
 // Build first with `npm run build`.
 import { writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
