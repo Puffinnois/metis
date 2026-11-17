@@ -19,6 +19,8 @@ asarUnpack:
   - resources/**
   # DuckDB's native binding and library load from disk, not from inside the asar.
   - node_modules/@duckdb/node-bindings-*/**
+  # Koffi's native module, which makes the Windows full-speed call (src/main/fullSpeed.ts).
+  - node_modules/@koromix/koffi-*/**
 win:
   executableName: Metis
   # Drawn by scripts/make-icon.mjs from build/icon.svg. The NSIS installer, its uninstaller and
