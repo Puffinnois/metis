@@ -30,9 +30,15 @@ export interface SourceFile {
   allSeasons: boolean
   /** The table holds several files of a season, so its rows carry `source_file`. */
   shared: boolean
+  /**
+   * The league's game, team and player keys are built from it, so its release can never be left out
+   * (`requiredReleases`). The NBA's are read from what its builders need; a league whose builders do
+   * not exist yet names them here. Absent means no.
+   */
+  keys?: boolean
 }
 
-type Options = Partial<Pick<SourceFile, 'allSeasons' | 'shared' | 'id'>>
+type Options = Partial<Pick<SourceFile, 'allSeasons' | 'shared' | 'id' | 'keys'>>
 
 function source(
   table: string,
@@ -329,8 +335,7 @@ const IDS: SourceFile[] = [
   )
 ]
 
-/** Each release as the Data panel names it. SportsDataverse's are its own calculations. */
-export const RELEASE_LABELS: Record<string, string> = {
+const NBA_LABELS: Record<string, string> = {
   espn_nba_schedules: 'Schedules (ESPN)',
   espn_nba_player_boxscores: 'Player box scores (ESPN)',
   espn_nba_team_boxscores: 'Team box scores (ESPN)',
@@ -380,12 +385,242 @@ export const RELEASE_LABELS: Record<string, string> = {
 export const SOURCES: SourceFile[] = [...IDS, ...ESPN, ...NBA, ...DASHBOARDS, ...SHARED]
 
 /**
- * Each league's files, the registry's `releases.registry`. The WNBA's come in T1301.4; until then it
- * has none, and nothing is downloaded for it.
+ * The WNBA's files, as `docs/reference/wnba-data-sources.md` measured them on 2026-11-17: 37 releases,
+ * 1,586 Parquet files, of which 1,492 load. Tables carry no league column, since each league has its
+ * own file (D36), so a table is named by its source as the NBA's are: `src_espn_*` for ESPN's,
+ * `src_wnba_*` for the league's own stats site (the NBA's `src_nba_*`), `src_dash_*` for the league
+ * dashboards, and the dataset's crosswalks and groups under the NBA's names. Left out (D23), each
+ * proven to repeat other files in that document and again in `tests/main/stats/wnbaLoad.test.ts`:
+ * - the 90 `*_master` files of the dashboards, which join their parts (as for the NBA);
+ * - `wnba_stats_schedules/wnba_stats_schedule_<season>` (2025, 2026) and `…_master`: the game logs
+ *   under a schedule's name, holding the same player and team rows;
+ * - `wnba_stats_pbp/play_by_play_2026`: the same 149,921 plays as `wnba_play_by_play_2026`, with 25
+ *   columns of its 38.
+ * The game, team and player keys will be built from both schedules, the game logs, ESPN's player box
+ * scores, the crosswalk and the groups (T1301.5), so those six releases are marked `keys`.
  */
+const keys = { keys: true }
+const wEspn = (
+  name: string,
+  stem: string,
+  tier: LoadTier,
+  grain: string,
+  firstSeason: number,
+  release = name,
+  options: Options = {}
+): SourceFile =>
+  source(`src_espn_${name}`, `espn_wnba_${release}`, stem, tier, grain, firstSeason, options)
+
+const wnba = (
+  name: string,
+  stem: string,
+  tier: LoadTier,
+  grain: string,
+  firstSeason: number,
+  release = name,
+  options: Options = {}
+): SourceFile =>
+  source(`src_wnba_${name}`, `wnba_stats_${release}`, stem, tier, grain, firstSeason, options)
+
+const WNBA_ESPN: SourceFile[] = [
+  wEspn('schedule', 'wnba_schedule', 'core', 'game', 1997, 'schedules', keys),
+  source(
+    'src_espn_schedule_master',
+    'espn_wnba_schedules',
+    'wnba_schedule_master',
+    'core',
+    'game',
+    1997,
+    { ...allSeasons, ...keys }
+  ),
+  source(
+    'src_espn_games_in_repo',
+    'espn_wnba_schedules',
+    'wnba_games_in_data_repo',
+    'core',
+    'game',
+    1997,
+    { ...allSeasons, ...keys }
+  ),
+  // 2002's lines are all zeros, as published; they load as they are (wnba-data-sources.md, "Traps").
+  wEspn('player_box', 'player_box', 'core', 'player-game', 2002, 'player_boxscores', keys),
+  wEspn('team_box', 'team_box', 'core', 'team-game', 2003, 'team_boxscores'),
+  wEspn('player_core', 'player_core', 'core', 'player-season', 2002),
+  wEspn(
+    'player_season',
+    'player_season_stats',
+    'core',
+    'player-season-stat',
+    1997,
+    'player_season_stats'
+  ),
+  wEspn('team_season', 'team_season_stats', 'core', 'team-season-stat', 1997, 'team_season_stats'),
+  wEspn('game_rosters', 'game_rosters', 'core', 'player-game', 2002),
+  wEspn('standings', 'standings', 'core', 'team-season-stat', 2002),
+  wEspn('officials', 'officials', 'core', 'official-game', 2003),
+  wEspn('draft', 'draft', 'core', 'pick', 2018),
+  wEspn('rosters', 'rosters', 'core', 'player-team', 2024),
+  wEspn('injuries', 'injuries', 'core', 'player-day', 2026),
+  wEspn('shots', 'shots', 'events', 'shot', 2002),
+  wEspn('pbp', 'play_by_play', 'plays', 'play', 2002)
+]
+
+const WNBA_STATS: SourceFile[] = [
+  wnba('schedule', 'wnba_schedule', 'core', 'game', 1997, 'schedules', keys),
+  // Player rows and team rows (`player_id` null on the team rows), every season.
+  wnba(
+    'game_logs',
+    'player_game_logs',
+    'core',
+    'player-game and team-game',
+    1997,
+    'player_game_logs',
+    keys
+  ),
+  // The only full 2026 player lines: the 2026 game logs hold players for 202 of 352 games.
+  wnba('player_box', 'player_boxscores', 'core', 'player-game', 2026, 'player_boxscores'),
+  wnba('team_box', 'team_boxscores', 'core', 'team-game', 2026, 'team_boxscores'),
+  wnba(
+    'player_season',
+    'player_season_stats',
+    'core',
+    'player-season-measure',
+    2026,
+    'player_season_stats'
+  ),
+  wnba(
+    'team_season',
+    'team_season_stats',
+    'core',
+    'team-season-measure',
+    2026,
+    'team_season_stats'
+  ),
+  wnba('standings', 'standings', 'core', 'team-season', 2026),
+  wnba('rosters', 'rosters', 'core', 'player-team', 1997),
+  wnba('game_rosters', 'game_rosters', 'core', 'player-game', 1997),
+  wnba('draft', 'draft', 'core', 'pick', 1997),
+  // No file for 2019; the refresh logs it as not published.
+  wnba('coaches', 'coaches', 'core', 'coach-team', 1997),
+  wnba('officials', 'officials', 'core', 'official-game', 2004),
+  wnba('lineups', 'lineups', 'published', 'lineup-season-measure', 2026),
+  source(
+    'src_wnba_impact',
+    'wnba_player_impact',
+    'wnba_player_impact',
+    'published',
+    'player-season-type',
+    1997
+  ),
+  source(
+    'src_wnba_impact_averages',
+    'wnba_player_impact',
+    'wnba_player_impact_league_averages',
+    'published',
+    'season-type',
+    1997
+  ),
+  wnba('metric_curves', 'metric_curves', 'published', 'entity-metric-bin', 1997),
+  wnba('rolling_windows', 'rolling_windows', 'published', 'entity-metric-window', 1997),
+  wnba('shots', 'shots', 'events', 'shot', 1997),
+  wnba('possessions', 'wnba_possessions', 'events', 'possession', 1997),
+  wnba('game_lineups', 'wnba_lineups', 'events', 'play', 1997),
+  wnba('pbp', 'wnba_play_by_play', 'plays', 'play', 1997)
+]
+
+const wDashboard = (stem: string, grain: string): SourceFile =>
+  source(`src_dash_${stem}`, 'wnba_stats_leaguedash', stem, 'published', grain, 1997)
+
+/** The same families as the NBA's, every one from 1997; no tracking is published for the WNBA. */
+const WNBA_DASHBOARDS: SourceFile[] = [
+  ...LINEUP_MEASURES.map((m) => wDashboard(`lineups_${m}`, 'lineup-season-type')),
+  ...PLAYER_MEASURES.map((m) => wDashboard(`player_stats_${m}`, 'player-season-type')),
+  ...TEAM_MEASURES.map((m) => wDashboard(`team_stats_${m}`, 'team-season-type')),
+  wDashboard('player_bio', 'player-season-type'),
+  wDashboard('standings', 'team-season')
+]
+
+const wIds = (table: string, stem: string, grain: string, firstSeason: number, all = false) =>
+  source(
+    table,
+    table.startsWith('src_xwalk') ? 'wnba_crosswalk' : 'wnba_groups',
+    stem,
+    'core',
+    grain,
+    firstSeason,
+    {
+      ...keys,
+      ...(all ? allSeasons : {})
+    }
+  )
+
+const WNBA_IDS: SourceFile[] = [
+  wIds('src_xwalk_player', 'wnba_player_crosswalk', 'player-team', 2002),
+  wIds('src_xwalk_team', 'wnba_team_crosswalk', 'team', 2002),
+  wIds('src_xwalk_game', 'wnba_schedule_crosswalk', 'game', 2002),
+  wIds('src_groups', 'wnba_groups', 'group', 1997, true),
+  wIds('src_group_aliases', 'wnba_group_aliases', 'alias', 1997, true),
+  wIds('src_group_seasons', 'wnba_group_seasons', 'group-season', 1997, true),
+  wIds('src_player_aliases', 'wnba_player_aliases', 'alias', 1997, true),
+  wIds('src_team_aliases', 'wnba_team_aliases', 'alias', 1997, true),
+  wIds('src_team_groups', 'wnba_team_group_seasons', 'team-season', 1997),
+  wIds('src_team_groups_all', 'wnba_team_group_seasons', 'team-season', 1997, true)
+]
+
+export const WNBA_SOURCES: SourceFile[] = [
+  ...WNBA_IDS,
+  ...WNBA_ESPN,
+  ...WNBA_STATS,
+  ...WNBA_DASHBOARDS
+]
+
+const WNBA_LABELS: Record<string, string> = {
+  espn_wnba_schedules: 'Schedules (ESPN)',
+  espn_wnba_player_boxscores: 'Player box scores (ESPN)',
+  espn_wnba_team_boxscores: 'Team box scores (ESPN)',
+  espn_wnba_player_core: 'Player details (ESPN)',
+  espn_wnba_player_season_stats: 'Player season stats (ESPN)',
+  espn_wnba_team_season_stats: 'Team season stats (ESPN)',
+  espn_wnba_game_rosters: 'Game rosters (ESPN)',
+  espn_wnba_standings: 'Standings (ESPN)',
+  espn_wnba_officials: 'Officials (ESPN)',
+  espn_wnba_draft: 'Draft (ESPN)',
+  espn_wnba_rosters: 'Rosters (ESPN)',
+  espn_wnba_injuries: 'Injuries (ESPN)',
+  espn_wnba_shots: 'Shots (ESPN)',
+  espn_wnba_pbp: 'Play by play (ESPN)',
+  wnba_stats_schedules: 'Schedules (WNBA)',
+  wnba_stats_player_game_logs: 'Game logs (WNBA)',
+  wnba_stats_player_boxscores: 'Player box scores (WNBA)',
+  wnba_stats_team_boxscores: 'Team box scores (WNBA)',
+  wnba_stats_player_season_stats: 'Player season stats (WNBA)',
+  wnba_stats_team_season_stats: 'Team season stats (WNBA)',
+  wnba_stats_standings: 'Standings (WNBA)',
+  wnba_stats_rosters: 'Rosters (WNBA)',
+  wnba_stats_game_rosters: 'Game rosters (WNBA)',
+  wnba_stats_draft: 'Draft (WNBA)',
+  wnba_stats_coaches: 'Coaches (WNBA)',
+  wnba_stats_officials: 'Officials (WNBA)',
+  wnba_stats_leaguedash: 'League dashboards (WNBA)',
+  wnba_stats_lineups: 'Lineups (WNBA)',
+  wnba_stats_shots: 'Shots (WNBA)',
+  wnba_stats_pbp: 'Play by play (WNBA)',
+  wnba_player_impact: 'Impact models (SportsDataverse)',
+  wnba_stats_metric_curves: 'Shooting by distance (SportsDataverse)',
+  wnba_stats_rolling_windows: 'Recent shooting (SportsDataverse)',
+  wnba_stats_possessions: 'Possessions (SportsDataverse)',
+  wnba_stats_game_lineups: 'Lineups on court (SportsDataverse)',
+  wnba_crosswalk: 'Id crosswalks (SportsDataverse)',
+  wnba_groups: 'Aliases and conferences (SportsDataverse)'
+}
+
+/** Each release as the Data panel names it. SportsDataverse's are its own calculations. */
+export const RELEASE_LABELS: Readonly<Record<string, string>> = { ...NBA_LABELS, ...WNBA_LABELS }
+
+/** Each league's files, the registry's `releases.registry`. */
 export const SOURCES_BY_LEAGUE: Readonly<Record<LeagueId, readonly SourceFile[]>> = {
   nba: SOURCES,
-  wnba: []
+  wnba: WNBA_SOURCES
 }
 
 /**
