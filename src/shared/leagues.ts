@@ -199,12 +199,13 @@ const WNBA: League = {
     registry: 'SOURCES_BY_LEAGUE.wnba in src/main/stats/sources.ts',
     reference: 'docs/reference/wnba-data-sources.md'
   },
-  // Measured on the first load of T1301.4 (wnba-data-sources.md, "The first load, measured").
+  // Measured on the first load of T1301.4 (wnba-data-sources.md, "The first load, measured"): 294 MB
+  // of files and a 666 MB file in 3.7 minutes; a first load asks one and a half times the file free.
   size: {
     downloadBytes: 294 * MB,
-    fileBytes: 1 * GB,
-    roomBytes: 2 * GB,
-    loadedBytes: 768 * MB
+    fileBytes: 697_839_616,
+    roomBytes: 1 * GB,
+    loadedBytes: 512 * MB
   },
   noData: 'No WNBA stats yet: turn the WNBA on in the Data panel to download it.',
   derived: false,
