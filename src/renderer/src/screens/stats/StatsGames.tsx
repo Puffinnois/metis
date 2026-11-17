@@ -59,7 +59,7 @@ import {
   type StatsData
 } from '@/lib/stats/useStats'
 import { cn } from '@/lib/utils'
-import { seasonLabel } from '@shared/stats/seasons'
+import { seasonLabel } from '@/lib/stats/league'
 import type { GameType, StatsGame } from '@shared/stats/types'
 
 /** A day's games on a date rail, and a game: its header, scores by period, comparison and box score. */

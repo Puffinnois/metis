@@ -12,6 +12,7 @@ import { PLAY_BUILDERS } from '@main/stats/derived/playBuilders'
 import { inspect } from '@main/stats/derived/sql'
 import { readOnCourtUnits, readWithOrWithout } from '@main/stats/onCourtReads'
 import { openTestDb } from '../../../fixtures/stats'
+import { LEAGUES } from '@shared/leagues'
 
 /**
  * One small game, home (1) against away (2), every rule of the on-court layer in it:
@@ -198,7 +199,7 @@ async function buildOnCourt(db: StatsDb): Promise<void> {
     await db.exec(
       `CREATE OR REPLACE TABLE ${b.table} (${b.columns.map(([n, t]) => `${n} ${t}`).join(', ')})`
     )
-    await db.exec(`INSERT INTO ${b.table} ${b.select(have, 2026)}`)
+    await db.exec(`INSERT INTO ${b.table} ${b.select(have, 2026, LEAGUES.nba)}`)
   }
 }
 
@@ -327,21 +328,49 @@ describe('the on-court reads', () => {
   })
 
   it('lists five-man units, and smaller groups of the players known', async () => {
-    const fives = await readOnCourtUnits(db, String(A), 2026, { gameTypes: ['regular'] }, 5)
+    const fives = await readOnCourtUnits(
+      db,
+      String(A),
+      2026,
+      { gameTypes: ['regular'] },
+      5,
+      LEAGUES.nba
+    )
     expect(fives.units.map((u) => u.players.map((p) => p.id))).toEqual([
       ['21', '22', '23', '24', '25']
     ])
-    const fours = await readOnCourtUnits(db, String(A), 2026, { gameTypes: ['regular'] }, 4)
+    const fours = await readOnCourtUnits(
+      db,
+      String(A),
+      2026,
+      { gameTypes: ['regular'] },
+      4,
+      LEAGUES.nba
+    )
     // Five fours from the complete unit; the four known in overtime is one of them.
     expect(fours.units).toHaveLength(5)
     expect(fours.units[0].players.map((p) => p.id)).toEqual(['22', '23', '24', '25'])
     expect(fours.units[0].line.secs).toBe(1020)
-    const home = await readOnCourtUnits(db, String(H), 2026, { gameTypes: ['regular'] }, 2)
+    const home = await readOnCourtUnits(
+      db,
+      String(H),
+      2026,
+      { gameTypes: ['regular'] },
+      2,
+      LEAGUES.nba
+    )
     expect(home.units[0].players[0]).toEqual({ id: '11', name: 'Ann Able' })
   })
 
   it('reads nothing before the play by play, with the reason', async () => {
-    const early = await readOnCourtUnits(db, String(A), 1996, { gameTypes: ['regular'] }, 5)
+    const early = await readOnCourtUnits(
+      db,
+      String(A),
+      1996,
+      { gameTypes: ['regular'] },
+      5,
+      LEAGUES.nba
+    )
     expect(early).toEqual({
       units: [],
       reason: "Counted from 1996-97, when the NBA's play by play starts."
@@ -349,26 +378,40 @@ describe('the on-court reads', () => {
   })
 
   it('splits a team by a player and a teammate on and off the floor', async () => {
-    const w = await readWithOrWithout(db, '11', '15', 2026, { gameTypes: ['regular'] })
+    const w = await readWithOrWithout(db, '11', '15', 2026, { gameTypes: ['regular'] }, LEAGUES.nba)
     expect(w.teamId).toBe(String(H))
     expect(w.splits?.both).toMatchObject({ secs: 30, pts: 4 })
     expect(w.splits?.playerOnly).toMatchObject({ secs: 990, pts: 2, opp_pts: 3 })
     expect(w.splits?.teammateOnly).toBeNull()
     // With no teammate named, the one they shared the most minutes with.
-    const first = await readWithOrWithout(db, '11', null, 2026, { gameTypes: ['regular'] })
+    const first = await readWithOrWithout(
+      db,
+      '11',
+      null,
+      2026,
+      { gameTypes: ['regular'] },
+      LEAGUES.nba
+    )
     expect(first.teammate).toBe('12')
     expect(first.teammates.map((t) => t.id).slice(0, 4)).toEqual(['12', '13', '14', '16'])
   })
 
   it('counts a unit missing a player in the split it belongs to', async () => {
     // In overtime the away lineup knows four players: 22 on, 21 off.
-    const w = await readWithOrWithout(db, '22', '21', 2026, { gameTypes: ['regular'] })
+    const w = await readWithOrWithout(db, '22', '21', 2026, { gameTypes: ['regular'] }, LEAGUES.nba)
     expect(w.splits?.both).toMatchObject({ secs: 720 })
     expect(w.splits?.playerOnly).toMatchObject({ secs: 300, opp_pts: 2 })
   })
 
   it('refuses what is not an id', async () => {
-    const bad = await readOnCourtUnits(db, "1' OR 1=1", 2026, { gameTypes: ['regular'] }, 5)
+    const bad = await readOnCourtUnits(
+      db,
+      "1' OR 1=1",
+      2026,
+      { gameTypes: ['regular'] },
+      5,
+      LEAGUES.nba
+    )
     expect(bad.units).toEqual([])
   })
 })

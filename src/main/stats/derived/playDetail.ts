@@ -11,7 +11,8 @@ import {
   type PlayKind
 } from '@shared/stats/playDetail'
 import type { PlayBuilder } from './playBuilders'
-import { elapsedSql, PLAY_TABLES } from './plays'
+import { elapsedSql, type League } from '@shared/leagues'
+import { PLAY_TABLES } from './plays'
 import { column, type Have } from './sql'
 
 /**
@@ -277,14 +278,14 @@ export function playDetailPlayerSql(have: Have, season: number): string {
  * order (an and-one's free throw before its basket would read 76-75, then 75-75, a tie that never
  * was). Shared by the builder and the game-flow read, so the chart and the tables agree.
  */
-export function scoringRowsSql(source: string): string {
+export function scoringRowsSql(source: string, league: League): string {
   const written = 'home_after + away_after > 0'
   const before = (c: string): string =>
     `coalesce(last_value(CASE WHEN ${written} THEN ${c} END IGNORE NULLS) OVER (
        PARTITION BY game_id ORDER BY seq ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING), 0)`
   return `SELECT *, row_number() OVER (
              PARTITION BY game_id ORDER BY home_score + away_score, seq) AS ord FROM (
-    SELECT game_id, seq, period, clock, home, pts, fgm, ${elapsedSql('period', 'clock')} AS t,
+    SELECT game_id, seq, period, clock, home, pts, fgm, ${elapsedSql(league, 'season', 'period', 'clock')} AS t,
          CASE WHEN ${written} THEN home_after
               ELSE ${before('home_after')} + CASE WHEN home THEN pts ELSE 0 END END AS home_score,
          CASE WHEN ${written} THEN away_after
@@ -296,11 +297,11 @@ export function scoringRowsSql(source: string): string {
  * The flow of each game from its scoring plays, by the rules of `flowSummary` in
  * `src/shared/stats/playDetail.ts`, as one row per side (`home`).
  */
-function flowCte(): string {
+function flowCte(league: League): string {
   return `scoring AS (
-    SELECT *, home_score - away_score AS m FROM (${scoringRowsSql('p')})
+    SELECT *, home_score - away_score AS m FROM (${scoringRowsSql('p', league)})
   ), ends AS (
-    SELECT game_id, ${elapsedSql('max(period)', '0')} AS len FROM p WHERE period IS NOT NULL GROUP BY 1
+    SELECT game_id, ${elapsedSql(league, 'any_value(season)', 'max(period)', '0')} AS len FROM p WHERE period IS NOT NULL GROUP BY 1
   ), marked AS (
     SELECT s.*, e.len,
            last_value(nullif(sign(m), 0) IGNORE NULLS) OVER (
@@ -353,7 +354,7 @@ function flowCte(): string {
 const ds = (seconds: string): string => `round(10 * (${seconds}))::INTEGER`
 
 /** One season's team-game rows, each with the other team's side as `opp_*`. */
-export function playDetailTeamSql(have: Have, season: number): string {
+export function playDetailTeamSql(have: Have, season: number, league: League): string {
   const actor = ACTOR.map(sumOf).join(',\n           ')
   const drawn = DRAWN.map(sumOf).join(',\n           ')
   const flow = [
@@ -369,7 +370,7 @@ export function playDetailTeamSql(have: Have, season: number): string {
     '1::UTINYINT AS flow_games'
   ]
   const opp = [...TEAM_COUNTS, ...FLOW_SIDED].map((n) => `o.${n} AS opp_${n}`)
-  return `WITH ${playsCte(season)}, ${drawnCte(have, season)}, ${flowCte()},
+  return `WITH ${playsCte(season)}, ${drawnCte(have, season)}, ${flowCte(league)},
   own AS (
     SELECT game_id, team_id, ${actor},
            coalesce(sum((tov = 1 AND player_id IS NULL)::INTEGER), 0)::UTINYINT AS tov_team

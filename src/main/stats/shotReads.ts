@@ -1,4 +1,4 @@
-import { seasonLabel } from '@shared/stats/seasons'
+import { seasonLabel, type League } from '@shared/leagues'
 import { SHOT_CHART_LIMIT, SHOT_ZONES, SHOTS_FIRST_SEASON } from '@shared/stats/shots'
 import {
   GAME_TYPES,
@@ -55,11 +55,15 @@ function checked(r: StatsShotRequest): StatsShotRequest | null {
   return r
 }
 
-export async function readShotChart(db: StatsDb, raw: StatsShotRequest): Promise<StatsShotChart> {
+export async function readShotChart(
+  db: StatsDb,
+  raw: StatsShotRequest,
+  league: League
+): Promise<StatsShotChart> {
   const r = checked(raw)
   if (!r) return empty(null)
   if (r.seasons.every((s) => s < SHOTS_FIRST_SEASON)) {
-    return empty(`Recorded from ${seasonLabel(SHOTS_FIRST_SEASON)}.`)
+    return empty(`Recorded from ${seasonLabel(league, SHOTS_FIRST_SEASON)}.`)
   }
   const have = await inspect(db)
   const box = r.entity === 'player' ? 'player_game' : 'team_game'

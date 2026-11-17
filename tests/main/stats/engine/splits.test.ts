@@ -2,12 +2,13 @@ import { describe, expect, it } from 'vitest'
 import {
   compileQuery,
   NOT_FROM_PLAYS,
-  SPLITS_FROM,
+  splitsFrom,
   StatsQueryError
 } from '@main/stats/engine/compile'
 import type { StatsQuery } from '@shared/stats/types'
+import { LEAGUES } from '@shared/leagues'
 
-const CTX = { currentSeason: 2027 }
+const CTX = { league: LEAGUES.nba, currentSeason: 2027 }
 const compile = (
   q: Partial<StatsQuery> & { scope: StatsQuery['scope'] }
 ): ReturnType<typeof compileQuery> =>
@@ -69,10 +70,12 @@ describe('the engine under a split', () => {
   })
 
   it('reads a season before the play by play with its reason, and says when one is left out', () => {
-    expect(compile({ scope: { seasons: [1996], split: 'clutch' } }).gaps).toEqual([SPLITS_FROM])
+    expect(compile({ scope: { seasons: [1996], split: 'clutch' } }).gaps).toEqual([
+      splitsFrom(LEAGUES.nba)
+    ])
     const both = compile({ scope: { seasons: [1996, 1997], split: 'clutch' } })
     expect(both.gaps).toEqual([null])
-    expect(both.notes).toContain(`${SPLITS_FROM} Earlier seasons are left out.`)
+    expect(both.notes).toContain(`${splitsFrom(LEAGUES.nba)} Earlier seasons are left out.`)
   })
 
   it('a rate under a split divides by the split’s own minutes and possessions', () => {

@@ -9,6 +9,7 @@ import type { MetricDef, StatsQuery, StatsResult } from '@shared/stats/types'
 import { addNbaLine, BOS, emptySources, LAL, MIA } from '../../../fixtures/boxScores'
 import { addLeague } from '../../../fixtures/models'
 import { openTestDb } from '../../../fixtures/stats'
+import { LEAGUES } from '@shared/leagues'
 
 // Two sum tables beside the real SRS table: one per player, team and season (Win Shares will be one),
 // one per team and game.
@@ -82,7 +83,7 @@ vi.mock('@shared/stats/catalogue', async (actual) => {
   }
 })
 
-const CTX = { currentSeason: 2027 }
+const CTX = { league: LEAGUES.nba, currentSeason: 2027 }
 let db: StatsDb
 
 const team = (
@@ -106,7 +107,7 @@ beforeEach(async () => {
   await addNbaLine(db, 'a', 2, LAL)
   await addNbaLine(db, 'b', 2, LAL)
   await buildDerived(db)
-  await buildModels(db, 2026)
+  await buildModels(db, 2026, LEAGUES.nba)
   await db.exec(`CREATE TABLE test_player_shares (season INTEGER, game_type VARCHAR,
     team_id BIGINT, player_id BIGINT, shares DOUBLE)`)
   await db.exec(`INSERT INTO test_player_shares VALUES

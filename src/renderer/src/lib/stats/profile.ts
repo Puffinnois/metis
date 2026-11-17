@@ -1,5 +1,5 @@
 import { COMBINE_MEASURES, COMBINE_SECTIONS, type CombineMeasure } from '@shared/stats/profile'
-import { seasonLabel } from '@shared/stats/seasons'
+import { seasonLabel } from '@/lib/stats/league'
 import type {
   StatsBio,
   StatsCombine,

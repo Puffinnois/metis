@@ -167,8 +167,10 @@ const cells = (metric: string): HTMLElement[] =>
   [...document.querySelectorAll(`[data-metric="${metric}"] [data-cell]`)] as HTMLElement[]
 
 beforeEach(() => {
-  vi.mocked(api.stats.query).mockImplementation(async (q: StatsQuery) => answer(q))
-  vi.mocked(api.stats.player).mockImplementation(async (id: string) => ({
+  vi.mocked(api.stats.query).mockImplementation(async (_league: unknown, q: StatsQuery) =>
+    answer(q)
+  )
+  vi.mocked(api.stats.player).mockImplementation(async (_league: unknown, id: string) => ({
     id,
     name: id,
     position: 'G',
@@ -193,7 +195,7 @@ describe('StatsCompare', () => {
     await waitFor(() => expect(within(slot(2)).getByText('Nikola Jokić')).toBeTruthy())
     expect(within(slot(0)).getByText('Shai Gilgeous-Alexander')).toBeTruthy()
     expect(within(slot(1)).getByText('Luka Dončić')).toBeTruthy()
-    const q = vi.mocked(api.stats.query).mock.calls[0][0]
+    const q = vi.mocked(api.stats.query).mock.calls[0][1]
     expect(q.scope.players).toBeUndefined()
     expect(q.transform).toBe('perGame')
   })
@@ -254,7 +256,7 @@ describe('StatsCompare', () => {
       />
     )
     await waitFor(() => expect(cells('pts')).toHaveLength(2))
-    const q = vi.mocked(api.stats.query).mock.calls.at(-1)![0]
+    const q = vi.mocked(api.stats.query).mock.calls.at(-1)![1]
     expect(q.scope.seasons).toEqual([2026, 2025, 2024])
     expect(q.scope.players).toEqual(['p1', 'p2'])
     expect(screen.getByText(/2023-24 to 2025-26 · Regular season · Whole seasons/)).toBeTruthy()

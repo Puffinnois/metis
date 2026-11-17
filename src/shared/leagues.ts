@@ -75,6 +75,11 @@ export interface League {
   minimumsMinutes: number
   /** The league's stats file in the data folder (D36). */
   statsFile: string
+  /**
+   * The file the league's stats had before files were per league; renamed to `statsFile` on start when
+   * that does not exist yet (`adoptFormerStatsFile`). Only the NBA had one.
+   */
+  formerStatsFile?: string
   /** Where its files come from. The source registry itself stays in `src/main/stats/sources.ts`. */
   releases: {
     /** The release tags' prefixes on sportsdataverse-data. */
@@ -122,6 +127,7 @@ const NBA: League = {
   minimumsGames: 82,
   minimumsMinutes: 48,
   statsFile: 'stats-nba.duckdb',
+  formerStatsFile: 'stats.duckdb',
   releases: {
     prefixes: ['espn_nba_', 'nba_stats_', 'nba_'],
     registry: 'SOURCES_BY_LEAGUE.nba in src/main/stats/sources.ts',

@@ -1,15 +1,15 @@
 import type { BoardMode, MetricInfo, StatsResult, StatsRow } from '@shared/stats/types'
-import { BOARD_MODES } from './leaderboard'
+import { boardModes } from './leaderboard'
 import { cellTitle, fmtStat, ordinal } from './format'
 
 /** What the player and team dashboards share: titled lists of metrics, each read against its pool. */
 
 /** The dashboards open per game, the way a season is usually read. */
-export const DASHBOARD_MODES: { value: BoardMode; label: string }[] = [
-  BOARD_MODES[1],
-  BOARD_MODES[0],
-  ...BOARD_MODES.slice(2)
-]
+/** A dashboard's modes: per game first, then the board's, in the league on screen. */
+export const dashboardModes = (): { value: BoardMode; label: string }[] => {
+  const modes = boardModes()
+  return [modes[1], modes[0], ...modes.slice(2)]
+}
 
 export interface SectionDef {
   title: string

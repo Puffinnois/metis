@@ -34,7 +34,7 @@ import {
   type ChartState,
   type ChartView
 } from '@/lib/stats/chart'
-import { DASHBOARD_MODES } from '@/lib/stats/dashboard'
+import { dashboardModes } from '@/lib/stats/dashboard'
 import type { ExploreSubject } from '@/lib/stats/explore'
 import { heatColor } from '@/lib/stats/format'
 import { RAIL_POSITIONS } from '@/lib/stats/player'
@@ -177,7 +177,7 @@ export function StatsChart({
         <Segmented
           label="Totals or per game"
           value={mode}
-          options={DASHBOARD_MODES}
+          options={dashboardModes()}
           onChange={(m) => set({ mode: m })}
         />
       </div>

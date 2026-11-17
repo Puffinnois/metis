@@ -1,4 +1,4 @@
-import { seasonLabel } from '@shared/stats/seasons'
+import { seasonLabel } from '@/lib/stats/league'
 import type { StatsGameMatchup, StatsMatchupPair, StatsMatchupScope } from '@shared/stats/types'
 import { fmtClock, fmtStat } from './format'
 import { queryScope, type StatsScope } from './scope'

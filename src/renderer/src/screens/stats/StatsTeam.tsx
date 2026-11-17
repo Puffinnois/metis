@@ -22,7 +22,7 @@ import { StatSection, StatSections } from '@/components/stats/StatLines'
 import { LineupsTab } from './StatsLineups'
 import { TeamOnOff } from './StatsOnCourt'
 import { useNoteContext } from '@/lib/dev/noteContext'
-import { DASHBOARD_MODES, sectionMetrics, sectionViews } from '@/lib/stats/dashboard'
+import { dashboardModes, sectionMetrics, sectionViews } from '@/lib/stats/dashboard'
 import type { ExploreSubject } from '@/lib/stats/explore'
 import { fmtStat } from '@/lib/stats/format'
 import {
@@ -204,7 +204,7 @@ export function StatsTeam({
             <Segmented
               label="Totals or rates"
               value={mode}
-              options={DASHBOARD_MODES}
+              options={dashboardModes()}
               onChange={setMode}
             />
           </div>

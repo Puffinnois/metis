@@ -1,4 +1,5 @@
-import { CATALOGUE, covers } from '@shared/stats/catalogue'
+import type { League } from '@shared/leagues'
+import { CATALOGUE, covers, metricIn } from '@shared/stats/catalogue'
 import type { Entity, MetricDef, MetricStability, StatsQuery } from '@shared/stats/types'
 import type { StatsDb } from '../db'
 import type { ModelBuilder, ModelContext, ModelRows, ModelTable } from './build'
@@ -145,7 +146,8 @@ async function rowsOf(
   batch: readonly MetricDef[],
   seasons: number[],
   current: number,
-  halves: boolean
+  halves: boolean,
+  league: League
 ): Promise<Measured[]> {
   const entity: Entity = batch[0].entity
   const ids = batch.map((m) => m.id)
@@ -159,6 +161,7 @@ async function rowsOf(
     ranks: false
   }
   const compiled = e.compileQuery(query, {
+    league,
     currentSeason: current,
     internal: { unlimited: true, halves }
   })
@@ -223,6 +226,7 @@ export async function measureStability(
   db: StatsDb,
   through: number,
   current: number,
+  league: League,
   options: {
     /** Each batch as it is measured, for a script timing the measure. */
     onBatch?: (ids: string[], ms: number) => void
@@ -234,7 +238,9 @@ export async function measureStability(
   const e = await engine()
   const out = new Map<string, MetricStability>()
   const measurable: MetricDef[] = []
-  for (const m of CATALOGUE) {
+  for (const stated of CATALOGUE) {
+    // As the league reads it: a metric it does not have is not measured there.
+    const m = metricIn(stated, league)
     if (metrics && !metrics.includes(m.id)) continue
     const why = notMeasurable(e, m, through)
     if (why) out.set(m.id, unmeasured(why))
@@ -247,8 +253,9 @@ export async function measureStability(
     const halved = batch.filter((m) => e.grainsOf(m).includes('game') && !isState(e, m))
     const started = Date.now()
     try {
-      const full = await rowsOf(e, db, batch, seasons, current, false)
-      const halves = halved.length > 0 ? await rowsOf(e, db, halved, seasons, current, true) : []
+      const full = await rowsOf(e, db, batch, seasons, current, false, league)
+      const halves =
+        halved.length > 0 ? await rowsOf(e, db, halved, seasons, current, true, league) : []
       batch.forEach((m, i) => {
         const h = halved.indexOf(m)
         out.set(m.id, measuredOf(m, full[i], h >= 0 ? halves[h] : null))
@@ -257,9 +264,9 @@ export async function measureStability(
       // One metric the engine refuses should not cost the batch: measure each alone.
       for (const m of batch) {
         try {
-          const full = await rowsOf(e, db, [m], seasons, current, false)
+          const full = await rowsOf(e, db, [m], seasons, current, false, league)
           const halves = halved.includes(m)
-            ? (await rowsOf(e, db, [m], seasons, current, true))[0]
+            ? (await rowsOf(e, db, [m], seasons, current, true, league))[0]
             : null
           out.set(m.id, measuredOf(m, full[0], halves))
         } catch {
@@ -333,7 +340,7 @@ async function build(ctx: ModelContext): Promise<ModelRows | null> {
   if (!due) return null
   const measured =
     played.filter((s) => s <= through).length >= 2
-      ? await measureStability(ctx.db, through, ctx.current)
+      ? await measureStability(ctx.db, through, ctx.current, ctx.league)
       : new Map(CATALOGUE.map((m) => [m.id, unmeasured(NOT_MEASURED.coverage)]))
   return {
     [STABILITY_TABLE]: [...measured].map(([id, s]) => ({

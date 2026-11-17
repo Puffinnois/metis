@@ -1,3 +1,4 @@
+import type { League } from '@shared/leagues'
 import { officiatingReason } from '@shared/stats/officials'
 import {
   GAME_TYPES,
@@ -141,7 +142,9 @@ const ready = async (db: StatsDb): Promise<boolean> => {
 export async function readOfficialsSeason(
   db: StatsDb,
   season: number,
-  gameTypes: GameType[]
+  gameTypes: GameType[],
+  /** The league of this file; `league` below is its totals. */
+  of: League
 ): Promise<StatsOfficialsSeason> {
   const types = typesOf(gameTypes)
   const empty: StatsOfficialsSeason = {
@@ -176,7 +179,7 @@ export async function readOfficialsSeason(
     coverage: cover,
     league: totalsOf(league),
     officials,
-    reason: officiatingReason(season, cover.games, cover.withCrew)
+    reason: officiatingReason(season, cover.games, cover.withCrew, of)
   }
 }
 
@@ -184,7 +187,8 @@ export async function readOfficialsSeason(
 export async function readOfficialCareer(
   db: StatsDb,
   id: string,
-  gameTypes: GameType[]
+  gameTypes: GameType[],
+  of: League
 ): Promise<StatsOfficialCareer | null> {
   const types = typesOf(gameTypes)
   if (!ID.test(id) || types.length === 0 || !(await ready(db))) return null
@@ -231,7 +235,7 @@ export async function readOfficialCareer(
           totals: totalsOf(mineBy.get(s)),
           league: totalsOf(leagueBy.get(s)),
           coverage: c,
-          reason: officiatingReason(s, c.games, c.withCrew)
+          reason: officiatingReason(s, c.games, c.withCrew, of)
         }
       })
   }

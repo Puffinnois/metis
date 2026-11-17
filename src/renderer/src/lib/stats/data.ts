@@ -1,4 +1,5 @@
 import type { StatsFamily, StatsFamilyState } from '@shared/stats/types'
+import { seasonLabel } from './league'
 
 const COUNT = new Intl.NumberFormat('en-US')
 
@@ -12,10 +13,8 @@ export function fmtBytes(bytes: number): string {
   return '–'
 }
 
-/** Seasons are labelled by their final year in the data (`2026`) and shown as `2025-26`. */
-export function seasonLabel(season: number): string {
-  return `${season - 1}-${String(season % 100).padStart(2, '0')}`
-}
+/** A season as the league on screen writes it (`2025-26` in the NBA, `2026` in the WNBA). */
+export { seasonLabel }
 
 export function seasonRange(first: number | null, last: number | null): string {
   if (first === null || last === null) return 'All seasons'

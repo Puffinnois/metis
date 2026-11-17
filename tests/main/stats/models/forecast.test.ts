@@ -8,6 +8,7 @@ import {
   snapshotDays
 } from '@main/stats/models/forecast'
 import { openTestDb } from '../../../fixtures/stats'
+import { LEAGUES } from '@shared/leagues'
 
 /**
  * A league of thirty (ids 1 to 30; 1 to 15 in the East, divisions of five) playing each other once,
@@ -102,6 +103,7 @@ const builder = makeForecastBuilder({ current: 60, past: 40 })
 const run = async (season: number, current: number): Promise<Record<string, unknown>[]> => {
   const rows = await builder.build({
     db,
+    league: LEAGUES.nba,
     have: await inspect(db),
     season,
     current,

@@ -1,3 +1,4 @@
+import type { League } from '@shared/leagues'
 import type { StatsDb } from './db'
 import { buildDerived, canDerive, derivedStale, markDerivedStale } from './derived/build'
 import {
@@ -22,7 +23,6 @@ import type {
 import { INTERRUPTED_MESSAGE } from './schema'
 import { includedSources, leftOutProblem, leftOutSources, leftOutTables } from './leftOut'
 import {
-  currentSeason,
   fileUrl,
   LEFT_OUT_RELEASES,
   LOAD_TIERS,
@@ -101,6 +101,8 @@ export async function dropLeftOut(
 
 export interface StatsSyncDeps {
   db: StatsDb
+  /** The league this file is: what season is current, and how the builders count a game. */
+  league: League
   downloads: Downloads
   now?: () => Date
   onStep?: (entry: StatsLogEntry) => void
@@ -118,7 +120,10 @@ export interface PlannedStep {
  * The load order (D21): tier by tier, and inside a tier the files of all seasons, then the newest
  * season back, so a load cut short leaves the seasons people look at most.
  */
-export function planSteps(current: number, sources: SourceFile[] = SOURCES): PlannedStep[] {
+export function planSteps(
+  current: number,
+  sources: readonly SourceFile[] = SOURCES
+): PlannedStep[] {
   const rank = (season: number): number => (season === 0 ? Infinity : season)
   const steps = sources.flatMap((source) =>
     seasonsOf(source, current).map((season) => ({ source, season }))
@@ -287,7 +292,7 @@ type Settled = { ok: true; file: FetchedFile } | { ok: false; error: unknown }
 export async function refreshStats(
   deps: StatsSyncDeps,
   options: RefreshOptions = {},
-  allSources: SourceFile[] = SOURCES,
+  allSources: readonly SourceFile[] = SOURCES,
   leftOut: readonly string[] = LEFT_OUT_RELEASES
 ): Promise<StatsSyncResult> {
   const { db, downloads } = deps
@@ -323,7 +328,7 @@ export async function refreshStats(
   // A later tier's file that a published table reads, written after the published step ran.
   let lateWrote = false
   const today = nowOf(deps)
-  const current = currentSeason(today)
+  const current = deps.league.currentSeason(today)
   const states = await readStates(db)
   const attempts = await readAttempts(db)
   const stateOf = (step: PlannedStep): SourceState | null =>
@@ -423,7 +428,7 @@ export async function refreshStats(
     if ((await playsDue(db)) && (await canBuildPlays(db))) {
       log.push(
         await runLogged(deps, STATS_PLAYS_STEP, async () => ({
-          rows: await buildPlays(db),
+          rows: await buildPlays(db, deps.league),
           message: null
         }))
       )
@@ -436,7 +441,7 @@ export async function refreshStats(
     if ((await modelsDue(db)) && (await canBuildModels(db))) {
       log.push(
         await runLogged(deps, STATS_MODELS_STEP, async () => ({
-          rows: await buildModels(db, current),
+          rows: await buildModels(db, current, deps.league),
           message: null
         }))
       )

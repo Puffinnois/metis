@@ -20,8 +20,9 @@ import { shotBand, shotType, shotZone, SHOT_TYPES } from '@shared/stats/shots'
 import type { StatsQuery, StatsResult } from '@shared/stats/types'
 import { addGame, addNbaLine, BOS, emptySources, LAL, MIA } from '../../../fixtures/boxScores'
 import { openTestDb } from '../../../fixtures/stats'
+import { LEAGUES } from '@shared/leagues'
 
-const CTX = { currentSeason: 2027 }
+const CTX = { league: LEAGUES.nba, currentSeason: 2027 }
 let db: StatsDb
 
 /** Player 1 plays for Boston in games a and b, then for Miami in c; player 2 for the Lakers. */
@@ -172,7 +173,7 @@ async function build(): Promise<void> {
   const have = await inspect(db)
   for (const b of SHOT_BUILDERS) {
     await db.exec(`DELETE FROM ${b.table} WHERE season = 2026`)
-    await db.exec(`INSERT INTO ${b.table} ${b.select(have, 2026)}`)
+    await db.exec(`INSERT INTO ${b.table} ${b.select(have, 2026, LEAGUES.nba)}`)
   }
   // The view the chart reads, as the play build leaves it once the builders have run.
   await db.exec(nbaShotsSql(have))
@@ -384,7 +385,11 @@ describe('the shot chart read', () => {
   const scope = { gameTypes: ['regular' as const] }
 
   it('reads a player’s shots newest first, with every shot counted by zone', async () => {
-    const chart = await readShotChart(db, { entity: 'player', id: '1', seasons: [2026], scope })
+    const chart = await readShotChart(
+      db,
+      { entity: 'player', id: '1', seasons: [2026], scope },
+      LEAGUES.nba
+    )
     expect(chart.total).toBe(7)
     expect(chart.made).toBe(4)
     expect(chart.shots).toHaveLength(7)
@@ -397,39 +402,63 @@ describe('the shot chart read', () => {
   })
 
   it('keeps to a date range and the last games', async () => {
-    const jan = await readShotChart(db, {
-      entity: 'player',
-      id: '1',
-      seasons: [2026],
-      scope: { ...scope, dates: ['2026-01-01', '2026-01-31'] }
-    })
+    const jan = await readShotChart(
+      db,
+      {
+        entity: 'player',
+        id: '1',
+        seasons: [2026],
+        scope: { ...scope, dates: ['2026-01-01', '2026-01-31'] }
+      },
+      LEAGUES.nba
+    )
     expect(jan.total).toBe(4)
-    const last = await readShotChart(db, {
-      entity: 'player',
-      id: '1',
-      seasons: [2026],
-      scope: { ...scope, lastN: 2 }
-    })
+    const last = await readShotChart(
+      db,
+      {
+        entity: 'player',
+        id: '1',
+        seasons: [2026],
+        scope: { ...scope, lastN: 2 }
+      },
+      LEAGUES.nba
+    )
     expect(last.total).toBe(4)
   })
 
   it('reads a team’s shots, or those against it', async () => {
-    const own = await readShotChart(db, { entity: 'team', id: String(LAL), seasons: [2026], scope })
-    const against = await readShotChart(db, {
-      entity: 'team',
-      id: String(LAL),
-      seasons: [2026],
-      scope,
-      side: 'defense'
-    })
+    const own = await readShotChart(
+      db,
+      { entity: 'team', id: String(LAL), seasons: [2026], scope },
+      LEAGUES.nba
+    )
+    const against = await readShotChart(
+      db,
+      {
+        entity: 'team',
+        id: String(LAL),
+        seasons: [2026],
+        scope,
+        side: 'defense'
+      },
+      LEAGUES.nba
+    )
     expect(own.total).toBe(1)
     expect(against.total).toBe(7)
   })
 
   it('says why before the shots start, and refuses a bad request quietly', async () => {
-    const old = await readShotChart(db, { entity: 'player', id: '1', seasons: [1995], scope })
+    const old = await readShotChart(
+      db,
+      { entity: 'player', id: '1', seasons: [1995], scope },
+      LEAGUES.nba
+    )
     expect(old.reason).toBe('Recorded from 1996-97.')
-    const bad = await readShotChart(db, { entity: 'player', id: '1; DROP', seasons: [2026], scope })
+    const bad = await readShotChart(
+      db,
+      { entity: 'player', id: '1; DROP', seasons: [2026], scope },
+      LEAGUES.nba
+    )
     expect(bad).toMatchObject({ total: 0, shots: [] })
   })
 })

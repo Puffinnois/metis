@@ -9,8 +9,9 @@ import { METRICS } from '@shared/stats/catalogue'
 import type { StatsQuery, StatsResult, StatsRow } from '@shared/stats/types'
 import { addGame, addNbaLine, BOS, emptySources, LAL } from '../../../fixtures/boxScores'
 import { openTestDb } from '../../../fixtures/stats'
+import { LEAGUES } from '@shared/leagues'
 
-const CTX = { currentSeason: 2027 }
+const CTX = { league: LEAGUES.nba, currentSeason: 2027 }
 let db: StatsDb
 
 const run = (q: Partial<StatsQuery> & { scope: StatsQuery['scope'] }): Promise<StatsResult> =>

@@ -1,3 +1,4 @@
+import type { LeagueId } from '../leagues'
 import type { FlowSummary } from './playDetail'
 /** The one set of game types (D12). All-Star and preseason never count unless asked for. */
 export const GAME_TYPES = [
@@ -59,6 +60,13 @@ export type MetricUnit = 'count' | 'number' | 'pct' | 'minutes' | 'rating' | 'pa
  * each `{name}` is the sum of that column over the rows in scope. `sample` names the component that
  * measures the sample and qualifies a row. Descriptions are written for a person.
  */
+/** Where a metric has real values in one league: its first season, gaps, or why it has none. */
+export interface MetricCoverage {
+  firstSeason: number
+  missingSeasons?: number[]
+  unavailable?: string
+}
+
 export interface MetricDef {
   id: string
   label: string
@@ -94,12 +102,21 @@ export interface MetricDef {
   /** Scales per game, and no other way: minutes per 36 minutes would read 36. */
   perGameOnly?: boolean
   sources: string[]
-  /** The first season holding real values, by final year. */
+  /**
+   * The first season holding real values, by the data's label, in every league that takes the
+   * metric's own coverage (`League.metricsByDefault`: the NBA). `leagues` states it for the others.
+   */
   firstSeason: number
   /** Seasons after it that the source does not have. */
   missingSeasons?: number[]
   /** Why the source no longer has this metric at all; every query answers with it. */
   unavailable?: string
+  /**
+   * The metric's coverage in a league whose registry entry does not take the fields above
+   * (`metricsByDefault` false), or `null` where the league does not have it. A league it does not
+   * name: the fields above when the league takes them, else not in that league (`coverageIn`).
+   */
+  leagues?: Partial<Record<LeagueId, MetricCoverage | null>>
   tier: MetricTier
   /**
    * The published table a metric with no game behind it reads, from
@@ -178,11 +195,12 @@ export interface MetricInfo extends Omit<MetricDef, 'value' | 'sample'> {
 export type GroupBy = 'season' | 'team' | 'opponent' | 'month' | 'game'
 
 /**
- * Totals, or a sum per game, 36 minutes, 48 minutes or 100 possessions; `percentile`, `zScore` and
- * `vsLeague` read a value against its pool. A ratio is the same in the first five.
+ * Totals, or a sum per game, 36, 40 or 48 minutes or 100 possessions; `percentile`, `zScore` and
+ * `vsLeague` read a value against its pool. A ratio is the same in the first six. A league offers the
+ * per-minute modes its registry entry lists (`League.perMinute`): per 40 is a 40-minute league's.
  */
 export type Transform =
-  'raw' | 'perGame' | 'per36' | 'per48' | 'per100' | 'percentile' | 'zScore' | 'vsLeague'
+  'raw' | 'perGame' | 'per36' | 'per40' | 'per48' | 'per100' | 'percentile' | 'zScore' | 'vsLeague'
 
 /** Every leaderboard, card, chart and comparison is one of these. */
 export interface StatsQuery {
@@ -693,7 +711,7 @@ export interface StatsLineups {
 }
 
 /** The totals modes a table offers; a ratio reads the same in each. */
-export type BoardMode = 'raw' | 'perGame' | 'per36' | 'per48' | 'per100'
+export type BoardMode = 'raw' | 'perGame' | 'per36' | 'per40' | 'per48' | 'per100'
 
 /** A leaderboard's own settings: what a saved view keeps. */
 export interface LeaderboardBoard {
@@ -743,6 +761,8 @@ export interface StatsStatus {
   paused: boolean
   /** The first load did not start: too little disk space. */
   noRoom: { neededBytes: number; freeBytes: number } | null
+  /** The league has no data yet (`League.hasData` false), and why; absent for one that has. */
+  noData?: string
 }
 
 /** `left-out`: a release this build does not load (`src/main/stats/leftOut.ts`). */

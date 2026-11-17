@@ -122,7 +122,7 @@ describe('the Data panel', () => {
     render(<StatsData status={STATUS} />)
     await screen.findByText('Failed')
     const calls = vi.mocked(api.stats.data).mock.calls.length
-    vi.mocked(api.stats.onChanged).mock.lastCall?.[0]()
+    vi.mocked(api.stats.onChanged).mock.lastCall?.[0]('nba')
     expect(vi.mocked(api.stats.data).mock.calls.length).toBe(calls + 1)
   })
 

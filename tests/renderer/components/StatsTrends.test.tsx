@@ -141,7 +141,9 @@ function Harness({ initial }: { initial: TrendsState }): React.JSX.Element {
 const opened = vi.fn()
 
 beforeEach(() => {
-  vi.mocked(api.stats.query).mockImplementation((q: StatsQuery) => Promise.resolve(respond(q)))
+  vi.mocked(api.stats.query).mockImplementation((_league: unknown, q: StatsQuery) =>
+    Promise.resolve(respond(q))
+  )
 })
 afterEach(() => {
   cleanup()
@@ -192,7 +194,7 @@ describe('StatsTrends', () => {
   it('asks only for the season type of the scope, over every season of the career', async () => {
     render(<Harness initial={DEFAULT_TRENDS} />)
     await screen.findByRole('heading', { name: 'LeBron James' })
-    const asked = vi.mocked(api.stats.query).mock.calls.map(([q]) => q)
+    const asked = vi.mocked(api.stats.query).mock.calls.map(([, q]) => q)
     const pool = asked.find((q) => q.scope.qualifiedOnly)!
     expect(pool.scope.seasons).toEqual([2012, 2013, 2014, 2015, 2016])
     expect(pool.scope.gameTypes).toEqual(['regular'])
@@ -207,14 +209,14 @@ describe('StatsTrends', () => {
       expect(
         vi
           .mocked(api.stats.query)
-          .mock.calls.some(([q]) => q.transform === 'raw' && q.scope.players)
+          .mock.calls.some(([, q]) => q.transform === 'raw' && q.scope.players)
       ).toBe(true)
     )
   })
 
   /** The pool's answers cut off at the row limit when `cut` says so. */
   const cutWhen = (cut: (seasons: number[]) => boolean): void => {
-    vi.mocked(api.stats.query).mockImplementation((q: StatsQuery) => {
+    vi.mocked(api.stats.query).mockImplementation((_league: unknown, q: StatsQuery) => {
       const r = respond(q)
       return Promise.resolve(
         q.scope.qualifiedOnly && cut(q.scope.seasons) ? { ...r, total: r.rows.length + 1 } : r
@@ -224,7 +226,7 @@ describe('StatsTrends', () => {
   const poolAsked = (): number[][] =>
     vi
       .mocked(api.stats.query)
-      .mock.calls.map(([q]) => q)
+      .mock.calls.map(([, q]) => q)
       .filter((q) => q.scope.qualifiedOnly)
       .map((q) => q.scope.seasons)
 

@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { compileQuery, StatsQueryError } from '@main/stats/engine/compile'
 import type { StatsQuery } from '@shared/stats/types'
+import { LEAGUES } from '@shared/leagues'
 
-const CTX = { currentSeason: 2027 }
+const CTX = { league: LEAGUES.nba, currentSeason: 2027 }
 const base: StatsQuery = { entity: 'player', metrics: ['pts'], scope: { seasons: [2026] } }
 const compile = (q: Partial<StatsQuery>): ReturnType<typeof compileQuery> =>
   compileQuery({ ...base, ...q } as StatsQuery, CTX)

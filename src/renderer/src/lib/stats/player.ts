@@ -1,7 +1,7 @@
 import { playTypeMetricId } from '@shared/stats/catalogue/playTypes'
 import { coverageReason } from '@shared/stats/coverage'
 import { PLAY_TYPE_SIDES } from '@shared/stats/playTypes'
-import { seasonLabel } from '@shared/stats/seasons'
+import { currentLeague, seasonLabel } from '@/lib/stats/league'
 import type {
   BoardMode,
   MetricInfo,
@@ -754,7 +754,10 @@ function lineCells(
     return {
       text: fmtStat(v, info ?? { unit: 'number', decimals: 1 }, mode),
       // A stat that did not exist that season says so; a season's zero attempts just read as a dash.
-      title: v === null && season !== null && info ? (coverageReason(info, [season]) ?? '') : ''
+      title:
+        v === null && season !== null && info
+          ? (coverageReason(info, [season], currentLeague()) ?? '')
+          : ''
     }
   })
 }

@@ -16,7 +16,7 @@ import {
   type StandingsView
 } from '@/lib/stats/standings'
 import { useStandings, useStatsQuery, type StatsData } from '@/lib/stats/useStats'
-import { seasonLabel } from '@shared/stats/seasons'
+import { seasonLabel } from '@/lib/stats/league'
 
 const COLUMNS =
   '24px minmax(190px,1.6fr) 32px 32px 44px 40px 52px 52px 52px 52px 44px 44px 48px 48px 48px 56px 52px 52px 52px'

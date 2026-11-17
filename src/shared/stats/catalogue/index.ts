@@ -66,8 +66,11 @@ export function componentsOf(
 
 export {
   COMPUTED_WHOLE_SEASONS,
+  coverageIn,
   coverageReason,
   covers,
+  metricIn,
+  notInLeague,
   MODEL_NO_SPLIT,
   ONE_SEASON_ONLY,
   STATE_ONE_SEASON,

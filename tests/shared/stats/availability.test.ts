@@ -7,6 +7,7 @@ import {
   isInjuryReason
 } from '@shared/stats/availability'
 import { coverageReason } from '@shared/stats/catalogue'
+import { LEAGUES } from '@shared/leagues'
 
 describe('whether an Out was for an injury', () => {
   it('follows the category when the report gives one', () => {
@@ -66,8 +67,8 @@ describe('the availability metrics', () => {
     expect(AVAILABILITY_FIRST_SEASON).toBe(2020)
     expect(AVAILABILITY_REASON).toBe('Recorded from 2019-20.')
     for (const m of AVAILABILITY) {
-      expect(coverageReason(m, [2019])).toBe('Recorded from 2019-20.')
-      expect(coverageReason(m, [2020])).toBeNull()
+      expect(coverageReason(m, [2019], LEAGUES.nba)).toBe('Recorded from 2019-20.')
+      expect(coverageReason(m, [2020], LEAGUES.nba)).toBeNull()
     }
   })
 

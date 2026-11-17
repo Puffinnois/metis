@@ -1,3 +1,4 @@
+import { periodLengthSql, type League } from '@shared/leagues'
 import { mirrorOf, SPLITS, type SplitDef, type SplitPiece } from '@shared/stats/splits'
 import type { PlayBuilder } from './playBuilders'
 import { BOX_COUNTS } from './game'
@@ -146,10 +147,6 @@ const mirrorSql = (split: string): string => {
 const bare = (name: string): string =>
   `regexp_replace(strip_accents(${name}), '\\s+(Jr\\.?|Sr\\.?|II|III|IV)$', '')`
 
-/** Seconds in a period: 12 minutes in regulation, 5 in overtime. */
-const periodLength = (period: string): string =>
-  `CASE WHEN ${period} <= 4 THEN 720.0 ELSE 300.0 END`
-
 // ---- The season's rows ------------------------------------------------------------------------
 
 const timedBy = (have: Have): boolean =>
@@ -183,7 +180,9 @@ const SEGMENTS = `split_segments AS (
  * Each player's stretches on the court, from the substitutions. A player taken off who was never
  * put on is taken as on from the period's start; one put on and never taken off stays to its end.
  */
-function stintsCtes(have: Have, season: number): string {
+function stintsCtes(have: Have, season: number, league: League): string {
+  // Seconds in a period, by the season's periods (the registry's).
+  const periodLength = (period: string): string => periodLengthSql(league, String(season), period)
   if (!timedBy(have)) {
     return `split_stints AS (
       SELECT NULL::VARCHAR AS game_id, NULL::INTEGER AS period, NULL::BIGINT AS team_id,
@@ -359,9 +358,9 @@ export function splitTeamSelect(have: Have, season: number): string {
 }
 
 /** A player's rows of one season: their counts and their time on the court. */
-export function splitPlayerSelect(have: Have, season: number): string {
+export function splitPlayerSelect(have: Have, season: number, league: League): string {
   const timed = timedBy(have)
-  return `WITH ${playsCte(season)}, ${SEGMENTS}, ${stintsCtes(have, season)}, ${CREDITS},
+  return `WITH ${playsCte(season)}, ${SEGMENTS}, ${stintsCtes(have, season, league)}, ${CREDITS},
   counts AS (
     SELECT game_id, team AS team_id, player AS player_id, split, ${countsOf()}
     FROM tagged WHERE player IS NOT NULL GROUP BY 1, 2, 3, 4
@@ -391,10 +390,10 @@ const noRows = (columns: ReadonlyArray<readonly [string, string]>): string =>
 const guarded =
   (
     columns: ReadonlyArray<readonly [string, string]>,
-    select: (have: Have, season: number) => string
+    select: (have: Have, season: number, league: League) => string
   ) =>
-  (have: Have, season: number): string =>
-    NEEDS.every((t) => have.tables.has(t)) ? select(have, season) : noRows(columns)
+  (have: Have, season: number, league: League): string =>
+    NEEDS.every((t) => have.tables.has(t)) ? select(have, season, league) : noRows(columns)
 
 /**
  * The two tables as builders of the play layer (`PLAY_BUILDERS` in `playBuilders.ts`), which

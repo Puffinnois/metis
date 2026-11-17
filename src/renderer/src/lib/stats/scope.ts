@@ -1,5 +1,5 @@
 import { relativeTime } from '@/lib/format'
-import { seasonLabel } from '@shared/stats/seasons'
+import { currentLeague, seasonLabel } from '@/lib/stats/league'
 import type { Entity, GameType, StatsQuery, StatsSeason, StatsStatus } from '@shared/stats/types'
 
 const DAY = new Intl.DateTimeFormat('en-US', {
@@ -43,13 +43,14 @@ export function freshness(status: StatsStatus | null, now = Date.now()): string 
 /** What the season-type control offers: one type, or every game that counts. */
 export type SeasonType = 'regular' | 'play-in' | 'playoffs' | 'cup-final' | 'counted' | 'all-star'
 
-const COUNTED: GameType[] = ['regular', 'play-in', 'playoffs', 'cup-final']
+/** The types that count, as the league on screen has them (the registry's `countedTypes`). */
+const counted = (): GameType[] => [...currentLeague().countedTypes]
 
 const TYPE_LABELS: Record<SeasonType, string> = {
   regular: 'Regular season',
   'play-in': 'Play-in',
   playoffs: 'Playoffs',
-  'cup-final': 'NBA Cup final',
+  'cup-final': 'Cup final',
   counted: 'Regular season and after',
   'all-star': 'All-Star'
 }
@@ -69,7 +70,9 @@ export interface StatsScope {
 /** The last-N choices the scope bar offers. */
 export const LAST_N = [5, 10, 15, 20, 30]
 
-export const typeLabel = (type: SeasonType): string => TYPE_LABELS[type]
+/** A type's name; where the league names it its own way (the NBA Cup final), the league's. */
+export const typeLabel = (type: SeasonType): string =>
+  (type !== 'counted' && currentLeague().typeNames[type]) || TYPE_LABELS[type]
 
 /**
  * The types a season has box scores for. Preseason games have none anywhere, so they never appear,
@@ -78,10 +81,10 @@ export const typeLabel = (type: SeasonType): string => TYPE_LABELS[type]
 export function seasonTypes(season: StatsSeason | undefined): SeasonType[] {
   if (!season) return ['regular']
   const has = new Set(season.types.map((t) => t.type))
-  const counted = COUNTED.filter((t) => has.has(t))
+  const held = counted().filter((t) => has.has(t))
   return [
-    ...(counted as SeasonType[]),
-    ...(counted.length > 1 ? (['counted'] as const) : []),
+    ...(held as SeasonType[]),
+    ...(held.length > 1 ? (['counted'] as const) : []),
     ...(has.has('all-star') ? (['all-star'] as const) : [])
   ]
 }
@@ -116,7 +119,7 @@ export function moveToSeason(
 export function queryScope(scope: StatsScope, entity: Entity): StatsQuery['scope'] {
   const base: StatsQuery['scope'] = {
     seasons: [scope.season],
-    gameTypes: scope.seasonType === 'counted' ? COUNTED : [scope.seasonType]
+    gameTypes: scope.seasonType === 'counted' ? counted() : [scope.seasonType]
   }
   if (scope.range.kind === 'dates') return { ...base, dates: [scope.range.from, scope.range.to] }
   if (scope.range.kind === 'last') {

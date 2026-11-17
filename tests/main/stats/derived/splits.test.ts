@@ -10,6 +10,7 @@ import {
   splitsBootstrap
 } from '@main/stats/derived/splits'
 import { openTestDb } from '../../../fixtures/stats'
+import { LEAGUES } from '@shared/leagues'
 
 /**
  * One fourth quarter, made by hand so each rule meets its boundary: home 1 against away 2, tied at
@@ -262,7 +263,7 @@ async function buildSplits(db: StatsDb, seasons = [2026]): Promise<void> {
     for (const b of SPLIT_BUILDERS) {
       await db.transaction(async () => {
         await db.exec(`DELETE FROM ${b.table} WHERE season = ?`, [season])
-        await db.exec(`INSERT INTO ${b.table} ${b.select(have, season)}`)
+        await db.exec(`INSERT INTO ${b.table} ${b.select(have, season, LEAGUES.nba)}`)
       })
     }
   }
@@ -379,7 +380,7 @@ describe('the splits builder', () => {
     for (const sql of splitsBootstrap()) await db.exec(sql)
     const have = await inspect(db)
     for (const b of SPLIT_BUILDERS) {
-      expect(await db.all(b.select({ ...have, tables: new Set() }, 2026))).toEqual([])
+      expect(await db.all(b.select({ ...have, tables: new Set() }, 2026, LEAGUES.nba))).toEqual([])
     }
   })
 })

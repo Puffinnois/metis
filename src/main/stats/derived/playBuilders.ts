@@ -1,3 +1,4 @@
+import type { League } from '@shared/leagues'
 import type { StatsDb } from '../db'
 import { eventsSql } from './events'
 import { PLAY_DETAIL_BUILDERS } from './playDetail'
@@ -21,8 +22,11 @@ export interface PlayBuilder {
   table: string
   /** Every column, typed, `season INTEGER` among them. */
   columns: ReadonlyArray<readonly [string, string]>
-  /** The rows of one season, as a SELECT of `columns` in order. What is missing reads NULL. */
-  select: (have: Have, season: number) => string
+  /**
+   * The rows of one season, as a SELECT of `columns` in order. What is missing reads NULL. The league
+   * gives what differs by league, such as a period's length in that season.
+   */
+  select: (have: Have, season: number, league: League) => string
   /**
    * The order a season's rows are written in, game first. Rows of a game side by side compress
    * better (Plan T907 measured 8 to 26 % on the play, split, unit and on-court tables), and a read
@@ -32,8 +36,8 @@ export interface PlayBuilder {
 }
 
 /** A season's INSERT for a builder, in its order when it has one. */
-export function insertSql(b: PlayBuilder, have: Have, season: number): string {
-  const select = b.select(have, season)
+export function insertSql(b: PlayBuilder, have: Have, season: number, league: League): string {
+  const select = b.select(have, season, league)
   // The SELECT's columns are named by position, since not every builder aliases each one.
   const names = b.columns.map(([n]) => n).join(', ')
   return b.order
@@ -136,7 +140,7 @@ export async function seasonsToBuild(db: StatsDb): Promise<{ all: boolean; seaso
  * After each season DuckDB is asked to checkpoint, so the space of the rows it deleted is reused
  * before the next season is written. Returns the rows written.
  */
-export async function buildPlays(db: StatsDb): Promise<number> {
+export async function buildPlays(db: StatsDb, league: League): Promise<number> {
   const have = await inspect(db)
   const { all, seasons } = await seasonsToBuild(db)
   let rows = 0
@@ -162,7 +166,7 @@ export async function buildPlays(db: StatsDb): Promise<number> {
     for (const b of PLAY_BUILDERS) {
       rows += await db.transaction(async () => {
         await db.exec(`DELETE FROM ${b.table} WHERE season = ?`, [season])
-        await db.exec(insertSql(b, have, season))
+        await db.exec(insertSql(b, have, season, league))
         const n = await db.get<{ n: number }>(
           `SELECT count(*)::INTEGER AS n FROM ${b.table} WHERE season = ?`,
           [season]
@@ -178,7 +182,7 @@ export async function buildPlays(db: StatsDb): Promise<number> {
       await db.exec(`DELETE FROM ${b.table} WHERE season IS NULL OR season NOT IN (${kept})`)
     }
   }
-  await db.exec(playsViewSql())
+  await db.exec(playsViewSql(league))
   for (const sql of eventsSql(have)) await db.exec(sql)
   await db.transaction(async () => {
     await db.exec(`DELETE FROM derived_state WHERE name LIKE '${PENDING}%'`)

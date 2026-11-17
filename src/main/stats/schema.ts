@@ -1,3 +1,4 @@
+import type { League } from '@shared/leagues'
 import type { StatsDb } from './db'
 import { playsBootstrap } from './derived/plays'
 import { publishedBootstrap } from './derived/published'
@@ -42,13 +43,13 @@ export const INTERRUPTED_MESSAGE = 'The app closed during this step'
 
 /**
  * Creates the bookkeeping tables, then marks steps a closed app left `running` as `interrupted`.
- * Returns how many rows it marked.
+ * Returns how many rows it marked. The league shapes the views that count a game's seconds.
  */
-export async function bootstrapStatsDb(db: StatsDb, now: Date): Promise<number> {
+export async function bootstrapStatsDb(db: StatsDb, now: Date, league: League): Promise<number> {
   for (const sql of [
     ...BOOTSTRAP,
     ...publishedBootstrap(),
-    ...playsBootstrap(),
+    ...playsBootstrap(league),
     ...shotsBootstrap(),
     ...splitsBootstrap(),
     ...playDetailBootstrap(),

@@ -13,7 +13,7 @@ describe('a database DuckDB has invalidated', () => {
   it('reports the stats as off, not as an error on every read', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'metis-invalidated-'))
     const service = await openStatsService(
-      { path: join(dir, 'stats.duckdb'), tempDir: join(dir, 'tmp') },
+      { league: 'nba', dataDir: dir, tempDir: join(dir, 'tmp') },
       () => {},
       { freeBytes: () => null }
     )

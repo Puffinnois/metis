@@ -8,6 +8,7 @@ import { ELO_GAME_TABLE, ELO_SCHEDULE_TABLE } from '@main/stats/models/teamElo'
 import { emptySources } from '../../../fixtures/boxScores'
 import { addLeague } from '../../../fixtures/models'
 import { openTestDb } from '../../../fixtures/stats'
+import { LEAGUES } from '@shared/leagues'
 
 let db: StatsDb
 
@@ -66,7 +67,7 @@ describe('the neutral sites', () => {
 
   it('takes home court away in Elo', async () => {
     await addEspn()
-    await buildModels(db, 2026)
+    await buildModels(db, 2026, LEAGUES.nba)
     const rows = await db.all<{ game_id: string; home_court: number }>(
       `SELECT game_id, home_court FROM ${ELO_GAME_TABLE} WHERE home
        UNION ALL SELECT game_id, home_court FROM ${ELO_SCHEDULE_TABLE} WHERE home`

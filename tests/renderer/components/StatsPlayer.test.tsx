@@ -3,7 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { api } from '@/lib/api'
 import { StatsApp } from '@/screens/stats/StatsApp'
-import { seasonLabel } from '@shared/stats/seasons'
+import { LEAGUES } from '@shared/leagues'
+
+const seasonLabel = (season: number): string => LEAGUES.nba.seasonLabel(season)
 import type { StatsGame, StatsQuery, StatsResult, StatsSeason } from '@shared/stats/types'
 import { catalogueFixture } from '../../fixtures/catalogue'
 
@@ -156,7 +158,7 @@ function answer(q: StatsQuery): StatsResult {
 
 const lastQuery = (): StatsQuery => {
   const calls = vi.mocked(api.stats.query).mock.calls
-  return calls[calls.length - 1][0]
+  return calls[calls.length - 1][1]
 }
 
 async function openDashboard(): Promise<void> {
@@ -177,10 +179,10 @@ beforeEach(() => {
   vi.mocked(api.stats.catalogue).mockResolvedValue(catalogueFixture())
   vi.mocked(api.stats.seasons).mockResolvedValue(SEASONS)
   vi.mocked(api.stats.views).mockResolvedValue([])
-  vi.mocked(api.stats.query).mockImplementation((q) => Promise.resolve(answer(q)))
+  vi.mocked(api.stats.query).mockImplementation((_league, q) => Promise.resolve(answer(q)))
   vi.mocked(api.stats.game).mockResolvedValue(null)
   vi.mocked(api.stats.games).mockResolvedValue(GAMES)
-  vi.mocked(api.stats.player).mockImplementation((id) =>
+  vi.mocked(api.stats.player).mockImplementation((_league, id) =>
     Promise.resolve({
       id,
       name: NAMES[Number(id) - 1],
@@ -251,7 +253,7 @@ describe('the player dashboard', () => {
 
   it('says so when the player did not play in the scope, and keeps their career', async () => {
     await openDashboard()
-    vi.mocked(api.stats.query).mockImplementation((q) =>
+    vi.mocked(api.stats.query).mockImplementation((_league, q) =>
       Promise.resolve(q.limit === 1 ? { ...answer(q), rows: [] } : answer(q))
     )
     fireEvent.change(screen.getByRole('combobox', { name: 'Season' }), {
@@ -264,7 +266,7 @@ describe('the player dashboard', () => {
   })
 
   it('says so when a career has no games of the type, and draws no empty table', async () => {
-    vi.mocked(api.stats.query).mockImplementation((q) =>
+    vi.mocked(api.stats.query).mockImplementation((_league, q) =>
       Promise.resolve(q.limit === 100 ? { ...answer(q), rows: [] } : answer(q))
     )
     await openDashboard()
@@ -291,7 +293,7 @@ describe('the player dashboard', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Splits' }))
     expect(await screen.findByText('Where')).toBeTruthy()
     expect(screen.getByRole('table', { name: 'By opponent' })).toBeTruthy()
-    const asked = vi.mocked(api.stats.query).mock.calls.map(([q]) => q)
+    const asked = vi.mocked(api.stats.query).mock.calls.map(([, q]) => q)
     expect(asked.some((q) => q.scope.home === true && q.scope.players?.[0] === '1')).toBe(true)
   })
 

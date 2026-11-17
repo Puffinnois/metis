@@ -1,4 +1,4 @@
-import { seasonLabel } from '@shared/stats/seasons'
+import { perMinuteModes, seasonLabel } from '@/lib/stats/league'
 import type {
   BoardMode,
   Entity,
@@ -107,11 +107,11 @@ export const MAX_COLUMNS = 40
 /** Rows a leaderboard asks for: search works on them, and a season holds about 600. */
 export const ROW_LIMIT = 1000
 
-export const BOARD_MODES: { value: BoardMode; label: string }[] = [
+/** A board's modes: the per-minute ones are the league's on screen (per 36 and per 48 in the NBA). */
+export const boardModes = (): { value: BoardMode; label: string }[] => [
   { value: 'raw', label: 'Totals' },
   { value: 'perGame', label: 'Per game' },
-  { value: 'per36', label: 'Per 36' },
-  { value: 'per48', label: 'Per 48' },
+  ...perMinuteModes(),
   { value: 'per100', label: 'Per 100' }
 ]
 
@@ -119,6 +119,7 @@ const MODE_WORDS: Record<BoardMode, string> = {
   raw: 'totals',
   perGame: 'per game',
   per36: 'per 36 minutes',
+  per40: 'per 40 minutes',
   per48: 'per 48 minutes',
   per100: 'per 100 possessions'
 }

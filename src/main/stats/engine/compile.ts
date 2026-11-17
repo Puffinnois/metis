@@ -3,6 +3,7 @@ import {
   COMPUTED_WHOLE_SEASONS,
   coverageReason,
   METRICS,
+  metricIn,
   MODEL_NO_SPLIT,
   ONE_SEASON_ONLY,
   PUBLISHED_TYPES_ONLY,
@@ -11,10 +12,9 @@ import {
   TOKEN,
   WHOLE_SEASONS_ONLY
 } from '@shared/stats/catalogue'
-import { seasonLabel } from '@shared/stats/seasons'
+import { PER_MINUTE, seasonLabel, type League, type PerMinuteMode } from '@shared/leagues'
 import { SPLIT_IDS, SPLITS_FIRST_SEASON, splitById } from '@shared/stats/splits'
 import {
-  GAME_TYPES,
   POSITION_GROUPS,
   type GameType,
   type Grain,
@@ -38,14 +38,11 @@ export const MAX_METRICS = 40
 export const DEFAULT_LIMIT = 100
 /** A grouped query has a row per player and group: a season by month has about 3,000. */
 export const MAX_LIMIT = 5000
-/** `minSample` is for 82 games; it scales with the team games a row covers. */
-export const FULL_SEASON = 82
-const FIRST_SEASON = 1994
-
 const TRANSFORMS: Transform[] = [
   'raw',
   'perGame',
   'per36',
+  'per40',
   'per48',
   'per100',
   'percentile',
@@ -74,7 +71,12 @@ class Params {
 }
 
 export interface CompileContext {
-  /** The season now, by final year: no query reaches past it. */
+  /**
+   * The league the query is about (D35): its first season, game types, per-minute modes and the base
+   * its qualifying minimums scale from. The worker hands its own league's registry entry.
+   */
+  league: League
+  /** The season now, by the data's label: no query reaches past it. */
   currentSeason: number
   /** Each metric's measured prior (Plan T1006), the sample `shrunk` gives the league's rate. */
   priors?: ReadonlyMap<string, number>
@@ -108,6 +110,8 @@ export interface Compiled {
   params: Value[]
   /** The team games one row covers, given the games and seasons in scope. */
   rowGames(games: number, seasons: number): number
+  /** The team games the catalogue's minimums are stated for: `League.minimumsGames`. */
+  fullSeason: number
   notes: string[]
 }
 
@@ -203,6 +207,7 @@ interface Checked {
   groupBy: GroupBy[]
   /** The tables whose own rows add rows to this query's result (`PublishedTable.addsRows`). */
   adds: string[]
+  league: League
 }
 
 /** The checks, with readable messages, before anything reaches SQL. */
@@ -214,20 +219,22 @@ function validate(q: StatsQuery, ctx: CompileContext): Checked {
     fail(`metrics must list 1–${MAX_METRICS} catalogue ids`)
   }
   if (new Set(q.metrics).size !== q.metrics.length) fail('metrics must not repeat')
+  const league = ctx.league
   const metrics = q.metrics.map((id) => {
-    const def = METRICS.get(id) ?? fail(`unknown metric "${id}"`)
+    // As this league reads it: its first season and gaps there, or unavailable where it has none.
+    const def = metricIn(METRICS.get(id) ?? fail(`unknown metric "${id}"`), league)
     if (def.entity !== q.entity) fail(`"${id}" is a ${def.entity} metric, not a ${q.entity} one`)
     return def
   })
   const scope = q.scope
-  integers(scope.seasons, 'scope.seasons', FIRST_SEASON, ctx.currentSeason)
+  integers(scope.seasons, 'scope.seasons', league.firstSeason, ctx.currentSeason)
   const gameTypes = scope.gameTypes ?? ['regular']
   if (!Array.isArray(gameTypes) || gameTypes.length === 0) {
     fail('scope.gameTypes must be a non-empty list')
   }
   for (const t of gameTypes) {
-    if (!GAME_TYPES.includes(t)) {
-      fail(`unknown game type "${String(t)}"; use ${GAME_TYPES.join(', ')}`)
+    if (!league.seasonTypes.includes(t)) {
+      fail(`unknown game type "${String(t)}"; use ${league.seasonTypes.join(', ')}`)
     }
   }
   if (scope.dates !== undefined) {
@@ -283,6 +290,11 @@ function validate(q: StatsQuery, ctx: CompileContext): Checked {
   if (new Set(groupBy).size !== groupBy.length) fail('groupBy must not repeat')
   const transform = q.transform ?? 'raw'
   if (!TRANSFORMS.includes(transform)) fail(`transform must be one of ${TRANSFORMS.join(', ')}`)
+  if (transform in PER_MINUTE && !league.perMinute.includes(transform as PerMinuteMode)) {
+    fail(
+      `the ${league.name} reads per minute as ${league.perMinute.join(' or ')}, not ${transform}`
+    )
+  }
   if (q.sort !== undefined && (q.sort === null || typeof q.sort !== 'object')) {
     fail('sort must be { metric, dir }')
   }
@@ -298,7 +310,8 @@ function validate(q: StatsQuery, ctx: CompileContext): Checked {
     q.shrunk &&
     (transform === 'percentile' || transform === 'zScore' || transform === 'vsLeague')
   ) {
-    fail('shrunk works with totals, per game, per 36, per 48 and per 100')
+    const perMinute = league.perMinute.map((m) => `per ${PER_MINUTE[m]}`).join(', ')
+    fail(`shrunk works with totals, per game, ${perMinute} and per 100`)
   }
   if (ctx.internal?.halves) groupBy.push(HALF)
 
@@ -325,7 +338,7 @@ function validate(q: StatsQuery, ctx: CompileContext): Checked {
     if ((m.published || m.model) && grains.length > 0) continue
     if (!grains.includes(grain)) fail(`"${m.id}" cannot be read at the ${grain} grain`)
   }
-  const gaps = metrics.map((m) => gapOf(m, q, grain, gameTypes, transform))
+  const gaps = metrics.map((m) => gapOf(m, q, grain, gameTypes, transform, league))
   // A table adds rows only where a metric reads it with an answer, so a query reading none is the
   // query it was. A published table has whole seasons, so only the season grain; and never for the
   // stability measure, which would only drop them again (they never qualify).
@@ -342,7 +355,7 @@ function validate(q: StatsQuery, ctx: CompileContext): Checked {
       )
     )
   ]
-  return { metrics, gaps, grain, gameTypes, transform, groupBy, adds }
+  return { metrics, gaps, grain, gameTypes, transform, groupBy, adds, league }
 }
 
 /** What a published table can leave out, for the transform that needs it. */
@@ -362,14 +375,20 @@ export const NOT_FROM_PLAYS = 'Not counted from the play by play, so it has no s
  * table itself split, so it reads this rather than its whole-game value.
  */
 export const BUILT_NO_SPLIT = 'Counted per game, not per moment, so it has no split.'
-export const SPLITS_FROM = `Splits are counted from the play by play, from ${seasonLabel(SPLITS_FIRST_SEASON)}.`
+export const splitsFrom = (league: League): string =>
+  `Splits are counted from the play by play, from ${seasonLabel(league, SPLITS_FIRST_SEASON)}.`
 
 /** The components a split row can sum, per entity. */
 const SPLIT_SQL = { player: SPLIT_PLAYER_SQL, team: SPLIT_TEAM_SQL }
 
 /** Why a metric has no answer under a split; null when the plays answer it. */
-function splitGap(m: MetricDef, q: StatsQuery, transform: Transform): string | null {
-  if (!q.scope.seasons.some((s) => s >= SPLITS_FIRST_SEASON)) return SPLITS_FROM
+function splitGap(
+  m: MetricDef,
+  q: StatsQuery,
+  transform: Transform,
+  league: League
+): string | null {
+  if (!q.scope.seasons.some((s) => s >= SPLITS_FIRST_SEASON)) return splitsFrom(league)
   if (m.published) return NOT_FROM_PLAYS
   if (m.model) return MODEL_NO_SPLIT
   if (m.built) return BUILT_NO_SPLIT
@@ -387,7 +406,8 @@ function gapOf(
   q: StatsQuery,
   grain: Grain,
   gameTypes: GameType[],
-  transform: Transform
+  transform: Transform,
+  league: League
 ): string | null {
   if (m.unavailable) return m.unavailable
   // A source this build leaves out answers nothing for any season or filter (`leftOut.ts`).
@@ -395,10 +415,11 @@ function gapOf(
   if (leftOut !== null) return leftOut
   const coverage = coverageReason(
     m,
-    [...new Set(q.scope.seasons)].sort((a, b) => a - b)
+    [...new Set(q.scope.seasons)].sort((a, b) => a - b),
+    league
   )
   if (coverage !== null) return coverage
-  if (q.scope.split !== undefined) return splitGap(m, q, transform)
+  if (q.scope.split !== undefined) return splitGap(m, q, transform, league)
   if (m.model) return modelGap(m, q, grain, gameTypes)
   if (!m.published) return null
   if (grain === 'game') {
@@ -476,9 +497,10 @@ function perDivisor(m: MetricDef, transform: Transform, entity: 'player' | 'team
     case 'perGame':
       return `{${m.perGameBy ?? 'games'}}`
     case 'per36':
-      return `{minutes}${fives} / 36.0`
+    case 'per40':
     case 'per48':
-      return `{minutes}${fives} / 48.0`
+      // The base is the mode's (36, 40 or 48); which modes a league offers is checked on validation.
+      return `{minutes}${fives} / ${PER_MINUTE[transform as PerMinuteMode]}.0`
     case 'per100':
       if (m.published) return '{possessions} / 100.0'
       return entity === 'player' ? '{on_poss} / 100.0' : '{poss_sym} / 100.0'
@@ -955,11 +977,13 @@ function notesOf(q: StatsQuery, c: Checked): string[] {
   const s = q.scope
   for (const m of c.metrics) {
     if (s.seasons.some((x) => x < m.firstSeason)) {
-      notes.add(`${m.label}: starts in ${seasonLabel(m.firstSeason)}.`)
+      notes.add(`${m.label}: starts in ${seasonLabel(c.league, m.firstSeason)}.`)
     }
     const gaps = (m.missingSeasons ?? []).filter((x) => s.seasons.includes(x))
     if (gaps.length > 0) {
-      notes.add(`${m.label}: not in the source for ${gaps.map(seasonLabel).join(', ')}.`)
+      notes.add(
+        `${m.label}: not in the source for ${gaps.map((x) => seasonLabel(c.league, x)).join(', ')}.`
+      )
     }
     if (modelTable(m.model)?.kind === 'state' && c.grain === 'game') {
       notes.add(`${m.label}: as of the last game in scope.`)
@@ -994,7 +1018,7 @@ function notesOf(q: StatsQuery, c: Checked): string[] {
   if (split) {
     notes.add(`${split.label}: ${split.rule} Counted from the NBA's play by play.`)
     if (s.seasons.some((x) => x < SPLITS_FIRST_SEASON)) {
-      notes.add(`${SPLITS_FROM} Earlier seasons are left out.`)
+      notes.add(`${splitsFrom(c.league)} Earlier seasons are left out.`)
     }
     if (c.transform === 'per100' || c.metrics.some((m) => /\{(on_)?poss/.test(m.value))) {
       notes.add(
@@ -1108,7 +1132,12 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
   const flags = c.metrics.map((m, i) => {
     const count =
       m.qualifyBy !== undefined && m.qualifyBy !== m.sample ? `coalesce(k${i}, 0)` : `s${i}`
-    return `(s${i} > 0 AND ${count} >= round(${m.minSample ?? 0} * $factor)${adding ? ' AND NOT no_line' : ''}) AS q${i}`
+    // A minimum counted in minutes is stated in the minimums' game length: a 40-minute league scales
+    // it by 40 over that. Where the lengths agree (the NBA) the SQL is as it was.
+    const counted = m.qualifyBy ?? m.sample
+    const minutes = counted === 'minutes' ? c.league.gameMinutes / c.league.minimumsMinutes : 1
+    const scale = minutes === 1 ? '' : ` * ${minutes.toFixed(6)}`
+    return `(s${i} > 0 AND ${count} >= round(${m.minSample ?? 0} * $factor${scale})${adding ? ' AND NOT no_line' : ''}) AS q${i}`
   })
   const sort = q.sort ? q.metrics.indexOf(q.sort.metric) : 0
   const lower = c.metrics[sort].direction === 'lower' && c.transform !== 'percentile'
@@ -1164,6 +1193,7 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
     bySeason,
     sql,
     params: params.values,
+    fullSeason: ctx.league.minimumsGames,
     rowGames: (games, seasons) => {
       if (last !== undefined) return Math.min(games, last)
       if (c.groupBy.includes('game')) return 1

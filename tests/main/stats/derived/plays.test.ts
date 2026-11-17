@@ -27,6 +27,7 @@ import {
   THOMPSON,
   WALLACE
 } from '../../../fixtures/plays'
+import { LEAGUES } from '@shared/leagues'
 
 let db: StatsDb
 
@@ -55,7 +56,7 @@ describe('the NBA play table', () => {
   beforeEach(async () => {
     await createIdentity(db)
     await createNbaPbp(db)
-    await buildPlays(db)
+    await buildPlays(db, LEAGUES.nba)
   })
 
   it('rebuilds each player’s box-score line from the flags', async () => {
@@ -133,7 +134,7 @@ describe('the NBA play table', () => {
     await db.exec(`UPDATE src_nba_pbp SET score_home = '0', score_away = '0'
                    WHERE order_index = ${last?.o}`)
     await db.exec(`DELETE FROM derived_state WHERE name = 'plays'`)
-    await buildPlays(db)
+    await buildPlays(db, LEAGUES.nba)
     expect(await scores()).toEqual(before)
     // No row's score goes below the one before it, nor back to 0-0 once a point is scored.
     expect(
@@ -172,7 +173,7 @@ describe('the ESPN play table', () => {
   beforeEach(async () => {
     await createIdentity(db)
     await createEspnPbp(db)
-    await buildPlays(db)
+    await buildPlays(db, LEAGUES.nba)
   })
 
   it('rebuilds each player’s box-score line from the flags', async () => {
@@ -203,7 +204,7 @@ describe('the ESPN play table', () => {
     const swapped = await openTestDb()
     await createIdentity(swapped, true)
     await createEspnPbp(swapped)
-    await buildPlays(swapped)
+    await buildPlays(swapped, LEAGUES.nba)
     expect(
       await swapped.get(
         `SELECT max(home_after) AS home, max(away_after) AS away,
@@ -218,7 +219,7 @@ describe('the ESPN play table', () => {
 describe('building with something missing', () => {
   it('builds empty tables and views when neither feed is loaded', async () => {
     await createIdentity(db)
-    expect(await buildPlays(db)).toBe(0)
+    expect(await buildPlays(db, LEAGUES.nba)).toBe(0)
     for (const t of [
       ...Object.values(PLAY_TABLES),
       'plays',
@@ -234,7 +235,7 @@ describe('building with something missing', () => {
     await createIdentity(db)
     await createEspnPbp(db)
     // ESPN's plays are a view (Plan T907): read, not written.
-    expect(await buildPlays(db)).toBe(0)
+    expect(await buildPlays(db, LEAGUES.nba)).toBe(0)
     expect(await db.get(`SELECT count(*)::INTEGER AS n FROM ${PLAY_TABLES.espn}`)).toEqual({
       n: 15
     })
@@ -243,12 +244,12 @@ describe('building with something missing', () => {
 
   it('reads ESPN’s plays as a view, the rows a season’s build gives, and none without the file', async () => {
     await createIdentity(db)
-    await buildPlays(db)
+    await buildPlays(db, LEAGUES.nba)
     // No file: an empty view, not an error.
     expect(await db.get(`SELECT count(*)::INTEGER AS n FROM ${PLAY_TABLES.espn}`)).toEqual({ n: 0 })
     await createEspnPbp(db)
     await markPlaySeason(db, 2026)
-    await buildPlays(db)
+    await buildPlays(db, LEAGUES.nba)
     const have = await inspect(db)
     const season = `SELECT * FROM (${espnPlaysSql(have, 2026)})`
     const view = `SELECT * FROM ${PLAY_TABLES.espn} WHERE season = 2026`
@@ -267,7 +268,7 @@ describe('building with something missing', () => {
     await createEspnPbp(db)
     await db.exec(`DROP VIEW ${PLAY_TABLES.espn}`)
     await db.exec(`CREATE TABLE ${PLAY_TABLES.espn} AS SELECT 1 AS stale`)
-    await buildPlays(db)
+    await buildPlays(db, LEAGUES.nba)
     expect(await db.get(VIEW_KIND)).toEqual({ table_type: 'VIEW' })
     expect(await db.get(`SELECT count(*)::INTEGER AS n FROM ${PLAY_TABLES.espn}`)).toEqual({
       n: 15
@@ -280,7 +281,7 @@ describe('building with something missing', () => {
     // number the column is empty; without `seconds_remaining` the clock is read from `clock`.
     await createNbaPbp(db, ['player_name_i', 'possession_number', 'seconds_remaining'])
     await createEspnPbp(db, ['coordinate_x_raw', 'coordinate_y_raw'])
-    await buildPlays(db)
+    await buildPlays(db, LEAGUES.nba)
     expect(await line(PLAY_TABLES.nba, DORT)).toEqual({ fga: 1, tov: 1, ast: 1 })
     expect(
       await db.get(
@@ -327,7 +328,7 @@ describe('shots and possessions', () => {
       off_player_1 BIGINT, def_player_1 BIGINT, lineup_source VARCHAR, season INTEGER)`)
     await db.exec(`INSERT INTO src_nba_possessions VALUES ('${GAME}', 1, 2, ${OKC}, 3, true,
       ${HOLMGREN}, ${SENGUN}, 'quarter_box', 2026)`)
-    await buildPlays(db)
+    await buildPlays(db, LEAGUES.nba)
     expect(
       await db.get(
         'SELECT game_id, team_id, opponent_id, home, player_id, made, value, distance, x, y, clock FROM shot_nba'

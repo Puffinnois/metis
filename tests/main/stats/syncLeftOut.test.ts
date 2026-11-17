@@ -6,6 +6,7 @@ import type { Downloads, FetchedFile } from '@main/stats/download'
 import { fileUrl, type SourceFile } from '@main/stats/sources'
 import { dropLeftOut, refreshStats, STATS_LEFT_OUT_STEP } from '@main/stats/sync'
 import { openTestDb, tempDir, writeFixture } from '../../fixtures/stats'
+import { LEAGUES } from '@shared/leagues'
 
 // The file steps alone, as in `sync.test.ts`: the published tables' step is tested elsewhere.
 vi.mock('@main/stats/derived/publishedTables', async (actual) => ({
@@ -63,7 +64,12 @@ const refresh = (
   downloads: Downloads,
   leftOut: readonly string[]
 ): ReturnType<typeof refreshStats> =>
-  refreshStats({ db, downloads, now: () => NOW }, { force: true }, [KEEP, GONE], leftOut)
+  refreshStats(
+    { db, league: LEAGUES.nba, downloads, now: () => NOW },
+    { force: true },
+    [KEEP, GONE],
+    leftOut
+  )
 
 describe('a release left out of the build', () => {
   it('is not downloaded on a fresh install', async () => {
