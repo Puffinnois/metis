@@ -310,7 +310,12 @@ export function StatsApp({
           ) : noData !== null ? (
             empty
           ) : screen === 'data' ? (
-            <StatsData status={data.status} />
+            // Once the status is read: a league with no data never asks for its Data panel's report.
+            data.status === null ? (
+              <div className="py-20" />
+            ) : (
+              <StatsData status={data.status} />
+            )
           ) : !ready ? (
             empty
           ) : screen === 'home' ? (
