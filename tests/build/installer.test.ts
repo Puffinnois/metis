@@ -81,4 +81,8 @@ describe('the update path', () => {
       expect(create).toContain(asset)
     }
   })
+
+  it('has the Release workflow require the full-speed call in the packaged self-test', () => {
+    expect(text('.github/workflows/release.yml')).toContain(`grep -q '"fullSpeed":"set"'`)
+  })
 })

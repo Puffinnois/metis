@@ -71,3 +71,7 @@ Short log of decisions and why. Newest last. The previous implementation's log (
 ## 2026-11-15: the lines Metis holds
 
 **D31. The lines Metis holds,** the owner's decision. No money, ads, sponsorship, or donations tied to features. No gambling or odds. No fantasy features (D4). No real-time or in-game data. No logos, photos or video. "NBA" never in the app's name, icon or domain. No list or replay of a game's plays as a product. NBA.com and ESPN credited as the sources. The data reached only through the dataset's releases (D6, D7). _Why:_ Metis is a personal project that shows statistics for private, non-commercial use, and these lines keep it one. Its use of the data stays as it is; the question is reopened if that use changes (`docs/reference/data-rights.md`, Plan T1101).
+
+## 2026-11-16: unsigned releases
+
+**D32. The installer and its updates are unsigned,** the owner's decision of 2026-11-16: Metis has no code-signing certificate. What an update is checked against instead: the app reads it over HTTPS from the repository's latest published GitHub release, and the downloaded installer must match the sha512 in that release's `latest.yml`. What follows: no publisher is checked (`app-update.yml` has no `publisherName`); Windows SmartScreen warns on the first install, and the README says how to go past it; a tag's Release workflow leaves a draft, which no installed copy sees until the owner publishes it (D30). This is an exception to "signed updates" in Plan.md's goal (Plan T1103, Stage 11 gate).
