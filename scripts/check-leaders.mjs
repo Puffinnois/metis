@@ -122,6 +122,9 @@ const sameTop = (a, b, n) =>
 
 const out = []
 const summary = { leaders: 0, leadersMetis: 0, leadersEra: 0, top5Metis: 0, top5Era: 0 }
+// Minutes per game stays on the row qualifier's 1,000 minutes (D33): how often 58 games, the NBA's
+// rule for it, would name another leader or top five, from the NBA's own totals.
+const mpg = []
 const misses = []
 for (const season of SEASONS) {
   const teamGames = games.get(season)
@@ -170,6 +173,17 @@ for (const season of SEASONS) {
         era: era.slice(0, TOP).map((x) => `${x.name} ${fmt(stat, x.value)}`)
       })
     }
+    if (stat.id === 'min') {
+      const games = ranked(lines, stat, (p) => p.gp >= Math.round((58 * teamGames) / 82))
+      const name = (x) => (x ? `${x.name} ${fmt(stat, x.value)}` : 'none')
+      mpg.push({
+        season,
+        minutes: name(metis[0]),
+        games: name(games[0]),
+        leader: metis[0]?.id === games[0]?.id,
+        top5: sameTop(metis, games, TOP)
+      })
+    }
     out.push(
       `| ${stat.short} | ${lead?.name ?? 'none'} | ${lead ? fmt(stat, lead.value) : ''} | ${word(m1, m5, metis)} | ${word(e1, e5, era)} |`
     )
@@ -180,7 +194,18 @@ await close()
 const head = [
   `Seasons: ${SEASONS.map(label).join(', ')}. ${summary.leaders} leaders: the same as the NBA's totals ranked by Metis's rule in ${summary.leadersMetis}, top five in the same order in ${summary.top5Metis}; by the NBA's rule of the season, ${summary.leadersEra} and ${summary.top5Era}.`
 ]
-const md = [...head, ...out, ''].join('\n')
+const mpgTable = [
+  '',
+  `**Minutes per game, 1,000 minutes against 58 games** (both scaled to the season's games and rounded, from the NBA's totals): the same leader in ${mpg.filter((m) => m.leader).length} of ${mpg.length} seasons, the same top five in ${mpg.filter((m) => m.top5).length}.`,
+  '',
+  '| Season | Leader on 1,000 minutes | Leader on 58 games | Same leader | Same top five |',
+  '| --- | --- | --- | --- | --- |',
+  ...mpg.map(
+    (m) =>
+      `| ${label(m.season)} | ${m.minutes} | ${m.games} | ${m.leader ? 'yes' : '**no**'} | ${m.top5 ? 'yes' : '**no**'} |`
+  )
+]
+const md = [...head, ...out, ...mpgTable, ''].join('\n')
 if (mdArg) writeFileSync(resolve(mdArg), md)
 console.log(md)
 console.error(JSON.stringify(misses, null, 1))
