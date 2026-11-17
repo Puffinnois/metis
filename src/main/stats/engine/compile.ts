@@ -477,8 +477,15 @@ function metricColumns(
   sumOf: (m: MetricDef, component: string) => string
 ): string[] {
   return c.metrics.flatMap((m, i) => {
+    // `k` is what `minSample` counts when it is not the sample (`qualifyBy`); only those metrics
+    // carry it, since a sum per metric costs a wide leaderboard time.
+    const qualifyBy = m.qualifyBy
     if (c.gaps[i] !== null) {
-      return [`NULL::DOUBLE AS v${i}`, `NULL::DOUBLE AS s${i}`, `NULL::DOUBLE AS k${i}`]
+      return [
+        `NULL::DOUBLE AS v${i}`,
+        `NULL::DOUBLE AS s${i}`,
+        ...(qualifyBy ? [`NULL::DOUBLE AS k${i}`] : [])
+      ]
     }
     const by = perDivisor(m, c.transform, q.entity)
     const value = by ? `(${m.value}) / nullif(${by}, 0)` : m.value
@@ -486,8 +493,7 @@ function metricColumns(
     return [
       `(${filled})::DOUBLE AS v${i}`,
       `(${sumOf(m, m.sample)})::DOUBLE AS s${i}`,
-      // What `minSample` counts: the qualifying component, or the sample itself.
-      `(${sumOf(m, m.qualifyBy ?? m.sample)})::DOUBLE AS k${i}`
+      ...(qualifyBy ? [`(${sumOf(m, qualifyBy)})::DOUBLE AS k${i}`] : [])
     ]
   })
 }
@@ -984,9 +990,10 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
   // A row with a sample qualifies when its qualifying count (`k`: makes for the NBA's shooting
   // leaders, else the sample itself) reaches the minimum scaled to the games in scope, rounded to a
   // whole count as the NBA rounds a shortened season's: 300 × 66 / 82 is 241.5, and it asked 241.
-  const flags = c.metrics.map(
-    (m, i) => `(s${i} > 0 AND coalesce(k${i}, 0) >= round(${m.minSample ?? 0} * $factor)) AS q${i}`
-  )
+  const flags = c.metrics.map((m, i) => {
+    const count = m.qualifyBy !== undefined ? `coalesce(k${i}, 0)` : `s${i}`
+    return `(s${i} > 0 AND ${count} >= round(${m.minSample ?? 0} * $factor)) AS q${i}`
+  })
   const sort = q.sort ? q.metrics.indexOf(q.sort.metric) : 0
   const lower = c.metrics[sort].direction === 'lower' && c.transform !== 'percentile'
   const dir = q.sort?.dir ?? (lower ? 'asc' : 'desc')

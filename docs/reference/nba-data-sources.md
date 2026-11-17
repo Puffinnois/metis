@@ -1109,6 +1109,38 @@ So 72.8 to 96.4 % of qualified players are within half a point in a completed se
 
 **Stability measured again**, since the catalogue's signature changed: `pie` stays **high**. Year to year 0.842 to 0.838 on the same 6,261 pairs; split half 0.970 to 0.929 on 8,342; the prior 57 to 142 minutes. `team_pie` (0.653) and `nba_pie` (0.832) are unchanged, and the counts of labels across the catalogue stay 858 high, 307 medium, 254 low and 33 none.
 
+## The NBA's leaders against the qualified leaders (Plan T1204)
+
+Leaderboards qualify by the NBA's minimums (D33, [nba-qualifying-minimums.md](nba-qualifying-minimums.md)): 58 games of 82 for the per-game leaders, 300 field goals, 82 threes and 125 free throws made for the shooting percentages, scaled to the games in scope and rounded. **The dataset has no list of the NBA's published leaders,** so `scripts/check-leaders.mjs` ranks them from the NBA's own season totals, `src_nba_player_season` (totals, base, regular season, 1996-97 on), twice: by the rule Metis applies, and by the NBA's rule of that season (before 2013-14, 70 games or a total, and 55 threes from 1997-98). The engine's side is a real query, as the leaderboard asks it: points, rebounds, assists, steals, blocks and minutes per game among the players `min` qualifies, the three percentages with Qualified only on. A leader matches when the same player leads; the top five when the same five players stand in the same order. 1993-94 to 1995-96 have no NBA season totals, so they are not checked. No list was fetched from a site.
+
+Checked: 2026-11-17 on `~/.cache/metis-dev/t1204`, a copy of `gate10` after T1203, after a real refresh on the built app. Nine statistics a season.
+
+| Season              | Team games | Leader, Metis's rule | Top five, Metis's rule | Leader, the season's NBA rule | Top five, the season's NBA rule |
+| ------------------- | ---------- | -------------------- | ---------------------- | ----------------------------- | ------------------------------- |
+| 1996-97             | 82.0       | 9 of 9               | 8                      | 8                             | 5                               |
+| 1998-99 (shortened) | 50.0       | 9                    | 9                      | 9                             | 9                               |
+| 2004-05             | 82.0       | 8                    | 8                      | 6                             | 5                               |
+| 2011-12 (shortened) | 66.0       | 9                    | 9                      | 9                             | 8                               |
+| 2015-16             | 82.0       | 9                    | 9                      | 9                             | 9                               |
+| 2019-20 (shortened) | 70.6       | 9                    | 9                      | 9                             | 9                               |
+| 2020-21 (shortened) | 72.0       | 9                    | 9                      | 9                             | 9                               |
+| 2023-24             | 82.0       | 9                    | 9                      | 9                             | 9                               |
+| 2025-26             | 82.0       | 9                    | 9                      | 9                             | 9                               |
+| 2026-27, so far     | 13.7       | 9                    | 9                      | 9                             | 9                               |
+| **All**             |            | **89 of 90**         | **88 of 90**           | **86 of 90**                  | **81 of 90**                    |
+
+**Against the NBA's totals by Metis's rule,** the two misses are ties to a tenth, where the box scores and the NBA's totals split the hundredths differently: 2004-05 minutes per game, LeBron James and Allen Iverson both 42.3 (the box scores put James first, the NBA's minutes Iverson); 1996-97 steals, fifth place, Rick Fox and David Wesley both 2.2. So the engine applies the rule as written, in every season checked.
+
+**Against the NBA's rule of the season,** every miss comes from the rule before 2013-14, which Metis does not follow:
+
+- **1996-97 rebounds:** Dennis Rodman, 16.1 a game in 55 games, qualified then on his rebounds (800 needed). Under 58 games he is out, and Dikembe Mutombo's 11.6 leads. Jason Kidd (assists, 9.0) and Shaquille O'Neal (blocks, 2.9) enter the top five the same way; in steals the fifth place is the tie above.
+- **2004-05 blocks:** Andrei Kirilenko, 3.3 a game in 41 games, qualified on his blocks (100 needed); Marcus Camby's 3.0 leads here. **3P%:** Fred Hoiberg, 48.3 %, qualified on 55 threes and not on 82; Joe Johnson's 47.8 % leads here. **Rebounds:** Tim Duncan, 11.1 a game in 66 games, fails the old rule (70 games or 800 rebounds) and passes today's, so Troy Murphy takes his place in the old rule's top five. **Minutes:** the tie above.
+- **2011-12 3P%:** the leader is the same (Steve Novak); 44 threes then admit Ersan Ilyasova, Stephen Curry and Mike Miller to the top five, where 300 × 66 / 82 → 66 does not.
+
+From 2013-14 on, and in all four shortened seasons for the rule's scaling, the qualified leaders are the NBA's. **Rounding matters:** before the scaled minimum was rounded, 2011-12's NBA field-goal leader, Tyson Chandler (67.9 % on exactly 241 made, the NBA's number), did not qualify; rounded, he leads. The old seasons' misses are the owner's to weigh: following the era's rule needs minimums that change by season, and games-or-a-total alternatives, which D33 left out.
+
+**Stability measured again,** since its rows qualify by these numbers: the builder's version moved (the catalogue's signature, and `BUILDER_VERSION` 3 for the rounding), and a refresh re-measured all 1,452 metrics. **23 labels change:** 8 medium to high, 9 low to medium, 5 medium to low, 1 low to none. Counts go from 858 high, 307 medium, 254 low and 33 none to 866, 303, 249 and 34; metrics with a prior from 510 to 508. Most of the catalogue moves a little (842 metrics' numbers change), because `min`, the qualifier every player row of the measure passes, now admits players by 58 games instead of 1,000 minutes: 5,537 pairs of player-seasons where there were 6,261. The changed labels are near a threshold to start with: games started (0.55 to 0.61), 15 play-type rates on a few hundred pairs, two jump-shot rates, adjusted RAPM (0.598 to 0.601), and `pbp_tov_shot_clock`, whose year-to-year r was already 0.000 and now has no spread to correlate. The covered statistics keep their labels: FG% high (0.797 to 0.837, on 2,272 pairs where there were 3,931, its prior 118 to 99 attempts), 3P% medium (0.454 to 0.477), FT% high (0.838 to 0.845), minutes high (0.722 to 0.754), points high (0.859 to 0.868).
+
 ## Old seasons
 
 | Season label (file) | Source | Games | Notes                                                  |

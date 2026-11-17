@@ -1,6 +1,10 @@
 [
-  { "size": [1500, 950] },
-  { "wait": 5000 },
+  {
+    "size": [1500, 950]
+  },
+  {
+    "wait": 5000
+  },
   {
     "eval": "window.sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nwindow.until = async (fn, ms = 15000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (fn()) return true; await sleep(150) } return false };\nwindow.nav = async (name) => { const b = [...document.querySelectorAll('nav button')].find((x) => x.textContent.trim() === name); if (!b) return 'NO NAV ' + name; b.click(); await sleep(2500); return 'nav ' + name };\nwindow.chooseSelect = async (title, value) => { const el = [...document.querySelectorAll('select')].find((x) => x.title === title); if (!el) return 'NO SELECT ' + title; Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(el, String(value)); el.dispatchEvent(new Event('change', { bubbles: true })); await sleep(2500); return title + ' = ' + (el.selectedOptions[0]?.textContent ?? el.value) };\nwindow.press = async (text) => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === text); if (!b) return 'NO BUTTON ' + text; b.click(); await sleep(2500); return 'pressed ' + text };\nwindow.toggle = async (label) => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim().endsWith(label)); if (!b) return 'NO TOGGLE ' + label; b.click(); await sleep(2500); return label + ' ' + b.getAttribute('aria-pressed') };\nwindow.pressed = (label) => [...document.querySelectorAll('button')].find((x) => x.textContent.trim().endsWith(label))?.getAttribute('aria-pressed');\nwindow.rows = () => [...document.querySelectorAll('tbody tr')].filter((r) => r.querySelector('td'));\nwindow.nq = () => [...document.querySelectorAll('span[title=\"Below the qualifying sample\"]')].length;\nwindow.has = (text) => document.body.innerText.includes(text);\nwindow.check = (label, got, want) => (want.every((w) => JSON.stringify(got).includes(w)) ? 'OK ' : 'MISMATCH ') + label + ' want ' + JSON.stringify(want) + ' got ' + JSON.stringify(got);\n'helpers ready'"
   },
@@ -19,23 +23,45 @@
   {
     "eval": "(async () => { await until(() => has('Per game')); return check('the home says the per-game rule', document.querySelector('h1')?.parentElement?.innerText.replace(/\\n/g, ' '), ['Per game: 58 games of 82 to qualify']) })()"
   },
-  { "shot": "t1204-01-home-2011-12" },
-  { "eval": "(async () => press('All →'))()" },
+  {
+    "shot": "t1204-01-home-2011-12"
+  },
+  {
+    "eval": "(async () => press('All →'))()"
+  },
   {
     "eval": "(async () => { await until(() => rows().length > 0); window.onRows = rows().length; return check('Qualified only ON: every row qualifies, the note states the rule', [pressed('Qualified only'), window.onRows, nq(), has(\"Qualified: the NBA's 58 games of 82, scaled to the games in range\")], ['\"true\"', ',0,true']) })()"
   },
-  { "shot": "t1204-02-leaderboard-qualified-on" },
-  { "eval": "(async () => toggle('Qualified only'))()" },
   {
-    "eval": "(async () => { await until(() => nq() > 0); return check('Qualified only OFF: more rows, the ones below 47 games marked NQ', [pressed('Qualified only'), rows().length > window.onRows, nq() > 0, rows().length, nq()], ['\"false\",true,true']) })()"
+    "shot": "t1204-02-leaderboard-qualified-on"
   },
-  { "shot": "t1204-03-leaderboard-qualified-off" },
-  { "eval": "(async () => toggle('Shrunk rates'))()" },
+  {
+    "eval": "(() => 'listed: ' + (document.body.innerText.match(/[0-9,]+ of [0-9,]+ · sorted by [^\\n]*/)?.[0] ?? 'NO TOTAL'))()"
+  },
+  {
+    "eval": "(async () => toggle('Qualified only'))()"
+  },
+  {
+    "eval": "(async () => { await until(() => nq() > 0); return check('Qualified only OFF: rows below 47 games join the first page, marked NQ and greyed', [pressed('Qualified only'), nq() > 0, rows().filter((r) => r.querySelector('span[title=\"Below the qualifying sample\"]')).slice(0, 3).map((r) => r.innerText.split('\\n').slice(0, 2).join(' ')), nq()], ['\"false\",true']) })()"
+  },
+  {
+    "shot": "t1204-03-leaderboard-qualified-off"
+  },
+  {
+    "eval": "(() => 'listed: ' + (document.body.innerText.match(/[0-9,]+ of [0-9,]+ · sorted by [^\\n]*/)?.[0] ?? 'NO TOTAL'))()"
+  },
+  {
+    "eval": "(async () => toggle('Shrunk rates'))()"
+  },
   {
     "eval": "(async () => { await until(() => nq() > 0); const marked = rows().filter((r) => r.querySelector('span[title=\"Below the qualifying sample\"]')).slice(0, 3).map((r) => r.innerText.split('\\n').slice(0, 2).join(' ')); return check('Shrunk rates ON: Qualified only off, small samples ranked and marked NQ', [pressed('Shrunk rates'), pressed('Qualified only'), nq() > 0, !!document.querySelector('[data-shrunk]'), marked], ['\"true\",\"false\",true,true']) })()"
   },
-  { "shot": "t1204-04-leaderboard-shrunk-nq" },
-  { "eval": "(async () => toggle('Shrunk rates'))()" },
+  {
+    "shot": "t1204-04-leaderboard-shrunk-nq"
+  },
+  {
+    "eval": "(async () => toggle('Shrunk rates'))()"
+  },
   {
     "eval": "(async () => { await until(() => nq() === 0); return check('Shrunk rates OFF: Qualified only back on, no NQ', [pressed('Shrunk rates'), pressed('Qualified only'), nq()], ['\"false\",\"true\",0']) })()"
   }
