@@ -13,7 +13,7 @@ import type { MetricInfo } from '@shared/stats/types'
 
 const sampleWords = (info: MetricInfo): string =>
   info.minSample
-    ? `${info.minSample.toLocaleString('en-US')} ${info.sampleLabel} over 82 games to qualify`
+    ? `${info.minSample.toLocaleString('en-US')} ${info.qualifyLabel} over 82 games to qualify`
     : info.sampleLabel
 
 const whoWords = (info: MetricInfo): string => {

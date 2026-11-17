@@ -117,9 +117,9 @@ export function StatsChart({
     })
 
   const tab = chartTab(state)
-  const qualifier = tab.qualifier ? info(tab.qualifier)?.sampleLabel : null
+  const qualifier = tab.qualifier ? info(tab.qualifier)?.qualifyLabel : null
   const footnote = isPlayer
-    ? `Qualified: enough ${qualifier ?? 'minutes'} for the games in scope, as on the leaderboards, and each axis’s own sample.`
+    ? `Qualified: enough ${qualifier ?? 'games'} played for the scope, as on the leaderboards, and each axis’s own sample.`
     : 'Qualified: each axis’s own sample; every team plays enough.'
   const wholeSeason = scope.range.kind === 'season'
   const useSeason = (): void => onScope({ ...scope, range: { kind: 'season' } })

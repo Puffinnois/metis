@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { BOARD_ROWS, BOARDS, boardQuery, boardView } from '@/lib/stats/boards'
+import { BOARD_ROWS, BOARDS, boardQuery, boardView, gamesToQualify } from '@/lib/stats/boards'
 import type { StatsScope } from '@/lib/stats/scope'
 import type { StatsResult, StatsRow } from '@shared/stats/types'
 import { catalogueFixture } from '../../fixtures/catalogue'
@@ -61,15 +61,28 @@ describe('the home boards', () => {
 })
 
 describe('a board’s rows', () => {
-  it('holds a per-game leader to 70 % of the games anyone played', () => {
+  it("holds a per-game leader to the NBA's 58 games of 82, scaled to the games played", () => {
     const r = result([row('a', 40, 10), row('b', 30, 60), row('c', 20, 82)])
     const view = boardView(r, pts, true)
-    // 70 % of 82 is 58 games: the player with ten great ones does not lead.
+    // 58 games of 82: the player with ten great ones does not lead.
     expect(view.rows.map((x) => x.id)).toEqual(['b', 'c'])
     expect(view.rows[0]).toMatchObject({ rank: 1, lead: true, fraction: 1, value: '30.0' })
     expect(view.rows[1]).toMatchObject({ rank: 2, lead: false })
     expect(view.rows[1].fraction).toBeCloseTo(20 / 30, 6)
     expect(view.sub).toBe('per game')
+  })
+
+  it('scales the games to a shortened season, as the NBA does', () => {
+    expect(gamesToQualify(82)).toBe(58)
+    // 1998-99 had 50 games, 2011-12 had 66: 58 × 50 / 82 is 35.4, 58 × 66 / 82 is 46.7.
+    expect(gamesToQualify(50)).toBe(36)
+    expect(gamesToQualify(66)).toBe(47)
+    const view = boardView(
+      result([row('a', 30, 46), row('b', 20, 47), row('c', 10, 66)]),
+      pts,
+      true
+    )
+    expect(view.rows.map((x) => x.id)).toEqual(['b', 'c'])
   })
 
   it('needs no games for a total', () => {

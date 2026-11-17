@@ -431,7 +431,7 @@ export function whoWords(state: Pick<ChartState, 'entity' | 'position'>): string
 /**
  * The designed state when too few qualify: how many, in what scope, and why.
  * "6 centers qualify on both axes in the last 5 games. A scatter needs at least 10: a player
- * qualifies with enough minutes for the games in scope, and enough of each axis's own sample."
+ * qualifies with enough games played for the scope, and enough of each axis's own sample."
  */
 export function fewNote(
   qualified: number,
@@ -447,7 +447,7 @@ export function fewNote(
         : lowerFirst(range.replace("Team's", "their team's"))
   const why =
     state.entity === 'player'
-      ? 'a player qualifies with enough minutes for the games in scope, and enough of each axis’s own sample'
+      ? 'a player qualifies with enough games played for the scope, and enough of each axis’s own sample'
       : 'a team qualifies with enough of each axis’s own sample'
   const verb = qualified === 1 ? 'qualifies' : 'qualify'
   const who = qualified === 1 ? whoWords(state).replace(/s$/, '') : whoWords(state)

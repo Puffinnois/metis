@@ -60,7 +60,7 @@ export const DEFAULT_METRIC: Record<TrendEntity, string> = { player: 'pts', team
 /** The first season with box scores, 1993-94. */
 export const FIRST_SEASON = 1994
 
-/** The leaderboard's qualifier for players: minutes, scaled to each season's games. */
+/** The leaderboard's qualifier for players: minutes per game, which qualifies on games (D33). */
 export const QUALIFIER = 'min'
 
 /**
@@ -206,7 +206,7 @@ const partKey = (seasons: readonly number[]): string =>
 
 /**
  * The pool each season ranks in, one query a part of the span. `qualifiedOnly` with the sort on
- * minutes leaves out players under the leaderboard's minutes qualifier; the metric's own sample
+ * minutes leaves out players under the leaderboard's qualifier, 58 games of 82; the metric's own sample
  * (attempts for a shooting rate) is applied from each row's `qualified` flag in `seasonPool`, as
  * the leaderboard's `rankWithinTab` does. Every team is in.
  */

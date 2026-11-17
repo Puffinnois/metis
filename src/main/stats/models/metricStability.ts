@@ -280,6 +280,7 @@ export function catalogueSignature(catalogue: readonly MetricDef[] = CATALOGUE):
       m.value,
       m.sample,
       m.minSample ?? null,
+      m.qualifyBy ?? null,
       m.aggregation,
       m.firstSeason,
       m.missingSeasons ?? null,

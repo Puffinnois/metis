@@ -1,3 +1,4 @@
+import { NBA_MINIMUMS } from '@shared/stats/catalogue/define'
 import type { Entity, StatsQuery, StatsResult } from '@shared/stats/types'
 import { fmtStat, type ValueFormat } from './format'
 import { queryScope, type StatsScope } from './scope'
@@ -35,10 +36,10 @@ export const BOARDS: BoardDef[] = [
 export const BOARD_ROWS = 6
 
 /**
- * A per-game leader needs 70 % of the games: the NBA's own rule is 58 of 82, near enough, and a player
- * with ten great games should not lead a season.
+ * A per-game leader needs the NBA's 58 games of 82 (D33), scaled to the games in scope as the league
+ * scales it in a shortened season: a player with ten great games should not lead a season.
  */
-export const MIN_GAMES_SHARE = 0.7
+export const gamesToQualify = (most: number): number => Math.ceil((most * NBA_MINIMUMS.games) / 82)
 
 /** Every qualified row, sorted by the engine. Counts per game when asked. */
 export function boardQuery(board: BoardDef, scope: StatsScope, perGame: boolean): StatsQuery {
@@ -76,7 +77,7 @@ export interface BoardView {
 export function boardView(result: StatsResult, format: ValueFormat, perGame: boolean): BoardView {
   const metric = result.columns[0]?.id
   const most = Math.max(0, ...result.rows.map((r) => r.games))
-  const need = perGame && format.aggregation === 'sum' ? Math.ceil(most * MIN_GAMES_SHARE) : 1
+  const need = perGame && format.aggregation === 'sum' ? gamesToQualify(most) : 1
   const ranked = result.rows.filter(
     (r) => metric && r.values[metric]?.value !== null && r.games >= need
   )

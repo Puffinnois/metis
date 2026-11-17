@@ -64,6 +64,12 @@ describe('reading through the service', () => {
     })
     expect(pts).not.toHaveProperty('value')
     expect(pts).not.toHaveProperty('sample')
+    // The NBA qualifies field-goal percentage on makes, while its sample stays the attempts.
+    expect(catalogue.find((m) => m.id === 'fg_pct')).toMatchObject({
+      sampleLabel: 'field-goal attempts',
+      qualifyLabel: 'field goals made',
+      minSample: 300
+    })
   })
 
   it('lists each season newest first, with only the types that have box scores', async () => {

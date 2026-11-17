@@ -9,6 +9,14 @@ export const FIRST_SEASON = 1994
 /** The NBA's own data starts here: 1996-97. */
 export const NBA_FIRST_SEASON = 1997
 
+/**
+ * The NBA's statistical minimums for its leaders since 2013-14, per 82 games (D33,
+ * `docs/reference/nba-qualifying-minimums.md`): games for the per-game leaders, makes for the
+ * shooting percentages. They scale with the games in scope, as the league scales them in a shortened
+ * season.
+ */
+export const NBA_MINIMUMS = { games: 58, fgm: 300, fg3m: 82, ftm: 125 } as const
+
 export const BOX_SOURCES = ["The NBA's box scores from 1996-97", "ESPN's box scores before them"]
 export const NBA_SOURCES = ["The NBA's box scores"]
 export const ESPN_TEAM_SOURCES = ["ESPN's team box scores"]
@@ -114,6 +122,7 @@ export function teamSides(
     ...o,
     entity: 'team',
     minSample: undefined,
+    qualifyBy: undefined,
     perGameBy: o.perGameBy ?? (o.aggregation === 'sum' ? 'box_games' : undefined)
   }
   const sample = o.sample === 'games' ? 'box_games' : o.sample

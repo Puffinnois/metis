@@ -1,5 +1,14 @@
 import type { MetricDef } from '../types'
-import { allSides, count, metric, NBA_FIRST_SEASON, NBA_SOURCES, share, type Opts } from './define'
+import {
+  allSides,
+  count,
+  metric,
+  NBA_FIRST_SEASON,
+  NBA_MINIMUMS,
+  NBA_SOURCES,
+  share,
+  type Opts
+} from './define'
 
 /** Reference section 3: traditional box scores and participation. */
 const f = { family: 'traditional' } as const
@@ -7,6 +16,12 @@ const f = { family: 'traditional' } as const
 /** A shooting percentage: its minimum applies to players, since teams always qualify. */
 const pct = (a: string, b: string, minSample: number, tier: MetricDef['tier'] = 'extended'): Opts =>
   share(a, b, b, { ...f, minSample, tier })
+
+/** One of the NBA's shooting leaders: qualified on makes, as the league does (D33). */
+const nbaPct = (made: 'fgm' | 'fg3m' | 'ftm', attempts: string): Opts => ({
+  ...pct(made, attempts, NBA_MINIMUMS[made], 'core'),
+  qualifyBy: made
+})
 
 export const TRADITIONAL: MetricDef[] = [
   metric('gp', 'Games played', 'G', 'Games the player appeared in. Being listed does not count.', {
@@ -28,7 +43,9 @@ export const TRADITIONAL: MetricDef[] = [
       ...count('minutes', {
         ...f,
         sample: 'minutes',
-        minSample: 1000,
+        // Minutes per game is one of the NBA's per-game leaders: qualified on games (D33).
+        minSample: NBA_MINIMUMS.games,
+        qualifyBy: 'games',
         unit: 'minutes',
         perGameOnly: true,
         tier: 'core'
@@ -120,7 +137,7 @@ export const TRADITIONAL: MetricDef[] = [
     'Field-goal percentage',
     'FG%',
     'Field goals made per attempt.',
-    pct('fgm', 'fga', 500, 'core')
+    nbaPct('fgm', 'fga')
   ),
   ...allSides('fg_miss', 'Missed field goals', 'FGMX', 'Field-goal attempts minus makes.', {
     ...count('fga', { ...f, value: '{fga} - {fgm}', kind: 'derived', direction: 'neutral' })
@@ -157,7 +174,7 @@ export const TRADITIONAL: MetricDef[] = [
     'Three-point percentage',
     '3P%',
     'Threes made per attempt.',
-    pct('fg3m', 'fg3a', 200, 'core')
+    nbaPct('fg3m', 'fg3a')
   ),
   ...allSides('ftm', 'Free throws made', 'FTM', 'Free throws made.', count('ftm', f)),
   ...allSides('fta', 'Free-throw attempts', 'FTA', 'Free-throw attempts.', count('fta', f)),
@@ -166,7 +183,7 @@ export const TRADITIONAL: MetricDef[] = [
     'Free-throw percentage',
     'FT%',
     'Free throws made per attempt.',
-    pct('ftm', 'fta', 125, 'core')
+    nbaPct('ftm', 'fta')
   ),
   ...allSides('ft_miss', 'Missed free throws', 'FTMX', 'Free-throw attempts minus makes.', {
     ...count('fta', { ...f, value: '{fta} - {ftm}', kind: 'derived', direction: 'lower' })

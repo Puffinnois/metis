@@ -75,8 +75,16 @@ export interface MetricDef {
   unit: MetricUnit
   decimals: number
   direction: 'higher' | 'lower' | 'neutral'
-  /** The sample a row needs to qualify over 82 games, scaled to the team games in scope. */
+  /**
+   * The count a row needs to qualify over 82 games, scaled to the team games in scope: of `qualifyBy`
+   * when set, else of `sample`.
+   */
   minSample?: number
+  /**
+   * The component `minSample` counts, when it is not the sample: the NBA qualifies its shooting leaders
+   * on makes (300 field goals), while the rate's sample, what shrinking weighs, stays the attempts.
+   */
+  qualifyBy?: string
   /** What a total divides by to be per game, when not `games`: a box score's count, not the record's. */
   perGameBy?: string
   /** Stays a total under per game, per 36 and the rest: wins per game would read as a win rate. */
@@ -159,6 +167,8 @@ export interface MetricInfo extends Omit<MetricDef, 'value' | 'sample'> {
   grains: Grain[]
   /** What the sample counts, in words: "field-goal attempts". */
   sampleLabel: string
+  /** What `minSample` counts, in words: "field goals made" where it is not the sample. */
+  qualifyLabel: string
   /** Null before the models have measured it. */
   stability: MetricStability | null
 }

@@ -566,7 +566,7 @@ function Header({
             </span>
             {row && !qualified && (
               <span
-                title="Below 1,000 minutes over 82 games, scaled to the games in range"
+                title="Below 58 games of 82, scaled to the games in range"
                 className="rounded-[4px] px-1.5 py-[3px] font-mono text-[11px] text-fg-3 shadow-[inset_0_0_0_1px_var(--line)]"
               >
                 Not qualified

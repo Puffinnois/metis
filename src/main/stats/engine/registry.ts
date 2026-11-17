@@ -63,6 +63,7 @@ export function catalogueInfo(
       ...(info as Omit<MetricDef, 'value' | 'sample'>),
       grains: grainsOf(def),
       sampleLabel: sampleLabel(def.sample),
+      qualifyLabel: sampleLabel(def.qualifyBy ?? def.sample),
       stability: stability.get(def.id) ?? null
     }
   })
