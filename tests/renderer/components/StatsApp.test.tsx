@@ -6,6 +6,10 @@ import { StatsApp } from '@/screens/stats/StatsApp'
 
 vi.mock('@/lib/api', () => ({
   api: {
+    // An existing profile: the first run's question has its answer.
+    leagues: {
+      downloads: vi.fn().mockResolvedValue({ decided: true, leagues: [], freeBytes: null })
+    },
     stats: { status: vi.fn(), data: vi.fn(), onChanged: vi.fn(() => () => {}) },
     dev: { mode: vi.fn().mockResolvedValue(false), onModeChanged: vi.fn(() => () => {}) }
   }

@@ -14,6 +14,12 @@ export const CC_BY_URL = 'https://creativecommons.org/licenses/by/4.0/'
 export const NBA_STATS_URL = 'https://www.nba.com/stats'
 /** ESPN is the other source, credited the same way (D31). */
 export const ESPN_NBA_URL = 'https://www.espn.com/nba/'
+/**
+ * The WNBA's sources, credited as the NBA's are (data-rights.md, "The WNBA's releases"): the league's
+ * own site and ESPN. Links only: Metis never requests either.
+ */
+export const WNBA_STATS_URL = 'https://www.wnba.com/stats'
+export const ESPN_WNBA_URL = 'https://www.espn.com/wnba/'
 
 export const CREDIT_TITLE = 'Data and credit'
 
@@ -26,6 +32,14 @@ export const CREDIT_LEAD: CreditSegment[] = [
   { text: 'ESPN', url: ESPN_NBA_URL },
   ' and ',
   { text: 'NBA.com', url: NBA_STATS_URL },
+  '. WNBA data is published by ',
+  { text: 'SportsDataverse', url: DATASET_URL },
+  ' under ',
+  { text: 'CC BY 4.0', url: CC_BY_URL },
+  ', from ',
+  { text: 'ESPN', url: ESPN_WNBA_URL },
+  ' and ',
+  { text: 'WNBA.com', url: WNBA_STATS_URL },
   '. Metis downloads it to this computer, reshapes it into its own tables and computes stats from it. It shares nothing.'
 ]
 
@@ -33,7 +47,7 @@ export const CREDIT_LEAD: CreditSegment[] = [
 export const CREDIT_WHOSE: { label: string; text: string }[] = [
   {
     label: 'As published',
-    text: 'Box scores, play by play, shots, tracking, hustle, play types, matchups, lineups and standings, as ESPN and NBA.com publish them.'
+    text: 'Box scores, play by play, shots, tracking, hustle, play types, matchups, lineups and standings, as ESPN, NBA.com and WNBA.com publish them.'
   },
   {
     label: 'SportsDataverse’s calculations',
@@ -46,7 +60,7 @@ export const CREDIT_WHOSE: { label: string; text: string }[] = [
 ]
 
 export const CREDIT_NOTES: string[] = [
-  'Metis is not affiliated with or endorsed by the NBA, ESPN or SportsDataverse. Team and player names, and the NBA and ESPN names, belong to their owners.',
+  'Metis is not affiliated with or endorsed by the NBA, the WNBA, ESPN or SportsDataverse. Team and player names, and the NBA, WNBA and ESPN names, belong to their owners.',
   'Metis is open source under the Apache License 2.0. That covers the app, not the data, which keeps its own terms.'
 ]
 
