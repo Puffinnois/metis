@@ -39,6 +39,34 @@ One first load on Windows, 2026-11-16, measured by the manager (Plan T1104). The
 
 The build steps took about 56 minutes, against about 13 in WSL at the Stage 10 gate. Only the file's size over time is known (4,679 MB until after 15:39, 4,704 at 15:49, 4,845 at 15:59, 5,073 from 16:09): the profile was deleted before the sync log was read, so the time of each step was not. Why they ran four to five times slower than in WSL is not established. Candidates, none tested: other load on the machine, Windows scheduling a background window's process on efficiency cores, real-time antivirus scanning of the database file, and DuckDB's thread count on Windows.
 
+A second first load the same day, on the same machine (6 performance and 4 efficiency cores, the Balanced power plan, on mains power, in use) with the same test build and a clean profile, took 105.6 minutes (16:53:10 to 18:38:44). It ran 3,031 steps with 45 skipped, into 5,340,147,712 bytes, with memory at about 2.0 GB at its peak. This time the app's sync log was read:
+
+| Step              | On Windows                    | In WSL, Stage 10 gate |
+| ----------------- | ----------------------------- | --------------------- |
+| File loads        | About 29 minutes, 16:53–17:22 |                       |
+| `stats:published` | 90 seconds (two runs)         |                       |
+| `stats:plays`     | 3,933 seconds                 | 546 seconds (7.2×)    |
+| `stats:models`    | 668 seconds                   | 200 seconds (3.3×)    |
+
+Sampled about every 16 seconds, the app used 1.2 to 1.3 cores throughout. The summed utility of the 4 efficiency cores was about 210 to 260 of 400 during the load and about 83 after it; that of the 12 performance-core threads about 70 of 1,200. Defender averaged 4% of a core during plays and 12% during the file loads, disk writes about 1 MB/s during plays, and `stats-tmp` peaked at 59 MB during the file loads and was empty during plays and models. Windows reported no power-throttling setting of the app's own, and a Normal priority, the whole time.
+
+A fixed single-thread test, started the same way as the app (from a background session), took 26 to 28 seconds by default, 29.6 pinned to the efficiency cores, 12 to 17 pinned to the performance cores, 22 at AboveNormal priority, 20 at High, and 8.4, twice, after opting out of execution-speed throttling. The app now opts out at startup on Windows ([`src/main/fullSpeed.ts`](../../src/main/fullSpeed.ts)). Not established: why plays ran 7 times slower when the single-thread test gives about 3 times; whether an app launched from the Start menu and kept in front already gets the performance cores; and whether opting out speeds up the real load, which the third load below measured.
+
+A third first load the same day, on the same machine and setup with a clean profile, used a test build that makes the call (run 43990003214). The app logged "full speed: set", and Windows reported the setting (ControlMask 1, StateMask 0) on the main process for the whole load. It took 46.8 minutes (19:58:09 to 20:44:55), into 5,322,846,208 bytes, with memory at about 2.0 GB at its peak (working set 2,044 MB) and `stats-tmp` at 35 MB.
+
+| Step              | Third load, with the call     | Second load, without | In WSL, Stage 10 gate |
+| ----------------- | ----------------------------- | -------------------- | --------------------- |
+| Whole load        | 46.8 minutes                  | 105.6 minutes        | 33.7 minutes          |
+| File loads        | About 24 minutes, 19:58–20:22 | About 29 minutes     |                       |
+| `stats:derived`   | 11.5 seconds                  | 26.9 seconds         |                       |
+| `stats:published` | 8.4 and 31.1 seconds          | 90 seconds together  |                       |
+| `stats:plays`     | 1,124.6 seconds               | 3,933 seconds        | 546 seconds           |
+| `stats:models`    | 198.2 seconds                 | 668 seconds          | 200 seconds           |
+
+The app used 1.20 cores on average. The summed utility of the performance-core threads averaged 358 of 1,200 (about 70 in the second load), and that of the efficiency cores 151 of 400 (210 to 260). Defender averaged 12% of a core over the load, 25% in the first 20 minutes and 3% after.
+
+The load was short six files. Six ESPN 2002 files (player box scores, player seasons, team seasons, game rosters, standings and officials) each failed with HTTP 502 from the GitHub release download between 20:03:04 and 20:03:57: 3,025 steps succeeded, 45 were skipped and 6 failed, and the run did not try them again before it finished. On this run the time, the file and the memory are inside D22's limits, for a load missing those six files. Plays still takes about twice WSL's time, and why is not established. Not checked: a launch from the Start menu with the window kept in front, and whether the six files arrive at the next refresh.
+
 ## Refreshing
 
 | What                                                | Measured                                                                           | Where                                                             |
@@ -102,7 +130,7 @@ Which seasons really hold values, table by table and column by column, is in [nb
 
 ## Not measured or not checked
 
-- **Windows:** a refresh, the time of each build step, the credit section by eye, a clean machine, and the real installer's first run (the first load used a test build) (Plan T1104). Why the build steps ran four to five times slower than in WSL. Also not yet checked: SmartScreen on a browser download, an update from the published releases on GitHub, a differential update download, and the real installer's pages on a clean machine. What was run on 2026-11-16 is in [windows-install-check.md](windows-install-check.md).
+- **Windows:** a refresh, the credit section by eye, a clean machine, and the real installer's first run (the first load used a test build) (Plan T1104). Why plays still takes about twice WSL's time with the full-speed call; a complete load with the call (the third was short six files that failed to download); whether those files arrive at the next refresh. Also not yet checked: SmartScreen on a browser download, an update from the published releases on GitHub, a differential update download, and the real installer's pages on a clean machine. What was run on 2026-11-16 is in [windows-install-check.md](windows-install-check.md).
 - **The download size at the Stage 9 and 10 gates:** each says "Not checked: the size of the downloads". The 1,554 MB above is from the asset list on 2026-11-05; the Stage 7 and 8 gates report 1.64 GB of downloads.
 - **Why the first attempt at the Stage 10 gate lost its page** 14 minutes into the load: it left no log, and it did not recur on two later loads with the capture on (Plan, Stage 10 gate).
 - **How fast a click is during the heaviest writes of the play step:** only five clicks were timed, 106 to 354 ms (Plans T907 and Stage 9 gate).

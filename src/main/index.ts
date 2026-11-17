@@ -8,6 +8,7 @@ import icon from '../../resources/icon.png?asset'
 import { openDatabase, type Db } from '@main/db/connection'
 import { migrate } from '@main/db/migrate'
 import { captureMainErrors, createErrorLog } from '@main/dev/errorLog'
+import { createFullSpeedRequest, loadWindowsThrottleApi } from '@main/fullSpeed'
 import { registerDevHandlers } from '@main/dev/ipc'
 import { createDevMode } from '@main/dev/mode'
 import { registerIpcHandlers, type AppContext } from '@main/ipc/handlers'
@@ -21,6 +22,15 @@ let mainWindow: BrowserWindow | null = null
 // The recent-errors buffer runs from launch, whatever the dev mode.
 const errorLog = createErrorLog()
 captureMainErrors(errorLog)
+
+// Asked once, before the stats worker starts; a failure is logged, never fatal.
+const requestFullSpeed = createFullSpeedRequest({
+  platform: process.platform,
+  loadApi: loadWindowsThrottleApi,
+  log: (message) => console.info(message),
+  logError: (message, err) =>
+    err === undefined ? console.error(message) : console.error(message, err)
+})
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -95,7 +105,8 @@ const REFRESH_INTERVAL_MS = 6 * 60 * 60 * 1000
 /**
  * `--stats-self-test=<file>`: the packaged app opens a throwaway stats database in the worker,
  * writes, reads and round-trips Parquet, writes the result as JSON to `<file>`, and exits 0 on
- * success. CI runs it on the Windows build.
+ * success. CI runs it on the Windows build. The JSON also says whether the full-speed request
+ * succeeded (`fullSpeed`), which does not decide the exit code.
  */
 const SELF_TEST_FLAG = '--stats-self-test='
 
@@ -112,7 +123,7 @@ async function runStatsSelfTest(out: string): Promise<number> {
   } catch (err) {
     result = { ok: false, error: err instanceof Error ? err.message : String(err) }
   }
-  writeFileSync(out, JSON.stringify(result))
+  writeFileSync(out, JSON.stringify({ ...result, fullSpeed: await requestFullSpeed() }))
   rmSync(dir, { recursive: true, force: true })
   return code
 }
@@ -131,6 +142,7 @@ app.on('second-instance', () => {
 
 app.whenReady().then(async () => {
   if (!primary) return
+  await requestFullSpeed()
   const selfTest = process.argv.find((a) => a.startsWith(SELF_TEST_FLAG))
   if (selfTest) {
     app.exit(await runStatsSelfTest(selfTest.slice(SELF_TEST_FLAG.length)))

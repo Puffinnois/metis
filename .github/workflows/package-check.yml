@@ -33,6 +33,9 @@ jobs:
           ./dist/win-unpacked/Metis.exe --stats-self-test="$RUNNER_TEMP/stats-self-test.json"
           cat "$RUNNER_TEMP/stats-self-test.json"
           grep -q '"ok":true' "$RUNNER_TEMP/stats-self-test.json"
+          # The app carries on if Windows refuses the full-speed call, but a packaged app that
+          # cannot make it at all (Koffi missing from the package) fails here.
+          grep -q '"fullSpeed":"set"' "$RUNNER_TEMP/stats-self-test.json"
 
       - name: Keep the unpacked app
         uses: actions/upload-artifact@v7
