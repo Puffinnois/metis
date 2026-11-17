@@ -1,0 +1,65 @@
+[
+  {
+    "size": [1500, 950]
+  },
+  {
+    "wait": 5000
+  },
+  {
+    "eval": "window.sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nwindow.until = async (fn, ms = 15000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (fn()) return true; await sleep(150) } return false };\nwindow.nav = async (name) => { const b = [...document.querySelectorAll('nav button')].find((x) => x.textContent.trim() === name); if (!b) return 'NO NAV ' + name; b.click(); await sleep(2500); return 'nav ' + name };\nwindow.chooseSelect = async (title, value) => { const el = [...document.querySelectorAll('select')].find((x) => x.title === title); if (!el) return 'NO SELECT ' + title; Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(el, String(value)); el.dispatchEvent(new Event('change', { bubbles: true })); await sleep(2500); return title + ' = ' + (el.selectedOptions[0]?.textContent ?? el.value) };\nwindow.press = async (text) => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === text); if (!b) return 'NO BUTTON ' + text; b.click(); await sleep(2500); return 'pressed ' + text };\nwindow.toggle = async (label) => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim().endsWith(label)); if (!b) return 'NO TOGGLE ' + label; b.click(); await sleep(2500); return label + ' ' + b.getAttribute('aria-pressed') };\nwindow.pressed = (label) => [...document.querySelectorAll('button')].find((x) => x.textContent.trim().endsWith(label))?.getAttribute('aria-pressed');\nwindow.rows = () => [...document.querySelectorAll('tbody tr')].filter((r) => r.querySelector('td'));\nwindow.nq = () => [...document.querySelectorAll('span[title=\"Below the qualifying sample\"]')].length;\nwindow.has = (text) => document.body.innerText.includes(text);\nwindow.check = (label, got, want) => (want.every((w) => JSON.stringify(got).includes(w)) ? 'OK ' : 'MISMATCH ') + label + ' want ' + JSON.stringify(want) + ' got ' + JSON.stringify(got);\nwindow.noLine = () => [...document.querySelectorAll('span[title=\"No games played in range\"]')].length;\nwindow.rowOf = (name) => rows().find((x) => x.innerText.includes(name));\nwindow.cells = (r) => (r ? [...r.querySelectorAll('td')].map((c) => c.innerText.trim().replace(/\\n/g, ' ')) : null);\nwindow.search = async (text) => { const i = document.querySelector('input[aria-label=\"Search\"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, text); i.dispatchEvent(new Event('input', { bubbles: true })); await sleep(1500); return 'search ' + text };\n'helpers ready'"
+  },
+  {
+    "eval": "(async () => { const at = Date.now(); let busy = true; for (let i = 0; i < 360 && busy; i++) { busy = (await window.api.stats.status()).busy; if (busy) await sleep(5000) } return 'idle: ' + !busy + ' after ' + Math.round((Date.now() - at) / 1000) + ' s' })()"
+  },
+  {
+    "eval": "(async () => { const q = (season, type) => window.api.stats.query({ entity: 'player', metrics: ['games_out_injury', 'games_out_other', 'min'], scope: { seasons: [season], gameTypes: [type] }, sort: { metric: 'games_out_injury', dir: 'desc' }, limit: 1000 }); const pick = (r, name) => { const x = r.rows.find((y) => y.name === name); return x ? [x.name, x.team, x.position, x.games, x.noLine ?? false, x.values.games_out_injury.value, x.values.games_out_injury.qualified, x.values.games_out_injury.rank, x.values.min.value] : null }; const reg = await q(2026, 'regular'); const po = await q(2026, 'playoffs'); return [check('2025-26 regular season: Tyrese Haliburton, out of all 82 games, is listed with no line, not qualified, no rank, no minutes', pick(reg, 'Tyrese Haliburton'), ['\"Tyrese Haliburton\",\"IND\"', ',0,true,82,false,null,null']), check('2025-26 playoffs: Luka Dončić, out of the whole run, is listed with no line', pick(po, 'Luka Dončić'), ['\"Luka Dončić\",\"LAL\"', ',0,true,10,false,null,null']), 'regular rows ' + reg.rows.length + ', no line ' + reg.rows.filter((x) => x.noLine).length + '; playoff rows ' + po.rows.length + ', no line ' + po.rows.filter((x) => x.noLine).length].join(' | ') })()"
+  },
+  {
+    "eval": "(async () => { const r = await window.api.stats.query({ entity: 'player', metrics: ['pts', 'min'], scope: { seasons: [2026] }, limit: 1000 }); return check('2025-26 points board: no row without a line, Haliburton not listed', [r.rows.filter((x) => x.noLine).length, r.rows.some((x) => x.name === 'Tyrese Haliburton')], ['[0,false]']) })()"
+  },
+  {
+    "eval": "(async () => { return [await nav('Leaderboards'), await chooseSelect('Season', 2026)].join(' / ') })()"
+  },
+  {
+    "eval": "(async () => { return press('All →') })()"
+  },
+  {
+    "eval": "(async () => { await until(() => rows().length > 0); return chooseSelect('Metric family', 'availability') })()"
+  },
+  {
+    "eval": "(async () => { await until(() => !!rowOf('Tyrese Haliburton')); const r = rowOf('Tyrese Haliburton'); return check('Games out, 2025-26 regular season, Qualified only on: Haliburton is listed, marked NQ for no games, 0 games, 82 out for injury', [pressed('Qualified only'), cells(r), r ? !!r.querySelector('span[title=\"No games played in range\"]') : null, noLine()], ['\"true\"', 'Tyrese Haliburton', 'IND', ',true,']) })()"
+  },
+  {
+    "eval": "(async () => { return 'listed: ' + (document.body.innerText.match(/[0-9,]+ of [0-9,]+ · sorted by [^·\\n]*/)?.[0] ?? 'NO TOTAL') + ' | first rows: ' + rows().slice(0, 4).map((x) => cells(x).slice(0, 5).join(' ')).join(' / ') })()"
+  },
+  {
+    "shot": "t1206-01-games-out-regular"
+  },
+  {
+    "eval": "(async () => { return chooseSelect('Season type', 'playoffs') })()"
+  },
+  {
+    "eval": "(async () => { await until(() => !!rowOf('Luka Dončić')); const r = rowOf('Luka Dončić'); return check('Games out, 2025-26 playoffs: Luka Dončić, out of the whole run, is listed and NQ', [pressed('Qualified only'), cells(r), r ? !!r.querySelector('span[title=\"No games played in range\"]') : null], ['\"true\"', 'Luka Dončić', 'LAL', ',true']) })()"
+  },
+  {
+    "eval": "(async () => { return 'listed: ' + (document.body.innerText.match(/[0-9,]+ of [0-9,]+ · sorted by [^·\\n]*/)?.[0] ?? 'NO TOTAL') + ' | no line: ' + noLine() })()"
+  },
+  {
+    "shot": "t1206-02-games-out-playoffs"
+  },
+  {
+    "eval": "(async () => { return [await chooseSelect('Season type', 'regular'), await chooseSelect('Season', 2022)].join(' / ') })()"
+  },
+  {
+    "eval": "(async () => { await until(() => !!rowOf('Kawhi Leonard')); const b = rowOf('Kawhi Leonard')?.querySelector('button'); if (!b) return 'NO KAWHI ROW'; b.click(); await sleep(4000); return 'opened ' + (document.querySelector('h1')?.innerText.replace(/\\n/g, ' ') ?? '?') })()"
+  },
+  {
+    "eval": "(async () => { await until(() => has('Career by season')); return check('Kawhi Leonard, 2021-22: played no games, says so', [has('Kawhi Leonard played no games in 2021-22'), has('No games ·')], ['[true,true]']) })()"
+  },
+  {
+    "eval": "(async () => { await until(() => has('Out 82 games')); const h = [...document.querySelectorAll('h2, h3, span, div')].find((x) => x.textContent.trim() === 'Career by season'); h?.scrollIntoView({ block: 'start' }); await sleep(800); const line = [...document.querySelectorAll('[role=\"row\"], tr, div')].filter((x) => x.children.length > 3 && x.innerText.startsWith('2021-22')).map((x) => x.innerText.replace(/\\n/g, ' ').trim())[0]; const out = [...document.querySelectorAll('span[title]')].find((x) => x.textContent.trim() === 'Out 82 games'); return check('the career by season: 2021-22 reads Out 82 games, no stats, never zeros', [line ?? null, out?.title ?? null], ['2021-22', 'Out 82 games', 'Listed Out of 82 for an injury or illness']) })()"
+  },
+  {
+    "shot": "t1206-03-dashboard-missed-season"
+  }
+]

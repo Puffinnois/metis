@@ -684,6 +684,12 @@ export const LINE_METRICS = [
   'bpm'
 ]
 
+/**
+ * Read beside the line, not shown as columns: they list a season the player missed whole (Plan T1206),
+ * which has no line, with its games out.
+ */
+export const CAREER_OUT = ['games_out_injury', 'games_out_other']
+
 /** The scope's game types over a career: its range belongs to one season, so it is left out. */
 export function careerQuery(
   player: string,
@@ -694,7 +700,7 @@ export function careerQuery(
 ): StatsQuery {
   return {
     entity: 'player',
-    metrics: LINE_METRICS,
+    metrics: [...LINE_METRICS, ...CAREER_OUT],
     scope: {
       seasons,
       gameTypes: queryScope(scope, 'player').gameTypes,
@@ -715,6 +721,25 @@ export interface LineRow {
   cells: { text: string; title: string }[]
   /** A season inside the career with no games in the scope's type. */
   gap: boolean
+  /** A season with no games and games out listed: "Out 72 games", with the reasons in `outTitle`. */
+  out?: string
+  outTitle?: string
+}
+
+/** A missed season's games out, in words: the total, then each reason that has any. */
+function outWords(row: StatsRow): Pick<LineRow, 'out' | 'outTitle'> {
+  const injury = row.values.games_out_injury?.value ?? 0
+  const other = row.values.games_out_other?.value ?? 0
+  const total = injury + other
+  if (total <= 0) return {}
+  const parts = [
+    injury > 0 ? `${injury} for an injury or illness` : null,
+    other > 0 ? `${other} for other reasons` : null
+  ].filter((x): x is string => x !== null)
+  return {
+    out: `Out ${total} ${total === 1 ? 'game' : 'games'}`,
+    outTitle: `Listed Out of ${parts.join(' and ')} on the NBA's injury reports. No games played.`
+  }
 }
 
 function lineCells(
@@ -734,7 +759,10 @@ function lineCells(
   })
 }
 
-/** Oldest first. A season inside the career with no games says so, instead of closing the gap. */
+/**
+ * Oldest first. A season inside the career with no games says so, instead of closing the gap; one
+ * missed whole, with games out listed, says how many and has no stats, never zeros (Plan T1206).
+ */
 export function careerRows(
   bySeason: StatsResult | null,
   byId: ReadonlyMap<string, MetricInfo>,
@@ -748,13 +776,15 @@ export function careerRows(
   const out: LineRow[] = []
   for (let s = Math.min(...seasons); s <= Math.max(...seasons); s++) {
     const r = rows.get(s)
+    const played = r !== undefined && !r.noLine
     out.push({
       key: String(s),
       label: seasonLabel(s),
       team: r?.team ?? null,
-      games: r ? String(r.games) : '0',
-      cells: r ? lineCells(r, byId, mode, s) : [],
-      gap: !r
+      games: played ? String(r.games) : '0',
+      cells: played ? lineCells(r, byId, mode, s) : [],
+      gap: !played,
+      ...(r && !played ? outWords(r) : {})
     })
   }
   return out
@@ -771,7 +801,8 @@ export function careerTotal(
   firstPlayed: number | null
 ): LineRow | null {
   const r = total?.rows[0]
-  if (!r) return null
+  // A career of games out and no game played has no line to total.
+  if (!r || r.noLine) return null
   const partial = (id: string): boolean => {
     const info = byId.get(id)
     return !!info && firstPlayed !== null && info.firstSeason > firstPlayed

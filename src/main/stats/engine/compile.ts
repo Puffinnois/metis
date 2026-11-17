@@ -24,7 +24,7 @@ import {
   type Transform
 } from '@shared/stats/types'
 import { gameTable } from '../derived/gameTables'
-import { publishedTable } from '../derived/published'
+import { PUBLISHED_DIVISORS, publishedTable } from '../derived/published'
 import { SPLIT_PLAYER, SPLIT_PLAYER_SQL, SPLIT_TEAM, SPLIT_TEAM_SQL } from '../derived/splits'
 import { PUBLISHED_GAME_TYPES } from '../derived/publishedTables'
 import { leftOutGap } from '../leftOut'
@@ -97,6 +97,8 @@ export interface Compiled {
   transform: Transform
   /** Per metric: its values are shrunk toward the league by its prior. */
   shrunk: boolean[]
+  /** The tables whose own rows were added to the result (`PublishedTable.addsRows`). */
+  adds: string[]
   gamesSql: string
   gamesParams: Value[]
   /** A row per season: each season qualifies against its own games, so one in progress is fair. */
@@ -199,6 +201,8 @@ interface Checked {
   gameTypes: GameType[]
   transform: Transform
   groupBy: GroupBy[]
+  /** The tables whose own rows add rows to this query's result (`PublishedTable.addsRows`). */
+  adds: string[]
 }
 
 /** The checks, with readable messages, before anything reaches SQL. */
@@ -322,7 +326,23 @@ function validate(q: StatsQuery, ctx: CompileContext): Checked {
     if (!grains.includes(grain)) fail(`"${m.id}" cannot be read at the ${grain} grain`)
   }
   const gaps = metrics.map((m) => gapOf(m, q, grain, gameTypes, transform))
-  return { metrics, gaps, grain, gameTypes, transform, groupBy }
+  // A table adds rows only where a metric reads it with an answer, so a query reading none is the
+  // query it was. A published table has whole seasons, so only the season grain; and never for the
+  // stability measure, which would only drop them again (they never qualify).
+  const adds = [
+    ...new Set(
+      metrics.flatMap((m, i) =>
+        m.published &&
+        gaps[i] === null &&
+        grain === 'season' &&
+        !ctx.internal &&
+        publishedTable(m.published)?.addsRows
+          ? [m.published]
+          : []
+      )
+    )
+  ]
+  return { metrics, gaps, grain, gameTypes, transform, groupBy, adds }
 }
 
 /** What a published table can leave out, for the transform that needs it. */
@@ -741,11 +761,26 @@ function aggregate(
            ${[...needed].map(component).join(', ')}
     FROM ${table} w ${recentJoin} ${splitJoin}
     WHERE ${where.join(' AND ')} ${lastN})`)
+  // A table that adds rows lists its players with no line in scope beside the box-score rows; the
+  // league's sums never have them (Plan T1206).
+  const adding = league === undefined && c.adds.length > 0
+  const rows = adding ? `${p}rows` : base
+  if (adding) {
+    ctes.push(addedCte(`${p}added`, q, c, params, seasons, types))
+    ctes.push(`${rows} AS (SELECT * FROM ${base} UNION ALL BY NAME SELECT * FROM ${p}added)`)
+  }
+  // Who a row is: from its box-score rows wherever it has any, else from the table's.
+  const identity = adding
+    ? `coalesce(arg_max(team_id, ord), arg_max(team_id, season)) AS team_id,
+       coalesce(max(season) FILTER (WHERE no_line IS NULL), max(season)) AS last_season,
+       coalesce(mode(position) FILTER (WHERE no_line IS NULL), mode(position)) AS position,
+       any_value(added_name) AS added_name, bool_and(no_line IS NOT NULL) AS no_line,`
+    : 'arg_max(team_id, ord) AS team_id, max(season) AS last_season, mode(position) AS position,'
   ctes.push(`${p}sums AS (
     SELECT id, ${c.groupBy.map((d) => `${d} AS g_${d}, `).join('')}
-           arg_max(team_id, ord) AS team_id, max(season) AS last_season, mode(position) AS position,
+           ${identity}
            ${[...needed].map((n) => `sum(${n}) AS ${n}`).join(', ')}
-    FROM ${base} GROUP BY id${c.groupBy.map((d) => `, ${d}`).join('')})`)
+    FROM ${rows} GROUP BY id${c.groupBy.map((d) => `, ${d}`).join('')})`)
 
   // Only the tables some metric can answer from: under a game filter, the game tables.
   const atGames = !season
@@ -776,7 +811,16 @@ function aggregate(
           ? builtCte(alias(table), table, parts, q, c, params, base)
           : atGames
             ? gameCte(alias(table), table, parts, c, base)
-            : publishedCte(alias(table), table, parts, q, c, params, base)
+            : // A table that adds rows answers for them too; every other table for the lines only.
+              publishedCte(
+                alias(table),
+                table,
+                parts,
+                q,
+                c,
+                params,
+                adding && c.adds.includes(table) ? rows : base
+              )
     )
   }
   // A game or built table's rows group by every dimension; a published table's by the season at most.
@@ -811,9 +855,71 @@ function aggregate(
   }
   ctes.push(`${p}agg AS (
     SELECT s.id, ${c.groupBy.map((d) => `s.g_${d}, `).join('')} s.team_id, s.last_season, s.position,
+           ${adding ? 's.no_line, s.added_name,' : ''}
            s.games::DOUBLE AS games, ${metricColumns(q, c, sumOf).join(', ')}
     FROM ${p}sums s ${joins.join(' ')})`)
   return ctes.join(',\n')
+}
+
+/**
+ * The rows a table that adds rows lists (Plan T1206): each player it counts something this query
+ * reads for, in the seasons and season types in scope, with no box-score line in that season and
+ * type. "No line" is read from the whole season (`player_season`'s row of no team), not from the rows
+ * in scope, so a filter never turns a player who played into one who did not. The filters on rows
+ * hold by what the table says of the player: their team, their position, their id. A row's columns
+ * are the box-score rows' (`base`), its sums NULL.
+ */
+function addedCte(
+  name: string,
+  q: StatsQuery,
+  c: Checked,
+  params: Params,
+  seasons: string,
+  types: string
+): string {
+  const player = q.entity === 'player'
+  const key = player ? 'player_id' : 'team_id'
+  const s = q.scope
+  const divisors: readonly string[] = PUBLISHED_DIVISORS
+  const selects = c.adds.map((table) => {
+    // The counts this query reads from the table: a player with none of them is not listed.
+    const counts = [
+      ...new Set(
+        c.metrics.flatMap((m, i) =>
+          m.published === table && c.gaps[i] === null
+            ? componentsOf(m).filter((x) => !divisors.includes(x))
+            : []
+        )
+      )
+    ]
+    // A player's position: the roster's that season, else their own line's in the season's other
+    // type (out of the whole playoff run after a regular season played), else NULL.
+    const position = player ? 'coalesce(w.row_position, ps.position)' : 'NULL::VARCHAR'
+    const where = [
+      `w.season IN ${seasons}`,
+      `w.game_type IN ${types}`,
+      `(${counts.map((x) => `w.${x} > 0`).join(' OR ') || 'false'})`
+    ]
+    if (s.teams) where.push(`w.row_team_id IN ${params.list(s.teams.map(Number))}`)
+    if (s.positions) where.push(`${position} IN ${params.list(s.positions)}`)
+    if (s.players) where.push(`w.${key} IN ${params.list(s.players.map(Number))}`)
+    const seasonPosition = player
+      ? `LEFT JOIN (
+          SELECT player_id, season, mode(position) AS position FROM player_season
+          WHERE team_id IS NULL AND season IN ${seasons} GROUP BY 1, 2
+        ) ps ON ps.player_id = w.player_id AND ps.season = w.season`
+      : ''
+    return `SELECT w.${key} AS id, w.season, NULL::DATE AS ord, w.row_team_id AS team_id,
+             ${position} AS position, w.game_type, w.row_team_id AS row_team,
+             w.row_name AS added_name, true AS no_line
+      FROM ${table} w ${seasonPosition}
+      WHERE ${where.join(' AND ')}
+        AND NOT EXISTS (
+          SELECT 1 FROM ${q.entity}_season o
+          WHERE o.${key} = w.${key} AND o.season = w.season AND o.game_type = w.game_type
+            ${player ? 'AND o.team_id IS NULL' : ''})`
+  })
+  return `${name} AS (${selects.join('\nUNION ALL BY NAME\n')})`
 }
 
 /** What narrows the rows rather than the games: the league leaves it out. */
@@ -833,7 +939,13 @@ function leagueCte(q: StatsQuery, c: Checked, params: Params, want: readonly boo
   const groupBy = c.groupBy.filter((d) => d === 'season' || d === 'month')
   const lq: StatsQuery = { ...q, scope, groupBy }
   // A metric not wanted reads as a gap, so none of its parts is summed.
-  const lc: Checked = { ...c, groupBy, gaps: c.gaps.map((g, i) => (want[i] ? g : 'not wanted')) }
+  // Rows without a line never enter the league's sums (Plan T1206).
+  const lc: Checked = {
+    ...c,
+    groupBy,
+    gaps: c.gaps.map((g, i) => (want[i] ? g : 'not wanted')),
+    adds: []
+  }
   return aggregate(lq, lc, params, 'l_', want)
 }
 
@@ -990,22 +1102,28 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
   // A row with a sample qualifies when its qualifying count (`k`: makes for the NBA's shooting
   // leaders, else the sample itself) reaches the minimum scaled to the games in scope, rounded to a
   // whole count as the NBA rounds a shortened season's: 300 × 66 / 82 is 241.5, and it asked 241.
+  // A row without a box-score line never qualifies, for any metric (Plan T1206): it is never ranked,
+  // never in a league mean or percentile, and its sample is a count with nothing to qualify.
+  const adding = c.adds.length > 0
   const flags = c.metrics.map((m, i) => {
     const count =
       m.qualifyBy !== undefined && m.qualifyBy !== m.sample ? `coalesce(k${i}, 0)` : `s${i}`
-    return `(s${i} > 0 AND ${count} >= round(${m.minSample ?? 0} * $factor)) AS q${i}`
+    return `(s${i} > 0 AND ${count} >= round(${m.minSample ?? 0} * $factor)${adding ? ' AND NOT no_line' : ''}) AS q${i}`
   })
   const sort = q.sort ? q.metrics.indexOf(q.sort.metric) : 0
   const lower = c.metrics[sort].direction === 'lower' && c.transform !== 'percentile'
   const dir = q.sort?.dir ?? (lower ? 'asc' : 'desc')
   const player = q.entity === 'player'
-  // Ranked rows first: the qualified ones, or every row with a sample when the sort is shrunk.
-  const first = shrunk[sort] ? `(s${sort} > 0 AND t${sort} IS NOT NULL)` : `q${sort}`
+  // Ranked rows first: the qualified ones, or every row with a sample when the sort is shrunk or is
+  // a count of a table that adds rows, whose rows without a line are listed in order with the rest.
+  const sortAdds =
+    adding && !!c.metrics[sort].published && c.adds.includes(c.metrics[sort].published)
+  const first = shrunk[sort] || sortAdds ? `(s${sort} > 0 AND t${sort} IS NOT NULL)` : `q${sort}`
   const sql = `WITH ${ctes.join(',\n')},
     flagged AS (SELECT a.*, ${[...flags, ...pulled].join(', ')} FROM ${rowsFrom} a),
     ranked AS (SELECT *, ${ranked.join(', ')} FROM flagged),
     shaped AS (SELECT *, ${shaped.join(', ')} FROM ranked)
-    SELECT x.*, ${player ? 'coalesce(pl.name, x.id::VARCHAR)' : 'coalesce(tm.name, x.id::VARCHAR)'} AS name,
+    SELECT x.*, ${player ? `coalesce(pl.name, ${adding ? 'x.added_name, ' : ''}x.id::VARCHAR)` : 'coalesce(tm.name, x.id::VARCHAR)'} AS name,
            tm.code AS team_code, count(*) OVER () AS total
     FROM shaped x
     ${player ? 'LEFT JOIN player pl ON pl.player_id = x.id' : ''}
@@ -1036,6 +1154,7 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
     gaps: c.gaps,
     transform: c.transform,
     shrunk,
+    adds: c.adds,
     // The games a team played in scope, on average: teams can be a game or two apart mid-season.
     gamesSql: `SELECT ${bySeason ? 'w.season, ' : ''}
                  count(*)::DOUBLE / nullif(count(DISTINCT (w.team_id, w.season)), 0) * ${bySeason ? '1' : 'count(DISTINCT w.season)'} AS games,

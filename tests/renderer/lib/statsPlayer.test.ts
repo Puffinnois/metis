@@ -322,6 +322,43 @@ describe('the career', () => {
     expect(rows[1].games).toBe('0')
   })
 
+  it('reads the games out beside the line, to list a season missed whole', () => {
+    const q = careerQuery('1', [2026], SCOPE, 'perGame', true)
+    expect(q.metrics).toEqual([...LINE_METRICS, 'games_out_injury', 'games_out_other'])
+  })
+
+  it('shows a season missed whole with its games out and no stats, never zeros', () => {
+    const missed = row(
+      '1',
+      { pts: value(null), games_out_injury: value(70), games_out_other: value(12) },
+      { group: { season: 2023 }, team: 'OKC', games: 0, noLine: true }
+    )
+    const played = row(
+      '1',
+      { pts: value(19.5), games_out_injury: value(2), games_out_other: value(0) },
+      { group: { season: 2024 }, team: 'OKC' }
+    )
+    const rows = careerRows(result([missed, played]), byId, 'perGame')
+    expect(rows[0]).toMatchObject({
+      label: '2022-23',
+      team: 'OKC',
+      games: '0',
+      cells: [],
+      gap: true,
+      out: 'Out 82 games',
+      outTitle:
+        "Listed Out of 70 for an injury or illness and 12 for other reasons on the NBA's injury reports. No games played."
+    })
+    expect(rows[1]).toMatchObject({ label: '2023-24', gap: false })
+    expect(rows[1].out).toBeUndefined()
+    // A season inside the career with no games and none listed out says only that.
+    const gap = careerRows(result([season(2020, 1), season(2022, 1)]), byId, 'perGame')[1]
+    expect(gap).toMatchObject({ gap: true, games: '0' })
+    expect(gap.out).toBeUndefined()
+    // A career of games out alone has no total line.
+    expect(careerTotal(result([missed]), byId, 'perGame', null)).toBeNull()
+  })
+
   it('says why a stat is empty in a season before it was recorded', () => {
     const [first] = careerRows(result([season(1995, null)]), byId, 'perGame')
     const at = LINE_METRICS.indexOf('plus_minus')

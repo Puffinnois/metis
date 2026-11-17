@@ -723,8 +723,13 @@ function Career({
     </span>,
     ...(r.gap
       ? LINE_METRICS.map((id, i) => (
-          <span key={id} className="text-fg-3">
-            {i === 0 ? 'No games' : ''}
+          // A season missed whole says its games out, over the empty cells: no stats, never zeros.
+          <span
+            key={id}
+            title={(i === 0 && r.outTitle) || undefined}
+            className="block text-left whitespace-nowrap text-fg-3"
+          >
+            {i === 0 ? (r.out ?? 'No games') : ''}
           </span>
         ))
       : r.cells.map((c, i) => (
@@ -752,7 +757,11 @@ function Career({
           head={['Season', 'Team', 'G', ...head]}
           left={[1]}
           rows={[
-            ...rows.map((r) => ({ key: r.key, cells: cells(r) })),
+            ...rows.map((r) => ({
+              key: r.key,
+              cells: cells(r),
+              ...(r.out ? { spill: true, title: r.outTitle } : {})
+            })),
             ...(total ? [{ key: total.key, cells: cells(total), strong: true }] : [])
           ]}
         />

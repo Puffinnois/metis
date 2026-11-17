@@ -149,11 +149,13 @@ const CLOCK_SECONDS = `CREATE OR REPLACE TEMP MACRO clock_seconds(m) AS CASE
   END`
 
 /** `G-F` is a guard, `F-C` a forward and `C-F` a center: the first listed is the group (Plan T504). */
-const POSITION_GROUP = `CREATE OR REPLACE TEMP MACRO position_group(p) AS CASE
-    WHEN p IN ('PG', 'SG', 'G') OR p LIKE 'G-%' OR p = 'GF' THEN 'G'
-    WHEN p IN ('SF', 'PF', 'F') OR p LIKE 'F-%' THEN 'F'
-    WHEN p = 'C' OR p LIKE 'C-%' THEN 'C'
+export const positionGroup = (p: string): string => `CASE
+    WHEN ${p} IN ('PG', 'SG', 'G') OR ${p} LIKE 'G-%' OR ${p} = 'GF' THEN 'G'
+    WHEN ${p} IN ('SF', 'PF', 'F') OR ${p} LIKE 'F-%' THEN 'F'
+    WHEN ${p} = 'C' OR ${p} LIKE 'C-%' THEN 'C'
   END`
+
+const POSITION_GROUP = `CREATE OR REPLACE TEMP MACRO position_group(p) AS ${positionGroup('p')}`
 
 /**
  * The ESPN lines of players who appeared, read once per game: 1998-99 is in two files. A line with no

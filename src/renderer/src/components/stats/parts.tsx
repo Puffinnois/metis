@@ -27,6 +27,8 @@ export interface MiniRow {
   title?: string
   /** A total under the rows. */
   strong?: boolean
+  /** Its text runs on over the empty cells after it instead of being cut: a season missed whole. */
+  spill?: boolean
 }
 
 /** A small mono table: a header under a rule, then rows. Numbers align right. */
@@ -73,7 +75,11 @@ export function MiniTable({
           r.strong && 'border-t border-fg-3 font-semibold'
         )
         const cells = r.cells.map((c, i) => (
-          <span key={i} role="cell" className={cn('min-w-0 truncate', align(i))}>
+          <span
+            key={i}
+            role="cell"
+            className={cn('min-w-0', r.spill ? 'overflow-visible' : 'truncate', align(i))}
+          >
             {c}
           </span>
         ))

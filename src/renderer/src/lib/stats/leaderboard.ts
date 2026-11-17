@@ -427,8 +427,18 @@ export function searchKey(text: string): string {
 }
 
 /**
- * The rows a leaderboard shows: the engine's, qualified ones only when asked, filtered by the search,
- * sorted by name when asked.
+ * Whether a board sorted by `sort` lists every row with a sample of it under "Qualified only": a count
+ * whose table adds rows for players with no box-score line (games out, Plan T1206). Games out have no
+ * minimum to reach, so sorted by one the board lists everyone with games out, marking NQ those below
+ * the minutes or with no line; sorted by anything else, those rows are hidden like any NQ row.
+ */
+export function listsEverySample(result: Pick<StatsResult, 'columns'>, sort: string): boolean {
+  return result.columns.some((c) => c.id === sort && c.addsRows === true)
+}
+
+/**
+ * The rows a leaderboard shows: the engine's, qualified ones only when asked (with everyone counted
+ * by a games-out sort, `listsEverySample`), filtered by the search, sorted by name when asked.
  */
 export function leaderRows(
   result: StatsResult,
@@ -440,9 +450,12 @@ export function leaderRows(
   const needle = searchKey(search.trim())
   const tab = tabOf(board.entity, board.tab)
   const own = ownQualifiers(result)
+  const everySample = listsEverySample(result, board.sort.by)
+  const stands = (r: StatsRow): boolean =>
+    rowQualifies(r, tab, board.sort.by, own) ||
+    (everySample && (r.values[board.sort.by]?.sample ?? 0) > 0)
   const rows = result.rows.filter((r) => {
-    if (board.qualifiedOnly && !rowQualifies(r, tab, board.sort.by, own) && r.id !== keep)
-      return false
+    if (board.qualifiedOnly && !stands(r) && r.id !== keep) return false
     return !needle || searchKey(r.name).includes(needle)
   })
   if (board.sort.by !== 'name') return rows

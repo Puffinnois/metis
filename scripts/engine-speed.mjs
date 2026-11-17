@@ -193,6 +193,34 @@ const CASES = [
       { seasons: Array.from({ length: season - 1993 }, (_, i) => 1994 + i) },
       { metrics: ['team_nrtg'], groupBy: ['season'], limit: 5000 }
     )
+  ],
+  // Games out, which add the players with no line (Plan T1206), as the Availability preset asks.
+  [
+    'Games out: a season',
+    player(
+      {},
+      {
+        metrics: ['games_out_injury', 'games_out_other', 'min'],
+        sort: { metric: 'games_out_injury', dir: 'desc' }
+      }
+    )
+  ],
+  [
+    'Games out: a playoff run',
+    player(
+      { gameTypes: ['playoffs'] },
+      {
+        metrics: ['games_out_injury', 'games_out_other', 'min'],
+        sort: { metric: 'games_out_injury', dir: 'desc' }
+      }
+    )
+  ],
+  [
+    'Games out: one player by season, every season',
+    player(
+      { seasons: Array.from({ length: season - 1993 }, (_, i) => 1994 + i), players: ['202695'] },
+      { metrics: ['pts', 'games_out_injury', 'games_out_other'], groupBy: ['season'] }
+    )
   ]
 ]
 
