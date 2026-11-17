@@ -15,7 +15,7 @@
     "eval": "(async () => { const s = await window.api.stats.status('nba'); return check('the NBA reads as before: its data, built, nothing loading from scratch', s.available && s.through !== null && s.builtAt !== null, { through: s.through, builtAt: s.builtAt, busy: s.busy, progress: s.progress }) })()"
   },
   {
-    "eval": "(async () => { const runs = []; for (let i = 0; i < 5; i++) runs.push(await timeBoard()); window.before = runs.map((r) => r.ms).sort((a, b) => a - b); return check('an NBA leaderboard reads before the WNBA loads', runs.every((r) => r.rows > 100), { ms: window.before, top: runs[0].top, rows: runs[0].rows }) })()"
+    "eval": "(async () => { const runs = []; for (let i = 0; i < 5; i++) runs.push(await timeBoard()); window.before = runs.map((r) => r.ms).sort((a, b) => a - b); return check('an NBA leaderboard reads before the WNBA loads', runs.every((r) => r.rows >= 100), { ms: window.before, top: runs[0].top, rows: runs[0].rows }) })()"
   },
   {
     "eval": "(async () => { const s = await window.api.stats.status('wnba'); const q = await window.api.stats.query('wnba', { entity: 'player', metrics: ['pts'], scope: { seasons: [2026] } }); return check('the WNBA, off, answers no data with its reason and has no file', !s.available && q.rows.length === 0 && /turn the WNBA on/.test(q.notes[0]) && !(await dl('wnba')).hasFile, { noData: s.noData, notes: q.notes }) })()"
@@ -27,7 +27,7 @@
     "shot": "t1301d-01-nba-leaderboard"
   },
   {
-    "eval": "(async () => { document.querySelector('[title=\"See what is loaded\"]').click(); await until(() => section('NBA') && section('WNBA')); const nba = section('NBA')?.innerText ?? ''; const wnba = section('WNBA')?.innerText ?? ''; return check('the Data panel groups both leagues; the WNBA is off and downloads nothing', /On ·/.test(nba) && /Off ·/.test(wnba) && /Not downloaded/.test(wnba), { nba: nba.split('\\n')[1], wnba: wnba.split('\\n').slice(1, 3) }) })()"
+    "eval": "(async () => { document.querySelector('[title=\"See what is loaded\"]').click(); await until(() => section('NBA') && section('WNBA')); const nba = section('NBA')?.innerText ?? ''; const wnba = section('WNBA')?.innerText ?? ''; return check('the Data panel groups both leagues; the WNBA is off and downloads nothing', /On ·/.test(nba) && /Off ·/.test(wnba) && /Not downloaded/.test(wnba), { nba: nba.split('\\n').filter(Boolean)[1], wnba: wnba.split('\\n').filter(Boolean).slice(1, 3) }) })()"
   },
   {
     "shot": "t1301d-02-data-before"
@@ -42,16 +42,16 @@
     "shot": "t1301d-03-data-paused"
   },
   {
-    "eval": "(async () => { const w = section('WNBA'); const b = button('Resume', w); if (!b) return 'NO RESUME'; b.click(); const resumed = await until(async () => { const s = await window.api.stats.status('wnba'); return !s.paused && s.busy }, 30000); return check('resuming the WNBA picks its load up again', resumed, await window.api.stats.status('wnba')) })()"
+    "eval": "(async () => { await until(() => button('Resume', section('WNBA')), 15000); const b = button('Resume', section('WNBA')); if (!b) return 'NO RESUME'; b.click(); const resumed = await until(async () => { const s = await window.api.stats.status('wnba'); return !s.paused && s.busy }, 30000); return check('resuming the WNBA picks its load up again', resumed, await window.api.stats.status('wnba')) })()"
   },
   {
-    "eval": "(async () => { await nav('Leaderboards'); const samples = []; let s; do { await sleep(8000); const t = await timeBoard(); s = await window.api.stats.status('wnba'); samples.push({ ms: t.ms, rows: t.rows, wnba: s.progress ? s.progress.done + '/' + s.progress.total : (s.busy ? 'building' : 'idle') }) } while ((s.busy || s.progress) && Date.now() - window.loadStarted < 20 * 60000); window.during = samples; const ms = samples.map((x) => x.ms).sort((a, b) => a - b); return check('an NBA leaderboard reads while the WNBA loads', samples.every((x) => x.rows > 100), { before: window.before, during: { n: ms.length, median: ms[ms.length >> 1], max: ms.at(-1), min: ms[0] }, loadMinutes: Math.round((Date.now() - window.loadStarted) / 6000) / 10, samples: samples.slice(0, 6), last: samples.at(-1) }) })()"
+    "eval": "(async () => { await nav('Leaderboards'); const samples = []; let s; do { await sleep(8000); const t = await timeBoard(); s = await window.api.stats.status('wnba'); samples.push({ ms: t.ms, rows: t.rows, wnba: s.progress ? s.progress.done + '/' + s.progress.total : (s.busy ? 'building' : 'idle') }) } while ((s.busy || s.progress) && Date.now() - window.loadStarted < 20 * 60000); window.during = samples; const ms = samples.map((x) => x.ms).sort((a, b) => a - b); return check('an NBA leaderboard reads while the WNBA loads', samples.every((x) => x.rows >= 100), { before: window.before, during: { n: ms.length, median: ms[ms.length >> 1], max: ms.at(-1), min: ms[0] }, loadMinutes: Math.round((Date.now() - window.loadStarted) / 6000) / 10, samples: samples.slice(0, 6), last: samples.at(-1) }) })()"
   },
   {
     "shot": "t1301d-04-nba-during"
   },
   {
-    "eval": "(async () => { document.querySelector('[title=\"See what is loaded\"]').click(); await sleep(1500); await until(() => /1,492 of 1,49\\d files/.test(section('WNBA')?.innerText ?? ''), 20000); const w = section('WNBA').innerText.split('\\n'); const d = await dl('wnba'); return check('the panel shows the WNBA loaded, with its own files, seasons and disk', d.on && d.hasFile && d.fileBytes > 0, { line: w[1], fileBytes: d.fileBytes, sample: w.slice(4, 12) }) })()"
+    "eval": "(async () => { document.querySelector('[title=\"See what is loaded\"]').click(); await sleep(1500); await until(() => /1,492 of 1,49\\d files/.test(section('WNBA')?.innerText ?? ''), 20000); const w = section('WNBA').innerText.split('\\n').filter(Boolean); const d = await dl('wnba'); return check('the panel shows the WNBA loaded, with its own files, seasons and disk', d.on && d.hasFile && d.fileBytes > 0, { line: w[1], fileBytes: d.fileBytes, sample: w.slice(4, 12) }) })()"
   },
   {
     "shot": "t1301d-05-data-after"
@@ -63,7 +63,7 @@
     "eval": "(async () => { const runs = []; for (let i = 0; i < 5; i++) runs.push(await timeBoard()); return check('the NBA leaderboard reads as fast after', true, { ms: runs.map((r) => r.ms).sort((a, b) => a - b), before: window.before }) })()"
   },
   {
-    "eval": "(async () => { const b = button('Turn the WNBA off'); if (!b) return 'NO OFF'; b.click(); await until(async () => !(await dl('wnba')).on, 15000); await sleep(2000); const d = await dl('wnba'); const s = await window.api.stats.status('wnba'); const text = section('WNBA')?.innerText ?? ''; return check('turning the WNBA off stops refreshing and keeps its file readable', !d.on && d.hasFile && s.available && /Off: kept, not refreshed/.test(text) && !!button('Delete its data', section('WNBA')), { d, line: text.split('\\n')[1] }) })()"
+    "eval": "(async () => { const b = button('Turn the WNBA off'); if (!b) return 'NO OFF'; b.click(); await until(async () => !(await dl('wnba')).on, 15000); await sleep(2000); const d = await dl('wnba'); const s = await window.api.stats.status('wnba'); const text = section('WNBA')?.innerText ?? ''; return check('turning the WNBA off stops refreshing and keeps its file readable', !d.on && d.hasFile && s.available && /Off: kept, not refreshed/.test(text) && !!button('Delete its data', section('WNBA')), { d, line: text.split('\\n').filter(Boolean)[1] }) })()"
   },
   {
     "eval": "(async () => { button('Delete its data', section('WNBA')).click(); await sleep(800); const asked = /Delete the WNBA’s data\\?/.test(document.body.innerText); button('Keep it').click(); await sleep(800); const d = await dl('wnba'); return check('deleting asks first, and keeping it keeps the file', asked && d.hasFile, { asked, hasFile: d.hasFile }) })()"

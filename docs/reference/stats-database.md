@@ -594,6 +594,12 @@ node scripts/load-report.mjs /tmp/metis-load /tmp/metis-load/report.json
 node scripts/coverage-report.mjs /tmp/metis-load docs/reference/nba-coverage.tsv docs/reference/nba-coverage.md
 ```
 
+Each source table against the raw files' own row counts, for a folder of downloaded files with one folder per release (`~/.cache/metis-dev/wnba-raw`):
+
+```bash
+node scripts/check-source-rows.mjs /tmp/metis-load ~/.cache/metis-dev/wnba-raw --league=wnba
+```
+
 ```bash
 node scripts/stats-sql.mjs /tmp/metis-load statements.sql
 ```
