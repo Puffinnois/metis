@@ -2,7 +2,7 @@
 
 Metis is a desktop app for NBA statistics that runs on your own computer. It downloads public NBA data into a database on your machine, then lets you rank, filter, sort and compare players and teams across every season from 1993-94 to today. The stats are read from that database, and Metis shares nothing.
 
-**Status: early release, for Windows.** [Download the latest release](https://github.com/Puffinnois/metis/releases/latest). Version 1.0 is being prepared: the stages are in [Plan.md](Plan.md), the reasoning in [decisions.md](decisions.md).
+**Status: version 1.0, for Windows.** [Download the latest release](https://github.com/Puffinnois/metis/releases/latest). The stages are in [Plan.md](Plan.md), the reasoning in [decisions.md](decisions.md).
 
 ## What it has
 
@@ -38,7 +38,7 @@ These numbers come from loads in WSL on the development machine. On Windows, on 
 
 The Windows installer is not code-signed, so on first install Windows SmartScreen says it "protected your PC". Click **More info**, then **Run anyway**. The installer puts Metis in your user folder without admin rights; uninstalling it keeps your data in `%APPDATA%\Metis`. Updates come from this repository's published releases: Metis checks at launch and every hour, downloads a newer version in the background and checks it against the release's `latest.yml` checksum, then shows **Update to x.y.z** in the top bar. Nothing installs until you choose **Update & restart**.
 
-Installing, uninstalling and an update were run on Windows 11 on 2026-11-16, with test builds of 0.8.1 and 0.8.2 and a local update feed. The installer asked for no admin rights, quitting did not install the update, Update & restart did, and the uninstall kept the data folder. Not yet run on Windows: SmartScreen on a browser download, an update from this repository's published releases, and a first load ([docs/reference/windows-install-check.md](docs/reference/windows-install-check.md)).
+Installing, uninstalling and an update were run on Windows 11 on 2026-11-16, with test builds of 0.8.1 and 0.8.2 and a local update feed. The installer asked for no admin rights, quitting did not install the update, Update & restart did, and the uninstall kept the data folder. Not yet run on Windows: SmartScreen on a browser download, an update from this repository's published releases, a differential update download, a refresh, and the installer and first run on a clean machine ([docs/reference/windows-install-check.md](docs/reference/windows-install-check.md)).
 
 ## Data and credit
 

@@ -1,6 +1,6 @@
 # What was measured
 
-The headline numbers, each with its date and where it came from. The detail is in the documents linked from each section. Every number here was measured on the development machine, in WSL on 16 cores and 23 GB of memory, unless it says otherwise. On Windows, apart from the build and the packaged self-test in CI, the installer, the uninstaller and an update were run on 2026-11-16, with test builds and a local update feed ([windows-install-check.md](windows-install-check.md)), and a first load with a quit and resume the same day ("On Windows", below). A refresh on Windows and a clean machine remain (Plan T1104).
+The headline numbers, each with its date and where it came from. The detail is in the documents linked from each section. Every number here was measured on the development machine, in WSL on 16 cores and 23 GB of memory, unless it says otherwise. On Windows, apart from the build and the packaged self-test in CI, the installer, the uninstaller and an update were run on 2026-11-16, with test builds and a local update feed ([windows-install-check.md](windows-install-check.md)), and a first load with a quit and resume the same day ("On Windows", below). A refresh on Windows and a clean machine were not checked (Plan T1104, closed with them stated).
 
 ## The first load
 

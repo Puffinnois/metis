@@ -25,7 +25,7 @@ Where to look, by question. The project's rules are in [CLAUDE.md](../CLAUDE.md)
 | Document                                                       | For                                                                                         |
 | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
 | [data-rights.md](reference/data-rights.md)                     | The terms read for the dataset and its sources, the credit given, and the owner's decisions |
-| [windows-install-check.md](reference/windows-install-check.md) | The install and update checklist still to run on Windows (Plan T1104)                       |
+| [windows-install-check.md](reference/windows-install-check.md) | The install and update checklist, what was run on Windows on 2026-11-16 and what was not    |
 | [icon/](icon/README.md)                                        | The app icon and how it is drawn                                                            |
 
 ## Research for other leagues
