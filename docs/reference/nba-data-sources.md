@@ -1141,6 +1141,111 @@ From 2013-14 on, and in all four shortened seasons for the rule's scaling, the q
 
 **Stability measured again,** since its rows qualify by these numbers: the builder's version moved (the catalogue's signature, and `BUILDER_VERSION` 3 for the rounding), and a refresh re-measured all 1,452 metrics. **23 labels change:** 8 medium to high, 9 low to medium, 5 medium to low, 1 low to none. Counts go from 858 high, 307 medium, 254 low and 33 none to 866, 303, 249 and 34; metrics with a prior from 510 to 508. Most of the catalogue moves a little (842 metrics' numbers change), because `min`, the qualifier every player row of the measure passes, now admits players by 58 games instead of 1,000 minutes: 5,537 pairs of player-seasons where there were 6,261. The changed labels are near a threshold to start with: games started (0.55 to 0.61), 15 play-type rates on a few hundred pairs, two jump-shot rates, adjusted RAPM (0.598 to 0.601), and `pbp_tov_shot_clock`, whose year-to-year r was already 0.000 and now has no spread to correlate. The covered statistics keep their labels: FG% high (0.797 to 0.837, on 2,272 pairs where there were 3,931, its prior 118 to 99 attempts), 3P% medium (0.454 to 0.477), FT% high (0.838 to 0.845), minutes high (0.722 to 0.754), points high (0.859 to 0.868).
 
+## The impact file's `boban_*` columns (Plan T1205)
+
+What `boban_filtered_skill`, `boban_projected_rating` and `boban_projected_sd` are, read and measured on 2026-11-17.
+
+**The answer: identified.** They are **BOBAN** ("Bayesian Online Box-Augmented Net"), SportsDataverse's own DARKO-style rating, made by SportsDataverse: the function `nba_darko` in sportsdataverse-py, run and published by hoopR-nba-stats-data, written by Saiem Gilani. It is the same engine that filled `darko_*`, renamed on 2026-11-06. It is not Kostya Medvedovsky's DARKO and never was: the old `darko_*` columns were this engine under DARKO's name. The values moved because the file was rebuilt on a new RAPM fit around the same time, not because the model changed. The trap below that called `boban_*` "not a rename" was wrong about the name and right about the values.
+
+### What was read
+
+All on 2026-11-17. GitHub through the authenticated `gh` CLI (its REST API) and `raw.githubusercontent.com` with plain `curl`; the web pages with plain `curl` and its default user agent.
+
+| What                                  | URL                                                                                                                                                                                         | Result                                                                                                              |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Producer repository, file tree        | https://github.com/sportsdataverse/hoopR-nba-stats-data                                                                                                                                     | Read; `main` at `52e760e17f`, 2026-11-17                                                                            |
+| Impact card                           | https://github.com/sportsdataverse/hoopR-nba-stats-data/blob/main/nba_stats/player_impact/nba_player_impact_card.json                                                                       | Read: engine `sportsdataverse.nba.nba_darko`, "boban\_\* (renamed from darko\_\*)"                                  |
+| Model card and evaluation             | https://github.com/sportsdataverse/hoopR-nba-stats-data/blob/main/docs/models/player_impact.md, `…/docs/models/nba_player_impact_eval_card.json`                                            | Read                                                                                                                |
+| Model registry and manifest           | https://github.com/sportsdataverse/hoopR-nba-stats-data/blob/main/models/REGISTRY.md, `…/models/manifest.yaml`                                                                              | Read: full 1997–2026 republish on 2026-10-12; engine stage `python/nba_model_07_darko.py`                           |
+| The rename commit                     | https://github.com/sportsdataverse/hoopR-nba-stats-data/commit/1e5056d444b95cf55f1e5430fd66b65fa1247c0d                                                                                     | Read: "publish the BOBAN columns as boban\_\* (BB-D11)", 2026-11-06 07:52 UTC                                       |
+| The next model commit                 | https://github.com/sportsdataverse/hoopR-nba-stats-data/commit/3ae7535fd9                                                                                                                   | Read: pins a newer sportsdataverse-py (adjusted RAPM and rank changes), 2026-11-10 00:25 UTC                        |
+| History of the committed impact files | the commit lists of `nba_stats/player_impact/parquet/nba_player_impact_2020.parquet` and `nba_stats/player_impact/nba_player_impact_card.json`                                              | Read: the 2020 file committed on 2026-10-12 (`3d658dff74`) and 2026-11-15 (`b952afbf7f`); the card daily            |
+| `gates.py`                            | https://github.com/sportsdataverse/hoopR-nba-stats-data/blob/main/python/nba_model_publish/gates.py                                                                                         | Read: "BB-D11 renamed the published darko\_\* columns to boban\_\*"                                                 |
+| Producer licence                      | https://github.com/sportsdataverse/hoopR-nba-stats-data/blob/main/LICENSE.md                                                                                                                | Read: CC BY 4.0 for "data, code, and documentation", as `data-rights.md` records                                    |
+| The library's rename                  | https://github.com/sportsdataverse/sportsdataverse-py/pull/1100                                                                                                                             | Read: merged 2026-11-04 17:55 UTC; "No model change, no numbers moved"                                              |
+| Changelog fragments                   | https://github.com/sportsdataverse/sportsdataverse-py/tree/main/changelog.d (`boban-impact-columns.changed.md`, `boban-impact-columns.deprecated.md`, `player-impact-boban-ranks.added.md`) | Read: the expansion of BOBAN; `darko_*` kept as deprecated aliases for one release                                  |
+| The engine's source                   | https://github.com/sportsdataverse/sportsdataverse-py/blob/main/sportsdataverse/nba/nba_darko.py                                                                                            | Read: "DARKO-style player projection: per-player Kalman filter + empirical aging curve"; no credit to DARKO's maker |
+| Column reference                      | https://github.com/sportsdataverse/sportsdataverse-py/blob/main/docs/docs/nba/reference/loaders/player.md                                                                                   | Read: the column definitions summarised below                                                                       |
+| sportsdataverse-py licence            | https://github.com/sportsdataverse/sportsdataverse-py/blob/main/LICENSE                                                                                                                     | Read: MIT                                                                                                           |
+| hoopR article on the suite            | https://github.com/sportsdataverse/hoopR/blob/main/vignettes/articles/nba-player-impact-model.Rmd, https://hoopr.sportsdataverse.org/articles/nba-player-impact-model.html                  | Read, both (HTTP 200); author Saiem Gilani                                                                          |
+| SportsDataverse home page             | https://www.sportsdataverse.org/                                                                                                                                                            | Read (HTTP 200): "MIT-licensed code, open data"                                                                     |
+| DARKO's own site                      | https://darko.app/, redirected to https://www.darko.app/                                                                                                                                    | Read (HTTP 200): "DARKO DPM", daily player metrics, signed @kmedved. No values taken from it                        |
+| The impact files before and after     | `https://raw.githubusercontent.com/sportsdataverse/hoopR-nba-stats-data/605f4174e9/nba_stats/player_impact/parquet/nba_player_impact_{1997…2026}.parquet`, the same at `main`               | Downloaded, 60 files, all HTTP 200; read with DuckDB                                                                |
+| Code search for "boban"               | GitHub code search `org:sportsdataverse boban`                                                                                                                                              | Files in sportsdataverse-py, hoopR, wehoop, sportsdataverse-js and hoopR-nba-stats-data, all SportsDataverse's own  |
+
+Nothing refused a plain client. No page was scraped for data, and no request went to stats.nba.com.
+
+### What the sources say
+
+- **Who makes it.** SportsDataverse. The engine is `nba_darko` in sportsdataverse-py (MIT). hoopR-nba-stats-data runs it (`python/nba_model_07_darko.py`, published by `nba_model_08_impact.py`) and publishes the result under CC BY 4.0. The rename commit and PR are by `saiemgilani`; the hoopR article on the suite is by Saiem Gilani.
+- **What it measures.** A Kalman filter over each player's season-by-season RAPM, with an empirical aging curve. Playoffs enter a season as a possession-weighted blend, not as a second step. The column reference defines the three:
+  - `boban_filtered_skill`: the filtered skill at the end of the player's RAPM history, their current form after aging drift, with each season weighted by its possessions.
+  - `boban_projected_rating`: the forecast for next season, the filtered skill plus the aging drift at the player's last age. Both season-type rows carry the same value.
+  - `boban_projected_sd`: the forecast's standard deviation, about 10.19 for a player with one season in the history.
+- **Scale.** RAPM's: points per 100 possessions against an average player, offence and defence together, higher is better.
+- **The name.** "BOBAN (Bayesian Online Box-Augmented Net)", from the library's changelog. Both repositories cite the decision as BB-D11; its text is in no public file found, and no reason for the rename is given.
+- **When the columns changed.** The library renamed its loader's columns on 2026-11-04 (sportsdataverse-py #1100, merge `284f9aea2f`), returning both names for one release. The producer's commit `1e5056d444` of 2026-11-06 07:52 UTC made the builder write `boban_*` in place of `darko_*`. A download on 2026-11-10 (Stage 7) already had only `boban_*`. The repository's committed copies of past seasons show no commit between 2026-10-12 and 2026-11-15, so the first republish under the new names appears to have reached the release without a commit of its own.
+- **Its terms.** Those of the rest of `nba_player_impact`: the producer's CC BY 4.0, with the credit `data-rights.md` already gives SportsDataverse. The engine's code is MIT. No separate terms for BOBAN were found. DARKO's maker is not involved, and nothing in the code or documentation credits him.
+
+### Measured on a real load
+
+A copy of the Stage 10 gate load rebuilt on `main` at `b8dd400` (its impact file fetched from 2026-11-14 to 2026-11-17), table `src_nba_impact`, read-only with DuckDB. Regular season unless said.
+
+**Range and spread,** every row from 1997-98 to 2025-26:
+
+| Column                   | Rows   | Min   | 5 %   | Median | 95 %  | Max   | Mean   | SD    |
+| ------------------------ | ------ | ----- | ----- | ------ | ----- | ----- | ------ | ----- |
+| `boban_filtered_skill`   | 14,126 | −6.16 | −2.61 | −0.10  | 2.83  | 6.89  | −0.030 | 1.624 |
+| `boban_projected_rating` | 14,126 | −6.03 | −2.61 | −0.09  | 2.80  | 7.21  | −0.015 | 1.615 |
+| `boban_projected_sd`     | 14,126 | 0     | 1.30  | 1.86   | 10.18 | 10.18 | 3.106  | 3.215 |
+
+Each season's mean filtered skill is −0.02 to −0.04, unweighted, so it is centred on an average player rather than an average possession; its SD is 1.34 to 1.78.
+
+**Coverage by season.** Every regular-season row from 1997-98 to 2025-26 has all three (439 to 605 a season), except two in 2017-18. 1996-97 (442 rows) and 2026-27 (471 so far) are null: the filter needs a prior season, and the season under way has none yet. Playoff rows have values in the same seasons (5,890 of 6,089), and all 6,079 playoff rows with a regular-season row repeat its values exactly, as the DARKO trap below says.
+
+**The spread column.** Within a season nearly every player has the same value: 352 players at 0 in 1997-98, the first season, with no history; from 1998-99 one value a season between 1.30 and 1.90 (11,358 rows); and 10.00 to 10.18 for 2,416 rows, each a player in their first season in the file.
+
+**How it moves with other ratings.** Pearson correlation of the filtered skill per season, the range over the 29 seasons 1997-98 to 2025-26:
+
+| Against                                                               | Correlation    |
+| --------------------------------------------------------------------- | -------------- |
+| The file's own `rapm`                                                 | 0.994 to 0.998 |
+| The file's `adj_rapm`                                                 | 0.843 to 0.963 |
+| The file's `reml_rapm` (RAPM shrunk toward a box-score prior)         | 0.861 to 0.914 |
+| The file's `box_prior`                                                | 0.491 to 0.610 |
+| The file's `spm`                                                      | 0.258 to 0.469 |
+| The file's `bpm`                                                      | 0.207 to 0.461 |
+| The app's BPM (Stage 10 composites, players with 500 minutes or more) | 0.523 to 0.637 |
+| Its own projected rating                                              | 0.988 to 0.997 |
+
+The filtered skill equals the same row's RAPM to within 0.005 on 8,518 of 14,126 rows (60 %): on 82 % of players under 1,000 possessions and 47 % of those over 6,000. It equals `adj_rapm` on 126. For scale, the app's BPM correlates with the file's BPM at 0.92 to 0.96.
+
+**Against the team adjusted ratings.** The Stage 10 adjusted ratings are per team, so this is per team-season: the possession-weighted filtered skill of a team's players (those with one team that season, times 5) against the team's possession-weighted adjusted net rating, 863 team-seasons. Filtered skill 0.952, projected rating 0.947; the file's RAPM 0.955 and BPM 0.935 the same way.
+
+**As a projection.** The projected rating of season t against the RAPM of t+1, 11,326 pairs: 0.362. That season's RAPM carried forward: 0.369. The app's BPM carried forward (500 minutes or more): 0.436. This agrees with the producer's model card: the projection orders players no better than RAPM carried forward.
+
+**Against the DARKO values from before the rename.** No load with `darko_*` is kept in `~/.cache/metis-dev`: the Stage 10 gate load there (`gate10`) was fetched on 2026-11-14, after the change, so it was not copied. The producer's own committed files of 2026-10-12 (commit `605f4174e9`) hold `darko_*` for every season and served instead. Joined on player, season and season type, regular season, 14,126 rows with values in both:
+
+- None of the three is equal to within 0.005 on more than a few rows (filtered skill on 174, projected rating on 168, spread on 439), and the largest differences are 2.54, 2.50 and 0.82: the figures Stage 7 measured between Stage 6's load and its own, so Stage 6's load held these 2026-10-12 values.
+- The RAPM column differs too, on every row, its largest difference also 2.54. In both files the filtered skill tracks that file's RAPM at 0.992 to 0.998 and equals it on about 60 % of rows.
+- The old and new filtered skill correlate at 0.944 to 0.996 a season, projected rating the same; the old and new RAPM at 0.944 to 0.997. The differences have a mean near 0 (−0.011 to 0.011) and an SD of 0.36 to 0.63.
+- The spread column has the same shape in both: 352 at 0 in 1997-98, about 2 for most, about 10 for the 2,416 first seasons. Old and new correlate at 0.997.
+- The old values' season SD was uneven: 1.00 to 1.18 in 2009-10, 2012-13, 2015-16 and 2018-19 to 2024-25, 1.60 to 2.07 in the other seasons. The new ones are 1.34 to 1.78 in every season, and agree better with the file's `adj_rapm` in those ten seasons (0.865 to 0.930, against 0.801 to 0.846).
+
+So the old and new columns are one engine run on two RAPM fits.
+
+**Against DARKO itself.** Not measured. DARKO DPM (Kostya Medvedovsky) publishes on its own site, no free bulk file was found, and the site is not scraped (D24). From the methods alone: DARKO's site describes daily player metrics with box-score and on/off parts, while BOBAN filters season RAPM and nothing else. They are different ratings, and BOBAN's values have RAPM's ordering, not a box-score metric's.
+
+**The file is republished, old seasons included.** The load's values (fetched 2026-11-14) equal the producer's committed files of 2026-11-17 to within 0.005 for 1997-98 to 2014-15, but not for 2015-16 to 2025-26: those seasons were republished on 2026-11-15 (the 2020 file in commit `b952afbf7f`) on new RAPM, correlating with the load's at 0.995 to 0.998, largest difference 1.51. A load seals old seasons, so it keeps the values of the day it fetched them.
+
+### What the owner decides
+
+1. **Whether BOBAN becomes metrics.** It is identified, covers 1997-98 to 2025-26, and is SportsDataverse's to publish under CC BY 4.0. Beside the RAPM the app already reads from the same file it adds little: the filtered skill equals RAPM on 60 % of rows and correlates at 0.99 or more every season. The projection is the part RAPM lacks, and it predicts next season no better than RAPM carried forward. The spread is one value a season for nearly everyone.
+2. **Under what name.** BOBAN is the maker's name for it; whether the app uses that name, and how it states the link to DARKO, which it is modelled on but not made by.
+3. **The DARKO metrics' copy.** They read "The dataset no longer publishes DARKO." True of the name, but the dataset never published Kostya Medvedovsky's DARKO: the old columns were this engine.
+4. **`data-rights.md` and the credit.** No new maker is named: BOBAN is SportsDataverse's, under the licence and credit already recorded. If it becomes metrics, the record needs a line saying so.
+5. **The republished seasons.** The producer rebuilt 2015-16 to 2025-26 on 2026-11-15, after this load sealed them. The data policy fetches old seasons once; whether the impact file's sealed seasons are fetched again is a question of its own.
+
 ## Old seasons
 
 | Season label (file) | Source | Games | Notes                                                  |
@@ -1234,7 +1339,7 @@ From 2013-14 on, and in all four shortened seasons for the rule's scaling, the q
 - **DARKO's playoff rows repeat the regular season's.** Filtered skill and projection are the same in both rows of every player who played in the playoffs, in every season from 1997-98, so DARKO is read from the regular season only. It is also null for the whole of 1996-97 and for the season under way.
 - **DARKO's projection spread is 0 for 352 players in 1997-98,** and 10 for the other 87: the first season has no history to measure uncertainty from. From 1998-99 it is about 2 for most players and about 10 for those with little history. It is read from 1998-99.
 - **Adjusted RAPM's two halves are not centred on zero.** Over the regular season the offensive part averages +8.6 in 1997-98 and +9.8 in 2025-26, and the defensive part about as far below zero, while their sum averages 0 like RAPM. Only the sum compares with RAPM; it differs from it by 2.7 points per 100 possessions on average in the regular seasons of 2019-20 to 2025-26. RAPM's, SPM's and BPM's parts add up to their totals on every row.
-- **DARKO is gone from the impact file, and `boban_*` is not a rename.** Until November 2026 the file had `darko_filtered_skill`, `darko_projected_rating` and `darko_projected_sd`, with `boban_*` empty on every row. A fresh download on 2026-11-10 has no `darko_*` columns and fills `boban_*` for every regular-season row of 1997-98 to 2025-26. Compared on the 20,016 player-seasons both files hold (Stage 6’s load against Stage 7’s, per season type): none of the three columns is equal on any row (filtered skill within 0.005 on 233 rows, projected rating on 230, spread on 628), and the largest differences are 2.54, 2.50 and 0.82. They are another model’s values, so they are not read as DARKO: its three metrics answer "The dataset no longer publishes DARKO." The old `darko_*` values stay in Stage 6’s profile only. Whether `boban_*` becomes metrics of its own is a task for the owner.
+- **DARKO is gone from the impact file, and `boban_*` holds other values.** (T1205 found it is a rename of the same SportsDataverse engine, rebuilt on new RAPM: see "The impact file's `boban_*` columns" above.) Until November 2026 the file had `darko_filtered_skill`, `darko_projected_rating` and `darko_projected_sd`, with `boban_*` empty on every row. A fresh download on 2026-11-10 has no `darko_*` columns and fills `boban_*` for every regular-season row of 1997-98 to 2025-26. Compared on the 20,016 player-seasons both files hold (Stage 6’s load against Stage 7’s, per season type): none of the three columns is equal on any row (filtered skill within 0.005 on 233 rows, projected rating on 230, spread on 628), and the largest differences are 2.54, 2.50 and 0.82. They are another model’s values, so they are not read as DARKO: its three metrics answer "The dataset no longer publishes DARKO." The old `darko_*` values stay in Stage 6’s profile only. Whether `boban_*` becomes metrics of its own is a task for the owner.
 - **The impact file's games are the box scores', its minutes are rounded.** Games played match the official regular-season games on 99 % of players (2015-16 to 2025-26, play-in left out); minutes are whole numbers, within about 3 of the box scores for 80 % of players. Each value is weighted by the file's own minutes or possessions.
 - **The draft and combine files are labelled the season after.** The 2025 draft, with Cooper Flagg first, is in `nba_stats_draft_2026`, and Kevin Durant's 2007 combine in label 2008. So the drafts held run from 1996 (Allen Iverson first, Kobe Bryant 13th) to 2026, and the combines from 2000 to 2026. A player drafted before 1996 has no row, so missing from the files is not undrafted. The draft file has one row per pick, 1,833 in all, and `draft_type` is `Draft` on every row.
 - **`draftcombinestats` repeats the other four combine tables.** On all 1,873 rows, every measurement and test equals the anthro and drills files, and its shooting, written as text (`3-5`), equals the spot-up and non-stationary files' makes and attempts. Those four are read.
