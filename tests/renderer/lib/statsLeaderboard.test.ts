@@ -12,6 +12,7 @@ import {
   leaderboardCsv,
   leaderboardQuery,
   leaderRows,
+  listsEverySample,
   ownQualifiers,
   qualifiesFor,
   normalizeBoard,
@@ -484,6 +485,71 @@ describe("the NBA's minimums, each metric by its own rule (D33)", () => {
     expect(sorted('ts_pct')).toEqual(['minutes', 'all'])
     expect(rowQualifies(makes, tab, 'fg_pct', own)).toBe(true)
     expect(rowQualifies(makes, tab, 'ts_pct', own)).toBe(false)
+  })
+})
+
+describe('games out with no line (Plan T1206)', () => {
+  const out = (n: number, over: Partial<MetricValue> = {}): MetricValue => ({
+    ...value(n, n > 0),
+    sample: n,
+    ...over
+  })
+  // A qualified starter with games out, a bench player below the minutes with some, a player out
+  // for the whole season with no line, and a qualified player with none.
+  const starter = row('starter', { values: { min: value(2000), games_out_injury: out(5) } })
+  const bench = row('bench', { values: { min: value(300, false), games_out_injury: out(9) } })
+  const absent = row('absent', {
+    games: 0,
+    noLine: true,
+    values: {
+      min: { ...value(null, false), sample: null },
+      games_out_injury: out(82, { qualified: false })
+    }
+  })
+  const healthy = row('healthy', { values: { min: value(2500), games_out_injury: out(0) } })
+  const column = (id: string): StatsResult['columns'][number] => ({
+    id,
+    label: id,
+    short: id,
+    unit: 'count',
+    decimals: 0,
+    direction: 'neutral',
+    seasons: [2026],
+    reason: null,
+    ...(id === 'games_out_injury' ? { addsRows: true } : {})
+  })
+  const r: StatsResult = {
+    grain: 'season',
+    columns: [column('min'), column('games_out_injury')],
+    rows: [absent, bench, starter, healthy],
+    total: 4,
+    notes: [],
+    ms: 1
+  }
+  const sorted = (by: string, qualifiedOnly = true): string[] =>
+    leaderRows(r, board({ sort: { by, dir: 'desc' }, qualifiedOnly }), '').map((x) => x.id)
+
+  it('lists everyone with games out under Qualified only when sorted by a games-out count', () => {
+    expect(listsEverySample(r, 'games_out_injury')).toBe(true)
+    // The qualified rows stay as before, a qualified player with none among them.
+    expect(sorted('games_out_injury')).toEqual(['absent', 'bench', 'starter', 'healthy'])
+  })
+
+  it('hides the rows below the minutes or with no line when sorted by anything else', () => {
+    expect(listsEverySample(r, 'min')).toBe(false)
+    expect(sorted('min')).toEqual(['starter', 'healthy'])
+    expect(sorted('min', false)).toEqual(['absent', 'bench', 'starter', 'healthy'])
+  })
+
+  it('marks a row with no line NQ, and ranks games out among the qualified rows only', () => {
+    const tab = tabOf('player', 'ALL')
+    expect(rowQualifies(absent, tab, 'games_out_injury', ownQualifiers(r))).toBe(false)
+    const ranked = rankWithinTab(r, tab)
+    const rank = (id: string): number | null =>
+      ranked.rows.find((x) => x.id === id)!.values.games_out_injury.rank
+    expect(rank('absent')).toBeNull()
+    expect(rank('bench')).toBeNull()
+    expect(rank('starter')).toBe(1)
   })
 })
 

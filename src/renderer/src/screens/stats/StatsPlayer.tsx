@@ -723,8 +723,13 @@ function Career({
     </span>,
     ...(r.gap
       ? LINE_METRICS.map((id, i) => (
-          <span key={id} className="text-fg-3">
-            {i === 0 ? 'No games' : ''}
+          // A season missed whole says its games out, over the empty cells: no stats, never zeros.
+          <span
+            key={id}
+            title={(i === 0 && r.outTitle) || undefined}
+            className="whitespace-nowrap text-fg-3"
+          >
+            {i === 0 ? (r.out ?? 'No games') : ''}
           </span>
         ))
       : r.cells.map((c, i) => (

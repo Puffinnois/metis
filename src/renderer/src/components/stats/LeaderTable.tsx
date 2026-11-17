@@ -236,7 +236,9 @@ export function LeaderTable({
                     )}
                     {!ok && (
                       <span
-                        title="Below the qualifying sample"
+                        title={
+                          r.noLine ? 'No games played in range' : 'Below the qualifying sample'
+                        }
                         className="shrink-0 font-mono text-[10px] leading-none font-medium text-fg-3"
                       >
                         NQ
