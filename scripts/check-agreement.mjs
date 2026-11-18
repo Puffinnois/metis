@@ -21,7 +21,7 @@ if (leagueArg() !== 'nba') {
   const { runAgreement } = await import(`./lib/agreement-${leagueArg()}.mjs`)
   const worker = openStatsWorker(folder)
   const out = []
-  const wrong = await runAgreement(worker.read, out)
+  const wrong = await runAgreement(worker.read, out, worker.query)
   await worker.close()
   writeFileSync(mdFile, `${out.join('\n')}\n`)
   console.log(`${mdFile}: ${wrong} wrong`)

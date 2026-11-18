@@ -2,7 +2,9 @@
 // history of the league and against its own sources, season by season. Run through
 // `scripts/check-agreement.mjs <folder> <out.md> --league=wnba`; returns how many seasons have the wrong
 // number of regular-season games or teams, and the script exits 1 when that is not 0, as the NBA's does.
-// Later parts add their checks (the game and season tables, T1301.6) to this file.
+// The game and season tables' checks (T1301.6) are in `agreement-wnba-tables.mjs`; later parts add
+// theirs beside them.
+import { tableChecks } from './agreement-wnba-tables.mjs'
 
 /**
  * Regular-season games and teams, from Basketball-Reference's season pages read on 2026-11-17
@@ -67,7 +69,7 @@ const RECORDS = `WITH sides AS (
   )
   SELECT season, team_id, sum(w)::INTEGER AS w, sum(l)::INTEGER AS l FROM sides GROUP BY 1, 2`
 
-export async function runAgreement(read, out) {
+export async function runAgreement(read, out, query) {
   out.push(
     '# WNBA agreement checks',
     '',
@@ -318,6 +320,17 @@ export async function runAgreement(read, out) {
       twoIds.map((r) => [r.kind, r.id, r.detail])
     )
   )
+
+  // The game and season tables, once the league builds them.
+  if (
+    (
+      await read(
+        "SELECT count(*)::INTEGER AS n FROM duckdb_tables() WHERE table_name = 'player_season'"
+      )
+    )[0].n
+  ) {
+    wrong += await tableChecks(read, query, out)
+  }
 
   return wrong
 }
