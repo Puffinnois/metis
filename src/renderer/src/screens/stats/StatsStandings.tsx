@@ -12,6 +12,7 @@ import {
   standingsHead,
   standingsNotes,
   standingsTables,
+  standingsViews,
   strengthCells,
   strengthQuery,
   type StandingsView
@@ -67,15 +68,17 @@ export function StatsStandings({
             options={data.seasons.map((s) => ({ value: s.season, label: seasonLabel(s.season) }))}
             onChange={(s) => onScope(moveToSeason(scope, s, data.seasons))}
           />
-          <Segmented
-            label="Conference or division"
-            value={view}
-            options={[
-              { value: 'conference' as const, label: 'Conference' },
-              { value: 'division' as const, label: 'Division' }
-            ]}
-            onChange={setView}
-          />
+          {standingsViews(rows).length > 1 && (
+            <Segmented
+              label="Conference or division"
+              value={view}
+              options={[
+                { value: 'conference' as const, label: 'Conference' },
+                { value: 'division' as const, label: 'Division' }
+              ]}
+              onChange={setView}
+            />
+          )}
         </div>
       </header>
       {!rows ? (

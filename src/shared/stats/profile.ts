@@ -1,3 +1,4 @@
+import { LEAGUES, type League } from '../leagues'
 /**
  * The draft combine, as the player dashboard's Profile tab reads it (reference section 17). Four of
  * the NBA's five combine tables hold the measures: measurements, athletic testing, spot-up shooting,
@@ -183,5 +184,10 @@ export const COMBINE_BY_ID: ReadonlyMap<string, CombineMeasure> = new Map(
   COMBINE_MEASURES.map((m) => [m.id, m])
 )
 
-/** A draft or combine file's label is the season after it: the 2025 draft is in file `2026`. */
-export const eventYear = (season: number): number => season - 1
+/**
+ * The year of a draft or combine a file is labelled by, as the league labels it (`League.eventYear`):
+ * the NBA's are the season after (the 2025 draft is in file `2026`), the WNBA's the draft's own year.
+ * A caller that names no league reads the NBA's.
+ */
+export const eventYear = (season: number, league: League = LEAGUES.nba): number =>
+  league.eventYear(season)

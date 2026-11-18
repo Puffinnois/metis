@@ -1,0 +1,137 @@
+[
+  {
+    "size": [1500, 950]
+  },
+  {
+    "wait": 6000
+  },
+  {
+    "eval": "window.sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nwindow.until = async (fn, ms = 15000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await fn()) return true; await sleep(200) } return false };\nwindow.nav = async (name) => { const b = [...document.querySelectorAll('nav button')].find((x) => x.textContent.trim() === name); if (!b) return 'NO NAV ' + name; b.click(); await sleep(2500); return 'nav ' + name };\nwindow.chooseSelect = async (title, value) => { const el = [...document.querySelectorAll('select')].find((x) => x.title === title); if (!el) return 'NO SELECT ' + title; Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(el, String(value)); el.dispatchEvent(new Event('change', { bubbles: true })); await sleep(2500); return title + ' = ' + (el.selectedOptions[0]?.textContent ?? el.value) };\nwindow.press = async (text) => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === text); if (!b) return 'NO BUTTON ' + text; b.click(); await sleep(2500); return 'pressed ' + text };\nwindow.toggle = async (label) => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim().endsWith(label)); if (!b) return 'NO TOGGLE ' + label; b.click(); await sleep(2500); return label + ' ' + b.getAttribute('aria-pressed') };\nwindow.pressed = (label) => [...document.querySelectorAll('button')].find((x) => x.textContent.trim().endsWith(label))?.getAttribute('aria-pressed');\nwindow.rows = () => [...document.querySelectorAll('tbody tr')].filter((r) => r.querySelector('td'));\nwindow.cells = (r) => [...r.querySelectorAll('td')].map((c) => c.textContent.trim());\nwindow.has = (text) => document.body.innerText.includes(text);\nwindow.total = () => document.body.innerText.match(/[0-9,]+ of [0-9,]+ \\u00b7 sorted by/)?.[0] ?? 'NO TOTAL';\nwindow.trigger = () => document.querySelector('button[aria-label^=\"League: \"]');\nwindow.league = () => trigger()?.getAttribute('aria-label')?.replace('League: ', '') ?? null;\nwindow.statusLine = () => document.querySelector('[title=\"See what is loaded\"]')?.textContent.trim() ?? null;\nwindow.h1 = () => document.querySelector('main h1')?.textContent.trim() ?? null;\nwindow.switchTo = async (name) => { const t = trigger(); if (!t) return 'NO MENU'; t.focus(); t.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); await until(() => document.querySelectorAll('[role=menuitemradio]').length > 0, 3000); const item = [...document.querySelectorAll('[role=menuitemradio]')].find((x) => x.textContent.startsWith(name)); if (!item) return 'NO ITEM ' + name; item.click(); await until(() => league() === name, 5000); await sleep(3000); return league() };\nwindow.setInput = (input, value) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, value); input.dispatchEvent(new Event('input', { bubbles: true })); input.dispatchEvent(new Event('change', { bubbles: true })) };\nwindow.openPlayer = async (name) => { const input = document.querySelector('input[aria-label=\"Search players\"]'); if (!input) return 'NO SEARCH'; setInput(input, name); await until(() => [...document.querySelectorAll('aside button')].some((x) => x.textContent.includes(name))); const b = [...document.querySelectorAll('aside button')].find((x) => x.textContent.includes(name)); if (!b) return 'NOT LISTED ' + name; b.click(); await sleep(3500); return 'opened ' + name };\nwindow.check = (label, ok, got) => (ok ? 'OK ' : 'MISMATCH ') + label + ' got ' + JSON.stringify(got);\n'helpers ready'"
+  },
+  {
+    "eval": "(async () => { const d = await window.api.leagues.downloads(); return check('the profile has both leagues on, each with its file', d.decided && d.leagues.every((l) => l.on && l.hasFile), d.leagues.map((l) => ({ league: l.league, on: l.on, hasFile: l.hasFile }))) })()"
+  },
+  {
+    "eval": "(async () => { const t0 = Date.now(); const idle = await until(async () => { const [n, w] = await Promise.all([window.api.stats.status('nba'), window.api.stats.status('wnba')]); return !n.busy && !w.busy }, 15 * 60000); const w = await window.api.stats.status('wnba'); return check('both leagues finish the refresh the launch starts; the WNBA has its tables', idle && w.available && !w.noData, { seconds: Math.round((Date.now() - t0) / 1000), wnba: { available: w.available, noData: w.noData ?? null, builtAt: w.builtAt } }) })()"
+  },
+  {
+    "eval": "(async () => { const s = await window.api.stats.seasons('wnba'); return check('the WNBA has every season 1997 to 2026', s.length === 30 && s[0].season === 2026 && s.at(-1).season === 1997, { seasons: s.length, first: s.at(-1)?.season, last: s[0]?.season, types2026: s[0]?.types.map((t) => t.type) }) })()"
+  },
+  {
+    "eval": "(async () => { const w = await switchTo('WNBA'); await until(() => rows().length > 0 || document.querySelectorAll('main li, main [role=row]').length > 0, 8000); return check('switched to the WNBA: the home boards read with no reason', w === 'WNBA' && h1() === 'Leaderboards' && !has('No WNBA stats yet') && has('Per game: 58 games of 82 to qualify'), { league: w, h1: h1(), status: statusLine(), text: document.querySelector('main').innerText.slice(0, 300) }) })()"
+  },
+  {
+    "shot": "t1301f-01-wnba-home-2026"
+  },
+  {
+    "eval": "(async () => press('All →'))()"
+  },
+  {
+    "eval": "(async () => { await until(() => rows().length > 0); const on = total(); const first = cells(rows()[0]).slice(0, 6); return check('2026 leaderboard, Qualified only on: the note states the provisional rule, 833 minutes', pressed('Qualified only') === 'true' && has(\"Qualified: 833 minutes over 82 games, scaled to the games in range; the NBA's leader stats by their own minimum, scaled, until the WNBA's own are read\"), { on, first }) })()"
+  },
+  {
+    "eval": "(async () => { const modes = [...document.querySelectorAll('button, option')].map((x) => x.textContent.trim()); return check('per 36 and per 40 offered, per 48 not', modes.includes('Per 36') && modes.includes('Per 40') && !modes.includes('Per 48'), modes.filter((m) => /^Per /.test(m) || m === 'Totals')) })()"
+  },
+  {
+    "shot": "t1301f-02-leaderboard-2026-qualified"
+  },
+  {
+    "eval": "(async () => { const before = total(); await toggle('Qualified only'); await until(() => rows().length > 0); return check('Qualified only off lists more players', pressed('Qualified only') === 'false' && total() !== before, { on: before, off: total() }) })()"
+  },
+  {
+    "eval": "(async () => toggle('Qualified only'))()"
+  },
+  {
+    "eval": "(async () => chooseSelect('Season', 1998))()"
+  },
+  {
+    "eval": "(async () => { await until(() => rows().length > 0); const on = total(); const top = rows().slice(0, 3).map((r) => cells(r).slice(0, 5)); await toggle('Qualified only'); await until(() => rows().length > 0); const off = total(); await toggle('Qualified only'); return check('1998 leaderboard: a season labelled by its year, qualified on and off', has('1998') && !has('1997-98') && on !== off, { on, off, top }) })()"
+  },
+  {
+    "shot": "t1301f-03-leaderboard-1998"
+  },
+  {
+    "eval": "(async () => { const q = await window.api.stats.query('wnba', { entity: 'player', metrics: ['pts', 'gp'], scope: { seasons: [2026] }, sort: { metric: 'pts', dir: 'desc' }, limit: 2 }); const o = await window.api.stats.query('wnba', { entity: 'player', metrics: ['pts', 'gp'], scope: { seasons: [1998] }, sort: { metric: 'pts', dir: 'desc' }, limit: 1 }); const got = [...q.rows, ...o.rows].map((r) => [r.name, r.values.pts.value, r.values.gp.value]); return check('three rows against the raw files: Mitchell 1,086 in 44 and Wilson 1,073 in 41 (2026 box scores), Cooper 680 in 30 (1998 game logs)', JSON.stringify(got) === JSON.stringify([['Kelsey Mitchell', 1086, 44], [\"A'ja Wilson\", 1073, 41], ['Cynthia Cooper', 680, 30]]), got) })()"
+  },
+  {
+    "eval": "(async () => { const c = await window.api.stats.catalogue('wnba'); const pub = c.find((m) => m.published && m.family === 'composite'); const tr = c.find((m) => m.family === 'tracking'); const shot = c.find((m) => m.family === 'shots'); const r = await window.api.stats.query('wnba', { entity: 'player', metrics: ['pts', 'ws', pub.id, shot.id, tr.id], scope: { seasons: [2026] }, limit: 3 }); const why = r.columns.map((x) => x.reason); return check('metrics of later parts read their reasons: models, published, plays not built yet; tracking not published', why[0] === null && why[1] === \"Not built for the WNBA yet: Metis's ratings and models for it come in a later version.\" && why[2] === 'Not built for the WNBA yet: its published season stats come in a later version.' && why[3] === 'Not built for the WNBA yet: its stats from the play by play and the shots come in a later version.' && why[4] === 'Not published for the WNBA: no release holds player tracking.', { ids: [pub.id, shot.id, tr.id], why }) })()"
+  },
+  {
+    "eval": "(async () => { const r = await window.api.stats.query('wnba', { entity: 'player', metrics: ['plus_minus', 'gs', 'pts'], scope: { seasons: [2005] }, limit: 3 }); return check('plus-minus reads its first season in 2005; starters and points read', r.columns[0].reason === 'Recorded from 2008.' && r.columns[1].reason === null && r.rows[0]?.values.pts.value > 0, r.columns.map((c) => c.reason)) })()"
+  },
+  {
+    "eval": "(async () => { const id = '1641700'; const whole = await window.api.stats.query('wnba', { entity: 'player', metrics: ['pts', 'gp', 'min'], scope: { seasons: [2023], players: [id] } }); const parts = []; for (const t of ['1611661317', '1611661323']) { const r = await window.api.stats.query('wnba', { entity: 'player', metrics: ['pts', 'gp', 'min'], scope: { seasons: [2023], players: [id], teams: [t] } }); parts.push(r.rows[0]?.values) } const w = whole.rows[0]?.values; const sum = (k) => parts.reduce((n, p) => n + (p?.[k].value ?? 0), 0); return check('Liz Dixon 2023, traded: Phoenix and Connecticut add up to her season', w && sum('pts') === w.pts.value && sum('gp') === w.gp.value && Math.abs(sum('min') - w.min.value) < 1e-9, { whole: w && [w.pts.value, w.gp.value, w.min.value], parts: parts.map((p) => p && [p.pts.value, p.gp.value, p.min.value]) }) })()"
+  },
+  {
+    "eval": "(async () => [await nav('Players'), await chooseSelect('Season', 2023), await openPlayer('Liz Dixon')].join(' / '))()"
+  },
+  {
+    "eval": "(async () => { await sleep(2500); const t = document.querySelector('main').innerText; return check('a traded player\\'s dashboard reads: Liz Dixon, 2023, a season labelled by its year', /Dixon/.test(t) && /2023/.test(t) && !/could not be opened|Error/.test(t), { head: t.slice(0, 300) }) })()"
+  },
+  {
+    "shot": "t1301f-04-player-dixon-2023"
+  },
+  {
+    "eval": "(async () => { const tab = [...document.querySelectorAll('[role=tab], button')].find((x) => x.textContent.trim() === 'Game log'); if (!tab) return 'NO GAME LOG TAB'; tab.click(); await sleep(3000); const t = document.querySelector('main').innerText; const n = t.match(/([0-9]+) games \\u00b7 2023/)?.[1]; return check('her game log lists her 14 games of 2023, for Phoenix and for Connecticut', n === '14' && /PHO/.test(t) && /CON/.test(t), { games: n, head: t.slice(t.indexOf('Game log'), t.indexOf('Game log') + 200) }) })()"
+  },
+  {
+    "shot": "t1301f-05-player-gamelog"
+  },
+  {
+    "eval": "(async () => { const r = await window.api.stats.query('wnba', { entity: 'team', metrics: ['team_w', 'team_l', 'team_pts', 'team_pace'], scope: { seasons: [2026] }, limit: 20 }); const lv = r.rows.find((x) => x.name === 'Las Vegas Aces'); return check('a team line: Las Vegas 31-13, 4,025 points, pace per 40', lv && lv.values.team_w.value === 31 && lv.values.team_l.value === 13 && lv.values.team_pts.value === 4025 && lv.values.team_pace.value > 60 && lv.values.team_pace.value < 90, lv && Object.fromEntries(Object.entries(lv.values).map(([k, v]) => [k, v.value]))) })()"
+  },
+  {
+    "eval": "(async () => { await nav('Teams'); await sleep(2000); return check('the team dashboard reads', !has('could not be opened') && !has('No WNBA stats yet'), { h1: h1(), text: document.querySelector('main').innerText.slice(0, 300) }) })()"
+  },
+  {
+    "shot": "t1301f-06-team"
+  },
+  {
+    "eval": "(async () => [await nav('Standings'), await chooseSelect('Season', 2018)].join(' / '))()"
+  },
+  {
+    "eval": "(async () => { await until(() => /Washington Mystics/.test(document.querySelector('main').innerText)); const t = document.querySelector('main').innerText; return check('2018 standings: Washington 22-12 and Las Vegas 14-20 with the forfeit, by conference, no division toggle', /Washington Mystics\\s+22\\s+12/.test(t) && /Las Vegas Aces\\s+14\\s+20/.test(t) && /East/.test(t) && /West/.test(t) && !document.querySelector('[aria-label=\"Conference or division\"]'), { was: t.match(/Washington Mystics[^\\n]*\\n?[^A-Z]*/)?.[0]?.slice(0, 40), lv: t.match(/Las Vegas Aces[^\\n]*\\n?[^A-Z]*/)?.[0]?.slice(0, 40) }) })()"
+  },
+  {
+    "shot": "t1301f-07-standings-2018"
+  },
+  {
+    "eval": "(async () => { const g = (await window.api.stats.games('wnba', 2005)).find((x) => x.id === '1020500029'); const d = await window.api.stats.game('wnba', '1020500029'); const box = await window.api.stats.query('wnba', { entity: 'player', metrics: ['pts', 'min'], scope: { seasons: [2005], games: ['1020500029'] }, limit: 30 }); const pts = box.rows.reduce((n, r) => n + r.values.pts.value, 0); return check('2005, halves, one overtime: Detroit 68, New York 66; the box adds up', g && g.overtimes === 1 && g.home.score === 68 && pts === 134, { overtimes: g?.overtimes, score: g && [g.home.code, g.home.score, g.away.code, g.away.score], periods: d?.periods, boxPoints: pts, lines: box.rows.length }) })()"
+  },
+  {
+    "eval": "(async () => { const g = (await window.api.stats.games('wnba', 2026)).filter((x) => (x.overtimes ?? 0) >= 2); return check('2026 has a game to four overtimes', g.some((x) => x.overtimes === 4), g.map((x) => [x.id, x.overtimes])) })()"
+  },
+  {
+    "eval": "(async () => [await nav('Games'), await chooseSelect('Season', 2005)].join(' / '))()"
+  },
+  {
+    "eval": "(async () => { await sleep(2000); return check('the games list reads 2005', !has('could not be opened') && !has('No WNBA stats yet'), { text: document.querySelector('main').innerText.slice(0, 300) }) })()"
+  },
+  {
+    "shot": "t1301f-08-games-2005"
+  },
+  {
+    "eval": "(async () => { await nav('Glossary'); await sleep(1500); const t = document.querySelector('main').innerText; return check('the Glossary reads the WNBA\\'s catalogue', /Glossary/.test(t) && /player metrics/.test(t) && !/could not be opened|No WNBA stats yet/.test(t), { head: t.slice(0, 120) }) })()"
+  },
+  {
+    "eval": "(async () => { const c = await window.api.stats.catalogue('wnba'); const m = (id) => c.find((x) => x.id === id); return check('the catalogue: pace per 40, WS/40 not built yet, tracking not published', /per 40 minutes/.test(m('team_pace').description) && m('ws_48').short === 'WS/40' && /Not built for the WNBA yet/.test(m('ws_48').unavailable) && /Not published for the WNBA/.test(c.find((x) => x.family === 'tracking').unavailable), { pace: m('team_pace').description.slice(0, 60), ws: [m('ws_48').short, m('ws_48').unavailable] }) })()"
+  },
+  {
+    "shot": "t1301f-09-glossary"
+  },
+  {
+    "eval": "(async () => { await nav('Explore'); await sleep(3000); return check('Explore reads', !has('could not be opened') && !has('No WNBA stats yet'), { text: document.querySelector('main').innerText.slice(0, 200) }) })()"
+  },
+  {
+    "shot": "t1301f-10-explore"
+  },
+  {
+    "eval": "(async () => { const n = await switchTo('NBA'); const st = await window.api.stats.standings('nba', 2016); const p = await window.api.stats.player('nba', '201939'); const q = await window.api.stats.query('nba', { entity: 'player', metrics: ['pts'], transform: 'perGame', scope: { seasons: [2016], qualifiedOnly: true }, limit: 1 }); return check('back on the NBA: standings, a player, a leaderboard as before', n === 'NBA' && st.length === 30 && p?.name === 'Stephen Curry' && q.rows[0]?.name === 'Stephen Curry', { league: n, standings: st.length, player: p?.name, leader: q.rows[0] && [q.rows[0].name, q.rows[0].values.pts.value] }) })()"
+  },
+  {
+    "eval": "(async () => { await nav('Standings'); await sleep(2500); return check('the NBA standings still offer divisions', !!document.querySelector('[aria-label=\"Conference or division\"]') || /Division/.test(document.querySelector('main').innerText), { h1: h1() }) })()"
+  },
+  {
+    "shot": "t1301f-11-nba-back"
+  }
+]

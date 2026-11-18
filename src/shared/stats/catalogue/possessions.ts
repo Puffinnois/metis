@@ -109,6 +109,7 @@ export const POSSESSIONS: MetricDef[] = [
     {
       ...team,
       value: `48 * {poss_sym} / nullif(${ELAPSED}, 0)`,
+      gameLength: true,
       sample: 'poss_sym',
       unit: 'pace',
       direction: 'neutral',

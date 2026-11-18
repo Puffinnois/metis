@@ -9,7 +9,8 @@ import type {
   StatsRow
 } from '@shared/stats/types'
 import { ELO_FIRST_SEASON } from '@shared/stats/catalogue/ratings'
-import { seasonLabel } from '@/lib/stats/league'
+import { currentLeague, seasonLabel } from '@/lib/stats/league'
+import { periodsIn } from '@shared/leagues'
 import { fmtClock, fmtStat } from './format'
 import { typeTag } from './player'
 import { fullDay, shortDay } from './scope'
@@ -178,18 +179,21 @@ export interface PeriodTable {
   home: string[]
 }
 
-const periodName = (i: number): string => (i < 4 ? String(i + 1) : i === 4 ? 'OT' : `${i - 3}OT`)
+/** A period's name: its number in regulation, then OT, 2OT: two halves before 2006 in the WNBA. */
+const periodName = (i: number, regulation: number): string =>
+  i < regulation ? String(i + 1) : i === regulation ? 'OT' : `${i - regulation + 1}OT`
 
 /** The score by period, with the final at the end. Null when the source has none. */
 export function periodTable(game: StatsGame, detail: StatsGameDetail | null): PeriodTable | null {
   const p = detail?.periods
   if (!p) return null
+  const regulation = periodsIn(currentLeague(), game.season).periods
   const cells = (xs: number[], score: number | null): string[] => [
     ...xs.map(String),
     String(score ?? '')
   ]
   return {
-    head: [...p.home.map((_, i) => periodName(i)), 'T'],
+    head: [...p.home.map((_, i) => periodName(i, regulation)), 'T'],
     away: cells(p.away, game.away.score),
     home: cells(p.home, game.home.score)
   }

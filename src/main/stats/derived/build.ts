@@ -1,37 +1,45 @@
+import { DEFAULT_LEAGUE, leagueOf, type DerivedRecipeName, type League } from '@shared/leagues'
 import type { StatsDb } from '../db'
-import { buildGameTables } from './game'
+import { buildGameTables, NBA_DERIVED, type DerivedRecipe } from './game'
+import { WNBA_DERIVED } from './gameWnba'
 import { buildSeasonTables } from './season'
 import { inspect } from './sql'
 
-/** Bump when these tables change, so the next refresh builds them without downloading anything. */
-export const DERIVED_VERSION = 2
-
-/**
- * Without the identity tables and one box score there is nothing to build from. The source tables
- * here can never be left out of a build (`leftOut.ts`).
- */
-export const DERIVED_NEEDS = [
-  'game',
-  'team',
-  'player_ids',
-  'src_espn_player_box',
-  'src_nba_player_box'
-]
-const NEEDS = DERIVED_NEEDS
-
-export async function canDerive(db: StatsDb): Promise<boolean> {
-  const row = await db.get<{ n: number }>(
-    `SELECT count(*) AS n FROM duckdb_tables()
-     WHERE schema_name = 'main' AND table_name IN (${NEEDS.map((t) => `'${t}'`).join(', ')})`
-  )
-  return row?.n === NEEDS.length
+/** Every recipe, by the name a league's registry entry gives (`League.derived`). */
+export const DERIVED_RECIPES: Readonly<Record<DerivedRecipeName, DerivedRecipe>> = {
+  nba: NBA_DERIVED,
+  wnba: WNBA_DERIVED
 }
 
-export async function derivedStale(db: StatsDb): Promise<boolean> {
+/** The NBA recipe's version; each recipe keeps its own, so changing one never rebuilds another. */
+export const DERIVED_VERSION = NBA_DERIVED.version
+
+/**
+ * Without the identity tables and a box score there is nothing to build from. Every recipe's needs
+ * together: whatever the league, these tables' releases can never be left out of a build (`leftOut.ts`).
+ */
+export const DERIVED_NEEDS = [...new Set(Object.values(DERIVED_RECIPES).flatMap((r) => r.needs))]
+
+// A script or test that names no league builds the NBA's, the league every file was before leagues.
+const NBA = leagueOf(DEFAULT_LEAGUE)
+
+/** The recipe a league's registry entry names. */
+export const derivedRecipe = (league: League): DerivedRecipe => DERIVED_RECIPES[league.derived]
+
+export async function canDerive(db: StatsDb, league: League = NBA): Promise<boolean> {
+  const needs = derivedRecipe(league).needs
+  const row = await db.get<{ n: number }>(
+    `SELECT count(*) AS n FROM duckdb_tables()
+     WHERE schema_name = 'main' AND table_name IN (${needs.map((t) => `'${t}'`).join(', ')})`
+  )
+  return row?.n === needs.length
+}
+
+export async function derivedStale(db: StatsDb, league: League = NBA): Promise<boolean> {
   const row = await db.get<{ version: number }>(
     "SELECT version FROM derived_state WHERE name = 'derived'"
   )
-  return (row?.version ?? 0) < DERIVED_VERSION
+  return (row?.version ?? 0) < derivedRecipe(league).version
 }
 
 /** Marks the tables out of date, so a build the app never got to still happens on the next refresh. */
@@ -40,12 +48,14 @@ export async function markDerivedStale(db: StatsDb): Promise<void> {
 }
 
 /**
- * Builds the game tables, then the season tables from them. Each table replaces the old one in its
- * own statement, so a screen reading it sees the old rows or the new ones. Returns the player lines.
+ * Builds the game tables with the league's recipe, then the season tables from them, which are one
+ * for every league. Each table replaces the old one in its own statement, so a screen reading it sees
+ * the old rows or the new ones. Returns the player lines.
  */
-export async function buildDerived(db: StatsDb): Promise<number> {
-  const lines = await buildGameTables(db, await inspect(db))
+export async function buildDerived(db: StatsDb, league: League = NBA): Promise<number> {
+  const recipe = derivedRecipe(league)
+  const lines = await buildGameTables(db, await inspect(db), recipe, league)
   await buildSeasonTables(db)
-  await db.exec('INSERT OR REPLACE INTO derived_state VALUES (?, ?)', ['derived', DERIVED_VERSION])
+  await db.exec('INSERT OR REPLACE INTO derived_state VALUES (?, ?)', ['derived', recipe.version])
   return lines
 }

@@ -148,7 +148,7 @@ function advanced(entity: 'player' | 'team'): MetricDef[] {
         description: `Possessions per 48 minutes, as the NBA counts them.${court} ${WEIGHTED}`,
         family: 'possessions'
       },
-      { unit: 'pace', direction: 'neutral' }
+      { unit: 'pace', direction: 'neutral', gameLength: true }
     ),
     rate(
       table,
@@ -160,7 +160,12 @@ function advanced(entity: 'player' | 'team'): MetricDef[] {
         description: `The NBA's pace scaled to 40 minutes.${court} ${WEIGHTED}`,
         family: 'possessions'
       },
-      { value: `40 * ${ratio('pace', 'minutes')} / 48`, unit: 'pace', direction: 'neutral' }
+      {
+        value: `40 * ${ratio('pace', 'minutes')} / 48`,
+        unit: 'pace',
+        direction: 'neutral',
+        gameLength: true
+      }
     ),
     rate(
       table,

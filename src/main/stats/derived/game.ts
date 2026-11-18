@@ -1,5 +1,40 @@
+import type { League } from '@shared/leagues'
 import type { StatsDb } from '../db'
 import { column, per, type Have } from './sql'
+
+/**
+ * How one league's box scores become `player_game` and `team_game` (`League.derived`). Every recipe
+ * writes the same tables with the same columns and meaning; the shared SQL below (the team's game
+ * beside its opponent's, the possessions, the estimates, the player's line with the team's context)
+ * is one for every league, and only what the league's sources say differently is written per recipe.
+ * `docs/reference/stats-database.md`, "How each league's tables are built".
+ */
+export interface DerivedRecipe {
+  /** Bump when the recipe's tables change, so the next refresh builds them with nothing downloaded. */
+  version: number
+  /** The tables it cannot build without; their releases can never be left out (`leftOut.ts`). */
+  needs: readonly string[]
+  /**
+   * Statements leaving the temp tables `lines` (one row per player per game they appeared in:
+   * `game_id`, `player_id`, `team_id`, `source`, `seconds`, the counts, `plus_minus`, `starter`) and
+   * `player_position` (`player_id`, `season`, `position`), and any of their own listed in `temps`.
+   */
+  lines(have: Have, league: League): string[]
+  /** Temp tables the statements above leave beside those two, dropped after the build. */
+  temps: readonly string[]
+  /**
+   * The league's team box score: `nba_game_id`, `team_id` (the `team` table's key), `seconds` (NULL
+   * where it has none, so the players' are summed), and the counts.
+   */
+  teamBox(have: Have, league: League): string
+  /** `team_game.source` for a team's own box score, and the SQL for one summed from its players (`p`). */
+  boxSource: string
+  summedSource: string
+  /** The first season of each of ESPN's points by kind holding values in this league. */
+  espnKinds: { paint: number; fastBreak: number; turnover: number }
+  /** All-Star dates the schedule does not hold, as SQL rows `(season, DATE '…')`. */
+  breaks: readonly string[]
+}
 
 /** Every box-score count, as `player_game`, `team_game` and the season tables name them. */
 export const BOX_COUNTS = [
@@ -21,7 +56,7 @@ export const BOX_COUNTS = [
 ] as const
 
 /** The sources' names for each count. */
-const NBA_NAMES: Record<(typeof BOX_COUNTS)[number], string> = {
+export const NBA_NAMES: Record<(typeof BOX_COUNTS)[number], string> = {
   fgm: 'field_goals_made',
   fga: 'field_goals_attempted',
   fg3m: 'three_pointers_made',
@@ -160,9 +195,10 @@ const POSITION_GROUP = `CREATE OR REPLACE TEMP MACRO position_group(p) AS ${posi
 /**
  * The ESPN lines of players who appeared, read once per game: 1998-99 is in two files. A line with no
  * minutes is not an appearance, even with stats: 34 of them in 1994-95 are all zeros for a player who
- * did play, so counting them would give a real player empty games.
+ * did play, so counting them would give a real player empty games. `from` leaves out seasons whose
+ * lines the league's ESPN files hold as zeros (the WNBA's 2002).
  */
-function espnLines(have: Have): string {
+export function espnLines(have: Have, from?: number): string {
   const t = 'src_espn_player_box'
   const counts = BOX_COUNTS.map((c) => `${column(have, t, 'b', ESPN_NAMES[c])} AS ${c}`)
   return `CREATE OR REPLACE TEMP TABLE espn_lines AS
@@ -177,7 +213,7 @@ function espnLines(have: Have): string {
     JOIN game g ON g.espn_game_id = b.game_id AND g.played
     JOIN player_ids i ON i.espn_athlete_id = b.athlete_id
     WHERE b.season = b.file_season AND b.points IS NOT NULL AND b.minutes IS NOT NULL
-      AND NOT coalesce(b.did_not_play, false)
+      AND NOT coalesce(b.did_not_play, false)${from === undefined ? '' : ` AND b.season >= ${from}`}
     QUALIFY row_number() OVER (PARTITION BY g.game_id, i.player_id ORDER BY b.minutes DESC NULLS LAST) = 1`
 }
 
@@ -251,7 +287,7 @@ function positions(have: Have): string {
  * ESPN's points by kind, which the NBA's box score does not have. `-1` means not recorded, and a
  * column stays zero before its first real season, so neither reads as a value.
  */
-function espnKinds(have: Have): string {
+function espnKinds(have: Have, first: DerivedRecipe['espnKinds']): string {
   const t = 'src_espn_team_box'
   if (!have.tables.has(t)) {
     return `SELECT NULL::INTEGER AS espn_game_id, NULL::BOOLEAN AS home, NULL::INTEGER AS paint_pts,
@@ -262,9 +298,9 @@ function espnKinds(have: Have): string {
     return `CASE WHEN b.season >= ${first} AND ${value} >= 0 THEN ${value} END`
   }
   return `SELECT b.game_id AS espn_game_id, b.team_home_away = 'home' AS home,
-                 ${kind('points_in_paint', 2009)} AS paint_pts,
-                 ${kind('fast_break_points', 2002)} AS fast_break_pts,
-                 ${kind('turnover_points', 1995)} AS turnover_pts
+                 ${kind('points_in_paint', first.paint)} AS paint_pts,
+                 ${kind('fast_break_points', first.fastBreak)} AS fast_break_pts,
+                 ${kind('turnover_points', first.turnover)} AS turnover_pts
           FROM ${t} b WHERE b.season = b.file_season`
 }
 
@@ -282,24 +318,27 @@ const brefHalf = (us: string, them: string): string =>
    - 1.07 * ${per(`${us}oreb`, `${us}oreb + ${them}dreb`)} * (${us}fga - ${us}fgm) + ${us}tov`
 
 /**
- * One row per team per game played: the NBA's team box score, or its players summed where it has
- * none. ESPN's team rebound and turnover columns change meaning by era, so they are never read. The
- * score comes from the game, so a game with no box score still counts toward a record.
+ * One row per team per game played: the league's team box score (the recipe's), or its players
+ * summed where it has none. ESPN's team rebound and turnover columns change meaning by era, so they
+ * are never read. The score comes from the game, so a game with no box score still counts toward a
+ * record, and a forfeit (the WNBA's 2018 game, 0-0) is a win for the side `game.forfeit_winner_id`
+ * names and a loss for the other, with no box score.
  *
  * `after_break`: the date of the All-Star Game that was played, or of one still to come this season.
  * The schedule lists others that were not: 1998-99's was cancelled, so that season reads NULL rather
- * than guessing. It has none before 1996-97, so those three are written here, each inside the gap
- * in that February's games.
+ * than guessing. The NBA's has none before 1996-97, so its recipe names those three, each inside the
+ * gap in that February's games.
  */
-function teamGame(have: Have): string {
-  const t = 'src_nba_team_box'
-  const counts = BOX_COUNTS.map((c) => `${column(have, t, 'n', NBA_NAMES[c])} AS ${c}`)
-  const nba = have.tables.has(t)
-    ? `SELECT n.game_id AS nba_game_id, n.team_id,
-              ${column(have, t, 'n', 'minutes', 'VARCHAR')} AS clock, ${counts.join(', ')}
-       FROM ${t} n WHERE n.team_id > 0`
-    : `SELECT NULL::VARCHAR AS nba_game_id, NULL::BIGINT AS team_id, NULL::VARCHAR AS clock,
-              ${BOX_COUNTS.map((c) => `NULL::INTEGER AS ${c}`).join(', ')}`
+function teamGame(have: Have, recipe: DerivedRecipe, league: League): string {
+  const forfeits = have.columns.get('game')?.has('forfeit_winner_id') ?? false
+  const won = (op: '>' | '<', winner: string): string =>
+    forfeits
+      ? `CASE WHEN t.forfeit_winner_id IS NOT NULL THEN t.team_id ${winner} t.forfeit_winner_id
+              ELSE t.points_for ${op} t.points_against END`
+      : `t.points_for ${op} t.points_against`
+  const breaks = recipe.breaks.length
+    ? `SELECT * FROM (VALUES ${recipe.breaks.join(', ')})`
+    : 'SELECT NULL::INTEGER, NULL::DATE WHERE false'
   return `CREATE OR REPLACE TABLE team_game AS
     WITH last_played AS (
       SELECT season, max(game_date) AS game_date FROM game WHERE played GROUP BY 1
@@ -309,28 +348,29 @@ function teamGame(have: Have): string {
       WHERE g.game_type = 'all-star' AND (g.played OR g.game_date > l.game_date)
       GROUP BY 1
       UNION ALL
-      SELECT * FROM (VALUES (1994, DATE '1994-02-13'), (1995, DATE '1995-02-12'), (1996, DATE '1996-02-11'))
+      ${breaks}
     ), sides AS (
       SELECT game_id, nba_game_id, espn_game_id, season, game_type, game_date,
              home_team_id AS team_id, away_team_id AS opponent_id, true AS home,
-             home_score AS points_for, away_score AS points_against
+             home_score AS points_for, away_score AS points_against${forfeits ? ', forfeit_winner_id' : ''}
       FROM game WHERE played AND home_team_id IS NOT NULL AND away_team_id IS NOT NULL
       UNION ALL
       SELECT game_id, nba_game_id, espn_game_id, season, game_type, game_date,
-             away_team_id, home_team_id, false, away_score, home_score
+             away_team_id, home_team_id, false, away_score, home_score${forfeits ? ', forfeit_winner_id' : ''}
       FROM game WHERE played AND home_team_id IS NOT NULL AND away_team_id IS NOT NULL
-    ), nba AS (${nba}
+    ), nba AS (${recipe.teamBox(have, league)}
     ), players AS (
-      SELECT game_id, team_id, sum(seconds) AS seconds,
+      SELECT game_id, team_id, mode(source) AS source, sum(seconds) AS seconds,
              ${BOX_COUNTS.map((c) => `sum(${c}) AS ${c}`).join(', ')},
              sum(pts) FILTER (starter) AS starter_pts, sum(pts) FILTER (NOT starter) AS bench_pts,
              count(starter) > 0 AS known_starters
       FROM lines GROUP BY 1, 2
-    ), kinds AS (${espnKinds(have)}),
+    ), kinds AS (${espnKinds(have, recipe.espnKinds)}),
     one_side AS (
       SELECT s.*,
-             CASE WHEN n.team_id IS NOT NULL THEN 'nba' WHEN p.team_id IS NOT NULL THEN 'espn' END AS source,
-             coalesce(clock_seconds(n.clock), p.seconds) AS seconds,
+             CASE WHEN n.team_id IS NOT NULL THEN '${recipe.boxSource}'
+                  WHEN p.team_id IS NOT NULL THEN ${recipe.summedSource} END AS source,
+             coalesce(n.seconds, p.seconds) AS seconds,
              ${BOX_COUNTS.map((c) => `coalesce(n.${c}, p.${c}) AS ${c}`).join(', ')},
              p.starter_pts, p.bench_pts, p.known_starters, k.paint_pts, k.fast_break_pts, k.turnover_pts,
              date_diff('day',
@@ -345,12 +385,12 @@ function teamGame(have: Have): string {
       LEFT JOIN kinds k ON k.espn_game_id = s.espn_game_id AND k.home = s.home
       LEFT JOIN breaks b ON b.season = s.season
     )
-    SELECT t.* EXCLUDE (nba_game_id, espn_game_id, known_starters),
+    SELECT t.* EXCLUDE (nba_game_id, espn_game_id, known_starters${forfeits ? ', forfeit_winner_id' : ''}),
            ot.conference AS opp_conference, ot.division AS opp_division,
            1 AS games, (t.source IS NOT NULL)::INTEGER AS box_games,
            coalesce(t.known_starters, false)::INTEGER AS starts_known,
-           (t.points_for > t.points_against)::INTEGER AS wins,
-           (t.points_for < t.points_against)::INTEGER AS losses,
+           (${won('>', '=')})::INTEGER AS wins,
+           (${won('<', '<>')})::INTEGER AS losses,
            t.seconds / 60.0 AS minutes,
            ${BOX_COUNTS.map((c) => `o.${c} AS opp_${c}`).join(', ')},
            o.paint_pts AS opp_paint_pts, o.fast_break_pts AS opp_fast_break_pts,
@@ -396,16 +436,50 @@ const PLAYER_GAME = `CREATE OR REPLACE TABLE player_game AS
   JOIN team_game t ON t.game_id = l.game_id AND t.team_id = l.team_id
   LEFT JOIN player_position p ON p.player_id = l.player_id AND p.season = t.season`
 
-/** Builds `team_game` and `player_game`, each in one statement. Returns how many player lines. */
-export async function buildGameTables(db: StatsDb, have: Have): Promise<number> {
+/** The NBA's team box score, its `minutes` read as seconds. */
+function nbaTeamBox(have: Have): string {
+  const t = 'src_nba_team_box'
+  const counts = BOX_COUNTS.map((c) => `${column(have, t, 'n', NBA_NAMES[c])} AS ${c}`)
+  return have.tables.has(t)
+    ? `SELECT n.game_id AS nba_game_id, n.team_id,
+              clock_seconds(${column(have, t, 'n', 'minutes', 'VARCHAR')}) AS seconds, ${counts.join(', ')}
+       FROM ${t} n WHERE n.team_id > 0`
+    : `SELECT NULL::VARCHAR AS nba_game_id, NULL::BIGINT AS team_id, NULL::INTEGER AS seconds,
+              ${BOX_COUNTS.map((c) => `NULL::INTEGER AS ${c}`).join(', ')}`
+}
+
+/**
+ * The NBA's recipe: its box scores wherever they have the game (everything counted from 1996-97),
+ * ESPN's before them and for the All-Star games it has.
+ */
+export const NBA_DERIVED: DerivedRecipe = {
+  version: 2,
+  needs: ['game', 'team', 'player_ids', 'src_espn_player_box', 'src_nba_player_box'],
+  lines: (have) => [espnLines(have), lines(have), positions(have)],
+  temps: ['espn_lines'],
+  teamBox: nbaTeamBox,
+  boxSource: 'nba',
+  summedSource: "'espn'",
+  espnKinds: { paint: 2009, fastBreak: 2002, turnover: 1995 },
+  breaks: ["(1994, DATE '1994-02-13')", "(1995, DATE '1995-02-12')", "(1996, DATE '1996-02-11')"]
+}
+
+/**
+ * Builds `team_game` and `player_game` with the league's recipe, each in one statement. Returns how
+ * many player lines.
+ */
+export async function buildGameTables(
+  db: StatsDb,
+  have: Have,
+  recipe: DerivedRecipe,
+  league: League
+): Promise<number> {
   await db.exec(CLOCK_SECONDS)
   await db.exec(POSITION_GROUP)
-  await db.exec(espnLines(have))
-  await db.exec(lines(have))
-  await db.exec(positions(have))
-  await db.exec(teamGame(have))
+  for (const sql of recipe.lines(have, league)) await db.exec(sql)
+  await db.exec(teamGame(have, recipe, league))
   await db.exec(PLAYER_GAME)
-  for (const temp of ['espn_lines', 'lines', 'player_position']) {
+  for (const temp of [...recipe.temps, 'lines', 'player_position']) {
     await db.exec(`DROP TABLE ${temp}`)
   }
   const row = await db.get<{ n: number }>('SELECT count(*) AS n FROM player_game')

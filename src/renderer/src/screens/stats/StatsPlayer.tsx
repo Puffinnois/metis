@@ -80,6 +80,7 @@ import {
 } from '@/lib/stats/profile'
 import { rangeLabel, scopeLabel, seasonOf, typeLabel, type StatsScope } from '@/lib/stats/scope'
 import { currentLeague, seasonLabel } from '@/lib/stats/league'
+import { rowQualifier } from '@/lib/stats/qualifying'
 import {
   useAvailability,
   useMatchups,
@@ -571,7 +572,7 @@ function Header({
             </span>
             {row && !qualified && (
               <span
-                title="Below 1,000 minutes over 82 games, scaled to the games in range"
+                title={`Below ${rowQualifier()}, scaled to the games in range`}
                 className="rounded-[4px] px-1.5 py-[3px] font-mono text-[11px] text-fg-3 shadow-[inset_0_0_0_1px_var(--line)]"
               >
                 Not qualified

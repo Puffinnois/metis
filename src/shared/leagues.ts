@@ -43,6 +43,21 @@ export type BuiltTables = (typeof BUILT_TABLES)[number]
  */
 export type IdentityRecipeName = 'nba' | 'wnba'
 
+/**
+ * The game and season table recipes, named for the box scores they read: the NBA's box scores, or the
+ * WNBA's game logs and 2026 box scores.
+ */
+export type DerivedRecipeName = 'nba' | 'wnba'
+
+/**
+ * A season's shape, for qualifying a row grouped within it: the opponents a team meets and the months
+ * it plays in, so a row by opponent or by month needs its share of the season's minimum.
+ */
+export interface SeasonShape {
+  opponents: number
+  months: number
+}
+
 export interface League {
   id: LeagueId
   /** As the screens write it: "NBA". */
@@ -64,6 +79,11 @@ export interface League {
   seasonLabel(season: number): string
   /** The season a date falls in, by the data's label: what is current, and what a refresh fetches. */
   currentSeason(now: Date): number
+  /**
+   * The year of the draft (or combine) a file of that label holds: the NBA labels its draft by the
+   * season after it, the WNBA by the draft's own year (Caitlin Clark first in `draft_2024`).
+   */
+  eventYear(season: number): number
   /**
    * The months a season is played in, 1 to 12, first to last (the NBA's runs October to June, over
    * the new year). Outside them the league's season is complete, not stale (Plan T1301.3).
@@ -87,6 +107,13 @@ export interface League {
    * `gameMinutes` over this.
    */
   minimumsMinutes: number
+  /**
+   * What the screens add to the qualifier while the league's own rule is not read, and its rows
+   * qualify by another league's (D37).
+   */
+  minimumsNote?: string
+  /** A regular season's shape, for qualifying rows grouped by opponent or month. */
+  seasonShape: SeasonShape
   /** The league's stats file in the data folder (D36). */
   statsFile: string
   /**
@@ -127,6 +154,12 @@ export interface League {
    */
   identity: IdentityRecipeName
   /**
+   * The recipe that builds its `player_game` and `team_game` (`DERIVED_RECIPES` in
+   * `src/main/stats/derived/build.ts`): which box scores it reads. The season tables after them, and
+   * the SQL the recipes share, are one for every league.
+   */
+  derived: DerivedRecipeName
+  /**
    * What a screen says while the league's tables are not built: before its first load gets that far,
    * or always while `builds` lacks `derived`.
    */
@@ -157,6 +190,7 @@ const NBA: League = {
   // A season is labelled by its final year (D10). The next season's schedule appears over the summer,
   // so the label turns in August; a file not published yet is skipped, not an error.
   currentSeason: (now) => now.getUTCFullYear() + (now.getUTCMonth() >= 7 ? 1 : 0),
+  eventYear: (season) => season - 1,
   seasonMonths: { first: 10, last: 6 },
   seasonTypes: ['regular', 'play-in', 'playoffs', 'cup-final', 'all-star', 'preseason'],
   countedTypes: ['regular', 'play-in', 'playoffs', 'cup-final'],
@@ -164,6 +198,8 @@ const NBA: League = {
   firstSeason: 1994,
   minimumsGames: 82,
   minimumsMinutes: 48,
+  // A team meets each of 29 opponents about three times a season, over about six months.
+  seasonShape: { opponents: 29, months: 6 },
   statsFile: 'stats-nba.duckdb',
   formerStatsFile: 'stats.duckdb',
   releases: {
@@ -182,14 +218,16 @@ const NBA: League = {
   noData: 'No NBA stats yet: turn the NBA on in the Data panel to download it.',
   builds: BUILT_TABLES,
   identity: 'nba',
+  derived: 'nba',
   notBuilt: 'No NBA stats yet: the first load has not got that far.',
   metricsByDefault: true
 }
 
 /**
- * Facts from `docs/reference/wnba-data-sources.md` (T1301.1). Nothing loads for it until T1301.4, and
- * its catalogue coverage and qualifying rule are T1301.6's: until then the minimums are the NBA's,
- * scaled to the games in scope, as that part's text states.
+ * Facts from `docs/reference/wnba-data-sources.md` (T1301.1). Its qualifying rule is provisional (D37):
+ * the NBA's minimums scaled to the team games in scope over the NBA's 82, so 58 games of 82 asks 24 of
+ * a 34-game season and 31 of a 44-game one, and a minimum in minutes scales by 40 over 48, until the
+ * owner reads the league's own rule.
  */
 const WNBA: League = {
   id: 'wnba',
@@ -206,6 +244,7 @@ const WNBA: League = {
   // A season is the year it was played: `…_2026` holds May to October 2026.
   seasonLabel: (season) => String(season),
   currentSeason: (now) => now.getUTCFullYear(),
+  eventYear: (season) => season,
   seasonMonths: { first: 5, last: 10 },
   // No play-in and no preseason are published; the Commissioner's Cup final and the All-Star Game are
   // ESPN's only.
@@ -215,6 +254,10 @@ const WNBA: League = {
   firstSeason: 1997,
   minimumsGames: 82,
   minimumsMinutes: 48,
+  minimumsNote: "scaled, until the WNBA's own are read",
+  // Eleven opponents in the twelve-team seasons (2010 to 2024, the most of any size), over about four
+  // months from mid-May to mid-September (D37).
+  seasonShape: { opponents: 11, months: 4 },
   statsFile: 'stats-wnba.duckdb',
   releases: {
     prefixes: ['espn_wnba_', 'wnba_stats_', 'wnba_'],
@@ -230,12 +273,12 @@ const WNBA: League = {
     loadedBytes: 512 * MB
   },
   noData: 'No WNBA stats yet: turn the WNBA on in the Data panel to download it.',
-  // Its game, team and player tables are built (T1301.5); the game and season tables, the published
-  // ones, the plays and the models come with T1301.6 to T1301.8.
-  builds: ['identity'],
+  // Its game, team and player tables (T1301.5) and its game and season tables (T1301.6) are built; the
+  // published ones, the plays and the models come with T1301.7 and T1301.8.
+  builds: ['identity', 'derived'],
   identity: 'wnba',
-  notBuilt:
-    'No WNBA stats yet: its files are loaded, and the tables built from them come in a later version.',
+  derived: 'wnba',
+  notBuilt: 'No WNBA stats yet: the first load has not got that far.',
   metricsByDefault: false
 }
 

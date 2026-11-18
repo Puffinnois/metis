@@ -5,7 +5,7 @@ import type { Downloads, FetchedFile } from '@main/stats/download'
 import { leftOutIn, leftOutProblem, requiredReleases } from '@main/stats/leftOut'
 import { openStatsService, type StatsService } from '@main/stats/service'
 import { fileUrl, SOURCES, SOURCES_BY_LEAGUE, type SourceFile } from '@main/stats/sources'
-import { notBuilt, refreshStats, STATS_DERIVED_STEP } from '@main/stats/sync'
+import { refreshStats, STATS_DERIVED_STEP } from '@main/stats/sync'
 import { LEAGUES } from '@shared/leagues'
 import { openTestDb, tempDir } from '../../fixtures/stats'
 
@@ -35,7 +35,7 @@ function downloads(): Downloads {
 }
 
 describe('a WNBA refresh', () => {
-  it('loads its files, builds nothing and says why', async () => {
+  it('loads its files and builds nothing before its schedule and identity files are in', async () => {
     const db = await openTestDb()
     const sources = SERVED.map(([s]) => s)
     const result = await refreshStats(
@@ -45,10 +45,9 @@ describe('a WNBA refresh', () => {
     )
     const files = result.steps.filter((s) => s.source !== STATS_DERIVED_STEP)
     expect(files.filter((s) => s.status === 'ok').map((s) => s.rowsWritten)).toEqual([21, 25])
-    const skipped = result.steps.filter((s) => s.source === STATS_DERIVED_STEP)
-    expect(skipped).toEqual([
-      expect.objectContaining({ status: 'skipped', message: notBuilt(wnba) })
-    ])
+    // Its game tables are in its entry now (T1301.6), so no step says they never will be: they wait
+    // for the identity tables, which wait for the schedules.
+    expect(result.steps.filter((s) => s.source === STATS_DERIVED_STEP)).toEqual([])
     const built = await db.all<{ t: string }>(
       `SELECT table_name AS t FROM duckdb_tables()
        WHERE table_name IN ('game', 'team', 'player', 'player_game', 'player_season')`
@@ -124,20 +123,18 @@ afterEach(async () => {
 })
 
 describe('the WNBA worker before its tables exist', () => {
-  it('opens its own file and answers every read with the reason, never an error', async () => {
+  it('opens its own file and answers as the NBA does before its first load gets that far', async () => {
     const dir = tempDir()
     mkdirSync(join(dir, 'tmp'))
     service = await openStatsService({ league: 'wnba', dataDir: dir, tempDir: join(dir, 'tmp') })
     const s = service
-    expect((await s.status()).noData).toBe(wnba.notBuilt)
-    const result = await s.query({ entity: 'player', metrics: ['pts'], scope: { seasons: [2026] } })
-    expect(result.notes).toEqual([wnba.notBuilt])
+    await expect(
+      s.query({ entity: 'player', metrics: ['pts'], scope: { seasons: [2026] } })
+    ).rejects.toThrow(wnba.notBuilt)
     expect(await s.seasons()).toEqual([])
     expect(await s.games(2026)).toEqual([])
     expect(await s.standings(2026)).toEqual([])
     expect(await s.player('1628932')).toBeNull()
-    expect((await s.shots({} as never)).reason).toBe(wnba.notBuilt)
-    expect((await s.gameFlow('1022600001')).reason).toBe(wnba.notBuilt)
     await expect(s.officialsSeason(2026, ['regular'])).resolves.toBeDefined()
     const data = await s.data()
     expect(data.families).toHaveLength(37)

@@ -33,6 +33,7 @@ import { MOMENTS } from '@/lib/stats/splits'
 import { useStatsQuery, type StatsData } from '@/lib/stats/useStats'
 import { cn } from '@/lib/utils'
 import { seasonLabel } from '@/lib/stats/league'
+import { leaderboardQualifier } from '@/lib/stats/qualifying'
 import type { Entity, LeaderboardBoard, MetricFamily, StatsView } from '@shared/stats/types'
 
 /** Rows rendered at a time; "Show more" adds as many. */
@@ -163,9 +164,7 @@ export function StatsLeaderboard({
   }
 
   const title = `${seasonLabel(scope.season)} ${tab.title} leaderboard`
-  const qualifyNote = tab.qualifier
-    ? `Qualified: 1,000 minutes over 82 games, scaled to the games in range; the NBA's leader stats by their own minimum`
-    : 'Every team qualifies'
+  const qualifyNote = tab.qualifier ? leaderboardQualifier() : 'Every team qualifies'
   const sortLabel =
     board.sort.by === 'name' ? 'name' : (data.byId.get(board.sort.by)?.label ?? board.sort.by)
 

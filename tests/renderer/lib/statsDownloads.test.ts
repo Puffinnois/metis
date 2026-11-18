@@ -25,8 +25,14 @@ describe('what a league holds', () => {
   })
 
   it('has no tables yet when on and loaded in a league whose tables are not built', () => {
-    expect(leagueHolds(LEAGUES.wnba, download({ on: true, hasFile: true, hasData: true }))).toBe(
+    // An entry listing its identity alone, as the WNBA's did before T1301.6.
+    const identityOnly = { ...LEAGUES.wnba, builds: ['identity'] as const }
+    expect(leagueHolds(identityOnly, download({ on: true, hasFile: true, hasData: true }))).toBe(
       'notBuilt'
+    )
+    // The WNBA's game and season tables are built (T1301.6): ready once loaded.
+    expect(leagueHolds(LEAGUES.wnba, download({ on: true, hasFile: true, hasData: true }))).toBe(
+      'ready'
     )
   })
 

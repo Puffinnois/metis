@@ -8,16 +8,22 @@ import {
   stabilityTitle
 } from '@/lib/stats/stability'
 import { cn } from '@/lib/utils'
-import { seasonLabel } from '@/lib/stats/league'
+import { currentLeague, seasonLabel } from '@/lib/stats/league'
 import type { MetricInfo } from '@shared/stats/types'
 
 const sampleWords = (info: MetricInfo): string => {
   if (!info.minSample) return info.sampleLabel
-  const min = info.minSample.toLocaleString('en-US')
+  const league = currentLeague()
+  // A minimum in minutes is stated in the minimums' game length: 1,000 is 833 in a 40-minute league.
+  const scale = info.qualifyLabel === 'minutes' ? league.gameMinutes / league.minimumsMinutes : 1
+  const min = Math.round(info.minSample * scale).toLocaleString('en-US')
+  const base = league.minimumsGames
+  const note = league.minimumsNote ? `, ${league.minimumsNote}` : ''
   // The NBA's per-game leaders qualify on games alone (D33).
-  if (info.qualifyBy === 'games') return `${min} games of 82 to qualify, the NBA's minimum`
-  const nba = info.qualifyBy ? ", the NBA's minimum" : ''
-  return `${min} ${info.qualifyLabel} over 82 games to qualify${nba}`
+  if (info.qualifyBy === 'games')
+    return `${min} games of ${base} to qualify, the NBA's minimum${note}`
+  const nba = info.qualifyBy ? `, the NBA's minimum${note}` : ''
+  return `${min} ${info.qualifyLabel} over ${base} games to qualify${nba}`
 }
 
 const whoWords = (info: MetricInfo): string => {

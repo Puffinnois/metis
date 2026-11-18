@@ -80,7 +80,11 @@ export const BOX_COMPOSITES: MetricDef[] = [
     'Win Shares per 48 minutes',
     'WS/48',
     `Win Shares per 48 minutes played; the league average is about 0.100. ${METIS}`,
-    perMinute('ws', { value: '48 * {ws} / nullif({cmp_minutes}, 0)', decimals: 3 })
+    perMinute('ws', {
+      value: '48 * {ws} / nullif({cmp_minutes}, 0)',
+      decimals: 3,
+      gameLength: true
+    })
   ),
   metric(
     'bpm',

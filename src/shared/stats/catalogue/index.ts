@@ -17,6 +17,7 @@ import { SCORING } from './scoring'
 import { SHOOTING } from './shooting'
 import { SHOTS } from './shots'
 import { TRADITIONAL } from './traditional'
+import { wnbaCoverage } from './wnba'
 
 /**
  * The metric catalogue: every metric the engine computes, its formula over component sums, and the
@@ -44,8 +45,6 @@ export const CATALOGUE: MetricDef[] = [
 // The league indexes read the rates above, so they are added once those are all there.
 CATALOGUE.push(...leagueIndexes(CATALOGUE))
 
-export const METRICS: ReadonlyMap<string, MetricDef> = new Map(CATALOGUE.map((m) => [m.id, m]))
-
 /** A component in a formula: `{fga}`. */
 export const TOKEN = /\{([a-z0-9_]+)\}/g
 
@@ -64,13 +63,24 @@ export function componentsOf(
   ]
 }
 
+// Each metric's coverage in the WNBA, stated from the rules in `wnba.ts` where the metric states none.
+for (const m of CATALOGUE) {
+  if (m.leagues?.wnba === undefined)
+    m.leagues = { ...m.leagues, wnba: wnbaCoverage(m, componentsOf(m)) }
+}
+
+export const METRICS: ReadonlyMap<string, MetricDef> = new Map(CATALOGUE.map((m) => [m.id, m]))
+
 export {
+  CATALOGUE_GAME_MINUTES,
   COMPUTED_WHOLE_SEASONS,
   coverageIn,
   coverageReason,
   covers,
   metricIn,
+  notBuiltYet,
   notInLeague,
+  tablesOf,
   MODEL_NO_SPLIT,
   ONE_SEASON_ONLY,
   STATE_ONE_SEASON,

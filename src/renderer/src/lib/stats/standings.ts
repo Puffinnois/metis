@@ -260,13 +260,21 @@ export function divisionTables(
   }))
 }
 
+/** Whether the season's teams are in divisions: the WNBA's never are, only conferences. */
+export const hasDivisions = (rows: readonly StatsStanding[]): boolean =>
+  rows.some((r) => r.division !== null)
+
+/** The views a season's standings offer: by division only where it has divisions. */
+export const standingsViews = (rows: readonly StatsStanding[] | null): StandingsView[] =>
+  rows && rows.length > 0 && !hasDivisions(rows) ? ['conference'] : ['conference', 'division']
+
 export const standingsTables = (
   rows: readonly StatsStanding[],
   by: StandingsView,
   strength: StrengthCells | null = null,
   forecast: ForecastCells | null = null
 ): StandingsTable[] =>
-  by === 'conference'
+  by === 'conference' || !hasDivisions(rows)
     ? conferenceTables(rows, strength, forecast)
     : divisionTables(rows, strength, forecast)
 

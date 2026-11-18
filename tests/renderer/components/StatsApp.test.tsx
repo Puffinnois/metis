@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { api } from '@/lib/api'
 import { StatsApp } from '@/screens/stats/StatsApp'
@@ -237,6 +237,14 @@ describe('the league menu', () => {
   })
 
   it('reads a loaded league with no tables yet as such, on screen, in the menu and the status line', async () => {
+    // The WNBA's entry listing its identity alone, as before T1301.6: no league in the registry lacks
+    // its game tables any more, so the state is shown on a variant of its entry.
+    const wnba = LEAGUES.wnba as { builds: (typeof LEAGUES.wnba)['builds'] }
+    const built = wnba.builds
+    wnba.builds = ['identity']
+    onTestFinished(() => {
+      wnba.builds = built
+    })
     vi.mocked(api.leagues.downloads).mockResolvedValue(downloads(true))
     vi.mocked(api.stats.status).mockResolvedValue({ ...EMPTY, noData: NOT_BUILT })
     setLeague('wnba')
