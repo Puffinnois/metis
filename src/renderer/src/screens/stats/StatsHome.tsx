@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Segmented } from '@/components/stats/controls'
 import { ScopeBar } from '@/components/stats/ScopeBar'
 import {
@@ -9,6 +8,7 @@ import {
   type BoardDef,
   type BoardRow
 } from '@/lib/stats/boards'
+import { useScreenState } from '@/lib/stats/session'
 import { scopeLabel, type StatsScope } from '@/lib/stats/scope'
 import { useStatsQuery, type StatsData } from '@/lib/stats/useStats'
 import { cn } from '@/lib/utils'
@@ -153,7 +153,7 @@ export function StatsHome({
   onOpenBoard: (board: BoardDef, rowId: string | null, perGame: boolean) => void
   onOpenView: (view: StatsView) => void
 }): React.JSX.Element {
-  const [perGame, setPerGame] = useState(true)
+  const [perGame, setPerGame] = useScreenState('home', 'perGame', true)
   return (
     <div className="flex flex-col gap-5 px-8 pt-[22px] pb-7">
       <header className="flex items-end justify-between gap-6">

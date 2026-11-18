@@ -1,5 +1,6 @@
 import { relativeTime } from '@/lib/format'
 import { currentLeague, seasonLabel } from '@/lib/stats/league'
+import { inSeason, type League } from '@shared/leagues'
 import type { Entity, GameType, StatsQuery, StatsSeason, StatsStatus } from '@shared/stats/types'
 
 const DAY = new Intl.DateTimeFormat('en-US', {
@@ -22,19 +23,64 @@ function filesDone(status: StatsStatus): string | null {
   return `${COUNT.format(status.progress.done)} of ${COUNT.format(status.progress.total)} files`
 }
 
-/** "Data through Nov 4, 2026 · updated 2 h ago": the nav's status line. */
-export function freshness(status: StatsStatus | null, now = Date.now()): string {
+/**
+ * The season a league finished last, by the data's label: the one its latest season month fell in.
+ * Between seasons that is the season just played (the NBA's 2026 from July to September, the WNBA's
+ * 2026 from November to April); inside the season months it is the one under way.
+ */
+export function lastPlayedSeason(league: League, now: Date): number {
+  for (let back = 0; back < 12; back++) {
+    const month = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - back, 15))
+    if (inSeason(league, month)) return league.currentSeason(month)
+  }
+  return league.currentSeason(now)
+}
+
+/**
+ * Whether the league is between seasons and its data runs through the season it finished: its season
+ * is complete, and a date weeks old is not stale. Data that stops short of that season is not.
+ */
+export function seasonComplete(league: League, status: StatsStatus, now: Date): boolean {
+  if (!status.through || inSeason(league, now)) return false
+  return status.through.season === lastPlayedSeason(league, now)
+}
+
+/**
+ * "Data through Nov 4, 2026 · updated 2 h ago": the nav's status line. Between seasons, "2025-26
+ * season complete · data through Jun 18, 2026", for every league alike (the registry's `seasonMonths`).
+ */
+export function freshness(
+  status: StatsStatus | null,
+  now = Date.now(),
+  league: League = currentLeague()
+): string {
   if (!status) return ''
+  const files = filesDone(status)
+  if (status.noData) {
+    // Off, with no worker: nothing to read. On, with its files loading or loaded and no tables built
+    // from them (the registry's `derived`): what the load is doing, then that the tables are not built.
+    if (!status.available) return `No ${league.name} stats yet`
+    if (status.noRoom) return 'Not enough disk space'
+    if (status.paused) return 'Loading paused'
+    if (status.busy) return files ? `Loading the stats · ${files}` : 'Loading the stats…'
+    return `${league.name} files loaded · no tables yet`
+  }
   if (!status.available) return 'Stats unavailable'
   if (status.noRoom) return 'Not enough disk space'
   if (status.paused && !status.through) return 'Loading paused'
-  const files = filesDone(status)
   if (!status.through) {
     if (!status.busy) return 'No stats yet'
     return files ? `Loading the stats · ${files}` : 'Loading the stats…'
   }
   // A game date has no time of day: read at UTC, so no time zone moves it to the day before.
-  const through = `Data through ${DAY.format(new Date(`${status.through.date}T00:00:00Z`))}`
+  const day = DAY.format(new Date(`${status.through.date}T00:00:00Z`))
+  if (seasonComplete(league, status, new Date(now))) {
+    const done = `${league.seasonLabel(status.through.season)} season complete · data through ${day}`
+    if (status.paused) return `${done} · paused`
+    if (!status.busy) return done
+    return files ? `${done} · updating ${files}` : `${done} · updating…`
+  }
+  const through = `Data through ${day}`
   if (status.paused) return `${through} · paused`
   if (!status.busy) return `${through} · updated ${relativeTime(status.updatedAt, now)}`
   return files ? `${through} · updating ${files}` : `${through} · updating…`

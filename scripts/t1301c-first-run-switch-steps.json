@@ -1,0 +1,44 @@
+[
+  {
+    "size": [1500, 950]
+  },
+  {
+    "wait": 6000
+  },
+  {
+    "eval": "window.sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nwindow.until = async (fn, ms = 15000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await fn()) return true; await sleep(250) } return false };\nwindow.button = (name) => [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === name);\nwindow.check = (label, ok, got) => (ok ? 'OK ' : 'MISMATCH ') + label + ' got ' + JSON.stringify(got);\nwindow.trigger = () => document.querySelector('button[aria-label^=\"League: \"]');\nwindow.league = () => trigger()?.getAttribute('aria-label')?.replace('League: ', '') ?? null;\nwindow.statusLine = () => document.querySelector('[title=\"See what is loaded\"]')?.textContent.trim() ?? null;\nwindow.h1 = () => document.querySelector('main h1')?.textContent.trim() ?? null;\nwindow.reason = () => document.querySelector('main p')?.textContent ?? '';\nwindow.menuItems = async () => { trigger().focus(); trigger().dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); await until(() => document.querySelectorAll('[role=menuitemradio]').length > 0, 3000); return [...document.querySelectorAll('[role=menuitemradio]')] };\nwindow.switchTo = async (name) => { const item = (await menuItems()).find((x) => x.textContent.startsWith(name)); if (!item) return 'NO ITEM ' + name; item.click(); await until(() => league() === name, 5000); await sleep(3000); return league() };\n'helpers ready'"
+  },
+  {
+    "eval": "(async () => { const d = await window.api.leagues.downloads(); const dialog = document.querySelector('[role=dialog]')?.innerText ?? ''; const n = await window.api.stats.status('nba'); return check('a clean profile asks which leagues to download, and nothing has started', !d.decided && d.leagues.every((l) => !l.on && !l.hasFile) && /Which leagues should Metis download/.test(dialog) && !n.busy && !n.available, { decided: d.decided, freeBytes: d.freeBytes, dialog: dialog.split('\\n').filter(Boolean).slice(0, 9), nba: n.noData }) })()"
+  },
+  {
+    "shot": "first-01-question"
+  },
+  {
+    "eval": "(async () => { const boxes = [...document.querySelectorAll('[role=dialog] input[type=checkbox]')]; const before = boxes.map((b) => b.checked); boxes[0].click(); boxes[1].click(); await sleep(300); return check('the NBA is ticked by default; choosing the WNBA alone', before[0] && !before[1] && !boxes[0].checked && boxes[1].checked, { before, after: boxes.map((b) => b.checked) }) })()"
+  },
+  {
+    "eval": "(async () => { button('Download').click(); const started = await until(async () => (await window.api.stats.status('wnba')).busy, 30000); const d = await window.api.leagues.downloads(); const gone = !document.querySelector('[role=dialog]'); const n = await window.api.stats.status('nba'); return check('the WNBA alone starts loading; the NBA downloads nothing', started && gone && d.decided && d.leagues[1].on && !d.leagues[0].on && !d.leagues[0].hasFile && !n.busy, { leagues: d.leagues.map((l) => [l.league, l.on, l.hasFile]), nba: n.noData }) })()"
+  },
+  {
+    "eval": "(async () => { await sleep(8000); await window.api.stats.pause('wnba'); const paused = await until(async () => { const s = await window.api.stats.status('wnba'); return s.paused && !s.busy }, 30000); return check('paused, so this check does not load the WNBA a third time', paused, await window.api.stats.status('wnba')) })()"
+  },
+  {
+    "eval": "(async () => { await until(() => /turn the NBA on/.test(reason()), 10000); const got = { league: league(), h1: h1(), reason: reason(), status: statusLine(), turnOn: !!button('Turn it on in the Data panel') }; const notes = (await menuItems()).map((x) => x.textContent); document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await sleep(400); return check('after the first run, the NBA off: its reason and the turn-on button; the menu notes each league', got.league === 'NBA' && /turn the NBA on in the Data panel/.test(got.reason) && got.status === 'No NBA stats yet' && got.turnOn && notes[0].endsWith('No stats yet') && notes[1].endsWith('No tables yet'), { ...got, notes }) })()"
+  },
+  {
+    "shot": "first-02-nba-off"
+  },
+  {
+    "eval": "(async () => { const w = await switchTo('WNBA'); const got = { h1: h1(), reason: reason(), status: statusLine(), turnOn: !!button('Turn it on in the Data panel') }; return check('a switch to the WNBA, on and paused: its notBuilt reason, the load paused, no turn-on button', w === 'WNBA' && /files are loaded/.test(got.reason) && got.status === 'Loading paused' && !got.turnOn, got) })()"
+  },
+  {
+    "shot": "first-03-wnba-paused"
+  },
+  {
+    "eval": "(async () => { await switchTo('NBA'); button('Turn it on in the Data panel').click(); await sleep(2500); return check('back on the NBA, the button opens the Data panel with the NBA to turn on', h1() === 'Data' && !!button('Turn the NBA on'), h1()) })()"
+  },
+  {
+    "shot": "first-04-data"
+  }
+]

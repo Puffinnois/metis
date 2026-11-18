@@ -1,0 +1,85 @@
+import { describe, expect, it, vi } from 'vitest'
+import { downloadOf, leagueHolds, menuNote } from '@/lib/stats/downloads'
+import { freshness } from '@/lib/stats/scope'
+import { LEAGUES } from '@shared/leagues'
+import type { LeagueDownload, LeagueDownloads } from '@shared/stats/types'
+
+// The hook's module reads the bridge; these are its pure parts.
+vi.mock('@/lib/api', () => ({ api: {} }))
+
+const download = (over: Partial<LeagueDownload>): LeagueDownload => ({
+  league: 'wnba',
+  on: false,
+  hasFile: false,
+  fileBytes: 0,
+  hasData: false,
+  roomNeeded: 0,
+  ...over
+})
+
+describe('what a league holds', () => {
+  it('is off without data, whatever the registry says about its tables', () => {
+    expect(leagueHolds(LEAGUES.wnba, download({}))).toBe('off')
+    expect(leagueHolds(LEAGUES.nba, download({ league: 'nba' }))).toBe('off')
+    expect(leagueHolds(LEAGUES.wnba, undefined)).toBe('off')
+  })
+
+  it('has no tables yet when on and loaded in a league whose tables are not built', () => {
+    expect(leagueHolds(LEAGUES.wnba, download({ on: true, hasFile: true, hasData: true }))).toBe(
+      'notBuilt'
+    )
+  })
+
+  it('is ready when it has data and its tables are built, a file kept from before included', () => {
+    expect(leagueHolds(LEAGUES.nba, download({ league: 'nba', on: true, hasData: true }))).toBe(
+      'ready'
+    )
+    expect(
+      leagueHolds(LEAGUES.nba, download({ league: 'nba', hasFile: true, hasData: true }))
+    ).toBe('ready')
+  })
+
+  it('gives the menu its note', () => {
+    expect(menuNote('off')).toBe('No stats yet')
+    expect(menuNote('notBuilt')).toBe('No tables yet')
+    expect(menuNote('ready')).toBeNull()
+  })
+
+  it('finds a league in the downloads', () => {
+    const all: LeagueDownloads = {
+      decided: true,
+      leagues: [download({ league: 'nba', hasData: true }), download({})],
+      freeBytes: null
+    }
+    expect(downloadOf(all, 'nba')?.hasData).toBe(true)
+    expect(downloadOf(null, 'nba')).toBeUndefined()
+  })
+})
+
+describe('the status line of a league with no tables yet', () => {
+  const base = {
+    available: true,
+    through: null,
+    updatedAt: null,
+    builtAt: null,
+    busy: false,
+    progress: null,
+    paused: false,
+    noRoom: null,
+    noData: LEAGUES.wnba.notBuilt
+  }
+
+  it('says what its load is doing, then that its files are loaded', () => {
+    expect(
+      freshness({ ...base, busy: true, progress: { done: 40, total: 1496 } }, 0, LEAGUES.wnba)
+    ).toBe('Loading the stats · 40 of 1,496 files')
+    expect(freshness({ ...base, paused: true }, 0, LEAGUES.wnba)).toBe('Loading paused')
+    expect(freshness(base, 0, LEAGUES.wnba)).toBe('WNBA files loaded · no tables yet')
+  })
+
+  it('says a league that is off has no stats yet', () => {
+    expect(
+      freshness({ ...base, available: false, noData: LEAGUES.wnba.noData }, 0, LEAGUES.wnba)
+    ).toBe('No WNBA stats yet')
+  })
+})

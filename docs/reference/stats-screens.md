@@ -4,22 +4,63 @@ What each screen shows and where its numbers come from. Screens are added here a
 
 ## Shell
 
-- **Nav:** Leaderboards, Players, Teams, Standings, Explore, Games, Glossary. Players and Teams open a dashboard, with the leaderboards a click on from it. Until the tables are built, every screen says what the load is doing: loading, paused, out of disk space, or stopped until the next refresh.
-- **Scope** (below): shared by every screen, and kept for the session.
+- **Nav:** the mark, Metis, its version and the league menu (below), then Leaderboards, Players, Teams, Standings, Explore, Games, Glossary. Players and Teams open a dashboard, with the leaderboards a click on from it. Until the tables are built, every screen says what the load is doing: loading, paused, out of disk space, or stopped until the next refresh.
+- **Scope** (below): shared by every screen of a league, and kept for the session.
 - **A refresh that rebuilds the tables** (`status.builtAt` changes) re-reads the seasons and runs every query on screen again. A status line ticking through a load does not.
 - **Status line** (`stats.status()`), read again as a load goes, at most once a second:
 
-| It says                                               | When                                      |
-| ----------------------------------------------------- | ----------------------------------------- |
-| No stats yet                                          | Nothing is loaded, and nothing is running |
-| Loading the stats · 412 of 3,070 files                | The first load, before any box score      |
-| Data through Nov 4, 2026 · updating 71 of 3,070 files | A load or a refresh is running            |
-| Data through Nov 4, 2026 · updated 2 h ago            | Nothing is running                        |
-| Data through Nov 4, 2026 · paused, or Loading paused  | The owner paused                          |
-| Not enough disk space                                 | The first load could not start            |
-| Stats unavailable                                     | The stats database cannot be read         |
+| It says                                               | When                                                                  |
+| ----------------------------------------------------- | --------------------------------------------------------------------- |
+| No stats yet                                          | Nothing is loaded, and nothing is running                             |
+| No WNBA stats yet                                     | The league is off, with no file; not an error                         |
+| WNBA files loaded · no tables yet                     | On and loaded, its tables not built yet (the registry's `derived`)    |
+| Loading the stats · 412 of 3,070 files                | The first load, before any box score                                  |
+| Data through Nov 4, 2026 · updating 71 of 3,070 files | A load or a refresh is running                                        |
+| Data through Nov 4, 2026 · updated 2 h ago            | Nothing is running, in the league's season months                     |
+| 2025-26 season complete · data through Jun 18, 2026   | Between seasons, with the data through the season just played (below) |
+| Data through Nov 4, 2026 · paused, or Loading paused  | The owner paused                                                      |
+| Not enough disk space                                 | The first load could not start                                        |
+| Stats unavailable                                     | The stats database cannot be read                                     |
+
+**Between seasons** (`freshness`, `seasonComplete` in `lib/stats/scope.ts`), one rule for every league: outside the registry's `seasonMonths` (the NBA's October to June, the WNBA's May to October), and when the data runs through the season whose months just ended, the line says that season is complete and the date its data runs through, and nothing about when it was updated, since a date weeks old is not stale then. A refresh or a pause still adds "· updating…" or "· paused". Data that stops short of the season just played reads as in season, as it is not complete. The NBA reads "2025-26 season complete" from July to September, the WNBA "2026 season complete" from November to April.
 
 The status line opens the Data panel.
+
+## League menu
+
+D35: the whole app shows one league at a time. The menu sits beside the wordmark and names the league on screen (by name, never colour: D17). It lists every league in the registry (`LEAGUES`), each with its full name and a note from its real state (`api.leagues.downloads()`, read through `useLeagueDownloads`): "No stats yet" beside a league that is off with no file, "No tables yet" beside one whose files are loaded and whose tables are not built (the registry's `derived`, false for the WNBA until T1301.5 and T1301.6), and nothing beside one that is ready. It is a Radix menu: Enter, Space or ↓ opens it, the arrows move, Enter picks, Esc closes, and the focus comes back to the menu's button after a switch.
+
+**What a switch keeps.** The shell is built again for the league picked (`App` keys `StatsApp` by it), so every screen, board, search and Glossary entry reads that league: its seasons, catalogue, season labels, season types and per-minute modes, all from the registry. The sessions live above the shell (`lib/stats/session.ts`):
+
+- **The screen is the app's.** A switch keeps it: a leaderboard stays a leaderboard, with its tab; the Glossary stays the Glossary.
+- **Each league keeps its own session**, as the shell held it on `main`: the scope (season, season type, range, last N), the dashboards' player, team and tab, Games' day and game, Explore's tab and the Chart's, Compare's and Trends' state, and what opened a leaderboard last. A league not yet on screen this session starts from a fresh session and its own registry defaults (its latest season, the regular season, per game), so nothing one league lacks crosses over: per 48 in a 40-minute league, the play-in in the WNBA, an NBA season label.
+- **A screen's own state** (a leaderboard's board: its tab, columns, mode and sort; the home's per-game switch; the dashboards' per-game or per-minute mode; the Glossary's filters; the standings' grouping) is kept by league while that screen stays on show (`useScreenState`), and goes when another screen opens, as it always has.
+
+**The switch rule** (`locationAfterSwitch`): every screen keeps its place, and a screen about one subject shows the new league's own subject as it was left there, or the screen's default when there is none yet. It never carries the old league's subject over: a player, team or game id belongs to one league.
+
+| On screen                                                     | After a switch                                                                                |
+| ------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| Leaderboards, a leaderboard, Standings, Explore, the Glossary | The same screen and tab, in the new league's scope                                            |
+| A player's dashboard                                          | The new league's player dashboard, on the player left there, else its leading scorer in scope |
+| A team's dashboard                                            | The new league's team dashboard, on the team left there, else the best record in scope        |
+| Games, with a game open                                       | The new league's Games, on the day or game left there, else its latest day                    |
+| Compare with picked players or teams                          | The new league's Compare, with its own picks, else none                                       |
+| The Data panel                                                | The Data panel, which lists every league                                                      |
+
+Switching back gives the first league everything as it was left, the same player's dashboard included.
+
+**Back.** Every page reported for Back carries its league (`NavLocation.league`), so a switch is a page of its own: Back after a switch returns to the page before it, in the league it belongs to, and switches back to that league. Back never shows one league's player, team or game under the other's name. The app has no Forward.
+
+**Remembered.** The league on screen is kept across launches in the renderer's storage (`metis.league`, beside the theme): the app opens on the league it was left on, the NBA when none is saved. The sessions are not: each league opens on its own defaults at the next launch, as scope always has.
+
+**Saved views** are the league's own (`stats_views` is keyed by league): the Views menu lists the league on screen's, a view saved there belongs to it, and opening one opens it in that league. Nothing switches league from a view.
+
+**A league with nothing to read.** Every screen but the Data panel shows its name and the reason the league's status carries. It never shows an error, a spinner that does not end, or a table without words.
+
+- **Off, with no file:** the screen reads the registry's `noData` ("No WNBA stats yet: turn the WNBA on in the Data panel to download it.") and the status line reads "No WNBA stats yet". A button under the reason, `TURN_ON` in `lib/stats/league.ts` ("Turn it on in the Data panel"), opens the Data panel, where the league is turned on.
+- **On and loaded, with no tables built yet:** the screen reads the registry's `notBuilt` ("No WNBA stats yet: its files are loaded, and the tables built from them come in a later version."). The status line says what the load is doing, then "WNBA files loaded · no tables yet".
+
+The Data panel always opens, whatever the league holds, and shows every league.
 
 ## Scope bar
 

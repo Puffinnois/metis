@@ -1,6 +1,7 @@
 import { AssistNetwork } from '@/components/stats/AssistNetwork'
 import { MetricHead } from '@/components/stats/MetricCard'
 import { ShotChart } from '@/components/stats/ShotChart'
+import { useScreenState } from '@/lib/stats/session'
 import { shotRequest } from '@/lib/stats/shotChart'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
@@ -133,7 +134,7 @@ export function StatsTeam({
 }): React.JSX.Element {
   const { value: all, error: gamesError } = useSeasonGames(scope.season, data.version)
   const { value: standings } = useStandings(scope.season, data.version)
-  const [mode, setMode] = useState<BoardMode>('perGame')
+  const [mode, setMode] = useScreenState<BoardMode>('team', 'mode', 'perGame')
   const games = useMemo(() => (all ? teamGames(all, team) : null), [all, team])
   const { code, name, exists } = teamIn(data.seasons, scope.season, team)
   useNoteContext('team', { label: code, data: { team, code, tab } })
