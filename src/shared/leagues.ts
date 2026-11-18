@@ -107,6 +107,11 @@ export interface League {
    * `gameMinutes` over this.
    */
   minimumsMinutes: number
+  /**
+   * What the screens add to the qualifier while the league's own rule is not read, and its rows
+   * qualify by another league's (D37).
+   */
+  minimumsNote?: string
   /** A regular season's shape, for qualifying rows grouped by opponent or month. */
   seasonShape: SeasonShape
   /** The league's stats file in the data folder (D36). */
@@ -249,6 +254,7 @@ const WNBA: League = {
   firstSeason: 1997,
   minimumsGames: 82,
   minimumsMinutes: 48,
+  minimumsNote: "scaled, until the WNBA's own are read",
   // Eleven opponents in the twelve-team seasons (2010 to 2024, the most of any size), over about four
   // months from mid-May to mid-September (D37).
   seasonShape: { opponents: 11, months: 4 },

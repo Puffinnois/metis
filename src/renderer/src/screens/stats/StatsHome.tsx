@@ -10,6 +10,8 @@ import {
 } from '@/lib/stats/boards'
 import { useScreenState } from '@/lib/stats/session'
 import { scopeLabel, type StatsScope } from '@/lib/stats/scope'
+import { currentLeague } from '@/lib/stats/league'
+import { NBA_MINIMUMS } from '@shared/stats/catalogue/define'
 import { useStatsQuery, type StatsData } from '@/lib/stats/useStats'
 import { cn } from '@/lib/utils'
 import type { StatsView } from '@shared/stats/types'
@@ -163,7 +165,12 @@ export function StatsHome({
           </h1>
           <div className="text-[13px] text-fg-2">
             {scopeLabel(scope)}
-            {perGame && <span className="text-fg-3"> · Per game: 58 games of 82 to qualify</span>}
+            {perGame && (
+              <span className="text-fg-3">
+                {' '}
+                · Per game: {NBA_MINIMUMS.games} games of {currentLeague().minimumsGames} to qualify
+              </span>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-3">

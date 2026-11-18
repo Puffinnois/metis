@@ -1,4 +1,5 @@
 import { NBA_MINIMUMS } from '@shared/stats/catalogue/define'
+import { currentLeague } from './league'
 import type { Entity, MetricInfo, StatsQuery, StatsResult } from '@shared/stats/types'
 import { fmtStat, type ValueFormat } from './format'
 import { queryScope, type StatsScope } from './scope'
@@ -38,9 +39,10 @@ export const BOARD_ROWS = 6
 /**
  * A per-game leader needs the NBA's 58 games of 82 (D33), scaled to the games in scope as the league
  * scales it in a shortened season, rounded as the engine rounds it: a player with ten great games
- * should not lead a season.
+ * should not lead a season. Over the league's base (82 in both leagues, D37): 31 of a 44-game season.
  */
-export const gamesToQualify = (most: number): number => Math.round((most * NBA_MINIMUMS.games) / 82)
+export const gamesToQualify = (most: number): number =>
+  Math.round((most * NBA_MINIMUMS.games) / currentLeague().minimumsGames)
 
 /**
  * Every qualified row, sorted by the engine. Counts per game when asked. A total has no minimum, as
