@@ -6,6 +6,8 @@ The raw files are kept outside the repository, in `~/.cache/metis-dev/ncaa-raw` 
 
 "M" is the men (NCAAM), "W" the women (NCAAW). Seasons are labelled by their final year, as in the data (`2026` = 2025-26).
 
+**The window: 2021-22 on.** The owner decided on 2026-11-18 that the NCAA dataset starts at the 2021-22 season (`2022`) and runs to now, for men and women alike (D39). The tables below still list every season the releases offer, so the coverage shows what the source holds. The load, the agreement between the families and the choice of source per table are measured for 2022 to 2027. Traps of earlier seasons get a line each at the end of "Traps". Three 2022 play-by-play files (175 MB) were downloaded for this after the decision, so 1,075 files and 1,552 MB are kept.
+
 ## The source
 
 Three families, each with a men's and a women's release:
@@ -16,7 +18,7 @@ Three families, each with a men's and a women's release:
 | stats.ncaa.org | `ncaa_mbb_*`, `ncaa_wbb_*`: schedule, team ids, rosters, team rosters, player and team box scores, play by play, possessions, lineups, matchup stints, shots, RAPM, RAPM within team (13 releases a side)                                                  | "stats.ncaa.org official box scores and play-by-play", the NCAA's own statistics site                   | 2010–2027 / 2010–2027 |
 | The dataset's  | `mbb_crosswalk`, `wbb_crosswalk` (ids across ESPN, stats.ncaa.org, Fox, Yahoo, KenPom and Torvik), `mbb_groups`, `wbb_groups` (conferences by season), `mbb_ratings`, `wbb_ratings` (team ratings), `mbb_player_value`, `wbb_player_value` (box-score BPM) | ESPN and NCAA inputs, "scored through the hoopR model stack" (the women's: wehoop)                      | 2002–2027 / 2002–2027 |
 
-**The stats.ncaa.org family is the finding that changes the plan.** The research expected hoopR's and wehoop's ESPN releases. The releases also hold the NCAA's own box scores and play by play for every Division I game from 2010-11, with derived possessions, lineups and stints, and the dataset's RAPM. For the women it is the only complete source of player lines before 2016-17 (see "Coverage"). Its release notes say "stats.ncaa.org bans aggressive clients, so capture runs from the SportsDataverse droplet under a rate budget". Metis reads only the release files: it makes no request to stats.ncaa.org, ncaa.com or ESPN, as D7 has it for the NBA's stats site, and nothing in the coverage, repeats or agreement sections came from them. The pages read for the check are listed under "What the check can compare against".
+**The stats.ncaa.org family is the finding that changes the plan.** The research expected hoopR's and wehoop's ESPN releases. The releases also hold the NCAA's own box scores and play by play for every Division I game from 2010-11, with derived possessions, lineups and stints, and the dataset's RAPM. In the window both families cover every game, and they agree closely ("Which source each table reads"). Before it, stats.ncaa.org was the women's only complete source of player lines until 2016-17. Its release notes say "stats.ncaa.org bans aggressive clients, so capture runs from the SportsDataverse droplet under a rate budget". Metis reads only the release files: it makes no request to stats.ncaa.org, ncaa.com or ESPN, as D7 has it for the NBA's stats site, and nothing in the coverage, repeats or agreement sections came from them. The pages read for the check are listed under "What the check can compare against".
 
 ### Producers and licences
 
@@ -29,7 +31,7 @@ Read through the GitHub API on 2026-11-18.
 | [ncaa-mbb-hoops-data](https://github.com/sportsdataverse/ncaa-mbb-hoops-data), [ncaa-wbb-hoops-data](https://github.com/sportsdataverse/ncaa-wbb-hoops-data) (and their `-raw` capture repos) | The stats.ncaa.org releases          | **None found**: the repositories hold a `README.md` and no licence file                          |
 | [hoopR](https://github.com/sportsdataverse/hoopR), [wehoop](https://github.com/sportsdataverse/wehoop)                                                                                        | The R packages, and the model stacks | The API reports `NOASSERTION`; not read further                                                  |
 
-**`data-rights.md`** needs an NCAA entry before the league ships (T1302.2 below). Its facts: the ESPN releases are under CC BY 4.0, as the NBA's and the WNBA's producers are. The stats.ncaa.org releases state no licence. Their upstream, stats.ncaa.org, refuses plain clients (HTTP 403, below), and the producer captures it under a rate budget, which is the same position as the NBA's `nba_stats_*` releases from stats.nba.com. The NCAA's and ESPN's own terms were not read for this part. Whether a release with no licence may be loaded is a question for the owner; it is asked in D40.
+**`data-rights.md`** needs an NCAA entry before the league ships (T1302.2 below). Its facts: the ESPN releases are under CC BY 4.0, as the NBA's and the WNBA's producers are. The stats.ncaa.org releases state no licence. Their upstream, stats.ncaa.org, refuses plain clients (HTTP 403, below), and the producer captures it under a rate budget, which is the same position as the NBA's `nba_stats_*` releases from stats.nba.com. The NCAA's and ESPN's own terms were not read for this part. Whether a release with no licence may be loaded is a question for the owner; it is asked in D41.
 
 ## Size
 
@@ -42,7 +44,11 @@ The whole asset list, read through the GitHub API: **58 basketball releases (29 
 | The dataset's (ids, groups, models) | 149     | 15.9        | 122     | 8.8         |
 | **All**                             | **648** | **3,143.3** | **596** | **2,533.6** |
 
-Each side is twice the NBA's 1,554 MB, and the men are ten times the WNBA's 296 MB. In tiers, as D21 has them:
+Each side is twice the NBA's 1,554 MB, and the men are ten times the WNBA's 296 MB.
+
+**The window, 2022 to 2027**, with the files that hold every season: 192 men's files, 1,147 MB, and 191 women's, 1,085 MB. The four files that hold every season are 56.5 MB: ESPN's two schedule masters and two `games_in_data_repo` files, whose rows before 2022 would be left out. stats.ncaa.org is 665 and 641 MB of it, ESPN's play by play 329 and 322 MB.
+
+In tiers, every season, as D21 has them:
 
 | Tier         | Releases                                                                                                                                                                                     | M MB    | W MB    |
 | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | ------- |
@@ -218,6 +224,35 @@ The NCAA's record books, read with a plain client (below), list each season's in
 - Women's steals, 2025-26: the record book has Hannah Hidalgo, Notre Dame, 36 games, 202 steals. ESPN's player box gives the same 36 and 202.
 - ESPN's men's and women's player box scores rank one-game players from non-Division I teams above them (Bloomfield, Briar Cliff and others, 36 and 40 points in one game) unless rows are kept to Division I teams. See "Traps".
 
+## Which source each table reads (2021-22 on)
+
+The two families are sources side by side (policy 5, D14): both load, and the catalogue says which one each metric reads. Measured on the games both hold in the window. Play by play was compared on 2022 (men) and 2026 (men and women), shots on 2026; the box scores are compared in every season above.
+
+| Table                        | Agreement on the games both hold                                                                                                                                                                                                                                     | Coverage in the window                                                                                                                                | Proposed reading                                                                                                                                                                                                                          |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Games and schedule           | stats.ncaa.org's games found in ESPN's: 99.5–100 % of Division I games 2023–2027 (`espn_game_id`), the schedule crosswalk before                                                                                                                                     | ESPN every game (2025 women's short by about 300); stats.ncaa.org every Division I game                                                               | ESPN's, for its ids (the keys, D40), with stats.ncaa.org's filling the games ESPN lacks                                                                                                                                                   |
+| Player box scores            | Points, rebounds and assists all equal on 99.6 % (2022) and 100 % (2023–2026) of paired men's lines, 99.4 % and 99.9–100 % of women's                                                                                                                                | ESPN 99.6–100 % of games, Division I and not; stats.ncaa.org every Division I game, 8–12 % of its lines with no ESPN athlete in the crosswalk         | ESPN's for the counts (its `athlete_id` is the key, and it has starters and did-not-play). stats.ncaa.org's for what ESPN lacks: rim, mid-range, putback, transition and assisted splits, and the games ESPN lacks. Each checks the other |
+| Team box scores              | Points 99.8–100 %, FGA 98.7–100 %, assists 97.2–99.2 % (2023–2027)                                                                                                                                                                                                   | Both, every game                                                                                                                                      | ESPN's for the counts; stats.ncaa.org's possessions and opponent splits                                                                                                                                                                   |
+| Play by play                 | The final score equals the schedule's on 98.9 % (ESPN) and 99.9 % (stats.ncaa.org) of 2022's men's games, 99.9 % and 100 % in 2026, men and women. stats.ncaa.org records more plays: 469 a game in 2022 against ESPN's 319, 488 and 496 against 465 and 470 in 2026 | ESPN 96.6–99.7 % of games; stats.ncaa.org every game, the ten players on 99.9–100 % of plays                                                          | stats.ncaa.org's: every game, the players on the floor, the score kept. ESPN's beside it if loaded (D42)                                                                                                                                  |
+| Shots                        | 2026: attempts equal on 11,879 of 12,011 men's team-games (98.9 %) and 11,403 of 11,488 women's (99.3 %), makes on 99.7 %, with ESPN's made free throws left out                                                                                                     | stats.ncaa.org every shot located, every season; ESPN located on 6–12 % of men's and 4–5 % of women's shots 2022–2024, 24–26 % in 2025, all from 2026 | stats.ncaa.org's; ESPN's beside it                                                                                                                                                                                                        |
+| Possessions, lineups, stints | stats.ncaa.org only (the dataset's, from its play by play)                                                                                                                                                                                                           | Every game                                                                                                                                            | stats.ncaa.org's                                                                                                                                                                                                                          |
+| Season stats, standings      | ESPN only (published)                                                                                                                                                                                                                                                | Every season                                                                                                                                          | ESPN's, as published values beside the built ones                                                                                                                                                                                         |
+| Rosters, bio, officials      | ESPN's bios and officials; stats.ncaa.org's team rosters (class, height, hometown)                                                                                                                                                                                   | Both, every season                                                                                                                                    | Both, side by side                                                                                                                                                                                                                        |
+| Conferences                  | The dataset's groups file, by season                                                                                                                                                                                                                                 | Every season                                                                                                                                          | Groups                                                                                                                                                                                                                                    |
+
+## The published models: what each is and who computes it
+
+None of these is the NCAA's. Each is a published value computed by SportsDataverse. Each would load under its maker's name, as the WNBA's impact file does, never as Metis's own or under another publisher's name. Read from each release's notes and model card on 2026-11-18.
+
+| File                                      | What it is                                                                                                                                                                                                                                                                                                            | Computed by, from                                                                                                                                                                                    | Seasons (window)              |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| `mbb_ratings`, `wbb_ratings`              | Team ratings: "opponent-adjusted points per 100 possessions" for offence and defence (`adj_o`, `adj_d`), their difference (`adj_em`), adjusted tempo, raw ratings, rank by `adj_em`, and a preseason-blended version (`*_blend`, `prior_games`). One row per team per season, every team ESPN has (727 men's in 2026) | `sportsdataverse.mbb.mbb_team_ratings()` and `…wbb.wbb_team_ratings()` (sdv-py), over the released ESPN schedule and team box scores; constants "gated in sdv-py's T1.1 oracle suite"                | 2022–2027, both               |
+| `mbb_player_value`, `wbb_player_value`    | Box Plus/Minus, offence, defence and total, "team-constrained so minutes-weighted player scores sum to the team's adjusted efficiency margin"; `qualified` is 300 minutes or more. The coefficients ship beside it (`*_coefficients.json`)                                                                            | `sportsdataverse.mbb.mbb_box_bpm()` (sdv-py), over the released ESPN player box scores                                                                                                               | 2022–2027, both               |
+| `ncaa_mbb_rapm`, `ncaa_wbb_rapm`          | Regularised adjusted plus-minus, "one joint offense/defense ridge per season over all Division-I possessions, on a common league scale (per 100 possessions; positive drapm = good defense)", with each player's possessions; `estimand` is `league` on every row                                                     | `ops/build_rapm_league.py` in `ncaa-mbb-hoops-data`, from stats.ncaa.org's possessions; "externally gated vs Bart Torvik AdjEM (per-season team-aggregate Spearman >= 0.93, observed 0.9434-0.9783)" | 2022–2026 (none for 2027 yet) |
+| `ncaa_mbb_rapm_within_team`, `ncaa_wbb_…` | RAPM relative to teammates, a different estimand: the notes say "never cross-join the two"                                                                                                                                                                                                                            | The same repository, from the same possessions                                                                                                                                                       | 2022–2026                     |
+
+The women's RAPM notes were not read; the files have the same 11 columns. Proposed: all four load as published metrics labelled as SportsDataverse's. The two RAPM estimands stay apart, and the ratings and BPM are ranked among the season's Division I teams and players. Metis's own models (SRS, Elo, adjusted ratings, PER, Win Shares) are built beside them in T1302.8.
+
 ## Men and women: the differences
 
 The research's section 18 lists documented differences. Measured:
@@ -248,52 +283,89 @@ Also measured:
 - **Season types: ESPN's `season_type` is 2 or 3, never 1.** Conference tournaments are regular season (type 2): marked by `tournament_id` with `conference_competition` (300 men's and 324 women's games in 2026), and by `notes_headline` ("Big Ten Tournament - Final", "SEC Tournament", "Atlantic 10 Championship"). Early-season events are type 2 as well, with a `tournament_id` and a headline ("Players Era Festival", "Battle 4 Atlantis"). Type 3 holds the NCAA tournament and the other postseason events. No exhibition appears: there is no type 1, and the NCAA's policies say exhibitions do not count.
 - **The NCAA tournament's headline changes by era**: region names ("EAST REGIONAL AT DAYTON OH", "FINAL FOUR") in 2002–2007, "MEN'S BASKETBALL CHAMPIONSHIP" in 2008–2020, "Men's Basketball Championship" in 2021–2025, "NCAA Men's Basketball Championship - …" in 2026 (`tournament_id` 22). Classified by headline, it is 63 or 64 games to 2010 and 67 from 2011 for the men (66 in 2021), and 63 for the women to 2021 and 67 from 2022. Read the event from type 3 with an era rule, never from one spelling.
 - **The other postseason events, all type 3**: men's NIT (31 games a season from 2007 by headline, but 23 in 2017 and 16 in 2021; 39–40 before), CBI (from 2008), CIT (2009–2019 and 2024), Vegas 16 (2016), The Basketball Classic (2022), College Basketball Crown (2025–2026); women's WNIT (31 to 63 games), WBI (2010–2023), WBIT (2024–2026). In the NCAA's own statistics, "postseason contests including conference and/or NCAA tournaments … shall be included" (Statistics Policies), so a season total counts them all. Each event is a season type of its own, for filtering.
-- **2020 has no postseason** (no type 3 game): 159 men's conference tournament games against 292 in 2019. 2021 is short: 4,285 men's and 3,823 women's games.
-- **The 2018 NIT was played in quarters**: its 31 games (type 3, headline "NIT") carry `format_regulation_periods` 4 in a men's season of halves. A builder that takes periods from the league and season alone misreads them.
 - **Non-Division I opponents are in the data.** ESPN lists every opponent (727 men's teams with a player line in 2026), and marks a team outside Division I with `is_active` false: 548 of the 548 men's 2026 games against a team missing from the groups, 405 of 407 women's. The groups file (`*_team_group_seasons`) is the season's Division I list. Players of those teams have ESPN box-score lines (a leaderboard that keeps them ranks one-game players first). The NCAA counts games against "countable" opponents only, and its list of non-countable ones (on ncaa.org) was not read, so the data cannot tell a countable non-Division I opponent from a non-countable one: Metis would count every game a Division I team played, and keep non-Division I teams and players out of the leaderboards and the ranks.
-- **Women's ESPN box scores are a sample before 2017** (table above), and their players summed miss the team score in 97–99 % of 2004–2013's games: a column of zeros or a partial line, not a short box score. Read 2011–2016 women's lines from stats.ncaa.org.
 - **ESPN's 2025 women's schedule is short**: 5,648 games against 5,923 in 2024, 6,054 in 2026 and stats.ncaa.org's 5,960 for 2025. Not explained here; the games and teams should be built from both schedules, as the WNBA's were from two.
-- **stats.ncaa.org's 2010 season is broken in both leagues**: its player box has 28,116 men's lines against 117,226 in 2011, an average of 5.3 player minutes a team-game, 4 % of plays with the ten players, and team points equal to the schedule's score in 3 % of team-games. The women's 2010 files have no team or player ids. Read stats.ncaa.org from 2011.
-- **stats.ncaa.org's player ids are per season.** None of 81,287 men's and 74,454 women's player ids appears in more than one season. A player across seasons, and across a transfer, is ESPN's `athlete_id`, joined through the player crosswalk's `ncaa_player_id` (92–99 % of ESPN's rows from 2010). The RAPM file has a `person_id` beside `player_id`, not examined.
+- **stats.ncaa.org's player ids are per season.** None of 81,287 men's and 74,454 women's player ids appears in more than one season. A player across seasons, and across a transfer, is ESPN's `athlete_id`, joined through the player crosswalk's `ncaa_player_id` (92–99 % of ESPN's rows from 2010). 8–12 % of stats.ncaa.org's lines in the window have no ESPN athlete in the crosswalk (14,721 of 127,465 men's in 2026), so they need box-score matching or D28's keys. The RAPM file has a `person_id` beside `player_id`, not examined.
 - **stats.ncaa.org's team ids are per season too**: Texas A&M-Corpus Christi is 51431 in 2009-10 and 609609 in 2025-26. `ncaa_espn_team_crosswalk` maps each season's id to ESPN's `team_id`, which is the same across seasons, with the school's `ncaa_org_id`.
 - **Players across transfers.** ESPN's `athlete_id` follows a player from school to school: 12,173 men and 6,684 women have lines for more than one team across seasons, and 33 men and 70 women for two teams in one season. A player's season is a player-team row; their career sums the rows once.
 - **Names and keys differ by family**: stats.ncaa.org's play by play and player box name players as `AJ.DYBANTSA` (`player`) and give a `clean_name`; its schedule names teams in the NCAA's short form (`Southern Miss.`, `A&M-Corpus Christi`) with no id, so its games join to the team box by `contest_id` and to ESPN through `espn_game_id` (2023 on for men, 2024 on for women) or the schedule crosswalk.
-- **Conferences change by season.** The groups file has 31 to 33 conferences a season, and teams changing conference each season: men 22 in 2006, 20 in 2013, 47 in 2014, 21 in 2023, 21 in 2025, 27 in 2027 (the women's the same within one or two). It records renames as one lineage (American, ASUN, CAA) and divisions by season (Atlantic 10 East and West 2002–2005, MAC East and West 2002–2020, Big South North and South 2013–2022, and others). ESPN labels the MAAC "Metro" in every season, as the groups' notes say. Division I grew from 327 to 365 men's teams (314 to 363 women's), 0 to 13 joining a season.
-- **Neutral sites are flagged only from 2008 (men) and 2009 (women).** `neutral_site` is false on every game before, though the NCAA tournament has always been neutral. 22 % of 2026's men's games are neutral (1,418 of 6,318): early-season events, conference and postseason tournaments. The NCAA's policies define home, away and neutral by where a team plays its home games (a team's second home arena is home; a conference tournament on a member's floor is neutral for all); whether ESPN's flag follows that rule was not checked.
-- **ESPN's shot coordinates are mostly missing before 2026.** 624,195 of 803,389 men's shots in 2015 have no coordinate, and the commonest located points are the two baskets' own points (41.75, 0 and −41.75, 0: 24,596 and 21,073 shots in 2015; 136,768 and 117,426 in 2026). Every shot has a location from 2026. stats.ncaa.org's shots have a location on every row from 2019.
-- **ESPN's 2026 play by play is a richer feed**: 2,915,731 men's plays for 6,275 games (465 a game) against 2,189,782 for 6,135 in 2025 (357). Counts of plays by type are not comparable across the change.
+- **Conferences change by season.** The groups file has 31 to 33 conferences a season, and teams changing conference each season: in the window men 10 in 2022, 21 in 2023, 16 in 2024, 21 in 2025, 5 in 2026 and 27 in 2027 (the women's the same), and 47 in 2014 before it. It records renames as one lineage (American, ASUN, CAA) and divisions by season (Atlantic 10 East and West 2002–2005, MAC East and West 2002–2020, Big South North and South 2013–2022, and others). ESPN labels the MAAC "Metro" in every season, as the groups' notes say. Division I grew from 327 to 365 men's teams (314 to 363 women's), 0 to 13 joining a season.
+- **Neutral sites are flagged in every season of the window** (from 2008 for the men and 2009 for the women). 22 % of 2026's men's games are neutral (1,418 of 6,318): early-season events, conference and postseason tournaments. The NCAA's policies define home, away and neutral by where a team plays its home games (a team's second home arena is home; a conference tournament on a member's floor is neutral for all); whether ESPN's flag follows that rule was not checked.
+- **ESPN's shot coordinates are mostly missing before 2026**: located on 6–12 % of men's and 4–5 % of women's shots in 2022–2024 and 24–26 % in 2025, every shot from 2026. The commonest located points are the two baskets' own points (41.75, 0 and −41.75, 0: 136,768 and 117,426 men's shots in 2026). stats.ncaa.org's shots have a location on every row.
+- **ESPN's shot file holds made free throws and no misses**: 253,589 `MadeFreeThrow` rows among 991,836 men's shots in 2026. Leave them out to count field-goal attempts (then 98.9–99.3 % of team-games equal stats.ncaa.org's).
+- **ESPN's 2026 play by play is a richer feed**: 2,915,731 men's plays for 6,275 games (465 a game) against 2,189,782 for 6,135 in 2025 (357) and 319 a game in 2022. Counts of plays by type are not comparable across the change, and a 2022 play costs 147 bytes in DuckDB against 80 in 2026.
 - **Game length is 40 minutes in both** (team minutes 200 in regulation; stats.ncaa.org's team box averages 39.3 to 39.7 minutes a team-game and its players 197 to 201). Overtime is five minutes: 2026 had men's games to period 5 (three overtimes, 9 games) and women's to period 8 (four overtimes, 1 game).
 - **stats.ncaa.org's team box carries the estimated possessions and ratings** (`o_poss`, `ortg`) and the opponent's counts (`d_*`); its rates are published values. Rates stay stored as their parts (policy 3) and are recomputed.
 - **Ids are integers in ESPN's files and text in stats.ncaa.org's** (`contest_id`, `player_id`, `espn_game_id` as VARCHAR). Cast once, in the loader.
 - **The ratings and player-value files cover every team ESPN knows**: `mbb_ratings` has 727 teams in 2026, Division I and not. Rank them among the season's Division I teams.
 
+**Before 2021-22, outside the window** (one line each, should it ever widen): the women played halves until 2014-15. The 2018 NIT was played in quarters (31 games with 4 periods). Neutral sites are unflagged before 2007-08 and 2008-09. 2019-20 has no postseason and 2020-21 is short (4,285 and 3,823 games). The three-point line moved in 2008-09 and 2019-20 for the men, and in 2011-12 and 2021-22 for the women, so the window has one line for both: 22 feet 1¾ inches. ESPN's women's box scores are a sample before 2016-17, often zeros. stats.ncaa.org's 2009-10 files are broken (a quarter of the player lines, no women's ids). The women's schedule crosswalk starts in 2020-21. Old stats.ncaa.org team ids differ (51431 against 609609 for one school).
+
 ## Does the load fit D22?
 
-D22 stops the work at a database file over 6 GB, a first load over an hour, or 4 GB of process memory. Each league has its own file (D36), so the limits apply per league.
+D22 stops the work at a database file over 6 GB, a first load over an hour, or 4 GB of process memory. Each league has its own file (D36), so the limits apply per league. Since the owner's decision (D39) the load is 2021-22 to now; the every-season estimate is kept below it for comparison.
 
 ### DuckDB size, measured per row
 
 One season file of each heavy table was loaded into its own DuckDB file (`CREATE TABLE … AS SELECT * FROM read_parquet(…)`, then `CHECKPOINT`), with DuckDB's memory limit at 1 GB. The process peaked at 1.29 GB.
 
-| File (2026 unless said)             | Parquet MB | DuckDB MB | Bytes a row | Seconds | Rows                |
-| ----------------------------------- | ---------- | --------- | ----------- | ------- | ------------------- |
-| ESPN men's play by play             | 89.8       | 232.0     | 80          | 9.5     | 2,915,731           |
-| ESPN men's play by play, 2015       | 45.0       | 235.7     | 136         | 7.5     | 1,737,302           |
-| ESPN women's play by play           | 76.5       | 240.9     | 85          | 8.3     | 2,824,090           |
-| ESPN men's shots                    | 13.6       | 25.4      | 26          | 0.6     | 991,836             |
-| ESPN men's player box               | 3.4        | 14.4      | 73          | 0.7     | 196,876             |
-| ESPN men's game rosters             | 3.0        | 11.3      | 57          | 0.5     | 196,876             |
-| ESPN men's schedule                 | 1.8        | 22.3      | 1,765       | 0.6     | 6,318 (12,636 rows) |
-| stats.ncaa.org men's play by play   | 63.6       | 361.2     | 117         | 23.0    | 3,075,470           |
-| stats.ncaa.org women's play by play | 62.0       | 350.0     | 117         | 20.6    | 2,986,683           |
-| stats.ncaa.org possessions          | 14.5       | 78.9      | 90          | 2.9     | 878,168             |
-| stats.ncaa.org lineups              | 15.7       | 42.2      | 146         | 1.4     | 288,918             |
-| stats.ncaa.org matchup stints       | 9.6        | 31.5      | 150         | 0.7     | 210,508             |
-| stats.ncaa.org shots                | 8.9        | 24.7      | 33          | 0.5     | 740,861             |
-| stats.ncaa.org player box           | 11.2       | 16.0      | 126         | 0.9     | 127,465             |
-| stats.ncaa.org team box             | 1.5        | 2.1       | 167         | 0.1     | 12,594              |
+| File (2026 unless said)                 | Parquet MB | DuckDB MB | Bytes a row | Seconds | Rows                |
+| --------------------------------------- | ---------- | --------- | ----------- | ------- | ------------------- |
+| ESPN men's play by play                 | 89.8       | 232.0     | 80          | 9.5     | 2,915,731           |
+| ESPN men's play by play, 2022           | 53.9       | 272.6     | 147         | 15.2    | 1,860,561           |
+| ESPN women's play by play, 2022         | 53.9       | 266.9     | 152         | 14.9    | 1,760,851           |
+| stats.ncaa.org men's play by play, 2022 | 67.3       | 353.1     | 126         | 33.7    | 2,799,512           |
+| ESPN men's play by play, 2015           | 45.0       | 235.7     | 136         | 7.5     | 1,737,302           |
+| ESPN women's play by play               | 76.5       | 240.9     | 85          | 8.3     | 2,824,090           |
+| ESPN men's shots                        | 13.6       | 25.4      | 26          | 0.6     | 991,836             |
+| ESPN men's player box                   | 3.4        | 14.4      | 73          | 0.7     | 196,876             |
+| ESPN men's game rosters                 | 3.0        | 11.3      | 57          | 0.5     | 196,876             |
+| ESPN men's schedule                     | 1.8        | 22.3      | 1,765       | 0.6     | 6,318 (12,636 rows) |
+| stats.ncaa.org men's play by play       | 63.6       | 361.2     | 117         | 23.0    | 3,075,470           |
+| stats.ncaa.org women's play by play     | 62.0       | 350.0     | 117         | 20.6    | 2,986,683           |
+| stats.ncaa.org possessions              | 14.5       | 78.9      | 90          | 2.9     | 878,168             |
+| stats.ncaa.org lineups                  | 15.7       | 42.2      | 146         | 1.4     | 288,918             |
+| stats.ncaa.org matchup stints           | 9.6        | 31.5      | 150         | 0.7     | 210,508             |
+| stats.ncaa.org shots                    | 8.9        | 24.7      | 33          | 0.5     | 740,861             |
+| stats.ncaa.org player box               | 11.2       | 16.0      | 126         | 0.9     | 127,465             |
+| stats.ncaa.org team box                 | 1.5        | 2.1       | 167         | 0.1     | 12,594              |
 
-### Estimated, every season
+### Estimated, 2021-22 to now
+
+Rows of 2022 to 2027 (the survey; 2027 to 2026-11-17) times the bytes a row above: ESPN's play by play at 147 (men) and 152 (women) bytes for 2022–2025 and 80 and 85 for 2026–2027, and stats.ncaa.org's at 117 to 126.
+
+| Table                                                                              | M rows     | M GB          | W rows     | W GB          |
+| ---------------------------------------------------------------------------------- | ---------- | ------------- | ---------- | ------------- |
+| stats.ncaa.org play by play                                                        | 15,299,998 | 1.8–1.9       | 14,760,049 | 1.7–1.9       |
+| ESPN play by play                                                                  | 11,401,574 | 1.45          | 10,816,068 | 1.42          |
+| stats.ncaa.org possessions                                                         | 4,455,317  | 0.40          | 4,309,151  | 0.39          |
+| stats.ncaa.org lineups                                                             | 1,425,789  | 0.21          | 1,400,817  | 0.20          |
+| stats.ncaa.org matchup stints                                                      | 1,045,458  | 0.16          | 1,028,570  | 0.15          |
+| ESPN shots                                                                         | 4,835,147  | 0.13          | 4,379,602  | 0.11          |
+| stats.ncaa.org shots                                                               | 3,703,145  | 0.12          | 3,508,321  | 0.12          |
+| stats.ncaa.org player box                                                          | 648,753    | 0.08          | 611,797    | 0.08          |
+| ESPN player box                                                                    | 1,021,573  | 0.07          | 854,813    | 0.06          |
+| ESPN schedules (season files; the masters' rows before 2022 left out)              | 37,177     | 0.07          | 34,791     | 0.06          |
+| ESPN game rosters                                                                  | 1,021,750  | 0.06          | 854,829    | 0.05          |
+| Everything else (season stats, standings, bios, ids, groups, models; not measured) |            | about 0.15    |            | about 0.12    |
+| **Source tables**                                                                  |            | **4.7–4.8**   |            | **4.5–4.7**   |
+| **With built tables, a quarter more**                                              |            | **about 5.9** |            | **about 5.7** |
+
+The built tables add a quarter or so: the NBA's file grew from 4.3 GB at T405 to 5.33 GB with every built table, the WNBA's from 666 to 850 MB. So **every table of the window fits D22 today, barely: about 5.9 GB for the men and 5.7 GB for the women, against 6 GB.** It stops fitting within this season. 2026-27 is 15 % played (961 of about 6,300 men's games), and a full season adds about 0.85 GB of source tables (2025-26's rows: stats.ncaa.org's play by play 0.36, ESPN's 0.23, the rest 0.26), about 1.05 GB with built tables. The men's file would be about 6.8 GB by April 2027 and the women's about 6.6 GB, and each season after adds another gigabyte.
+
+Downloads: 1,147 MB for the men and 1,085 MB for the women, about 7 minutes each at the 2.8 MB/s measured here. The play rows are 26.7 million (men) and 25.6 million (women), under the NBA's 34.9 million, whose play step took 440–546 s. So the time stays well inside the hour. Memory is bounded by DuckDB's 1 GB limit, as for the NBA (2.56 GB peak); the size test peaked at 1.29 GB.
+
+### What fits: the first load proposed (2021-22 on)
+
+| Load                                           | M source GB | M with built  | W source GB | W with built  | Downloads M / W (MB) | A full season adds (with built) |
+| ---------------------------------------------- | ----------- | ------------- | ----------- | ------------- | -------------------- | ------------------------------- |
+| Every table                                    | 4.75        | about 5.9     | 4.55        | about 5.7     | 1,147 / 1,085        | about 1.05 GB                   |
+| **Without ESPN's play by play (proposed)**     | **3.3**     | **about 4.1** | **3.1**     | **about 3.9** | **818 / 763**        | **about 0.8 GB**                |
+| Without either play by play (possessions kept) | 1.5         | about 1.8     | 1.4         | about 1.7     | 472 / 428            | about 0.35 GB                   |
+
+**Proposed: every table of the window but ESPN's play by play.** stats.ncaa.org's play by play holds every game with the ten players on the floor, and more plays a game than ESPN's (469 against 319 in 2022). Its final score equals the schedule's on 99.9–100 % of games. So it is the one the play-built tables read (see "Which source each table reads"). ESPN's would sit beside it unread by any metric, at 1.45 GB. Without it the men's file is about 4.1 GB now and 4.8 GB by April 2027, crossing 6 GB around 2028-29; the women's is about 3.9 and 4.6 GB. The cost: ESPN's play by play is not loaded as a second source (policy 5). Its plays stay in the releases if a metric ever needs them. The owner decides (D22), and D42 sets out the choice. The other two options are every table with a larger limit for these leagues (about 7 GB each by April, a gigabyte more a season) and no play by play at all.
+
+### Estimated, every season (before the owner's decision)
 
 Rows over every season (the survey) times the bytes a row above. The ESPN play by play is given as a range (80 to 136 bytes a row).
 
@@ -313,23 +385,9 @@ Rows over every season (the survey) times the bytes a row above. The ESPN play b
 | Everything else (season stats, standings, bios, ids, groups, models; not measured) |            | about 0.3     |            | about 0.2     |
 | **Source tables**                                                                  |            | **12.7–14.5** |            | **10.7–11.7** |
 
-The built tables add a quarter or so: the NBA's file grew from 4.3 GB at T405 to 5.33 GB with every built table, the WNBA's from 666 to 850 MB. So **the whole of either side is about twice D22's 6 GB**, and the two play-by-play files together (8.1–9.9 GB men, 6.9–7.9 GB women) are more than the limit on their own.
+So every season of either side would be about twice D22's 6 GB, and the two play-by-play files together (8.1–9.9 GB men, 6.9–7.9 GB women) more than the limit on their own. This is what the window avoids.
 
-Time: the 1,377 MB downloaded for this part took 498 seconds four at a time (2.8 MB/s, on a machine running other work), so every file would take about 19 minutes for the men and 15 for the women before anything is built. The NBA's play step took 440–546 s for 34.9 million rows; the men's two play-by-play files are 79 million. A full men's load is estimated at 45 to 70 minutes, at or past the hour. Memory is bounded by DuckDB's 1 GB limit, as for the NBA (2.56 GB peak); nothing here suggests more.
-
-### What fits: the first load proposed
-
-Without the two play-by-play files and the possessions:
-
-| Tier (as D21)                     | M source GB | W source GB | Download M / W (MB) |
-| --------------------------------- | ----------- | ----------- | ------------------- |
-| Core                              | 1.7         | 1.3         | 434 / 310           |
-| Published                         | 0.02        | 0.02        | 14 / 10             |
-| Events (shots, lineups, stints)   | 1.6         | 1.4         | 596 / 495           |
-| **First load**                    | **3.4**     | **2.7**     | **1,044 / 815**     |
-| With built tables, a quarter more | about 4.2   | about 3.4   |                     |
-
-That fits D22 with room for the tables to grow: about 4.2 GB for the men and 3.4 GB for the women, against 6 GB, and about 6 and 5 minutes of downloads. What it leaves out: both play-by-play sources and the possessions (M 9.3–11.1 GB, W 8.1–9.1 GB). Left out with them are every statistic built from plays: play-derived counts, splits by period and clock, game flow, the possession-level on/off. Lineups and stints keep five-player and on-court numbers, since the dataset publishes them already summed per stint. A second option is play by play for a window of recent seasons (stats.ncaa.org's costs about 0.36 GB a season a side). A third is a larger limit for these two leagues. All three are the owner's decision (D22: past a limit the work goes to the owner); D41 below sets out the choice.
+Every file of every season would take about 19 minutes (men) and 15 (women) to download, and a full men's load was estimated at 45 to 70 minutes.
 
 ## What the check can compare against
 
@@ -347,22 +405,24 @@ Read with a plain client (`curl -A metis-research`, three to ten seconds apart) 
 
 So **the NCAA's own published statistics cannot be read as tables**. stats.ncaa.org and ncaa.com refuse a plain client. What answers are the NCAA's record books, as PDFs: each season's individual champions by category (with games and totals), team champions, and the conference champions. The two leaders checked equal the files exactly (AJ Dybantsa's 894 points in 35 games, Hannah Hidalgo's 202 steals in 36). For every team's record a season, Sports Reference answers as Basketball-Reference did for the WNBA; it is not the NCAA, and the check would say so.
 
-**NET: no free published source to load.** The releases have none. stats.ncaa.org refuses a plain client, and ncaa.com's NET page answers it only some of the time. That page holds one snapshot, the latest, with no history and no game-day ranks, which quadrants need. Reading it would mean scraping a page that also refuses the same client, so D7's and D24's reasoning leaves NET and quadrants out, listed with that reason.
+**NET: no free published source to load.** The releases have none. stats.ncaa.org refuses a plain client, and ncaa.com's NET page answers it only some of the time. That page holds one snapshot, the latest, with no history and no game-day ranks, which quadrants need. Reading it would mean scraping a page that also refuses the same client, so D7's and D24's reasoning leaves NET and quadrants out, listed with that reason (D44).
 
 ## Qualifying minimums
 
 The NCAA's Statistics Policies and Guidelines ("Ranking Minimums", read on 2026-11-18): "To be ranked, a student-athlete must appear in 75 percent of the team's games." The minimums for each category "shall be determined by the national office … and shall be reviewed annually". They are published with the rankings on stats.ncaa.org, which refused a plain client, and the record books print each season's champion without the category's minimum. National per-game rankings count "the number of games an individual actually plays", and a player in for one play has a game. A team must play the minimum number of games set for sports sponsorship to be ranked at all; the men's record book gives 13 games as the minimum for record-book inclusion in 2021, "the minimum required for NCAA championship consideration".
 
-So the games rule can be the NCAA's own: 75 % of the team's games. The makes minimums for the shooting percentages stay D37's scaled rule until the NCAA's are read (D42 below).
+So the games rule can be the NCAA's own: 75 % of the team's games. The makes minimums for the shooting percentages stay D37's scaled rule until the NCAA's are read (D43).
 
-## What the NCAA data can support
+## What the NCAA data can support, 2021-22 on
 
-| Area                                    | Men                                                                                          | Women                                                                       |
-| --------------------------------------- | -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| Games, scores, records, conferences     | 2002–2027                                                                                    | 2001–2027 (conferences from 2002)                                           |
-| Player and team box scores              | 2005–2027 (two sources from 2011)                                                            | 2011–2027 complete; 2004–2010 a sample (ESPN)                               |
-| Shots with location                     | 2019–2027 (stats.ncaa.org), 2026– (ESPN)                                                     | The same                                                                    |
-| Lineups, on-court, stints               | 2011–2027                                                                                    | 2011–2027                                                                   |
-| Play by play                            | 2006–2027 (ESPN partial to 2013), 2011–2027 (stats.ncaa.org); not in the proposed first load | 2004–2027 (ESPN partial to 2019), 2011–2027; not in the proposed first load |
-| Team ratings, BPM, RAPM (the dataset's) | 2006–2027, RAPM 2011–2026                                                                    | 2009–2027, BPM 2014–2027, RAPM 2011–2026                                    |
-| NET, polls, seeds, tracking, play types | Not available                                                                                | Not available                                                               |
+The same for men and women.
+
+| Area                                    | Seasons                                            | Source                                            |
+| --------------------------------------- | -------------------------------------------------- | ------------------------------------------------- |
+| Games, scores, records, conferences     | 2022–2027                                          | ESPN, stats.ncaa.org; groups                      |
+| Player and team box scores              | 2022–2027, two sources for every Division I game   | ESPN (counts), stats.ncaa.org (splits, check)     |
+| Shots with location                     | 2022–2027 (stats.ncaa.org); ESPN located from 2026 | stats.ncaa.org                                    |
+| Lineups, on-court, stints, possessions  | 2022–2027                                          | stats.ncaa.org                                    |
+| Play by play                            | 2022–2027                                          | stats.ncaa.org (proposed); ESPN's if loaded (D42) |
+| Team ratings, BPM, RAPM (published)     | 2022–2027; RAPM 2022–2026                          | SportsDataverse                                   |
+| NET, polls, seeds, tracking, play types | Not available                                      |                                                   |
