@@ -19,6 +19,7 @@ import {
   type StandingsView
 } from '@/lib/stats/standings'
 import { useStandings, useStatsQuery, type StatsData } from '@/lib/stats/useStats'
+import { inProgress as seasonInProgress } from '@/lib/stats/trends'
 import { currentLeague, seasonLabel } from '@/lib/stats/league'
 
 /** The published standings of a season, by conference or by division. */
@@ -38,8 +39,9 @@ export function StatsStandings({
   // Metis's own columns, beside the published ones; blank until they answer.
   const sq = useMemo(() => strengthQuery(scope.season), [scope.season])
   const strength = strengthCells(useStatsQuery(sq, data.version, { keepLast: false }).result)
-  // The season forecast, for the season in progress only (`forecastQuery` says why).
-  const inProgress = scope.season === data.status?.through?.season
+  // The season forecast, for the season in progress only (`forecastQuery` says why): not one the
+  // league has finished, though the data runs through it (the WNBA's in November).
+  const inProgress = seasonInProgress(scope.season, data.status)
   const fq = useMemo(
     () => (inProgress ? forecastQuery(scope.season) : null),
     [inProgress, scope.season]
@@ -54,7 +56,7 @@ export function StatsStandings({
           </h1>
           <div className="text-[13px] text-fg-2">
             Regular season, as the {currentLeague().name} publishes it
-            {scope.season === data.status?.through?.season ? ', to date' : ''}
+            {inProgress ? ', to date' : ''}
           </div>
         </div>
         <div className="flex items-center gap-3">

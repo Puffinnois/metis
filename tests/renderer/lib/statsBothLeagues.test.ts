@@ -6,7 +6,7 @@ import { sectionNote, shownTab, shownTabs } from '@/lib/stats/dashboard'
 import { defaultBoard, familiesOf, familyColumns, pickable, tabOf } from '@/lib/stats/leaderboard'
 import { inLeague, setLeague } from '@/lib/stats/league'
 import { playSplitNotes } from '@/lib/stats/splits'
-import { playerSearchQuery } from '@/lib/stats/trends'
+import { inProgress, playerSearchQuery } from '@/lib/stats/trends'
 import { PLAYER_DASH_TABS, TAB_SECTIONS } from '@/lib/stats/player'
 import { halvesNote, LEAGUES, type League } from '@shared/leagues'
 import { CATALOGUE, metricIn } from '@shared/stats/catalogue'
@@ -99,6 +99,21 @@ describe('a section’s note, in the league’s own seasons', () => {
     expect(sectionNote('From the play by play, {from:onc_min} on', byId(WNBA), LEAGUES.wnba)).toBe(
       'From the play by play, 1997 on'
     )
+  })
+})
+
+describe('a season in progress, by the league’s own season end', () => {
+  const status = (season: number) =>
+    ({ available: true, through: { season, date: '2026-10-29' } }) as never
+  it('ends the WNBA’s in November, the NBA’s in July', () => {
+    // July 2026: the WNBA's 2026 is being played; the NBA's 2025-26 is over.
+    const july = new Date('2026-07-15T00:00:00Z')
+    expect(inProgress(2026, status(2026), july, LEAGUES.wnba)).toBe(true)
+    expect(inProgress(2026, status(2026), july, LEAGUES.nba)).toBe(false)
+    // November: the WNBA's 2026 is complete, so the standings say no "to date" and show no forecast.
+    const november = new Date('2026-11-18T00:00:00Z')
+    expect(inProgress(2026, status(2026), november, LEAGUES.wnba)).toBe(false)
+    expect(inProgress(2027, status(2027), november, LEAGUES.nba)).toBe(true)
   })
 })
 
