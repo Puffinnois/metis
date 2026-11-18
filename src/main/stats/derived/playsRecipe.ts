@@ -44,6 +44,19 @@ export interface PlaysRecipe {
    * where ESPN says neither the points attempted nor a make's value.
    */
   espnThree: (x: string, y: string, season: string) => string
+  /**
+   * ESPN's foul types as this league's file spells them, against the spellings the shared rules read
+   * (`ESPN_DRAWN_FOUL_TYPES`): the fouled player is named on the same types, written another way.
+   */
+  espnFoulNames: Readonly<Record<string, string>>
+}
+
+/** `type_text` read through a recipe's spellings: the column as it is when there are none. */
+export const espnFoulType = (recipe: PlaysRecipe, typeText: string): string => {
+  const pairs = Object.entries(recipe.espnFoulNames)
+  if (pairs.length === 0) return typeText
+  const q = (s: string): string => `'${s.replaceAll("'", "''")}'`
+  return `(CASE ${typeText} ${pairs.map(([from, to]) => `WHEN ${q(from)} THEN ${q(to)}`).join(' ')} ELSE ${typeText} END)`
 }
 
 /**
@@ -72,15 +85,18 @@ export const NBA_PLAYS: PlaysRecipe = {
   side: (id) => id,
   unlocated: null,
   espnThree: (x, y) => `sqrt(power(${x} - 25, 2) + power(${y}, 2)) >= 23.5
-               OR (abs(${x} - 25) >= 22 AND ${y} <= 9)`
+               OR (abs(${x} - 25) >= 22 AND ${y} <= 9)`,
+  espnFoulNames: {}
 }
 
 /**
  * The WNBA's files (`wnba-data-sources.md`): the same feed and columns as the NBA's, but for the play by
  * play's possession number and ten players on each row, which it does not carry (the lineup file has
  * them). The 2026 Portland Fire are `-1611661327` in `game` and 1611661327 in every source (T1301.5).
- * Before 2011, 20 to 30 % of the shots sit at (0, 0) with a distance of 0 or 1: no location, never a
- * shot at the rim (none does from 2011 to 2017, and 3 to 11 a season after).
+ * Before 2011, 20 to 30 % of the shots sit at (0, 0) with a distance of 0 or 1: 95 to 99.7 % of them
+ * layups and tips, placed at the basket wherever in the lane they were taken (2005 has 2.7 times
+ * 2011's shots within a foot), and a few jump shots. None sits there from 2011 to 2017, 3 to 11 a
+ * season after. So they keep their attempt and value, and read with no location, zone or distance.
  */
 export const WNBA_PLAYS: PlaysRecipe = {
   version: 1,
@@ -92,7 +108,20 @@ export const WNBA_PLAYS: PlaysRecipe = {
   side: (id, home, away) =>
     `(CASE ${id} WHEN abs(${home}) THEN ${home} WHEN abs(${away}) THEN ${away} END)`,
   unlocated: (x, y) => `(${x} = 0 AND ${y} = 0)`,
-  espnThree: espnThreeByEra(leagueOf('wnba'))
+  espnThree: espnThreeByEra(leagueOf('wnba')),
+  // ESPN's WNBA file names the fouled player from 2006 to 2017 (85 % of fouls), under these spellings
+  // there, measured on every season (wnba-data-sources.md, "Play-derived stats").
+  espnFoulNames: {
+    ShootingFoul: 'Shooting Foul',
+    PersonalFoul: 'Personal Foul',
+    LooseBallFoul: 'Loose Ball Foul',
+    PersonalTake: 'Personal Take Foul',
+    'Shooting Block Foul': 'Shooting Block',
+    PersonalBlock: 'Personal Block',
+    'InBound Foul': 'Inbound Foul',
+    'Away From Play Foul': 'Away from Play Foul',
+    'ClearPath Foul': 'Clear Path Foul'
+  }
 }
 
 /** Every recipe, by the name a league's registry entry gives. */

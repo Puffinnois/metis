@@ -13,6 +13,7 @@ import {
 import type { PlayBuilder } from './playBuilders'
 import { elapsedSql, type League } from '@shared/leagues'
 import { PLAY_TABLES } from './plays'
+import { espnFoulType, playsRecipe } from './playsRecipe'
 import { column, type Have } from './sql'
 
 /**
@@ -221,7 +222,7 @@ function playsCte(season: number): string {
  * ESPN's fouls naming the fouled player, per player and game: the player's team in that game is the
  * one their box-score line names. What ESPN lacks reads no rows.
  */
-function drawnCte(have: Have, season: number): string {
+function drawnCte(have: Have, season: number, league?: League): string {
   const t = 'src_espn_pbp'
   const c = (name: string, type = 'BIGINT'): string => column(have, t, 'e', name, type)
   if (!['player_ids', 'player_game'].every((x) => have.tables.has(x)) || !have.tables.has(t)) {
@@ -229,26 +230,28 @@ function drawnCte(have: Have, season: number): string {
                              NULL::BIGINT AS team_id, NULL::VARCHAR AS type_text WHERE false)`
   }
   const own = have.columns.get(t)?.has('season') ? `${c('season', 'INTEGER')} = ${season}` : 'true'
+  // The league's file may spell the same types another way (its plays recipe's `espnFoulNames`).
+  const espnType = espnFoulType(playsRecipe(league), c('type_text', 'VARCHAR'))
   return `drawn AS (
-    SELECT g.game_id, pi.player_id, pg.team_id, ${c('type_text', 'VARCHAR')} AS type_text
+    SELECT g.game_id, pi.player_id, pg.team_id, ${espnType} AS type_text
     FROM ${t} e
     JOIN game g ON g.espn_game_id = ${c('game_id')}
     JOIN player_ids pi ON pi.espn_athlete_id = ${c('athlete_id_2')}
     JOIN player_game pg ON pg.game_id = g.game_id AND pg.player_id = pi.player_id
     WHERE g.season = ${season} AND ${own}
       AND ${c('season', 'INTEGER')} IS NOT DISTINCT FROM ${c('file_season', 'INTEGER')}
-      AND ${c('type_text', 'VARCHAR')} IN (${list(ESPN_DRAWN_FOUL_TYPES)})
+      AND ${espnType} IN (${list(ESPN_DRAWN_FOUL_TYPES)})
   )`
 }
 
 /** One season's player-game rows. */
-export function playDetailPlayerSql(have: Have, season: number): string {
+export function playDetailPlayerSql(have: Have, season: number, league?: League): string {
   const actor = ACTOR.map(sumOf).join(',\n           ')
   const passer = PASSER.map(sumOf).join(',\n           ')
   const drawn = DRAWN.map(sumOf).join(',\n           ')
   const zero = (cs: Count[]): string => cs.map((x) => `0::UTINYINT AS ${x.name}`).join(', ')
   const all = PLAY_DETAIL_COUNTS.map((n) => `sum(${n})::UTINYINT AS ${n}`).join(', ')
-  return `WITH ${playsCte(season)}, ${drawnCte(have, season)},
+  return `WITH ${playsCte(season)}, ${drawnCte(have, season, league)},
   credits AS (
     SELECT game_id, player_id, any_value(team_id) AS team_id, ${actor}, ${zero(PASSER)}, ${zero(DRAWN)}
     FROM plays WHERE player_id IS NOT NULL GROUP BY 1, 2
@@ -370,7 +373,7 @@ export function playDetailTeamSql(have: Have, season: number, league: League): s
     '1::UTINYINT AS flow_games'
   ]
   const opp = [...TEAM_COUNTS, ...FLOW_SIDED].map((n) => `o.${n} AS opp_${n}`)
-  return `WITH ${playsCte(season)}, ${drawnCte(have, season)}, ${flowCte(league)},
+  return `WITH ${playsCte(season)}, ${drawnCte(have, season, league)}, ${flowCte(league)},
   own AS (
     SELECT game_id, team_id, ${actor},
            coalesce(sum((tov = 1 AND player_id IS NULL)::INTEGER), 0)::UTINYINT AS tov_team

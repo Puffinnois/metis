@@ -293,7 +293,7 @@ export async function buildPublished(db: StatsDb, league?: League): Promise<numb
   await db.exec(matchupPairsSql(have))
   const pairs = await db.get<{ n: number }>(`SELECT count(*)::INTEGER AS n FROM ${MATCHUP_PAIRS}`)
   rows += pairs?.n ?? 0
-  await db.exec(lineupsSql(have, recipe.team))
+  await db.exec(lineupsSql(have, recipe.team, (league ?? NBA).lineupsFrom))
   const units = await db.get<{ n: number }>(`SELECT count(*)::INTEGER AS n FROM ${LINEUPS}`)
   rows += units?.n ?? 0
   await db.exec('INSERT OR REPLACE INTO derived_state VALUES (?, ?)', ['published', recipe.version])

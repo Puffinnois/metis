@@ -1,3 +1,4 @@
+import type { ThreePointLine } from '@shared/leagues'
 import { COURT, SHOT_CHART_LIMIT, SHOT_CHART_MIN, SHOT_ZONES } from '@shared/stats/shots'
 import type { Entity, StatsShot, StatsShotChart, StatsShotRequest } from '@shared/stats/types'
 import { queryScope, type StatsScope } from './scope'
@@ -30,13 +31,36 @@ const pt = (x: number, y: number): string => {
   return `${n(cx)} ${n(cy)}`
 }
 
-/** Where the three-point arc meets the corner lines: 89.5 tenths above the basket. */
-export const ARC_Y = Math.sqrt(COURT.arcRadius ** 2 - COURT.cornerX ** 2)
+/**
+ * The three-point line a chart draws: the league's in the season (`League.threePointLines`), the NBA's
+ * `COURT` line unless said. An arc that reaches the baseline with no straight part has its corner
+ * equal to its radius.
+ */
+export type Line = Pick<ThreePointLine, 'arc' | 'corner'>
+const NBA_LINE: Line = { arc: COURT.arcRadius, corner: COURT.cornerX }
+
+/** Where the arc meets the corner lines, or the baseline when it has none. */
+const arcY = (line: Line): number =>
+  Math.max(COURT.baselineY, Math.sqrt(Math.max(0, line.arc ** 2 - line.corner ** 2)))
+
+/** Where the NBA's three-point arc meets the corner lines: 89.5 tenths above the basket. */
+export const ARC_Y = arcY(NBA_LINE)
+
+/** Half the width of the arc where it meets the corner line, or the baseline. */
+const arcX = (line: Line): number => Math.sqrt(Math.max(0, line.arc ** 2 - arcY(line) ** 2))
+
+/** The three-point line, from the baseline round the arc and back. */
+function linePath(line: Line): string {
+  const { baselineY: base } = COURT
+  const y = arcY(line)
+  const x = arcX(line)
+  const r = line.arc
+  return `M ${pt(-line.corner, base)} L ${pt(-x, y)} A ${r} ${r} 0 0 0 ${pt(x, y)} L ${pt(line.corner, base)}`
+}
 
 /** The inside of the three-point line, as a closed path from the baseline round the arc. */
-function insideArc(): string {
-  const { cornerX: cx, arcRadius: r, baselineY: base } = COURT
-  return `M ${pt(-cx, base)} L ${pt(-cx, ARC_Y)} A ${r} ${r} 0 0 0 ${pt(cx, ARC_Y)} L ${pt(cx, base)} Z`
+function insideArc(line: Line): string {
+  return `${linePath(line)} Z`
 }
 
 const rect = (x0: number, y0: number, x1: number, y1: number): string =>
@@ -50,23 +74,24 @@ const circle = (x: number, y: number, r: number): string =>
  * zone rule ends them (14 feet from the baseline), so a sliver above the arc's end reads as the
  * corner, as the rule counts it.
  */
-export function zonePaths(): Record<string, string> {
-  const { halfWidth: w, baselineY: base, halfCourtY: half, cornerX, cornerTopY } = COURT
+export function zonePaths(line: Line = NBA_LINE): Record<string, string> {
+  const { halfWidth: w, baselineY: base, halfCourtY: half, cornerTopY } = COURT
+  const cornerX = line.corner
   const lane = rect(-COURT.laneHalfWidth, base, COURT.laneHalfWidth, COURT.laneTopY)
   const ra = circle(0, 0, COURT.restrictedRadius)
   return {
     ra,
     paint: `${lane} ${ra}`,
-    mid: `${insideArc()} ${lane}`,
+    mid: `${insideArc(line)} ${lane}`,
     c3l: rect(-w, base, -cornerX, cornerTopY),
     c3r: rect(cornerX, base, w, cornerTopY),
-    atb3: `${rect(-w, cornerTopY, w, half)} ${insideArcAbove(cornerTopY)}`
+    atb3: `${rect(-w, cornerTopY, w, half)} ${insideArcAbove(cornerTopY, line)}`
   }
 }
 
 /** The part of the inside of the arc above a line, to cut out of the area above the break. */
-function insideArcAbove(y: number): string {
-  const r = COURT.arcRadius
+function insideArcAbove(y: number, line: Line): string {
+  const r = line.arc
   const x = Math.sqrt(r * r - y * y)
   return `M ${pt(-x, y)} A ${r} ${r} 0 0 0 ${pt(x, y)} Z`
 }
@@ -88,8 +113,8 @@ export const ZONE_LABELS: Record<
 }
 
 /** The court's lines, as SVG paths in the drawing's frame. */
-export function courtLines(): string[] {
-  const { halfWidth: w, baselineY: base, halfCourtY: half, cornerX } = COURT
+export function courtLines(line: Line = NBA_LINE): string[] {
+  const { halfWidth: w, baselineY: base, halfCourtY: half } = COURT
   const ft = COURT.freeThrowRadius
   const top = COURT.laneTopY
   const ra = COURT.restrictedRadius
@@ -99,7 +124,7 @@ export function courtLines(): string[] {
     // The free-throw circle's top half, away from the basket.
     `M ${pt(-ft, top)} A ${ft} ${ft} 0 0 0 ${pt(ft, top)}`,
     `M ${pt(-ra, 0)} A ${ra} ${ra} 0 0 0 ${pt(ra, 0)}`,
-    `M ${pt(-cornerX, base)} L ${pt(-cornerX, ARC_Y)} A ${COURT.arcRadius} ${COURT.arcRadius} 0 0 0 ${pt(cornerX, ARC_Y)} L ${pt(cornerX, base)}`,
+    linePath(line),
     `M ${pt(-COURT.backboardHalfWidth, COURT.backboardY)} L ${pt(COURT.backboardHalfWidth, COURT.backboardY)}`,
     circle(0, 0, COURT.rimRadius),
     // The centre circle's half on this side of the court.
@@ -181,6 +206,13 @@ export function chartSummary(chart: StatsShotChart): string {
     `${COUNT.format(chart.made)} made (${pctText(chart.total > 0 ? chart.made / chart.total : null)})`
   ]
   if (chart.capped) parts.push(`the newest ${COUNT.format(SHOT_CHART_LIMIT)} drawn`)
+  // Shots the league's file gives no location (the WNBA's, before 2011): counted, not drawn or zoned.
+  const unlocated = chart.unlocated ?? 0
+  if (unlocated > 0) {
+    parts.push(
+      `${COUNT.format(unlocated)} (${pctText(unlocated / chart.total)}) with no location, not drawn`
+    )
+  }
   const off = chart.shots.filter((s) => !onChart(s)).length
   if (off > 0) parts.push(`${COUNT.format(off)} from beyond half court not drawn`)
   return parts.join(' · ')

@@ -20,7 +20,7 @@
 // --league=<id> anywhere picks the league (default nba).
 import { writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { openStatsWorker } from './lib/stats-worker.mjs'
+import { openStatsWorker, leagueArg, sourceOf, seasonLabelOf } from './lib/stats-worker.mjs'
 
 const [folder, mdFile] = process.argv.slice(2).map((p) => resolve(p))
 if (!folder) {
@@ -29,7 +29,7 @@ if (!folder) {
 }
 
 const { read, call, close } = openStatsWorker(folder)
-const label = (season) => `${season - 1}-${String(season % 100).padStart(2, '0')}`
+const label = (season) => seasonLabelOf(leagueArg(), season)
 const COUNT = new Intl.NumberFormat('en-US')
 const pct = (part, whole) => (whole ? ((100 * part) / whole).toFixed(1) : '–')
 const table = (headers, rows) => [
@@ -278,7 +278,7 @@ const timed = async (sql) => {
 // 5. The league by distance: the shots against the dataset's curves.
 {
   const cmp = await read(`WITH c AS (
-      SELECT season, x_lo, x_hi, attempts, successes, rate FROM src_nba_metric_curves
+      SELECT season, x_lo, x_hi, attempts, successes, rate FROM ${sourceOf(leagueArg(), 'src_nba_metric_curves')}
       WHERE entity_type = 'league' AND metric = 'fg_pct_by_shot_distance'),
     s AS (SELECT season, sqrt(x*x + y*y) / 10 AS d, made FROM shot_nba),
     j AS (SELECT c.season, c.x_lo, c.attempts, c.rate,

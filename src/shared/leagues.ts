@@ -189,6 +189,8 @@ export interface League {
   plays: PlaysRecipeName
   /** The three-point line by era, oldest first (`threePointLineIn`). */
   threePointLines: readonly ThreePointLine[]
+  /** The first season of the league's published five-player units (the lineup dashboards). */
+  lineupsFrom: number
   /**
    * What a screen says while the league's tables are not built: before its first load gets that far,
    * or always while `builds` lacks `derived`.
@@ -253,6 +255,8 @@ const NBA: League = {
   plays: 'nba',
   // 22 feet in the corners, an arc of 23 feet 9 inches (`COURT` in `stats/shots.ts`), every season.
   threePointLines: [{ from: 1994, arc: 237.5, corner: 220 }],
+  // Five-man units are published from 2007-08.
+  lineupsFrom: 2008,
   notBuilt: 'No NBA stats yet: the first load has not got that far.',
   metricsByDefault: true
 }
@@ -323,6 +327,8 @@ const WNBA: League = {
     { from: 2004, arc: 205, corner: 205 },
     { from: 2013, arc: 221.5, corner: 220 }
   ],
+  // The lineup dashboards list units from 1997, the playoffs from 2001 (`wnba-data-sources.md`).
+  lineupsFrom: 1997,
   notBuilt: 'No WNBA stats yet: the first load has not got that far.',
   metricsByDefault: false
 }

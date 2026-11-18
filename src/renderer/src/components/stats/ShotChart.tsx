@@ -16,7 +16,9 @@ import {
   zoneShades,
   type ZoneShade
 } from '@/lib/stats/shotChart'
+import { useLeague } from '@/lib/stats/league'
 import { useShots } from '@/lib/stats/useStats'
+import { threePointLineIn } from '@shared/leagues'
 import type { StatsShotRequest } from '@shared/stats/types'
 
 type Mode = 'zones' | 'shots'
@@ -25,9 +27,6 @@ const MODES: { value: Mode; label: string }[] = [
   { value: 'zones', label: 'Zones' },
   { value: 'shots', label: 'Shots' }
 ]
-
-const PATHS = zonePaths()
-const LINES = courtLines()
 
 /**
  * A half court drawn to scale, with the shots of the dashboard's scope: as marks, makes and misses, or
@@ -48,6 +47,12 @@ export function ShotChart({
 }): React.JSX.Element {
   const [mode, setMode] = useState<Mode>('zones')
   const { value, error } = useShots(request, version)
+  // The league's three-point line in the latest season asked: the WNBA's moved in 2004 and 2013.
+  const league = useLeague()
+  const latest = request ? Math.max(...request.seasons) : league.firstSeason
+  const line = threePointLineIn(league, latest)
+  const PATHS = zonePaths(line)
+  const LINES = courtLines(line)
   if (!value) {
     return (
       <section className="flex flex-col gap-2.5">
@@ -83,7 +88,7 @@ export function ShotChart({
               aria-label={`${title}: ${chartSummary(value)}`}
             >
               {mode === 'zones' ? (
-                <Zones shades={shades} against={against} />
+                <Zones shades={shades} against={against} paths={PATHS} />
               ) : (
                 <Marks request={value} />
               )}
@@ -100,13 +105,21 @@ export function ShotChart({
   )
 }
 
-function Zones({ shades, against }: { shades: ZoneShade[]; against: boolean }): React.JSX.Element {
+function Zones({
+  shades,
+  against,
+  paths
+}: {
+  shades: ZoneShade[]
+  against: boolean
+  paths: Record<string, string>
+}): React.JSX.Element {
   return (
     <g>
       {shades.map((z) => (
         <path
           key={z.zone}
-          d={PATHS[z.zone]}
+          d={paths[z.zone]}
           fillRule="evenodd"
           fill={shadeFill(z.level, against)}
           data-zone={z.zone}

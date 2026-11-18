@@ -14,6 +14,25 @@ export function leagueArg(argv = process.argv) {
   return argv.find((a) => a.startsWith('--league='))?.slice('--league='.length) ?? 'nba'
 }
 
+/**
+ * A source table as the league names it: the NBA's `src_nba_pbp` is the WNBA's `src_wnba_pbp`
+ * (`sources.ts`). The ESPN and dashboard tables have one name in every league.
+ */
+export const sourceOf = (league, name) => name.replace(/^src_nba_/, `src_${league}_`)
+
+/**
+ * A season as the league's screens write it (`League.seasonLabel`): `2025-26` in the NBA, whose
+ * label is the final year, `2026` in the WNBA, whose season is one calendar year.
+ */
+export const seasonLabelOf = (league, season) =>
+  league === 'nba' ? `${season - 1}-${String(season % 100).padStart(2, '0')}` : String(season)
+
+/** The first season of the league's published five-player units (`League.lineupsFrom`). */
+export const lineupsFromOf = (league) => (league === 'nba' ? 2008 : 1997)
+
+/** A game's regulation minutes (`League.gameMinutes`): 48 in the NBA, 40 in the WNBA. */
+export const gameMinutesOf = (league) => (league === 'nba' ? 48 : 40)
+
 /** A script's arguments less `--league=…`, so the positional ones keep their places. */
 export const positional = (argv = process.argv.slice(2)) =>
   argv.filter((a) => !a.startsWith('--league='))

@@ -46,7 +46,7 @@ export function lineupsBootstrap(): string[] {
  * One dashboard's units, sorted ids and all. A row whose id does not hold five players is left out.
  * What the file lacks (a missing table or column) reads as NULL, and no rows.
  */
-function unitsOf(group: LineupGroup, have: Have, teamKey: TeamKey): string {
+function unitsOf(group: LineupGroup, have: Have, teamKey: TeamKey, from: number): string {
   const table = source(group)
   const held = have.tables.has(table)
   const num = (name: string): string => column(have, table, 's', name, 'DOUBLE')
@@ -60,7 +60,7 @@ function unitsOf(group: LineupGroup, have: Have, teamKey: TeamKey): string {
   const stored = LINEUP_STORED.filter((c) => c.group === group)
   const where = [
     `${gameType(column(have, table, 's', 'season_type', 'VARCHAR'))} IS NOT NULL`,
-    `${season} >= ${LINEUPS_FIRST_SEASON}`
+    `${season} >= ${from}`
   ]
   // The dashboards also list pairs, triples and fours: T904's, not these.
   if (have.columns.get(table)?.has('group_quantity')) where.push('s.group_quantity = 5')
@@ -87,7 +87,11 @@ type TeamKey = (id: string, season: string) => string
  * The table: every unit any of the six files lists, each measure from its own file. The team's key is
  * the league's published recipe's: the NBA's ids as they are.
  */
-export function lineupsSql(have: Have, teamKey: TeamKey = (id) => id): string {
+export function lineupsSql(
+  have: Have,
+  teamKey: TeamKey = (id) => id,
+  from: number = LINEUPS_FIRST_SEASON
+): string {
   const key = ['season', 'game_type', 'team_id', ...PLAYERS]
   const alias = (g: LineupGroup): string => `g_${g}`
   const join = (g: LineupGroup): string =>
@@ -96,7 +100,7 @@ export function lineupsSql(have: Have, teamKey: TeamKey = (id) => id): string {
     `coalesce(${PRECEDENCE.map((g) => `${alias(g)}.${field}`).join(', ')})`
   const stored = LINEUP_STORED.map((c) => `${alias(c.group)}.${c.id} AS ${c.id}`)
   return `CREATE OR REPLACE TABLE ${LINEUPS} AS
-    WITH ${LINEUP_GROUPS.map((g) => `${alias(g.id)} AS (${unitsOf(g.id, have, teamKey)})`).join(',\n')},
+    WITH ${LINEUP_GROUPS.map((g) => `${alias(g.id)} AS (${unitsOf(g.id, have, teamKey, from)})`).join(',\n')},
     k AS (${LINEUP_GROUPS.map((g) => `SELECT ${key.join(', ')} FROM ${alias(g.id)}`).join(' UNION ')})
     SELECT ${key.map((c) => `k.${c}`).join(', ')}, ${first('names')} AS names,
            ${first('games')} AS games, ${first('minutes')} AS minutes, ${stored.join(', ')}

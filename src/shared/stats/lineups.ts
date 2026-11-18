@@ -19,7 +19,7 @@ export const LINEUP_GROUPS = [
 
 export type LineupGroup = (typeof LINEUP_GROUPS)[number]['id']
 
-/** Five-man units are published from the 2007-08 season (label 2008). */
+/** The NBA's five-man units are published from the 2007-08 season (label 2008): `League.lineupsFrom`. */
 export const LINEUPS_FIRST_SEASON = 2008
 
 /** Why a scope the NBA has no lineups for cannot be answered. */

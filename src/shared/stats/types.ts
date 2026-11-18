@@ -882,6 +882,8 @@ export interface StatsShotZone {
 
 /** The shots of a scope, newest first and capped, with every shot counted by zone. */
 export interface StatsShotChart {
+  /** Shots in scope the league's file gives no location: counted in the total, not drawn or zoned. */
+  unlocated?: number
   shots: StatsShot[]
   /** Every attempt in scope, drawn or not. */
   total: number
@@ -934,6 +936,8 @@ export interface StatsGameFlow {
   points: StatsFlowPoint[]
   /** The last period played, for the chart's axis. */
   periods: number
+  /** The game's season, whose format the clock is read in (halves or quarters); null with no game. */
+  season?: number | null
   homeTeam: string
   awayTeam: string
   summary: FlowSummary | null

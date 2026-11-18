@@ -140,6 +140,7 @@ export async function readGameFlow(
     points: [],
     // The league's periods now: a game not found has no season of its own.
     periods: league.periods[league.periods.length - 1].periods,
+    season: null,
     homeTeam: '',
     awayTeam: '',
     summary: null,
@@ -153,8 +154,8 @@ export async function readGameFlow(
     [gameId]
   )
   if (!game) return empty(null)
-  const teams = { homeTeam: String(game.home), awayTeam: String(game.away) }
   const season = Number(game.season)
+  const teams = { homeTeam: String(game.home), awayTeam: String(game.away), season }
   if (!(season >= PLAY_DETAIL_FIRST_SEASON)) {
     return { ...empty(`Recorded from ${seasonLabel(league, PLAY_DETAIL_FIRST_SEASON)}.`), ...teams }
   }

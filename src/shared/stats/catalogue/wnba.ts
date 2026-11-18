@@ -92,5 +92,16 @@ export function wnbaCoverage(def: MetricDef, parts: readonly string[]): MetricCo
   if (def.family === 'shots' && parts.some(located)) {
     firstSeason = Math.max(firstSeason, LOCATED_FROM)
   }
+  if (parts.some((p) => DRAWN.includes(p.replace(/^opp_/, '')))) {
+    return { firstSeason: Math.max(firstSeason, DRAWN_FROM), missingSeasons: AFTER_DRAWN }
+  }
   return { firstSeason }
 }
+
+/**
+ * Fouls drawn, from ESPN's play by play, the only one naming the fouled player: its WNBA file does from
+ * 2006 to 2017 (85 % of fouls), 2 to 37 a season outside them (`wnba-data-sources.md`).
+ */
+const DRAWN = ['fd', 'fd_shooting']
+const DRAWN_FROM = 2006
+const AFTER_DRAWN = Array.from({ length: 2040 - 2017 }, (_, i) => 2018 + i)

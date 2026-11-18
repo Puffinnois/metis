@@ -195,6 +195,27 @@ export function nbaPlaysSql(have: Have, season: number, league?: League): string
   const side = (id: string): string => recipe.side(id, 'home_team_id', 'away_team_id')
   const c = (name: string, type = 'BIGINT'): string => column(have, t, 'p', name, type)
   const from = have.tables.has(t) ? t : '(SELECT 1)'
+  // The offense on the floor, for an assist named as the feed spelled the player then: the feed's own
+  // five on each row, else the lineup file's five of the shooter's side at the same action (the
+  // WNBA's feed carries no players on its rows).
+  const five = (side: string): string =>
+    `[${[1, 2, 3, 4, 5].map((i) => column(have, recipe.gameLineups, 'l', `${side}_player_${i}`)).join(', ')}]`
+  const fromLineups =
+    !have.columns.get(t)?.has('off_player_1') &&
+    have.columns.get(recipe.gameLineups)?.has('home_player_1') === true
+  const onOffense = fromLineups
+    ? `CASE ${c('location', 'VARCHAR')} WHEN 'h' THEN lu.home_five WHEN 'v' THEN lu.away_five END`
+    : `[${[1, 2, 3, 4, 5].map((i) => c(`off_player_${i}`)).join(', ')}]`
+  const lineups = fromLineups
+    ? `LEFT JOIN (
+         SELECT ${column(have, recipe.gameLineups, 'l', 'game_id', 'VARCHAR')} AS game_id,
+                ${column(have, recipe.gameLineups, 'l', 'action_number')} AS action_number,
+                any_value(${five('home')}) AS home_five, any_value(${five('away')}) AS away_five
+         FROM ${recipe.gameLineups} l
+         WHERE ${column(have, recipe.gameLineups, 'l', 'season')} = ${season}
+         GROUP BY 1, 2
+       ) lu ON lu.game_id = ${c('game_id', 'VARCHAR')} AND lu.action_number = ${c('action_number')}`
+    : ''
   return `WITH raw AS (
     SELECT g.game_id, g.season, g.game_type, g.game_date, g.home_team_id, g.away_team_id,
            ${c('order_index', 'INTEGER')} AS seq,
@@ -210,8 +231,9 @@ export function nbaPlaysSql(have: Have, season: number, league?: League): string
            TRY_CAST(nullif(${c('score_home', 'VARCHAR')}, '') AS INTEGER) AS sh_text,
            TRY_CAST(nullif(${c('score_away', 'VARCHAR')}, '') AS INTEGER) AS sa_text,
            ${c('possession_number', 'INTEGER')} AS possession,
-           [${[1, 2, 3, 4, 5].map((i) => c(`off_player_${i}`)).join(', ')}] AS on_offense
+           ${onOffense} AS on_offense
     FROM ${from} p JOIN game g ON g.nba_game_id = ${c('game_id', 'VARCHAR')}
+    ${lineups}
     WHERE g.season = ${season} AND ${sourceSeason(have, t, 'p', season)}
   ), typed AS (
     SELECT *,
