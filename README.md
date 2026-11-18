@@ -2,7 +2,7 @@
 
 Metis is a desktop app for basketball statistics that runs on your own computer, for the NBA and the WNBA. It downloads public data into a database per league on your machine, then lets you rank, filter, sort and compare players and teams across every season, from 1993-94 in the NBA and 1997 in the WNBA to today. A menu beside the name switches every screen between the leagues. The stats are read from those databases, and Metis shares nothing.
 
-**Status: version 1.0, for Windows.** [Download the latest release](https://github.com/Puffinnois/metis/releases/latest). The stages are in [Plan.md](Plan.md), the reasoning in [decisions.md](decisions.md).
+**Status: version 1.1, for Windows.** [Download the latest release](https://github.com/Puffinnois/metis/releases/latest). The stages are in [Plan.md](Plan.md), the reasoning in [decisions.md](decisions.md).
 
 ## What it has
 
