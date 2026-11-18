@@ -76,6 +76,10 @@ async function loadFixtures(db: StatsDb): Promise<void> {
       `CREATE TABLE ${table} AS SELECT * FROM read_parquet([${parts.map(sqlString).join(', ')}], union_by_name = true)`
     )
   }
+  // A NaN as published: Tamika Catchings's BPM in the 2016 playoffs (one of 19 that season).
+  await db.exec(
+    `INSERT INTO src_wnba_impact BY NAME SELECT * FROM read_parquet(${sqlString(join(PLAYS, 'impact_nan.parquet'))})`
+  )
   // An unparsed play: a copy of a 2026 timeout under a type no rule lists, with its own row key.
   await db.exec(`INSERT INTO src_wnba_pbp SELECT * REPLACE ('${UNKNOWN}' AS action_type,
       order_index + 100000 AS order_index, action_number + 100000 AS action_number)
@@ -391,6 +395,75 @@ describe('the published tables', () => {
       await one(`SELECT count(*)::INTEGER AS n, count(darko_filtered_skill)::INTEGER AS valued
                  FROM pub_player_darko`)
     ).toEqual({ n: 20, valued: 0 })
+  })
+})
+
+describe('a team row against its players', () => {
+  /** The team-game's turnovers in `team_game`, the team row's, its players' sum and the plays' own. */
+  const tov = async (game: string, team: number): Promise<Row> =>
+    one(
+      `SELECT t.tov AS built,
+              (SELECT tov FROM src_wnba_game_logs WHERE game_id = $1 AND team_id = $2 AND player_id IS NULL) AS row,
+              (SELECT sum(tov) FROM src_wnba_game_logs WHERE game_id = $1 AND team_id = $2 AND player_id IS NOT NULL)::INTEGER AS players,
+              (SELECT count(*) FROM src_wnba_pbp p JOIN game g ON g.nba_game_id = p.game_id::VARCHAR
+                WHERE p.game_id = $1 AND p.action_type = 'Turnover' AND coalesce(p.team_id, 0) = 0
+                  AND p.location = CASE WHEN abs(g.home_team_id) = $2 THEN 'h' ELSE 'v' END)::INTEGER AS own
+       FROM team_game t JOIN game g ON g.game_id = t.game_id
+       WHERE g.nba_game_id = $1 AND abs(t.team_id) = $2`,
+      [game, team]
+    )
+
+  it('reads the players and the plays’ own where the row falls short (1997: 0 against 19 and 25)', async () => {
+    for (const team of [1611661313, 1611661320]) {
+      const r = await tov(G1997, team)
+      expect(r.row).toBe(0)
+      expect(num(r.players)).toBeGreaterThan(0)
+      expect(r.built).toBe(num(r.players) + num(r.own))
+    }
+  })
+
+  it('reads the players alone where the play by play is not loaded (2003: 0 against 12 and 18)', async () => {
+    const r = await tov('1020300006', 1611661328)
+    expect(r).toMatchObject({ row: 0, players: 12, built: 12, own: 0 })
+  })
+
+  it('keeps the row where it is at least its players (2023: 22 with the team’s own, 19)', async () => {
+    const r = await tov(G2023, 1611661317)
+    expect(r).toMatchObject({ row: 22, players: 19, built: 22 })
+    // The opponent's turnovers are the other row's, by the same rule.
+    const o = await one(
+      `SELECT t.opp_tov FROM team_game t JOIN game g ON g.game_id = t.game_id
+       WHERE g.nba_game_id = '${G2023}' AND t.team_id = 1611661320`
+    )
+    expect(o.opp_tov).toBe(22)
+  })
+
+  it('keeps the row’s points, which equal the score', async () => {
+    const r = await all(
+      `SELECT t.pts, CASE WHEN t.home THEN g.home_score ELSE g.away_score END AS score
+       FROM team_game t JOIN game g ON g.game_id = t.game_id WHERE t.box_games = 1`
+    )
+    expect(r.length).toBeGreaterThan(40)
+    expect(r.every((x) => x.pts === x.score)).toBe(true)
+  })
+})
+
+describe('a NaN as published', () => {
+  it('reads as no value in the published table; the source keeps it', async () => {
+    const src = await one(
+      `SELECT isnan(bpm) AS nan FROM src_wnba_impact WHERE player_id = 100646 AND season = 2016`
+    )
+    expect(src.nan).toBe(true)
+    const built = await one(
+      `SELECT bpm, obpm, rapm IS NOT NULL AS rapm FROM pub_player_impact
+       WHERE player_id = 100646 AND season = 2016 AND game_type = 'playoffs'`
+    )
+    expect(built).toEqual({ bpm: null, obpm: null, rapm: true })
+    expect(
+      await one(
+        'SELECT count(*)::INTEGER AS n FROM pub_player_impact WHERE isnan(bpm) OR isnan(rapm)'
+      )
+    ).toEqual({ n: 0 })
   })
 })
 

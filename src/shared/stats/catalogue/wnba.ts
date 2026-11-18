@@ -92,8 +92,25 @@ export function wnbaCoverage(def: MetricDef, parts: readonly string[]): MetricCo
   if (parts.some((p) => DRAWN.includes(p.replace(/^opp_/, '')))) {
     return { firstSeason: Math.max(firstSeason, DRAWN_FROM), missingSeasons: AFTER_DRAWN }
   }
+  if (def.entity === 'team' && parts.some((p) => p === 'tov' || p === 'opp_tov')) {
+    return {
+      firstSeason,
+      seasonNotes: [{ seasons: NO_TEAM_TURNOVERS, note: NO_TEAM_TURNOVERS_NOTE }]
+    }
+  }
   return { firstSeason }
 }
+
+/**
+ * The seasons whose game-log team rows leave out the team's own turnovers (a shot-clock violation, an
+ * eight-second count), which they count from 2004: 1998, 1999, 2001 and 2002. Where a team row falls
+ * short of its players (most games of 1997, 2000 and 2003), the build adds the team's own from the play
+ * by play (`gameWnba.ts`), so those seasons count them (`wnba-agreement.md`, "Team rows against their
+ * players").
+ */
+const NO_TEAM_TURNOVERS = [1998, 1999, 2001, 2002]
+const NO_TEAM_TURNOVERS_NOTE =
+  "the league's team rows leave out the team's own turnovers, so a team's turnovers and turnover rate read lower."
 
 /**
  * Fouls drawn, from ESPN's play by play, the only one naming the fouled player: its WNBA file does from

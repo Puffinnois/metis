@@ -21,6 +21,12 @@
     "eval": "(async () => {\n    const r = await window.api.stats.query('wnba', { entity: 'player', metrics: ['sdv_rapm', 'sdv_bpm', 'sdv_war', 'sdv_darko_skill'], scope: { seasons: [2026] }, sort: { metric: 'sdv_war', dir: 'desc' }, limit: 2 })\n    const top = r.rows.map((x) => [x.name, x.values.sdv_war.value, x.values.sdv_rapm.value])\n    return check(\"impact as published (raw: Jackie Young WAR 13.2423, RAPM 5.5481; A'ja Wilson 12.7996); DARKO reads why\", top[0]?.[0] === 'Jackie Young' && Math.abs(top[0][1] - 13.242300437943065) < 1e-9 && Math.abs(top[0][2] - 5.548059234138458) < 1e-9 && /DARKO/.test(r.columns[3].reason ?? ''), { top, darko: r.columns[3].reason })\n  })()"
   },
   {
+    "eval": "(async () => {\n    const r = await window.api.stats.query('wnba', { entity: 'team', metrics: ['team_pace', 'team_nba_pace40', 'team_tov', 'team_tov_pct'], transform: 'perGame', scope: { seasons: [2003] }, limit: 20 })\n    const v = (x, m) => x.values[m]?.value\n    const off = r.rows.map((x) => [x.name, Math.round((v(x, 'team_pace') - v(x, 'team_nba_pace40')) * 10) / 10, Math.round(v(x, 'team_tov') * 10) / 10])\n    return check(\"2003: every team's built pace per 40 within 4 of the league's, turnovers 12 to 20 a game (the team rows read 0 there)\", r.rows.length === 14 && off.every(([, d, t]) => Math.abs(d) < 4 && t >= 12 && t <= 20), off.slice(0, 4))\n  })()"
+  },
+  {
+    "eval": "(async () => {\n    const r = await window.api.stats.query('wnba', { entity: 'team', metrics: ['team_tov', 'team_pts'], scope: { seasons: [2001] }, limit: 3 })\n    return check(\"2001 team turnovers state that the team rows leave out the team's own\", r.notes.some((n) => /2001: the league's team rows leave out the team's own turnovers/.test(n)), r.notes)\n  })()"
+  },
+  {
     "eval": "(async () => [await switchTo('WNBA'), await nav('Leaderboards')].join(' / '))()"
   },
   {

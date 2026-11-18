@@ -29,7 +29,8 @@ export interface PublishedRecipe {
 }
 
 export const NBA_PUBLISHED: PublishedRecipe = {
-  version: 12,
+  // 13: a NaN as published reads NULL (T1301.7).
+  version: 13,
   sources: {},
   team: (id) => id
 }
@@ -39,7 +40,8 @@ export const NBA_PUBLISHED: PublishedRecipe = {
  * own, and the 2026 Portland Fire, 1611661327 in every file and `-1611661327` in `team` (T1301.5).
  */
 export const WNBA_PUBLISHED: PublishedRecipe = {
-  version: 1,
+  // 2: a NaN as published reads NULL.
+  version: 2,
   sources: { src_nba_impact: 'src_wnba_impact' },
   team: (id, season) =>
     `(CASE WHEN EXISTS (SELECT 1 FROM team tk WHERE tk.team_id = -(${id}) AND tk.season = ${season})
@@ -140,15 +142,21 @@ function rowsOf(
   where: string[]
 } {
   const held = have.columns.get(r.source)
+  // A number as published, but a NaN, which is no value: it reads NULL, as a value over nothing does,
+  // so it never reaches a cell, a sort, a rank or a league's mean. The source keeps what it published.
+  const number = (c: string): string => {
+    const sql = column(have, r.source, 's', c, 'DOUBLE')
+    return held?.has(c) ? `(CASE WHEN isnan(${sql}) THEN NULL ELSE ${sql} END)` : sql
+  }
   // A bare name is the source's column; anything else is worked out from `{column}`s.
   const read = (sql: string | null | undefined): string =>
     !sql
       ? 'NULL::DOUBLE'
       : sql.includes('{')
         ? `(${sql.replace(SOURCE_TOKEN, (_, c: string, text?: string) =>
-            column(have, r.source, 's', c, text ? 'VARCHAR' : 'DOUBLE')
+            text ? column(have, r.source, 's', c, 'VARCHAR') : number(c)
           )})`
-        : column(have, r.source, 's', sql, 'DOUBLE')
+        : number(sql)
   const season = column(have, r.source, 's', 'season')
   const type = r.typeColumn
     ? column(have, r.source, 's', r.typeColumn, 'VARCHAR')

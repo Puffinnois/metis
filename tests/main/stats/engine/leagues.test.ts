@@ -200,6 +200,19 @@ describe('the engine in each league', () => {
     expect(compileQuery(q, ctx(nba)).gaps[0]).toBeNull()
   })
 
+  it('states a season note of a metric over those seasons only, the WNBA’s team turnovers', () => {
+    const tov = (league: League, seasons: number[]): string[] =>
+      compileQuery(
+        { entity: 'team', metrics: ['team_tov', 'team_pts'], scope: { seasons } },
+        ctx(league)
+      ).notes.filter((n) => /team's own turnovers/.test(n))
+    expect(tov(wnba, [2001])).toEqual([
+      "Turnovers: 2001: the league's team rows leave out the team's own turnovers, so a team's turnovers and turnover rate read lower."
+    ])
+    expect(tov(wnba, [2004, 2026])).toEqual([])
+    expect(tov(nba, [2001])).toEqual([])
+  })
+
   it('gives the WNBA’s catalogue its stated coverage, the NBA’s as it was', () => {
     const inNba = catalogueInfo(nba)
     const inWnba = catalogueInfo(wnba)

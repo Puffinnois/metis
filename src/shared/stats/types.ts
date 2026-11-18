@@ -65,6 +65,14 @@ export interface MetricCoverage {
   firstSeason: number
   missingSeasons?: number[]
   unavailable?: string
+  /** Caveats of some seasons, which a query over any of them states (`StatsResult.notes`). */
+  seasonNotes?: SeasonNote[]
+}
+
+/** A caveat that holds for some seasons of a metric: a source counting it another way then. */
+export interface SeasonNote {
+  seasons: number[]
+  note: string
 }
 
 export interface MetricDef {
@@ -109,6 +117,8 @@ export interface MetricDef {
   firstSeason: number
   /** Seasons after it that the source does not have. */
   missingSeasons?: number[]
+  /** Caveats of some seasons, in a league's coverage (`MetricCoverage.seasonNotes`). */
+  seasonNotes?: SeasonNote[]
   /** Why the source no longer has this metric at all; every query answers with it. */
   unavailable?: string
   /**
