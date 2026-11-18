@@ -616,7 +616,8 @@ export function playerSearchQuery(seasons: readonly number[]): StatsQuery {
   return {
     entity: 'player',
     metrics: [QUALIFIER],
-    scope: { seasons: [...seasons], gameTypes: ['regular', 'play-in', 'playoffs', 'cup-final'] },
+    // The league's own counted types: the WNBA has no play-in, and refuses a type it does not have.
+    scope: { seasons: [...seasons], gameTypes: [...currentLeague().countedTypes] },
     transform: 'raw',
     sort: { metric: QUALIFIER, dir: 'desc' },
     limit: ROW_LIMIT

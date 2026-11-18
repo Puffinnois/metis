@@ -2,10 +2,11 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { perGameQualifier } from '@/lib/stats/boards'
 import { presetsIn } from '@/lib/stats/chart'
 import { defaultColumns } from '@/lib/stats/compare'
-import { shownTab, shownTabs } from '@/lib/stats/dashboard'
+import { sectionNote, shownTab, shownTabs } from '@/lib/stats/dashboard'
 import { defaultBoard, familiesOf, familyColumns, pickable, tabOf } from '@/lib/stats/leaderboard'
 import { inLeague, setLeague } from '@/lib/stats/league'
 import { playSplitNotes } from '@/lib/stats/splits'
+import { playerSearchQuery } from '@/lib/stats/trends'
 import { PLAYER_DASH_TABS, TAB_SECTIONS } from '@/lib/stats/player'
 import { halvesNote, LEAGUES, type League } from '@shared/leagues'
 import { CATALOGUE, metricIn } from '@shared/stats/catalogue'
@@ -69,6 +70,44 @@ describe('copy that names a source, in the league on screen', () => {
       playSplitNotes({ season: 2006, seasonType: 'regular', range: { kind: 'season' } })
     ).toHaveLength(1)
     expect(halvesNote(LEAGUES.nba, [1997, 2026])).toBeNull()
+  })
+})
+
+describe('a section’s note, in the league’s own seasons', () => {
+  it('reads every note’s seasons from the league’s catalogue, and leaves out one it cannot state', () => {
+    const notes = (c: MetricInfo[], league: League): (string | undefined)[] =>
+      Object.values(TAB_SECTIONS)
+        .flat()
+        .filter((s) => s.note)
+        .map((s) => sectionNote(s.note!, byId(c), league))
+    // Every token resolves: none is left on screen.
+    for (const n of [...notes(NBA, LEAGUES.nba), ...notes(WNBA, LEAGUES.wnba)]) {
+      expect(n ?? '').not.toMatch(/[{}]/)
+    }
+    const fouls = 'Fouls drawn: ESPN’s play by play, {from:pbp_fd} to {to:pbp_fd}'
+    expect(sectionNote(fouls, byId(NBA), LEAGUES.nba)).toBe(
+      'Fouls drawn: ESPN’s play by play, 2006-07 to 2016-17'
+    )
+    expect(sectionNote(fouls, byId(WNBA), LEAGUES.wnba)).toBe(
+      'Fouls drawn: ESPN’s play by play, 2006 to 2017'
+    )
+    expect(sectionNote('Tagged from {from:deflections}', byId(NBA), LEAGUES.nba)).toBe(
+      'Tagged from 2016-17'
+    )
+    // Hustle is not published for the WNBA: its lines say so, and the note goes.
+    expect(sectionNote('Tagged from {from:deflections}', byId(WNBA), LEAGUES.wnba)).toBeUndefined()
+    expect(sectionNote('From the play by play, {from:onc_min} on', byId(WNBA), LEAGUES.wnba)).toBe(
+      'From the play by play, 1997 on'
+    )
+  })
+})
+
+describe('Trends’ search, in the league’s own season types', () => {
+  it('asks the WNBA for no play-in, which it refuses', () => {
+    setLeague('wnba')
+    expect(playerSearchQuery([2026]).scope.gameTypes).toEqual(['regular', 'playoffs', 'cup-final'])
+    setLeague('nba')
+    expect(playerSearchQuery([2026]).scope.gameTypes).toContain('play-in')
   })
 })
 

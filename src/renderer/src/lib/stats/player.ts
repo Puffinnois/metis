@@ -85,7 +85,7 @@ export const TAB_SECTIONS: Record<
     },
     {
       title: 'Fouls',
-      note: 'Fouls drawn: ESPN’s play by play, 2006-07 to 2016-17',
+      note: 'Fouls drawn: ESPN’s play by play, {from:pbp_fd} to {to:pbp_fd}',
       metrics: [
         'pbp_pf_shooting',
         'pbp_pf_personal',
@@ -233,7 +233,7 @@ export const TAB_SECTIONS: Record<
     { title: 'On the floor', metrics: ['plus_minus', 'win_pct', 'w', 'l'] },
     {
       title: 'Hustle',
-      note: 'Tagged from 2016-17',
+      note: 'Tagged from {from:deflections}',
       metrics: [
         'deflections',
         'contested_shots',
@@ -248,7 +248,7 @@ export const TAB_SECTIONS: Record<
   tracking: [
     {
       title: 'Movement',
-      note: 'Tracked from 2013-14',
+      note: 'Tracked from {from:dist_miles}',
       metrics: ['dist_miles', 'avg_speed', 'avg_speed_off', 'avg_speed_def']
     },
     {
@@ -309,7 +309,7 @@ export const TAB_SECTIONS: Record<
   play_types: [
     {
       title: 'How often, on offense',
-      note: 'Tagged from 2015-16',
+      note: 'Tagged from {from:pt_iso_freq}',
       metrics: PLAY_TYPE_SIDES.filter((s) => s.side === 'offense').map((s) =>
         playTypeMetricId(s.key, 'freq')
       )
@@ -340,7 +340,7 @@ export const TAB_SECTIONS: Record<
   on_off: [
     {
       title: 'On and off the floor',
-      note: 'From the play by play, 1996-97 on',
+      note: 'From the play by play, {from:onc_min} on',
       metrics: [
         'onc_min',
         'onc_poss',
@@ -385,7 +385,7 @@ export const TAB_SECTIONS: Record<
   matchups: [
     {
       title: 'Guarding',
-      note: 'Tracked from 2017-18',
+      note: 'Tracked from {from:matchup_min}',
       metrics: [
         'matchup_min',
         'matchup_poss',

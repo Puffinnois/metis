@@ -1,7 +1,8 @@
 import type { BoardMode, MetricInfo, StatsResult, StatsRow } from '@shared/stats/types'
 import { boardModes } from './leaderboard'
 import { cellTitle, fmtStat, ordinal } from './format'
-import { inLeague } from './league'
+import { currentLeague, inLeague } from './league'
+import type { League } from '@shared/leagues'
 
 /** What the player and team dashboards share: titled lists of metrics, each read against its pool. */
 
@@ -14,7 +15,10 @@ export const dashboardModes = (): { value: BoardMode; label: string }[] => {
 
 export interface SectionDef {
   title: string
-  /** A line under the title; `{league}` and `{shotsFrom}` read the league on screen (`inLeague`). */
+  /**
+   * A line under the title; `{league}` and `{shotsFrom}` read the league on screen (`inLeague`), and
+   * `{from:id}` and `{to:id}` a metric's seasons in it (`sectionNote`).
+   */
   note?: string
   metrics: string[]
 }
@@ -64,6 +68,43 @@ export function shownTabs<T extends string>(
 export const shownTab = <T extends string>(tab: T, tabs: readonly { id: T }[]): T =>
   tabs.some((t) => t.id === tab) ? tab : (tabs[0]?.id ?? tab)
 
+/** The last season a metric covers before the run of missing seasons that ends its list, if any. */
+function lastCovered(info: MetricInfo): number | null {
+  const missing = new Set(info.missingSeasons ?? [])
+  if (missing.size === 0) return null
+  let s = Math.max(...missing)
+  while (missing.has(s - 1)) s--
+  return s - 1
+}
+
+/**
+ * A section's note in the league on screen: `{from:id}` is the metric's first season there and
+ * `{to:id}` its last before the seasons it stops in ("Tagged from 2016-17", "ESPN's play by play, 2006
+ * to 2017"), so no note states one league's seasons in the other. A note naming a metric the league
+ * does not have (or one with no last season) is left out: each line says why itself.
+ */
+export function sectionNote(
+  note: string,
+  byId: ReadonlyMap<string, MetricInfo>,
+  league: League = currentLeague()
+): string | undefined {
+  let dropped = false
+  const text = inLeague(note, league).replace(
+    /\{(from|to):([a-z0-9_]+)\}/g,
+    (_, kind: string, id: string) => {
+      const info = byId.get(id)
+      const season =
+        !info || info.unavailable ? null : kind === 'from' ? info.firstSeason : lastCovered(info)
+      if (season === null) {
+        dropped = true
+        return ''
+      }
+      return league.seasonLabel(season)
+    }
+  )
+  return dropped ? undefined : text
+}
+
 /** Every metric of some sections, once, in order. */
 export const sectionMetrics = (sections: readonly SectionDef[]): string[] => [
   ...new Set(sections.flatMap((s) => s.metrics))
@@ -107,7 +148,7 @@ export function sectionViews(
   const row = result.rows.find((r) => r.id === id)
   return sections.map((s) => ({
     title: s.title,
-    ...(s.note ? { note: inLeague(s.note) } : {}),
+    ...(s.note && sectionNote(s.note, byId) ? { note: sectionNote(s.note, byId) } : {}),
     lines: s.metrics.map((m) => statLine(m, result, row, byId, mode, position))
   }))
 }
