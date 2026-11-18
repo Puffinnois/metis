@@ -12,7 +12,21 @@ import type { LeagueId } from '@shared/leagues'
 import type { LeagueDownload, LeagueDownloads } from '@shared/stats/types'
 
 let dir: string | null = null
+// Windows refuses to delete a database file that is still open, so each one opened is closed first.
+const opened: Db[] = []
+function open(path: string): Db {
+  const db = openDatabase(path)
+  opened.push(db)
+  return db
+}
 afterEach(() => {
+  for (const db of opened.splice(0)) {
+    try {
+      db.close()
+    } catch {
+      // The test closed it already.
+    }
+  }
   if (dir) rmSync(dir, { recursive: true, force: true })
   dir = null
 })
@@ -20,7 +34,7 @@ afterEach(() => {
 /** A profile: a data folder with `metis.db` migrated, and the stats files named. */
 function profile(files: string[] = []): { db: Db; dataDir: string } {
   dir = mkdtempSync(join(tmpdir(), 'metis-leagues-'))
-  const db = openDatabase(join(dir, 'metis.db'))
+  const db = open(join(dir, 'metis.db'))
   migrate(db)
   for (const f of files) writeFileSync(join(dir, f), 'x'.repeat(1000))
   return { db, dataDir: dir }
