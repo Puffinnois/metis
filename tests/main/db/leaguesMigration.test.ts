@@ -21,7 +21,21 @@ const board = (over: Partial<LeaderboardBoard> = {}): LeaderboardBoard => ({
 })
 
 let dir: string | null = null
+// Windows refuses to delete a database file that is still open, so each one opened is closed first.
+const opened: Db[] = []
+function open(path: string): Db {
+  const db = openDatabase(path)
+  opened.push(db)
+  return db
+}
 afterEach(() => {
+  for (const db of opened.splice(0)) {
+    try {
+      db.close()
+    } catch {
+      // The test closed it already.
+    }
+  }
   if (dir) rmSync(dir, { recursive: true, force: true })
   dir = null
 })
@@ -30,7 +44,7 @@ afterEach(() => {
 function fixtureOf10(): { db: Db; path: string } {
   dir = mkdtempSync(join(tmpdir(), 'metis-db-'))
   const path = join(dir, 'metis.db')
-  const db = openDatabase(path)
+  const db = open(path)
   expect(migrate(db, migrations.slice(0, 2))).toBe(2)
   const insert = db.prepare(
     'INSERT INTO stats_views (id, name, board_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?)'
@@ -45,7 +59,7 @@ describe('metis.db keyed by league', () => {
   it('gives every view saved before leagues to the NBA, ids and all', () => {
     const { db, path } = fixtureOf10()
     db.close()
-    const upgraded = openDatabase(path)
+    const upgraded = open(path)
     expect(migrate(upgraded)).toBe(3)
     expect(listStatsViews(upgraded, 'nba')).toEqual([
       {
