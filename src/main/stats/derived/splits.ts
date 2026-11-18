@@ -43,8 +43,6 @@ export const SPLIT_TEAM = 'split_team'
 /** The counts stored; rebounds are offensive plus defensive, added when read. */
 export const SPLIT_COUNTS = BOX_COUNTS.filter((c) => c !== 'reb')
 
-/** The source the splits are counted from; a split reads nothing without it. The NBA's name. */
-export const SPLIT_SOURCES: readonly string[] = [playsRecipe().pbp]
 const TEN = [1, 2, 3, 4, 5].flatMap((i) => [`off_player_${i}`, `def_player_${i}`])
 /** What players' time needs from the feed itself, beyond `play_nba`. */
 const FEED_COLUMNS = ['game_id', 'order_index', 'description', 'player_name']

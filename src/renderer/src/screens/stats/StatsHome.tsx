@@ -167,10 +167,7 @@ export function StatsHome({
           <div className="text-[13px] text-fg-2">
             {scopeLabel(scope)}
             {perGame && (
-              <span className="text-fg-3">
-                {' '}
-                · {perGameQualifier(scope.season, league)}
-              </span>
+              <span className="text-fg-3"> · {perGameQualifier(scope.season, league)}</span>
             )}
           </div>
         </div>

@@ -297,6 +297,20 @@ describe('a team’s coaches', () => {
     await db.exec('DROP TABLE src_nba_coaches')
     expect(await readCoaches(db, '5', 2026)).toEqual([])
   })
+
+  it('reads the WNBA’s own file in its stats file, the 2026 Fire by their `-id` key', async () => {
+    await db.exec('ALTER TABLE src_nba_coaches RENAME TO src_wnba_coaches')
+    await db.exec(`INSERT INTO src_wnba_coaches VALUES
+      (1611661327, 2026, 20, 'Alex', 'Sarama', 'Alex Sarama', 1, 'Head Coach', NULL, '5')`)
+    expect((await readCoaches(db, '5', 2026)).map((c) => c.name)).toEqual([
+      'Hal Head',
+      'Amy Able',
+      'Zed Assist'
+    ])
+    expect(await readCoaches(db, '-1611661327', 2026)).toEqual([
+      { id: '20', name: 'Alex Sarama', title: 'Head Coach', role: 'head' }
+    ])
+  })
 })
 
 describe('the officials of a game', () => {

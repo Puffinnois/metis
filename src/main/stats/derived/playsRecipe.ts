@@ -28,6 +28,8 @@ export interface PlaysRecipe {
   /** SportsDataverse's ten players on the floor at each play, by `action_number`. */
   gameLineups: string
   officials: string
+  /** The league's game matchups, or null where no release publishes them (the WNBA). */
+  gameMatchups: string | null
   /**
    * A source's team id as the game's side: the same id, or, where the league keeps one club apart from
    * another of the same id (the 2026 Portland Fire, D28), the side whose id it is in absolute value.
@@ -82,6 +84,7 @@ export const NBA_PLAYS: PlaysRecipe = {
   possessions: 'src_nba_possessions',
   gameLineups: 'src_nba_game_lineups',
   officials: 'src_nba_officials',
+  gameMatchups: 'src_nba_game_matchups',
   side: (id) => id,
   unlocated: null,
   espnThree: (x, y) => `sqrt(power(${x} - 25, 2) + power(${y}, 2)) >= 23.5
@@ -105,6 +108,7 @@ export const WNBA_PLAYS: PlaysRecipe = {
   possessions: 'src_wnba_possessions',
   gameLineups: 'src_wnba_game_lineups',
   officials: 'src_wnba_officials',
+  gameMatchups: null,
   side: (id, home, away) =>
     `(CASE ${id} WHEN abs(${home}) THEN ${home} WHEN abs(${away}) THEN ${away} END)`,
   unlocated: (x, y) => `(${x} = 0 AND ${y} = 0)`,

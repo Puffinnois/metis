@@ -1,8 +1,9 @@
 import type { MetricDef } from '@shared/stats/types'
+import { DEFAULT_LEAGUE, leagueOf, type League } from '@shared/leagues'
 import { DERIVED_NEEDS } from './derived/build'
 import { gameTable } from './derived/gameTables'
-import { publishedTable } from './derived/published'
-import { SPLIT_SOURCES } from './derived/splits'
+import { playsRecipe } from './derived/playsRecipe'
+import { publishedRecipe, publishedTable } from './derived/published'
 import { IDENTITY_NEEDS } from './identity'
 import { LEFT_OUT_RELEASES, SOURCES, SOURCES_BY_LEAGUE, type SourceFile } from './sources'
 
@@ -97,19 +98,26 @@ export function leftOutTables(
 /**
  * The reason a metric has no answer because its source is not in this build; null when it is. A
  * published metric reads its published table's source, a built one its game table's sources, and any
- * metric under a split the play by play the splits are counted from. A box-score metric reads the
- * box scores, which are always in.
+ * metric under a split the play by play the splits are counted from, each under the league's own
+ * names (its published and plays recipes). A box-score metric reads the box scores, which are always in.
  */
 export function leftOutGap(
   m: MetricDef,
   split: boolean,
-  list: readonly string[] = LEFT_OUT_RELEASES
+  list: readonly string[] = LEFT_OUT_RELEASES,
+  league: League = leagueOf(DEFAULT_LEAGUE)
 ): string | null {
   if (list.length === 0) return null
+  const plays = playsRecipe(league)
+  const ownPublished = publishedRecipe(league).sources
+  const published = m.published ? publishedTable(m.published)?.source : undefined
   const tables = [
-    ...(m.published ? [publishedTable(m.published)?.source] : []),
-    ...(m.built ? (gameTable(m.built)?.sources ?? []) : []),
-    ...(split ? SPLIT_SOURCES : [])
+    ...(published ? [ownPublished[published] ?? published] : []),
+    ...(m.built ? (gameTable(m.built)?.sources ?? []).map((f) => plays[f]) : []),
+    ...(split ? [plays.pbp] : [])
   ]
-  return tables.some((t) => t !== undefined && isTableLeftOut(t, list)) ? LEFT_OUT_REASON : null
+  const files = SOURCES_BY_LEAGUE[league.id]
+  return tables.some((t) => typeof t === 'string' && isTableLeftOut(t, list, files))
+    ? LEFT_OUT_REASON
+    : null
 }

@@ -421,7 +421,7 @@ function gapOf(
 ): string | null {
   if (m.unavailable) return m.unavailable
   // A source this build leaves out answers nothing for any season or filter (`leftOut.ts`).
-  const leftOut = leftOutGap(m, q.scope.split !== undefined)
+  const leftOut = leftOutGap(m, q.scope.split !== undefined, undefined, league)
   if (leftOut !== null) return leftOut
   const coverage = coverageReason(
     m,
