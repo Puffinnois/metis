@@ -106,7 +106,7 @@ async function seasonGames(ctx: ModelContext): Promise<GameRow[]> {
   const neutral = neutralSitesSql(
     ctx.have,
     { from: ctx.season, to: ctx.season },
-    ctx.league.models.neutralCities
+    ctx.league.models.neutral
   )
   return ctx.db.all<GameRow>(
     `SELECT g.game_id, strftime(g.game_date, '%Y-%m-%d') AS game_date, g.game_type,

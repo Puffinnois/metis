@@ -67,6 +67,10 @@ export interface MetricCoverage {
   unavailable?: string
   /** Caveats of some seasons, which a query over any of them states (`StatsResult.notes`). */
   seasonNotes?: SeasonNote[]
+  /** Why `missingSeasons` have no value, where it is not that the source lacks them. */
+  missingReason?: string
+  /** The league's own words for the metric, where its format differs (the WNBA's semifinals). */
+  words?: Partial<Pick<MetricDef, 'label' | 'short' | 'description'>>
 }
 
 /** A caveat that holds for some seasons of a metric: a source counting it another way then. */
@@ -134,6 +138,14 @@ export interface MetricDef {
    * in the WNBA. The NBA's formula and SQL are the catalogue's as written.
    */
   gameLength?: boolean
+  /**
+   * The formula holds the Pythagorean exponent, written as the catalogue's (the NBA's 14,
+   * `CATALOGUE_PYTHAGOREAN_EXPONENT`); a league of another exponent reads its own
+   * (`League.models.pythagoreanExponent`, `metricIn`).
+   */
+  pythagorean?: boolean
+  /** Why `missingSeasons` have no value, where it is not that the source lacks them. */
+  missingReason?: string
   tier: MetricTier
   /**
    * The published table a metric with no game behind it reads, from

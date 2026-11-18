@@ -1,3 +1,4 @@
+import type { LeagueModels } from '@shared/leagues'
 import { column, type Have } from '../derived/sql'
 
 /**
@@ -15,6 +16,13 @@ import { column, type Have } from '../derived/sql'
  */
 export const BUBBLE_CITY = 'Lake Buena Vista'
 
+/** The NBA's rules, which a caller naming no league's gets (`League.models.neutral`). */
+const NBA_RULES: LeagueModels['neutral'] = {
+  cities: [BUBBLE_CITY],
+  types: ['cup-final'],
+  cupSemifinals: true
+}
+
 const ESPN = 'src_espn_schedule'
 
 /**
@@ -26,18 +34,24 @@ const ESPN = 'src_espn_schedule'
 export function neutralSitesSql(
   have: Have,
   seasons?: { from: number; to: number },
-  cities: readonly string[] = [BUBBLE_CITY]
+  rules: LeagueModels['neutral'] = NBA_RULES
 ): string {
+  const quote = (s: string): string => `'${s.replaceAll("'", "''")}'`
+  const byType =
+    rules.types.length > 0 ? `game_type IN (${rules.types.map(quote).join(', ')})` : 'false'
   const atOneSite =
-    cities.length > 0
-      ? `OR coalesce(city IN (${cities.map((c) => `'${c.replaceAll("'", "''")}'`).join(', ')}), false)`
+    rules.cities.length > 0
+      ? `OR coalesce(city IN (${rules.cities.map(quote).join(', ')}), false)`
       : ''
+  const cupNotes = rules.cupSemifinals
+    ? `OR coalesce(notes ILIKE '%semifinal%' AND (notes ILIKE '%cup%' OR notes ILIKE '%tournament%'), false)`
+    : ''
   const within = (expr: string, pad: number): string =>
     seasons
       ? `${expr} BETWEEN ${Math.trunc(seasons.from) - pad} AND ${Math.trunc(seasons.to) + pad}`
       : 'true'
   if (!have.tables.has(ESPN)) {
-    return `SELECT game_id, game_type = 'cup-final' AS neutral FROM game WHERE ${within('season', 0)}`
+    return `SELECT game_id, ${byType} AS neutral FROM game WHERE ${within('season', 0)}`
   }
   return `WITH espn AS (
       SELECT DISTINCT ON (game_id) game_id, home_id, away_id, game_date::DATE AS game_date,
@@ -62,8 +76,8 @@ export function neutralSitesSql(
         ORDER BY abs(date_diff('day', f.game_date, g.game_date)) NULLS LAST) = 1
     )
     SELECT game_id,
-           coalesce(neutral_site, false) OR game_type = 'cup-final'
-             OR coalesce(notes ILIKE '%semifinal%' AND (notes ILIKE '%cup%' OR notes ILIKE '%tournament%'), false)
+           coalesce(neutral_site, false) OR ${byType}
+             ${cupNotes}
              ${atOneSite} AS neutral
     FROM marked`
 }

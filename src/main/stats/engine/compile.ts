@@ -985,7 +985,9 @@ function notesOf(q: StatsQuery, c: Checked): string[] {
     const gaps = (m.missingSeasons ?? []).filter((x) => s.seasons.includes(x))
     if (gaps.length > 0) {
       notes.add(
-        `${m.label}: not in the source for ${gaps.map((x) => seasonLabel(c.league, x)).join(', ')}.`
+        m.missingReason
+          ? `${m.label}: ${m.missingReason}`
+          : `${m.label}: not in the source for ${gaps.map((x) => seasonLabel(c.league, x)).join(', ')}.`
       )
     }
     for (const n of m.seasonNotes ?? []) {

@@ -32,7 +32,6 @@ import { column, inspect, per, type Have } from './derived/sql'
 import { readOfficials } from './availabilityReads'
 import { readScopedMatchups } from './matchupReads'
 import { ELO_GAME_TABLE, ELO_SCHEDULE_TABLE } from './models/teamElo'
-import { ELO_FIRST_SEASON } from '@shared/stats/catalogue/ratings'
 import { LEAGUES, type League } from '@shared/leagues'
 
 /**
@@ -548,7 +547,12 @@ const sum = (xs: number[]): number => xs.reduce((a, b) => a + b, 0)
  * while still to come. None before the first season the ratings are fit to read: every team starts at
  * 1500 in 1993-94.
  */
-async function readGameElo(db: StatsDb, have: Have, id: string): Promise<StatsGameElo | null> {
+async function readGameElo(
+  db: StatsDb,
+  have: Have,
+  id: string,
+  league: League
+): Promise<StatsGameElo | null> {
   const before = 'neutral, home_court, win_prob, exp_margin, elo_pre, opp_elo_pre'
   const tables = [
     have.tables.has(ELO_GAME_TABLE) &&
@@ -567,7 +571,7 @@ async function readGameElo(db: StatsDb, have: Have, id: string): Promise<StatsGa
     opp_elo_pre: number
     elo: number | null
     opp_elo: number | null
-  }>(`${tables.join(' UNION ALL ')} LIMIT 1`, [id, ELO_FIRST_SEASON])
+  }>(`${tables.join(' UNION ALL ')} LIMIT 1`, [id, league.models.elo.firstSeason])
   if (!r) return null
   return {
     neutral: r.neutral,
@@ -588,7 +592,7 @@ export async function readGame(
   const e = 'src_espn_schedule'
   if (!have.tables.has('game')) return null
   const officials = await readOfficials(db, id, league)
-  const elo = await readGameElo(db, have, id)
+  const elo = await readGameElo(db, have, id, league)
   // The crew comes from the league's file, so a game ESPN's schedule lacks can still have one.
   const bare: StatsGameDetail = {
     id,

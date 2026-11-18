@@ -501,7 +501,10 @@ export function trendNotes(
     if (reason) notes.push(reason)
   }
   const missing = span.filter((s) => s >= info.firstSeason && info.missingSeasons?.includes(s))
-  if (missing.length) notes.push(`Not in the source for ${missing.map(seasonLabel).join(', ')}.`)
+  if (missing.length)
+    notes.push(
+      info.missingReason ?? `Not in the source for ${missing.map(seasonLabel).join(', ')}.`
+    )
   const last = span[span.length - 1]
   const total = info.aggregation === 'sum' && !isRescaled(info, mode)
   if (total && inProgress(last, status, now)) notes.push(`${seasonLabel(last)} is in progress.`)

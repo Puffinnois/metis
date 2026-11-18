@@ -188,6 +188,12 @@ export interface LeagueModels {
   forecastFirstSeason: number
   /** The adjusted ratings' prior on each team effect, in possessions. */
   ridgePossessions: number
+  /**
+   * Seasons whose adjusted ratings are not shown: the season's halves disagree on the teams' order
+   * (split-half reliability under 0.35, the "low" stability label's bound), so a rating would be
+   * noise (`scripts/fit-league-models.mjs`, section 3).
+   */
+  adjustedThin: readonly number[]
   /** The exponent of the Pythagorean record on points for and against. */
   pythagoreanExponent: number
   /** The regular season's length by season, oldest first (`seasonGamesIn`). */
@@ -198,10 +204,13 @@ export interface LeagueModels {
    */
   vorpGames: number | 'season'
   /**
-   * Cities whose games all went without home court, a season played at one site that no source marks
-   * neutral: the NBA's 2020 restart, the WNBA's 2020 season.
+   * Games with no home court beyond those ESPN's schedule marks (`neutralSitesSql`): `cities` whose
+   * games all went without it, a season played at one site that no source marks (the NBA's 2020
+   * restart, the WNBA's 2020 season); `types` played at a neutral site by rule (the NBA Cup final in
+   * Las Vegas; the WNBA's Commissioner's Cup final is hosted from 2022); `cupSemifinals`, the NBA Cup's
+   * semifinals read from ESPN's note.
    */
-  neutralCities: readonly string[]
+  neutral: { cities: readonly string[]; types: readonly GameType[]; cupSemifinals: boolean }
   /** The playoff format by season, oldest first (`playoffEraIn`). */
   playoffs: readonly PlayoffEra[]
   /** Why Metis's Box Plus/Minus (and VORP after it) is not shown for the league; null when it is. */
@@ -540,6 +549,7 @@ const NBA: League = {
     marginSd: 12.4,
     forecastFirstSeason: 1996,
     ridgePossessions: 250,
+    adjustedThin: [],
     // Basketball-Reference's exponent for the NBA.
     pythagoreanExponent: 14,
     // Lockouts in 1998-99 and 2011-12, and 2020-21's 72; 2019-20 was scheduled for 82.
@@ -554,8 +564,9 @@ const NBA: League = {
     ],
     // Basketball-Reference's VORP is out of 82 games in every season, shortened ones included.
     vorpGames: 82,
-    // The 2020 restart near Orlando, which ESPN does not mark neutral.
-    neutralCities: ['Lake Buena Vista'],
+    // The 2020 restart near Orlando, which ESPN does not mark neutral; the Cup final in Las Vegas and
+    // its semifinals, 2023-24's unmarked.
+    neutral: { cities: ['Lake Buena Vista'], types: ['cup-final'], cupSemifinals: true },
     playoffs: [NBA_1994, NBA_2003, NBA_2005, NBA_2007, NBA_2014, NBA_2016, NBA_2020, NBA_2021],
     bpmUnavailable: null
   }
@@ -644,7 +655,11 @@ const WNBA: League = {
   notBuilt: 'No WNBA stats yet: the first load has not got that far.',
   metricsByDefault: false,
   models: {
-    // Refitted on the WNBA's own seasons (wnba-agreement.md, "Elo").
+    // Fitted on 1999 to 2011 and scored on 2012 to 2026 (wnba-agreement.md, "Elo"): the grid's best
+    // (K 24, home court 90, a carry of 0.5) scores 0.0005 worse on the later seasons than the NBA's
+    // values, within 1.3 standard errors, so the NBA's stand. Its 28 Elo points a point of margin fit
+    // the WNBA's margins (27.6). Every team at 1500 in 1997: the metrics read from 2001, the first season
+    // every team's rating is within 10 points whatever its start.
     elo: {
       start: 1500,
       mean: 1505,
@@ -653,13 +668,19 @@ const WNBA: League = {
       homeCourt: 80,
       carry: 0.65,
       perPoint: 28,
-      firstSeason: 1999
+      firstSeason: 2001
     },
     eloGameTypes: ['regular', 'playoffs', 'cup-final'],
-    marginSd: 12.4,
-    forecastFirstSeason: 1999,
-    ridgePossessions: 250,
-    pythagoreanExponent: 14,
+    // The regular season's margins around Elo's expected margin, 2001 to 2026.
+    marginSd: 12.1,
+    forecastFirstSeason: 2001,
+    // A team-season holds about 2,700 possessions, a third of the NBA's: 100 pulls a season's final
+    // ratings by the same share as the NBA's 250 (0.16 points per 100 at the mean).
+    ridgePossessions: 100,
+    // 2004 (0.28) and 2009 (−0.14): seasons of near parity, the spread of net ratings 3.4 and 2.3.
+    adjustedThin: [2004, 2009],
+    // Fitted on 1997 to 2011, scored on 2012 to 2026: 0.047 of winning percentage against 14's 0.058.
+    pythagoreanExponent: 10.5,
     // Basketball-Reference's season pages (wnba-data-sources.md, "Season lengths and team counts").
     seasonGames: [
       { from: 1997, games: 28 },
@@ -673,8 +694,9 @@ const WNBA: League = {
       { from: 2025, games: 44 }
     ],
     vorpGames: 'season',
-    // The 2020 season at IMG Academy, which ESPN does not mark neutral.
-    neutralCities: ['Bradenton'],
+    // The 2020 season at IMG Academy, which ESPN does not mark neutral. The Commissioner's Cup final
+    // was at a neutral site in 2021 only, which ESPN marks, and hosted by a finalist since.
+    neutral: { cities: ['Bradenton'], types: [], cupSemifinals: false },
     playoffs: [
       WNBA_1997,
       WNBA_1998,

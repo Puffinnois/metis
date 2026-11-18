@@ -1,3 +1,5 @@
+import { LEAGUES } from '../../leagues'
+import { CATALOGUE_PYTHAGOREAN_EXPONENT } from '../coverage'
 import type { MetricDef } from '../types'
 import { FIRST_SEASON, metric, type Opts } from './define'
 
@@ -41,8 +43,11 @@ const adjusted: Partial<Opts> & Pick<Opts, 'sample'> = {
 
 const NOT_PUBLISHED = "A model computed by Metis, not the NBA's or any publisher's figure."
 
-/** Basketball-Reference's exponent for the NBA, on points for and against. */
-export const PYTHAGOREAN_EXPONENT = 14
+/**
+ * Basketball-Reference's exponent for the NBA, on points for and against. A league of another exponent
+ * reads its own (`pythagorean`, `League.models.pythagoreanExponent`).
+ */
+export const PYTHAGOREAN_EXPONENT = CATALOGUE_PYTHAGOREAN_EXPONENT
 
 const pyth = `pow({points_for}, ${PYTHAGOREAN_EXPONENT}) / nullif(pow({points_for}, ${PYTHAGOREAN_EXPONENT}) + pow({points_against}, ${PYTHAGOREAN_EXPONENT}), 0)`
 const decided = '({wins} + {losses})'
@@ -65,14 +70,20 @@ export const RATINGS: MetricDef[] = [
     'Pythagorean winning percentage',
     'PYTH%',
     'The winning percentage the points scored and allowed point to: points for to the 14th, over points for and against each to the 14th (the exponent Basketball-Reference uses).',
-    { ...fromScores, kind: 'estimated', value: pyth, unit: 'pct', decimals: 1 }
+    { ...fromScores, kind: 'estimated', value: pyth, unit: 'pct', decimals: 1, pythagorean: true }
   ),
   metric(
     'team_pyth_w',
     'Pythagorean wins',
     'PYTH W',
     'The games won the Pythagorean winning percentage gives over the games played.',
-    { ...fromScores, kind: 'estimated', value: `${decided} * ${pyth}`, decimals: 1 }
+    {
+      ...fromScores,
+      kind: 'estimated',
+      value: `${decided} * ${pyth}`,
+      decimals: 1,
+      pythagorean: true
+    }
   ),
   metric(
     'team_pyth_l',
@@ -84,7 +95,8 @@ export const RATINGS: MetricDef[] = [
       kind: 'estimated',
       value: `${decided} * (1 - ${pyth})`,
       decimals: 1,
-      direction: 'lower'
+      direction: 'lower',
+      pythagorean: true
     }
   ),
   metric(
@@ -96,7 +108,8 @@ export const RATINGS: MetricDef[] = [
       ...fromScores,
       value: `{wins} - ${decided} * ${pyth}`,
       decimals: 1,
-      direction: 'neutral'
+      direction: 'neutral',
+      pythagorean: true
     }
   ),
   metric(
@@ -164,7 +177,7 @@ export const RATINGS: MetricDef[] = [
  * starts at 1500 in 1993-94, so the first two seasons are a burn-in and the metrics read from 1995-96
  * (`docs/reference/nba-data-sources.md`, "Elo").
  */
-export const ELO_FIRST_SEASON = 1996
+export const ELO_FIRST_SEASON = LEAGUES.nba.models.elo.firstSeason
 
 const ELO_SOURCES = ["Computed by Metis from the final scores, by FiveThirtyEight's NBA Elo"]
 

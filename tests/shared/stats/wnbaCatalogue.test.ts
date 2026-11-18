@@ -109,7 +109,10 @@ describe('a formula that holds the game length', () => {
   })
 
   it('leaves every other metric’s words and formula as written', () => {
-    for (const def of CATALOGUE.filter((d) => !d.gameLength)) {
+    // The Pythagorean exponent and the WNBA's own words for its playoff format are the other changes.
+    const other = (d: (typeof CATALOGUE)[number]): boolean =>
+      !d.gameLength && !d.pythagorean && !d.leagues?.wnba?.words
+    for (const def of CATALOGUE.filter(other)) {
       const read = metricIn(def, wnba)
       expect([read.value, read.label, read.short]).toEqual([def.value, def.label, def.short])
     }

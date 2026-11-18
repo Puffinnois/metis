@@ -45,7 +45,7 @@ async function games(ctx: ModelContext): Promise<GameRow[]> {
   const neutral = neutralSitesSql(
     ctx.have,
     { from: ctx.season, to: ctx.season },
-    ctx.league.models.neutralCities
+    ctx.league.models.neutral
   )
   // The season's rows of team_game first: joined whole, the table costs ten times as much.
   return ctx.db.all<GameRow>(
