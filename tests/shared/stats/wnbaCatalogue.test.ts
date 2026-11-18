@@ -54,13 +54,20 @@ describe('the catalogue in the WNBA', () => {
     expect(tablesOf(shots)).toBe('plays')
     expect(tablesOf(plays)).toBe('plays')
     expect(tablesOf(m('pts'))).toBe('derived')
-    expect(metricIn(published, wnba).unavailable).toBe(
+    // The WNBA's entry as it was before T1301.7: its identity and game tables only.
+    const before: League = { ...wnba, builds: ['identity', 'derived'] }
+    expect(metricIn(published, before).unavailable).toBe(
       'Not built for the WNBA yet: its published season stats come in a later version.'
     )
+    expect(metricIn(model, before).unavailable).toBe(notBuiltYet(before, 'models'))
+    expect(metricIn(shots, before).unavailable).toBe(notBuiltYet(before, 'plays'))
+    // T1301.7 adds the published tables and the plays: their reasons lift, the models' stays.
+    expect(metricIn(published, wnba).unavailable).toBeUndefined()
+    expect(metricIn(shots, wnba).unavailable).toBeUndefined()
+    expect(metricIn(plays, wnba).unavailable).toBeUndefined()
     expect(metricIn(model, wnba).unavailable).toBe(notBuiltYet(wnba, 'models'))
-    expect(metricIn(shots, wnba).unavailable).toBe(notBuiltYet(wnba, 'plays'))
     // A part that adds its step lifts the reason, with nothing else changed.
-    const later: League = { ...wnba, builds: [...wnba.builds, 'published', 'plays', 'models'] }
+    const later: League = { ...wnba, builds: [...wnba.builds, 'models'] }
     expect(metricIn(published, later).unavailable).toBeUndefined()
     expect(metricIn(model, later).unavailable).toBeUndefined()
     expect(metricIn(shots, later).unavailable).toBeUndefined()

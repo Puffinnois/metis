@@ -38,6 +38,13 @@ export async function runQuery(
   }
   const groupBy: GroupBy[] = query.groupBy ?? []
   const seasons = [...new Set(query.scope.seasons)].sort((a, b) => a - b)
+  // A published column with a blank row says why: the source gives no value for it (a rate over
+  // nothing, or a NaN as published, which the published tables read as none).
+  const blanks = compiled.metrics.flatMap((m, i) =>
+    m.published && compiled.gaps[i] === null && rows.some((r) => num(r[`v${i}`]) === null)
+      ? [`${m.label}: not published for every row; blank where the source gives no value.`]
+      : []
+  )
   return {
     grain: compiled.grain,
     columns: compiled.metrics.map((m, i) => ({
@@ -78,7 +85,7 @@ export async function runQuery(
       )
     })),
     total: num(rows[0]?.total) ?? 0,
-    notes: compiled.notes,
+    notes: [...compiled.notes, ...blanks],
     ms: Date.now() - started
   }
 }

@@ -1,4 +1,4 @@
-import { seasonLabel } from '@/lib/stats/league'
+import { currentLeague, seasonLabel } from '@/lib/stats/league'
 import type {
   StatsOnCourtLine,
   StatsOnCourtScope,
@@ -16,7 +16,7 @@ import { queryScope, type StatsScope } from './scope'
  * players on the floor its lineup of each play, so each is marked derived.
  */
 
-/** The NBA's play by play, and the lineups with it, start in 1996-97. */
+/** The league's play by play, and the lineups with it, start in 1996-97 (the NBA) and 1997 (the WNBA). */
 export const ON_COURT_FIRST_SEASON = 1997
 
 export const DERIVED_NOTE =
@@ -25,7 +25,7 @@ export const DERIVED_NOTE =
 /** Why a season cannot be answered; null when it can. */
 export function onCourtGap(scope: StatsScope): string | null {
   return scope.season < ON_COURT_FIRST_SEASON
-    ? `Counted from ${seasonLabel(ON_COURT_FIRST_SEASON)}, when the NBA's play by play starts.`
+    ? `Counted from ${seasonLabel(ON_COURT_FIRST_SEASON)}, when the ${currentLeague().name}'s play by play starts.`
     : null
 }
 
@@ -60,7 +60,9 @@ export interface LineNumbers {
 const div = (a: number, b: number): number | null => (b > 0 ? a / b : null)
 const get = (l: StatsOnCourtLine, k: string): number => Number(l[k] ?? 0)
 
+/** A line's numbers; pace is per game of the league on screen, 48 or 40 minutes. */
 export function lineNumbers(l: StatsOnCourtLine): LineNumbers {
+  const game = currentLeague().gameMinutes * 60
   const ortg = div(100 * get(l, 'pts'), get(l, 'poss'))
   const drtg = div(100 * get(l, 'opp_pts'), get(l, 'opp_poss'))
   return {
@@ -73,7 +75,7 @@ export function lineNumbers(l: StatsOnCourtLine): LineNumbers {
     ortg,
     drtg,
     net: ortg !== null && drtg !== null ? ortg - drtg : null,
-    pace: div(2880 * ((get(l, 'poss') + get(l, 'opp_poss')) / 2), l.secs),
+    pace: div(game * ((get(l, 'poss') + get(l, 'opp_poss')) / 2), l.secs),
     efg: div(get(l, 'fgm') + 0.5 * get(l, 'fg3m'), get(l, 'fga')),
     oppEfg: div(get(l, 'opp_fgm') + 0.5 * get(l, 'opp_fg3m'), get(l, 'opp_fga')),
     tovPct: div(get(l, 'tov'), get(l, 'poss')),
@@ -124,7 +126,10 @@ export const LINE_COLUMNS: LineColumn[] = [
   },
   {
     label: 'PACE',
-    title: 'Possessions per 48 minutes',
+    // A game of the league on screen: per 48 minutes in the NBA, per 40 in the WNBA.
+    get title() {
+      return `Possessions per ${currentLeague().gameMinutes} minutes`
+    },
     of: (n) => n.pace,
     unit: 'number',
     decimals: 1

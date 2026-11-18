@@ -134,6 +134,7 @@ export function metricIn(def: MetricDef, league: League): MetricDef {
   } else {
     out.firstSeason = coverage.firstSeason
     if (coverage.missingSeasons) out.missingSeasons = coverage.missingSeasons
+    if (coverage.seasonNotes) out.seasonNotes = coverage.seasonNotes
     if (coverage.unavailable) out.unavailable = coverage.unavailable
     else if (!builds(league, tables)) out.unavailable = notBuiltYet(league, tables)
   }

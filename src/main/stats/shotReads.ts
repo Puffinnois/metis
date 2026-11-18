@@ -8,7 +8,14 @@ import {
 } from '@shared/stats/types'
 import type { StatsDb } from './db'
 import { SHOT_VIEWS } from './derived/events'
-import { EXPECTED_SCALE, SHOT_PLAYER_GAME, SHOT_TEAM_GAME, zoneSql } from './derived/shots'
+import { playsRecipe } from './derived/playsRecipe'
+import {
+  EXPECTED_SCALE,
+  lineOver,
+  SHOT_PLAYER_GAME,
+  SHOT_TEAM_GAME,
+  zoneSql
+} from './derived/shots'
 import { inspect } from './derived/sql'
 
 /**
@@ -66,6 +73,8 @@ export async function readShotChart(
     return empty(`Recorded from ${seasonLabel(league, SHOTS_FIRST_SEASON)}.`)
   }
   const have = await inspect(db)
+  // A league whose file leaves some shots with no location reads them apart (`PlaysRecipe.unlocated`).
+  const located = playsRecipe(league).unlocated !== null
   const box = r.entity === 'player' ? 'player_game' : 'team_game'
   const built = r.entity === 'player' ? SHOT_PLAYER_GAME : SHOT_TEAM_GAME
   if (![box, built, SHOT_VIEWS.nba].every((t) => have.tables.has(t))) return empty(null)
@@ -121,13 +130,22 @@ export async function readShotChart(
     zone: string
   }>(
     `WITH g AS (${games})
-       SELECT v.x, v.y, coalesce(v.made, false) AS made, v.value, ${zoneSql('v.x', 'v.y', 'v.value')} AS zone
+       SELECT v.x, v.y, coalesce(v.made, false) AS made, v.value, ${zoneSql('v.x', 'v.y', 'v.value', lineOver(league, 'v.season'))} AS zone
        FROM ${SHOT_VIEWS.nba} v SEMI JOIN g ON g.game_id = v.game_id
-       WHERE ${who} AND v.season IN (${r.seasons.join(', ')})
+       WHERE ${who} AND v.season IN (${r.seasons.join(', ')})${located ? ' AND v.x IS NOT NULL' : ''}
        ORDER BY v.game_date DESC, v.game_id DESC, v.period DESC, v.clock ASC
        LIMIT ${SHOT_CHART_LIMIT}`,
     params
   )
+  // Shots the league's file gives no location (its recipe's `unlocated`): counted, never drawn.
+  const unlocated = located
+    ? await db.get<{ n: number }>(
+        `WITH g AS (${games})
+           SELECT count(*)::INTEGER AS n FROM ${SHOT_VIEWS.nba} v SEMI JOIN g ON g.game_id = v.game_id
+           WHERE ${who} AND v.season IN (${r.seasons.join(', ')}) AND v.x IS NULL`,
+        params
+      )
+    : null
   const sums = await db.get<Record<string, number | null>>(
     `WITH g AS (${games})
        SELECT ${zoneKeys
@@ -163,6 +181,7 @@ export async function readShotChart(
     made: Number(sums?.made ?? 0),
     capped: total > SHOT_CHART_LIMIT,
     zones,
+    ...(unlocated ? { unlocated: Number(unlocated.n) } : {}),
     reason: null
   }
 }

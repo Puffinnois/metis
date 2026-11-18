@@ -192,10 +192,25 @@ describe('the engine in each league', () => {
 
   it('reads a split as not built yet in a league whose plays are not built', () => {
     const q = pts({ scope: { seasons: [2026], split: 'q4' } })
-    expect(compileQuery(q, ctx(wnba)).gaps[0]).toBe(
+    // The WNBA's entry as it was before T1301.7 built its plays.
+    const before: League = { ...wnba, builds: ['identity', 'derived'] }
+    expect(compileQuery(q, ctx(before)).gaps[0]).toBe(
       'Not built for the WNBA yet: its stats from the play by play and the shots come in a later version.'
     )
     expect(compileQuery(q, ctx(nba)).gaps[0]).toBeNull()
+  })
+
+  it('states a season note of a metric over those seasons only, the WNBA’s team turnovers', () => {
+    const tov = (league: League, seasons: number[]): string[] =>
+      compileQuery(
+        { entity: 'team', metrics: ['team_tov', 'team_pts'], scope: { seasons } },
+        ctx(league)
+      ).notes.filter((n) => /team's own turnovers/.test(n))
+    expect(tov(wnba, [2001])).toEqual([
+      "Turnovers: 2001: the league's team rows leave out the team's own turnovers, so a team's turnovers and turnover rate read lower."
+    ])
+    expect(tov(wnba, [2004, 2026])).toEqual([])
+    expect(tov(nba, [2001])).toEqual([])
   })
 
   it('gives the WNBA’s catalogue its stated coverage, the NBA’s as it was', () => {

@@ -10,6 +10,7 @@ import {
 } from './derived/published'
 import type { Downloads, FetchedFile } from './download'
 import { buildIdentity, canBuildIdentity, identityStale, markIdentityStale } from './identity'
+import { IDENTITY_LATE } from './identityLate'
 import { buildPlays, canBuildPlays, markPlaySeason, playsDue } from './derived/playBuilders'
 import { loadSourceFile } from './load'
 import { buildModels, canBuildModels, markModelSeason, modelsDue } from './models/build'
@@ -365,6 +366,10 @@ export async function refreshStats(
   let publishedBuilt = false
   // A later tier's file that a published table reads, written after the published step ran.
   let lateWrote = false
+  // A later tier's file the identity recipe reads (`IdentityRecipe.late`), so its tables and the game
+  // tables after them are built again at the end.
+  let identityLate = false
+  const identityLateSources = IDENTITY_LATE[deps.league.identity]
   const today = nowOf(deps)
   const current = deps.league.currentSeason(today)
   const ended = (season: number): boolean =>
@@ -476,10 +481,10 @@ export async function refreshStats(
   const runPublishedBuild = async (force = false): Promise<void> => {
     publishedBuilt = true
     if (!runs('published')) return
-    if (canBuildPublished() && (force || publishedWrote || (await publishedStale(db)))) {
+    if (canBuildPublished() && (force || publishedWrote || (await publishedStale(db, league)))) {
       log.push(
         await runLogged(deps, STATS_PUBLISHED_STEP, async () => ({
-          rows: await buildPublished(db),
+          rows: await buildPublished(db, league),
           message: null
         }))
       )
@@ -491,7 +496,7 @@ export async function refreshStats(
   // files wrote rows are rebuilt (`playBuilders.ts`).
   const runPlaysBuild = async (): Promise<void> => {
     if (!runs('plays')) return
-    if ((await playsDue(db)) && (await canBuildPlays(db))) {
+    if ((await playsDue(db, league)) && (await canBuildPlays(db))) {
       log.push(
         await runLogged(deps, STATS_PLAYS_STEP, async () => ({
           rows: await buildPlays(db, deps.league),
@@ -593,13 +598,23 @@ export async function refreshStats(
       await markPublishedStale(db)
       lateWrote = true
     }
+    if (
+      identityLateSources.includes(step.source.table) &&
+      entry.status === 'ok' &&
+      entry.rowsWritten > 0 &&
+      runs('identity')
+    ) {
+      await markIdentityStale(db)
+      identityLate = true
+    }
     deps.onProgress?.({ done: i + 1, total: due.length })
   }
   deps.onProgress?.(null)
   if (fatal !== undefined) return { steps: log, fatal }
   if (!deps.cancelled?.()) {
     try {
-      if (!built) await runBuilds()
+      // Again at the end when a late file of the identity recipe came in after they were built.
+      if (!built || identityLate) await runBuilds()
       // Once, at the end, however many of the late files came in; then the plays.
       if (!publishedBuilt || lateWrote) await runPublishedBuild(lateWrote)
       await runPlaysBuild()

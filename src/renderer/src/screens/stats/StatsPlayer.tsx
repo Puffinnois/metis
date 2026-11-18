@@ -334,7 +334,9 @@ function Profile({ data, player }: TabProps): React.JSX.Element {
             />
           </>
         ) : (
-          <p className="m-0 text-[12.5px] text-fg-3">{noCombine(value)}</p>
+          <p className="m-0 text-[12.5px] text-fg-3">
+            {currentLeague().unpublished.combine ?? noCombine(value)}
+          </p>
         )}
       </section>
     </div>
@@ -423,7 +425,8 @@ function Plays(props: TabProps): React.JSX.Element {
 /** The defender's totals, then the pairs behind them: who they guarded, and who guarded them. */
 function Matchups(props: TabProps): React.JSX.Element {
   const { data, scope, player, onOpenPlayer } = props
-  const gap = pairGap(scope)
+  // A league that publishes no matchups says so here, as each metric of the tab does.
+  const gap = currentLeague().unpublished.matchups ?? pairGap(scope)
   const { value, error } = useMatchups(
     gap ? null : player,
     scope.season,

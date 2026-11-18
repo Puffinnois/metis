@@ -6,7 +6,7 @@ import {
   type LineupColumn,
   type LineupGroup
 } from '@shared/stats/lineups'
-import { seasonLabel } from '@/lib/stats/league'
+import { currentLeague, seasonLabel } from '@/lib/stats/league'
 import { PER_MINUTE } from '@shared/leagues'
 import type { BoardMode, GameType, StatsLineupUnit } from '@shared/stats/types'
 import { fmtClock, fmtStat } from './format'
@@ -29,16 +29,16 @@ export const MIN_MINUTES = [0, 10, 25, 50, 100, 200]
 /** Where the control starts: most of a regular season's units are a few minutes' work. */
 export const DEFAULT_MIN_MINUTES = 25
 
-/** Why the lineups cannot answer this scope; null when they can. */
+/** Why the lineups cannot answer this scope; null when they can. The league on screen's units. */
 export function lineupGap(scope: StatsScope): string | null {
-  if (scope.season < LINEUPS_FIRST_SEASON)
-    return `Recorded from ${seasonLabel(LINEUPS_FIRST_SEASON)}.`
+  const league = currentLeague()
+  if (scope.season < league.lineupsFrom) return `Recorded from ${seasonLabel(league.lineupsFrom)}.`
   if (scope.range.kind !== 'season') return LINEUPS_WHOLE_SEASONS
   if (scope.seasonType === 'counted') {
-    return 'The NBA publishes the regular season and the playoffs apart: pick one.'
+    return `The ${league.name} publishes the regular season and the playoffs apart: pick one.`
   }
   if (scope.seasonType !== 'regular' && scope.seasonType !== 'playoffs') {
-    return 'The NBA publishes lineups for the regular season and the playoffs only.'
+    return `The ${league.name} publishes lineups for the regular season and the playoffs only.`
   }
   return null
 }

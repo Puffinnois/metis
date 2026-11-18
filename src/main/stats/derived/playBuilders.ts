@@ -4,6 +4,7 @@ import { eventsSql } from './events'
 import { PLAY_DETAIL_BUILDERS } from './playDetail'
 import { ON_COURT_BUILDERS } from './onCourt'
 import { espnPlaysViewSql, nbaPlaysSql, PLAY_COLUMNS, PLAY_TABLES, playsViewSql } from './plays'
+import { NBA_PLAYS, playsRecipe } from './playsRecipe'
 import { SHOT_BUILDERS } from './shots'
 import { SPLIT_BUILDERS } from './splits'
 import { inspect, type Have } from './sql'
@@ -58,8 +59,12 @@ export const PLAY_BUILDERS: PlayBuilder[] = [
   ...PLAY_DETAIL_BUILDERS
 ]
 
-/** Bump when a builder's rows change, so the next refresh rebuilds every season of every table. */
-export const PLAYS_VERSION = 7
+/**
+ * The NBA recipe's version. Each league's recipe keeps its own (`playsRecipe(league).version`): bump
+ * the league's when its rows change, every recipe's when a builder's do, so the next refresh rebuilds
+ * every season of every table.
+ */
+export const PLAYS_VERSION = NBA_PLAYS.version
 
 /** A file of season 0 holds every season. */
 const ALL = 0
@@ -73,11 +78,11 @@ export async function canBuildPlays(db: StatsDb): Promise<boolean> {
   return NEEDS.every((t) => have.tables.has(t))
 }
 
-export async function playsStale(db: StatsDb): Promise<boolean> {
+export async function playsStale(db: StatsDb, league?: League): Promise<boolean> {
   const row = await db.get<{ version: number }>(
     "SELECT version FROM derived_state WHERE name = 'plays'"
   )
-  return (row?.version ?? 0) < PLAYS_VERSION
+  return (row?.version ?? 0) < playsRecipe(league).version
 }
 
 /**
@@ -96,8 +101,8 @@ async function pendingSeasons(db: StatsDb): Promise<number[]> {
 }
 
 /** Whether a build is due: a new version, or a season waiting. */
-export async function playsDue(db: StatsDb): Promise<boolean> {
-  return (await playsStale(db)) || (await pendingSeasons(db)).length > 0
+export async function playsDue(db: StatsDb, league?: League): Promise<boolean> {
+  return (await playsStale(db, league)) || (await pendingSeasons(db)).length > 0
 }
 
 /** Whether the table is there with exactly these columns and types, in order. */
@@ -118,14 +123,17 @@ async function shaped(db: StatsDb, b: PlayBuilder): Promise<boolean> {
  * a table is of another shape, or a file of every season changed; else the seasons whose files
  * wrote rows. A table with no rows is not a reason: a source not loaded leaves one empty for good.
  */
-export async function seasonsToBuild(db: StatsDb): Promise<{ all: boolean; seasons: number[] }> {
+export async function seasonsToBuild(
+  db: StatsDb,
+  league?: League
+): Promise<{ all: boolean; seasons: number[] }> {
   const played = (
     await db.all<{ season: number }>(
       'SELECT DISTINCT season FROM game WHERE played AND season IS NOT NULL ORDER BY season'
     )
   ).map((r) => r.season)
   const pending = await pendingSeasons(db)
-  let all = (await playsStale(db)) || pending.includes(ALL)
+  let all = (await playsStale(db, league)) || pending.includes(ALL)
   for (const b of PLAY_BUILDERS) {
     if (all) break
     all = !(await shaped(db, b))
@@ -142,7 +150,7 @@ export async function seasonsToBuild(db: StatsDb): Promise<{ all: boolean; seaso
  */
 export async function buildPlays(db: StatsDb, league: League): Promise<number> {
   const have = await inspect(db)
-  const { all, seasons } = await seasonsToBuild(db)
+  const { all, seasons } = await seasonsToBuild(db, league)
   let rows = 0
   // A database built before Plan T907 holds ESPN's plays as a table: drop it first, and checkpoint,
   // so its blocks are free before the seasons are written into them. Then the view in its place.
@@ -154,7 +162,7 @@ export async function buildPlays(db: StatsDb, league: League): Promise<number> {
     await db.exec(`DROP TABLE ${PLAY_TABLES.espn}`)
     await checkpoint(db)
   }
-  await db.exec(espnPlaysViewSql(have))
+  await db.exec(espnPlaysViewSql(have, league))
   for (const b of PLAY_BUILDERS) {
     if (!(await shaped(db, b))) {
       await db.exec(
@@ -183,10 +191,13 @@ export async function buildPlays(db: StatsDb, league: League): Promise<number> {
     }
   }
   await db.exec(playsViewSql(league))
-  for (const sql of eventsSql(have)) await db.exec(sql)
+  for (const sql of eventsSql(have, league)) await db.exec(sql)
   await db.transaction(async () => {
     await db.exec(`DELETE FROM derived_state WHERE name LIKE '${PENDING}%'`)
-    await db.exec('INSERT OR REPLACE INTO derived_state VALUES (?, ?)', ['plays', PLAYS_VERSION])
+    await db.exec('INSERT OR REPLACE INTO derived_state VALUES (?, ?)', [
+      'plays',
+      playsRecipe(league).version
+    ])
   })
   return rows
 }

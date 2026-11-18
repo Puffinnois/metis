@@ -29,7 +29,7 @@ import { fileURLToPath } from 'node:url'
 
 import ts from 'typescript'
 
-import { openStatsWorker } from './lib/stats-worker.mjs'
+import { openStatsWorker, leagueArg, seasonLabelOf } from './lib/stats-worker.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -284,7 +284,7 @@ for (const type of ['regular', 'playoffs']) {
   shares[type] = bySeason
 }
 
-const label = (s) => `${s - 1}-${String(s % 100).padStart(2, '0')}`
+const label = (s) => seasonLabelOf(leagueArg(), s)
 
 const pc = (a, b) => (b ? `${((100 * (b - a)) / b).toFixed(2)} %` : '–')
 

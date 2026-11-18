@@ -1,3 +1,4 @@
+import { threePointLineIn, threePointLineSql, type League } from '@shared/leagues'
 import {
   COURT,
   OFF_COURT,
@@ -114,11 +115,37 @@ export function shotsBootstrap(): string[] {
 
 const sqlText = (s: string): string => `'${s.replaceAll("'", "''")}'`
 
-/** `shotZone` in SQL, over a shot's `x`, `y` and `value`: the same rules, the same constants. */
-export function zoneSql(x = 'x', y = 'y', value = 'value'): string {
+/** The three-point line a shot without a published value is judged by, as SQL numbers or CASEs. */
+export interface LineSql {
+  arc: string
+  corner: string
+}
+
+/** The NBA's line, `COURT`'s. */
+const NBA_LINE: LineSql = { arc: String(COURT.arcRadius), corner: String(COURT.cornerX) }
+
+/** The league's line in a season, from the registry, for a builder that knows its season. */
+export const lineIn = (league: League, season: number): LineSql => {
+  const l = threePointLineIn(league, season)
+  return { arc: String(l.arc), corner: String(l.corner) }
+}
+
+/** The league's line over the seasons `season` names, for a read across seasons. */
+export const lineOver = (league: League, season: string): LineSql => ({
+  arc: threePointLineSql(league, season, 'arc'),
+  corner: threePointLineSql(league, season, 'corner')
+})
+
+/**
+ * `shotZone` in SQL, over a shot's `x`, `y` and `value`: the same rules, the same constants. The line
+ * decides only a shot with no published value; it is the league's in that season (the NBA's, `COURT`'s,
+ * by default). The corner is the zone within 14 feet of the baseline in every league and era, where
+ * the stats sites draw it.
+ */
+export function zoneSql(x = 'x', y = 'y', value = 'value', line: LineSql = NBA_LINE): string {
   const r = `sqrt(${x} * ${x} + ${y} * ${y})`
   const three = `CASE WHEN ${value} IS NULL
-      THEN (abs(${x}) >= ${COURT.cornerX} AND ${y} <= ${COURT.cornerTopY}) OR ${r} >= ${COURT.arcRadius}
+      THEN (abs(${x}) >= ${line.corner} AND ${y} <= ${COURT.cornerTopY}) OR ${r} >= ${line.arc}
       ELSE ${value} = 3 END`
   return `CASE
       WHEN ${x} IS NULL OR ${y} IS NULL OR isnan(${x}) OR isnan(${y}) OR isinf(${x}) OR isinf(${y})
@@ -196,7 +223,7 @@ function sums(prefix = ''): string[] {
  *   attempt. Every game type of the season is compared with them, so a playoff run reads against the
  *   league's season, not against the few teams left.
  */
-function classifiedSql(have: Have, season: number): string {
+function classifiedSql(have: Have, season: number, league?: League): string {
   const plays = have.tables.has(PLAY_TABLES.nba)
     ? `SELECT game_id, period, clock, player_id, seq, assist_id
        FROM ${PLAY_TABLES.nba} WHERE season = ${season} AND fgm = 1`
@@ -210,9 +237,10 @@ function classifiedSql(have: Have, season: number): string {
       SELECT game_id, season, game_type, game_date, team_id, opponent_id, player_id, period, clock,
              coalesce(made, false) AS made, value, distance, x, y,
              row_number() OVER () AS rid,
-             ${zoneSql()} AS zone, ${bandSql()} AS band, ${typeSql()} AS type,
+             ${zoneSql('x', 'y', 'value', league ? lineIn(league, season) : NBA_LINE)} AS zone,
+             ${bandSql()} AS band, ${typeSql()} AS type,
              coalesce(distance, round(sqrt(x * x + y * y) / 10)) AS feet
-      FROM (${nbaShotsSelect(have, season)}) v),
+      FROM (${nbaShotsSelect(have, season, league)}) v),
     mk AS (SELECT rid, ${key},
                   row_number() OVER (PARTITION BY ${key} ORDER BY x, y, rid) AS k
            FROM s WHERE made),
@@ -232,8 +260,8 @@ function classifiedSql(have: Have, season: number): string {
 }
 
 /** One season's player-games, as a SELECT of `SHOT_PLAYER_COLUMNS` in order. */
-export function playerGameSql(have: Have, season: number): string {
-  return `${classifiedSql(have, season)}
+export function playerGameSql(have: Have, season: number, league?: League): string {
+  return `${classifiedSql(have, season, league)}
     SELECT c.game_id, any_value(c.season), any_value(c.game_type), any_value(c.game_date),
            c.player_id, c.team_id, any_value(c.opponent_id), ${sums().join(', ')}
     FROM c WHERE c.player_id IS NOT NULL
@@ -245,8 +273,8 @@ const side = (alias: string, c: string): string =>
   isZeroCount(c) ? `coalesce(${alias}.${c}, 0)` : `${alias}.${c}`
 
 /** One season's team-games: the team's shots, and its opponent's against it. */
-export function teamGameSql(have: Have, season: number): string {
-  return `${classifiedSql(have, season)},
+export function teamGameSql(have: Have, season: number, league?: League): string {
+  return `${classifiedSql(have, season, league)},
     own AS (SELECT c.game_id, c.team_id, any_value(c.opponent_id) AS opponent_id,
                    any_value(c.season) AS season, any_value(c.game_type) AS game_type,
                    any_value(c.game_date) AS game_date, ${sums().join(', ')}

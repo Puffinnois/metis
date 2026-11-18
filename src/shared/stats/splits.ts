@@ -37,11 +37,33 @@ export interface SplitDef {
   rule: string
   /** A moment is in the split when it is in any piece. */
   pieces: SplitPiece[]
+  /**
+   * The pieces in a season played in two halves (the WNBA to 2005, `League.periods`): period 1 and 2
+   * are the halves and 3 on the overtimes. Null where the split has no answer then (a quarter), left
+   * out where its pieces name no period and read the same. The 4th quarter's rules read the last 10
+   * minutes of the second half, a 4th quarter's length in that league.
+   */
+  halves?: SplitPiece[] | null
   /** The same moment from the other side: ahead for one team is behind for the other. */
   mirror?: string
 }
 
 const Q4_ON: [number, number | null] = [4, null]
+/** The second half and every overtime, in a season played in halves. */
+const H2_ON: [number, number | null] = [2, null]
+
+/**
+ * A split's pieces in a season with `regulation` periods: its own in four quarters, its `halves` in two
+ * halves. None where it has no answer in that format.
+ */
+export function splitPiecesIn(s: SplitDef, regulation: number): SplitPiece[] {
+  if (regulation !== 2 || s.halves === undefined) return s.pieces
+  return s.halves ?? []
+}
+
+/** Whether a split has an answer in a season with `regulation` periods: no quarters in halves. */
+export const splitAnswersIn = (s: SplitDef, regulation: number): boolean =>
+  splitPiecesIn(s, regulation).length > 0
 
 export const SPLITS: readonly SplitDef[] = [
   {
@@ -49,56 +71,64 @@ export const SPLITS: readonly SplitDef[] = [
     label: '1st quarter',
     group: 'period',
     rule: 'The first quarter.',
-    pieces: [{ periods: [1, 1] }]
+    pieces: [{ periods: [1, 1] }],
+    halves: null
   },
   {
     id: 'q2',
     label: '2nd quarter',
     group: 'period',
     rule: 'The second quarter.',
-    pieces: [{ periods: [2, 2] }]
+    pieces: [{ periods: [2, 2] }],
+    halves: null
   },
   {
     id: 'q3',
     label: '3rd quarter',
     group: 'period',
     rule: 'The third quarter.',
-    pieces: [{ periods: [3, 3] }]
+    pieces: [{ periods: [3, 3] }],
+    halves: null
   },
   {
     id: 'q4',
     label: '4th quarter',
     group: 'period',
     rule: 'The fourth quarter.',
-    pieces: [{ periods: [4, 4] }]
+    pieces: [{ periods: [4, 4] }],
+    halves: null
   },
   {
     id: 'h1',
     label: '1st half',
     group: 'period',
     rule: 'The first and second quarters.',
-    pieces: [{ periods: [1, 2] }]
+    pieces: [{ periods: [1, 2] }],
+    halves: [{ periods: [1, 1] }]
   },
   {
     id: 'h2',
     label: '2nd half',
     group: 'period',
     rule: 'The third and fourth quarters, without overtime.',
-    pieces: [{ periods: [3, 4] }]
+    pieces: [{ periods: [3, 4] }],
+    halves: [{ periods: [2, 2] }]
   },
   {
     id: 'ot',
     label: 'Overtime',
     group: 'period',
     rule: 'Every overtime period.',
-    pieces: [{ periods: [5, null] }]
+    pieces: [{ periods: [5, null] }],
+    halves: [{ periods: [3, null] }]
   },
   {
     id: 'clutch',
     label: 'Clutch',
     group: 'clutch',
     rule: "The NBA's rule: the last 5 minutes of the 4th quarter or overtime, the score within 5.",
-    pieces: [{ periods: Q4_ON, clock: [0, 300], absMax: 5 }]
+    pieces: [{ periods: Q4_ON, clock: [0, 300], absMax: 5 }],
+    halves: [{ periods: H2_ON, clock: [0, 300], absMax: 5 }]
   },
   {
     id: 'ahead',
@@ -158,14 +188,16 @@ export const SPLITS: readonly SplitDef[] = [
     label: 'Last 2 min of the game',
     group: 'late',
     rule: 'The last 2 minutes of the 4th quarter and of each overtime, whatever the score.',
-    pieces: [{ periods: Q4_ON, clock: [0, 120] }]
+    pieces: [{ periods: Q4_ON, clock: [0, 120] }],
+    halves: [{ periods: H2_ON, clock: [0, 120] }]
   },
   {
     id: 'last1',
     label: 'Last minute of the game',
     group: 'late',
     rule: 'The last minute of the 4th quarter and of each overtime, whatever the score.',
-    pieces: [{ periods: Q4_ON, clock: [0, 60] }]
+    pieces: [{ periods: Q4_ON, clock: [0, 60] }],
+    halves: [{ periods: H2_ON, clock: [0, 60] }]
   },
   {
     id: 'garbage',
@@ -176,6 +208,11 @@ export const SPLITS: readonly SplitDef[] = [
       { periods: [4, 4], clock: [540, 720], absMin: 25 },
       { periods: [4, 4], clock: [360, 540], absMin: 20 },
       { periods: [4, 4], clock: [0, 360], absMin: 10 }
+    ],
+    halves: [
+      { periods: [2, 2], clock: [540, 600], absMin: 25 },
+      { periods: [2, 2], clock: [360, 540], absMin: 20 },
+      { periods: [2, 2], clock: [0, 360], absMin: 10 }
     ]
   },
   {
@@ -189,6 +226,14 @@ export const SPLITS: readonly SplitDef[] = [
       { periods: [4, 4], clock: [540, 720], absMax: 24 },
       { periods: [4, 4], clock: [360, 540], absMax: 19 },
       { periods: [4, 4], clock: [0, 360], absMax: 9 }
+    ],
+    halves: [
+      { periods: [1, 1] },
+      { periods: [3, null] },
+      { periods: [2, 2], clock: [600, 1200] },
+      { periods: [2, 2], clock: [540, 600], absMax: 24 },
+      { periods: [2, 2], clock: [360, 540], absMax: 19 },
+      { periods: [2, 2], clock: [0, 360], absMax: 9 }
     ]
   }
 ]

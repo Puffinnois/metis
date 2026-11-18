@@ -20,7 +20,13 @@
 // --league=<id> anywhere picks the league (default nba).
 import { writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { openStatsWorker } from './lib/stats-worker.mjs'
+import {
+  openStatsWorker,
+  leagueArg,
+  sourceOf,
+  seasonLabelOf,
+  gameMinutesOf
+} from './lib/stats-worker.mjs'
 
 const [folder, mdFile] = process.argv.slice(2).map((p) => resolve(p))
 if (!folder) {
@@ -29,7 +35,7 @@ if (!folder) {
 }
 
 const { read, call, close } = openStatsWorker(folder)
-const label = (season) => `${season - 1}-${String(season % 100).padStart(2, '0')}`
+const label = (season) => seasonLabelOf(leagueArg(), season)
 const COUNT = new Intl.NumberFormat('en-US')
 const pct = (part, whole) => (whole ? ((100 * part) / whole).toFixed(1) : '–')
 const table = (headers, rows) => [
@@ -63,7 +69,9 @@ const COUNTS = [
   'pf'
 ]
 const COUNTED = "('regular', 'play-in', 'playoffs', 'cup-final')"
-const PERIODS = "('q1', 'q2', 'q3', 'q4', 'ot')"
+// The halves and overtime: they make up the game in either format, quarters (h1 = Q1 + Q2) or the
+// WNBA's two halves before 2006, which have no quarters.
+const PERIODS = "('h1', 'h2', 'ot')"
 const sumsOf = (alias = '') => COUNTS.map((c) => `sum(${alias}${c}) AS ${c}`).join(', ')
 const same = (a, b, counts = COUNTS) =>
   counts.map((c) => `coalesce(${a}.${c}, 0) = coalesce(${b}.${c}, 0)`).join(' AND ')
@@ -78,7 +86,7 @@ const [pick] = await read(`
   JOIN team a ON a.team_id = g.away_team_id AND a.season = g.season
   JOIN team_game t ON t.game_id = g.game_id AND t.team_id = g.home_team_id
   WHERE g.season = 2026 AND g.game_type = 'regular' AND g.played
-    AND abs(g.home_score - g.away_score) = 1 AND t.minutes = 240
+    AND abs(g.home_score - g.away_score) = 1 AND t.minutes = ${5 * gameMinutesOf(leagueArg())}
   ORDER BY g.game_date, g.game_id LIMIT 1`)
 
 // Written apart from the builder: the raw rows, their clock from the ISO text, the score carried
@@ -91,7 +99,7 @@ const RAW = `WITH g AS (SELECT game_id, nba_game_id FROM game WHERE game_id = '$
              + TRY_CAST(regexp_extract(r.clock, 'M([\\d.]+)S', 1) AS DOUBLE) AS secs,
            TRY_CAST(nullif(r.score_home, '') AS INTEGER) AS sh,
            TRY_CAST(nullif(r.score_away, '') AS INTEGER) AS sa
-    FROM src_nba_pbp r JOIN g ON r.game_id = g.nba_game_id
+    FROM ${sourceOf(leagueArg(), 'src_nba_pbp')} r JOIN g ON r.game_id = g.nba_game_id
   ), carried AS (
     SELECT *,
            coalesce(last_value(sh IGNORE NULLS) OVER w, 0) AS home_after,
@@ -266,11 +274,11 @@ const partSums = (s, splits) => `SELECT game_id, player_id, ${sumsOf()}, sum(sec
 
 const identity = await perSeason(
   (x) => `WITH ${PLAY_LINES(x)}, q AS (${byPeriod(x)}),
-  h AS (${partSums(x, ['h1', 'h2'])}), h4 AS (${partSums(x, ['q1', 'q2', 'q3', 'q4'])}),
+  h AS (${partSums(x, ['h1', 'h2'])}), h4 AS (SELECT *, player_id AS pid FROM (${partSums(x, ['q1', 'q2', 'q3', 'q4'])})),
   s AS (${partSums(x, ['ahead', 'tied', 'behind'])}), gt AS (${partSums(x, ['garbage', 'nogarbage'])})
   SELECT q.season, count(*)::INTEGER AS n,
          count(*) FILTER (WHERE ${same('q', 'l')})::INTEGER AS plays,
-         count(*) FILTER (WHERE ${same('h', 'h4')} AND abs(coalesce(h.seconds, 0) - coalesce(h4.seconds, 0)) < 0.01)::INTEGER AS halves,
+         count(*) FILTER (WHERE h4.pid IS NULL OR (${same('h', 'h4')} AND abs(coalesce(h.seconds, 0) - coalesce(h4.seconds, 0)) < 0.01))::INTEGER AS halves,
          count(*) FILTER (WHERE ${same('s', 'q')} AND abs(coalesce(s.seconds, 0) - q.seconds) < 0.01)::INTEGER AS score,
          count(*) FILTER (WHERE ${same('gt', 'q')} AND abs(coalesce(gt.seconds, 0) - q.seconds) < 0.01)::INTEGER AS garbage
   FROM q LEFT JOIN lines l USING (game_id, player_id) LEFT JOIN h USING (game_id, player_id)
@@ -365,7 +373,7 @@ const box = await perSeason(
          sum(q.seconds) / nullif(sum(b.seconds), 0) AS ratio
   FROM player_game b JOIN team_game t ON t.game_id = b.game_id AND t.team_id = b.team_id
   LEFT JOIN q ON q.game_id = b.game_id AND q.player_id = b.player_id
-  WHERE b.season = ${x} AND t.source = 'nba' AND b.game_type IN ${COUNTED}
+  WHERE b.season = ${x} AND t.source = '${leagueArg()}' AND b.game_type IN ${COUNTED}
     AND b.game_id IN (SELECT DISTINCT game_id FROM split_team WHERE season = ${x})
   GROUP BY 1 ORDER BY 1`
 )
@@ -386,7 +394,7 @@ const lines = await read(`WITH e AS (
            sum(pts) FILTER (WHERE split = 'q1') q1, sum(pts) FILTER (WHERE split = 'q2') q2,
            sum(pts) FILTER (WHERE split = 'q3') q3, sum(pts) FILTER (WHERE split = 'q4') q4,
            coalesce(sum(pts) FILTER (WHERE split = 'ot'), 0) ot
-    FROM split_team WHERE split IN ${PERIODS} GROUP BY 1, 2
+    FROM split_team WHERE split IN ('q1', 'q2', 'q3', 'q4', 'ot') GROUP BY 1, 2
   )
   SELECT s.season, count(*)::INTEGER AS n,
          count(*) FILTER (WHERE q.q1 = s.lines[1] AND q.q2 = s.lines[2] AND q.q3 = s.lines[3] AND q.q4 = s.lines[4]

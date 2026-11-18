@@ -1,5 +1,6 @@
 import { elapsedSql, periodStartSql, type League } from '@shared/leagues'
 import type { PlayBuilder } from './playBuilders'
+import { playsRecipe } from './playsRecipe'
 import { column, type Have } from './sql'
 
 /**
@@ -152,9 +153,10 @@ export function unitGameSql(have: Have, season: number, league: League): string 
   const elapsed = (period: string, clock: string): string =>
     elapsedSql(league, String(season), period, clock)
   const periodStart = (period: string): string => periodStartSql(league, String(season), period)
-  const lt = 'src_nba_game_lineups'
-  const pt = 'src_nba_pbp'
-  const st = 'src_nba_possessions'
+  const recipe = playsRecipe(league)
+  const lt = recipe.gameLineups
+  const pt = recipe.pbp
+  const st = recipe.possessions
   const lc = (n: string, type = 'BIGINT'): string => column(have, lt, 'l', n, type)
   const pc = (n: string, type = 'BIGINT'): string => column(have, pt, 'p', n, type)
   const sc = (n: string, type = 'BIGINT'): string => column(have, st, 's', n, type)
@@ -214,7 +216,7 @@ export function unitGameSql(have: Have, season: number, league: League): string 
       GROUP BY 1, 2
     ),
     ends AS (
-      SELECT g.game_id, ${sc('end_order_index', 'INTEGER')} AS seq, any_value(${sc('offense_team_id')}) AS poss_off
+      SELECT g.game_id, ${sc('end_order_index', 'INTEGER')} AS seq, any_value(${recipe.side(sc('offense_team_id'), 'g.home_team_id', 'g.away_team_id')}) AS poss_off
       FROM ${from(st, 's')} JOIN g ON g.nba_game_id = ${sc('game_id', 'VARCHAR')}
       WHERE coalesce(${sc('count_as_possession', 'BOOLEAN')}, true)
       GROUP BY 1, 2

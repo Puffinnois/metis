@@ -88,19 +88,33 @@ describe("the steps a league's entry lists", () => {
   const wnba: League = { ...LEAGUES.wnba, currentSeason: () => CURRENT }
   // A league that lists its identity alone, as the WNBA did before T1301.6.
   const identityOnly: League = { ...wnba, builds: ['identity'] }
+  // A league that lists its identity and game tables, as the WNBA did before T1301.7.
+  const gameTablesOnly: League = { ...wnba, builds: ['identity', 'derived'] }
 
   it('build the identity and the game tables with its own recipes, nothing after them', async () => {
-    const { steps } = await run([CORE, PUBLISHED], [], wnba)
+    const { steps } = await run([CORE, PUBLISHED], [], gameTablesOnly)
     expect(steps.map((s) => [s.source, s.status])).toEqual([
       ['stats:core_file:2027', 'ok'],
       ['stats:identity', 'ok'],
       ['stats:derived', 'ok'],
       ['stats:published_file:2027', 'ok']
     ])
-    expect(identity.buildIdentity).toHaveBeenCalledWith(expect.anything(), wnba)
-    expect(derived.buildDerived).toHaveBeenCalledWith(expect.anything(), wnba)
-    expect(derived.canDerive).toHaveBeenCalledWith(expect.anything(), wnba)
+    expect(identity.buildIdentity).toHaveBeenCalledWith(expect.anything(), gameTablesOnly)
+    expect(derived.buildDerived).toHaveBeenCalledWith(expect.anything(), gameTablesOnly)
+    expect(derived.canDerive).toHaveBeenCalledWith(expect.anything(), gameTablesOnly)
     expect(published.buildPublished).not.toHaveBeenCalled()
+  })
+
+  it('build the published tables with its own recipe once the WNBA lists them', async () => {
+    const { steps } = await run([CORE, PUBLISHED], [], wnba)
+    expect(steps.map((s) => [s.source, s.status])).toEqual([
+      ['stats:core_file:2027', 'ok'],
+      ['stats:identity', 'ok'],
+      ['stats:derived', 'ok'],
+      ['stats:published_file:2027', 'ok'],
+      ['stats:published', 'ok']
+    ])
+    expect(published.buildPublished).toHaveBeenCalledWith(expect.anything(), wnba)
   })
 
   it('build the identity alone, with its own recipe, and say why nothing else is built', async () => {

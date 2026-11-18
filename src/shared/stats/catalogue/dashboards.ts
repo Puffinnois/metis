@@ -148,7 +148,9 @@ function advanced(entity: 'player' | 'team'): MetricDef[] {
         description: `Possessions per 48 minutes, as the NBA counts them.${court} ${WEIGHTED}`,
         family: 'possessions'
       },
-      { unit: 'pace', direction: 'neutral', gameLength: true }
+      // Not `gameLength`: the WNBA's dashboards publish pace per 48 minutes too, as the NBA's formula
+      // counts it (2005: 2,327 possessions in 1,385 minutes published as 80.8; `wnba-agreement.md`).
+      { unit: 'pace', direction: 'neutral' }
     ),
     rate(
       table,
@@ -161,10 +163,10 @@ function advanced(entity: 'player' | 'team'): MetricDef[] {
         family: 'possessions'
       },
       {
+        // The published pace is per 48 minutes in both leagues, so this scales it to 40 in both.
         value: `40 * ${ratio('pace', 'minutes')} / 48`,
         unit: 'pace',
-        direction: 'neutral',
-        gameLength: true
+        direction: 'neutral'
       }
     ),
     rate(

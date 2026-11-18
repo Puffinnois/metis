@@ -1,6 +1,8 @@
 import { coachRole, isInjuryReason } from '@shared/stats/availability'
 import type { StatsAvailability, StatsCoach, StatsOfficial } from '@shared/stats/types'
 import type { StatsDb } from './db'
+import type { League } from '@shared/leagues'
+import { playsRecipe } from './derived/playsRecipe'
 import { column, inspect, type Have } from './derived/sql'
 
 /**
@@ -125,9 +127,13 @@ export async function readCoaches(
   )
 }
 
-/** The officials of a game, from the NBA's file by the game's NBA id; none before it keeps them. */
-export async function readOfficials(db: StatsDb, gameId: string): Promise<StatsOfficial[]> {
-  const t = 'src_nba_officials'
+/** The officials of a game, from the league's file by its game id; none before it keeps them. */
+export async function readOfficials(
+  db: StatsDb,
+  gameId: string,
+  league?: League
+): Promise<StatsOfficial[]> {
+  const t = playsRecipe(league).officials
   const have = await inspect(db)
   if (!have.tables.has(t) || !have.tables.has('game')) return []
   const rows = await db.all<{ id: number; first: string | null; last: string | null }>(

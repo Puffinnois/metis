@@ -14,7 +14,7 @@
 // 4. Five-man units against `pub_lineups`, per season and season type.
 import { writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { openStatsWorker } from './lib/stats-worker.mjs'
+import { openStatsWorker, leagueArg, seasonLabelOf, lineupsFromOf } from './lib/stats-worker.mjs'
 
 const [folderArg, outArg] = process.argv.slice(2)
 if (!folderArg) {
@@ -40,7 +40,7 @@ const COUNTS = [
   'pf'
 ]
 /** `2026` is 2025-26, as the screens and the docs write it. */
-const season = (s) => `${s - 1}-${String(s % 100).padStart(2, '0')}`
+const season = (s) => seasonLabelOf(leagueArg(), s)
 const pct = (x) => (x === null || x === undefined ? '—' : `${(100 * Number(x)).toFixed(1)}`)
 const out = []
 const table = (title, note, head, rows) => {
@@ -204,7 +204,7 @@ const UNIT = `
     SELECT season, game_type, team_id, p1, p2, p3, p4, p5, count(DISTINCT game_id) AS games,
            sum(secs) / 60 AS minutes, sum(pts) AS pts, sum(fgm) AS fgm, sum(pts) - sum(opp_pts) AS pm,
            sum(poss) AS poss
-    FROM unit_game WHERE complete AND game_type IN ('regular', 'playoffs') AND season >= 2008
+    FROM unit_game WHERE complete AND game_type IN ('regular', 'playoffs') AND season >= ${lineupsFromOf(leagueArg())}
     GROUP BY ALL)`
 const units = await timed(
   'units',

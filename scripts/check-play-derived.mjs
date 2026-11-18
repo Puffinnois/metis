@@ -27,7 +27,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
-import { openStatsWorker } from './lib/stats-worker.mjs'
+import { openStatsWorker, leagueArg, sourceOf, seasonLabelOf } from './lib/stats-worker.mjs'
 
 const [folder, mdFile] = process.argv.slice(2).map((p) => resolve(p))
 if (!folder) {
@@ -35,18 +35,23 @@ if (!folder) {
   process.exit(2)
 }
 
-// The rules have no imports, so they are read here without bundling: the kinds' spellings.
+// The rules import only the league registry, which imports only types, so both are read here without
+// bundling: the kinds' spellings. The rules' import of the registry is pointed at its transpiled text.
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
-const rules = ts.transpileModule(
-  readFileSync(join(ROOT, 'src/shared/stats/playDetail.ts'), 'utf8'),
-  { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }
-).outputText
-const { TURNOVER_KINDS, FOUL_KINDS } = await import(
-  `data:text/javascript,${encodeURIComponent(rules)}`
+const transpiled = (file) =>
+  ts.transpileModule(readFileSync(join(ROOT, file), 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 }
+  }).outputText
+const asUrl = (code) => `data:text/javascript,${encodeURIComponent(code)}`
+const rules = transpiled('src/shared/stats/playDetail.ts').replace(
+  /from '\.\.\/leagues'/,
+  // Double quotes: the encoded text keeps its apostrophes, and encodes double quotes.
+  `from "${asUrl(transpiled('src/shared/leagues.ts'))}"`
 )
+const { TURNOVER_KINDS, FOUL_KINDS } = await import(asUrl(rules))
 
 const { read, call, close } = openStatsWorker(folder)
-const label = (season) => `${season - 1}-${String(season % 100).padStart(2, '0')}`
+const label = (season) => seasonLabelOf(leagueArg(), season)
 const pct = (part, whole) => (whole ? ((100 * part) / whole).toFixed(1) : '–')
 const table = (headers, rows) => [
   `| ${headers.join(' | ')} |`,
@@ -74,7 +79,7 @@ const players = await read(`
     count(*) FILTER (WHERE w.ast2 + w.ast3 = b.ast)::INTEGER AS ast_exact,
     sum(b.pf - w.pf)::INTEGER AS pf_gap
   FROM play_player_game w JOIN player_game b USING (game_id, player_id)
-  WHERE b.games = 1 AND b.source = 'nba'
+  WHERE b.games = 1 AND b.source = '${leagueArg()}'
   GROUP BY 1 ORDER BY 1`)
 
 const makes = await read(`
@@ -161,7 +166,7 @@ const flow = await read(`
     SELECT g.game_id, g.season, p.order_index,
            TRY_CAST(nullif(p.score_home, '') AS INTEGER) AS h,
            TRY_CAST(nullif(p.score_away, '') AS INTEGER) AS a
-    FROM src_nba_pbp p JOIN game g ON g.nba_game_id = p.game_id
+    FROM ${sourceOf(leagueArg(), 'src_nba_pbp')} p JOIN game g ON g.nba_game_id = p.game_id
     WHERE g.season IN (${FLOW_SEASONS.join(', ')}) AND p.season = g.season
   ), states AS (
     SELECT game_id, season, order_index, h, a, h - a AS m FROM raw

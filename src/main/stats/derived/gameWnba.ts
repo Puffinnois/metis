@@ -30,6 +30,13 @@ export const PLUS_MINUS_FROM = 2008
 
 const LOGS = 'src_wnba_game_logs'
 const BOX = 'src_wnba_player_box'
+/**
+ * The league's play by play, for the turnovers charged to no player where a team row falls short. In
+ * the plays tier: a refresh that writes it builds the game tables again at its end (`IDENTITY_LATE`).
+ */
+const PBP = 'src_wnba_pbp'
+/** A play by play row whose person is a team (its turnover is the team's own): the league's team ids. */
+const TEAM_IDS_FROM = 1611661300
 
 /** The game's key for a source row's team: the 2026 Portland Fire are `-id` in `team` (T1301.5). */
 const teamKey = (teamId: string): string =>
@@ -141,17 +148,51 @@ function teamBox(have: Have, league: League): string {
   const regulation = league.gameMinutes * 5
   const overtime = league.overtimeMinutes * 5
   const overtimes = column(have, 'game', 'g', 'overtimes')
-  return `SELECT g.nba_game_id, ${teamKey('l.team_id')} AS team_id,
-           (CASE WHEN l.min >= ${regulation} THEN l.min
-                 WHEN ${overtimes} IS NOT NULL THEN ${regulation} + ${overtime} * ${overtimes}
-            END * 60)::INTEGER AS seconds,
-           ${BOX_COUNTS.map((c) => `${column(have, LOGS, 'l', c)} AS ${c}`).join(', ')}
-    FROM ${LOGS} l JOIN game g ON g.nba_game_id = l.game_id AND g.played
-    WHERE l.player_id IS NULL AND NOT (coalesce(l.fga, 0) = 0 AND coalesce(l.pts, 0) = 0)`
+  // A count where the team row falls short of its players reads the players' sum, per team-game
+  // (`teamCount`); turnovers then add the team's own from the play by play, where it is loaded.
+  const pbp = have.tables.has(PBP)
+    ? `SELECT game_id::VARCHAR AS nba_game_id, location, count(*)::INTEGER AS tov FROM ${PBP}
+       WHERE action_type = 'Turnover' AND coalesce(description, '') NOT ILIKE 'No Turnover%'
+         AND (coalesce(team_id, 0) = 0 OR person_id = 0 OR person_id >= ${TEAM_IDS_FROM})
+       GROUP BY 1, 2`
+    : 'SELECT NULL::VARCHAR AS nba_game_id, NULL::VARCHAR AS location, NULL::INTEGER AS tov'
+  return `SELECT b.nba_game_id, b.team_id, b.seconds,
+           ${BOX_COUNTS.map((c) => `${teamCount(c)} AS ${c}`).join(', ')}
+    FROM (
+      SELECT g.game_id, g.nba_game_id, g.home_team_id, ${teamKey('l.team_id')} AS team_id,
+             (CASE WHEN l.min >= ${regulation} THEN l.min
+                   WHEN ${overtimes} IS NOT NULL THEN ${regulation} + ${overtime} * ${overtimes}
+              END * 60)::INTEGER AS seconds,
+             ${BOX_COUNTS.map((c) => `${column(have, LOGS, 'l', c)} AS ${c}`).join(', ')}
+      FROM ${LOGS} l JOIN game g ON g.nba_game_id = l.game_id AND g.played
+      WHERE l.player_id IS NULL AND NOT (coalesce(l.fga, 0) = 0 AND coalesce(l.pts, 0) = 0)
+    ) b
+    LEFT JOIN (
+      SELECT game_id, team_id, ${BOX_COUNTS.map((c) => `sum(${c}) AS ${c}`).join(', ')}
+      FROM lines WHERE source = 'wnba' GROUP BY 1, 2
+    ) p ON p.game_id = b.game_id AND p.team_id = b.team_id
+    LEFT JOIN (${pbp}) t
+      ON t.nba_game_id = b.nba_game_id
+     AND t.location = CASE WHEN b.team_id = b.home_team_id THEN 'h' ELSE 'v' END`
+}
+
+/**
+ * A team-game's count: the game logs' team row where it is at least its players' sum, else the
+ * players' sum (the row falls short on turnovers in most games of 1997, 2000 and 2003, and on a few
+ * counts in one game of 1999, 2006 and 2008; `wnba-agreement.md`). Short turnovers add the team's own,
+ * charged to no player in the play by play, as the team row counts them from 2004 (equal on 99.3 to
+ * 100 % of team-games). Points stay the team row's: it equals the score in every game, and where the
+ * players differ they are the long side.
+ */
+const teamCount = (c: (typeof BOX_COUNTS)[number]): string => {
+  if (c === 'pts') return 'b.pts'
+  const players = c === 'tov' ? 'p.tov + coalesce(t.tov, 0)' : `p.${c}`
+  return `CASE WHEN b.${c} < p.${c} THEN ${players} ELSE b.${c} END`
 }
 
 export const WNBA_DERIVED: DerivedRecipe = {
-  version: 1,
+  // 2: a team row short of its players reads their sum, turnovers with the team's own (T1301.7).
+  version: 2,
   needs: ['game', 'team', 'player_ids', LOGS],
   lines: (have) => [
     espnLines(have, ESPN_COUNTS_FROM),

@@ -65,6 +65,14 @@ export interface MetricCoverage {
   firstSeason: number
   missingSeasons?: number[]
   unavailable?: string
+  /** Caveats of some seasons, which a query over any of them states (`StatsResult.notes`). */
+  seasonNotes?: SeasonNote[]
+}
+
+/** A caveat that holds for some seasons of a metric: a source counting it another way then. */
+export interface SeasonNote {
+  seasons: number[]
+  note: string
 }
 
 export interface MetricDef {
@@ -109,6 +117,8 @@ export interface MetricDef {
   firstSeason: number
   /** Seasons after it that the source does not have. */
   missingSeasons?: number[]
+  /** Caveats of some seasons, in a league's coverage (`MetricCoverage.seasonNotes`). */
+  seasonNotes?: SeasonNote[]
   /** Why the source no longer has this metric at all; every query answers with it. */
   unavailable?: string
   /**
@@ -882,6 +892,8 @@ export interface StatsShotZone {
 
 /** The shots of a scope, newest first and capped, with every shot counted by zone. */
 export interface StatsShotChart {
+  /** Shots in scope the league's file gives no location: counted in the total, not drawn or zoned. */
+  unlocated?: number
   shots: StatsShot[]
   /** Every attempt in scope, drawn or not. */
   total: number
@@ -934,6 +946,8 @@ export interface StatsGameFlow {
   points: StatsFlowPoint[]
   /** The last period played, for the chart's axis. */
   periods: number
+  /** The game's season, whose format the clock is read in (halves or quarters); null with no game. */
+  season?: number | null
   homeTeam: string
   awayTeam: string
   summary: FlowSummary | null

@@ -20,7 +20,7 @@
 // --league=<id> anywhere picks the league (default nba).
 import { writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { openStatsWorker } from './lib/stats-worker.mjs'
+import { openStatsWorker, leagueArg, seasonLabelOf } from './lib/stats-worker.mjs'
 
 const [folder, mdFile] = process.argv.slice(2).map((p) => resolve(p))
 if (!folder) {
@@ -29,7 +29,7 @@ if (!folder) {
 }
 
 const { read, close } = openStatsWorker(folder)
-const label = (season) => `${season - 1}-${String(season % 100).padStart(2, '0')}`
+const label = (season) => seasonLabelOf(leagueArg(), season)
 const COUNT = new Intl.NumberFormat('en-US')
 const pct = (part, whole) => (whole ? ((100 * part) / whole).toFixed(1) : '–')
 const table = (headers, rows) => [
@@ -89,7 +89,7 @@ function teamSql(t) {
     )
     SELECT b.season, b.game_type, b.game_id, b.team_id, ${diffs('b', 'p').join(', ')}
     FROM team_game b JOIN p USING (game_id, team_id)
-    WHERE b.source = 'nba' AND b.game_type IN ${COUNTED}`
+    WHERE b.source = '${leagueArg()}' AND b.game_type IN ${COUNTED}`
 }
 
 function playerSql(t) {
@@ -110,7 +110,7 @@ function playerSql(t) {
     SELECT b.season, b.game_type, b.game_id, b.player_id, ${diffs('b', 'p').join(', ')}
     FROM player_game b JOIN games USING (game_id) LEFT JOIN p USING (game_id, player_id)
     JOIN team_game tg ON tg.game_id = b.game_id AND tg.team_id = b.team_id
-    WHERE tg.source = 'nba' AND b.game_type IN ${COUNTED}`
+    WHERE tg.source = '${leagueArg()}' AND b.game_type IN ${COUNTED}`
 }
 
 const summary = (sql) => `SELECT season, game_type, count(*)::INTEGER AS n,
@@ -243,7 +243,7 @@ const poss = await read(`WITH p AS (
          median(p.n - t.poss)::DOUBLE AS vs_est,
          count(*) FILTER (WHERE abs(p.n - t.poss) <= 3)::INTEGER AS est3
   FROM team_game t JOIN p USING (game_id, team_id) LEFT JOIN pl USING (game_id, team_id)
-  WHERE t.source = 'nba' AND t.game_type IN ${COUNTED}
+  WHERE t.source = '${leagueArg()}' AND t.game_type IN ${COUNTED}
   GROUP BY 1, 2 ORDER BY 1, 2`)
 out.push(
   '## Possessions',

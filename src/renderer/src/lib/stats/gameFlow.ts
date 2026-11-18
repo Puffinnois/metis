@@ -1,3 +1,5 @@
+import { gameSeconds, periodsIn, periodStartSeconds, type League } from '@shared/leagues'
+import { currentLeague } from '@/lib/stats/league'
 import type { FlowSummary } from '@shared/stats/playDetail'
 import type { StatsFlowPoint, StatsGameFlow } from '@shared/stats/types'
 
@@ -26,9 +28,20 @@ export const FLOW_FRAME: FlowFrame = {
   bottom: 24
 }
 
-/** The game's length from its last period: 12-minute quarters, 5-minute overtimes. */
-export const flowLength = (periods: number): number =>
-  periods <= 4 ? 2880 : 2880 + (periods - 4) * 300
+/** The season a flow's clock is read in: the game's, else the league's latest format. */
+const seasonOf = (league: League, season: number | null | undefined): number =>
+  season ?? league.periods[league.periods.length - 1].from
+
+/**
+ * The game's length from its last period, by the league's format that season (the registry's): the
+ * NBA's 12-minute quarters, the WNBA's 20-minute halves to 2005 and 10-minute quarters from 2006, and
+ * 5-minute overtimes.
+ */
+export const flowLength = (
+  periods: number,
+  league: League = currentLeague(),
+  season?: number | null
+): number => gameSeconds(league, seasonOf(league, season), periods)
 
 /** The largest margin either way, rounded up to a multiple of 5, at least 5: the y axis is symmetric. */
 export function marginScale(points: readonly StatsFlowPoint[]): number {
@@ -54,11 +67,25 @@ export interface FlowGeometry {
 
 const r1 = (v: number): number => Math.round(v * 10) / 10
 
-export const periodLabel = (p: number): string => (p <= 4 ? `Q${p}` : p === 5 ? 'OT' : `${p - 4}OT`)
+/** A period's label: Q1 to Q4 in quarters, H1 and H2 in halves, then OT, 2OT. */
+export function periodLabel(
+  p: number,
+  league: League = currentLeague(),
+  season?: number | null
+): string {
+  const era = periodsIn(league, seasonOf(league, season))
+  if (p <= era.periods) return `${era.name === 'half' ? 'H' : 'Q'}${p}`
+  return p === era.periods + 1 ? 'OT' : `${p - era.periods}OT`
+}
 
 /** The chart's coordinates for a game, in the frame. */
-export function flowGeometry(flow: StatsGameFlow, frame: FlowFrame = FLOW_FRAME): FlowGeometry {
-  const length = flowLength(flow.periods)
+export function flowGeometry(
+  flow: StatsGameFlow,
+  frame: FlowFrame = FLOW_FRAME,
+  league: League = currentLeague()
+): FlowGeometry {
+  const season = seasonOf(league, flow.season)
+  const length = flowLength(flow.periods, league, season)
   const scale = marginScale(flow.points)
   const w = frame.width - frame.left - frame.right
   const h = frame.height - frame.top - frame.bottom
@@ -81,8 +108,7 @@ export function flowGeometry(flow: StatsGameFlow, frame: FlowFrame = FLOW_FRAME)
   const area = `${path} V${y(0)} H${x(0)} Z`
   const periods = Array.from({ length: flow.periods }, (_, i) => {
     const p = i + 1
-    const start = p <= 4 ? (p - 1) * 720 : 2880 + (p - 5) * 300
-    return { x: x(start), label: periodLabel(p) }
+    return { x: x(periodStartSeconds(league, season, p)), label: periodLabel(p, league, season) }
   })
   const half = Math.round(scale / 2)
   const ticks = [scale, half, 0, -half, -scale].map((m) => ({
