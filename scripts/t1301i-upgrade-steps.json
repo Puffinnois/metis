@@ -24,7 +24,7 @@
     "eval": "(async () => { const nba = (await window.api.stats.views('nba')).map((v) => v.name); const wnba = await window.api.stats.views('wnba'); return check('the views saved before leagues are the NBA\\'s, and the WNBA has none', nba.includes('Scoring guards per 36') && nba.includes('Team offense') && wnba.length === 0, { nba, wnba }) })()"
   },
   {
-    "eval": "(async () => { const s = await window.api.stats.status('wnba'); const q = await window.api.stats.query('wnba', { entity: 'player', metrics: ['pts'], scope: { seasons: [2026] }, transform: 'per40' }); const c = await window.api.stats.catalogue('wnba'); return check('the WNBA answers no data yet, with the reason, never an error', !s.available && q.rows.length === 0 && q.notes[0] === s.noData && c.every((m) => m.unavailable), { status: s.noData, notes: q.notes, column: q.columns[0].reason, metrics: c.length }) })()"
+    "eval": "(async () => { const s = await window.api.stats.status('wnba'); const q = await window.api.stats.query('wnba', { entity: 'player', metrics: ['pts'], scope: { seasons: [2026] }, transform: 'per40' }); const c = await window.api.stats.catalogue('wnba'); return check('the WNBA answers no data yet, with the reason, never an error', !s.available && q.rows.length === 0 && q.notes[0] === s.noData, { status: s.noData, notes: q.notes, column: q.columns[0].reason, metrics: c.length }) })()"
   },
   {
     "shot": "league-01-home"

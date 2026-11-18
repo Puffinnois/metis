@@ -104,7 +104,7 @@ describe('a section’s note, in the league’s own seasons', () => {
 })
 
 describe('a season in progress, by the league’s own season end', () => {
-  const status = (season: number) =>
+  const status = (season: number): never =>
     ({ available: true, through: { season, date: '2026-10-29' } }) as never
   it('ends the WNBA’s in November, the NBA’s in July', () => {
     // July 2026: the WNBA's 2026 is being played; the NBA's 2025-26 is over.
