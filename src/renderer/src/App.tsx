@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { DevTools } from '@/components/dev/DevTools'
 import { UpdateDialog } from '@/components/UpdateDialog'
 import { api } from '@/lib/api'
 import { isBackGesture, useBackStack, type NavLocation } from '@/lib/navHistory'
+import { currentLeague, setLeague, useLeague } from '@/lib/stats/league'
 import { NAV_ITEMS, type StatsScreen } from '@/lib/stats/screens'
+import { createSessionStore, SessionContext } from '@/lib/stats/session'
 import { useTheme } from '@/lib/theme'
 import { useUpdateState } from '@/lib/useUpdateState'
 import { StatsApp, type StatsFocus } from '@/screens/stats/StatsApp'
@@ -16,16 +18,28 @@ export default function App(): React.JSX.Element {
   const [version, setVersion] = useState<string | null>(null)
   const [updateOpen, setUpdateOpen] = useState(false)
   const [, toggleTheme] = useTheme()
+  // The shell is built for the league on screen, and again for each league switched to (D35).
+  const league = useLeague()
+  // Each league's session, kept here above the shell for when the league is back on screen.
+  const [sessions] = useState(createSessionStore)
   const [focus, setFocus] = useState<StatsFocus | null>(null)
+  const nonce = useRef(0)
   const open = useCallback((location: NavLocation) => {
-    setFocus((f) => ({ location, nonce: (f?.nonce ?? 0) + 1 }))
+    nonce.current += 1
+    setFocus({ location, nonce: nonce.current })
   }, [])
+  const focused = useCallback(() => setFocus(null), [])
 
   // A dev note's "Go there": the screen the note was written on.
   const goTo = useCallback(
     (context: NoteContext) => {
       if (SCREENS.has(context.screen)) {
-        open({ screen: context.screen as StatsScreen, team: null, player: null })
+        open({
+          league: currentLeague().id,
+          screen: context.screen as StatsScreen,
+          team: null,
+          player: null
+        })
       }
     },
     [open]
@@ -33,9 +47,12 @@ export default function App(): React.JSX.Element {
 
   const history = useBackStack()
   const { back } = history
+  // Back to a page of the other league switches to it: its player, team or game is that league's.
   const goBack = useCallback(() => {
     const to = back()
-    if (to) open(to)
+    if (!to) return
+    if (to.league !== currentLeague().id) setLeague(to.league)
+    open(to)
   }, [back, open])
 
   useEffect(() => {
@@ -61,16 +78,20 @@ export default function App(): React.JSX.Element {
 
   return (
     <DevTools screen="home" onGo={goTo}>
-      <StatsApp
-        focus={focus}
-        update={update}
-        version={version}
-        onOpenUpdate={() => setUpdateOpen(true)}
-        onToggleTheme={toggleTheme}
-        onLocation={history.report}
-        canGoBack={history.canGoBack}
-        onBack={goBack}
-      />
+      <SessionContext.Provider value={sessions}>
+        <StatsApp
+          key={league.id}
+          focus={focus}
+          onFocused={focused}
+          update={update}
+          version={version}
+          onOpenUpdate={() => setUpdateOpen(true)}
+          onToggleTheme={toggleTheme}
+          onLocation={history.report}
+          canGoBack={history.canGoBack}
+          onBack={goBack}
+        />
+      </SessionContext.Provider>
       <UpdateDialog
         state={update}
         currentVersion={version ?? '?'}

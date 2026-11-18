@@ -1,0 +1,170 @@
+[
+  {
+    "size": [1500, 950]
+  },
+  {
+    "wait": 7000
+  },
+  {
+    "eval": "window.sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nwindow.until = async (fn, ms = 15000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await fn()) return true; await sleep(150) } return false };\nwindow.nav = async (name) => { const b = [...document.querySelectorAll('nav button')].find((x) => x.textContent.trim() === name); if (!b) return 'NO NAV ' + name; b.click(); await sleep(2500); return 'nav ' + name };\nwindow.setInput = (input, value) => { const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(input, value); input.dispatchEvent(new Event('input', { bubbles: true })); input.dispatchEvent(new Event('change', { bubbles: true })) };\nwindow.chooseSelect = async (title, value) => { const el = [...document.querySelectorAll('select')].find((x) => x.title === title); if (!el) return 'NO SELECT ' + title; Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(el, String(value)); el.dispatchEvent(new Event('change', { bubbles: true })); await sleep(2000); return title + ' = ' + (el.selectedOptions[0]?.textContent ?? el.value) };\nwindow.selected = (title) => [...document.querySelectorAll('select')].find((x) => x.title === title)?.selectedOptions[0]?.textContent ?? null;\nwindow.cells = (r) => [...r.querySelectorAll('[role=cell],td')].map((c) => c.textContent.trim());\nwindow.rows = (n) => [...document.querySelectorAll('tbody tr,[role=row]')].slice(0, n).map((r) => cells(r).slice(0, 5).join(' | '));\nwindow.openPlayer = async (name) => { const input = document.querySelector('input[aria-label=\"Search players\"]'); if (!input) return 'NO SEARCH'; setInput(input, name); await until(() => [...document.querySelectorAll('aside button')].some((x) => x.textContent.includes(name))); const b = [...document.querySelectorAll('aside button')].find((x) => x.textContent.includes(name)); if (!b) return 'NOT LISTED ' + name; b.click(); await sleep(3000); return 'opened ' + name };\nwindow.openView = async (name) => { let b = [...document.querySelectorAll('button')].find((x) => x.textContent.includes(name)); if (!b) { const menu = document.querySelector('[title=\"Saved views\"]'); if (!menu) return false; menu.click(); await sleep(600); b = [...document.querySelectorAll('button')].find((x) => x.textContent.includes(name)) } if (!b) return false; b.click(); await sleep(3500); return true };\nwindow.check = (label, ok, got) => (ok ? 'OK ' : 'MISMATCH ') + label + ' got ' + JSON.stringify(got);\nwindow.trigger = () => document.querySelector('button[aria-label^=\"League: \"]');\nwindow.league = () => trigger()?.getAttribute('aria-label')?.replace('League: ', '') ?? null;\nwindow.statusLine = () => document.querySelector('[title=\"See what is loaded\"]')?.textContent.trim() ?? null;\nwindow.h1 = () => document.querySelector('main h1')?.textContent.trim() ?? null;\nwindow.switchTo = async (name) => { const t = trigger(); if (!t) return 'NO MENU'; t.focus(); t.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); await until(() => document.querySelectorAll('[role=menuitemradio]').length > 0, 3000); const item = [...document.querySelectorAll('[role=menuitemradio]')].find((x) => x.textContent.startsWith(name)); if (!item) return 'NO ITEM ' + name; item.click(); await until(() => league() === name, 5000); await sleep(3000); return league() };\nwindow.wnbaReads = () => { const t = document.querySelector('main').innerText; return /No WNBA stats yet/.test(t) && !/could not be opened|unknown league|Error/.test(t) && /^(No WNBA stats yet|WNBA files loaded · no tables yet)$/.test(statusLine()) };\nwindow.button = (name, within = document) => [...within.querySelectorAll('button')].find((x) => x.textContent.trim() === name);\nwindow.section = (name) => [...document.querySelectorAll('main section')].find((s) => s.querySelector('h2')?.textContent.trim() === name);\nwindow.reason = () => document.querySelector('main p')?.textContent ?? '';\nwindow.dl = async (league) => (await window.api.leagues.downloads()).leagues.find((d) => d.league === league);\nwindow.roundTrip = async (label, keep) => { const before = keep(); const w = await switchTo('WNBA'); const onW = { league: w, h1: h1(), reads: wnbaReads(), status: statusLine() }; const n = await switchTo('NBA'); const after = keep(); return check(label, w === 'WNBA' && onW.reads && n === 'NBA' && JSON.stringify(after) === JSON.stringify(before), { before, onW, after }) };\n'helpers ready'"
+  },
+  {
+    "eval": "(async () => check('the app opens on the NBA, the menu beside the mark', league() === 'NBA' && trigger().closest('nav') !== null && /^Data through/.test(statusLine()), { league: league(), status: statusLine(), h1: h1() }))()"
+  },
+  {
+    "eval": "(async () => { await sleep(2000); trigger().focus(); await sleep(300); return document.activeElement === trigger() ? 'menu button focused' : 'MISMATCH focus ' + document.activeElement?.outerHTML.slice(0, 80) })()"
+  },
+  {
+    "key": ["Enter", "Enter", 13, 0]
+  },
+  {
+    "wait": 600
+  },
+  {
+    "eval": "(async () => { const items = [...document.querySelectorAll('[role=menuitemradio]')].map((x) => [x.textContent, x.getAttribute('aria-checked')]); return check('the menu opens from the keyboard and lists every league, the NBA checked, the WNBA with no tables yet', items.length === 2 && items[0][0] === 'NBANational Basketball Association' && items[0][1] === 'true' && items[1][0].startsWith('WNBA') && items[1][0].endsWith('No tables yet'), { items, focus: document.activeElement?.getAttribute('aria-label') ?? document.activeElement?.tagName, expanded: trigger()?.getAttribute('aria-expanded') }) })()"
+  },
+  {
+    "shot": "menu-01-open-light"
+  },
+  {
+    "key": ["ArrowDown", "ArrowDown", 40, 0]
+  },
+  {
+    "key": ["ArrowDown", "ArrowDown", 40, 0]
+  },
+  {
+    "key": ["Enter", "Enter", 13, 0]
+  },
+  {
+    "wait": 4000
+  },
+  {
+    "eval": "(async () => check('picked from the keyboard: the WNBA home reads its reason, the menu button keeps the focus', league() === 'WNBA' && wnbaReads() && h1() === 'Leaderboards' && document.activeElement === trigger(), { league: league(), h1: h1(), status: statusLine(), text: document.querySelector('main').innerText.slice(0, 160), focus: document.activeElement?.getAttribute('aria-label') }))()"
+  },
+  {
+    "shot": "menu-02-wnba-home"
+  },
+  {
+    "eval": "switchTo('NBA')"
+  },
+  {
+    "eval": "(async () => { await chooseSelect('Season', 2016); const totals = [...document.querySelectorAll('[role=radio]')].find((b) => b.textContent.trim() === 'Totals'); totals?.click(); await sleep(2000); return { season: selected('Season'), totals: totals?.getAttribute('aria-checked') } })()"
+  },
+  {
+    "eval": "roundTrip('home: the NBA comes back to 2015-16 and Totals', () => ({ season: selected('Season'), totals: [...document.querySelectorAll('[role=radio]')].find((b) => b.textContent.trim() === 'Totals')?.getAttribute('aria-checked'), board: rows(1) }))"
+  },
+  {
+    "shot": "menu-03-nba-home-kept"
+  },
+  {
+    "eval": "(async () => { await chooseSelect('Season', 2026); const opened = await openView('Scoring guards per 36'); return check('a saved view of the NBA opens', opened && /guard leaderboard/.test(h1()), h1()) })()"
+  },
+  {
+    "eval": "(async () => { const th = [...document.querySelectorAll('th button, th')].find((x) => x.textContent.trim().startsWith('AST')); th?.click(); await sleep(2500); return document.body.innerText.match(/sorted by [^\\n·]*/)?.[0] })()"
+  },
+  {
+    "eval": "roundTrip('player leaderboard: the tab, mode and sort come back', () => ({ h1: h1(), tab: document.querySelector('[role=tab][aria-selected=true]')?.textContent, per36: /per 36 minutes/.test(document.body.innerText), sort: document.body.innerText.match(/sorted by [^\\n·]*/)?.[0], top: rows(1) }))"
+  },
+  {
+    "eval": "(async () => { const out = []; for (const t of [...document.querySelectorAll('[role=tab]')].map((x) => x.textContent.trim())) { [...document.querySelectorAll('[role=tab]')].find((x) => x.textContent.trim() === t).click(); await sleep(2500); out.push(await roundTrip('player tab ' + t, () => ({ tab: document.querySelector('[role=tab][aria-selected=true]')?.textContent, h1: h1() }))) } return out.map((x) => x.split(' got ')[0]) })()"
+  },
+  {
+    "eval": "(async () => { await nav('Leaderboards'); const opened = await openView('Team offense'); return check('the team view opens', opened && rows(2).length > 0, { h1: h1(), rows: rows(2) }) })()"
+  },
+  {
+    "eval": "(async () => { const out = []; for (const t of [...document.querySelectorAll('[role=tab]')].map((x) => x.textContent.trim())) { [...document.querySelectorAll('[role=tab]')].find((x) => x.textContent.trim() === t).click(); await sleep(2500); out.push(await roundTrip('team tab ' + t, () => ({ tab: document.querySelector('[role=tab][aria-selected=true]')?.textContent, h1: h1() }))) } return out.map((x) => x.split(' got ')[0]) })()"
+  },
+  {
+    "eval": "(async () => { const views = { nba: (await window.api.stats.views('nba')).map((v) => v.name), wnba: (await window.api.stats.views('wnba')).map((v) => v.name) }; return check('saved views are the league\\'s own: two for the NBA, none for the WNBA', views.nba.length === 2 && views.wnba.length === 0, views) })()"
+  },
+  {
+    "eval": "(async () => { await nav('Players'); const r = await openPlayer('Nikola Joki'); return check('a player dashboard, found by search', r.startsWith('opened') && /Joki/.test(h1()), { r, h1: h1() }) })()"
+  },
+  {
+    "eval": "roundTrip('player dashboard: back on the same player, after the WNBA dashboard reads its reason', () => ({ h1: h1(), season: selected('Season') }))"
+  },
+  {
+    "shot": "menu-04-nba-player-kept"
+  },
+  {
+    "eval": "(async () => { const w = await switchTo('WNBA'); const onW = { league: league(), h1: h1(), reads: wnbaReads() }; const back = document.querySelector('button[aria-label=Back]'); back.click(); await until(() => league() === 'NBA', 5000); await sleep(3500); return check('Back after a switch returns to the NBA player, switching back to the NBA', w === 'WNBA' && onW.reads && league() === 'NBA' && /Joki/.test(h1()), { onW, league: league(), h1: h1() }) })()"
+  },
+  {
+    "eval": "(async () => { await nav('Teams'); await sleep(2500); return h1() })()"
+  },
+  {
+    "eval": "roundTrip('team dashboard: back on the same team', () => ({ h1: h1() }))"
+  },
+  {
+    "eval": "(async () => { await nav('Standings'); await chooseSelect('Season', 2016); return h1() })()"
+  },
+  {
+    "eval": "roundTrip('standings: 2015-16 comes back, Golden State 73-9', () => { const r = [...document.querySelectorAll('tr,[role=row]')].find((x) => x.textContent.includes('Golden State Warriors')); return { h1: h1(), gsw: r ? cells(r).slice(0, 4) : null } })"
+  },
+  {
+    "shot": "menu-05-nba-standings-kept"
+  },
+  {
+    "eval": "(async () => { await nav('Games'); await sleep(2000); const list = document.querySelector('[aria-label=\"The day’s games\"]'); const b = list?.querySelector('button'); b?.click(); await sleep(3500); return { h1: h1(), opened: !!b } })()"
+  },
+  {
+    "eval": "roundTrip('a game: back on the same game', () => ({ h1: h1(), heading: document.querySelector('main h2')?.textContent ?? null }))"
+  },
+  {
+    "eval": "(async () => { await nav('Explore'); const out = []; for (const t of ['Chart', 'Compare', 'Trends']) { const tab = [...document.querySelectorAll('[role=tab],button')].find((x) => x.textContent.trim() === t); tab?.click(); await sleep(3500); out.push(await roundTrip('Explore ' + t, () => ({ tab: t, selected: [...document.querySelectorAll('[role=tab][aria-selected=true]')].map((x) => x.textContent.trim()), h1: h1() }))) } return out })()"
+  },
+  {
+    "shot": "menu-06-nba-trends-kept"
+  },
+  {
+    "eval": "(async () => { await nav('Glossary'); const input = document.querySelector('input[aria-label=\"Search metrics\"]'); setInput(input, 'usage'); await sleep(1500); return document.querySelectorAll('main article, main li').length })()"
+  },
+  {
+    "eval": "roundTrip('Glossary: the search comes back', () => ({ h1: h1(), search: document.querySelector('input[aria-label=\"Search metrics\"]')?.value }))"
+  },
+  {
+    "eval": "(async () => { document.querySelector('[title=\"See what is loaded\"]').click(); await sleep(3000); return h1() ?? document.querySelector('main h1, h1')?.textContent })()"
+  },
+  {
+    "eval": "(async () => { const files = () => document.body.innerText.match(/[\\d,]+ of [\\d,]+ files[^\\n]*/g) ?? []; await until(() => files().length >= 2, 15000); const before = files(); const w = await switchTo('WNBA'); await until(() => files().length >= 2, 15000); const onW = { h1: document.querySelector('main h1')?.textContent, files: files(), red: [...document.querySelectorAll('main .text-bad')].map((x) => x.textContent) }; await switchTo('NBA'); await until(() => files().length >= 2, 15000); return check('the Data panel opens on either league, listing both, the WNBA with its files', w === 'WNBA' && onW.h1 === 'Data' && onW.files.length >= 2 && onW.red.length === 0 && files().length >= 2, { before, onW, after: files() }) })()"
+  },
+  {
+    "eval": "(async () => { await nav('Leaderboards'); const w = await switchTo('WNBA'); const got = { h1: h1(), reason: reason(), status: statusLine(), turnOn: !!button('Turn it on in the Data panel') }; await switchTo('NBA'); return check('the WNBA loaded with no tables yet: Leaderboards reads notBuilt, no turn-on button', w === 'WNBA' && /files are loaded, and the tables built from them come in a later version/.test(got.reason) && got.status === 'WNBA files loaded · no tables yet' && !got.turnOn, got) })()"
+  },
+  {
+    "eval": "(async () => { await nav('Standings'); const w = await switchTo('WNBA'); const got = { h1: h1(), reason: reason(), status: statusLine(), turnOn: !!button('Turn it on in the Data panel') }; await switchTo('NBA'); return check('the WNBA loaded with no tables yet: Standings reads notBuilt, no turn-on button', w === 'WNBA' && /files are loaded, and the tables built from them come in a later version/.test(got.reason) && got.status === 'WNBA files loaded · no tables yet' && !got.turnOn, got) })()"
+  },
+  {
+    "eval": "(async () => { await nav('Players'); const w = await switchTo('WNBA'); const got = { h1: h1(), reason: reason(), status: statusLine(), turnOn: !!button('Turn it on in the Data panel') }; await switchTo('NBA'); return check('the WNBA loaded with no tables yet: Players reads notBuilt, no turn-on button', w === 'WNBA' && /files are loaded, and the tables built from them come in a later version/.test(got.reason) && got.status === 'WNBA files loaded · no tables yet' && !got.turnOn, got) })()"
+  },
+  {
+    "shot": "menu-08-wnba-not-built"
+  },
+  {
+    "eval": "(async () => { await switchTo('WNBA'); document.querySelector('[title=\"See what is loaded\"]').click(); await until(() => button('Turn the WNBA off'), 15000); button('Turn the WNBA off').click(); await until(async () => !(await dl('wnba')).on, 15000); await until(() => button('Delete its data'), 15000); await sleep(10000); button('Delete its data').click(); await sleep(800); button('Delete').click(); const gone = await until(async () => !(await dl('wnba')).hasFile, 30000); return check('on a copy: the WNBA turned off and its file deleted', gone, await dl('wnba')) })()"
+  },
+  {
+    "eval": "(async () => { await nav('Games'); await until(() => /turn the WNBA on/.test(reason()), 10000); const got = { h1: h1(), reason: reason(), status: statusLine(), turnOn: !!button('Turn it on in the Data panel') }; trigger().focus(); trigger().dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); await sleep(500); const note = [...document.querySelectorAll('[role=menuitemradio]')].map((x) => x.textContent); document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await sleep(400); return check('the WNBA off: Games reads noData with the turn-on button, the menu says No stats yet', got.h1 === 'Games' && /turn the WNBA on in the Data panel/.test(got.reason) && got.status === 'No WNBA stats yet' && got.turnOn && note[1]?.endsWith('No stats yet'), { ...got, note }) })()"
+  },
+  {
+    "shot": "menu-09-wnba-off"
+  },
+  {
+    "eval": "(async () => { button('Turn it on in the Data panel').click(); await sleep(2500); const t = document.querySelector('main').innerText; return check('the button opens the Data panel, with the WNBA to turn on', document.querySelector('main h1')?.textContent === 'Data' && !!button('Turn the WNBA on'), t.slice(0, 200)) })()"
+  },
+  {
+    "shot": "menu-10-data-from-button"
+  },
+  {
+    "eval": "(async () => { document.querySelector('button[aria-label=\"Switch theme\"]').click(); await sleep(800); trigger().focus(); trigger().dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); await sleep(600); return document.documentElement.classList.contains('dark') ? 'dark, menu open' : 'MISMATCH not dark' })()"
+  },
+  {
+    "shot": "menu-07-open-dark"
+  },
+  {
+    "key": ["Escape", "Escape", 27, 0]
+  },
+  {
+    "eval": "(async () => { document.querySelector('button[aria-label=\"Switch theme\"]').click(); await sleep(500); await nav('Leaderboards'); const w = await switchTo('WNBA'); return check('left on the WNBA, for the relaunch', w === 'WNBA' && localStorage.getItem('metis.league') === 'wnba', { league: w, saved: localStorage.getItem('metis.league') }) })()"
+  }
+]

@@ -7,6 +7,7 @@ import { ScopeBar } from '@/components/stats/ScopeBar'
 import { ViewsMenu } from '@/components/stats/ViewsMenu'
 import { api } from '@/lib/api'
 import { errorMessage } from '@/lib/format'
+import { useScreenState } from '@/lib/stats/session'
 import { familyLabel } from '@/lib/stats/format'
 import {
   bestFirst,
@@ -20,6 +21,7 @@ import {
   leaderboardCsv,
   leaderboardQuery,
   leaderRows,
+  type LeaderboardOpen,
   modeWords,
   rankWithinTab,
   shrunkPatch,
@@ -36,12 +38,7 @@ import type { Entity, LeaderboardBoard, MetricFamily, StatsView } from '@shared/
 /** Rows rendered at a time; "Show more" adds as many. */
 const PAGE = 50
 
-/** What opens a leaderboard: a board's "All →", a row, a saved view. The nonce re-applies it. */
-export interface LeaderboardOpen {
-  board: LeaderboardBoard
-  selected: string | null
-  nonce: number
-}
+export type { LeaderboardOpen }
 
 /** A tab per position group or end of the floor, filters, column presets, saved views and CSV. */
 export function StatsLeaderboard({
@@ -69,7 +66,11 @@ export function StatsLeaderboard({
   onOpenRow?: (id: string) => void
 }): React.JSX.Element {
   // The board on screen: the one opened (until the user changes it), else the default tab's.
-  const [own, setOwn] = useState<{ nonce: number | null; board: LeaderboardBoard } | null>(null)
+  const [own, setOwn] = useScreenState<{ nonce: number | null; board: LeaderboardBoard } | null>(
+    entity === 'player' ? 'players' : 'teams',
+    'board',
+    null
+  )
   const opened = open && open.board.entity === entity ? open : null
   const board =
     own && own.nonce === (opened?.nonce ?? null)

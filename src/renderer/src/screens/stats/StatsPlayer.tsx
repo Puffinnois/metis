@@ -1,6 +1,7 @@
 import { AssistNetwork } from '@/components/stats/AssistNetwork'
 import { MetricHead } from '@/components/stats/MetricCard'
 import { ShotChart } from '@/components/stats/ShotChart'
+import { useScreenState } from '@/lib/stats/session'
 import { shotRequest } from '@/lib/stats/shotChart'
 import { useMemo, useState } from 'react'
 import { Segmented } from '@/components/stats/controls'
@@ -78,7 +79,7 @@ import {
   type Fact
 } from '@/lib/stats/profile'
 import { rangeLabel, scopeLabel, seasonOf, typeLabel, type StatsScope } from '@/lib/stats/scope'
-import { seasonLabel } from '@/lib/stats/league'
+import { currentLeague, seasonLabel } from '@/lib/stats/league'
 import {
   useAvailability,
   useMatchups,
@@ -143,7 +144,7 @@ export function StatsPlayer({
     error: infoError,
     loading: infoLoading
   } = usePlayerInfo(player, data.version)
-  const [mode, setMode] = useState<BoardMode>('perGame')
+  const [mode, setMode] = useScreenState<BoardMode>('player', 'mode', 'perGame')
   const [railPosition, setRailPosition] = useState<RailPosition>('ALL')
   const [railTeam, setRailTeam] = useState<string | null>(null)
   const [metric, setMetric] = useState('pts')
@@ -291,9 +292,13 @@ function Profile({ data, player }: TabProps): React.JSX.Element {
       <div className="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] items-start gap-x-10 gap-y-7">
         <FactList
           title="Bio"
-          note={value.bio ? `NBA roster, ${seasonLabel(value.bio.season)}` : undefined}
+          note={
+            value.bio
+              ? `${currentLeague().name} roster, ${seasonLabel(value.bio.season)}`
+              : undefined
+          }
           facts={value.bio ? bioFacts(value.bio) : []}
-          empty="No NBA roster lists them."
+          empty={`No ${currentLeague().name} roster lists them.`}
         />
         <FactList title="Draft" facts={draft.facts} empty={draft.note ?? ''} />
       </div>

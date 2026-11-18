@@ -1,0 +1,18 @@
+[
+  { "size": [1500, 950] },
+  { "wait": 8000 },
+  {
+    "eval": "window.sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nwindow.until = async (fn, ms = 15000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await fn()) return true; await sleep(250) } return false };\nwindow.button = (name) => [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === name);\nwindow.dl = async (league) => (await window.api.leagues.downloads()).leagues.find((d) => d.league === league);\nwindow.check = (label, ok, got) => (ok ? 'OK ' : 'MISMATCH ') + label + ' got ' + JSON.stringify(got);\n'helpers ready'"
+  },
+  {
+    "eval": "(async () => { const d = await dl('wnba'); document.querySelector('[title=\"See what is loaded\"]').click(); const shown = await until(() => button('Delete its data'), 15000); return check('the WNBA off with its file, Delete its data offered', !d.on && d.hasFile && shown, d) })()"
+  },
+  { "wait": 10000 },
+  {
+    "eval": "(async () => { button('Delete its data').click(); await sleep(800); button('Delete').click(); const gone = await until(async () => !(await dl('wnba')).hasFile, 30000); return check('a league off for a while: its file deleted, the app still running', gone, await dl('wnba')) })()"
+  },
+  { "wait": 3000 },
+  {
+    "eval": "(async () => check('the app answers after the delete', true, (await window.api.leagues.downloads()).leagues))()"
+  }
+]

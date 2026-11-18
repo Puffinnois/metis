@@ -1,5 +1,6 @@
 import { DevChip } from '@/components/dev/DevChip'
 import { BackButton, Mark, VersionTag } from '@/components/edition'
+import { LeagueMenu } from '@/components/stats/LeagueMenu'
 import { UpdatePill } from '@/components/UpdatePill'
 import { freshness } from '@/lib/stats/scope'
 import { NAV_ITEMS, type StatsScreen } from '@/lib/stats/screens'
@@ -20,7 +21,7 @@ interface StatsNavProps {
   onToggleTheme: () => void
 }
 
-/** The nav: 52px, mark + "Metis", the screens, the status line, theme. */
+/** The nav: 52px, mark + "Metis", the league menu, the screens, the status line, theme. */
 export function StatsNav({
   current,
   onNavigate,
@@ -39,6 +40,7 @@ export function StatsNav({
         <Mark />
         <span className="text-[15px] leading-none font-semibold tracking-[-0.01em]">Metis</span>
         <VersionTag version={version} />
+        <LeagueMenu />
         <DevChip />
       </div>
       <div className="flex gap-[22px] self-stretch text-[13.5px] leading-none font-medium">
@@ -72,7 +74,7 @@ export function StatsNav({
           onClick={() => onNavigate('data')}
           className={cn(
             'flex cursor-pointer items-center gap-1.5 text-[12px] font-normal text-fg-3 hover:text-fg',
-            status && (!status.available || status.noRoom) && 'text-bad'
+            status && !status.noData && (!status.available || status.noRoom) && 'text-bad'
           )}
         >
           {status?.busy && <span className="size-1.5 animate-pulse rounded-full bg-cobalt" />}

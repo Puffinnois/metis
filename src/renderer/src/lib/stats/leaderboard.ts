@@ -14,6 +14,13 @@ import { familyLabel, isRescaled } from './format'
 import { queryScope, type StatsScope } from './scope'
 import { shrinkable } from './stability'
 
+/** What opens a leaderboard: a board's "All →", a row, a saved view. The nonce re-applies it. */
+export interface LeaderboardOpen {
+  board: LeaderboardBoard
+  selected: string | null
+  nonce: number
+}
+
 /** A leaderboard tab: positions for players, an end of the floor for teams, its default columns. */
 export interface TabDef {
   id: string

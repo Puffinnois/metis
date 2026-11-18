@@ -4,11 +4,13 @@ import { act, renderHook } from '@testing-library/react'
 import { BACK_LIMIT, isBackGesture, useBackStack, type NavLocation } from '@/lib/navHistory'
 
 const page = (screen: 'home' | 'games' | 'players'): NavLocation => ({
+  league: 'nba',
   screen,
   team: null,
   player: null
 })
 const statsPlayer = (id: string, position: 'G' | null): NavLocation => ({
+  league: 'nba',
   screen: 'player',
   team: null,
   player: { id, position }
@@ -56,7 +58,7 @@ describe('the back stack', () => {
   it('takes a waiting dashboard getting its default as the same page', () => {
     const { result } = renderHook(() => useBackStack())
     act(() => result.current.report(statsPlayer('2544', null)))
-    const waiting: NavLocation = { screen: 'team', team: null, player: null }
+    const waiting: NavLocation = { league: 'nba', screen: 'team', team: null, player: null }
     act(() => result.current.report(waiting))
     act(() => result.current.report({ ...waiting, team: 'DET' }))
     let to: NavLocation | null = null
@@ -65,6 +67,32 @@ describe('the back stack', () => {
     })
     // The player before, not the waiting page.
     expect(to).toEqual(statsPlayer('2544', null))
+  })
+
+  it('takes the same screen in the other league as another page, with its own league', () => {
+    const { result } = renderHook(() => useBackStack())
+    act(() => result.current.report(statsPlayer('2544', null)))
+    // The switch: the WNBA's player dashboard, waiting for its default player.
+    act(() => result.current.report({ ...page('home'), league: 'wnba', screen: 'player' }))
+    expect(result.current.canGoBack).toBe(true)
+    let to: NavLocation | null = null
+    act(() => {
+      to = result.current.back()
+    })
+    // LeBron's page in the NBA, never under the WNBA's name.
+    expect(to).toEqual(statsPlayer('2544', null))
+  })
+
+  it('does not take a dashboard getting its default in the other league as the same page', () => {
+    const { result } = renderHook(() => useBackStack())
+    const waiting: NavLocation = { league: 'wnba', screen: 'player', team: null, player: null }
+    act(() => result.current.report(waiting))
+    act(() => result.current.report(statsPlayer('2544', null)))
+    let to: NavLocation | null = null
+    act(() => {
+      to = result.current.back()
+    })
+    expect(to).toEqual(waiting)
   })
 
   it(`keeps the last ${BACK_LIMIT} pages`, () => {
