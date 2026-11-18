@@ -459,10 +459,13 @@ export async function refreshStats(
       )
     }
     if (!runs('derived')) return
-    if ((coreWrote || identityBuilt || (await derivedStale(db))) && (await canDerive(db))) {
+    if (
+      (coreWrote || identityBuilt || (await derivedStale(db, league))) &&
+      (await canDerive(db, league))
+    ) {
       log.push(
         await runLogged(deps, STATS_DERIVED_STEP, async () => ({
-          rows: await buildDerived(db),
+          rows: await buildDerived(db, league),
           message: null
         }))
       )
