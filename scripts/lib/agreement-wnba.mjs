@@ -4,6 +4,7 @@
 // number of regular-season games or teams, and the script exits 1 when that is not 0, as the NBA's does.
 // The game and season tables' checks (T1301.6) are in `agreement-wnba-tables.mjs`; later parts add
 // theirs beside them.
+import { depthChecks } from './agreement-wnba-depth.mjs'
 import { tableChecks } from './agreement-wnba-tables.mjs'
 
 /**
@@ -330,6 +331,17 @@ export async function runAgreement(read, out, query) {
     )[0].n
   ) {
     wrong += await tableChecks(read, query, out)
+    // The published tables, read through the engine (Plan T1301.7), once they are built.
+    if (
+      (
+        await read(
+          "SELECT count(*)::INTEGER AS n FROM duckdb_tables() WHERE table_name = 'pub_player_advanced'"
+        )
+      )[0].n
+    ) {
+      // Measured, as the NBA's dashboards and impact are: they do not fail the run.
+      await depthChecks(read, query, out)
+    }
   }
 
   return wrong
