@@ -26,7 +26,7 @@ A stat outside its seasons reads blank with the reason, such as "Recorded from 2
 
 ## The first run
 
-The installer holds no data. On first launch Metis downloads the dataset and builds its database, measured on the development machine (Stage 10 gate, 2026-11-14; [what was measured](docs/reference/what-was-measured.md)):
+The installer holds no data. On first launch Metis asks which leagues to download, with each one's size and the free space it needs. The WNBA alone takes about 6 minutes, a 294 MB download and an 850 MB database (Stage 13, 2026-11-18). The NBA, measured on the development machine (Stage 10 gate, 2026-11-14; 27 minutes again on 2026-11-18; [what was measured](docs/reference/what-was-measured.md)):
 
 - **Time:** about 34 minutes, mostly the download, so it depends on your connection. Earlier loads on a faster connection took 12 to 21 minutes. The leaderboards are usable about 3 to 5 minutes in, while the rest loads.
 - **Disk:** a first load needs 6 GB free. The database ends at 5.3 GB, in `%APPDATA%\Metis`. The download is about 1.6 GB, and each file is deleted once loaded.
