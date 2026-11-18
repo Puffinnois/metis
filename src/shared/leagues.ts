@@ -62,6 +62,10 @@ export type PublishedRecipeName = 'nba' | 'wnba'
  */
 export type PlaysRecipeName = 'nba' | 'wnba'
 
+/** Families of stats a league's releases may not publish at all (`League.unpublished`). */
+export type UnpublishedFamily =
+  'tracking' | 'hustle' | 'play_types' | 'matchups' | 'availability' | 'combine'
+
 /**
  * The three-point line from a season on, in the shot charts' frame (tenths of a foot from the basket):
  * the arc's radius, and how far from the basket it runs straight along the sides; a line that is an
@@ -172,6 +176,12 @@ export interface League {
    */
   builds: readonly BuiltTables[]
   /**
+   * The families no release publishes for the league, each with the reason every screen gives: the
+   * catalogue's metrics of the family and the reads behind its tabs (matchup pairs, a game's
+   * matchups, the combine, games out) answer it instead of an empty table. None for the NBA.
+   */
+  unpublished: Partial<Record<UnpublishedFamily, string>>
+  /**
    * The recipe that builds its `game`, `team` and `player` tables, named for the sources it reads
    * (`IDENTITY_RECIPES` in `src/main/stats/identity.ts`). The shared SQL stays shared; only what
    * differs between the leagues' sources is written per recipe.
@@ -249,6 +259,7 @@ const NBA: League = {
   },
   noData: 'No NBA stats yet: turn the NBA on in the Data panel to download it.',
   builds: BUILT_TABLES,
+  unpublished: {},
   identity: 'nba',
   derived: 'nba',
   published: 'nba',
@@ -314,6 +325,18 @@ const WNBA: League = {
   // Its game, team and player tables (T1301.5), its game and season tables (T1301.6), its published
   // tables and its plays (T1301.7) are built; the models come with T1301.8.
   builds: ['identity', 'derived', 'published', 'plays'],
+  // No WNBA release publishes these (wnba-data-sources.md, "Tables"). ESPN's injury snapshots begin
+  // on 2026-09-08 with the current state only: the 2026 regular season's last week and its playoffs,
+  // so no season's games out can be counted from them (T1301.7).
+  unpublished: {
+    tracking: 'Not published for the WNBA: no release holds player tracking.',
+    hustle: 'Not published for the WNBA: no release holds hustle stats.',
+    play_types: 'Not published for the WNBA: no release holds play types.',
+    matchups: 'Not published for the WNBA: no release holds matchups.',
+    availability:
+      "Not published for the WNBA: it has no official injury report, and ESPN's injury snapshots start in September 2026.",
+    combine: 'Not published for the WNBA: no release holds a draft combine.'
+  },
   identity: 'wnba',
   derived: 'wnba',
   published: 'wnba',

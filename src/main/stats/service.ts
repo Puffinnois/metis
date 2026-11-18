@@ -453,7 +453,11 @@ export async function openStatsService(
     standings: (season) => read((reader) => readStandings(reader, season)),
     matchups: (player, season, scope) =>
       read((reader) => readMatchups(reader, player, season, scope)),
-    gameMatchups: (game) => read((reader) => readGameMatchups(reader, game, league)),
+    // A league that publishes no matchups answers its reason (`League.unpublished`).
+    gameMatchups: (game) =>
+      league.unpublished.matchups
+        ? Promise.resolve({ pairs: [], reason: league.unpublished.matchups })
+        : read((reader) => readGameMatchups(reader, game, league)),
     officialsSeason: (season, gameTypes) =>
       read((reader) => readOfficialsSeason(reader, season, gameTypes, league)),
     officialCareer: (official, gameTypes) =>

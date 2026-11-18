@@ -1,3 +1,4 @@
+import { LEAGUES } from '../../leagues'
 import { SHOT_BANDS, SHOT_ZONE_GROUPS, SHOT_ZONES } from '../shots'
 import type { MetricCoverage, MetricDef, MetricFamily } from '../types'
 
@@ -34,15 +35,11 @@ const LATER: readonly [readonly string[], number][] = [
   ]
 ]
 
-/** Families no WNBA release publishes at all (`wnba-data-sources.md`, "Tables"). */
-const NOT_PUBLISHED: Partial<Record<MetricFamily, string>> = {
-  tracking: 'Not published for the WNBA: no release holds player tracking.',
-  hustle: 'Not published for the WNBA: no release holds hustle stats.',
-  play_types: 'Not published for the WNBA: no release holds play types.',
-  matchups: 'Not published for the WNBA: no release holds matchups.',
-  availability:
-    "Not published for the WNBA: it has no official injury report, and ESPN's injury snapshots start in September 2026."
-}
+/**
+ * Families no WNBA release publishes at all (`wnba-data-sources.md`, "Tables"), with the reasons the
+ * registry gives, so the metrics and the reads behind their tabs say the same.
+ */
+const NOT_PUBLISHED: Partial<Record<MetricFamily, string>> = LEAGUES.wnba.unpublished
 
 /** Metrics that say the same as another in a 40-minute league. */
 const SAME_AS: Record<string, string> = {
@@ -100,8 +97,10 @@ export function wnbaCoverage(def: MetricDef, parts: readonly string[]): MetricCo
 
 /**
  * Fouls drawn, from ESPN's play by play, the only one naming the fouled player: its WNBA file does from
- * 2006 to 2017 (85 % of fouls), 2 to 37 a season outside them (`wnba-data-sources.md`).
+ * 2006 to 2017 (85 % of fouls), 2 to 37 a season outside them. A team's fouls drawn equal the other
+ * side's box-score fouls on 81 to 98 % of team-games in those seasons, but 47 % in 2011 and 25 % in
+ * 2012, which are left out (`wnba-data-sources.md`, "Play-derived stats").
  */
 const DRAWN = ['fd', 'fd_shooting']
 const DRAWN_FROM = 2006
-const AFTER_DRAWN = Array.from({ length: 2040 - 2017 }, (_, i) => 2018 + i)
+const AFTER_DRAWN = [2011, 2012, ...Array.from({ length: 2040 - 2017 }, (_, i) => 2018 + i)]

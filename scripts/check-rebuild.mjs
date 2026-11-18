@@ -60,9 +60,16 @@ const out = [
   ''
 ]
 const rows = []
-for (const t of TABLES) {
+// The published tables (Stage 7) as well: every `pub_` table the build wrote, and the matchup tables.
+const published = (
+  await read(`SELECT table_name FROM duckdb_tables()
+    WHERE database_name = current_database() AND schema_name = 'main'
+      AND (starts_with(table_name, 'pub_') OR table_name IN ('game_matchups', 'matchup_pairs'))
+    ORDER BY 1`)
+).map((r) => r.table_name)
+for (const t of [...TABLES, ...published]) {
   const cols = await read(`SELECT column_name, data_type FROM duckdb_columns()
-    WHERE database_name = 'stats' AND schema_name = 'main' AND table_name = '${t}' ORDER BY column_index`)
+    WHERE database_name = current_database() AND schema_name = 'main' AND table_name = '${t}' ORDER BY column_index`)
   const theirs = await read(`SELECT column_name, data_type FROM duckdb_columns()
     WHERE database_name = 'other' AND schema_name = 'main' AND table_name = '${t}' ORDER BY column_index`)
   if (cols.length === 0 || theirs.length === 0) {
@@ -89,7 +96,7 @@ for (const t of TABLES) {
       SELECT ${key}, 1 AS a, 0 AS b FROM only_a UNION ALL SELECT ${key}, 0, 1 FROM only_b)
     GROUP BY season ORDER BY season`)
   const sums = (db) =>
-    `SELECT ${key}, ${doubles.map((d) => `sum(${d}) AS ${d}`).join(', ')} FROM ${db}.main.${t} GROUP BY 1`
+    `SELECT ${key}, ${doubles.map((d) => `sum(${d}) AS ${d}`).join(', ')} FROM ${db}${t} GROUP BY 1`
   const off =
     doubles.length === 0
       ? []
@@ -102,7 +109,7 @@ for (const t of TABLES) {
                          > 1e-6 * greatest(1, abs(coalesce(x.${d}, 0))) THEN '${d}' END`
         )
         .join(', ')}]) AS name
-      FROM (${sums('stats')}) x FULL JOIN (${sums('other')}) y USING (season)) x
+      FROM (${sums('main.')}) x FULL JOIN (${sums('other.main.')}) y USING (season)) x
     WHERE name IS NOT NULL GROUP BY 1 ORDER BY 1`)
   const total = await read(`SELECT count(*)::BIGINT AS n FROM main.${t}`)
   if (diff.length === 0 && off.length === 0) rows.push([t, 'all', '0', '0', '', String(total[0].n)])
