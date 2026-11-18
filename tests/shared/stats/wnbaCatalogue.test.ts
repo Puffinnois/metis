@@ -62,10 +62,13 @@ describe('the catalogue in the WNBA', () => {
     expect(metricIn(model, before).unavailable).toBe(notBuiltYet(before, 'models'))
     expect(metricIn(shots, before).unavailable).toBe(notBuiltYet(before, 'plays'))
     // T1301.7 adds the published tables and the plays: their reasons lift, the models' stays.
-    expect(metricIn(published, wnba).unavailable).toBeUndefined()
-    expect(metricIn(shots, wnba).unavailable).toBeUndefined()
-    expect(metricIn(plays, wnba).unavailable).toBeUndefined()
-    expect(metricIn(model, wnba).unavailable).toBe(notBuiltYet(wnba, 'models'))
+    const afterPlays: League = { ...wnba, builds: ['identity', 'derived', 'published', 'plays'] }
+    expect(metricIn(published, afterPlays).unavailable).toBeUndefined()
+    expect(metricIn(shots, afterPlays).unavailable).toBeUndefined()
+    expect(metricIn(plays, afterPlays).unavailable).toBeUndefined()
+    expect(metricIn(model, afterPlays).unavailable).toBe(notBuiltYet(afterPlays, 'models'))
+    // T1301.8 adds the models: theirs lifts too.
+    expect(metricIn(model, wnba).unavailable).toBeUndefined()
     // A part that adds its step lifts the reason, with nothing else changed.
     const later: League = { ...wnba, builds: [...wnba.builds, 'models'] }
     expect(metricIn(published, later).unavailable).toBeUndefined()
@@ -109,7 +112,10 @@ describe('a formula that holds the game length', () => {
   })
 
   it('leaves every other metric’s words and formula as written', () => {
-    for (const def of CATALOGUE.filter((d) => !d.gameLength)) {
+    // The Pythagorean exponent and the WNBA's own words for its playoff format are the other changes.
+    const other = (d: (typeof CATALOGUE)[number]): boolean =>
+      !d.gameLength && !d.pythagorean && !d.leagues?.wnba?.words
+    for (const def of CATALOGUE.filter(other)) {
       const read = metricIn(def, wnba)
       expect([read.value, read.label, read.short]).toEqual([def.value, def.label, def.short])
     }

@@ -147,7 +147,7 @@ export function simulateSeason(input: SimInput): TeamForecast[] {
       for (const t of result.played) sum.playIn[t] += 1
       if (rules.playIn === 'modern') for (const t of order.slice(0, 6)) sum.top6[t] += 1
       return result.bracket
-    }) as [number[], number[]]
+    })
     playBracket(
       brackets,
       rules,

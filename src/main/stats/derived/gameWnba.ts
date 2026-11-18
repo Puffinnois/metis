@@ -205,6 +205,9 @@ export const WNBA_DERIVED: DerivedRecipe = {
   boxSource: 'wnba',
   // Players summed are the league's lines (the two games the schedule lacks), or ESPN's (the Cup final).
   summedSource: 'p.source',
+  // The league's team rows count the team's own turnovers from 2004, and in 1997, 2000 and 2003 the
+  // build adds them where a row falls short of its players; 1998, 1999, 2001 and 2002 lack them.
+  teamTurnovers: 'own',
   // ESPN publishes the WNBA's points in the paint, off turnovers and on the fast break from 2023 only.
   espnKinds: { paint: 2023, fastBreak: 2023, turnover: 2023 },
   breaks: []

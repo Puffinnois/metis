@@ -96,14 +96,14 @@ describe('the league registry', () => {
     expect(gameSeconds(wnba, 2026, 5)).toBe(2700)
   })
 
-  it("says which built tables each league has, the WNBA's all but the models so far", () => {
+  it('says which built tables each league has, both every step since T1301.8', () => {
     expect(nba.builds).toEqual(BUILT_TABLES)
-    expect(wnba.builds).toEqual(['identity', 'derived', 'published', 'plays'])
+    expect(wnba.builds).toEqual(BUILT_TABLES)
     expect(builds(wnba, 'identity')).toBe(true)
     expect(builds(wnba, 'derived')).toBe(true)
     expect(builds(wnba, 'published')).toBe(true)
     expect(builds(wnba, 'plays')).toBe(true)
-    expect(builds(wnba, 'models')).toBe(false)
+    expect(builds(wnba, 'models')).toBe(true)
     expect(nba.published).toBe('nba')
     expect(wnba.published).toBe('wnba')
     expect(nba.plays).toBe('nba')

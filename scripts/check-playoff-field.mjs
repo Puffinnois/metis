@@ -39,6 +39,8 @@ const bundled = await build({
     resolveDir: root,
     loader: 'ts'
   },
+  // The models read the league registry under its alias.
+  alias: { '@shared': resolve(root, 'src/shared'), '@main': resolve(root, 'src/main') },
   bundle: true,
   format: 'esm',
   platform: 'node',

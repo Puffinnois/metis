@@ -1,5 +1,7 @@
+import { LEAGUES, seasonGamesIn, type League as LeagueEntry } from '@shared/leagues'
 import type { ModelBuilder, ModelContext, ModelRows, ModelTable } from './build'
-import { ELO, eloShift, winProbability } from './elo'
+import { eloShift, winProbability } from './elo'
+import { stagesOf } from './playoffs'
 import { seedOf } from './random'
 import { simulateSeason, type EloModel, type GameLeft, type PlayedGame } from './simulate'
 import { makeLeague, rulesOf } from './standings'
@@ -17,9 +19,6 @@ const VERSION = 1
 
 export const FORECAST_REASON = 'Forecast in the regular season, as of its games.'
 
-/** The first season forecast: Elo's metrics start here, after two seasons of burn-in (T1002). */
-export const FORECAST_FIRST_SEASON = 1996
-
 /** Runs for the season in progress, as decided for the task. */
 export const CURRENT_RUNS = 10_000
 /**
@@ -30,23 +29,26 @@ export const CURRENT_RUNS = 10_000
 export const PAST_RUNS = 500
 /** Snapshots a season: one at each twentieth of its regular-season games, so a quarter, half and three quarters fall on one. */
 export const SNAPSHOTS = 20
-/** A regular season's games per team, for the season in progress's games not listed yet. */
-export const SEASON_GAMES = 82
-
 /**
- * The spread of a game's margin around the Elo expected margin, in points: the standard deviation of
- * the regular season's margins less `exp_margin` from 1995-96 to 2025-26, 12.38 over 36,735 games
- * (`scripts/check-forecast.mjs`).
+ * A league's Elo for the simulation, from its registry entry: home court, K, Elo points per point and
+ * the spread of a game's margin around the expected margin (the NBA's 12.4: the standard deviation of
+ * the regular season's margins less `exp_margin` from 1995-96 to 2025-26, 12.38 over 36,735 games,
+ * `scripts/check-forecast.mjs`). A season in progress's games not listed yet are filled up to the
+ * season's length (`seasonGamesIn`).
  */
-export const MARGIN_SD = 12.4
-
-export const ELO_MODEL: EloModel = {
-  homeCourt: ELO.homeCourt,
-  winProbability,
-  shift: (diff, margin) => eloShift(diff, margin),
-  perPoint: ELO.perPoint,
-  marginSd: MARGIN_SD
+export function eloModelOf(league: LeagueEntry): EloModel {
+  const { elo, marginSd } = league.models
+  return {
+    homeCourt: elo.homeCourt,
+    winProbability,
+    shift: (diff, margin) => eloShift(diff, margin, elo.k),
+    perPoint: elo.perPoint,
+    marginSd
+  }
 }
+
+/** The NBA's, as the forecast was first written for it. */
+export const ELO_MODEL: EloModel = eloModelOf(LEAGUES.nba)
 
 export const FORECAST_TABLES: readonly ModelTable[] = [
   {
@@ -193,10 +195,14 @@ export interface ForecastRuns {
 }
 
 async function build(ctx: ModelContext, runCount: ForecastRuns): Promise<ModelRows> {
-  if (ctx.season < FORECAST_FIRST_SEASON || !ctx.have.tables.has(ELO_GAME_TABLE)) {
+  if (ctx.season < ctx.league.models.forecastFirstSeason || !ctx.have.tables.has(ELO_GAME_TABLE)) {
     return { [FORECAST_TABLE]: [] }
   }
-  const teams = await ctx.db.all<{ team_id: number; conference: string; division: string }>(
+  const eloModel = eloModelOf(ctx.league)
+  const seasonGames = seasonGamesIn(ctx.league, ctx.season)
+  const rules = rulesOf(ctx.season, ctx.league)
+  const stages = stagesOf(rules)
+  const teams = await ctx.db.all<{ team_id: number; conference: string; division: string | null }>(
     `SELECT team_id, conference, division FROM team WHERE season = ? AND conference IS NOT NULL
      ORDER BY team_id`,
     [ctx.season]
@@ -205,9 +211,12 @@ async function build(ctx: ModelContext, runCount: ForecastRuns): Promise<ModelRo
     teams.map((t) => ({ id: Number(t.team_id), conference: t.conference, division: t.division }))
   )
   const index = new Map(league.ids.map((id, i) => [id, i]))
-  // A season whose conferences cannot fill a bracket of eight (a test fixture) has no forecast.
-  for (const c of [0, 1])
-    if (league.conference.filter((x) => x === c).length < 8) return { [FORECAST_TABLE]: [] }
+  // A season whose conferences (or league) cannot fill the field (a test fixture) has no forecast.
+  const fieldsOf =
+    rules.field === 'league'
+      ? [league.ids.length]
+      : [0, 1].map((c) => league.conference.filter((x) => x === c).length)
+  if (fieldsOf.some((n) => n < rules.teams)) return { [FORECAST_TABLE]: [] }
   const all = (await eloRows(ctx)).map((r) => ({
     ...r,
     team_id: Number(r.team_id),
@@ -226,7 +235,6 @@ async function build(ctx: ModelContext, runCount: ForecastRuns): Promise<ModelRo
     played.length + toCome.length,
     current
   )
-  const rules = rulesOf(ctx.season)
   const kept = current ? await keptSnapshots(ctx) : new Map<string, Kept>()
   // Each team's Elo rows in date order, every type Elo rates (the Cup final moves a rating too).
   const byTeam = new Map<number, EloRow[]>()
@@ -236,7 +244,7 @@ async function build(ctx: ModelContext, runCount: ForecastRuns): Promise<ModelRo
   }
   const ratingAt = (team: number, day: string): number => {
     const rows = byTeam.get(team) ?? []
-    let rating = rows[0]?.elo_pre ?? ELO.newTeam
+    let rating = rows[0]?.elo_pre ?? ctx.league.models.elo.newTeam
     for (const r of rows) {
       if (r.game_date > day || !r.played || r.elo === null) break
       rating = r.elo
@@ -301,8 +309,8 @@ async function build(ctx: ModelContext, runCount: ForecastRuns): Promise<ModelRo
       away: index.get(g.opponent_id)!,
       margin: g.margin!
     }))
-    // The season in progress's games the schedule does not list yet (the Cup's), against an
-    // average opponent: each team's 82 less the games played and listed.
+    // The season in progress's games the schedule does not list yet (the NBA Cup's), against an
+    // average opponent: each team's season length less the games played and listed.
     const unnamed = new Array<number>(league.ids.length).fill(0)
     if (inProgress) {
       const count = new Array<number>(league.ids.length).fill(0)
@@ -310,7 +318,7 @@ async function build(ctx: ModelContext, runCount: ForecastRuns): Promise<ModelRo
         count[g.home]++
         count[g.away]++
       }
-      for (let t = 0; t < count.length; t++) unnamed[t] = Math.max(0, SEASON_GAMES - count[t])
+      for (let t = 0; t < count.length; t++) unnamed[t] = Math.max(0, seasonGames - count[t])
     }
     const ratings = Float64Array.from(league.ids, (id) => ratingAt(id, day))
     const runs = inProgress ? runCount.current : runCount.past
@@ -321,7 +329,7 @@ async function build(ctx: ModelContext, runCount: ForecastRuns): Promise<ModelRo
       left: toPlay,
       unnamed,
       ratings,
-      elo: ELO_MODEL,
+      elo: eloModel,
       runs,
       seed: seedOf(c.season, Number(day.replaceAll('-', '')))
     })
@@ -338,7 +346,8 @@ async function build(ctx: ModelContext, runCount: ForecastRuns): Promise<ModelRo
       p_playoffs: f[t].playoffs,
       p_top6: rules.playIn === 'modern' ? f[t].top6 : null,
       p_play_in: rules.playIn === 'none' ? null : f[t].playIn,
-      p_round2: f[t].round2,
+      // Null in a format with no round leaving eight (the WNBA's field is eight at most).
+      p_round2: stages.has(1) ? f[t].round2 : null,
       p_conf_finals: f[t].conferenceFinals,
       p_finals: f[t].finals,
       p_title: f[t].title,

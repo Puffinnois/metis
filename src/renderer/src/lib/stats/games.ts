@@ -1,6 +1,5 @@
 import type {
   GameSide,
-  GameType,
   MetricInfo,
   StatsGame,
   StatsGameDetail,
@@ -8,7 +7,6 @@ import type {
   StatsResult,
   StatsRow
 } from '@shared/stats/types'
-import { ELO_FIRST_SEASON } from '@shared/stats/catalogue/ratings'
 import { currentLeague, seasonLabel } from '@/lib/stats/league'
 import { periodsIn } from '@shared/leagues'
 import { fmtClock, fmtStat } from './format'
@@ -205,19 +203,20 @@ export interface EloView {
   note: string
 }
 
-const ELO_TYPES: readonly GameType[] = ['regular', 'play-in', 'playoffs', 'cup-final']
-
 /**
  * A game's Elo (Plan T1002): both ratings before it, after it once played, and the win probability
  * before it, for a game still to come from the latest ratings. Null for a game Elo does not rate
  * (All-Star, preseason) or before the table is built; a note alone in the burn-in seasons.
  */
 export function eloView(game: StatsGame, detail: StatsGameDetail | null): EloView | null {
-  if (!ELO_TYPES.includes(game.type)) return null
-  if (game.season < ELO_FIRST_SEASON) {
+  const league = currentLeague()
+  const { elo: constants, eloGameTypes } = league.models
+  if (!eloGameTypes.includes(game.type)) return null
+  if (game.season < constants.firstSeason) {
+    const settling = constants.firstSeason - league.firstSeason
     return {
       rows: [],
-      note: `Elo is read from ${seasonLabel(ELO_FIRST_SEASON)}: every team starts at 1500 in 1993-94, so the first two seasons settle the ratings.`
+      note: `Elo is read from ${seasonLabel(constants.firstSeason)}: every team starts at ${constants.start} in ${seasonLabel(league.firstSeason)}, so the first ${['one season settles', 'two seasons settle', 'three seasons settle', 'four seasons settle'][settling - 1] ?? `${settling} seasons settle`} the ratings.`
     }
   }
   const elo = detail?.elo

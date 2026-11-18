@@ -1,7 +1,7 @@
 import { builds, seasonLabel, type BuiltTables, type League } from '../leagues'
 import type { MetricCoverage, MetricDef } from './types'
 
-type Coverage = Pick<MetricDef, 'firstSeason' | 'missingSeasons'>
+type Coverage = Pick<MetricDef, 'firstSeason' | 'missingSeasons' | 'missingReason'>
 
 /** Why a metric published per season has no value under a filter that splits a season's games. */
 export const WHOLE_SEASONS_ONLY = 'Published for whole seasons only.'
@@ -32,6 +32,7 @@ export function coverageReason(
   if (seasons.some((s) => s < def.firstSeason)) {
     return `Recorded from ${seasonLabel(league, def.firstSeason)}.`
   }
+  if (def.missingReason) return def.missingReason
   return `Not in the source for ${seasons.map((s) => seasonLabel(league, s)).join(', ')}.`
 }
 
@@ -67,6 +68,17 @@ export const notBuiltYet = (league: League, tables: BuiltTables): string =>
 
 /** The game length the catalogue's formulas and words are written in (`MetricDef.gameLength`). */
 export const CATALOGUE_GAME_MINUTES = 48
+
+/** The Pythagorean exponent the catalogue's formulas are written in (`MetricDef.pythagorean`). */
+export const CATALOGUE_PYTHAGOREAN_EXPONENT = 14
+
+/** A Pythagorean formula with the league's exponent in place of the catalogue's. */
+function inExponent(def: MetricDef, league: League): Partial<MetricDef> {
+  const x = league.models.pythagoreanExponent
+  if (!def.pythagorean || x === CATALOGUE_PYTHAGOREAN_EXPONENT) return {}
+  const pow = new RegExp(`pow[(]([^,()]+), ${CATALOGUE_PYTHAGOREAN_EXPONENT}[)]`, 'g')
+  return { value: def.value.replace(pow, `pow($1, ${x})`) }
+}
 
 /** A metric's formula and words in a league of another game length: pace per 48 becomes per 40. */
 function inGameLength(def: MetricDef, league: League): Partial<MetricDef> {
@@ -112,7 +124,7 @@ const resolved = new WeakMap<League, WeakMap<MetricDef, MetricDef>>()
  */
 export function metricIn(def: MetricDef, league: League): MetricDef {
   const tables = tablesOf(def)
-  const length = inGameLength(def, league)
+  const length = { ...inGameLength(def, league), ...inExponent(def, league) }
   if (
     def.leagues?.[league.id] === undefined &&
     league.metricsByDefault &&
@@ -135,6 +147,8 @@ export function metricIn(def: MetricDef, league: League): MetricDef {
     out.firstSeason = coverage.firstSeason
     if (coverage.missingSeasons) out.missingSeasons = coverage.missingSeasons
     if (coverage.seasonNotes) out.seasonNotes = coverage.seasonNotes
+    if (coverage.missingReason) out.missingReason = coverage.missingReason
+    if (coverage.words) Object.assign(out, coverage.words)
     if (coverage.unavailable) out.unavailable = coverage.unavailable
     else if (!builds(league, tables)) out.unavailable = notBuiltYet(league, tables)
   }

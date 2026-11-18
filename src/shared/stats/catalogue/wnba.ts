@@ -75,6 +75,66 @@ const located = (part: string): boolean => {
   return LOCATED_BUCKETS.some((k) => bare.startsWith(`${k}_`))
 }
 
+/**
+ * The models (T1301.8), from the registry's fitted values (`League.models`): Elo and the forecast read
+ * from the first season past Elo's burn-in; the forecast has no play-in, no top six and no round
+ * leaving eight teams, and its last four are semifinals; the adjusted ratings skip the seasons too
+ * even to rate; BPM and what follows from it read the registry's reason when it is not shown.
+ */
+const MODELS = LEAGUES.wnba.models
+const ELO_TABLES = ['elo_game', 'elo_wins']
+const NO_PLAY_IN = 'The WNBA has no play-in.'
+const MODEL_UNAVAILABLE: Record<string, string> = {
+  team_top6_pct: NO_PLAY_IN,
+  team_play_in_pct: NO_PLAY_IN,
+  team_round2_pct:
+    'The WNBA sends eight teams to its playoffs at most, so reaching the last eight is reaching the playoffs: see Playoff odds.'
+}
+const MODEL_WORDS: Record<string, MetricCoverage['words']> = {
+  team_playoff_pct: {
+    description:
+      "The share of runs in which the team reaches the playoffs: four teams in 1997 and 1998, six in 1999, eight since. A model's odds, as of the last game in scope."
+  },
+  team_conf_finals_pct: {
+    label: 'Semifinal odds',
+    short: 'SF%',
+    description:
+      "The share of runs in which the team reaches the last four: its conference's finals to 2015, the semifinals since. A model's odds, as of the last game in scope."
+  },
+  team_mean_seed: {
+    description:
+      "The team's mean seed over the runs: its place in its conference to 2015, in the league since (in 1997 and 1998 the conference winners seeded first), as of the last game in scope."
+  },
+  team_pyth_pct: {
+    description: `The winning percentage the points scored and allowed point to: points for to the power ${MODELS.pythagoreanExponent}, over points for and against each to that power (the exponent fitted on the WNBA's seasons; the NBA's is 14).`
+  },
+  team_elo: {
+    description:
+      'A rating carried from game to game, 1500 an average team: 100 points better wins 64 % of the time on a neutral floor. FiveThirtyEight’s Elo with the values fitted for the NBA, which the WNBA’s own seasons did not improve on, playoffs included, as of the last game in scope.'
+  }
+}
+const BPM_METRICS = ['bpm', 'obpm', 'dbpm', 'vorp', 'team_vorp', 'bpm_position', 'bpm_role']
+
+function modelCoverage(def: MetricDef): MetricCoverage | null {
+  if (!def.model) return null
+  const words = MODEL_WORDS[def.id]
+  const withWords = (c: MetricCoverage): MetricCoverage => (words ? { ...c, words } : c)
+  const unavailable =
+    MODEL_UNAVAILABLE[def.id] ??
+    (BPM_METRICS.includes(def.id) ? (MODELS.bpmUnavailable ?? undefined) : undefined)
+  if (unavailable) return { firstSeason: FIRST, unavailable }
+  if (ELO_TABLES.includes(def.model)) return withWords({ firstSeason: MODELS.elo.firstSeason })
+  if (def.model === 'team_forecast') return withWords({ firstSeason: MODELS.forecastFirstSeason })
+  if (def.model === 'adjusted_rating' && MODELS.adjustedThin.length > 0) {
+    return {
+      firstSeason: FIRST,
+      missingSeasons: [...MODELS.adjustedThin],
+      missingReason: `Not shown for ${MODELS.adjustedThin.join(' and ')}: the teams were so even that the two halves of the season disagree on their order, so an adjusted rating would be noise.`
+    }
+  }
+  return withWords({ firstSeason: FIRST })
+}
+
 /** The metric's coverage in the WNBA, from the components it reads (`componentsOf`). */
 export function wnbaCoverage(def: MetricDef, parts: readonly string[]): MetricCoverage {
   const unavailable =
@@ -82,6 +142,10 @@ export function wnbaCoverage(def: MetricDef, parts: readonly string[]): MetricCo
     SAME_AS[def.id] ??
     (def.published ? NOT_IN_FILE[def.published] : undefined)
   if (unavailable) return { firstSeason: FIRST, unavailable }
+  const model = modelCoverage(def)
+  if (model) return model
+  const words = MODEL_WORDS[def.id]
+  if (words) return { firstSeason: FIRST, words }
   let firstSeason = FIRST
   for (const [columns, from] of LATER) {
     if (parts.some((p) => columns.includes(p))) firstSeason = Math.max(firstSeason, from)

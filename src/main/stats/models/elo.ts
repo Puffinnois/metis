@@ -1,3 +1,5 @@
+import { LEAGUES, type EloConstants } from '@shared/leagues'
+
 /**
  * Team Elo (Plan T1002, reference section 13): FiveThirtyEight's published NBA Elo, with its home
  * court and its carry between seasons fitted out of sample. Every game played counts in date order,
@@ -11,36 +13,29 @@ export interface EloParams {
   homeCourt: number
   /** The share of a rating's distance from the mean kept between seasons. */
   carry: number
+  /** Elo points per point of margin; the NBA's 28 when not given. */
+  perPoint?: number
 }
 
 /** FiveThirtyEight's published values: K 20, home court 100, a quarter back to the mean. */
 export const FIVETHIRTYEIGHT: EloParams = { k: 20, homeCourt: 100, carry: 0.75 }
 
-export const ELO = {
-  /** Every team's rating at the start of the first season held (1993-94). */
-  start: 1500,
-  /** The mean ratings regress toward between seasons: 538's 1505, a little above 1500 since new franchises enter below it. */
-  mean: 1505,
-  /** A team that enters the league (an expansion franchise). */
-  newTeam: 1300,
-  k: 20,
-  /**
-   * Fitted on 1995-96 to 2009-10 and scored on 2010-11 on (`scripts/check-elo.mjs`): home court 80
-   * and a carry of 0.65 lower the later seasons' Brier score by 0.0018 against 538's 100 and 0.75,
-   * eleven standard errors, and remove most of the home side's overestimate. Home court has shrunk
-   * since 538 set its value.
-   */
-  homeCourt: 80,
-  carry: 0.65,
-  /** Elo points per point of margin: 538's Elo point spread is the difference over 28. */
-  perPoint: 28
-} as const
+/**
+ * The NBA's constants (`League.models.elo` in the registry), which the pure functions take when no
+ * league's are passed: 538's start of 1500, mean of 1505 (a little above 1500 since new franchises
+ * enter below it), 1300 for a new franchise, K 20 and 28 Elo points a point of margin; home court 80
+ * and a carry of 0.65 fitted on 1995-96 to 2009-10 and scored on 2010-11 on (`scripts/check-elo.mjs`),
+ * lowering the later seasons' Brier score by 0.0018 against 538's 100 and 0.75. Each league's are
+ * fitted on its own seasons.
+ */
+export const ELO: EloConstants = LEAGUES.nba.models.elo
 
 /** The win probability of the side with this rating edge (home court included). */
 export const winProbability = (diff: number): number => 1 / (1 + Math.pow(10, -diff / 400))
 
 /** The expected margin, in points, of the side with this rating edge. */
-export const expectedMargin = (diff: number): number => diff / ELO.perPoint
+export const expectedMargin = (diff: number, perPoint: number = ELO.perPoint): number =>
+  diff / perPoint
 
 /**
  * 538's margin-of-victory multiplier: a bigger win moves the ratings more, a favourite's win less (its
@@ -61,9 +56,12 @@ export function eloShift(diff: number, margin: number, k: number = ELO.k): numbe
   return k * movMultiplier(margin, winnerDiff) * ((won ? 1 : 0) - winProbability(diff))
 }
 
-/** A rating carried into a new season: a quarter of the way back to the mean. */
-export const regress = (rating: number, carry: number = ELO.carry): number =>
-  ELO.mean + (rating - ELO.mean) * carry
+/** A rating carried into a new season: part of the way back to the mean. */
+export const regress = (
+  rating: number,
+  carry: number = ELO.carry,
+  mean: number = ELO.mean
+): number => mean + (rating - mean) * carry
 
 export interface EloGame<T> {
   game_id: string
@@ -138,7 +136,7 @@ export function runSeason<T>(
       awayPre,
       homeCourt,
       homeWin: winProbability(diff),
-      homeMargin: expectedMargin(diff),
+      homeMargin: expectedMargin(diff, params.perPoint ?? ELO.perPoint),
       homePost: shift === null ? null : homePre + shift,
       awayPost: shift === null ? null : awayPre - shift
     })
@@ -158,7 +156,8 @@ export function runSeason<T>(
 export function seasonStart<T>(
   last: ReadonlyMap<T, number>,
   teams: readonly T[],
-  carry: number = ELO.carry
+  carry: number = ELO.carry,
+  mean: number = ELO.mean
 ): Map<T, number> {
   const out = new Map<T, number>()
   const here = new Set(teams)
@@ -166,10 +165,10 @@ export function seasonStart<T>(
   const gone = [...last.keys()].filter((t) => !here.has(t))
   for (const t of teams) {
     const r = last.get(t)
-    if (r !== undefined) out.set(t, regress(r, carry))
+    if (r !== undefined) out.set(t, regress(r, carry, mean))
   }
   if (arrived.length === 1 && gone.length === 1) {
-    out.set(arrived[0], regress(last.get(gone[0])!, carry))
+    out.set(arrived[0], regress(last.get(gone[0])!, carry, mean))
   }
   return out
 }

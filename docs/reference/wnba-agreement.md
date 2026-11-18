@@ -1895,3 +1895,506 @@ Fouls drawn: ESPN’s, 2005-06 to 2016-17, a team’s summed against the other s
 | A team’s assist network, ten seasons      |  24 |
 | A game’s flow                             |  20 |
 | A five-metric player leaderboard (engine) |  23 |
+
+## Ratings and models (Plan T1301.8)
+
+Metis's models on the WNBA (`stats-database.md`, "How each league's models differ"), measured on 2026-11-18 on a copy of the T1301.7 load with every model built by a real refresh (`~/.cache/metis-dev/t1301h`). Two scripts, both bundling the code that ships: `scripts/fit-league-models.mjs` fits each constant on 1997 to 2011 and scores it on 2012 to 2026, and `scripts/check-wnba-models.mjs` checks the built tables. Basketball-Reference's pages were read one at a time with a plain client (`curl -A metis-research`, HTTP 200, five seconds apart): the 30 season pages kept by T1301.5 and ten advanced pages (1998, 2002, 2006, 2010, 2015, 2019, 2023 to 2026); nothing was refused.
+
+**What was decided, and by what rule:**
+
+- **Pythagorean exponent 10.5** (the NBA's 14): fitted on 1997 to 2011, 0.047 of winning percentage on the later seasons against 14's 0.058, 1.7 wins of error a team-season against 2.1.
+- **Elo keeps the NBA's values** (K 20, home court 80, a carry of 0.65). The rule: a fitted value replaces the incumbent only if it scores better on the later seasons, as Stage 10 replaced FiveThirtyEight's. The grid's best on 1999 to 2011 (K 24, home court 90, 0.5) scored 0.0005 worse on 2012 to 2026 (standard error 0.0004). Elo points per point of margin fit at 27.6, so 28 stands; the margin's spread is 12.1. From random starts the ratings agree within 10 points by 2001, so Elo and the forecast read from 2001. The 2020 season, at IMG Academy in Bradenton, has no home court in any game (ESPN does not mark it neutral; the registry names the city).
+- **The adjusted ratings' prior is 100 possessions** (the NBA's 250): a WNBA team-season holds about 2,700 possessions to the NBA's 8,000, and 100 pulls a season's final ratings by the share the NBA's 250 does (0.16 points per 100 at the mean). The fewer possessions show in the error: predicting the next day's games, 12.8 points per 100 at 100, 12.7 at 250 and 13.7 with no prior, against the NBA's 10.5 to 11.1. **Seasons too thin to show:** none by possessions (every season has 28 or more games a team and a split-half reliability of 0.68 or more), but 2004 and 2009 have 0.28 and −0.14: the teams were so close (net ratings spread 3.4 and 2.3 points per 100) that the two halves of each season disagree on their order. The rule, the stability labels' own bound: under 0.35 a season reads a reason, "Not shown for 2004 and 2009: …".
+- **BPM: Metis's is not shown for the WNBA; the impact file's stays, under its name.** Measured three ways (section 5 below): Metis's BPM with Basketball-Reference's NBA coefficients, Metis's refitted on the WNBA (target: the impact file's single-season RAPM, possession-weighted, 2,592 player-team lines of 1997 to 2011), and the impact file's BPM as published, each predicting every team's next-season net rating from its players' values and next season's minutes. Out of sample (2013 to 2026, 172 team-seasons) the refit has the lower error (RMSE 5.51 against 5.66) but the lower correlation (0.62 against 0.69). The rule used, set when the two measures disagreed: the refit must beat the published value on both, since the published BPM's team sums sit about two points low (the mean of its players' BPM is −1.9 in 2024), which the RMSE punishes and the correlation does not. It does not, so no refit ships. VORP, OBPM, DBPM and BPM's position and role, which follow from it, read the same reason; the builder still stores them, so the measure can be run again. Metis's BPM with the NBA's coefficients measured best by RMSE (5.37) and level by correlation (0.67): left for the manager.
+- **The playoff format by season** from Wikipedia's "WNBA playoffs" and the home pattern of every series played ([wnba-data-sources.md](wnba-data-sources.md), "The playoff format, per season").
+
+**Tolerances, stated before each run:** PER within 0.3 of Basketball-Reference's, Win Shares within 0.2, WS/40 within 0.005, SRS within 0.05; the engine against the tables exactly; the playoff field exactly.
+
+**What did not match, with the cause:**
+
+- **Win Shares from 2018 run about 3 % above Basketball-Reference's** (2019 and 2023 to 2026: 27 of 50 leaders within 0.2, the rest up to 0.4 high). Basketball-Reference's WNBA team totals count a team's own turnovers through 2017 and not from 2018: its league pace equals Metis's with them through 2017 (75.3 against 75.35 in 2015) and without them from 2018 (78.5 against 78.52 in 2024, 77.7 against 77.76 in 2019). Metis counts them every season, as it does for the NBA and as Basketball-Reference does for the NBA, so its possessions are about 1.3 % higher from 2018, its league points per possession lower, and OWS higher. PER is untouched (99 of 100 leaders within 0.3). Not tuned away: for the manager.
+- **SRS:** 365 of 380 team-seasons within 0.05, every one within 0.13. The 15 outside are in 1997, 1998, 2000, 2012 and 2013, where a few games' scores or the set of games differ from Basketball-Reference's; not traced further.
+- **The playoff field:** every season's field (30 of 30); 197 of 200 series the code forms were played. The three are 2004's: the code seeds Washington third and Detroit fourth in the East, where Detroit was third (both 17-17, 2-2 between them). Detroit won their games by 14 points, and Minnesota, seeded over Sacramento in the West, lost theirs by one after a 2-2 split: no single order of the article's steps gives both, so 2004's procedure is not the article's. Left as it is.
+
+### The constants, fitted
+
+Fitted on 1997 to 2011 and scored on 2012 to 2026, on `/home/yhabie/.cache/metis-dev/t1301h`, by `scripts/fit-league-models.mjs`.
+
+#### 1. Pythagorean exponent
+
+Points for to the x over points for and against each to the x, against the winning percentage of every regular-season team-season (196 to fit, 184 to score). The registry's: 10.5.
+
+| Exponent          | RMSE of W%, fitted seasons | RMSE of W%, later seasons | RMSE in wins, later |
+| ----------------- | -------------------------- | ------------------------- | ------------------- |
+| **10.5** (fitted) | 0.0527                     | 0.0471                    | 1.71                |
+| 14                | 0.0644                     | 0.0579                    | 2.10                |
+
+#### 2. Elo
+
+Every game of the types Elo rates (regular, playoffs, cup-final), 7028 in all, home court 0 at a neutral site (2016 2, 2020 147, 2021 1, 2024 1, 2025 1, 2026 1). Grid: K 10 to 40 by 2, home court 0 to 160 by 10, share kept 0.40 to 0.95 by 0.05 (3264 runs, 10 s); fitted on the Brier score of 2001 to 2011, scored on 2012 to 2026.
+
+| Values            | K   | Home | Kept | Brier, fitted | Brier, later | Log loss, later | Later less fitted values | SE      |
+| ----------------- | --- | ---- | ---- | ------------- | ------------ | --------------- | ------------------------ | ------- |
+| Fitted            | 24  | 90   | 0.5  | 0.2184        | 0.2163       | 0.6214          | –                        | –       |
+| Registry          | 20  | 80   | 0.65 | 0.2188        | 0.2158       | 0.6206          | -0.00046                 | 0.00036 |
+| NBA's             | 20  | 80   | 0.65 | 0.2188        | 0.2158       | 0.6206          | -0.00046                 | 0.00036 |
+| FiveThirtyEight's | 20  | 100  | 0.75 | 0.2195        | 0.2184       | 0.6268          | 0.00210                  | 0.00051 |
+
+The home side's win rate of each season, in sample, scores 0.2449 on the later seasons. The best values in hindsight on the later seasons: K 32, home 50, kept 0.55, Brier 0.2131. The checks below use the registry's values.
+
+Elo points per point of margin, fitted (least squares of the margin on the edge, fitted seasons): 27.6 (the NBA's 28). The regular season's margins around that expected margin, 2001 to 2026 (5785 games): spread 12.07, mean -0.19.
+
+Calibration on the later seasons, the registry values, by tenths of the home side's probability:
+
+| Tenth    | Games | Given | Won  |
+| -------- | ----- | ----- | ---- |
+| 0–10 %   | 0     | –     | –    |
+| 10–20 %  | 14    | 18.7  | 7.1  |
+| 20–30 %  | 123   | 26.2  | 19.5 |
+| 30–40 %  | 325   | 35.4  | 29.2 |
+| 40–50 %  | 510   | 45.3  | 39.8 |
+| 50–60 %  | 685   | 55.3  | 51.2 |
+| 60–70 %  | 839   | 65.0  | 62.8 |
+| 70–80 %  | 686   | 74.9  | 71.3 |
+| 80–90 %  | 354   | 83.7  | 85.0 |
+| 90–100 % | 19    | 91.1  | 89.5 |
+
+Per season, the registry's values (every rated game):
+
+| Season | Games | Brier  | Log loss | Home rate |
+| ------ | ----- | ------ | -------- | --------- |
+| 2001   | 274   | 0.2114 | 0.6080   | 0.2423    |
+| 2002   | 273   | 0.2231 | 0.6362   | 0.2383    |
+| 2003   | 257   | 0.2215 | 0.6355   | 0.2330    |
+| 2004   | 240   | 0.2348 | 0.6621   | 0.2364    |
+| 2005   | 238   | 0.2053 | 0.5978   | 0.2319    |
+| 2006   | 257   | 0.2031 | 0.5916   | 0.2386    |
+| 2007   | 242   | 0.2387 | 0.6737   | 0.2462    |
+| 2008   | 259   | 0.2107 | 0.6115   | 0.2312    |
+| 2009   | 242   | 0.2347 | 0.6629   | 0.2291    |
+| 2010   | 220   | 0.2238 | 0.6374   | 0.2417    |
+| 2011   | 223   | 0.2003 | 0.5853   | 0.2337    |
+| 2012   | 223   | 0.1979 | 0.5805   | 0.2424    |
+| 2013   | 221   | 0.2257 | 0.6450   | 0.2414    |
+| 2014   | 222   | 0.2269 | 0.6419   | 0.2441    |
+| 2015   | 225   | 0.2275 | 0.6459   | 0.2361    |
+| 2016   | 220   | 0.2218 | 0.6317   | 0.2470    |
+| 2017   | 219   | 0.2018 | 0.5878   | 0.2412    |
+| 2018   | 220   | 0.2259 | 0.6445   | 0.2470    |
+| 2019   | 220   | 0.2122 | 0.6129   | 0.2360    |
+| 2020   | 147   | 0.2069 | 0.6033   | 0.2500    |
+| 2021   | 210   | 0.2154 | 0.6183   | 0.2482    |
+| 2022   | 240   | 0.2185 | 0.6260   | 0.2483    |
+| 2023   | 261   | 0.2161 | 0.6218   | 0.2492    |
+| 2024   | 263   | 0.2127 | 0.6139   | 0.2481    |
+| 2025   | 311   | 0.2190 | 0.6276   | 0.2461    |
+| 2026   | 353   | 0.2091 | 0.6078   | 0.2473    |
+
+Burn-in, the registry's values: twenty runs from random starts of 1300 to 1700 in 1997; the largest gap of a team's final rating from the run from 1500: 1997 105.1, 1998 50.4, 1999 26.0, 2000 13.3, 2001 7.5, 2002 4.5.
+
+#### 3. Adjusted ratings
+
+Each regular-season day's games predicted from the fit as of the day before, every season (6495 games): RMSE in points per 100, weighted by possessions. Pull: the mean absolute change of a team's final adjusted net rating from no prior to the prior. A team-season holds 2680 possessions at the median (the NBA's about 8,000). The registry's prior: 100.
+
+| Prior (possessions) | RMSE, next day | Pull on final net rating |
+| ------------------- | -------------- | ------------------------ |
+| 0.01                | 13.677         | 0.00                     |
+| 25                  | 13.128         | 0.04                     |
+| 50                  | 12.984         | 0.08                     |
+| 100                 | 12.835         | 0.16                     |
+| 150                 | 12.752         | 0.24                     |
+| 250                 | 12.660         | 0.38                     |
+| 500                 | 12.576         | 0.70                     |
+| 1000                | 12.564         | 1.21                     |
+
+Split half, the registry's prior: the season's games alternately in two halves, each fitted, each team's net rating in one half against the other's (r), stepped up to the season (Spearman-Brown), beside the spread of the final net ratings.
+
+| Season | Teams | Games a team | r, halves | Stepped up | Spread of net |
+| ------ | ----- | ------------ | --------- | ---------- | ------------- |
+| 1997   | 8     | 28.0         | 0.805     | 0.892      | 5.87          |
+| 1998   | 10    | 30.0         | 0.763     | 0.866      | 8.05          |
+| 1999   | 12    | 32.0         | 0.778     | 0.875      | 5.40          |
+| 2000   | 16    | 32.0         | 0.831     | 0.908      | 7.56          |
+| 2001   | 16    | 32.0         | 0.614     | 0.761      | 5.09          |
+| 2002   | 16    | 32.0         | 0.545     | 0.705      | 4.38          |
+| 2003   | 14    | 34.0         | 0.591     | 0.743      | 3.66          |
+| 2004   | 13    | 34.0         | 0.162     | 0.278      | 3.43          |
+| 2005   | 13    | 34.0         | 0.866     | 0.928      | 4.96          |
+| 2006   | 14    | 34.0         | 0.741     | 0.851      | 5.79          |
+| 2007   | 13    | 34.0         | 0.711     | 0.831      | 3.36          |
+| 2008   | 14    | 34.0         | 0.898     | 0.946      | 4.40          |
+| 2009   | 13    | 34.0         | -0.139    | -0.139     | 2.33          |
+| 2010   | 12    | 34.0         | 0.817     | 0.899      | 5.93          |
+| 2011   | 12    | 34.0         | 0.856     | 0.922      | 5.96          |
+| 2012   | 12    | 34.0         | 0.689     | 0.816      | 7.03          |
+| 2013   | 12    | 34.0         | 0.516     | 0.681      | 5.63          |
+| 2014   | 12    | 34.0         | 0.772     | 0.871      | 4.06          |
+| 2015   | 12    | 34.0         | 0.719     | 0.836      | 4.61          |
+| 2016   | 12    | 34.0         | 0.790     | 0.883      | 4.90          |
+| 2017   | 12    | 34.0         | 0.827     | 0.905      | 6.38          |
+| 2018   | 12    | 33.8         | 0.822     | 0.902      | 5.56          |
+| 2019   | 12    | 34.0         | 0.552     | 0.711      | 5.85          |
+| 2020   | 12    | 22.0         | 0.894     | 0.944      | 7.24          |
+| 2021   | 12    | 32.0         | 0.882     | 0.937      | 6.53          |
+| 2022   | 12    | 36.0         | 0.787     | 0.881      | 5.88          |
+| 2023   | 12    | 40.0         | 0.918     | 0.957      | 6.28          |
+| 2024   | 12    | 40.0         | 0.840     | 0.913      | 5.99          |
+| 2025   | 13    | 44.0         | 0.875     | 0.933      | 6.55          |
+| 2026   | 15    | 44.0         | 0.847     | 0.917      | 6.44          |
+
+### The models, checked
+
+On `/home/yhabie/.cache/metis-dev/t1301h` by `scripts/check-wnba-models.mjs`, seasons 1997 to 2026.
+
+#### 1. PER, Win Shares and SRS against Basketball-Reference
+
+Each season's ten leaders in Win Shares on Basketball-Reference's advanced page (a traded player's teams added, PER weighted by minutes), against Metis's regular season. Tolerances, stated before the run: PER within 0.3, WS within 0.2, WS/40 within 0.005 (the page rounds to 0.1, 0.1 and 0.001).
+
+| Season | Leaders | Matched | PER within | WS within | WS/40 within |
+| ------ | ------- | ------- | ---------- | --------- | ------------ |
+| 1998   | 10      | 10      | 10         | 10        | 10           |
+| 2002   | 10      | 10      | 10         | 10        | 10           |
+| 2006   | 10      | 10      | 9          | 10        | 10           |
+| 2010   | 10      | 10      | 10         | 10        | 10           |
+| 2015   | 10      | 10      | 10         | 10        | 10           |
+| 2019   | 10      | 10      | 10         | 7         | 0            |
+| 2023   | 10      | 10      | 10         | 7         | 2            |
+| 2024   | 10      | 10      | 10         | 5         | 0            |
+| 2025   | 10      | 10      | 10         | 2         | 0            |
+| 2026   | 10      | 10      | 10         | 6         | 2            |
+
+Every leader, Metis first and Basketball-Reference second:
+
+| Season | Player                  | PER  | B-R  | WS   | B-R  | WS/40 | B-R   | Outside   |
+| ------ | ----------------------- | ---- | ---- | ---- | ---- | ----- | ----- | --------- |
+| 1998   | Cynthia Cooper*         | 31.2 | 31.1 | 10.0 | 10.0 | 0.382 | 0.381 | within    |
+| 1998   | Jennifer Gillom         | 25.7 | 25.7 | 6.0  | 6.0  | 0.251 | 0.249 | within    |
+| 1998   | Sheryl Swoopes*         | 24.5 | 24.4 | 6.0  | 6.0  | 0.256 | 0.256 | within    |
+| 1998   | Lisa Leslie*            | 28.6 | 28.5 | 5.7  | 5.7  | 0.255 | 0.254 | within    |
+| 1998   | Cindy Brown             | 20.7 | 20.7 | 5.3  | 5.2  | 0.218 | 0.216 | within    |
+| 1998   | Tina Thompson*          | 19.2 | 19.2 | 5.0  | 5.0  | 0.228 | 0.229 | within    |
+| 1998   | Vickie Johnson          | 18.7 | 18.7 | 4.3  | 4.3  | 0.189 | 0.190 | within    |
+| 1998   | Sandy Brondello         | 18.3 | 18.3 | 4.2  | 4.2  | 0.170 | 0.169 | within    |
+| 1998   | Vicky Bullett           | 20.5 | 20.6 | 4.2  | 4.2  | 0.175 | 0.177 | within    |
+| 1998   | Andrea Stinson          | 19.6 | 19.6 | 4.2  | 4.2  | 0.161 | 0.161 | within    |
+| 2002   | Tamika Catchings*       | 30.9 | 30.9 | 9.2  | 9.2  | 0.316 | 0.315 | within    |
+| 2002   | Sheryl Swoopes*         | 25.5 | 25.5 | 7.1  | 7.1  | 0.247 | 0.246 | within    |
+| 2002   | Lisa Leslie*            | 24.0 | 24.0 | 6.0  | 5.9  | 0.225 | 0.223 | within    |
+| 2002   | Mwadi Mabika            | 21.0 | 21.0 | 5.9  | 5.9  | 0.226 | 0.225 | within    |
+| 2002   | Tina Thompson*          | 20.1 | 20.1 | 4.9  | 4.9  | 0.185 | 0.186 | within    |
+| 2002   | Sue Bird*               | 19.7 | 19.7 | 4.8  | 4.8  | 0.173 | 0.171 | within    |
+| 2002   | Tammy Sutton-Brown      | 21.9 | 22.0 | 4.8  | 4.8  | 0.218 | 0.217 | within    |
+| 2002   | Allison Feaster         | 19.9 | 19.9 | 4.7  | 4.7  | 0.197 | 0.197 | within    |
+| 2002   | Katie Smith*            | 18.0 | 17.9 | 4.7  | 4.7  | 0.167 | 0.165 | within    |
+| 2002   | Janeth Arcain           | 16.4 | 16.4 | 4.6  | 4.6  | 0.165 | 0.165 | within    |
+| 2006   | Lauren Jackson*         | 34.9 | 34.5 | 8.8  | 8.8  | 0.417 | 0.413 | PER       |
+| 2006   | Tamika Catchings*       | 26.1 | 26.1 | 7.7  | 7.7  | 0.286 | 0.287 | within    |
+| 2006   | Diana Taurasi           | 28.0 | 28.0 | 6.7  | 6.8  | 0.234 | 0.236 | within    |
+| 2006   | Cheryl Ford             | 24.9 | 24.9 | 6.6  | 6.6  | 0.285 | 0.287 | within    |
+| 2006   | Lisa Leslie*            | 28.0 | 27.8 | 6.3  | 6.4  | 0.243 | 0.244 | within    |
+| 2006   | Katie Douglas           | 21.7 | 21.7 | 5.6  | 5.6  | 0.223 | 0.223 | within    |
+| 2006   | Alana Beard             | 25.2 | 25.0 | 5.2  | 5.3  | 0.211 | 0.212 | within    |
+| 2006   | Taj McWilliams-Franklin | 21.0 | 21.0 | 5.2  | 5.2  | 0.210 | 0.209 | within    |
+| 2006   | Yolanda Griffith*       | 23.2 | 23.1 | 5.1  | 5.1  | 0.240 | 0.239 | within    |
+| 2006   | Cappie Pondexter        | 22.1 | 22.1 | 4.8  | 4.8  | 0.180 | 0.180 | within    |
+| 2010   | Lauren Jackson*         | 28.1 | 27.9 | 8.3  | 8.3  | 0.334 | 0.334 | within    |
+| 2010   | Tamika Catchings*       | 27.2 | 27.2 | 7.9  | 7.9  | 0.295 | 0.296 | within    |
+| 2010   | Cappie Pondexter        | 24.6 | 24.6 | 7.3  | 7.3  | 0.251 | 0.250 | within    |
+| 2010   | Sylvia Fowles*          | 27.8 | 27.8 | 6.9  | 6.9  | 0.254 | 0.254 | within    |
+| 2010   | Crystal Langhorne       | 21.6 | 21.6 | 6.5  | 6.5  | 0.224 | 0.225 | within    |
+| 2010   | Tina Charles            | 23.2 | 23.2 | 5.2  | 5.2  | 0.197 | 0.197 | within    |
+| 2010   | Sue Bird*               | 18.0 | 18.0 | 5.0  | 5.0  | 0.197 | 0.199 | within    |
+| 2010   | Monique Currie          | 19.9 | 19.8 | 4.8  | 4.8  | 0.215 | 0.215 | within    |
+| 2010   | Candice Dupree          | 23.0 | 23.1 | 4.8  | 4.8  | 0.187 | 0.189 | within    |
+| 2010   | Katie Douglas           | 18.7 | 18.6 | 4.5  | 4.5  | 0.177 | 0.178 | within    |
+| 2015   | Elena Delle Donne*      | 32.8 | 32.8 | 8.9  | 8.9  | 0.346 | 0.345 | within    |
+| 2015   | Maya Moore*             | 25.4 | 25.5 | 6.5  | 6.5  | 0.237 | 0.236 | within    |
+| 2015   | DeWanna Bonner          | 20.9 | 21.0 | 5.0  | 5.0  | 0.182 | 0.182 | within    |
+| 2015   | Emma Meesseman          | 21.6 | 21.5 | 4.9  | 4.9  | 0.211 | 0.212 | within    |
+| 2015   | Brittney Griner         | 26.1 | 26.1 | 4.8  | 4.8  | 0.243 | 0.240 | within    |
+| 2015   | Angel McCoughtry        | 23.3 | 23.2 | 4.2  | 4.3  | 0.166 | 0.168 | within    |
+| 2015   | Epiphanny Prince        | 24.2 | 24.1 | 4.3  | 4.3  | 0.252 | 0.251 | within    |
+| 2015   | Courtney Vandersloot    | 19.7 | 19.6 | 4.3  | 4.3  | 0.170 | 0.169 | within    |
+| 2015   | Tamika Catchings*       | 22.9 | 22.9 | 4.2  | 4.2  | 0.212 | 0.210 | within    |
+| 2015   | Tina Charles            | 21.0 | 21.0 | 4.2  | 4.2  | 0.159 | 0.160 | within    |
+| 2019   | Elena Delle Donne*      | 31.7 | 31.8 | 7.9  | 7.7  | 0.351 | 0.342 | WS/40     |
+| 2019   | Jonquel Jones           | 24.2 | 24.3 | 5.8  | 5.6  | 0.238 | 0.229 | WS/40     |
+| 2019   | Nneka Ogwumike          | 25.6 | 25.7 | 5.7  | 5.5  | 0.257 | 0.247 | WS/40     |
+| 2019   | Sylvia Fowles*          | 22.1 | 22.2 | 5.4  | 5.3  | 0.217 | 0.211 | WS/40     |
+| 2019   | Napheesa Collier        | 18.4 | 18.5 | 5.4  | 5.2  | 0.191 | 0.184 | WS/40     |
+| 2019   | Brittney Griner         | 26.3 | 26.4 | 5.3  | 5.0  | 0.208 | 0.196 | WS, WS/40 |
+| 2019   | Natasha Howard          | 24.1 | 24.2 | 4.9  | 4.6  | 0.184 | 0.173 | WS, WS/40 |
+| 2019   | Liz Cambage             | 24.3 | 24.3 | 4.3  | 4.1  | 0.213 | 0.203 | WS/40     |
+| 2019   | Courtney Vandersloot    | 20.5 | 20.5 | 4.3  | 4.1  | 0.172 | 0.165 | WS/40     |
+| 2019   | DeWanna Bonner          | 20.5 | 20.6 | 4.3  | 4.0  | 0.154 | 0.143 | WS, WS/40 |
+| 2023   | A'ja Wilson             | 32.8 | 32.9 | 10.6 | 10.4 | 0.347 | 0.339 | WS/40     |
+| 2023   | Breanna Stewart         | 28.5 | 28.6 | 10.6 | 10.3 | 0.311 | 0.302 | WS, WS/40 |
+| 2023   | Jackie Young            | 22.6 | 22.6 | 7.7  | 7.5  | 0.245 | 0.238 | WS/40     |
+| 2023   | Chelsea Gray            | 21.8 | 21.8 | 7.2  | 7.0  | 0.223 | 0.217 | within    |
+| 2023   | Kelsey Plum             | 20.4 | 20.3 | 6.5  | 6.3  | 0.206 | 0.199 | WS/40     |
+| 2023   | Alyssa Thomas           | 20.7 | 20.8 | 6.4  | 6.1  | 0.178 | 0.169 | WS, WS/40 |
+| 2023   | Aliyah Boston           | 23.2 | 23.2 | 6.2  | 6.0  | 0.198 | 0.192 | within    |
+| 2023   | Satou Sabally           | 22.1 | 21.9 | 6.1  | 5.9  | 0.194 | 0.188 | WS/40     |
+| 2023   | Sabrina Ionescu         | 20.8 | 20.7 | 5.8  | 5.6  | 0.206 | 0.198 | WS/40     |
+| 2023   | Nneka Ogwumike          | 25.1 | 25.3 | 5.9  | 5.6  | 0.211 | 0.200 | WS, WS/40 |
+| 2024   | A'ja Wilson             | 34.8 | 34.9 | 11.2 | 10.9 | 0.342 | 0.333 | WS, WS/40 |
+| 2024   | Breanna Stewart         | 26.3 | 26.4 | 9.1  | 8.7  | 0.293 | 0.280 | WS, WS/40 |
+| 2024   | Napheesa Collier        | 25.1 | 25.1 | 7.6  | 7.4  | 0.259 | 0.251 | WS/40     |
+| 2024   | Jonquel Jones           | 21.3 | 21.4 | 6.7  | 6.5  | 0.232 | 0.223 | WS/40     |
+| 2024   | Nneka Ogwumike          | 22.6 | 22.6 | 6.6  | 6.4  | 0.226 | 0.218 | WS/40     |
+| 2024   | Brionna Jones           | 21.0 | 21.2 | 6.3  | 6.0  | 0.231 | 0.221 | WS, WS/40 |
+| 2024   | Alyssa Thomas           | 19.6 | 19.8 | 5.8  | 5.5  | 0.180 | 0.170 | WS, WS/40 |
+| 2024   | Ezi Magbegor            | 19.1 | 19.2 | 5.6  | 5.4  | 0.197 | 0.190 | WS/40     |
+| 2024   | Kayla McBride           | 16.9 | 16.8 | 5.4  | 5.2  | 0.176 | 0.168 | WS/40     |
+| 2024   | DeWanna Bonner          | 16.8 | 16.8 | 5.3  | 4.9  | 0.165 | 0.154 | WS, WS/40 |
+| 2025   | A'ja Wilson             | 33.3 | 33.4 | 9.8  | 9.5  | 0.316 | 0.305 | WS, WS/40 |
+| 2025   | Napheesa Collier        | 30.1 | 30.2 | 8.6  | 8.3  | 0.322 | 0.312 | WS, WS/40 |
+| 2025   | Allisha Gray            | 19.7 | 19.7 | 8.0  | 7.7  | 0.220 | 0.212 | WS, WS/40 |
+| 2025   | Aliyah Boston           | 22.6 | 22.8 | 7.4  | 7.1  | 0.222 | 0.214 | WS, WS/40 |
+| 2025   | Alyssa Thomas           | 25.1 | 25.2 | 7.2  | 6.9  | 0.237 | 0.226 | WS, WS/40 |
+| 2025   | Brionna Jones           | 22.5 | 22.6 | 7.0  | 6.8  | 0.241 | 0.233 | WS/40     |
+| 2025   | Jackie Young            | 22.3 | 22.3 | 6.9  | 6.6  | 0.206 | 0.198 | WS, WS/40 |
+| 2025   | Veronica Burton         | 19.4 | 19.3 | 6.7  | 6.4  | 0.207 | 0.198 | WS, WS/40 |
+| 2025   | Nneka Ogwumike          | 21.8 | 21.8 | 6.0  | 5.7  | 0.176 | 0.168 | WS, WS/40 |
+| 2025   | Dearica Hamby           | 23.8 | 23.8 | 5.8  | 5.6  | 0.170 | 0.163 | WS/40     |
+| 2026   | A'ja Wilson             | 32.4 | 32.4 | 9.7  | 9.4  | 0.295 | 0.287 | WS, WS/40 |
+| 2026   | Veronica Burton         | 20.5 | 20.4 | 7.8  | 7.5  | 0.247 | 0.238 | WS, WS/40 |
+| 2026   | Kelsey Mitchell         | 23.7 | 23.7 | 7.7  | 7.4  | 0.216 | 0.207 | WS, WS/40 |
+| 2026   | Rhyne Howard            | 18.7 | 18.7 | 7.2  | 7.1  | 0.197 | 0.193 | within    |
+| 2026   | Jessica Shepard         | 22.5 | 22.6 | 7.2  | 7.0  | 0.215 | 0.210 | within    |
+| 2026   | Breanna Stewart         | 23.9 | 23.9 | 7.3  | 7.0  | 0.212 | 0.202 | WS, WS/40 |
+| 2026   | Paige Bueckers          | 23.2 | 23.3 | 7.0  | 6.8  | 0.204 | 0.198 | WS/40     |
+| 2026   | Natasha Howard          | 23.7 | 23.7 | 7.0  | 6.8  | 0.225 | 0.218 | WS/40     |
+| 2026   | Jackie Young            | 22.3 | 22.3 | 7.0  | 6.8  | 0.202 | 0.196 | WS/40     |
+| 2026   | Kayla McBride           | 19.2 | 19.2 | 6.9  | 6.7  | 0.198 | 0.191 | WS/40     |
+
+SRS after each team's last regular-season game against the season page's SRS, every team: tolerance 0.05 (the page rounds to 0.01). 365 of 380 within.
+
+| Season | Teams matched | Within 0.05 | Largest gap |
+| ------ | ------------- | ----------- | ----------- |
+| 1997   | 8             | 5           | 0.13        |
+| 1998   | 10            | 8           | 0.13        |
+| 1999   | 12            | 12          | 0.00        |
+| 2000   | 16            | 14          | 0.06        |
+| 2001   | 16            | 16          | 0.00        |
+| 2002   | 16            | 16          | 0.01        |
+| 2003   | 14            | 14          | 0.01        |
+| 2004   | 13            | 13          | 0.01        |
+| 2005   | 13            | 13          | 0.02        |
+| 2006   | 14            | 14          | 0.03        |
+| 2007   | 13            | 13          | 0.00        |
+| 2008   | 14            | 14          | 0.03        |
+| 2009   | 13            | 13          | 0.02        |
+| 2010   | 12            | 12          | 0.05        |
+| 2011   | 12            | 12          | 0.03        |
+| 2012   | 12            | 8           | 0.09        |
+| 2013   | 12            | 8           | 0.11        |
+| 2014   | 12            | 12          | 0.04        |
+| 2015   | 12            | 12          | 0.01        |
+| 2016   | 12            | 12          | 0.01        |
+| 2017   | 12            | 12          | 0.01        |
+| 2018   | 12            | 12          | 0.03        |
+| 2019   | 12            | 12          | 0.01        |
+| 2020   | 12            | 12          | 0.01        |
+| 2021   | 12            | 12          | 0.01        |
+| 2022   | 12            | 12          | 0.00        |
+| 2023   | 12            | 12          | 0.00        |
+| 2024   | 12            | 12          | 0.01        |
+| 2025   | 13            | 13          | 0.01        |
+| 2026   | 15            | 15          | 0.02        |
+
+| Season | Team               | Metis | B-R   |
+| ------ | ------------------ | ----- | ----- |
+| 1997   | Houston Comets     | 5.53  | 5.47  |
+| 1997   | Phoenix Mercury    | 3.50  | 3.44  |
+| 1997   | New York Liberty   | 2.09  | 2.22  |
+| 1998   | Houston Comets     | 11.29 | 11.41 |
+| 1998   | Cleveland Rockers  | 2.39  | 2.26  |
+| 2000   | Detroit Shock      | -3.82 | -3.88 |
+| 2000   | Phoenix Mercury    | 5.27  | 5.33  |
+| 2012   | Los Angeles Sparks | 5.03  | 4.94  |
+| 2012   | New York Liberty   | -4.00 | -3.93 |
+| 2012   | Washington Mystics | -8.85 | -8.78 |
+| 2012   | Chicago Sky        | -0.14 | -0.08 |
+| 2013   | Chicago Sky        | 4.74  | 4.65  |
+| 2013   | Tulsa Shock        | -1.57 | -1.47 |
+| 2013   | Seattle Storm      | -2.01 | -1.90 |
+| 2013   | Minnesota Lynx     | 8.86  | 8.95  |
+
+#### 2. The playoff field, per season
+
+Each completed regular season fed to the standings, the WNBA's tiebreakers and its era's bracket (`League.models.playoffs`), every series then going the way it went. The field matches in 30 of 30 seasons; 197 of 200 series the code forms were played; the host of each series' first game matches in 190 of 190 (seasons at one site left out).
+
+| Season | Format       | Real teams | Same field | Series formed and played |
+| ------ | ------------ | ---------- | ---------- | ------------------------ |
+| 1997   | league 4     | 4          | yes        | 3 of 3 (real 3)          |
+| 1998   | league 4     | 4          | yes        | 3 of 3 (real 3)          |
+| 1999   | conference 3 | 6          | yes        | 5 of 5 (real 5)          |
+| 2000   | conference 4 | 8          | yes        | 7 of 7 (real 7)          |
+| 2001   | conference 4 | 8          | yes        | 7 of 7 (real 7)          |
+| 2002   | conference 4 | 8          | yes        | 7 of 7 (real 7)          |
+| 2003   | conference 4 | 8          | yes        | 7 of 7 (real 7)          |
+| 2004   | conference 4 | 8          | yes        | 4 of 7 (real 7)          |
+| 2005   | conference 4 | 8          | yes        | 7 of 7 (real 7)          |
+| 2006   | conference 4 | 8          | yes        | 7 of 7 (real 7)          |
+| 2007   | conference 4 | 8          | yes        | 7 of 7 (real 7)          |
+| 2008   | conference 4 | 8          | yes        | 7 of 7 (real 7)          |
+| 2009   | conference 4 | 8          | yes        | 7 of 7 (real 7)          |
+| 2010   | conference 4 | 8          | yes        | 7 of 7 (real 7)          |
+| 2011   | conference 4 | 8          | yes        | 7 of 7 (real 7)          |
+| 2012   | conference 4 | 8          | yes        | 7 of 7 (real 7)          |
+| 2013   | conference 4 | 8          | yes        | 7 of 7 (real 7)          |
+| 2014   | conference 4 | 8          | yes        | 7 of 7 (real 7)          |
+| 2015   | conference 4 | 8          | yes        | 7 of 7 (real 7)          |
+| 2016   | league 8     | 8          | yes        | 7 of 7 (real 7)          |
+| 2017   | league 8     | 8          | yes        | 7 of 7 (real 7)          |
+| 2018   | league 8     | 8          | yes        | 7 of 7 (real 7)          |
+| 2019   | league 8     | 8          | yes        | 7 of 7 (real 7)          |
+| 2020   | league 8     | 8          | yes        | 7 of 7 (real 7)          |
+| 2021   | league 8     | 8          | yes        | 7 of 7 (real 7)          |
+| 2022   | league 8     | 8          | yes        | 7 of 7 (real 7)          |
+| 2023   | league 8     | 8          | yes        | 7 of 7 (real 7)          |
+| 2024   | league 8     | 8          | yes        | 7 of 7 (real 7)          |
+| 2025   | league 8     | 8          | yes        | 7 of 7 (real 7)          |
+| 2026   | league 8     | 8          | yes        | 7 of 7 (real 7)          |
+
+- 2004: the code's seeds CON NYL WAS DET / LAS SEA MIN SAC; series played NYL-DET, SAC-LAS, WAS-CON, MIN-SEA, NYL-CON, SAC-SEA, CON-SEA
+
+#### 3. Calibration
+
+Elo from `elo_game`, the home side's probability before each game against the result, 2012 to 2026 (out of sample: the constants were fitted on earlier seasons): 3555 games, Brier 0.2158, log loss 0.6206.
+
+| Tenth    | Games | Given % | Won % | Log loss |
+| -------- | ----- | ------- | ----- | -------- |
+| 0–10 %   | 0     | –       | –     | –        |
+| 10–20 %  | 14    | 18.7    | 7.1   | 0.311    |
+| 20–30 %  | 123   | 26.2    | 19.5  | 0.501    |
+| 30–40 %  | 325   | 35.4    | 29.2  | 0.609    |
+| 40–50 %  | 510   | 45.3    | 39.8  | 0.677    |
+| 50–60 %  | 685   | 55.3    | 51.2  | 0.693    |
+| 60–70 %  | 839   | 65.0    | 62.8  | 0.662    |
+| 70–80 %  | 686   | 74.9    | 71.3  | 0.599    |
+| 80–90 %  | 354   | 83.7    | 85.0  | 0.423    |
+| 90–100 % | 19    | 91.1    | 89.5  | 0.331    |
+
+The forecast (`team_forecast`, 2001 on), playoff and title odds at the fifth, tenth and fifteenth of twenty snapshots against the teams that played in the playoffs and the champion; the baseline is the standings of the day (1 for a team in the field's places by winning percentage, 0 otherwise; for the title 1 over the field's size).
+
+| Point          | Team-seasons | Playoffs: Brier | Baseline | Title: Brier | Baseline |
+| -------------- | ------------ | --------------- | -------- | ------------ | -------- |
+| A quarter      | 334          | 0.137           | 0.234    | 0.061        | 0.069    |
+| Half           | 334          | 0.093           | 0.168    | 0.054        | 0.068    |
+| Three quarters | 334          | 0.061           | 0.114    | 0.053        | 0.068    |
+
+Playoff odds by decile at a quarter of the season:
+
+| Decile   | Teams | Given % | Made it % |
+| -------- | ----- | ------- | --------- |
+| 0–10 %   | 27    | 4.3     | 11.1      |
+| 10–20 %  | 19    | 15.3    | 10.5      |
+| 20–30 %  | 25    | 25.7    | 24.0      |
+| 30–40 %  | 16    | 34.8    | 37.5      |
+| 40–50 %  | 25    | 44.9    | 40.0      |
+| 50–60 %  | 25    | 55.6    | 52.0      |
+| 60–70 %  | 44    | 64.8    | 59.1      |
+| 70–80 %  | 19    | 74.5    | 84.2      |
+| 80–90 %  | 46    | 85.3    | 89.1      |
+| 90–100 % | 88    | 96.4    | 96.6      |
+
+Each season's last snapshot, after its last regular-season game: a team given 50 % or more is a team in the real field for 334 of 334 team-seasons.
+
+#### 4. Adjusted ratings against RAPM
+
+Each team's final adjusted net rating against its players' regular-season RAPM in the impact file (SportsDataverse's), weighted by minutes and times five: Spearman's rank correlation per season.
+
+| Season           | Teams | Rank correlation |
+| ---------------- | ----- | ---------------- |
+| 1997             | 8     | 1.000            |
+| 1998             | 10    | 0.988            |
+| 1999             | 12    | 0.944            |
+| 2000             | 16    | 0.985            |
+| 2001             | 16    | 0.985            |
+| 2002             | 16    | 0.976            |
+| 2003             | 14    | 0.921            |
+| 2004 (not shown) | 13    | 0.978            |
+| 2005             | 13    | 0.951            |
+| 2006             | 14    | 0.996            |
+| 2007             | 13    | 0.951            |
+| 2008             | 14    | 0.991            |
+| 2009 (not shown) | 13    | 0.995            |
+| 2010             | 12    | 0.972            |
+| 2011             | 12    | 0.993            |
+| 2012             | 12    | 0.993            |
+| 2013             | 12    | 0.993            |
+| 2014             | 12    | 0.979            |
+| 2015             | 12    | 0.972            |
+| 2016             | 12    | 0.979            |
+| 2017             | 12    | 0.979            |
+| 2018             | 12    | 1.000            |
+| 2019             | 12    | 0.944            |
+| 2020             | 12    | 0.993            |
+| 2021             | 12    | 0.993            |
+| 2022             | 12    | 0.993            |
+| 2023             | 12    | 0.993            |
+| 2024             | 12    | 0.937            |
+| 2025             | 13    | 0.995            |
+| 2026             | 15    | 0.982            |
+
+Year to year: a team's final adjusted net rating against its next season's, 359 pairs: r 0.473.
+
+#### 5. BPM: the options measured
+
+Three values per player-season: Metis's BPM with Basketball-Reference's NBA coefficients, Metis's refitted on the WNBA (weighted least squares of the impact file's RAPM on BPM's terms at positions 1 and 5, 2592 player-team lines of 1997 to 2011, then BPM's team adjustment), and the impact file's BPM as published. Each predicts every team's next-season net rating per 100 from its players' values and their next-season share of the floor time (a player with none counts at replacement, −2): RMSE and r, earlier seasons (the refit's own) and later ones (out of sample).
+
+| Option                        | RMSE, earlier | r, earlier | RMSE, later | r, later | Team-seasons later | r with RAPM, later (1,000+ poss) |
+| ----------------------------- | ------------- | ---------- | ----------- | -------- | ------------------ | -------------------------------- |
+| Metis, NBA coefficients       | 5.16          | 0.627      | 5.37        | 0.674    | 172                | 0.604                            |
+| Metis, refitted on the league | 5.38          | 0.545      | 5.51        | 0.616    | 172                | 0.630                            |
+| Impact file, as published     | 5.31          | 0.571      | 5.66        | 0.685    | 172                | 0.594                            |
+
+#### 6. Stability
+
+`metric_stability` measured through 2025: 1452 metrics; labels none 497, low 225, high 403, medium 327.
+
+| Reason a metric has no label                                                                                                                                                               | Metrics |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------- |
+| Not published for the WNBA: no release holds play types.                                                                                                                                   | 234     |
+| Not published for the WNBA: no release holds player tracking.                                                                                                                              | 138     |
+| Fewer than 50 pairs of qualified seasons.                                                                                                                                                  | 36      |
+| Not published for the WNBA: no release holds hustle stats.                                                                                                                                 | 34      |
+| Not published for the WNBA: no release holds matchups.                                                                                                                                     | 26      |
+| A forecast read at a season’s end is the outcome, so it has no stability to measure.                                                                                                       | 8       |
+| Not computed for the WNBA: refitted on the league's seasons, Metis's BPM predicted the next season's team ratings no better than the impact file's BPM, which is shown under its own name. | 7       |
+| No spread from one season to the next to correlate.                                                                                                                                        | 4       |
+| No longer in the source.                                                                                                                                                                   | 3       |
+| Not published for the WNBA: it has no official injury report, and ESPN's injury snapshots start in September 2026.                                                                         | 2       |
+| The WNBA has no play-in.                                                                                                                                                                   | 2       |
+| The WNBA's pace is per 40 minutes already: see Pace.                                                                                                                                       | 1       |
+| The WNBA sends eight teams to its playoffs at most, so reaching the last eight is reaching the playoffs: see Playoff odds.                                                                 | 1       |
+| No value at the end of a season to compare.                                                                                                                                                | 1       |
+
+| Metric        | Year to year | Pairs | Split half | Half pairs | Label                                                                                                                                                                                      | Seasons   |
+| ------------- | ------------ | ----- | ---------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------- |
+| pts           | 0.812        | 2119  | 0.971      | 3260       | high                                                                                                                                                                                       | 1997–2025 |
+| reb           | 0.821        | 2119  | 0.968      | 3260       | high                                                                                                                                                                                       | 1997–2025 |
+| ast           | 0.845        | 2119  | 0.966      | 3260       | high                                                                                                                                                                                       | 1997–2025 |
+| ts_pct        | 0.523        | 1052  | 0.646      | 1509       | medium                                                                                                                                                                                     | 1997–2025 |
+| per           | 0.739        | 2092  | –          | 0          | high                                                                                                                                                                                       | 1997–2025 |
+| ws            | 0.664        | 2092  | –          | 0          | high                                                                                                                                                                                       | 1997–2025 |
+| ws_48         | 0.621        | 2092  | –          | 0          | high                                                                                                                                                                                       | 1997–2025 |
+| bpm           | –            | 0     | –          | 0          | Not computed for the WNBA: refitted on the league's seasons, Metis's BPM predicted the next season's team ratings no better than the impact file's BPM, which is shown under its own name. | –         |
+| team_srs      | 0.467        | 346   | –          | 0          | medium                                                                                                                                                                                     | 1997–2025 |
+| team_elo      | 0.572        | 300   | –          | 0          | medium                                                                                                                                                                                     | 2001–2025 |
+| team_adj_nrtg | 0.481        | 295   | –          | 0          | medium                                                                                                                                                                                     | 1997–2025 |
+| team_pace     | 0.853        | 346   | 0.975      | 365        | high                                                                                                                                                                                       | 1997–2025 |
+| team_pyth_w   | 0.463        | 346   | 0.835      | 365        | medium                                                                                                                                                                                     | 1997–2025 |
+
+#### 7. Model metrics through the engine
+
+Each metric read through the engine (`runQuery`) against the same value read from its table by SQL: the largest difference.
+
+| Season | Metrics                                                                              | Rows           | Largest difference |
+| ------ | ------------------------------------------------------------------------------------ | -------------- | ------------------ |
+| 2026   | players: PER, WS, WS/40 (top ten by WS)                                              | 10             | 0.0e+0             |
+| 2026   | teams: team_srs, team_elo, team_adj_nrtg, team_pyth_w, team_proj_w, team_playoff_pct | 15 (90 values) | 0.0e+0             |
+| 2005   | players: PER, WS, WS/40 (top ten by WS)                                              | 10             | 0.0e+0             |
+| 2005   | teams: team_srs, team_elo, team_adj_nrtg, team_pyth_w, team_proj_w, team_playoff_pct | 13 (78 values) | 0.0e+0             |

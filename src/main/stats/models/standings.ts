@@ -1,3 +1,12 @@
+import {
+  LEAGUES,
+  playoffEraIn,
+  SERIES_PATTERNS,
+  type League as LeagueEntry,
+  type PlayoffEra,
+  type SeriesPattern
+} from '@shared/leagues'
+
 /**
  * Standings, tiebreakers and seeding (Plan T1003), for a season's results so far or played out by the
  * simulation. Pure code with no database import.
@@ -31,7 +40,11 @@
  * reproduces every season's field and seeds from 1993-94.
  */
 
-/** A league for one season: each team's conference (0 east, 1 west) and division, by index. */
+/**
+ * A league for one season: each team's conference (0 east, 1 west) and division, by index. A league
+ * whose teams have no division (the WNBA) counts each conference as one, so its "division winners"
+ * are the conference winners its 1997 and 1998 seeds protected.
+ */
 export interface League {
   /** The teams' ids, in index order. */
   ids: readonly number[]
@@ -40,13 +53,15 @@ export interface League {
 }
 
 export function makeLeague(
-  teams: readonly { id: number; conference: string; division: string }[]
+  teams: readonly { id: number; conference: string; division: string | null }[]
 ): League {
-  const divisions = [...new Set(teams.map((t) => t.division))].sort()
+  const groupOf = (t: { conference: string; division: string | null }): string =>
+    t.division ?? t.conference
+  const divisions = [...new Set(teams.map(groupOf))].sort()
   return {
     ids: teams.map((t) => t.id),
     conference: Int8Array.from(teams, (t) => (t.conference.toLowerCase() === 'west' ? 1 : 0)),
-    division: Int8Array.from(teams, (t) => divisions.indexOf(t.division))
+    division: Int8Array.from(teams, (t) => divisions.indexOf(groupOf(t)))
   }
 }
 
@@ -61,6 +76,8 @@ export class Records {
   readonly points: Float64Array
   readonly extraWins: Int16Array
   readonly extraLosses: Int16Array
+  /** Each team's point differential against each other team: row the team, column the opponent. */
+  readonly pairPoints: Float64Array
 
   constructor(n: number) {
     this.n = n
@@ -68,6 +85,7 @@ export class Records {
     this.points = new Float64Array(n)
     this.extraWins = new Int16Array(n)
     this.extraLosses = new Int16Array(n)
+    this.pairPoints = new Float64Array(n * n)
   }
 
   copy(from: Records): void {
@@ -75,6 +93,7 @@ export class Records {
     this.points.set(from.points)
     this.extraWins.set(from.extraWins)
     this.extraLosses.set(from.extraLosses)
+    this.pairPoints.set(from.pairPoints)
   }
 
   /** A game between two teams of the league: margin is home less away, never zero. */
@@ -83,6 +102,8 @@ export class Records {
     else this.wins[away * this.n + home] += 1
     this.points[home] += margin
     this.points[away] -= margin
+    this.pairPoints[home * this.n + away] += margin
+    this.pairPoints[away * this.n + home] -= margin
   }
 
   /** A game against an opponent not named yet. */
@@ -145,19 +166,23 @@ export class TieBreaker {
   private readonly eligibleTop: number
   /** The procedure through 2003-04 (`SeasonRules.earlyTiebreak`). */
   private readonly early: boolean
+  /** Whose procedure: the NBA's (today's or `early`) or the WNBA's (`SeasonRules.tiebreak`). */
+  private readonly recipe: 'nba' | 'wnba'
 
   constructor(
     league: League,
     rec: Records,
     random: () => number,
     eligibleTop: number,
-    early = false
+    early = false,
+    recipe: 'nba' | 'wnba' = 'nba'
   ) {
     this.league = league
     this.rec = rec
     this.random = random
     this.eligibleTop = eligibleTop
     this.early = early
+    this.recipe = recipe
     this.eligible = new Uint8Array(rec.n)
   }
 
@@ -219,14 +244,37 @@ export class TieBreaker {
 
   private readonly pointDifferential: Step = (group) => group.map((t) => this.rec.points[t])
 
+  /** The WNBA's second step: winning percentage against the teams at .500 or better. */
+  private readonly winningTeams: Step = (group) =>
+    this.pctStep(group, (_, o) => this.rec.pct(o) >= 0.5 - EPS)
+
+  /** The WNBA's third step: point differential in the games between the tied teams. */
+  private readonly pairDifferential: Step = (group) =>
+    group.map((t) => group.reduce((sum, o) => sum + this.rec.pairPoints[t * this.rec.n + o], 0))
+
   // Getters: the field initialisers run before the constructor sets `early`.
   private get two(): readonly Step[] {
+    if (this.recipe === 'wnba') return this.wnba
     return this.early ? this.twoEarly : this.twoNow
   }
 
   private get many(): readonly Step[] {
+    if (this.recipe === 'wnba') return this.wnba
     return this.early ? this.manyEarly : this.manyNow
   }
+
+  /**
+   * The WNBA's procedure, for two teams or more: the games between them, the record against teams at
+   * .500 or better at the season's end, the point differential between them, then in all games. Its
+   * text does not say whether a partial break starts again from the first step; here it does, as the
+   * NBA's says.
+   */
+  private readonly wnba: readonly Step[] = [
+    this.headToHead,
+    this.winningTeams,
+    this.pairDifferential,
+    this.pointDifferential
+  ]
 
   private readonly twoEarly: readonly Step[] = [
     this.headToHead,
@@ -312,11 +360,22 @@ function partition(group: readonly number[], values: readonly number[]): number[
 }
 
 /**
- * How a season's playoffs were set. Seasons by final year (2026 = 2025-26). Every era since 1993-94,
- * the first season the app holds (D9), sends eight teams of each conference to the bracket.
+ * How a season's playoffs were set, from the league's registry (`League.models.playoffs`, a
+ * `PlayoffEra` per format). The NBA's fields are documented as its eras set them; seasons by the
+ * data's label (the NBA's 2026 = 2025-26).
  */
 export interface SeasonRules {
   season: number
+  /** Where the field is drawn: each conference's best, or the league's. */
+  field: 'conference' | 'league'
+  /** Teams in the field, per conference or in the league, after any play-in. */
+  teams: number
+  /** How the rounds pair (`PlayoffEra.bracket`). */
+  bracket: PlayoffEra['bracket']
+  /** Each round's home pattern, the last the final. */
+  rounds: readonly SeriesPattern[]
+  /** Whose tie-break procedure: the NBA's (with `earlyTiebreak`) or the WNBA's. */
+  tiebreak: 'nba' | 'wnba'
   /**
    * Division winners' places among the seeds: 2 (the two division winners seeded first and second,
    * through 2003-04), 3 (the three winners first to third, 2004-05 and 2005-06), `top4` (the three
@@ -329,10 +388,10 @@ export interface SeasonRules {
    * twice; `modern` from 2020-21: seventh to tenth play for the last two seeds.
    */
   playIn: 'none' | 'bubble' | 'modern'
-  /** First-round series: best of five through 2001-02, of seven since. */
-  firstRound: 5 | 7
-  /** The Finals' home pattern: 2-3-2 from 1985 to 2013, 2-2-1-1-1 before and since. */
-  finals: '2-3-2' | '2-2-1-1-1'
+  /** First-round series' length: in the NBA best of five through 2001-02, of seven since. */
+  firstRound: number
+  /** The final's home pattern: the NBA's 2-3-2 from 1985 to 2013, 2-2-1-1-1 before and since. */
+  finals: SeriesPattern
   /**
    * Home court in a series: by record from 2004-05, when protected division winners could have a
    * worse record than a lower seed (2005-06: the sixth-seeded Clippers, 47-35, hosted the third,
@@ -357,53 +416,73 @@ export interface SeasonRules {
   neutralPlayoffs: boolean
 }
 
-export function rulesOf(season: number): SeasonRules {
+/**
+ * A season's rules from the league's playoff era (`playoffEraIn`). The NBA's when no league is
+ * passed, the league the season simulation and its tests were first written for.
+ */
+export function rulesOf(season: number, league: LeagueEntry = LEAGUES.nba): SeasonRules {
+  const era = playoffEraIn(league, season)
   return {
     season,
-    divisionSeeds: season <= 2004 ? 2 : season <= 2006 ? 3 : season <= 2015 ? 'top4' : 0,
-    playIn: season === 2020 ? 'bubble' : season >= 2021 ? 'modern' : 'none',
-    firstRound: season <= 2002 ? 5 : 7,
-    finals: season >= 1985 && season <= 2013 ? '2-3-2' : '2-2-1-1-1',
-    homeByRecord: season >= 2005,
-    earlyTiebreak: season <= 2004,
-    eligibleTop: season >= 2021 ? 10 : 8,
-    neutralPlayoffs: season === 2020
+    field: era.field,
+    teams: era.teams,
+    bracket: era.bracket,
+    rounds: era.rounds,
+    tiebreak: era.tiebreak === 'wnba' ? 'wnba' : 'nba',
+    divisionSeeds: era.protectedSeeds,
+    playIn: era.playIn,
+    firstRound: SERIES_PATTERNS[era.rounds[0]].length,
+    finals: era.rounds[era.rounds.length - 1],
+    homeByRecord: era.homeByRecord,
+    earlyTiebreak: era.tiebreak === 'nba-early',
+    eligibleTop: era.eligibleTop,
+    neutralPlayoffs: era.neutral
   }
 }
 
 export interface ConferenceSeeds {
-  /** The conference's teams in seed order, every team: protected division winners first in the eras that had them. */
+  /** The field's teams in seed order, every team: protected division winners first in the eras that had them. */
   order: number[]
-  /** The division winners of the conference. */
+  /** The division winners among them. */
   winners: number[]
 }
 
 /**
- * Each conference's seed order for a season's results. Division ties are broken first and name the
- * winners; then the eligible teams are marked (records alone); then each conference is ranked, with
- * the division winners' protected places of the era.
+ * Each field's seed order for a season's results: each conference's, or the whole league's when the
+ * era draws the field from the league. Division ties are broken first and name the winners (where
+ * the procedure or the seeds read them); then the eligible teams are marked (records alone); then
+ * each field is ranked, with the division winners' protected places of the era.
  */
 export function seedConferences(
   league: League,
   rec: Records,
   rules: SeasonRules,
   random: () => number
-): { tb: TieBreaker; conferences: [ConferenceSeeds, ConferenceSeeds] } {
-  const tb = new TieBreaker(league, rec, random, rules.eligibleTop, rules.earlyTiebreak)
-  tb.markEligible()
+): { tb: TieBreaker; conferences: ConferenceSeeds[] } {
+  const tb = new TieBreaker(
+    league,
+    rec,
+    random,
+    rules.eligibleTop,
+    rules.earlyTiebreak,
+    rules.tiebreak
+  )
   const n = rec.n
   const winners = new Uint8Array(n)
-  const divisions = new Set(league.division)
   tb.winners = null
-  for (const d of divisions) {
-    const teams: number[] = []
-    for (let t = 0; t < n; t++) if (league.division[t] === d) teams.push(t)
-    winners[tb.rank(teams)[0]] = 1
+  if (rules.tiebreak === 'nba') tb.markEligible()
+  if (rules.tiebreak === 'nba' || rules.divisionSeeds !== 0) {
+    const divisions = new Set(league.division)
+    for (const d of divisions) {
+      const teams: number[] = []
+      for (let t = 0; t < n; t++) if (league.division[t] === d) teams.push(t)
+      winners[tb.rank(teams)[0]] = 1
+    }
   }
   tb.winners = winners
-  const seedsOf = (c: number): ConferenceSeeds => {
+  const seedsOf = (c: number | null): ConferenceSeeds => {
     const teams: number[] = []
-    for (let t = 0; t < n; t++) if (league.conference[t] === c) teams.push(t)
+    for (let t = 0; t < n; t++) if (c === null || league.conference[t] === c) teams.push(t)
     const ranked = tb.rank(teams)
     const won = ranked.filter((t) => winners[t] === 1)
     let top: number[] = []
@@ -415,7 +494,10 @@ export function seedConferences(
     const rest = ranked.filter((t) => !top.includes(t))
     return { order: [...top, ...rest], winners: won }
   }
-  return { tb, conferences: [seedsOf(0), seedsOf(1)] }
+  return {
+    tb,
+    conferences: rules.field === 'league' ? [seedsOf(null)] : [seedsOf(0), seedsOf(1)]
+  }
 }
 
 /** Games behind: how far `b` trails `a`, half the difference of wins plus that of losses. */

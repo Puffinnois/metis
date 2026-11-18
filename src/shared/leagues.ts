@@ -86,6 +86,141 @@ export interface SeasonShape {
   months: number
 }
 
+/**
+ * Which games of a playoff series the better side hosts, game by game; the length is the series'
+ * best-of. `1-2`: the other side hosts the first game and the better side the rest.
+ */
+export const SERIES_PATTERNS = {
+  '1': [true],
+  '1-2': [false, true, true],
+  '1-1-1': [true, false, true],
+  '2-1': [true, true, false],
+  '2-2-1': [true, true, false, false, true],
+  '2-2-1-1-1': [true, true, false, false, true, false, true],
+  '2-3-2': [true, true, false, false, false, true, true]
+} as const
+export type SeriesPattern = keyof typeof SERIES_PATTERNS
+
+/**
+ * The tie-break procedures by name (`src/main/stats/models/standings.ts`): the NBA's today, the NBA's
+ * through 2003-04 (conference record before division record), and the WNBA's.
+ */
+export type TiebreakRecipe = 'nba' | 'nba-early' | 'wnba'
+
+/**
+ * How a season's playoffs were set, from a season on (the season simulation, Plan T1003). Seeds are
+ * places in the order by record, tiebreakers applied, in the field's conference or in the league.
+ */
+export interface PlayoffEra {
+  /** The first season of this format; it holds until the next era's first season. */
+  from: number
+  /** Where the field is drawn: each conference's best, or the league's whatever their conference. */
+  field: 'conference' | 'league'
+  /** Teams in the field, per conference or in the league, after any play-in. */
+  teams: number
+  /**
+   * Division winners' places among the seeds: 2 (the winners seeded first and second), 3 (first to
+   * third), `top4` (the winners and the best other team one to four, by record), 0 (record alone). A
+   * league whose teams have no division counts each conference as one.
+   */
+  protectedSeeds: 0 | 2 | 3 | 'top4'
+  /**
+   * `bubble`, the NBA's 2019-20: the ninth, within four games of the eighth, had to beat it twice;
+   * `modern`: seventh to tenth play for the last two seeds.
+   */
+  playIn: 'none' | 'bubble' | 'modern'
+  /**
+   * How the rounds pair. `slots`: the first round's places by seed in the order the series are played,
+   * a bye as null, each later round pairing the winners of neighbouring places (a fixed bracket).
+   * `entering`: the seeds entering at each round, the best side alive meeting the worst (reseeded).
+   */
+  bracket: { slots: readonly (number | null)[] } | { entering: readonly (readonly number[])[] }
+  /**
+   * Each round's home pattern and length, first to last; the last is the final, between the
+   * conferences' champions for a conference field.
+   */
+  rounds: readonly SeriesPattern[]
+  /** Home court by record in every round, else by seed within a conference and by record in the final. */
+  homeByRecord: boolean
+  tiebreak: TiebreakRecipe
+  /** Teams of each conference eligible for the postseason, which the NBA's tiebreakers read. */
+  eligibleTop: number
+  /** Every playoff game at one site, with no home court. */
+  neutral: boolean
+}
+
+/** A regular season's games a team, from a season on. */
+export interface SeasonLength {
+  from: number
+  games: number
+}
+
+/** Elo's constants (`src/main/stats/models/elo.ts`), fitted per league. */
+export interface EloConstants {
+  /** Every team's rating at the start of the league's first season held. */
+  start: number
+  /** The mean ratings regress toward between seasons. */
+  mean: number
+  /** A team that enters the league (an expansion franchise). */
+  newTeam: number
+  k: number
+  /** Home court in Elo points. */
+  homeCourt: number
+  /** The share of a rating's distance from the mean kept between seasons. */
+  carry: number
+  /** Elo points per point of margin: the expected margin is the edge over this. */
+  perPoint: number
+  /** The first season its metrics read: the seasons before are its burn-in. */
+  firstSeason: number
+}
+
+/**
+ * The league's constants and fitted values for Metis's ratings and models (Plan T1301.8): the model
+ * code is shared, and everything that differs between leagues is read from here.
+ */
+export interface LeagueModels {
+  elo: EloConstants
+  /** The game types Elo rates: games between two teams of the league, counted or not. */
+  eloGameTypes: readonly GameType[]
+  /** The spread of a game's margin around Elo's expected margin, in points (the season simulation). */
+  marginSd: number
+  /** The first season forecast: Elo's metrics start there. */
+  forecastFirstSeason: number
+  /** The adjusted ratings' prior on each team effect, in possessions. */
+  ridgePossessions: number
+  /**
+   * Seasons whose adjusted ratings are not shown: the season's halves disagree on the teams' order
+   * (split-half reliability under 0.35, the "low" stability label's bound), so a rating would be
+   * noise (`scripts/fit-league-models.mjs`, section 3).
+   */
+  adjustedThin: readonly number[]
+  /** The exponent of the Pythagorean record on points for and against. */
+  pythagoreanExponent: number
+  /** The regular season's length by season, oldest first (`seasonGamesIn`). */
+  seasonGames: readonly SeasonLength[]
+  /**
+   * The games VORP's season is scaled to: a number for a fixed scale (Basketball-Reference's 82 for the
+   * NBA, every season), or `season` for the season's own length.
+   */
+  vorpGames: number | 'season'
+  /**
+   * Games with no home court beyond those ESPN's schedule marks (`neutralSitesSql`): `cities` whose
+   * games all went without it, a season played at one site that no source marks (the NBA's 2020
+   * restart, the WNBA's 2020 season); `types` played at a neutral site by rule (the NBA Cup final in
+   * Las Vegas; the WNBA's Commissioner's Cup final is hosted from 2022); `cupSemifinals`, the NBA Cup's
+   * semifinals read from ESPN's note.
+   */
+  neutral: { cities: readonly string[]; types: readonly GameType[]; cupSemifinals: boolean }
+  /** The playoff format by season, oldest first (`playoffEraIn`). */
+  playoffs: readonly PlayoffEra[]
+  /**
+   * Why Metis's Box Plus/Minus is not shown for the league, with VORP, OBPM, DBPM and the position and
+   * role BPM estimates; null when it is. The builder still stores them, so the measure that decided it
+   * can be run again (`scripts/check-wnba-models.mjs`, section 5); no metric reads them.
+   */
+  bpmUnavailable: string | null
+}
+
 export interface League {
   id: LeagueId
   /** As the screens write it: "NBA". */
@@ -212,6 +347,8 @@ export interface League {
    * metrics in each one's `leagues` (`catalogueIn`).
    */
   metricsByDefault: boolean
+  /** Constants and fitted values of its ratings and models (Plan T1301.8). */
+  models: LeagueModels
 }
 
 const MB = 1024 ** 2
@@ -219,6 +356,132 @@ const GB = 1024 ** 3
 
 const finalYear = (season: number): string =>
   `${season - 1}-${String(season % 100).padStart(2, '0')}`
+
+/**
+ * The NBA's playoffs since 1993-94 (`nba-data-sources.md`, "The playoff field, per season"): eight
+ * teams of each conference, one against eight, four against five, three against six, two against
+ * seven, the series played in that order. The first round was best of five through 2001-02; the
+ * Finals 2-3-2 through 2012-13; the division winners' protected seeds, home court and the
+ * tiebreakers changed with the 2004-05 realignment; the play-in came in 2019-20 (the bubble's) and
+ * 2020-21.
+ */
+const NBA_1994: PlayoffEra = {
+  from: 1994,
+  field: 'conference',
+  teams: 8,
+  protectedSeeds: 2,
+  playIn: 'none',
+  bracket: { slots: [1, 8, 4, 5, 3, 6, 2, 7] },
+  rounds: ['2-2-1', '2-2-1-1-1', '2-2-1-1-1', '2-3-2'],
+  homeByRecord: false,
+  tiebreak: 'nba-early',
+  eligibleTop: 8,
+  neutral: false
+}
+const NBA_2003: PlayoffEra = {
+  ...NBA_1994,
+  from: 2003,
+  rounds: ['2-2-1-1-1', '2-2-1-1-1', '2-2-1-1-1', '2-3-2']
+}
+const NBA_2005: PlayoffEra = {
+  ...NBA_2003,
+  from: 2005,
+  protectedSeeds: 3,
+  homeByRecord: true,
+  tiebreak: 'nba'
+}
+const NBA_2007: PlayoffEra = { ...NBA_2005, from: 2007, protectedSeeds: 'top4' }
+const NBA_2014: PlayoffEra = {
+  ...NBA_2007,
+  from: 2014,
+  rounds: ['2-2-1-1-1', '2-2-1-1-1', '2-2-1-1-1', '2-2-1-1-1']
+}
+const NBA_2016: PlayoffEra = { ...NBA_2014, from: 2016, protectedSeeds: 0 }
+const NBA_2020: PlayoffEra = { ...NBA_2016, from: 2020, playIn: 'bubble', neutral: true }
+const NBA_2021: PlayoffEra = {
+  ...NBA_2016,
+  from: 2021,
+  playIn: 'modern',
+  eligibleTop: 10
+}
+
+/**
+ * The WNBA's playoffs, from Wikipedia's "WNBA playoffs" (its "Format", "Tiebreaker procedures" and
+ * "History" sections, read with a plain client on 2026-11-18) and the home pattern of every series
+ * played, measured on the league's games (`wnba-data-sources.md`, "The playoff format, per season"):
+ * four teams in 1997 and 1998, the conference winners seeded first and second, single games in 1997
+ * and best of three in 1998; three of each conference in 1999, the first seed's bye to the conference
+ * finals; four of each conference from 2000 to 2015, the Finals best of five from 2005; the eight best
+ * records from 2016, the third and fourth seeds entering at the second round and the first and second
+ * at the semifinals, single games to there and the best side meeting the worst after each round, to
+ * 2021; a fixed bracket of eight from 2022, the Finals best of seven from 2025. The best of three went
+ * 1-2 (the better side hosting the second and third games) to 2009, 1-1-1 from 2010, 2-1 in the first
+ * round of 2022 to 2024. Its tiebreakers: the games between the tied teams, the record against teams
+ * at .500 or better, the point differential between the tied teams, then in all games.
+ */
+const WNBA_1997: PlayoffEra = {
+  from: 1997,
+  field: 'league',
+  teams: 4,
+  protectedSeeds: 2,
+  playIn: 'none',
+  bracket: { slots: [1, 4, 2, 3] },
+  rounds: ['1', '1'],
+  homeByRecord: false,
+  tiebreak: 'wnba',
+  eligibleTop: 4,
+  neutral: false
+}
+const WNBA_1998: PlayoffEra = { ...WNBA_1997, from: 1998, rounds: ['1-2', '1-2'] }
+const WNBA_1999: PlayoffEra = {
+  ...WNBA_1998,
+  from: 1999,
+  field: 'conference',
+  teams: 3,
+  protectedSeeds: 0,
+  bracket: { slots: [1, null, 2, 3] },
+  rounds: ['1', '1-2', '1-2'],
+  eligibleTop: 3
+}
+const WNBA_2000: PlayoffEra = {
+  ...WNBA_1999,
+  from: 2000,
+  teams: 4,
+  bracket: { slots: [1, 4, 2, 3] },
+  rounds: ['1-2', '1-2', '1-2'],
+  eligibleTop: 4
+}
+const WNBA_2005: PlayoffEra = { ...WNBA_2000, from: 2005, rounds: ['1-2', '1-2', '2-2-1'] }
+const WNBA_2010: PlayoffEra = { ...WNBA_2005, from: 2010, rounds: ['1-1-1', '1-1-1', '2-2-1'] }
+const WNBA_2016: PlayoffEra = {
+  ...WNBA_2010,
+  from: 2016,
+  field: 'league',
+  teams: 8,
+  bracket: {
+    entering: [
+      [5, 6, 7, 8],
+      [3, 4],
+      [1, 2]
+    ]
+  },
+  rounds: ['1', '1', '2-2-1', '2-2-1'],
+  homeByRecord: true,
+  eligibleTop: 8
+}
+const WNBA_2020: PlayoffEra = { ...WNBA_2016, from: 2020, neutral: true }
+const WNBA_2021: PlayoffEra = { ...WNBA_2016, from: 2021 }
+const WNBA_2022: PlayoffEra = {
+  ...WNBA_2016,
+  from: 2022,
+  bracket: { slots: [1, 8, 4, 5, 2, 7, 3, 6] },
+  rounds: ['2-1', '2-2-1', '2-2-1']
+}
+const WNBA_2025: PlayoffEra = {
+  ...WNBA_2022,
+  from: 2025,
+  rounds: ['1-1-1', '2-2-1', '2-2-1-1-1']
+}
 
 const NBA: League = {
   id: 'nba',
@@ -269,7 +532,48 @@ const NBA: League = {
   // Five-man units are published from 2007-08.
   lineupsFrom: 2008,
   notBuilt: 'No NBA stats yet: the first load has not got that far.',
-  metricsByDefault: true
+  metricsByDefault: true,
+  // Stage 10's values, each fitted and checked in `nba-data-sources.md` ("Elo", "Adjusted ratings",
+  // "The season forecast, checked").
+  models: {
+    // FiveThirtyEight's NBA Elo, with home court 80 and a carry of 0.65 fitted on 1995-96 to 2009-10
+    // and scored on 2010-11 on; every team at 1500 in 1993-94, so its metrics read from 1995-96.
+    elo: {
+      start: 1500,
+      mean: 1505,
+      newTeam: 1300,
+      k: 20,
+      homeCourt: 80,
+      carry: 0.65,
+      perPoint: 28,
+      firstSeason: 1996
+    },
+    eloGameTypes: ['regular', 'play-in', 'playoffs', 'cup-final'],
+    // The regular season's margins around Elo's expected margin, 1995-96 to 2025-26: 12.38.
+    marginSd: 12.4,
+    forecastFirstSeason: 1996,
+    ridgePossessions: 250,
+    adjustedThin: [],
+    // Basketball-Reference's exponent for the NBA.
+    pythagoreanExponent: 14,
+    // Lockouts in 1998-99 and 2011-12, and 2020-21's 72; 2019-20 was scheduled for 82.
+    seasonGames: [
+      { from: 1994, games: 82 },
+      { from: 1999, games: 50 },
+      { from: 2000, games: 82 },
+      { from: 2012, games: 66 },
+      { from: 2013, games: 82 },
+      { from: 2021, games: 72 },
+      { from: 2022, games: 82 }
+    ],
+    // Basketball-Reference's VORP is out of 82 games in every season, shortened ones included.
+    vorpGames: 82,
+    // The 2020 restart near Orlando, which ESPN does not mark neutral; the Cup final in Las Vegas and
+    // its semifinals, 2023-24's unmarked.
+    neutral: { cities: ['Lake Buena Vista'], types: ['cup-final'], cupSemifinals: true },
+    playoffs: [NBA_1994, NBA_2003, NBA_2005, NBA_2007, NBA_2014, NBA_2016, NBA_2020, NBA_2021],
+    bpmUnavailable: null
+  }
 }
 
 /**
@@ -323,8 +627,8 @@ const WNBA: League = {
   },
   noData: 'No WNBA stats yet: turn the WNBA on in the Data panel to download it.',
   // Its game, team and player tables (T1301.5), its game and season tables (T1301.6), its published
-  // tables and its plays (T1301.7) are built; the models come with T1301.8.
-  builds: ['identity', 'derived', 'published', 'plays'],
+  // tables and its plays (T1301.7), and Metis's ratings and models (T1301.8).
+  builds: BUILT_TABLES,
   // No WNBA release publishes these (wnba-data-sources.md, "Tables"). ESPN's injury snapshots begin
   // on 2026-09-08 with the current state only: the 2026 regular season's last week and its playoffs,
   // so no season's games out can be counted from them (T1301.7).
@@ -353,7 +657,69 @@ const WNBA: League = {
   // The lineup dashboards list units from 1997, the playoffs from 2001 (`wnba-data-sources.md`).
   lineupsFrom: 1997,
   notBuilt: 'No WNBA stats yet: the first load has not got that far.',
-  metricsByDefault: false
+  metricsByDefault: false,
+  models: {
+    // Fitted on 1999 to 2011 and scored on 2012 to 2026 (wnba-agreement.md, "Elo"): the grid's best
+    // (K 24, home court 90, a carry of 0.5) scores 0.0005 worse on the later seasons than the NBA's
+    // values, within 1.3 standard errors, so the NBA's stand. Its 28 Elo points a point of margin fit
+    // the WNBA's margins (27.6). Every team at 1500 in 1997: the metrics read from 2001, the first season
+    // every team's rating is within 10 points whatever its start.
+    elo: {
+      start: 1500,
+      mean: 1505,
+      newTeam: 1300,
+      k: 20,
+      homeCourt: 80,
+      carry: 0.65,
+      perPoint: 28,
+      firstSeason: 2001
+    },
+    eloGameTypes: ['regular', 'playoffs', 'cup-final'],
+    // The regular season's margins around Elo's expected margin, 2001 to 2026.
+    marginSd: 12.1,
+    forecastFirstSeason: 2001,
+    // A team-season holds about 2,700 possessions, a third of the NBA's: 100 pulls a season's final
+    // ratings by the same share as the NBA's 250 (0.16 points per 100 at the mean).
+    ridgePossessions: 100,
+    // 2004 (0.28) and 2009 (−0.14): seasons of near parity, the spread of net ratings 3.4 and 2.3.
+    adjustedThin: [2004, 2009],
+    // Fitted on 1997 to 2011, scored on 2012 to 2026: 0.047 of winning percentage against 14's 0.058.
+    pythagoreanExponent: 10.5,
+    // Basketball-Reference's season pages (wnba-data-sources.md, "Season lengths and team counts").
+    seasonGames: [
+      { from: 1997, games: 28 },
+      { from: 1998, games: 30 },
+      { from: 1999, games: 32 },
+      { from: 2003, games: 34 },
+      { from: 2020, games: 22 },
+      { from: 2021, games: 32 },
+      { from: 2022, games: 36 },
+      { from: 2023, games: 40 },
+      { from: 2025, games: 44 }
+    ],
+    vorpGames: 'season',
+    // The 2020 season at IMG Academy, which ESPN does not mark neutral. The Commissioner's Cup final
+    // was at a neutral site in 2021 only, which ESPN marks, and hosted by a finalist since.
+    neutral: { cities: ['Bradenton'], types: [], cupSemifinals: false },
+    playoffs: [
+      WNBA_1997,
+      WNBA_1998,
+      WNBA_1999,
+      WNBA_2000,
+      WNBA_2005,
+      WNBA_2010,
+      WNBA_2016,
+      WNBA_2020,
+      WNBA_2021,
+      WNBA_2022,
+      WNBA_2025
+    ],
+    // Measured (wnba-agreement.md, "BPM"): refitted on the impact file's RAPM of 1997 to 2011, Metis's
+    // BPM predicted the next season's team net ratings of 2013 to 2026 with r 0.62, against the impact
+    // file's own BPM's 0.69, so no refit ships, and the published BPM stays under its own name.
+    bpmUnavailable:
+      "Not computed for the WNBA: refitted on the league's seasons, Metis's BPM predicted the next season's team ratings no better than the impact file's BPM, which is shown under its own name."
+  }
 }
 
 export const LEAGUES: Readonly<Record<LeagueId, League>> = { nba: NBA, wnba: WNBA }
@@ -370,6 +736,24 @@ export function leagueOf(id: LeagueId): League {
 /** Whether a league's refresh builds these tables. */
 export const builds = (league: League, tables: BuiltTables): boolean =>
   league.builds.includes(tables)
+
+/** The playoff format of a season: the era it falls in, the first era before any. */
+export function playoffEraIn(league: League, season: number): PlayoffEra {
+  let era = league.models.playoffs[0]
+  for (const e of league.models.playoffs) if (season >= e.from) era = e
+  return era
+}
+
+/** A regular season's games a team, by the season's era. */
+export function seasonGamesIn(league: League, season: number): number {
+  let length = league.models.seasonGames[0]
+  for (const l of league.models.seasonGames) if (season >= l.from) length = l
+  return length.games
+}
+
+/** The games VORP scales a season to: the league's fixed number, or the season's length. */
+export const vorpGamesIn = (league: League, season: number): number =>
+  league.models.vorpGames === 'season' ? seasonGamesIn(league, season) : league.models.vorpGames
 
 /** The three-point line in a season: the era it falls in. */
 export function threePointLineIn(league: League, season: number): ThreePointLine {

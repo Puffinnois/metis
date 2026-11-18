@@ -1,3 +1,5 @@
+import { vorpGamesIn } from '@shared/leagues'
+import { derivedRecipe } from '../derived/build'
 import type { ModelBuilder, ModelContext, ModelRows, ModelTable } from './build'
 import type { Box, TeamSeason } from './box'
 import { COMPOSITE_SUMS, seasonComposites, type CompositeLine } from './composites'
@@ -91,7 +93,19 @@ const LISTED: Record<string, number> = { G: 1.5, F: 3.5, C: 5 }
  */
 function teamTurnovers(ctx: ModelContext): string {
   const parts: string[] = []
-  if (ctx.have.tables.has('play_team_game')) {
+  if (ctx.have.tables.has('play_team_game') && derivedRecipe(ctx.league).teamTurnovers === 'own') {
+    // The team's row already holds its own turnovers where it is above its players' sum: add only
+    // what the play by play counts beyond that, so a row that lacks them (the WNBA's 1998, 1999, 2001
+    // and 2002) gets them and a row that has them is not counted twice.
+    parts.push(`SELECT p.game_id, p.team_id,
+               greatest(0, p.tov_team - greatest(0, coalesce(t.tov, 0) - coalesce(s.tov, 0))) AS team_tov
+        FROM play_team_game p JOIN game g USING (game_id)
+        JOIN team_game t ON t.game_id = p.game_id AND t.team_id = p.team_id
+        LEFT JOIN (SELECT game_id, team_id, sum(tov) AS tov FROM player_game
+                   WHERE season = ${ctx.season} GROUP BY 1, 2) s
+          ON s.game_id = p.game_id AND s.team_id = p.team_id
+        WHERE g.season = ${ctx.season}`)
+  } else if (ctx.have.tables.has('play_team_game')) {
     parts.push(`SELECT p.game_id, p.team_id, p.tov_team AS team_tov
         FROM play_team_game p JOIN game g USING (game_id) WHERE g.season = ${ctx.season}`)
   }
@@ -207,7 +221,8 @@ async function build(ctx: ModelContext): Promise<ModelRows> {
     const result = seasonComposites(
       await playerLines(ctx, gameType),
       seasons,
-      await schedule(ctx, gameType)
+      await schedule(ctx, gameType),
+      vorpGamesIn(ctx.league, ctx.season)
     )
     const keys = { season: ctx.season, game_type: gameType }
     for (const p of result.players) {

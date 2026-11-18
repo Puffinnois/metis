@@ -1,6 +1,6 @@
 import type { GameType } from '@shared/stats/types'
 import type { ModelBuilder, ModelContext, ModelRows, ModelTable } from './build'
-import { ELO, runSeason, seasonStart, type EloGame } from './elo'
+import { runSeason, seasonStart, type EloGame } from './elo'
 import { neutralSitesSql } from './neutral'
 
 /** Plan T1002: Elo, a team's rating before and after every game played. */
@@ -11,8 +11,9 @@ export const ELO_WINS_TABLE = 'elo_wins'
 export const ELO_SCHEDULE_TABLE = 'elo_schedule'
 
 /**
- * Every type of game played between two teams of the league counts: the regular season, the play-in,
- * the playoffs and the Cup final. All-Star and preseason games never do.
+ * Every type of game played between two teams of a league counts: the regular season, the play-in,
+ * the playoffs and the Cup final. All-Star and preseason games never do. The types a league has are
+ * its registry's `models.eloGameTypes`; the tables declare them all.
  */
 export const ELO_GAME_TYPES: readonly GameType[] = ['regular', 'play-in', 'playoffs', 'cup-final']
 
@@ -101,8 +102,12 @@ interface GameRow {
  * (`neutralSitesSql`, shared with the other models).
  */
 async function seasonGames(ctx: ModelContext): Promise<GameRow[]> {
-  const types = ELO_GAME_TYPES.map((t) => `'${t}'`).join(', ')
-  const neutral = neutralSitesSql(ctx.have, { from: ctx.season, to: ctx.season })
+  const types = ctx.league.models.eloGameTypes.map((t) => `'${t}'`).join(', ')
+  const neutral = neutralSitesSql(
+    ctx.have,
+    { from: ctx.season, to: ctx.season },
+    ctx.league.models.neutral
+  )
   return ctx.db.all<GameRow>(
     `SELECT g.game_id, strftime(g.game_date, '%Y-%m-%d') AS game_date, g.game_type,
             g.home_team_id AS home, g.away_team_id AS away,
@@ -133,9 +138,12 @@ async function build(ctx: ModelContext): Promise<ModelRows> {
   const teams = [...new Set(rows.flatMap((g) => [g.home, g.away]).map(Number))]
   // The season before, as this step left it: computed first, since seasons run in order. With none
   // (the first season held), every team starts at 1500.
+  const constants = ctx.league.models.elo
   const last = await finalRatings(ctx, ctx.season - 1)
   const start =
-    last.size > 0 ? seasonStart(last, teams) : new Map(teams.map((t) => [t, ELO.start as number]))
+    last.size > 0
+      ? seasonStart(last, teams, constants.carry, constants.mean)
+      : new Map(teams.map((t) => [t, constants.start]))
   const typeOf = new Map(rows.map((g) => [g.game_id, g.game_type]))
   const games: EloGame<number>[] = rows.map((g) => ({
     game_id: g.game_id,
@@ -145,7 +153,7 @@ async function build(ctx: ModelContext): Promise<ModelRows> {
     neutral: g.neutral,
     margin: g.margin
   }))
-  const { rows: rated } = runSeason(games, start)
+  const { rows: rated } = runSeason(games, start, constants, constants.newTeam)
   const elo: Record<string, unknown>[] = []
   const wins: Record<string, unknown>[] = []
   const schedule: Record<string, unknown>[] = []

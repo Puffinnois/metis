@@ -240,7 +240,8 @@ export function teamRatings(
 export function bpmForTeam(
   players: readonly BpmPlayer[],
   ts: TeamSeason,
-  ratings: TeamRatings
+  ratings: TeamRatings,
+  seasonGames = 82
 ): BpmResult[] {
   const minutes = players.map((p) => p.box.mp)
   const position = centerOnTeam(
@@ -270,11 +271,15 @@ export function bpmForTeam(
       obpm,
       dbpm: bpm - obpm,
       share: share[i],
-      vorp: vorp(bpm, share[i], ts.games)
+      vorp: vorp(bpm, share[i], ts.games, seasonGames)
     }
   })
 }
 
-/** VORP: `(BPM + 2) × share of the floor time × team games / 82`. */
-export const vorp = (bpm: number, share: number, teamGames: number): number =>
-  (bpm - REPLACEMENT) * share * (teamGames / 82)
+/**
+ * VORP: `(BPM + 2) × share of the floor time × team games / season games`. The season is 82 games
+ * for the NBA in every season, as Basketball-Reference scales it; a league scaled to its season's own
+ * length passes that (`vorpGamesIn`).
+ */
+export const vorp = (bpm: number, share: number, teamGames: number, seasonGames = 82): number =>
+  (bpm - REPLACEMENT) * share * (teamGames / seasonGames)

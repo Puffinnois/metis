@@ -106,7 +106,7 @@ const num = (v: unknown): number => Number(v)
 
 describe('the recipes', () => {
   it('are the ones the registry names, the NBA’s reading its files as before', () => {
-    expect(wnba.builds).toEqual(['identity', 'derived', 'published', 'plays'])
+    expect(wnba.builds).toEqual(['identity', 'derived', 'published', 'plays', 'models'])
     expect(playsRecipe(wnba)).toBe(WNBA_PLAYS)
     expect(playsRecipe(LEAGUES.nba)).toBe(NBA_PLAYS)
     expect(PLAYS_RECIPES.wnba.pbp).toBe('src_wnba_pbp')

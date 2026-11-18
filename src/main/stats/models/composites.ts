@@ -67,10 +67,15 @@ function addInto(into: CompositeSums, from: CompositeSums): void {
   for (const c of COMPOSITE_SUMS) into[c] += from[c]
 }
 
+/**
+ * `vorpGames` is the games VORP scales a season to: Basketball-Reference's 82 for the NBA, the
+ * season's own length for a league whose registry says so (`vorpGamesIn`).
+ */
 export function seasonComposites(
   lines: readonly CompositeLine[],
   teams: ReadonlyMap<number, TeamSeason>,
-  schedule?: ReadonlyMap<number, number>
+  schedule?: ReadonlyMap<number, number>,
+  vorpGames = 82
 ): SeasonComposites {
   const league = leagueOf([...teams.values()])
   const perLg = perLeague(league)
@@ -87,7 +92,7 @@ export function seasonComposites(
     const ts = teams.get(teamId) as TeamSeason
     const lead = div(0.5 * (ts.team.pts - ts.opp.pts), ts.games)
     const ratings = teamRatings(ts, league, lead, schedule?.get(teamId) ?? 0)
-    const bpm = bpmForTeam(list, ts, ratings)
+    const bpm = bpmForTeam(list, ts, ratings, vorpGames)
     list.forEach((line, i) => {
       const p = line.box
       const off = oliverOffense(p, ts)
