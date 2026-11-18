@@ -6,7 +6,7 @@ import {
   type LineupColumn,
   type LineupGroup
 } from '@shared/stats/lineups'
-import { currentLeague, seasonLabel } from '@/lib/stats/league'
+import { currentLeague, inLeague, seasonLabel } from '@/lib/stats/league'
 import { PER_MINUTE } from '@shared/leagues'
 import type { BoardMode, GameType, StatsLineupUnit } from '@shared/stats/types'
 import { fmtClock, fmtStat } from './format'
@@ -60,8 +60,10 @@ export interface LineupCell {
   reason?: string
 }
 
-const NO_UNIT = 'The NBA’s file for these measures does not list this unit.'
-const NO_POSSESSIONS = 'The NBA does not publish possessions for this unit.'
+const NO_UNIT = (): string =>
+  inLeague('The {league}’s file for these measures does not list this unit.')
+const NO_POSSESSIONS = (): string =>
+  inLeague('The {league} does not publish possessions for this unit.')
 const NO_MINUTES = 'The unit has no minutes.'
 const PER: Partial<Record<BoardMode, number>> = { ...PER_MINUTE, per100: 100 }
 
@@ -76,18 +78,18 @@ export function unitValue(
   if (col.of) {
     const [a, b] = col.of.map(get)
     // No attempts is no percentage, not 0 %.
-    if (a === null || b === null) return { value: null, reason: NO_UNIT }
+    if (a === null || b === null) return { value: null, reason: NO_UNIT() }
     return b === 0 ? { value: null, reason: 'No attempts.' } : { value: a / b }
   }
   const raw = unit.values[col.id] ?? null
-  if (raw === null) return { value: null, reason: NO_UNIT }
+  if (raw === null) return { value: null, reason: NO_UNIT() }
   if (col.kind === 'value' || mode === 'raw') return { value: raw }
   if (mode === 'perGame') {
-    return unit.games ? { value: raw / unit.games } : { value: null, reason: NO_UNIT }
+    return unit.games ? { value: raw / unit.games } : { value: null, reason: NO_UNIT() }
   }
   if (mode === 'per100') {
     const poss = unit.values.possessions ?? null
-    return poss ? { value: (raw / poss) * 100 } : { value: null, reason: NO_POSSESSIONS }
+    return poss ? { value: (raw / poss) * 100 } : { value: null, reason: NO_POSSESSIONS() }
   }
   return unit.minutes
     ? { value: (raw / unit.minutes) * (PER[mode] ?? 1) }
@@ -170,8 +172,10 @@ export function lineupNotes(
   if (scope.seasonType === 'regular') {
     notes.push(
       floorMinutes === null
-        ? 'The NBA lists only the 2,000 units of a regular season with the most minutes, so a team’s list can be short.'
-        : `The NBA lists only the 2,000 units of a regular season with the most minutes: this season, ${fmtClock(floorMinutes)} or more, so a team’s list can be short.`
+        ? inLeague(
+            'The {league} lists only the 2,000 units of a regular season with the most minutes, so a team’s list can be short.'
+          )
+        : `The ${currentLeague().name} lists only the 2,000 units of a regular season with the most minutes: this season, ${fmtClock(floorMinutes)} or more, so a team’s list can be short.`
     )
     notes.push(
       'Each file ranks its own 2,000 units, so a unit one file lists can be missing from another: its cells read —.'

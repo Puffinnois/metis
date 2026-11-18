@@ -147,7 +147,10 @@ export function defaultBoard(
   return {
     entity,
     tab: tab.id,
-    columns: tab.groups.flatMap(([, ids]) => ids).filter((id) => catalogue.has(id)),
+    // A metric the league does not have is left out of the defaults, as of every preset.
+    columns: tab.groups
+      .flatMap(([, ids]) => ids)
+      .filter((id) => catalogue.has(id) && !catalogue.get(id)?.unavailable),
     sort: { by: tab.sort, dir: bestFirst(catalogue.get(tab.sort)) },
     mode: 'raw',
     qualifiedOnly: true,
@@ -187,8 +190,10 @@ export function appliesTo(info: MetricInfo, tab: TabDef): boolean {
 export function pickable(catalogue: readonly MetricInfo[], tab: TabDef): MetricInfo[] {
   const own = (m: MetricInfo): number =>
     tab.sides && m.side && !tab.sides.includes(m.side) ? 1 : 0
+  // A metric the league on screen does not have is not offered, so no preset or sort lands on an empty
+  // column (the WNBA's BPM, tracking, play types); the Glossary lists it with the reason.
   return catalogue
-    .filter((m) => appliesTo(m, tab))
+    .filter((m) => appliesTo(m, tab) && !m.unavailable)
     .sort(
       (a, b) =>
         own(a) - own(b) ||

@@ -169,7 +169,7 @@ function withQualifier(entity: Entity, columns: readonly string[]): string[] {
 export function defaultColumns(entity: Entity, catalogue: readonly MetricInfo[]): string[] {
   const ids = DEFAULT_FAMILIES[entity].flatMap((f) =>
     catalogue
-      .filter((m) => m.family === f && m.entity === entity && m.tier === 'core')
+      .filter((m) => m.family === f && m.entity === entity && m.tier === 'core' && !m.unavailable)
       .filter((m) => m.id !== 'gp' && m.id !== 'team_gp')
       .map((m) => m.id)
   )

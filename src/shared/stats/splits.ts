@@ -126,7 +126,7 @@ export const SPLITS: readonly SplitDef[] = [
     id: 'clutch',
     label: 'Clutch',
     group: 'clutch',
-    rule: "The NBA's rule: the last 5 minutes of the 4th quarter or overtime, the score within 5.",
+    rule: 'The last 5 minutes of the 4th quarter or overtime, the score within 5.',
     pieces: [{ periods: Q4_ON, clock: [0, 300], absMax: 5 }],
     halves: [{ periods: H2_ON, clock: [0, 300], absMax: 5 }]
   },
@@ -277,7 +277,7 @@ export const SPLIT_GROUPS: readonly { group: SplitGroup; title: string; note: st
   {
     group: 'clutch',
     title: 'Clutch',
-    note: "The NBA's rule: the last 5 minutes of the 4th quarter or overtime, the score within 5."
+    note: 'The last 5 minutes of the 4th quarter or overtime, the score within 5.'
   },
   {
     group: 'late',

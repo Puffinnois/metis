@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { CATALOGUE, METRICS, metricIn, notBuiltYet, tablesOf } from '@shared/stats/catalogue'
-import { coverageReason } from '@shared/stats/coverage'
+import { catalogueWordsIn, coverageReason } from '@shared/stats/coverage'
 import { LEAGUES, type League } from '@shared/leagues'
 import type { MetricDef } from '@shared/stats/types'
 
@@ -111,13 +111,44 @@ describe('a formula that holds the game length', () => {
     expect(inWnba('ws_48').id).toBe('ws_48')
   })
 
-  it('leaves every other metric’s words and formula as written', () => {
+  it('leaves every other metric’s formula as written, and its words but for the league’s own', () => {
     // The Pythagorean exponent and the WNBA's own words for its playoff format are the other changes.
     const other = (d: (typeof CATALOGUE)[number]): boolean =>
       !d.gameLength && !d.pythagorean && !d.leagues?.wnba?.words
     for (const def of CATALOGUE.filter(other)) {
       const read = metricIn(def, wnba)
-      expect([read.value, read.label, read.short]).toEqual([def.value, def.label, def.short])
+      const w = (t: string): string => (read.unavailable ? t : catalogueWordsIn(t, wnba))
+      expect([read.value, read.label, read.short]).toEqual([def.value, w(def.label), w(def.short)])
     }
+  })
+})
+
+describe('the catalogue’s words in the WNBA (Plan T1301.9)', () => {
+  it('names the league’s own files and counts on a metric it has', () => {
+    const rating = inWnba('team_nba_ortg')
+    expect(rating.label).toBe('Offensive rating (WNBA)')
+    expect(rating.short).toBe('ORtg WNBA')
+    expect(rating.description).toContain('as the WNBA counts them')
+    expect(rating.description).not.toMatch(/(?<!W)NBA/)
+    expect(inWnba('pts').sources).toEqual([
+      "The WNBA's game logs from 1997, its box scores in 2026",
+      "ESPN's box scores beside them from 2003"
+    ])
+    // A note on the NBA's seasons reads the WNBA's, or is left out.
+    expect(inWnba('min').description).toBe('Minutes played.')
+    expect(inWnba('gs').description).not.toMatch(/2001-02|2017-18/)
+  })
+
+  it('keeps the NBA’s words on the NBA, and on a metric the WNBA lacks', () => {
+    expect(metricIn(m('team_nba_ortg'), nba)).toBe(m('team_nba_ortg'))
+    expect(m('pts').sources?.[0]).toMatch(/^The NBA/)
+    const tracking = CATALOGUE.find((d) => d.family === 'tracking')!
+    expect(metricIn(tracking, wnba).description).toBe(tracking.description)
+  })
+
+  it('keeps a phrase mapped to itself, and never reads the WNBA’s own name as the NBA’s', () => {
+    expect(catalogueWordsIn("FiveThirtyEight's NBA Elo", wnba)).toBe("FiveThirtyEight's NBA Elo")
+    expect(catalogueWordsIn('the WNBA and the NBA', wnba)).toBe('the WNBA and the WNBA')
+    expect(catalogueWordsIn('NBA', nba)).toBe('NBA')
   })
 })

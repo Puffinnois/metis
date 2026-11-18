@@ -215,8 +215,9 @@ describe('the column picker and presets', () => {
       ].sort()
     )
     expect(familiesOf(CATALOGUE, tabOf('team', 'ALL'))).not.toContain('tracking')
-    // Impact leads with each model's total and parts, WAR and DARKO, before the adjusted RAPM.
-    expect(familyColumns(CATALOGUE, tab, 'impact').slice(0, 10).sort()).toEqual(
+    // Impact leads with each model's total and parts and WAR, before the adjusted RAPM. DARKO, which
+    // the dataset no longer publishes, is not offered (T1301.9: no preset on a metric not shown).
+    expect(familyColumns(CATALOGUE, tab, 'impact').slice(0, 8).sort()).toEqual(
       [
         'sdv_rapm',
         'sdv_o_rapm',
@@ -225,11 +226,10 @@ describe('the column picker and presets', () => {
         'sdv_obpm',
         'sdv_dbpm',
         'sdv_spm',
-        'sdv_war',
-        'sdv_darko_skill',
-        'sdv_darko_next'
+        'sdv_war'
       ].sort()
     )
+    expect(familyColumns(CATALOGUE, tab, 'impact')).not.toContain('sdv_darko_skill')
     expect(familiesOf(CATALOGUE, tabOf('team', 'ALL'))).not.toContain('impact')
     expect(familiesOf(CATALOGUE, tabOf('team', 'ALL'))).not.toContain('play_types')
     expect(familiesOf(CATALOGUE, tabOf('team', 'defense'))).toContain('hustle')

@@ -97,6 +97,37 @@ function inGameLength(def: MetricDef, league: League): Partial<MetricDef> {
   }
 }
 
+const wordPatterns = new WeakMap<League, RegExp | null>()
+
+/** One pass over a text with the league's `catalogueWords`, longest first, each as whole words. */
+export function catalogueWordsIn(text: string, league: League): string {
+  let pattern = wordPatterns.get(league)
+  if (pattern === undefined) {
+    const froms = league.catalogueWords.map(([from]) => from).sort((a, b) => b.length - a.length)
+    const escape = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    pattern = froms.length
+      ? new RegExp(`(?<![A-Za-z0-9])(?:${froms.map(escape).join('|')})(?![A-Za-z0-9])`, 'g')
+      : null
+    wordPatterns.set(league, pattern)
+  }
+  if (!pattern) return text
+  const to = new Map(league.catalogueWords)
+  return text.replace(pattern, (hit) => to.get(hit) ?? hit)
+}
+
+/** A metric's words in a league's own: its label, short label, description and sources. */
+function inWords(def: MetricDef, league: League): Partial<MetricDef> {
+  if (league.catalogueWords.length === 0) return {}
+  const w = (text: string): string => catalogueWordsIn(text, league)
+  const out: Partial<MetricDef> = {
+    label: w(def.label),
+    short: w(def.short),
+    description: w(def.description)
+  }
+  if (def.sources) out.sources = def.sources.map(w)
+  return out
+}
+
 /**
  * A metric's coverage in a league: what its `leagues` states for it, else its own fields where the
  * league takes them (`metricsByDefault`); null when the league does not have it.
@@ -119,7 +150,7 @@ const resolved = new WeakMap<League, WeakMap<MetricDef, MetricDef>>()
  * The metric as one league reads it: its coverage fields are that league's, and a league without it
  * reads it as unavailable with the reason; one whose refresh does not build the metric's table yet
  * reads it as not built yet (`notBuiltYet`); and a formula that holds the game's length reads the
- * league's (`gameLength`). A league taking the metric's own fields, building its table and playing the
+ * league's (`gameLength`); its words read the league's own (`catalogueWords`). A league taking the metric's own fields, building its table and playing the
  * catalogue's 48 minutes gets the same object back, so the NBA's catalogue is exactly as it was.
  */
 export function metricIn(def: MetricDef, league: League): MetricDef {
@@ -144,6 +175,8 @@ export function metricIn(def: MetricDef, league: League): MetricDef {
   if (coverage === null) {
     out.unavailable = notInLeague(league)
   } else {
+    // The league's own words, on a metric it has; one it lacks keeps the words of where it exists.
+    if (!coverage.unavailable) Object.assign(out, inWords(out, league))
     out.firstSeason = coverage.firstSeason
     if (coverage.missingSeasons) out.missingSeasons = coverage.missingSeasons
     if (coverage.seasonNotes) out.seasonNotes = coverage.seasonNotes

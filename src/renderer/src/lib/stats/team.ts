@@ -139,7 +139,7 @@ export const TEAM_SECTIONS: Record<
   shots_offense: [
     {
       title: 'Profile',
-      note: 'From the NBA’s shot chart file, 1996-97 on',
+      note: 'From the {league}’s shot chart file, {shotsFrom}',
       metrics: [
         'team_shot_avg_dist',
         'team_shot_ra_freq',
@@ -198,7 +198,7 @@ export const TEAM_SECTIONS: Record<
   shots_defense: [
     {
       title: 'Profile',
-      note: 'From the NBA’s shot chart file, 1996-97 on',
+      note: 'From the {league}’s shot chart file, {shotsFrom}',
       metrics: [
         'opp_shot_avg_dist',
         'opp_shot_ra_freq',
@@ -272,7 +272,7 @@ export const TEAM_SECTIONS: Record<
     },
     {
       title: 'Four factors',
-      note: 'As the NBA counts them',
+      note: 'As the {league} counts them',
       metrics: ['team_efg_pct', 'team_tov_pct', 'team_orb_pct', 'team_fta_rate']
     },
     {
@@ -311,7 +311,7 @@ export const TEAM_SECTIONS: Record<
     },
     {
       title: 'Four factors',
-      note: 'As the NBA counts them',
+      note: 'As the {league} counts them',
       metrics: ['opp_efg_pct', 'opp_tov_pct', 'team_drb_pct', 'opp_fta_rate']
     },
     {

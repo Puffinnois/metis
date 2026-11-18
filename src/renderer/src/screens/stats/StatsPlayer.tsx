@@ -24,7 +24,13 @@ import { statusTag } from '@/lib/stats/availability'
 import { ScopeBar } from '@/components/stats/ScopeBar'
 import { StatSection, StatSections } from '@/components/stats/StatLines'
 import { useNoteContext } from '@/lib/dev/noteContext'
-import { dashboardModes, sectionMetrics, sectionViews } from '@/lib/stats/dashboard'
+import {
+  dashboardModes,
+  sectionMetrics,
+  sectionViews,
+  shownTab,
+  shownTabs
+} from '@/lib/stats/dashboard'
 import type { ExploreSubject } from '@/lib/stats/explore'
 import { amongWords, fmtStat } from '@/lib/stats/format'
 import { qualifies, tabOf } from '@/lib/stats/leaderboard'
@@ -117,7 +123,7 @@ export function StatsPlayer({
   onScope,
   player,
   onPlayer,
-  tab,
+  tab: asked,
   onTab,
   onOpenTeam,
   onOpenGame,
@@ -146,6 +152,9 @@ export function StatsPlayer({
     loading: infoLoading
   } = usePlayerInfo(player, data.version)
   const [mode, setMode] = useScreenState<BoardMode>('player', 'mode', 'perGame')
+  // A tab whose every metric the league lacks is not offered; one asked for elsewhere opens the first.
+  const tabs = shownTabs(PLAYER_DASH_TABS, TAB_SECTIONS, data.byId)
+  const tab = shownTab(asked, tabs)
   const [railPosition, setRailPosition] = useState<RailPosition>('ALL')
   const [railTeam, setRailTeam] = useState<string | null>(null)
   const [metric, setMetric] = useState('pts')
@@ -206,7 +215,7 @@ export function StatsPlayer({
               onOpenTeam={onOpenTeam}
               onCompare={onCompare && (() => onCompare([{ entity: 'player', id: player }]))}
             />
-            <TabRow label="Player dashboard" tabs={PLAYER_DASH_TABS} value={tab} onChange={onTab}>
+            <TabRow label="Player dashboard" tabs={tabs} value={tab} onChange={onTab}>
               <div className="mb-2 flex shrink-0 items-center gap-4">
                 {onTrend && (
                   <button

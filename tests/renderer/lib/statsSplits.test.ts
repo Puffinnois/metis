@@ -90,7 +90,7 @@ describe('the play splits on the screens', () => {
     ])
     const groups = splitTable(results, defs, SEASON, byId, 'perGame', ['team_pts'])
     expect(groups.map((g) => g.title)).toEqual(['Overall', 'Clutch'])
-    expect(groups[1].note).toMatch(/^The NBA's rule/)
+    expect(groups[1].note).toMatch(/^The last 5 minutes of the 4th quarter/)
     expect(groups[1].rows[0]).toMatchObject({ label: 'Clutch', games: '30' })
   })
 

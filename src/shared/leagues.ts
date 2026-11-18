@@ -338,6 +338,13 @@ export interface League {
   lineupsFrom: number
   /** The first season of its published standings. */
   standingsFrom: number
+  /** The first season of its shot chart file. */
+  shotsFrom: number
+  /**
+   * The first season every shot has a location: before it, shots with none sit at (0, 0) and zones,
+   * distances and charts read only those placed.
+   */
+  shotsLocatedFrom: number
   /**
    * What a screen says while the league's tables are not built: before its first load gets that far,
    * or always while `builds` lacks `derived`.
@@ -351,6 +358,13 @@ export interface League {
   metricsByDefault: boolean
   /** Constants and fitted values of its ratings and models (Plan T1301.8). */
   models: LeagueModels
+  /**
+   * How the catalogue's words, written for the NBA, read on this league's metrics (`metricIn`): each
+   * pair's text is replaced where it stands as whole words, in one pass, the longest first, so a pair
+   * mapping a phrase to itself keeps it. A metric the league lacks keeps its words beside its reason.
+   * Empty for the NBA, whose catalogue reads as written.
+   */
+  catalogueWords: readonly (readonly [string, string])[]
 }
 
 const MB = 1024 ** 2
@@ -535,6 +549,9 @@ const NBA: League = {
   lineupsFrom: 2008,
   // The league dashboards' standings reach 1995-96, the core file's 1996-97 (`readStandings`).
   standingsFrom: 1996,
+  // The shot chart file from 1996-97, every shot located (`SHOTS_FIRST_SEASON`).
+  shotsFrom: 1997,
+  shotsLocatedFrom: 1997,
   notBuilt: 'No NBA stats yet: the first load has not got that far.',
   metricsByDefault: true,
   // Stage 10's values, each fitted and checked in `nba-data-sources.md` ("Elo", "Adjusted ratings",
@@ -577,7 +594,8 @@ const NBA: League = {
     neutral: { cities: ['Lake Buena Vista'], types: ['cup-final'], cupSemifinals: true },
     playoffs: [NBA_1994, NBA_2003, NBA_2005, NBA_2007, NBA_2014, NBA_2016, NBA_2020, NBA_2021],
     bpmUnavailable: null
-  }
+  },
+  catalogueWords: []
 }
 
 /**
@@ -662,6 +680,9 @@ const WNBA: League = {
   lineupsFrom: 1997,
   // The league dashboards' standings, from the first season, last ten and streaks with them.
   standingsFrom: 1997,
+  // Shots from 1997; 18.6 to 30 % of them at (0, 0) before 2011 (wnba-data-sources.md, "Traps").
+  shotsFrom: 1997,
+  shotsLocatedFrom: 2011,
   notBuilt: 'No WNBA stats yet: the first load has not got that far.',
   metricsByDefault: false,
   models: {
@@ -725,7 +746,37 @@ const WNBA: League = {
     // file's own BPM's 0.69, so no refit ships, and the published BPM stays under its own name.
     bpmUnavailable:
       "Not computed for the WNBA: refitted on the league's seasons, Metis's BPM predicted the next season's team ratings no better than the impact file's BPM, which is shown under its own name."
-  }
+  },
+  // The league's own files are the NBA's feed for the WNBA (stats.wnba.com's dashboards, play by play
+  // and shot charts), so "as the NBA publishes it" reads "as the WNBA publishes it"; the sources and
+  // the notes that name the NBA's seasons say the WNBA's (wnba-data-sources.md), and a note on the
+  // NBA's files alone is left out.
+  catalogueWords: [
+    ["The NBA's box scores from 1996-97", "The WNBA's game logs from 1997, its box scores in 2026"],
+    ["ESPN's box scores before them", "ESPN's box scores beside them from 2003"],
+    ["The NBA's box scores", "The WNBA's game logs and box scores"],
+    ["FiveThirtyEight's NBA Elo", "FiveThirtyEight's NBA Elo"],
+    ['from the published method, from 1993-94', 'from the published method, from 1997'],
+    [' Before 2023-24 they are often rounded to two places.', ''],
+    [' They read low before 2004-05: about 5 a game, against 11 to 15 after.', ''],
+    [
+      "ESPN's flag is the only source before 2017-18, and it is missing for some games, mostly in 2001-02, 2004-05 and 2005-06.",
+      "ESPN's flag from 2002, and the league's box scores in 2026."
+    ],
+    [
+      ' Who started is unknown for some games, mostly in 2001-02, 2004-05 and 2005-06, so per game counts only those known.',
+      ' Who started is read from 2002, so per game counts only the games it is known.'
+    ],
+    [' Most lines in 2003-04 and 2004-05 are rounded to the minute.', ''],
+    [
+      'the fouled player from 2006-07 to 2016-17 only.',
+      'the fouled player from 2006 to 2017 only.'
+    ],
+    ['from ESPN’s play by play, 2006-07 to 2016-17.', 'from ESPN’s play by play, 2006 to 2017.'],
+    [', from 2010-11.', '.'],
+    [', the rule of 2022-23 on.', ', as the play by play tags them.'],
+    ['NBA', 'WNBA']
+  ]
 }
 
 export const LEAGUES: Readonly<Record<LeagueId, League>> = { nba: NBA, wnba: WNBA }
@@ -792,6 +843,18 @@ export function periodsIn(league: League, season: number): PeriodEra {
   let era = league.periods[0]
   for (const e of league.periods) if (season >= e.from) era = e
   return era
+}
+
+/**
+ * What a split's note adds when some of the seasons were played in halves (the WNBA's to 2005): the
+ * 4th quarter's rules read the second half there (`SplitDef.halves`). Null when none were.
+ */
+export function halvesNote(league: League, seasons: readonly number[]): string | null {
+  const halves = league.periods.filter((e) => e.name === 'half')
+  if (!seasons.some((s) => periodsIn(league, s).name === 'half')) return null
+  const next = league.periods.find((e) => e.from > halves[halves.length - 1].from)
+  const until = next ? ` to ${league.seasonLabel(next.from - 1)}` : ''
+  return `Games${until} were in two halves: the 4th quarter's rules read the second half.`
 }
 
 /**

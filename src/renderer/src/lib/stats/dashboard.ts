@@ -1,6 +1,7 @@
 import type { BoardMode, MetricInfo, StatsResult, StatsRow } from '@shared/stats/types'
 import { boardModes } from './leaderboard'
 import { cellTitle, fmtStat, ordinal } from './format'
+import { inLeague } from './league'
 
 /** What the player and team dashboards share: titled lists of metrics, each read against its pool. */
 
@@ -13,6 +14,7 @@ export const dashboardModes = (): { value: BoardMode; label: string }[] => {
 
 export interface SectionDef {
   title: string
+  /** A line under the title; `{league}` and `{shotsFrom}` read the league on screen (`inLeague`). */
   note?: string
   metrics: string[]
 }
@@ -38,6 +40,29 @@ export interface SectionView {
   note?: string
   lines: StatLine[]
 }
+
+/**
+ * The tabs the league on screen shows (Plan T1301.9): one whose every metric the league does not have
+ * (the WNBA's Tracking, Play types and Matchups: no release publishes them) is left out, and the
+ * Glossary still lists those metrics with the reason. A tab with no sections, or a metric the catalogue
+ * does not know, keeps the tab; so does every tab before the catalogue answers.
+ */
+export function shownTabs<T extends string>(
+  tabs: readonly { id: T; label: string }[],
+  sections: Partial<Record<T, readonly SectionDef[]>>,
+  byId: ReadonlyMap<string, MetricInfo>
+): { id: T; label: string }[] {
+  if (byId.size === 0) return [...tabs]
+  return tabs.filter((t) => {
+    const of = sections[t.id]
+    if (!of) return true
+    return sectionMetrics(of).some((id) => !byId.get(id)?.unavailable)
+  })
+}
+
+/** The tab to show: the one asked for, or the first when the league on screen has no such tab. */
+export const shownTab = <T extends string>(tab: T, tabs: readonly { id: T }[]): T =>
+  tabs.some((t) => t.id === tab) ? tab : (tabs[0]?.id ?? tab)
 
 /** Every metric of some sections, once, in order. */
 export const sectionMetrics = (sections: readonly SectionDef[]): string[] => [
@@ -82,7 +107,7 @@ export function sectionViews(
   const row = result.rows.find((r) => r.id === id)
   return sections.map((s) => ({
     title: s.title,
-    ...(s.note ? { note: s.note } : {}),
+    ...(s.note ? { note: inLeague(s.note) } : {}),
     lines: s.metrics.map((m) => statLine(m, result, row, byId, mode, position))
   }))
 }

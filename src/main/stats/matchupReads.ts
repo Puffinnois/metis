@@ -98,7 +98,9 @@ export async function readGameMatchups(
     sfl: r.sfl
   }))
   const reason =
-    pairs.length === 0 && game.played ? 'The NBA’s file has no matchups for this game.' : null
+    pairs.length === 0 && game.played
+      ? `The ${league.name}’s file has no matchups for this game.`
+      : null
   return { pairs, reason }
 }
 

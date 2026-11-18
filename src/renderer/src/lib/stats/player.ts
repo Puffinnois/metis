@@ -158,7 +158,7 @@ export const TAB_SECTIONS: Record<
   shots: [
     {
       title: 'Profile',
-      note: 'From the NBA’s shot chart file, 1996-97 on',
+      note: 'From the {league}’s shot chart file, {shotsFrom}',
       metrics: [
         'shot_avg_dist',
         'shot_ra_freq',
@@ -401,7 +401,7 @@ export const TAB_SECTIONS: Record<
     },
     {
       title: 'Who they guarded',
-      note: 'By the position the NBA lists',
+      note: 'By the position the {league} lists',
       metrics: ['matchup_g_time_pct', 'matchup_f_time_pct', 'matchup_c_time_pct']
     },
     {
