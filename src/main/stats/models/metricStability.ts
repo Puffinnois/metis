@@ -51,8 +51,9 @@ type Engine = Awaited<ReturnType<typeof engine>>
 export const STABILITY_TABLE = 'metric_stability'
 
 /** Bump when the measure changes. 3: rows qualify on the scaled minimum rounded to a whole count (D33). 4: a metric with the NBA's
- * minimum pools by it alone, not by the minutes qualifier. */
-const BUILDER_VERSION = 4
+ * minimum pools by it alone, not by the minutes qualifier. 5: a metric a league does not have or build
+ * reads the league's reason (T1301.8). */
+const BUILDER_VERSION = 5
 
 /** The leaderboard's player qualifier, which every player metric is measured under as well. */
 const QUALIFIER = 'min'
@@ -103,9 +104,18 @@ type Measured = { rows: StabilityRow[]; reason: string | null }
 /** A rating read at the last game in scope: year to year, but no halves. */
 const isState = (e: Engine, m: MetricDef): boolean => e.modelTable(m.model)?.kind === 'state'
 
-/** Why a metric cannot be measured, or null when it can. */
-function notMeasurable(e: Engine, m: MetricDef, through: number): string | null {
-  if (m.unavailable) return NOT_MEASURED.gone
+/**
+ * Why a metric cannot be measured, or null when it can. `stated` is the catalogue's own entry: a metric
+ * gone from the source reads that; one the league does not have or build reads the league's reason.
+ */
+function notMeasurable(
+  e: Engine,
+  m: MetricDef,
+  through: number,
+  stated: MetricDef = m
+): string | null {
+  if (stated.unavailable) return NOT_MEASURED.gone
+  if (m.unavailable) return m.unavailable
   if (m.oneSeason) return NOT_MEASURED.oneSeason
   if (!e.grainsOf(m).includes('season')) return NOT_MEASURED.noSeason
   if (m.entity === 'player' && isState(e, m)) return NOT_MEASURED.playerState
@@ -242,7 +252,7 @@ export async function measureStability(
     // As the league reads it: a metric it does not have is not measured there.
     const m = metricIn(stated, league)
     if (metrics && !metrics.includes(m.id)) continue
-    const why = notMeasurable(e, m, through)
+    const why = notMeasurable(e, m, through, stated)
     if (why) out.set(m.id, unmeasured(why))
     else measurable.push(m)
   }

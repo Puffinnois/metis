@@ -212,22 +212,7 @@ async function schedule(ctx: ModelContext, gameType: string): Promise<Map<number
 
 const finite = (x: number): number | null => (Number.isFinite(x) ? x : null)
 
-/**
- * BPM and what follows from it: VORP, and the position and role its coefficients slide with. A league
- * whose registry says Metis's BPM is not shown for it stores them NULL, so no estimate the checks did
- * not stand behind reaches a screen (`League.models.bpmUnavailable`).
- */
-export const BPM_COLUMNS: readonly string[] = [
-  'bpm_num',
-  'obpm_num',
-  'vorp',
-  'position_num',
-  'role_num'
-]
-
 async function build(ctx: ModelContext): Promise<ModelRows> {
-  const withBpm = ctx.league.models.bpmUnavailable === null
-  const shown = (c: string): boolean => withBpm || !BPM_COLUMNS.includes(c)
   const players: Record<string, unknown>[] = []
   const teams: Record<string, unknown>[] = []
   for (const gameType of COMPOSITE_TYPES) {
@@ -244,12 +229,12 @@ async function build(ctx: ModelContext): Promise<ModelRows> {
       // The engine adds a traded player's teams itself, so only the rows per team are stored.
       if (p.teamId === null) continue
       const row: Record<string, unknown> = { ...keys, team_id: p.teamId, player_id: p.playerId }
-      for (const c of COMPOSITE_SUMS) row[c] = shown(c) ? finite(p[c]) : null
+      for (const c of COMPOSITE_SUMS) row[c] = finite(p[c])
       players.push(row)
     }
     for (const t of result.teams) {
       const row: Record<string, unknown> = { ...keys, team_id: t.teamId }
-      for (const c of COMPOSITE_SUMS) row[c] = shown(c) ? finite(t[c]) : null
+      for (const c of COMPOSITE_SUMS) row[c] = finite(t[c])
       teams.push(row)
     }
   }

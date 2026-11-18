@@ -213,7 +213,11 @@ export interface LeagueModels {
   neutral: { cities: readonly string[]; types: readonly GameType[]; cupSemifinals: boolean }
   /** The playoff format by season, oldest first (`playoffEraIn`). */
   playoffs: readonly PlayoffEra[]
-  /** Why Metis's Box Plus/Minus (and VORP after it) is not shown for the league; null when it is. */
+  /**
+   * Why Metis's Box Plus/Minus is not shown for the league, with VORP, OBPM, DBPM and the position and
+   * role BPM estimates; null when it is. The builder still stores them, so the measure that decided it
+   * can be run again (`scripts/check-wnba-models.mjs`, section 5); no metric reads them.
+   */
   bpmUnavailable: string | null
 }
 
@@ -623,8 +627,8 @@ const WNBA: League = {
   },
   noData: 'No WNBA stats yet: turn the WNBA on in the Data panel to download it.',
   // Its game, team and player tables (T1301.5), its game and season tables (T1301.6), its published
-  // tables and its plays (T1301.7) are built; the models come with T1301.8.
-  builds: ['identity', 'derived', 'published', 'plays'],
+  // tables and its plays (T1301.7), and Metis's ratings and models (T1301.8).
+  builds: BUILT_TABLES,
   // No WNBA release publishes these (wnba-data-sources.md, "Tables"). ESPN's injury snapshots begin
   // on 2026-09-08 with the current state only: the 2026 regular season's last week and its playoffs,
   // so no season's games out can be counted from them (T1301.7).
@@ -710,7 +714,11 @@ const WNBA: League = {
       WNBA_2022,
       WNBA_2025
     ],
-    bpmUnavailable: null
+    // Measured (wnba-agreement.md, "BPM"): refitted on the impact file's RAPM of 1997 to 2011, Metis's
+    // BPM predicted the next season's team net ratings of 2013 to 2026 with r 0.62, against the impact
+    // file's own BPM's 0.69, so no refit ships, and the published BPM stays under its own name.
+    bpmUnavailable:
+      "Not computed for the WNBA: refitted on the league's seasons, Metis's BPM predicted the next season's team ratings no better than the impact file's BPM, which is shown under its own name."
   }
 }
 
