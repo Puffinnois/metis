@@ -21,6 +21,21 @@ Earlier gates on the same data loaded the same 3,025 files in 12.2 minutes (Stag
 
 What the steps cost at the Stage 10 gate: building the game tables 12.7 seconds, the published tables 3.7 and 13.9 seconds, the play tables (34.9 million rows) 546 seconds, and the models (Elo, team strength, the adjusted ratings, the composites, the forecast and stability, 372,222 rows) 200 seconds.
 
+### Both leagues, from nothing (Stage 13, T1301.9)
+
+A first load of each league on one clean folder, one after the other, through the built stats worker (`scripts/load-report.mjs`), 2026-11-18 (`~/.cache/metis-dev/gate13`, kept). D22's limits hold for each.
+
+| What          | NBA                                                                                 | WNBA                                                                                                                       |
+| ------------- | ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Files         | 3,031 steps ok (3,025 files and six group tables), 45 not published yet, 0 problems | 1,499 steps ok, 1 not published yet (2019's coach file), 0 problems                                                        |
+| Download      | 1,581 MB                                                                            | 294 MB                                                                                                                     |
+| Time          | 26.9 minutes                                                                        | 6.3 minutes                                                                                                                |
+| Database file | 5.33 GB at the end (5,329,137,664 bytes)                                            | 850 MB (849,883,136 bytes)                                                                                                 |
+| Peak memory   | 2.56 GB (the worker process, in the plays tier)                                     | 1.72 GB                                                                                                                    |
+| Build steps   | game tables 13.4 s, published 14.0 s, plays 425 s, models 199 s                     | identity and game tables twice (the late identity rebuild, 0.3 and 7.3 s in all), published 1.9 s, plays 93 s, models 47 s |
+
+The WNBA's late identity rebuild (T1301.7: its overtimes before 2002 read from the play by play, a later tier) ran on this first load as it did in a refresh: every one of the 1,022 regular-season and playoff games of 1997 to 2001 has its overtimes, 63 of them in overtime.
+
 ### On Windows
 
 One first load on Windows, 2026-11-16, measured by the manager (Plan T1104). The machine was the owner's: Windows 11 Home build 26300, an Intel i7-13620H, 31.7 GB of memory (9.1 GB free at the start) and 151.5 GB of free disk. It was in use for other things during the run, a browser playing video and other apps, so it was a clean profile, not a clean machine. The build was the test build 0.8.1 of run 43939122396, the app as on main at that run with its own data folder, installed silently for the current user.

@@ -1,0 +1,77 @@
+[
+  {
+    "size": [1500, 950]
+  },
+  {
+    "wait": 6000
+  },
+  {
+    "eval": "window.sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nwindow.until = async (fn, ms = 15000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (fn()) return true; await sleep(150) } return false };\nwindow.nav = async (name) => { const b = [...document.querySelectorAll('nav button')].find((x) => x.textContent.trim() === name); if (!b) return 'NO NAV ' + name; b.click(); await sleep(2000); return 'nav ' + name };\nwindow.setInput = (input, value) => { const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(input, value); input.dispatchEvent(new Event('input', { bubbles: true })); input.dispatchEvent(new Event('change', { bubbles: true })) };\nwindow.chooseSelect = async (title, value) => { const el = [...document.querySelectorAll('select')].find((x) => x.title === title); if (!el) return 'NO SELECT ' + title; Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(el, String(value)); el.dispatchEvent(new Event('change', { bubbles: true })); await sleep(1500); return title + ' = ' + (el.selectedOptions[0]?.textContent ?? el.value) };\nwindow.cells = (r) => [...r.querySelectorAll('[role=cell],td')].map((c) => c.textContent.trim());\nwindow.rows = (n) => [...document.querySelectorAll('tbody tr,[role=row]')].slice(0, n).map((r) => cells(r).slice(0, 6).join(' | '));\nwindow.openPlayer = async (name) => { const input = document.querySelector('input[aria-label=\"Search players\"]'); if (!input) return 'NO SEARCH'; setInput(input, name); await until(() => [...document.querySelectorAll('aside button')].some((x) => x.textContent.includes(name))); const b = [...document.querySelectorAll('aside button')].find((x) => x.textContent.includes(name)); if (!b) return 'NOT LISTED ' + name; b.click(); await sleep(2500); return 'opened ' + name };\nwindow.openView = async (name) => { let b = [...document.querySelectorAll('button')].find((x) => x.textContent.includes(name)); if (!b) { const menu = document.querySelector('[title=\"Saved views\"]'); if (!menu) return false; menu.click(); await sleep(600); b = [...document.querySelectorAll('button')].find((x) => x.textContent.includes(name)) } if (!b) return false; b.click(); await sleep(3000); return true };\nwindow.check = (label, ok, got) => (ok ? 'OK ' : 'MISMATCH ') + label + ' got ' + JSON.stringify(got);\n'helpers ready'"
+  },
+  {
+    "eval": "window.sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nwindow.until = async (fn, ms = 15000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await fn()) return true; await sleep(250) } return false };\nwindow.nav = async (name) => { const b = [...document.querySelectorAll('nav button')].find((x) => x.textContent.trim() === name); if (!b) return 'NO NAV ' + name; b.click(); await sleep(2000); return 'nav ' + name };\nwindow.button = (name, within) => [...(within ?? document).querySelectorAll('button')].find((x) => x.textContent.trim() === name);\nwindow.section = (name) => document.querySelector('section[aria-label=\"' + name + '\"]');\nwindow.dl = async (league) => (await window.api.leagues.downloads()).leagues.find((l) => l.league === league);\nwindow.BOARD = { entity: 'player', metrics: ['pts', 'reb', 'ast', 'stl', 'blk', 'ts_pct'], scope: { seasons: [2026] } };\nwindow.timeBoard = async () => { const t0 = performance.now(); const r = await window.api.stats.query('nba', BOARD); return { ms: Math.round(performance.now() - t0), rows: r.rows.length, top: r.rows[0]?.name } };\nwindow.check = (label, ok, got) => (ok ? 'OK ' : 'MISMATCH ') + label + ' got ' + JSON.stringify(got);\n'helpers ready'"
+  },
+  {
+    "eval": "window.check = window.check ?? ((label, ok, got) => (ok ? 'OK ' : 'MISMATCH ') + label + ' got ' + JSON.stringify(got));\nwindow.trigger = () => document.querySelector('button[aria-label^=\"League: \"]');\nwindow.switchTo = async (name) => { const t = trigger(); if (!t) return 'NO MENU'; t.focus(); t.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); await until(() => document.querySelectorAll('[role=menuitemradio]').length > 0, 3000); const item = [...document.querySelectorAll('[role=menuitemradio]')].find((x) => x.textContent.trim().startsWith(name)); if (!item) return 'NO ITEM ' + name; item.click(); await sleep(3000); return trigger()?.getAttribute('aria-label')?.replace('League: ', '') ?? 'NO LEAGUE' };\n'helpers 3'"
+  },
+  {
+    "eval": "(async () => {\n    const t0 = Date.now()\n    await until(async () => !(await window.api.stats.status('nba')).busy, 60 * 60000)\n    const s = await window.api.stats.status('nba')\n    return check('the NBA opens on its renamed data and finishes its launch refresh', s.available && s.through !== null && s.builtAt !== null, { seconds: Math.round((Date.now() - t0) / 1000), through: s.through, builtAt: s.builtAt })\n  })()"
+  },
+  {
+    "eval": "(async () => { const d = await window.api.leagues.downloads(); const asked = /Which leagues should Metis download/.test(document.body.innerText); return check('an existing profile has its answer: the NBA on, the WNBA off, no first-run question', d.decided && d.leagues[0].on && !d.leagues[1].on && !d.leagues[1].hasFile && !asked, d) })()"
+  },
+  {
+    "eval": "(async () => { const nba = (await window.api.stats.views('nba')).map((v) => v.name); const wnba = await window.api.stats.views('wnba'); return check('the views saved before leagues are the NBA\\'s, and the WNBA has none', nba.includes('Scoring guards per 36') && nba.includes('Team offense') && wnba.length === 0, { nba, wnba }) })()"
+  },
+  {
+    "eval": "(async () => { const s = await window.api.stats.status('wnba'); const q = await window.api.stats.query('wnba', { entity: 'player', metrics: ['pts'], scope: { seasons: [2026] }, transform: 'per40' }); const c = await window.api.stats.catalogue('wnba'); return check('the WNBA answers no data yet, with the reason, never an error', !s.available && q.rows.length === 0 && q.notes[0] === s.noData, { status: s.noData, notes: q.notes, column: q.columns[0].reason, metrics: c.length }) })()"
+  },
+  {
+    "shot": "league-01-home"
+  },
+  {
+    "eval": "(async () => { const opened = await openView('Scoring guards per 36'); const modes = [...document.querySelectorAll('button')].map((b) => b.textContent.trim()).filter((t) => /^(Totals|Per \\w+)$/.test(t)); const title = document.querySelector('h1')?.textContent ?? ''; return check('a saved view opens: guards, per 36, the modes of the NBA', opened && /guard leaderboard/.test(title) && /per 36 minutes/.test(document.body.innerText) && modes.join(',') === 'Totals,Per game,Per 36,Per 48,Per 100', { opened, title, modes, footer: document.body.innerText.match(/sorted by [^\\n]*/)?.[0], rows: rows(3) }) })()"
+  },
+  {
+    "shot": "league-02-saved-view"
+  },
+  {
+    "eval": "(async () => { await nav('Leaderboards'); const opened = await openView('Team offense'); return check('the team view opens', opened && rows(3).length > 0, { opened, rows: rows(4) }) })()"
+  },
+  {
+    "shot": "league-03-team-view"
+  },
+  {
+    "eval": "(async () => { await nav('Players'); const r = await openPlayer('Nikola Joki'); await sleep(2000); const text = document.body.innerText; return check('a player dashboard reads', r.startsWith('opened') && /2025-26|2026-27/.test(text), { r, label: text.match(/20\\d\\d-\\d\\d/)?.[0] }) })()"
+  },
+  {
+    "shot": "league-04-player"
+  },
+  {
+    "eval": "(async () => { await nav('Standings'); await chooseSelect('Season', 2016); await sleep(2000); const r = [...document.querySelectorAll('tr,[role=row]')].find((x) => x.textContent.includes('Golden State Warriors')); return check('standings 2015-16 read as before, Golden State 73-9', !!r && cells(r).includes('73') && cells(r).includes('9'), r && cells(r).slice(0, 6)) })()"
+  },
+  {
+    "shot": "league-05-standings"
+  },
+  {
+    "eval": "(async () => { document.querySelector('[title=\"See what is loaded\"]').click(); await until(() => section('NBA') && section('WNBA')); const nba = section('NBA')?.innerText ?? ''; const wnba = section('WNBA')?.innerText ?? ''; return check('the Data panel groups both leagues; the WNBA is off and downloads nothing', /On ·/.test(nba) && /Off ·/.test(wnba) && /Not downloaded/.test(wnba), { nba: nba.split('\\n').filter(Boolean)[1], wnba: wnba.split('\\n').filter(Boolean).slice(1, 3) }) })()"
+  },
+  {
+    "shot": "t1301d-02-data-before"
+  },
+  {
+    "eval": "(async () => {\n    const button = (text, root = document) => [...root.querySelectorAll('button')].find((x) => x.textContent.trim() === text)\n    const on = button('Turn the WNBA on')\n    if (!on) return 'NO BUTTON'\n    const t0 = Date.now()\n    on.click()\n    const started = await until(async () => (await window.api.stats.status('wnba')).busy, 60000)\n    const done = await until(async () => { const s = await window.api.stats.status('wnba'); return !s.busy && s.available }, 40 * 60000)\n    const s = await window.api.stats.status('wnba')\n    return check('turned on, the WNBA loads and builds every table', started && done && !s.noData, { minutes: Math.round((Date.now() - t0) / 600) / 100, through: s.through, builtAt: s.builtAt })\n  })()"
+  },
+  {
+    "eval": "(async () => {\n    const n = await switchTo('WNBA')\n    await nav('Leaderboards')\n    await sleep(3000)\n    const q = await window.api.stats.query('wnba', { entity: 'player', metrics: ['pts'], scope: { seasons: [2026], gameTypes: ['regular'] }, sort: { metric: 'pts', dir: 'desc' }, limit: 3 })\n    return check('the WNBA reads: 2026 points led by Kelsey Mitchell, 1,086', n === 'WNBA' && q.rows[0]?.name === 'Kelsey Mitchell' && q.rows[0]?.values.pts.value === 1086, q.rows.map((r) => [r.name, r.values.pts.value]))\n  })()"
+  },
+  {
+    "shot": "t1301i-upgrade-wnba-home"
+  },
+  {
+    "eval": "(async () => { const v = await window.api.stats.views('wnba'); const n = (await window.api.stats.views('nba')).map((x) => x.name); return check('the views stay the NBA\\'s; the WNBA has none', v.length === 0 && n.length === 2, { nba: n, wnba: v.length }) })()"
+  },
+  {
+    "eval": "'ERRORS ON SCREEN ' + JSON.stringify([...document.querySelectorAll('.text-bad')].map((e) => e.textContent).slice(0, 5))"
+  }
+]

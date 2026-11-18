@@ -705,7 +705,8 @@ export async function readStandings(db: StatsDb, season: number): Promise<StatsS
       const repeats = (column_: 'conference_record' | 'division_record'): boolean =>
         rows.length > 1 && rows.every((r) => r[column_] === r.record)
       const noConference = repeats('conference_record')
-      const noDivision = repeats('division_record')
+      // A league with no divisions (the WNBA) publishes "0-0" as every team's division record.
+      const noDivision = repeats('division_record') || rows.every((r) => !r.division)
       return rows.map((r) => ({
         teamId: String(r.team_id),
         code: r.code,

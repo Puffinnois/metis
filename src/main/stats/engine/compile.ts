@@ -13,7 +13,14 @@ import {
   TOKEN,
   WHOLE_SEASONS_ONLY
 } from '@shared/stats/catalogue'
-import { builds, PER_MINUTE, seasonLabel, type League, type PerMinuteMode } from '@shared/leagues'
+import {
+  builds,
+  halvesNote,
+  PER_MINUTE,
+  seasonLabel,
+  type League,
+  type PerMinuteMode
+} from '@shared/leagues'
 import { SPLIT_IDS, SPLITS_FIRST_SEASON, splitById } from '@shared/stats/splits'
 import {
   POSITION_GROUPS,
@@ -414,7 +421,7 @@ function gapOf(
 ): string | null {
   if (m.unavailable) return m.unavailable
   // A source this build leaves out answers nothing for any season or filter (`leftOut.ts`).
-  const leftOut = leftOutGap(m, q.scope.split !== undefined)
+  const leftOut = leftOutGap(m, q.scope.split !== undefined, undefined, league)
   if (leftOut !== null) return leftOut
   const coverage = coverageReason(
     m,
@@ -1027,7 +1034,9 @@ function notesOf(q: StatsQuery, c: Checked): string[] {
   }
   const split = splitById(s.split)
   if (split) {
-    notes.add(`${split.label}: ${split.rule} Counted from the NBA's play by play.`)
+    notes.add(`${split.label}: ${split.rule} Counted from the ${c.league.name}'s play by play.`)
+    const halves = halvesNote(c.league, s.seasons)
+    if (halves) notes.add(halves)
     if (s.seasons.some((x) => x < SPLITS_FIRST_SEASON)) {
       notes.add(`${splitsFrom(c.league)} Earlier seasons are left out.`)
     }

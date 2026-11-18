@@ -1,4 +1,4 @@
-import { seasonLabel } from '@/lib/stats/league'
+import { currentLeague, seasonLabel } from '@/lib/stats/league'
 import type { StatsGameMatchup, StatsMatchupPair, StatsMatchupScope } from '@shared/stats/types'
 import { fmtClock, fmtStat } from './format'
 import { queryScope, type StatsScope } from './scope'
@@ -40,8 +40,8 @@ export function pairsNote(source: 'season' | 'games'): string {
   const what =
     'PTS, FG and the rest are what the player on offense did while that defender was assigned.'
   return source === 'season'
-    ? `From the NBA’s pair file for the whole regular season. ${what}`
-    : `Added up from the NBA’s game matchups over the games in scope. ${what}`
+    ? `From the ${currentLeague().name}’s pair file for the whole regular season. ${what}`
+    : `Added up from the ${currentLeague().name}’s game matchups over the games in scope. ${what}`
 }
 
 export interface PairRow {

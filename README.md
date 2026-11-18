@@ -1,30 +1,32 @@
 # Metis
 
-Metis is a desktop app for NBA statistics that runs on your own computer. It downloads public NBA data into a database on your machine, then lets you rank, filter, sort and compare players and teams across every season from 1993-94 to today. The stats are read from that database, and Metis shares nothing.
+Metis is a desktop app for basketball statistics that runs on your own computer, for the NBA and the WNBA. It downloads public data into a database per league on your machine, then lets you rank, filter, sort and compare players and teams across every season, from 1993-94 in the NBA and 1997 in the WNBA to today. A menu beside the name switches every screen between the leagues. The stats are read from those databases, and Metis shares nothing.
 
 **Status: version 1.0, for Windows.** [Download the latest release](https://github.com/Puffinnois/metis/releases/latest). The stages are in [Plan.md](Plan.md), the reasoning in [decisions.md](decisions.md).
 
 ## What it has
 
-| Screen           | What it answers                                                                                                                                                |
-| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Leaderboards** | Who leads on any stat, in any season, season type, date range or last N games; per game, totals, per 36, per 48 or per 100 possessions. Saved views and CSV    |
-| **Players**      | One player's dashboard: overview, scoring, shooting, a shot chart, play by play, tracking, play types, matchups, game log, splits, on/off, profile and combine |
-| **Teams**        | One team's dashboard: record, ratings and strength, shots, players, lineups, splits, schedule, on/off                                                          |
-| **Standings**    | The published standings by conference or division, with Metis's SRS, Elo and, for the season in progress, a forecast of playoff and title odds                 |
-| **Explore**      | Chart any stat against another, compare three players or teams, and follow a stat across a career against the league each season                               |
-| **Games**        | Any day's games: box scores, score by period, a game-flow chart, Elo before and after, officials, and who guarded whom                                         |
-| **Glossary**     | Every metric: what it means, how it is computed, which seasons it covers and how stable it is from one season to the next                                      |
+| Screen           | What it answers                                                                                                                                                                  |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Leaderboards** | Who leads on any stat, in any season, season type, date range or last N games; per game, totals, per 36, per 48 (per 40 in the WNBA) or per 100 possessions. Saved views and CSV |
+| **Players**      | One player's dashboard: overview, scoring, shooting, a shot chart, play by play, tracking, play types, matchups, game log, splits, on/off, profile and combine                   |
+| **Teams**        | One team's dashboard: record, ratings and strength, shots, players, lineups, splits, schedule, on/off                                                                            |
+| **Standings**    | The published standings by conference or division, with Metis's SRS, Elo and, for the season in progress, a forecast of playoff and title odds                                   |
+| **Explore**      | Chart any stat against another, compare three players or teams, and follow a stat across a career against the league each season                                                 |
+| **Games**        | Any day's games: box scores, score by period, a game-flow chart, Elo before and after, officials, and who guarded whom                                                           |
+| **Glossary**     | Every metric: what it means, how it is computed, which seasons it covers and how stable it is from one season to the next                                                        |
 
 The **Data panel**, opened from the status line, shows what is loaded, lets you pause a load, and gives the data's credit.
 
 **The statistics.** The box score from 1993-94 and the stats built on it (shooting, possessions, ratings, shares, game splits). What the NBA publishes per season: its advanced dashboards, player tracking from 2013-14, play types from 2015-16, hustle from 2016-17, matchups from 2017-18, five-man lineups from 2007-08, the draft combine and the injury reports. Counted from the play by play from 1996-97: shot zones, clutch and quarter splits, on/off and lineups of two to five, turnover and foul types, game flow. Computed by Metis from published methods: SRS, Elo, opponent-adjusted ratings, a season forecast, PER, Win Shares, BPM, VORP, league indexes (TS+) and each stat's stability.
 
+**In the WNBA**, from 1997: the box score and the stats built on it, the league's advanced dashboards, five-man lineups, the play by play and shots (zones and charts from 2011, where every shot has a location), officials from 2004, and Metis's ratings and models fitted to the league (rates per 40 minutes). No release publishes WNBA tracking, hustle, play types, matchups, the draft combine or an injury report: those tabs are not shown, and the Glossary says why for each of their stats. The leaderboards qualify by the NBA's minimums, scaled to the WNBA's season, until the league's own are read.
+
 A stat outside its seasons reads blank with the reason, such as "Recorded from 2013-14.", never zero. Each screen is described in [docs/reference/stats-screens.md](docs/reference/stats-screens.md).
 
 ## The first run
 
-The installer holds no data. On first launch Metis downloads the dataset and builds its database, measured on the development machine (Stage 10 gate, 2026-11-14; [what was measured](docs/reference/what-was-measured.md)):
+The installer holds no data. On first launch Metis asks which leagues to download, with each one's size and the free space it needs. The WNBA alone takes about 6 minutes, a 294 MB download and an 850 MB database (Stage 13, 2026-11-18). The NBA, measured on the development machine (Stage 10 gate, 2026-11-14; 27 minutes again on 2026-11-18; [what was measured](docs/reference/what-was-measured.md)):
 
 - **Time:** about 34 minutes, mostly the download, so it depends on your connection. Earlier loads on a faster connection took 12 to 21 minutes. The leaderboards are usable about 3 to 5 minutes in, while the rest loads.
 - **Disk:** a first load needs 6 GB free. The database ends at 5.3 GB, in `%APPDATA%\Metis`. The download is about 1.6 GB, and each file is deleted once loaded.

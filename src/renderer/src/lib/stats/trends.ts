@@ -1,5 +1,6 @@
 import { covers, coverageReason } from '@shared/stats/coverage'
 import { currentLeague, seasonLabel } from '@/lib/stats/league'
+import { seasonEnd, type League } from '@shared/leagues'
 import type {
   BoardMode,
   Entity,
@@ -475,9 +476,17 @@ export function trendLine(
   })
 }
 
-/** Whether a season is still being played: the one the data runs through, before July. */
-export function inProgress(season: number, status: StatsStatus | null, now = new Date()): boolean {
-  return status?.through?.season === season && now < new Date(Date.UTC(season, 6, 1))
+/**
+ * Whether a season is still being played: the one the data runs through, before the league's season
+ * ends (`seasonEnd`: July 1 for the NBA's, November 1 for the WNBA's).
+ */
+export function inProgress(
+  season: number,
+  status: StatsStatus | null,
+  now = new Date(),
+  league: League = currentLeague()
+): boolean {
+  return status?.through?.season === season && now < seasonEnd(league, season)
 }
 
 /**
@@ -616,7 +625,8 @@ export function playerSearchQuery(seasons: readonly number[]): StatsQuery {
   return {
     entity: 'player',
     metrics: [QUALIFIER],
-    scope: { seasons: [...seasons], gameTypes: ['regular', 'play-in', 'playoffs', 'cup-final'] },
+    // The league's own counted types: the WNBA has no play-in, and refuses a type it does not have.
+    scope: { seasons: [...seasons], gameTypes: [...currentLeague().countedTypes] },
     transform: 'raw',
     sort: { metric: QUALIFIER, dir: 'desc' },
     limit: ROW_LIMIT

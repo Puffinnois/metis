@@ -117,6 +117,13 @@ export const PRESETS: Record<Entity, ChartPreset[]> = {
   ]
 }
 
+/**
+ * The presets the league on screen can draw: one with an axis the league does not have (drives, in the
+ * WNBA: no tracking is published) is left out. Every preset before the catalogue answers.
+ */
+export const presetsIn = (entity: Entity, byId: ReadonlyMap<string, MetricInfo>): ChartPreset[] =>
+  PRESETS[entity].filter((p) => !byId.get(p.x)?.unavailable && !byId.get(p.y)?.unavailable)
+
 /** The axes shown: the state's, else the first preset's. */
 export function chartAxes(state: ChartState): { x: string; y: string } {
   const first = PRESETS[state.entity][0]

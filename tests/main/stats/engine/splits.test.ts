@@ -66,7 +66,9 @@ describe('the engine under a split', () => {
     })
     expect(c.gaps).toEqual([null, NOT_FROM_PLAYS, NOT_FROM_PLAYS, NOT_FROM_PLAYS])
     expect(c.notes.some((n) => n.includes('whole seasons only'))).toBe(false)
-    expect(c.notes[0]).toMatch(/^Clutch: The NBA's rule/)
+    expect(c.notes[0]).toBe(
+      "Clutch: The last 5 minutes of the 4th quarter or overtime, the score within 5. Counted from the NBA's play by play."
+    )
   })
 
   it('reads a season before the play by play with its reason, and says when one is left out', () => {

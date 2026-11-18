@@ -10,7 +10,8 @@ import {
   requiredReleases
 } from '@main/stats/leftOut'
 import { LEFT_OUT_RELEASES, SOURCES } from '@main/stats/sources'
-import { METRICS } from '@shared/stats/catalogue'
+import { CATALOGUE, METRICS } from '@shared/stats/catalogue'
+import { LEAGUES } from '@shared/leagues'
 
 const metric = (id: string): NonNullable<ReturnType<typeof METRICS.get>> => {
   const m = METRICS.get(id)
@@ -69,6 +70,17 @@ describe('the releases left out of this build', () => {
     expect(leftOutGap(metric('sdv_rapm'), false, list)).toBe(LEFT_OUT_REASON)
     expect(leftOutGap(metric('pts'), false, list)).toBeNull()
     expect(leftOutGap(metric('sdv_rapm'), false, [])).toBeNull()
+  })
+
+  it('reads the league’s own files: the WNBA’s shots and play by play, not the NBA’s', () => {
+    const shot = CATALOGUE.find((d) => d.built === 'shot_player_game')!
+    const wnbaShots = ['wnba_stats_shots']
+    expect(leftOutGap(shot, false, wnbaShots, LEAGUES.wnba)).toBe(LEFT_OUT_REASON)
+    expect(leftOutGap(shot, false, wnbaShots, LEAGUES.nba)).toBeNull()
+    expect(leftOutGap(shot, false, ['nba_stats_shots'], LEAGUES.wnba)).toBeNull()
+    // A split reads the league's play by play.
+    expect(leftOutGap(metric('pts'), true, ['wnba_stats_pbp'], LEAGUES.wnba)).toBe(LEFT_OUT_REASON)
+    expect(leftOutGap(metric('pts'), true, ['wnba_stats_pbp'], LEAGUES.nba)).toBeNull()
   })
 })
 

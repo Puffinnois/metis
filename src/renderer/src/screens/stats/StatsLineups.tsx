@@ -18,6 +18,7 @@ import {
   type LineupSort
 } from '@/lib/stats/lineups'
 import type { StatsScope } from '@/lib/stats/scope'
+import { currentLeague, inLeague } from '@/lib/stats/league'
 import { useLineups, type StatsData } from '@/lib/stats/useStats'
 import { lineupColumns } from '@shared/stats/lineups'
 import type { BoardMode } from '@shared/stats/types'
@@ -99,7 +100,7 @@ function PublishedLineups({
     <section className="flex flex-col gap-3">
       <SectionHead
         title="Lineups"
-        note={gap ? undefined : 'Five-man units, as the NBA publishes them'}
+        note={gap ? undefined : inLeague('Five-man units, as the {league} publishes them')}
       />
       {gap ? (
         <p className="m-0 text-[12.5px] text-fg-3">{gap}</p>
@@ -179,7 +180,7 @@ function UnitTable({
       <p className="m-0 text-[12px] text-fg-3">{unitCount(shown.length, rows.length)}</p>
       {value.units.length === 0 ? (
         <p className="m-0 text-[12.5px] text-fg-3">
-          The NBA lists no five-man units for this team in this season.
+          The {currentLeague().name} lists no five-man units for this team in this season.
         </p>
       ) : rows.length === 0 ? (
         <p className="m-0 text-[12.5px] text-fg-3">

@@ -59,7 +59,7 @@ import {
   type StatsData
 } from '@/lib/stats/useStats'
 import { cn } from '@/lib/utils'
-import { seasonLabel } from '@/lib/stats/league'
+import { currentLeague, inLeague, seasonLabel } from '@/lib/stats/league'
 import type { GameType, StatsGame } from '@shared/stats/types'
 
 /** A day's games on a date rail, and a game: its header, scores by period, comparison and box score. */
@@ -311,7 +311,7 @@ function GameBody({
               ))}
             </>
           ) : (
-            'The NBA’s file lists no officials for this game.'
+            inLeague('The {league}’s file lists no officials for this game.')
           )}
         </p>
       )}
@@ -439,7 +439,7 @@ function GameMatchups({
       <SectionHead title="Who guarded whom" />
       {value.reason || value.pairs.length === 0 ? (
         <p className="m-0 text-[12.5px] text-fg-3">
-          {value.reason ?? 'The NBA’s file has no matchups for this game.'}
+          {value.reason ?? inLeague('The {league}’s file has no matchups for this game.')}
         </p>
       ) : (
         <>
@@ -456,9 +456,9 @@ function GameMatchups({
             </button>
           )}
           <p className="m-0 text-[12px] text-fg-3">
-            From the NBA’s game matchups: what the player on offense did while that defender was
-            assigned, longest first. Assignment is tracked moment by moment, so help and switches
-            sit in it too.
+            From the {currentLeague().name}’s game matchups: what the player on offense did while
+            that defender was assigned, longest first. Assignment is tracked moment by moment, so
+            help and switches sit in it too.
           </p>
         </>
       )}

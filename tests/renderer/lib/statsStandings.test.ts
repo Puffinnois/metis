@@ -14,10 +14,12 @@ import {
   standingsNotes,
   standingsTables,
   STANDINGS_HEAD,
-  STRENGTH_NOTE,
+  standingsColumns,
+  strengthNote,
   strengthQuery,
   teamPlace
 } from '@/lib/stats/standings'
+import { LEAGUES } from '@shared/leagues'
 import type { MetricValue, StatsStanding } from '@shared/stats/types'
 
 const team = (over: Partial<StatsStanding>): StatsStanding => ({
@@ -167,14 +169,18 @@ describe('the tables', () => {
 })
 
 describe('what they depend on', () => {
-  it('says when the standings start', () => {
+  const STRENGTH_NOTE = strengthNote(LEAGUES.nba)
+
+  it('says when the standings start, and when a season has none', () => {
     expect(standingsNotes(1995, [])).toEqual(['Published standings start in 1995-96.'])
-    expect(standingsNotes(2020, [])).toEqual([])
+    expect(standingsNotes(2020, [])).toEqual(['No standings are published for 2019-20.'])
   })
 
-  it('says when the last ten and the streak start', () => {
-    expect(standingsNotes(2001, ROWS)).toEqual([
-      'The last ten and the streak are published from 2001-02.',
+  it('says when the file has no last ten and streak, from the rows', () => {
+    // The NBA's files hold none before 2001-02.
+    const before = ROWS.map((r) => ({ ...r, last10: null, streak: null }))
+    expect(standingsNotes(2001, before)).toEqual([
+      'The last ten and the streak are not published for 2000-01.',
       STRENGTH_NOTE
     ])
     expect(standingsNotes(2002, ROWS)).toEqual([STRENGTH_NOTE])
@@ -186,6 +192,21 @@ describe('what they depend on', () => {
       'The NBA’s file has no real conference or division records for 2003-04.',
       STRENGTH_NOTE
     ])
+  })
+
+  it('states the league’s own exponent and file on the WNBA', () => {
+    expect(STRENGTH_NOTE).toContain('the exponent 14,')
+    const wnba = [team({ division: null, divisionRecord: null, conferenceRecord: null })]
+    expect(standingsNotes(1997, wnba, LEAGUES.wnba)).toEqual([
+      'The WNBA’s file has no real conference records for 1997.',
+      strengthNote(LEAGUES.wnba)
+    ])
+    expect(strengthNote(LEAGUES.wnba)).toContain('the exponent 10.5,')
+    // The WNBA's file publishes the last ten and the streak from 1997: nothing said of them.
+    expect(standingsNotes(1997, [team({ division: null })], LEAGUES.wnba)).toEqual([
+      strengthNote(LEAGUES.wnba)
+    ])
+    expect(standingsNotes(1996, [], LEAGUES.wnba)).toEqual(['Published standings start in 1997.'])
   })
 })
 
@@ -275,7 +296,26 @@ describe('the season forecast columns (Plan T1003)', () => {
     ])
     expect(east.rows.find((r) => r.teamId === '2')!.cells.slice(-3)).toEqual(['—', '—', '—'])
     expect(conferenceTables(ROWS)[0].rows[0].cells).toHaveLength(STANDINGS_HEAD.length - 2)
-    expect(forecastNote(10000)).toContain('10,000 times from its Elo ratings')
+    expect(forecastNote(10000, 2026)).toContain('10,000 times from its Elo ratings')
     expect(forecastCells(null)).toBeNull()
+  })
+
+  it('names the play-in only where the season’s format has one', () => {
+    expect(forecastNote(10, 2026, LEAGUES.nba)).toMatch(/then the play-in and the playoffs\.$/)
+    expect(forecastNote(10, 2019, LEAGUES.nba)).toMatch(/Elo ratings, then the playoffs\.$/)
+    expect(forecastNote(10, 2026, LEAGUES.wnba)).toMatch(/Elo ratings, then the playoffs\.$/)
+  })
+
+  it('drops DIV, head, cells and widths together, where the teams are in no division', () => {
+    const wnba = ROWS.map((r) => ({ ...r, division: null, divisionRecord: null }))
+    const head = standingsHead(null, wnba)
+    expect(head).not.toContain('DIV')
+    expect(head).toHaveLength(STANDINGS_HEAD.length - 1)
+    expect(conferenceTables(wnba)[0].rows[0].cells).toHaveLength(head.length - 2)
+    expect(standingsColumns(null, wnba).split(' ')).toHaveLength(head.length)
+    expect(standingsColumns(null, ROWS).split(' ')).toHaveLength(STANDINGS_HEAD.length)
+    const f = forecastCells(result as never)!
+    expect(standingsColumns(f, wnba).split(' ')).toHaveLength(standingsHead(f, wnba).length)
+    expect(standingsHead(null, ROWS)).toEqual(STANDINGS_HEAD)
   })
 })

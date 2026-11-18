@@ -413,7 +413,7 @@ describe('a game’s Elo', () => {
   it('has a note alone in the burn-in seasons, and nothing for a game it does not rate', () => {
     expect(eloView(game('g', '1995-01-02', { season: 1995 }), detail(null))).toEqual({
       rows: [],
-      note: 'Elo is read from 1995-96: every team starts at 1500 in 1993-94, so the first two seasons settle the ratings.'
+      note: 'Elo is read from 1995-96: every team starts at 1500 in 1993-94, so 1993-94 and 1994-95 settle the ratings.'
     })
     expect(eloView(game('g', '2026-02-15', { type: 'all-star' }), detail(elo))).toBeNull()
     expect(eloView(game('g', '2026-01-02'), detail(null))).toBeNull()

@@ -1,4 +1,5 @@
-import { seasonLabel } from '@/lib/stats/league'
+import { currentLeague, seasonLabel } from '@/lib/stats/league'
+import { halvesNote } from '@shared/leagues'
 import { SPLIT_GROUPS, SPLITS, SPLITS_FIRST_SEASON } from '@shared/stats/splits'
 import type { BoardMode, StatsQuery, StatsResult, StatsSeason } from '@shared/stats/types'
 import { splitDefs, splitNotes, type SplitDef } from './player'
@@ -29,8 +30,11 @@ export function playSplitNotes(scope: StatsScope): string[] {
       `Quarters, clutch, the score and the last minutes are counted from the play by play, from ${seasonLabel(SPLITS_FIRST_SEASON)}.`
     ]
   }
+  const league = currentLeague()
+  const halves = halvesNote(league, [scope.season])
   return [
-    "Quarters, clutch, the score, the last minutes and garbage time are counted from the NBA's play by play. Plus-minus is not."
+    `Quarters, clutch, the score, the last minutes and garbage time are counted from the ${league.name}'s play by play. Plus-minus is not.`,
+    ...(halves ? [halves] : [])
   ]
 }
 

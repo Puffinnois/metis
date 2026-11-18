@@ -19,6 +19,8 @@ Where to look, by question. The project's rules are in [CLAUDE.md](../CLAUDE.md)
 | [nba-agreement.md](reference/nba-agreement.md)             | Box scores, identity, season tables, formulas and published tables against the sources, per season. Written by `scripts/check-agreement.mjs`                  |
 | [nba-plays-agreement.md](reference/nba-plays-agreement.md) | Both play-by-play feeds rebuilt into box scores, per season. Written by `scripts/check-plays.mjs`                                                             |
 | [nba-coverage.md](reference/nba-coverage.md)               | The first season each table really holds values; column by column in [nba-coverage.tsv](reference/nba-coverage.tsv). Written by `scripts/coverage-report.mjs` |
+| [wnba-data-sources.md](reference/wnba-data-sources.md)     | The WNBA's releases: their tables, seasons and sizes, the first load, every family's checks per season, the playoff format and the traps                      |
+| [wnba-agreement.md](reference/wnba-agreement.md)           | The WNBA's box scores, season tables, published tables, plays and models against the sources, per season                                                      |
 
 ## Shipping
 
@@ -30,7 +32,7 @@ Where to look, by question. The project's rules are in [CLAUDE.md](../CLAUDE.md)
 
 ## Research for other leagues
 
-Metis is NBA only (D15). These two catalogue statistics for competitions it does not load, as research; they change nothing in the app.
+Metis covers the NBA and the WNBA (D34, which replaced D15 on 2026-11-17). These two catalogue statistics for competitions it does not load yet, as research for Plan T1302 and T1303; they change nothing in the app.
 
 | Document                                                                         | For                                   |
 | -------------------------------------------------------------------------------- | ------------------------------------- |

@@ -5,13 +5,13 @@ import {
   BOARDS,
   boardQuery,
   boardView,
+  perGameQualifier,
   type BoardDef,
   type BoardRow
 } from '@/lib/stats/boards'
 import { useScreenState } from '@/lib/stats/session'
 import { scopeLabel, type StatsScope } from '@/lib/stats/scope'
-import { currentLeague } from '@/lib/stats/league'
-import { NBA_MINIMUMS } from '@shared/stats/catalogue/define'
+import { useLeague } from '@/lib/stats/league'
 import { useStatsQuery, type StatsData } from '@/lib/stats/useStats'
 import { cn } from '@/lib/utils'
 import type { StatsView } from '@shared/stats/types'
@@ -156,6 +156,7 @@ export function StatsHome({
   onOpenView: (view: StatsView) => void
 }): React.JSX.Element {
   const [perGame, setPerGame] = useScreenState('home', 'perGame', true)
+  const league = useLeague()
   return (
     <div className="flex flex-col gap-5 px-8 pt-[22px] pb-7">
       <header className="flex items-end justify-between gap-6">
@@ -166,10 +167,7 @@ export function StatsHome({
           <div className="text-[13px] text-fg-2">
             {scopeLabel(scope)}
             {perGame && (
-              <span className="text-fg-3">
-                {' '}
-                · Per game: {NBA_MINIMUMS.games} games of {currentLeague().minimumsGames} to qualify
-              </span>
+              <span className="text-fg-3"> · {perGameQualifier(scope.season, league)}</span>
             )}
           </div>
         </div>

@@ -24,7 +24,7 @@ import {
   isCategory,
   MAX_PICKS,
   POSITION_COLOUR,
-  PRESETS,
+  presetsIn,
   resetChart,
   scaled,
   scales,
@@ -186,7 +186,7 @@ export function StatsChart({
           <section className="flex flex-col gap-2">
             <span className={LABEL}>Presets</span>
             <div className="flex flex-wrap gap-1.5">
-              {PRESETS[entity].map((p) => {
+              {presetsIn(entity, data.byId).map((p) => {
                 const on = p.x === axes.x && p.y === axes.y
                 return (
                   <button

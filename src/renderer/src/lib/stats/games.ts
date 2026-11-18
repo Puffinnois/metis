@@ -213,10 +213,19 @@ export function eloView(game: StatsGame, detail: StatsGameDetail | null): EloVie
   const { elo: constants, eloGameTypes } = league.models
   if (!eloGameTypes.includes(game.type)) return null
   if (game.season < constants.firstSeason) {
-    const settling = constants.firstSeason - league.firstSeason
+    // The seasons before Elo is read, from the league's first: 1993-94 and 1994-95 in the NBA, 1997 to
+    // 2000 in the WNBA (`League.models.elo.firstSeason`).
+    const first = seasonLabel(league.firstSeason)
+    const last = seasonLabel(constants.firstSeason - 1)
+    const settling =
+      constants.firstSeason - league.firstSeason === 1
+        ? `${first} settles`
+        : constants.firstSeason - league.firstSeason === 2
+          ? `${first} and ${last} settle`
+          : `${first} to ${last} settle`
     return {
       rows: [],
-      note: `Elo is read from ${seasonLabel(constants.firstSeason)}: every team starts at ${constants.start} in ${seasonLabel(league.firstSeason)}, so the first ${['one season settles', 'two seasons settle', 'three seasons settle', 'four seasons settle'][settling - 1] ?? `${settling} seasons settle`} the ratings.`
+      note: `Elo is read from ${seasonLabel(constants.firstSeason)}: every team starts at ${constants.start} in ${first}, so ${settling} the ratings.`
     }
   }
   const elo = detail?.elo

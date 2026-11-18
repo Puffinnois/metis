@@ -75,17 +75,23 @@ export async function readAvailability(db: StatsDb, ids: string[]): Promise<Stat
 }
 
 /**
- * A team's staff for a season, from the NBA's coach file: head coaches first, then assistants in the
- * file's order. The file gives no dates, so a season with two head coaches lists both. Some teams have
+ * A team's staff for a season, from the league's coach file (the NBA's or the WNBA's, the same shape):
+ * head coaches first, then assistants in the file's order. The file gives no dates, so a season with two head coaches lists both. Some teams have
  * no row for a season (28 of 30 teams in 2025-26), which reads as an empty list, not as no coach.
  */
+/**
+ * The coach files, one a league: a league's stats file holds its own alone (D36). A team keyed `-id` in
+ * `team` (the 2026 Portland Fire, T1301.5) is `id` in the file.
+ */
+const COACHES = ['src_nba_coaches', 'src_wnba_coaches']
+
 export async function readCoaches(
   db: StatsDb,
   team: string,
   season: number
 ): Promise<StatsCoach[]> {
-  const t = 'src_nba_coaches'
   const have = await inspect(db)
+  const t = COACHES.find((name) => have.columns.has(name)) ?? COACHES[0]
   const held = have.columns.get(t)
   if (!ID.test(team) || !Number.isInteger(season) || !held?.has('team_id')) return []
   const rows = await db.all<{
@@ -100,7 +106,7 @@ export async function readCoaches(
             ${trimmed(have, t, 'coach_type')} AS title,
             ${column(have, t, 's', 'sort_sequence', 'INTEGER')} AS "order"
      FROM ${t} s
-     WHERE TRY_CAST(s.team_id AS BIGINT) = ? AND TRY_CAST(s.season AS INTEGER) = ?`,
+     WHERE TRY_CAST(s.team_id AS BIGINT) = abs(?::BIGINT) AND TRY_CAST(s.season AS INTEGER) = ?`,
     [Number(team), season]
   )
   const coaches: StatsCoach[] = []

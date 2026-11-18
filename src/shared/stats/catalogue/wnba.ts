@@ -62,7 +62,7 @@ const NOT_IN_FILE: Record<string, string> = {
  * located shots as if they were all. Counts by type and the totals are whole from 1997, as is the count
  * of shots with no location.
  */
-const LOCATED_FROM = 2011
+const LOCATED_FROM = LEAGUES.wnba.shotsLocatedFrom
 const LOCATED_BUCKETS = [
   ...SHOT_ZONES.map((z) => z.key).filter((k) => k !== 'unk'),
   ...SHOT_ZONE_GROUPS.map((g) => g.key),

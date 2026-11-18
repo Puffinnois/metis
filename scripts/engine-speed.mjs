@@ -29,6 +29,34 @@ const { LEAGUES } = await import(`data:text/javascript,${encodeURIComponent(regi
 const FIRST = LEAGUES[leagueArg()].firstSeason
 const everySeason = () => Array.from({ length: season - FIRST + 1 }, (_, i) => FIRST + i)
 
+// The players, teams and dates the reads name, each league's own: a star, a shooter, a young player,
+// one with games out, two teams, and dates inside the league's season (the NBA's winter, the WNBA's
+// summer), so neither league times reads that answer nothing.
+const SUBJECTS = {
+  nba: {
+    star: '2544',
+    shooter: '201939',
+    young: '1629029',
+    out: '202695',
+    team: '1610612760',
+    other: '1610612738',
+    span: [`${season - 1}-12-01`, `${season}-01-31`],
+    month: [`${season}-01-01`, `${season}-01-31`],
+    day: `${season}-01-15`
+  },
+  wnba: {
+    star: '1628932',
+    shooter: '1628909',
+    young: '1642286',
+    out: '1627668',
+    team: '1611661319',
+    other: '1611661313',
+    span: [`${season}-06-01`, `${season}-07-31`],
+    month: [`${season}-07-01`, `${season}-07-31`],
+    day: `${season}-07-15`
+  }
+}[leagueArg()]
+
 const PLAYER_COLUMNS = [
   'min',
   'pts',
@@ -104,7 +132,7 @@ const CASES = [
   ['40 columns', player({}, { metrics: ALL_PLAYER.slice(0, 40) })],
   ['A home board', player({ qualifiedOnly: true }, { metrics: ['pts'], transform: 'perGame' })],
   ['A team leaderboard', team({})],
-  ['A date range', player({ dates: [`${season - 1}-12-01`, `${season}-01-31`] })],
+  ['A date range', player({ dates: SUBJECTS.span })],
   ['Last 10 appearances', player({ lastN: 10 })],
   ["Last 10 of the team's games", player({ lastN: 10, lastNOf: 'team' })],
   ['Home games', player({ home: true })],
@@ -116,10 +144,10 @@ const CASES = [
   ['One month', player({ months: [1] })],
   ['By month', player({}, { groupBy: ['month'], limit: 5000 })],
   ['By opponent', player({}, { groupBy: ['opponent'], limit: 5000 })],
-  ['One player by game', player({ players: ['2544'] }, { groupBy: ['game'] })],
+  ['One player by game', player({ players: [SUBJECTS.star] }, { groupBy: ['game'] })],
   [
     'Every season: by season, one player',
-    player({ seasons: everySeason(), players: ['2544'] }, { groupBy: ['season'] })
+    player({ seasons: everySeason(), players: [SUBJECTS.star] }, { groupBy: ['season'] })
   ],
   ['Every season: one leaderboard', player({ seasons: everySeason() })],
   [
@@ -167,7 +195,7 @@ const CASES = [
     player(
       {
         seasons: everySeason(),
-        players: ['2544', '201939', '1629029']
+        players: [SUBJECTS.star, SUBJECTS.shooter, SUBJECTS.young]
       },
       { metrics: ALL_PLAYER.slice(0, 23), transform: 'perGame', limit: 3 }
     )
@@ -175,7 +203,7 @@ const CASES = [
   [
     'Trends: one player by season',
     player(
-      { seasons: everySeason(), players: ['2544'] },
+      { seasons: everySeason(), players: [SUBJECTS.star] },
       { metrics: ['pts', 'min'], groupBy: ['season'], transform: 'perGame' }
     )
   ],
@@ -220,7 +248,7 @@ const CASES = [
   [
     'Games out: one player by season, every season',
     player(
-      { seasons: everySeason(), players: ['202695'] },
+      { seasons: everySeason(), players: [SUBJECTS.out] },
       { metrics: ['pts', 'games_out_injury', 'games_out_other'], groupBy: ['season'] }
     )
   ]
@@ -230,10 +258,10 @@ const CASES = [
 // it. A case is a query, or a function of the worker that makes the screen's calls at once and
 // waits for all of them, as the screen does.
 const SEASONS_PLAYS = Array.from({ length: season - 1996 }, (_, i) => 1997 + i)
-const CURRY = '201939'
-const LEBRON = '2544'
-const OKC = '1610612760'
-const BOS = '1610612738'
+const CURRY = SUBJECTS.shooter
+const LEBRON = SUBJECTS.star
+const OKC = SUBJECTS.team
+const BOS = SUBJECTS.other
 const regular = { gameTypes: ['regular'] }
 const SPLIT_METRICS = ['min', 'pts', 'reb', 'ast', 'stl', 'blk', 'tov'].concat([
   'fg_pct',
@@ -349,7 +377,7 @@ const PLAY_CASES = [
       w.call('matchups', {
         player: LEBRON,
         season,
-        scope: { ...regular, dates: [`${season}-01-01`, `${season}-01-31`] }
+        scope: { ...regular, dates: SUBJECTS.month }
       })
   ],
   ["A season's officials", (w) => w.call('officialsSeason', { season, gameTypes: ['regular'] })],
@@ -412,7 +440,7 @@ if (plays) {
   {
     const w = openStatsWorker(folder)
     const [g] = await w.read(
-      `SELECT game_id FROM game WHERE game_date = DATE '${season}-01-15' AND played ORDER BY game_id LIMIT 1`
+      `SELECT game_id FROM game WHERE game_date = DATE '${SUBJECTS.day}' AND played ORDER BY game_id LIMIT 1`
     )
     GAME = g?.game_id ?? ''
     const catalogue = await w.call('catalogue', {})

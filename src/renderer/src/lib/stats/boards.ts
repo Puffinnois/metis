@@ -1,4 +1,5 @@
 import { NBA_MINIMUMS } from '@shared/stats/catalogue/define'
+import { seasonGamesIn, type League } from '@shared/leagues'
 import { currentLeague } from './league'
 import type { Entity, MetricInfo, StatsQuery, StatsResult } from '@shared/stats/types'
 import { fmtStat, type ValueFormat } from './format'
@@ -43,6 +44,18 @@ export const BOARD_ROWS = 6
  */
 export const gamesToQualify = (most: number): number =>
   Math.round((most * NBA_MINIMUMS.games) / currentLeague().minimumsGames)
+
+/**
+ * What the per-game minimum asks in a season, as the home states it: the rule scaled to the season's
+ * length, so a 44-game WNBA season reads 31 of 44, not the base's 58 of 82, with the league's note while
+ * its rule is another league's (D37).
+ */
+export function perGameQualifier(season: number, league: League = currentLeague()): string {
+  const games = seasonGamesIn(league, season)
+  const min = Math.round((games * NBA_MINIMUMS.games) / league.minimumsGames)
+  const note = league.minimumsNote ? `, the NBA's minimum ${league.minimumsNote}` : ''
+  return `Per game: ${min} games of ${games} to qualify${note}`
+}
 
 /**
  * Every qualified row, sorted by the engine. Counts per game when asked. A total has no minimum, as

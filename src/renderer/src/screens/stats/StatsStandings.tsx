@@ -9,6 +9,7 @@ import {
   forecastNote,
   forecastQuery,
   HEAD_METRICS,
+  standingsColumns,
   standingsHead,
   standingsNotes,
   standingsTables,
@@ -18,12 +19,8 @@ import {
   type StandingsView
 } from '@/lib/stats/standings'
 import { useStandings, useStatsQuery, type StatsData } from '@/lib/stats/useStats'
+import { inProgress as seasonInProgress } from '@/lib/stats/trends'
 import { currentLeague, seasonLabel } from '@/lib/stats/league'
-
-const COLUMNS =
-  '24px minmax(190px,1.6fr) 32px 32px 44px 40px 52px 52px 52px 52px 44px 44px 48px 48px 48px 56px 52px 52px 52px'
-/** The forecast's three: the projected record and two odds (Plan T1003). */
-const FORECAST_COLUMNS = ' 56px 64px 56px'
 
 /** The published standings of a season, by conference or by division. */
 export function StatsStandings({
@@ -42,8 +39,9 @@ export function StatsStandings({
   // Metis's own columns, beside the published ones; blank until they answer.
   const sq = useMemo(() => strengthQuery(scope.season), [scope.season])
   const strength = strengthCells(useStatsQuery(sq, data.version, { keepLast: false }).result)
-  // The season forecast, for the season in progress only (`forecastQuery` says why).
-  const inProgress = scope.season === data.status?.through?.season
+  // The season forecast, for the season in progress only (`forecastQuery` says why): not one the
+  // league has finished, though the data runs through it (the WNBA's in November).
+  const inProgress = seasonInProgress(scope.season, data.status)
   const fq = useMemo(
     () => (inProgress ? forecastQuery(scope.season) : null),
     [inProgress, scope.season]
@@ -58,7 +56,7 @@ export function StatsStandings({
           </h1>
           <div className="text-[13px] text-fg-2">
             Regular season, as the {currentLeague().name} publishes it
-            {scope.season === data.status?.through?.season ? ', to date' : ''}
+            {inProgress ? ', to date' : ''}
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -91,9 +89,9 @@ export function StatsStandings({
               <div className="overflow-x-auto">
                 <MiniTable
                   label={`${t.title} standings`}
-                  columns={forecast ? COLUMNS + FORECAST_COLUMNS : COLUMNS}
+                  columns={standingsColumns(forecast, rows)}
                   minWidth={forecast ? 1400 : 1200}
-                  head={standingsHead(forecast).map((h) =>
+                  head={standingsHead(forecast, rows).map((h) =>
                     HEAD_METRICS[h] ? (
                       <MetricHead key={h} id={h} label={h} info={data.byId.get(HEAD_METRICS[h])} />
                     ) : (
@@ -122,7 +120,7 @@ export function StatsStandings({
           <Notes
             notes={[
               ...standingsNotes(scope.season, rows),
-              ...(forecast ? [forecastNote(forecast.runs)] : [])
+              ...(forecast ? [forecastNote(forecast.runs, scope.season)] : [])
             ]}
           />
         </div>
