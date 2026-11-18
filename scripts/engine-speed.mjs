@@ -6,8 +6,11 @@
 //
 // usage: node scripts/engine-speed.mjs <folder holding stats-<league>.duckdb> [season] [--plays]
 // --league=<id> anywhere picks the league (default nba).
-import { resolve } from 'node:path'
-import { openStatsWorker } from './lib/stats-worker.mjs'
+import { readFileSync } from 'node:fs'
+import { dirname, join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import ts from 'typescript'
+import { leagueArg, openStatsWorker } from './lib/stats-worker.mjs'
 
 const folder = resolve(process.argv[2] ?? '')
 const season = Number(process.argv.slice(3).find((a) => !a.startsWith('--')) ?? 2026)
@@ -15,6 +18,16 @@ if (!process.argv[2]) {
   console.error('usage: node scripts/engine-speed.mjs <folder> [season]')
   process.exit(2)
 }
+
+// The league registry imports only types, so it can be read here without bundling: every season is
+// the league's first season (1993-94 in the NBA, 1997 in the WNBA) through the one asked.
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
+const registry = ts.transpileModule(readFileSync(join(ROOT, 'src/shared/leagues.ts'), 'utf8'), {
+  compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 }
+}).outputText
+const { LEAGUES } = await import(`data:text/javascript,${encodeURIComponent(registry)}`)
+const FIRST = LEAGUES[leagueArg()].firstSeason
+const everySeason = () => Array.from({ length: season - FIRST + 1 }, (_, i) => FIRST + i)
 
 const PLAYER_COLUMNS = [
   'min',
@@ -106,21 +119,12 @@ const CASES = [
   ['One player by game', player({ players: ['2544'] }, { groupBy: ['game'] })],
   [
     'Every season: by season, one player',
-    player(
-      { seasons: Array.from({ length: season - 1993 }, (_, i) => 1994 + i), players: ['2544'] },
-      { groupBy: ['season'] }
-    )
+    player({ seasons: everySeason(), players: ['2544'] }, { groupBy: ['season'] })
   ],
-  [
-    'Every season: one leaderboard',
-    player({ seasons: Array.from({ length: season - 1993 }, (_, i) => 1994 + i) })
-  ],
+  ['Every season: one leaderboard', player({ seasons: everySeason() })],
   [
     'Every season by season: all players',
-    player(
-      { seasons: Array.from({ length: season - 1993 }, (_, i) => 1994 + i) },
-      { groupBy: ['season'], limit: 5000 }
-    )
+    player({ seasons: everySeason() }, { groupBy: ['season'], limit: 5000 })
   ],
   // Explore, as its tabs ask (lib/stats/chart.ts, compare.ts, trends.ts).
   [
@@ -162,7 +166,7 @@ const CASES = [
     'Compare: three players over every season',
     player(
       {
-        seasons: Array.from({ length: season - 1993 }, (_, i) => 1994 + i),
+        seasons: everySeason(),
         players: ['2544', '201939', '1629029']
       },
       { metrics: ALL_PLAYER.slice(0, 23), transform: 'perGame', limit: 3 }
@@ -171,7 +175,7 @@ const CASES = [
   [
     'Trends: one player by season',
     player(
-      { seasons: Array.from({ length: season - 1993 }, (_, i) => 1994 + i), players: ['2544'] },
+      { seasons: everySeason(), players: ['2544'] },
       { metrics: ['pts', 'min'], groupBy: ['season'], transform: 'perGame' }
     )
   ],
@@ -190,10 +194,7 @@ const CASES = [
   ],
   [
     'Trends: every team by season',
-    team(
-      { seasons: Array.from({ length: season - 1993 }, (_, i) => 1994 + i) },
-      { metrics: ['team_nrtg'], groupBy: ['season'], limit: 5000 }
-    )
+    team({ seasons: everySeason() }, { metrics: ['team_nrtg'], groupBy: ['season'], limit: 5000 })
   ],
   // Games out, which add the players with no line (Plan T1206), as the Availability preset asks.
   [
@@ -219,7 +220,7 @@ const CASES = [
   [
     'Games out: one player by season, every season',
     player(
-      { seasons: Array.from({ length: season - 1993 }, (_, i) => 1994 + i), players: ['202695'] },
+      { seasons: everySeason(), players: ['202695'] },
       { metrics: ['pts', 'games_out_injury', 'games_out_other'], groupBy: ['season'] }
     )
   ]
