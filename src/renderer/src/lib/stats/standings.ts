@@ -354,9 +354,7 @@ export function standingsNotes(
   }
   const notes: string[] = []
   if (rows.every((r) => r.last10 === null && r.streak === null)) {
-    notes.push(
-      `The last ten and the streak are not published for ${league.seasonLabel(season)}.`
-    )
+    notes.push(`The last ten and the streak are not published for ${league.seasonLabel(season)}.`)
   }
   const records = hasDivisions(rows)
     ? rows.every((r) => r.conferenceRecord === null && r.divisionRecord === null)
