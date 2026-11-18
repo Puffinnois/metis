@@ -33,12 +33,22 @@ import { readOfficials } from './availabilityReads'
 import { readScopedMatchups } from './matchupReads'
 import { ELO_GAME_TABLE, ELO_SCHEDULE_TABLE } from './models/teamElo'
 import { ELO_FIRST_SEASON } from '@shared/stats/catalogue/ratings'
+import { LEAGUES, type League } from '@shared/leagues'
 
 /**
  * What the dashboards read beside the query engine: who a player is, the schedule, a game's facts and
  * the published standings. Each is a plain read of one thing, and a table not loaded yet reads as
  * nothing, so a screen can say what is missing.
  */
+
+/**
+ * The league's roster and draft files. Each league's file holds its own (D36), under its own source
+ * name with the same columns, so a read takes whichever is there.
+ */
+const ROSTERS = ['src_nba_rosters', 'src_wnba_rosters']
+const DRAFTS = ['src_nba_draft', 'src_wnba_draft']
+const first = (have: Have, tables: readonly string[]): string | undefined =>
+  tables.find((t) => have.tables.has(t))
 
 /** A published text column, trimmed: the source pads some with spaces and leaves others empty. */
 const text = (have: Have, table: string, alias: string, name: string): string =>
@@ -71,8 +81,8 @@ export async function readPlayer(db: StatsDb, id: string): Promise<StatsPlayerIn
         [key]
       )
     : []
-  const r = 'src_nba_rosters'
-  const roster = have.tables.has(r)
+  const r = first(have, ROSTERS)
+  const roster = r
     ? await db.get<{
         number: string | null
         height: string | null
@@ -109,7 +119,7 @@ export async function readPlayer(db: StatsDb, id: string): Promise<StatsPlayerIn
  * nothing, and a test a player has no result for stays null: the combine prints a blank for one not
  * taken, never a 0.
  */
-export async function readProfile(db: StatsDb, id: string): Promise<StatsProfile> {
+export async function readProfile(db: StatsDb, id: string, league?: League): Promise<StatsProfile> {
   const none: StatsProfile = {
     bio: null,
     draft: null,
@@ -122,15 +132,15 @@ export async function readProfile(db: StatsDb, id: string): Promise<StatsProfile
   const key = Number(id)
   const [bio, draft, combine] = await Promise.all([
     readBio(db, have, key),
-    readDraft(db, have, key),
+    readDraft(db, have, key, league),
     readCombines(db, have, key)
   ])
   return { ...none, bio, ...draft, ...combine }
 }
 
 async function readBio(db: StatsDb, have: Have, key: number): Promise<StatsBio | null> {
-  const r = 'src_nba_rosters'
-  if (!have.tables.has(r)) return null
+  const r = first(have, ROSTERS)
+  if (!r) return null
   const named = have.tables.has('team')
   const row = await db.get<{
     season: number
@@ -146,7 +156,8 @@ async function readBio(db: StatsDb, have: Have, key: number): Promise<StatsBio |
     school: string | null
     how_acquired: string | null
   }>(
-    `SELECT r.season, ${column(have, r, 'r', 'team_id', 'BIGINT')} AS team_id,
+    `SELECT r.season,
+            ${named ? `coalesce(t.team_id, ${column(have, r, 'r', 'team_id', 'BIGINT')})` : column(have, r, 'r', 'team_id', 'BIGINT')} AS team_id,
             ${named ? 't.code' : 'NULL::VARCHAR'} AS code,
             ${text(have, r, 'r', 'num')} AS number, ${text(have, r, 'r', 'position')} AS position,
             ${text(have, r, 'r', 'height')} AS height, ${text(have, r, 'r', 'weight')} AS weight,
@@ -155,7 +166,7 @@ async function readBio(db: StatsDb, have: Have, key: number): Promise<StatsBio |
             ${text(have, r, 'r', 'school')} AS school,
             ${text(have, r, 'r', 'how_acquired')} AS how_acquired
      FROM ${r} r
-     ${named ? 'LEFT JOIN team t ON t.team_id = r.team_id AND t.season = r.season' : ''}
+     ${named ? 'LEFT JOIN team t ON abs(t.team_id) = r.team_id AND t.season = r.season' : ''}
      WHERE r.player_id = ?
      ORDER BY r.season DESC LIMIT 1`,
     [key]
@@ -179,10 +190,12 @@ async function readBio(db: StatsDb, have: Have, key: number): Promise<StatsBio |
 async function readDraft(
   db: StatsDb,
   have: Have,
-  key: number
+  key: number,
+  league?: League
 ): Promise<Pick<StatsProfile, 'draft' | 'draftYears'>> {
-  const d = 'src_nba_draft'
-  if (!have.tables.has(d)) return { draft: null, draftYears: null }
+  const d = first(have, DRAFTS)
+  if (!d) return { draft: null, draftYears: null }
+  const year = (season: number): number => eventYear(season, league)
   const years = await db.get<{ first: number | null; last: number | null }>(
     `SELECT min(season) AS first, max(season) AS last FROM ${d}`
   )
@@ -212,12 +225,10 @@ async function readDraft(
   )
   return {
     draftYears:
-      years?.first && years.last
-        ? { first: eventYear(years.first), last: eventYear(years.last) }
-        : null,
+      years?.first && years.last ? { first: year(years.first), last: year(years.last) } : null,
     draft: row
       ? {
-          year: eventYear(row.season),
+          year: year(row.season),
           round: row.round,
           roundPick: row.round_pick,
           overallPick: row.overall_pick,
@@ -457,11 +468,23 @@ const side = (
 
 /**
  * A season's schedule. A side with no row in `team` is an All-Star team or a touring club, so its
- * name comes from the schedule that lists it. Overtime is read from the team's minutes: 240 in
- * regulation and 25 more per period.
+ * name comes from the schedule that lists it. Overtime is the game's own count where `game` holds one
+ * (the WNBA's, from its team minutes and ESPN's periods; NULL where neither knows it), else read from
+ * the team's minutes: five players over regulation (240 in the NBA, 200 in the WNBA), and five more
+ * per overtime minute.
  */
-export async function readGames(db: StatsDb, season: number): Promise<StatsGame[]> {
+export async function readGames(
+  db: StatsDb,
+  season: number,
+  league: League = LEAGUES.nba
+): Promise<StatsGame[]> {
   const have = await inspect(db)
+  const regulation = league.gameMinutes * 5
+  const overtime = league.overtimeMinutes * 5
+  const overtimes = have.columns.get('game')?.has('overtimes')
+    ? 'g.overtimes'
+    : `CASE WHEN coalesce(b.box, 0) > 0
+            THEN greatest(0, round((b.seconds / 60.0 - ${regulation}) / ${overtime}))::INTEGER END`
   if (!have.tables.has('game') || !have.tables.has('team_game')) return []
   const n = 'src_nba_schedule'
   const e = 'src_espn_schedule'
@@ -484,8 +507,7 @@ export async function readGames(db: StatsDb, season: number): Promise<StatsGame[
      ), nba AS (${nba}), espn AS (${espn})
      SELECT g.game_id, g.season, g.game_type, g.game_date::VARCHAR AS date, g.played,
             coalesce(b.box, 0) > 0 AS has_box,
-            CASE WHEN coalesce(b.box, 0) > 0
-                 THEN greatest(0, round((b.seconds / 60.0 - 240) / 25))::INTEGER END AS overtimes,
+            ${overtimes} AS overtimes,
             g.home_team_id AS home_id, coalesce(h.code, n.home_code, e.home_code) AS home_code,
             coalesce(h.name, n.home_name, e.home_name) AS home_name, g.home_score,
             g.away_team_id AS away_id, coalesce(a.code, n.away_code, e.away_code) AS away_code,
@@ -615,7 +637,10 @@ export async function readGame(db: StatsDb, id: string): Promise<StatsGameDetail
 
 /**
  * The published standings. The NBA's file is in the core tier and holds 1996-97 on. The league
- * dashboards' agrees with it on the record, rank, games back and streak, and only it reaches 1995-96.
+ * dashboards' agrees with it on the record, rank, games back and streak, and only it reaches 1995-96;
+ * in the WNBA's file it is the only one before 2026, and agrees with Basketball-Reference on all 380
+ * team-seasons, the 2018 forfeit counted. A team is the `team` table's key: the 2026 Portland Fire are
+ * `-id` there, the 2000-2002 club `id` (T1301.5).
  */
 export async function readStandings(db: StatsDb, season: number): Promise<StatsStanding[]> {
   const have = await inspect(db)
@@ -647,7 +672,7 @@ export async function readStandings(db: StatsDb, season: number): Promise<StatsS
       allowed: number | null
       diff: number | null
     }>(
-      `SELECT s.team_id, tm.code,
+      `SELECT coalesce(tm.team_id, s.team_id) AS team_id, tm.code,
               coalesce(nullif(trim(concat_ws(' ', ${txt('team_city')}, ${txt('team_name')})), ''), tm.name)
                 AS name,
               ${txt('conference')} AS conference, ${txt('division')} AS division,
@@ -662,7 +687,7 @@ export async function readStandings(db: StatsDb, season: number): Promise<StatsS
               ${txt('l10')} AS last10, ${txt('str_current_streak')} AS streak,
               ${num('points_pg', 'DOUBLE')} AS ppg, ${num('opp_points_pg', 'DOUBLE')} AS allowed,
               ${num('diff_points_pg', 'DOUBLE')} AS diff
-       FROM ${t} s LEFT JOIN team tm ON tm.team_id = s.team_id AND tm.season = s.season
+       FROM ${t} s LEFT JOIN team tm ON abs(tm.team_id) = s.team_id AND tm.season = s.season
        WHERE s.season = ?
        ORDER BY conference, conference_rank`,
       [season]

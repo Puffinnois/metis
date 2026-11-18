@@ -53,17 +53,19 @@ describe('the registry’s clock in SQL', () => {
 
 describe('a metric’s coverage per league', () => {
   const pts = METRICS.get('pts')!
+  // A metric that states nothing for the WNBA: the catalogue's own metrics all do since T1301.6.
+  const bare: MetricDef = { ...pts, leagues: undefined }
   const stated: MetricDef = { ...pts, leagues: { wnba: { firstSeason: 2008 } } }
   const absent: MetricDef = { ...pts, leagues: { nba: null } }
 
   it('reads the metric’s own fields in the NBA and its stated coverage elsewhere', () => {
     expect(metricIn(pts, nba)).toBe(pts)
     expect(coverageIn(pts, nba)).toEqual({ firstSeason: 1994 })
-    expect(coverageIn(pts, wnba)).toBeNull()
+    expect(coverageIn(bare, wnba)).toBeNull()
     expect(coverageIn(stated, wnba)).toEqual({ firstSeason: 2008 })
     expect(metricIn(stated, wnba)).toMatchObject({ firstSeason: 2008 })
     expect(metricIn(stated, wnba).unavailable).toBeUndefined()
-    expect(metricIn(pts, wnba).unavailable).toBe('Not recorded for the WNBA.')
+    expect(metricIn(bare, wnba).unavailable).toBe('Not recorded for the WNBA.')
     expect(metricIn(absent, nba).unavailable).toBe('Not recorded for the NBA.')
   })
 
@@ -84,7 +86,9 @@ describe('a league with no worker', () => {
     })
     expect(result.rows).toEqual([])
     expect(result.notes).toEqual([wnba.noData])
-    expect((await reads.catalogue()).every((m) => m.unavailable)).toBe(true)
+    // The catalogue is the league's own, coverage as stated (T1301.6), with no file needed.
+    const catalogue = await reads.catalogue()
+    expect(catalogue.find((m) => m.id === 'pts')).toMatchObject({ firstSeason: 1997 })
     expect(await reads.seasons()).toEqual([])
     expect((await reads.shots({} as never)).reason).toBe(wnba.noData)
     // The Data panel still lists the league's releases, none loaded.

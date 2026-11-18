@@ -160,6 +160,7 @@ export const ON_COURT: MetricDef[] = [
     `Possessions per 48 minutes with the player on the floor, both teams' averaged: actual possessions over the time on the floor. ${DERIVED}`,
     base({
       value: '2880 * ({on_poss} + {on_opp_poss}) / 2.0 / nullif({on_secs}, 0)',
+      gameLength: true,
       sample: 'on_poss',
       minSample: MIN_POSS,
       direction: 'neutral'

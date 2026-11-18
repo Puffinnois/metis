@@ -117,6 +117,13 @@ export interface MetricDef {
    * name: the fields above when the league takes them, else not in that league (`coverageIn`).
    */
   leagues?: Partial<Record<LeagueId, MetricCoverage | null>>
+  /**
+   * The formula and words hold the game's length, written in the catalogue's 48 minutes
+   * (`CATALOGUE_GAME_MINUTES`): `48` minutes and `2880` seconds in `value`, `48` in the label, short
+   * label and description. A league of another length reads them as its own (`metricIn`): pace per 40
+   * in the WNBA. The NBA's formula and SQL are the catalogue's as written.
+   */
+  gameLength?: boolean
   tier: MetricTier
   /**
    * The published table a metric with no game behind it reads, from

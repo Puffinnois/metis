@@ -80,6 +80,11 @@ export interface League {
   /** The season a date falls in, by the data's label: what is current, and what a refresh fetches. */
   currentSeason(now: Date): number
   /**
+   * The year of the draft (or combine) a file of that label holds: the NBA labels its draft by the
+   * season after it, the WNBA by the draft's own year (Caitlin Clark first in `draft_2024`).
+   */
+  eventYear(season: number): number
+  /**
    * The months a season is played in, 1 to 12, first to last (the NBA's runs October to June, over
    * the new year). Outside them the league's season is complete, not stale (Plan T1301.3).
    */
@@ -180,6 +185,7 @@ const NBA: League = {
   // A season is labelled by its final year (D10). The next season's schedule appears over the summer,
   // so the label turns in August; a file not published yet is skipped, not an error.
   currentSeason: (now) => now.getUTCFullYear() + (now.getUTCMonth() >= 7 ? 1 : 0),
+  eventYear: (season) => season - 1,
   seasonMonths: { first: 10, last: 6 },
   seasonTypes: ['regular', 'play-in', 'playoffs', 'cup-final', 'all-star', 'preseason'],
   countedTypes: ['regular', 'play-in', 'playoffs', 'cup-final'],
@@ -233,6 +239,7 @@ const WNBA: League = {
   // A season is the year it was played: `…_2026` holds May to October 2026.
   seasonLabel: (season) => String(season),
   currentSeason: (now) => now.getUTCFullYear(),
+  eventYear: (season) => season,
   seasonMonths: { first: 5, last: 10 },
   // No play-in and no preseason are published; the Commissioner's Cup final and the All-Star Game are
   // ESPN's only.

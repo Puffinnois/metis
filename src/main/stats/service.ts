@@ -448,7 +448,7 @@ export async function openStatsService(
         return [...bySeason.values()].sort((a, b) => b.season - a.season)
       }),
     player: (id) => read((reader) => readPlayer(reader, id)),
-    games: (season) => read((reader) => readGames(reader, season)),
+    games: (season) => read((reader) => readGames(reader, season, league)),
     game: (id) => read((reader) => readGame(reader, id)),
     standings: (season) => read((reader) => readStandings(reader, season)),
     matchups: (player, season, scope) =>
@@ -462,7 +462,7 @@ export async function openStatsService(
       read((reader) => readOnCourtUnits(reader, team, season, scope, size, league)),
     withOrWithout: (player, teammate, season, scope) =>
       read((reader) => readWithOrWithout(reader, player, teammate, season, scope, league)),
-    profile: (player) => read((reader) => readProfile(reader, player)),
+    profile: (player) => read((reader) => readProfile(reader, player, league)),
     lineups: (team, season, gameType, group) =>
       read((reader) => readLineups(reader, team, season, gameType, group)),
     availability: (players) => read((reader) => readAvailability(reader, players)),

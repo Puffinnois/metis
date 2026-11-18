@@ -5,6 +5,7 @@ import {
   METRICS,
   metricIn,
   MODEL_NO_SPLIT,
+  notBuiltYet,
   ONE_SEASON_ONLY,
   PUBLISHED_TYPES_ONLY,
   REGULAR_SEASON_ONLY,
@@ -12,7 +13,7 @@ import {
   TOKEN,
   WHOLE_SEASONS_ONLY
 } from '@shared/stats/catalogue'
-import { PER_MINUTE, seasonLabel, type League, type PerMinuteMode } from '@shared/leagues'
+import { builds, PER_MINUTE, seasonLabel, type League, type PerMinuteMode } from '@shared/leagues'
 import { SPLIT_IDS, SPLITS_FIRST_SEASON, splitById } from '@shared/stats/splits'
 import {
   POSITION_GROUPS,
@@ -388,6 +389,8 @@ function splitGap(
   transform: Transform,
   league: League
 ): string | null {
+  // Splits are counted from the plays: a league whose refresh does not build them yet has none.
+  if (!builds(league, 'plays')) return notBuiltYet(league, 'plays')
   if (!q.scope.seasons.some((s) => s >= SPLITS_FIRST_SEASON)) return splitsFrom(league)
   if (m.published) return NOT_FROM_PLAYS
   if (m.model) return MODEL_NO_SPLIT
@@ -1202,9 +1205,11 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
       const bySeasons = c.groupBy.includes('season')
       const perSeason = bySeasons ? games : games / Math.max(1, seasons)
       const span = bySeasons ? 1 : seasons
-      // A team meets each opponent about three times a season, and plays about six months.
-      if (c.groupBy.includes('opponent')) return (perSeason / 29) * span
-      if (c.groupBy.includes('month')) return (perSeason / 6) * span
+      // A season's games spread over the league's opponents and months: the NBA meets 29 about
+      // three times each over about six months.
+      const shape = ctx.league.seasonShape
+      if (c.groupBy.includes('opponent')) return (perSeason / shape.opponents) * span
+      if (c.groupBy.includes('month')) return (perSeason / shape.months) * span
       return perSeason * span
     },
     notes: [...notesOf(q, c), ...shrunkNotes(q, c, shrunk)]

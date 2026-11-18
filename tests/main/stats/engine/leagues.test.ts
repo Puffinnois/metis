@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { StatsDb } from '@main/stats/db'
 import { buildDerived } from '@main/stats/derived/build'
-import { compileQuery, StatsQueryError, type CompileContext } from '@main/stats/engine/compile'
+import {
+  compileQuery,
+  StatsQueryError,
+  type CompileContext,
+  type Compiled
+} from '@main/stats/engine/compile'
 import { catalogueInfo } from '@main/stats/engine/registry'
 import { noDataResult, qualificationFactor, runQuery } from '@main/stats/engine/run'
 import { LEAGUES, type League } from '@shared/leagues'
@@ -72,10 +77,8 @@ describe('the engine in each league', () => {
     expect(await valueOf(wnbaRead, pts({ transform: 'per40' }), '1')).toBeCloseTo((40 * 40) / 50, 6)
     // Bea: 30 in 60 minutes, per 40: 20.
     expect(await valueOf(wnbaRead, pts({ transform: 'per40' }), '2')).toBeCloseTo(20, 6)
-    // The registry's entry as it is: the metric is not recorded there yet, never an error.
-    const asIs = await runQuery(db, pts({ transform: 'per40' }), ctx(wnba))
-    expect(asIs.columns[0].reason).toBe('Not recorded for the WNBA.')
-    expect(asIs.rows.every((r) => r.values.pts.value === null)).toBe(true)
+    // The registry's entry as it is, every box-score metric covered from 1997 (T1301.6).
+    expect(await valueOf(wnba, pts({ transform: 'per40' }), '1')).toBeCloseTo((40 * 40) / 50, 6)
   })
 
   it('offers each league only its own per-minute modes', () => {
@@ -144,14 +147,68 @@ describe('the engine in each league', () => {
     expect(() => noDataResult(pts({ metrics: ['nope'] }), ctx(wnba))).toThrow('unknown metric')
   })
 
-  it('gives the WNBA’s catalogue no coverage until a metric states it, the NBA’s as it was', () => {
+  it('reads pace per 40 in the WNBA, worked out by hand, and the NBA’s SQL as before', async () => {
+    // Free throws only, so each side's possessions are 0.44 × its attempts: 30 and 9 in game a, 10
+    // and 21 in game b. Both sides' mean: 0.22 × (39 + 31) = 15.4, over Boston's 50 player minutes,
+    // 10 elapsed. Per 48: 48 × 15.4 / 10 = 73.92; per 40: 61.6.
+    const q: StatsQuery = { entity: 'team', metrics: ['team_pace'], scope: { seasons: [2026] } }
+    const pace = async (league: League): Promise<number | null> =>
+      (await runQuery(db, q, ctx(league))).rows.find((r) => r.id === String(BOS))?.values.team_pace
+        .value ?? null
+    expect(await pace(nba)).toBeCloseTo(73.92, 6)
+    expect(await pace(wnba)).toBeCloseTo(61.6, 6)
+    expect(compileQuery(q, ctx(nba)).sql).toContain('48 * ')
+    expect(compileQuery(q, ctx(nba)).sql).not.toContain('40 * ')
+    expect(compileQuery(q, ctx(wnba)).sql).toContain('40 * ')
+  })
+
+  it('asks the NBA’s minimums of a 34- and a 44-game WNBA season, scaled (D37)', async () => {
+    // Per 82 team games, scaled to those in scope; a minimum in minutes by 40 / 48 as well.
+    const q = pts({ metrics: ['pts', 'fg_pct', 'fg3_pct', 'ft_pct', 'min'] })
+    const sql = compileQuery(q, ctx(wnba)).sql
+    const minimums = [...sql.matchAll(/round\((\d+) \* \$factor(?: \* ([0-9.]+))?\)/g)]
+    const asked = async (games: number): Promise<number[]> => {
+      const exprs = minimums.map(
+        ([, n, scale], i) => `round(${n} * ${games} / 82.0${scale ? ` * ${scale}` : ''}) AS m${i}`
+      )
+      const row = await db.get<Record<string, number>>(`SELECT ${exprs.join(', ')}`)
+      return Object.values(row ?? {}).map(Number)
+    }
+    // 58 games, 300 field goals, 82 threes, 125 free throws made, 1,000 minutes.
+    expect(minimums.map(([, n]) => Number(n))).toEqual([58, 300, 82, 125, 1000])
+    expect(await asked(34)).toEqual([24, 124, 34, 52, 346])
+    expect(await asked(44)).toEqual([31, 161, 44, 67, 447])
+  })
+
+  it('qualifies a row by opponent or month by the league’s season shape', () => {
+    const by = (league: League, groupBy: StatsQuery['groupBy']): Compiled =>
+      compileQuery(pts({ groupBy }), ctx(league))
+    // The NBA: 29 opponents, six months. The WNBA: 11 opponents, four months.
+    expect(by(nba, ['opponent']).rowGames(82, 1)).toBeCloseTo(82 / 29, 6)
+    expect(by(nba, ['month']).rowGames(82, 1)).toBeCloseTo(82 / 6, 6)
+    expect(by(wnba, ['opponent']).rowGames(44, 1)).toBeCloseTo(4, 6)
+    expect(by(wnba, ['month']).rowGames(44, 1)).toBeCloseTo(11, 6)
+  })
+
+  it('reads a split as not built yet in a league whose plays are not built', () => {
+    const q = pts({ scope: { seasons: [2026], split: 'q4' } })
+    expect(compileQuery(q, ctx(wnba)).gaps[0]).toBe(
+      'Not built for the WNBA yet: its stats from the play by play and the shots come in a later version.'
+    )
+    expect(compileQuery(q, ctx(nba)).gaps[0]).toBeNull()
+  })
+
+  it('gives the WNBA’s catalogue its stated coverage, the NBA’s as it was', () => {
     const inNba = catalogueInfo(nba)
     const inWnba = catalogueInfo(wnba)
     expect(inNba.length).toBe(inWnba.length)
     const ptsNba = inNba.find((m) => m.id === 'pts')!
     expect(ptsNba.firstSeason).toBe(1994)
     expect(ptsNba.unavailable).toBeUndefined()
-    expect(inWnba.find((m) => m.id === 'pts')!.unavailable).toBe('Not recorded for the WNBA.')
+    const ptsWnba = inWnba.find((m) => m.id === 'pts')!
+    expect(ptsWnba.firstSeason).toBe(1997)
+    expect(ptsWnba.unavailable).toBeUndefined()
     expect(inNba.some((m) => 'leagues' in m)).toBe(false)
+    expect(inWnba.some((m) => 'leagues' in m)).toBe(false)
   })
 })

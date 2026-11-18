@@ -64,7 +64,8 @@ export function offlineStats(league: League, reason: string | null = league.noDa
             )
           )
         : off(),
-    // The catalogue needs no file: in a league with no data every metric reads why.
+    // The catalogue needs no file: in a league with no data it is the league's own, its coverage and
+    // reasons as stated, so the Glossary reads it; every query answers why there is nothing.
     catalogue: () => Promise.resolve(noData ? catalogueInfo(league) : []),
     seasons: () => Promise.resolve([]),
     player: () => Promise.resolve(null),

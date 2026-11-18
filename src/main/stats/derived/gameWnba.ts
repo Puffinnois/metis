@@ -25,6 +25,9 @@ import { column, type Have } from './sql'
 /** ESPN's first season with real box-score counts in the WNBA's files: its 2002 lines are zeros. */
 export const ESPN_COUNTS_FROM = 2003
 
+/** The game logs' plus-minus: null on every line before 2008 but 0 to 62 a season, so not read then. */
+export const PLUS_MINUS_FROM = 2008
+
 const LOGS = 'src_wnba_game_logs'
 const BOX = 'src_wnba_player_box'
 
@@ -79,7 +82,9 @@ function lines(have: Have): string {
     ), logged AS (
       SELECT g.game_id, l.player_id, ${teamKey('l.team_id')} AS team_id, 'wnba' AS source,
              (l.min * 60)::INTEGER AS seconds, ${counts('l', (c) => c, LOGS)},
-             ${column(have, LOGS, 'l', 'plus_minus')} AS plus_minus, NULL::BOOLEAN AS listed
+             CASE WHEN g.season >= ${PLUS_MINUS_FROM} THEN ${column(have, LOGS, 'l', 'plus_minus')} END
+               AS plus_minus,
+             NULL::BOOLEAN AS listed
       FROM ${LOGS} l JOIN game g ON g.nba_game_id = l.game_id AND g.played
       WHERE l.player_id IS NOT NULL AND g.game_id NOT IN (SELECT game_id FROM boxed)
     ), league AS (
