@@ -29,6 +29,20 @@ export interface PeriodEra {
   name: 'quarter' | 'half'
 }
 
+/**
+ * The tables a refresh builds from a league's files, in the order it builds them: the game, team and
+ * player tables (`identity`), the game and season tables (`derived`), the published tables, the play
+ * tables and the models. Each later one reads the ones before it.
+ */
+export const BUILT_TABLES = ['identity', 'derived', 'published', 'plays', 'models'] as const
+export type BuiltTables = (typeof BUILT_TABLES)[number]
+
+/**
+ * The identity recipes, named for the sources they read: the NBA's schedule, or the WNBA's schedule
+ * and game logs.
+ */
+export type IdentityRecipeName = 'nba' | 'wnba'
+
 export interface League {
   id: LeagueId
   /** As the screens write it: "NBA". */
@@ -100,14 +114,21 @@ export interface League {
   /** What a screen says while the league has no data: it is off and has no file. */
   noData: string
   /**
-   * Whether its game, team, player and season tables, and everything built from them, are built yet.
-   * False: a refresh loads its files and builds nothing, saying so in its log, and every question
-   * answers `notBuilt` with no error (T1301.5 and T1301.6 build the WNBA's).
+   * The built tables the league has, each a step of its refresh (`BUILT_TABLES`). A step not listed
+   * is not run, and a refresh says so in its log. Without `derived` (the game and season tables)
+   * every question answers `notBuilt` with no error. A part that builds a league's next tables adds
+   * the step here and touches nothing else of the mechanism.
    */
-  derived: boolean
+  builds: readonly BuiltTables[]
+  /**
+   * The recipe that builds its `game`, `team` and `player` tables, named for the sources it reads
+   * (`IDENTITY_RECIPES` in `src/main/stats/identity.ts`). The shared SQL stays shared; only what
+   * differs between the leagues' sources is written per recipe.
+   */
+  identity: IdentityRecipeName
   /**
    * What a screen says while the league's tables are not built: before its first load gets that far,
-   * or always while `derived` is false.
+   * or always while `builds` lacks `derived`.
    */
   notBuilt: string
   /**
@@ -159,7 +180,8 @@ const NBA: League = {
     loadedBytes: 4 * GB
   },
   noData: 'No NBA stats yet: turn the NBA on in the Data panel to download it.',
-  derived: true,
+  builds: BUILT_TABLES,
+  identity: 'nba',
   notBuilt: 'No NBA stats yet: the first load has not got that far.',
   metricsByDefault: true
 }
@@ -208,7 +230,10 @@ const WNBA: League = {
     loadedBytes: 512 * MB
   },
   noData: 'No WNBA stats yet: turn the WNBA on in the Data panel to download it.',
-  derived: false,
+  // Its game, team and player tables are built (T1301.5); the game and season tables, the published
+  // ones, the plays and the models come with T1301.6 to T1301.8.
+  builds: ['identity'],
+  identity: 'wnba',
   notBuilt:
     'No WNBA stats yet: its files are loaded, and the tables built from them come in a later version.',
   metricsByDefault: false
@@ -224,6 +249,10 @@ export function leagueOf(id: LeagueId): League {
   if (!isLeagueId(id)) throw new Error(`unknown league "${String(id)}"`)
   return LEAGUES[id]
 }
+
+/** Whether a league's refresh builds these tables. */
+export const builds = (league: League, tables: BuiltTables): boolean =>
+  league.builds.includes(tables)
 
 /** "2025-26" in the NBA, "2026" in the WNBA. */
 export const seasonLabel = (league: League, season: number): string => league.seasonLabel(season)
@@ -316,6 +345,11 @@ export function periodStartSql(league: League, seasonSql: string, period: string
     const q = e.minutes * 60
     return `CASE WHEN ${period} <= ${e.periods} THEN (${period} - 1) * ${q} ELSE ${e.periods * q} + (${period} - ${e.periods + 1}) * ${ot} END`
   })
+}
+
+/** SQL: the periods in regulation in the season `seasonSql` names: 2 halves or 4 quarters. */
+export function regulationPeriodsSql(league: League, seasonSql: string): string {
+  return byEra(league, seasonSql, (e) => String(e.periods))
 }
 
 /** SQL: a period's length in seconds, regulation or overtime. */

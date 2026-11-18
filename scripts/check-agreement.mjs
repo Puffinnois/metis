@@ -7,12 +7,25 @@
 // --league=<id> anywhere picks the league (default nba).
 import { writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { openStatsWorker } from './lib/stats-worker.mjs'
+import { leagueArg, openStatsWorker, positional } from './lib/stats-worker.mjs'
 
-const [folder, mdFile] = process.argv.slice(2).map((p) => resolve(p))
+const [folder, mdFile] = positional().map((p) => resolve(p))
 if (!folder || !mdFile) {
-  console.error('usage: node scripts/check-agreement.mjs <folder> <out.md>')
+  console.error('usage: node scripts/check-agreement.mjs <folder> <out.md> [--league=<id>]')
   process.exit(2)
+}
+
+// Every league but the NBA has its own checks, in `lib/agreement-<league>.mjs`: the history it is
+// checked against is the league's own. The NBA's are the rest of this file.
+if (leagueArg() !== 'nba') {
+  const { runAgreement } = await import(`./lib/agreement-${leagueArg()}.mjs`)
+  const worker = openStatsWorker(folder)
+  const out = []
+  const wrong = await runAgreement(worker.read, out)
+  await worker.close()
+  writeFileSync(mdFile, `${out.join('\n')}\n`)
+  console.log(`${mdFile}: ${wrong} wrong`)
+  process.exit(wrong > 0 ? 1 : 0)
 }
 
 // Regular-season games actually played. Lockouts shortened 1998-99 and 2011-12, the pandemic 2019-20

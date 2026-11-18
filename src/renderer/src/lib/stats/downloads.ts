@@ -1,18 +1,18 @@
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
-import type { League, LeagueId } from '@shared/leagues'
+import { builds, type League, type LeagueId } from '@shared/leagues'
 import type { LeagueDownload, LeagueDownloads } from '@shared/stats/types'
 
 /**
  * What a league holds now, from the user's download setting and its file (`LeagueDownload`, Plan
- * T1301.4) and the registry's `derived`: off with nothing to read, its files loaded with no tables
+ * T1301.4) and the registry's `builds`: off with nothing to read, its files loaded with no tables
  * built from them yet, or ready. Whether a league has data is not a fact of the registry any more.
  */
 export type LeagueHolds = 'off' | 'notBuilt' | 'ready'
 
 export function leagueHolds(league: League, download: LeagueDownload | undefined): LeagueHolds {
   if (!download?.hasData) return 'off'
-  return league.derived ? 'ready' : 'notBuilt'
+  return builds(league, 'derived') ? 'ready' : 'notBuilt'
 }
 
 /** The league menu's note beside a league, or null when it reads as any league does. */
