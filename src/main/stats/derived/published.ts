@@ -1,3 +1,4 @@
+import { DEFAULT_LEAGUE, leagueOf, type League, type PublishedRecipeName } from '@shared/leagues'
 import type { StatsDb } from '../db'
 import {
   ADDED_ROW_COLUMNS,
@@ -10,8 +11,56 @@ import { LINEUPS, lineupsBootstrap, lineupsSql } from './lineups'
 import { MATCHUP_PAIRS, matchupPairsBootstrap, matchupPairsSql } from './matchupPairs'
 import { GAME_MATCHUPS, gameMatchupsBootstrap, gameMatchupsSql } from './gameMatchups'
 
-/** Bump when a table changes, so the next refresh builds them without downloading anything. */
-export const PUBLISHED_VERSION = 12
+/**
+ * What the published tables read differently by league, on the identity and derived recipes' pattern
+ * (`League.published`). The tables, their columns and the SQL are one for every league; a recipe names
+ * the league's file where it differs from the one a table names, and how a team's id in its files is
+ * the team's key in `team`. A table whose file the league does not publish (tracking, hustle, play
+ * types, matchups, the injury report for the WNBA) is built empty, and its metrics read the reason the
+ * catalogue gives.
+ */
+export interface PublishedRecipe {
+  /** Bumped when this league's tables change; each recipe keeps its own. */
+  version: number
+  /** The league's file for a table's source, where it is not the one the table names. */
+  sources: Readonly<Record<string, string>>
+  /** A team's id in the league's files, in the season `season` names, as its key in `team`. */
+  team: (id: string, season: string) => string
+}
+
+export const NBA_PUBLISHED: PublishedRecipe = {
+  version: 12,
+  sources: {},
+  team: (id) => id
+}
+
+/**
+ * The WNBA's: the league dashboards under the NBA's names (`src_dash_*`), the impact file under its
+ * own, and the 2026 Portland Fire, 1611661327 in every file and `-1611661327` in `team` (T1301.5).
+ */
+export const WNBA_PUBLISHED: PublishedRecipe = {
+  version: 1,
+  sources: { src_nba_impact: 'src_wnba_impact' },
+  team: (id, season) =>
+    `(CASE WHEN EXISTS (SELECT 1 FROM team tk WHERE tk.team_id = -(${id}) AND tk.season = ${season})
+           THEN -(${id}) ELSE ${id} END)`
+}
+
+/** Every recipe, by the name a league's registry entry gives. */
+export const PUBLISHED_RECIPES: Readonly<Record<PublishedRecipeName, PublishedRecipe>> = {
+  nba: NBA_PUBLISHED,
+  wnba: WNBA_PUBLISHED
+}
+
+// A script or test that names no league builds the NBA's, the league every file was before leagues.
+const NBA = leagueOf(DEFAULT_LEAGUE)
+
+/** The recipe a league's registry entry names. */
+export const publishedRecipe = (league: League = NBA): PublishedRecipe =>
+  PUBLISHED_RECIPES[league.published]
+
+/** The NBA recipe's version: bump a recipe's when its tables change, so the next refresh builds them. */
+export const PUBLISHED_VERSION = NBA_PUBLISHED.version
 
 /**
  * Sources of a later tier that a table here reads: the game matchups are in the events tier, which
@@ -120,9 +169,12 @@ function rowsOf(
  * One table, from the source's rows of totals. The per-game files are not simply totals over games
  * (`nba-data-sources.md`), and a total can be added across seasons. What is missing reads as NULL.
  */
-function buildSql(t: PublishedTable, have: Have): string {
+function buildSql(t: PublishedTable, have: Have, recipe: PublishedRecipe = NBA_PUBLISHED): string {
   if (t.sql) return t.sql(have)
   const key = keyOf(t)
+  // A team's id as its key in `team`, by the league's recipe; a player's id is the same in both.
+  const keyed = (id: string, season: string): string =>
+    t.entity === 'team' ? recipe.team(id, season) : id
   const main = rowsOf(t, have)
   const reps = t.replacedBy ? [t.replacedBy].flat() : []
   const named = [
@@ -145,7 +197,7 @@ function buildSql(t: PublishedTable, have: Have): string {
     value: (name: string, sql: string | null | undefined) => string,
     join = ''
   ): string => `
-    SELECT ${column(have, rows.source, 's', keyColumn, 'BIGINT')} AS ${key},
+    SELECT ${keyed(column(have, rows.source, 's', keyColumn, 'BIGINT'), rows.season)} AS ${key},
            ${rows.season} AS season, ${rows.type} AS game_type,
            ${named.map((n) => `${value(n.name, n.sql)} AS ${n.name}`).join(', ')}
     FROM ${rows.from} s ${join}
@@ -194,11 +246,23 @@ export function canBuildPublished(): boolean {
   return PUBLISHED_TABLES.length > 0
 }
 
-export async function publishedStale(db: StatsDb): Promise<boolean> {
+export async function publishedStale(db: StatsDb, league?: League): Promise<boolean> {
   const row = await db.get<{ version: number }>(
     "SELECT version FROM derived_state WHERE name = 'published'"
   )
-  return (row?.version ?? 0) < PUBLISHED_VERSION
+  return (row?.version ?? 0) < publishedRecipe(league).version
+}
+
+/** A table as the league's recipe reads it: its sources under the league's own names. */
+function inLeague(t: PublishedTable, recipe: PublishedRecipe): PublishedTable {
+  const own = (source: string): string => recipe.sources[source] ?? source
+  const reps = t.replacedBy ? [t.replacedBy].flat() : []
+  if (own(t.source) === t.source && reps.every((r) => own(r.source) === r.source)) return t
+  return {
+    ...t,
+    source: own(t.source),
+    ...(t.replacedBy ? { replacedBy: reps.map((r) => ({ ...r, source: own(r.source) })) } : {})
+  }
 }
 
 /** Marks the tables out of date, so a build the app never got to still happens on the next refresh. */
@@ -211,7 +275,8 @@ export async function markPublishedStale(db: StatsDb): Promise<void> {
  * loaded. Each replaces the old one in its own statement, so a screen sees the old rows or the new.
  * Returns the rows written.
  */
-export async function buildPublished(db: StatsDb): Promise<number> {
+export async function buildPublished(db: StatsDb, league?: League): Promise<number> {
+  const recipe = publishedRecipe(league)
   const have = await inspect(db)
   let rows = 0
   // First: the defenders' playoff matchups add it up.
@@ -221,19 +286,16 @@ export async function buildPublished(db: StatsDb): Promise<number> {
   )
   rows += matchups?.n ?? 0
   for (const t of PUBLISHED_TABLES) {
-    await db.exec(buildSql(t, have))
+    await db.exec(buildSql(inLeague(t, recipe), have, recipe))
     const row = await db.get<{ n: number }>(`SELECT count(*)::INTEGER AS n FROM ${t.table}`)
     rows += row?.n ?? 0
   }
   await db.exec(matchupPairsSql(have))
   const pairs = await db.get<{ n: number }>(`SELECT count(*)::INTEGER AS n FROM ${MATCHUP_PAIRS}`)
   rows += pairs?.n ?? 0
-  await db.exec(lineupsSql(have))
+  await db.exec(lineupsSql(have, recipe.team))
   const units = await db.get<{ n: number }>(`SELECT count(*)::INTEGER AS n FROM ${LINEUPS}`)
   rows += units?.n ?? 0
-  await db.exec('INSERT OR REPLACE INTO derived_state VALUES (?, ?)', [
-    'published',
-    PUBLISHED_VERSION
-  ])
+  await db.exec('INSERT OR REPLACE INTO derived_state VALUES (?, ?)', ['published', recipe.version])
   return rows
 }

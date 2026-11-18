@@ -1,6 +1,7 @@
 import { elapsedSql, type League } from '@shared/leagues'
 import { eventsBootstrap } from './events'
 import { onCourtBootstrap } from './onCourt'
+import { playsRecipe } from './playsRecipe'
 import { column, type Have } from './sql'
 
 /**
@@ -188,8 +189,10 @@ const WINDOWS = `WINDOW upto AS (PARTITION BY game_id ORDER BY seq ROWS BETWEEN 
  *   team took the last miss.
  * - 2000-01 pads `action_type` with spaces, so it is trimmed.
  */
-export function nbaPlaysSql(have: Have, season: number): string {
-  const t = 'src_nba_pbp'
+export function nbaPlaysSql(have: Have, season: number, league?: League): string {
+  const recipe = playsRecipe(league)
+  const t = recipe.pbp
+  const side = (id: string): string => recipe.side(id, 'home_team_id', 'away_team_id')
   const c = (name: string, type = 'BIGINT'): string => column(have, t, 'p', name, type)
   const from = have.tables.has(t) ? t : '(SELECT 1)'
   return `WITH raw AS (
@@ -215,8 +218,8 @@ export function nbaPlaysSql(have: Have, season: number): string {
            -- 0-0 written after the tip is no score: see NBA_SCORES.
            CASE WHEN sh_text = 0 AND sa_text = 0 THEN NULL ELSE sh_text END AS sh,
            CASE WHEN sh_text = 0 AND sa_text = 0 THEN NULL ELSE sa_text END AS sa,
-           CASE WHEN src_team > 0 THEN src_team
-                WHEN person IN (home_team_id, away_team_id) THEN person
+           CASE WHEN src_team > 0 THEN ${side('src_team')}
+                WHEN ${side('person')} IN (home_team_id, away_team_id) THEN ${side('person')}
                 WHEN location = 'h' THEN home_team_id WHEN location = 'v' THEN away_team_id END AS team_id,
            CASE WHEN src_team > 0 AND person > 0 THEN person END AS player_id,
            CASE
@@ -349,7 +352,8 @@ export function nbaPlaysSql(have: Have, season: number): string {
  * of the same season, as each season's build required, so a filter on `season` reaches the file's
  * own season and DuckDB reads only that season's rows.
  */
-export function espnPlaysSql(have: Have, season: number | null): string {
+export function espnPlaysSql(have: Have, season: number | null, league?: League): string {
+  const beyond = playsRecipe(league).espnThree
   const t = 'src_espn_pbp'
   const c = (name: string, type = 'BIGINT'): string => column(have, t, 'e', name, type)
   const from = have.tables.has(t) ? t : '(SELECT 1)'
@@ -415,8 +419,7 @@ export function espnPlaysSql(have: Have, season: number | null): string {
              points_attempted = 3,
              CASE WHEN scoring AND score_value IN (2, 3) THEN score_value = 3 END,
              description ILIKE '%three point%'
-               OR sqrt(power(x_raw - 25, 2) + power(y_raw, 2)) >= 23.5
-               OR (abs(x_raw - 25) >= 22 AND y_raw <= 9)) AS three,
+               OR ${beyond('x_raw', 'y_raw', 'season')}) AS three,
            CASE WHEN kind = 'field_goal' AND scoring AND description ILIKE '%assist%' THEN second_id END AS assist_id,
            CASE WHEN kind IN ('field_goal', 'heave') AND NOT scoring AND description ILIKE '%block%' THEN second_id END AS block_id,
            CASE WHEN kind = 'turnover' AND description ILIKE '%steal%' THEN second_id END AS steal_id,
@@ -454,8 +457,8 @@ export function espnPlaysSql(have: Have, season: number | null): string {
  * app shows reads them, only the agreement checks and the `plays` view, so the 243 MB a stored copy
  * took is not spent. Its columns are `PLAY_COLUMNS`, as `play_nba`'s. A missing source reads no rows.
  */
-export const espnPlaysViewSql = (have: Have): string =>
-  `CREATE OR REPLACE VIEW ${PLAY_TABLES.espn} AS ${espnPlaysSql(have, null)}`
+export const espnPlaysViewSql = (have: Have, league?: League): string =>
+  `CREATE OR REPLACE VIEW ${PLAY_TABLES.espn} AS ${espnPlaysSql(have, null, league)}`
 
 /**
  * Both sources in one view, each row marked with its source, with what is cheap to work out instead

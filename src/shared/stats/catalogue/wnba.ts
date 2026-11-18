@@ -1,3 +1,4 @@
+import { SHOT_BANDS, SHOT_ZONE_GROUPS, SHOT_ZONES } from '../shots'
 import type { MetricCoverage, MetricDef, MetricFamily } from '../types'
 
 /**
@@ -48,13 +49,48 @@ const SAME_AS: Record<string, string> = {
   team_pace40: "The WNBA's pace is per 40 minutes already: see Pace."
 }
 
+/**
+ * Published tables the league's files hold no column for. The impact file's DARKO columns: the
+ * WNBA's has none, and its `boban_*` columns are SportsDataverse's own rating, which Metis does not
+ * read under DARKO's name (`nba-data-sources.md`, "The impact file's `boban_*` columns").
+ */
+const NOT_IN_FILE: Record<string, string> = {
+  pub_player_darko:
+    "Not in the WNBA's impact file: it has no DARKO columns. Its BOBAN columns are SportsDataverse's own rating, not DARKO, and are not read yet."
+}
+
+/**
+ * Shots have a location on every shot from 2011; before, 20 to 30 % sit at (0, 0) with no distance
+ * (`wnba-data-sources.md`, "Traps"), so a zone, a distance band or a rate by zone would read the
+ * located shots as if they were all. Counts by type and the totals are whole from 1997, as is the count
+ * of shots with no location.
+ */
+const LOCATED_FROM = 2011
+const LOCATED_BUCKETS = [
+  ...SHOT_ZONES.map((z) => z.key).filter((k) => k !== 'unk'),
+  ...SHOT_ZONE_GROUPS.map((g) => g.key),
+  ...SHOT_BANDS.map((b) => b.key)
+]
+const located = (part: string): boolean => {
+  const bare = part.replace(/^opp_/, '')
+  // The league's rate by zone is what a shot's expected points read, and distances need a location.
+  if (['dist_sum', 'dist_n', 'shots_xpts'].includes(bare)) return true
+  return LOCATED_BUCKETS.some((k) => bare.startsWith(`${k}_`))
+}
+
 /** The metric's coverage in the WNBA, from the components it reads (`componentsOf`). */
 export function wnbaCoverage(def: MetricDef, parts: readonly string[]): MetricCoverage {
-  const unavailable = NOT_PUBLISHED[def.family] ?? SAME_AS[def.id]
+  const unavailable =
+    NOT_PUBLISHED[def.family] ??
+    SAME_AS[def.id] ??
+    (def.published ? NOT_IN_FILE[def.published] : undefined)
   if (unavailable) return { firstSeason: FIRST, unavailable }
   let firstSeason = FIRST
   for (const [columns, from] of LATER) {
     if (parts.some((p) => columns.includes(p))) firstSeason = Math.max(firstSeason, from)
+  }
+  if (def.family === 'shots' && parts.some(located)) {
+    firstSeason = Math.max(firstSeason, LOCATED_FROM)
   }
   return { firstSeason }
 }

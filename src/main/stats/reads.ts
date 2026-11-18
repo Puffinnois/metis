@@ -579,13 +579,17 @@ async function readGameElo(db: StatsDb, have: Have, id: string): Promise<StatsGa
   }
 }
 
-export async function readGame(db: StatsDb, id: string): Promise<StatsGameDetail | null> {
+export async function readGame(
+  db: StatsDb,
+  id: string,
+  league: League = LEAGUES.nba
+): Promise<StatsGameDetail | null> {
   const have = await inspect(db)
   const e = 'src_espn_schedule'
   if (!have.tables.has('game')) return null
-  const officials = await readOfficials(db, id)
+  const officials = await readOfficials(db, id, league)
   const elo = await readGameElo(db, have, id)
-  // The crew comes from the NBA's file, so a game ESPN's schedule lacks can still have one.
+  // The crew comes from the league's file, so a game ESPN's schedule lacks can still have one.
   const bare: StatsGameDetail = {
     id,
     venue: null,

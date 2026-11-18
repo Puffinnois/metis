@@ -50,6 +50,30 @@ export type IdentityRecipeName = 'nba' | 'wnba'
 export type DerivedRecipeName = 'nba' | 'wnba'
 
 /**
+ * The published table recipes, named for the files they read: the NBA's, or the WNBA's (its impact
+ * file under its own name, and the 2026 Portland Fire's key). `PUBLISHED_RECIPES` in
+ * `src/main/stats/derived/published.ts`.
+ */
+export type PublishedRecipeName = 'nba' | 'wnba'
+
+/**
+ * The play table recipes, named for the play by play, shots, possessions and lineups they read: the
+ * NBA's files or the WNBA's (`PLAYS_RECIPES` in `src/main/stats/derived/playsRecipe.ts`).
+ */
+export type PlaysRecipeName = 'nba' | 'wnba'
+
+/**
+ * The three-point line from a season on, in the shot charts' frame (tenths of a foot from the basket):
+ * the arc's radius, and how far from the basket it runs straight along the sides; a line that is an
+ * arc down to the baseline has both the same.
+ */
+export interface ThreePointLine {
+  from: number
+  arc: number
+  corner: number
+}
+
+/**
  * A season's shape, for qualifying a row grouped within it: the opponents a team meets and the months
  * it plays in, so a row by opponent or by month needs its share of the season's minimum.
  */
@@ -159,6 +183,12 @@ export interface League {
    * the SQL the recipes share, are one for every league.
    */
   derived: DerivedRecipeName
+  /** The recipe that builds its published tables (`PUBLISHED_RECIPES`). */
+  published: PublishedRecipeName
+  /** The recipe that builds its play, shot, split and on-court tables (`PLAYS_RECIPES`). */
+  plays: PlaysRecipeName
+  /** The three-point line by era, oldest first (`threePointLineIn`). */
+  threePointLines: readonly ThreePointLine[]
   /**
    * What a screen says while the league's tables are not built: before its first load gets that far,
    * or always while `builds` lacks `derived`.
@@ -219,6 +249,10 @@ const NBA: League = {
   builds: BUILT_TABLES,
   identity: 'nba',
   derived: 'nba',
+  published: 'nba',
+  plays: 'nba',
+  // 22 feet in the corners, an arc of 23 feet 9 inches (`COURT` in `stats/shots.ts`), every season.
+  threePointLines: [{ from: 1994, arc: 237.5, corner: 220 }],
   notBuilt: 'No NBA stats yet: the first load has not got that far.',
   metricsByDefault: true
 }
@@ -273,11 +307,22 @@ const WNBA: League = {
     loadedBytes: 512 * MB
   },
   noData: 'No WNBA stats yet: turn the WNBA on in the Data panel to download it.',
-  // Its game, team and player tables (T1301.5) and its game and season tables (T1301.6) are built; the
-  // published ones, the plays and the models come with T1301.7 and T1301.8.
-  builds: ['identity', 'derived'],
+  // Its game, team and player tables (T1301.5), its game and season tables (T1301.6), its published
+  // tables and its plays (T1301.7) are built; the models come with T1301.8.
+  builds: ['identity', 'derived', 'published', 'plays'],
   identity: 'wnba',
   derived: 'wnba',
+  published: 'wnba',
+  plays: 'wnba',
+  // Measured on the league's shots (wnba-data-sources.md, "Shots"): the nearest threes and the farthest
+  // twos put the line at 19 feet 9 inches to 2003 and 6.25 metres (20 feet 6 inches) from 2004 to 2012,
+  // both arcs down to the baseline, and from 2013 at 6.75 metres (22 feet 1.75 inches) above 22 feet in
+  // the corners.
+  threePointLines: [
+    { from: 1997, arc: 197.5, corner: 197.5 },
+    { from: 2004, arc: 205, corner: 205 },
+    { from: 2013, arc: 221.5, corner: 220 }
+  ],
   notBuilt: 'No WNBA stats yet: the first load has not got that far.',
   metricsByDefault: false
 }
@@ -296,6 +341,29 @@ export function leagueOf(id: LeagueId): League {
 /** Whether a league's refresh builds these tables. */
 export const builds = (league: League, tables: BuiltTables): boolean =>
   league.builds.includes(tables)
+
+/** The three-point line in a season: the era it falls in. */
+export function threePointLineIn(league: League, season: number): ThreePointLine {
+  let line = league.threePointLines[0]
+  for (const l of league.threePointLines) if (season >= l.from) line = l
+  return line
+}
+
+/** SQL: a field of the three-point line in the season `seasonSql` names, a CASE where it changed. */
+export function threePointLineSql(
+  league: League,
+  seasonSql: string,
+  field: 'arc' | 'corner'
+): string {
+  const lines = league.threePointLines
+  if (lines.length === 1) return String(lines[0][field])
+  const whens = [...lines]
+    .reverse()
+    .slice(0, -1)
+    .map((l) => `WHEN ${seasonSql} >= ${l.from} THEN ${l[field]}`)
+    .join(' ')
+  return `(CASE ${whens} ELSE ${lines[0][field]} END)`
+}
 
 /** "2025-26" in the NBA, "2026" in the WNBA. */
 export const seasonLabel = (league: League, season: number): string => league.seasonLabel(season)

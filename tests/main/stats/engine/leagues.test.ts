@@ -192,7 +192,9 @@ describe('the engine in each league', () => {
 
   it('reads a split as not built yet in a league whose plays are not built', () => {
     const q = pts({ scope: { seasons: [2026], split: 'q4' } })
-    expect(compileQuery(q, ctx(wnba)).gaps[0]).toBe(
+    // The WNBA's entry as it was before T1301.7 built its plays.
+    const before: League = { ...wnba, builds: ['identity', 'derived'] }
+    expect(compileQuery(q, ctx(before)).gaps[0]).toBe(
       'Not built for the WNBA yet: its stats from the play by play and the shots come in a later version.'
     )
     expect(compileQuery(q, ctx(nba)).gaps[0]).toBeNull()

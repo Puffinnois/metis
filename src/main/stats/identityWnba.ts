@@ -1,6 +1,7 @@
 import { regulationPeriodsSql, type League } from '@shared/leagues'
 import type { StatsDb } from './db'
 import type { IdentityRecipe } from './identity'
+import { IDENTITY_LATE } from './identityLate'
 import { hasTables, playerIdsSql } from './identityShared'
 
 /**
@@ -25,8 +26,18 @@ import { hasTables, playerIdsSql } from './identityShared'
  * birth date and school.
  */
 
-/** Bump when these tables change, so the next refresh builds them with nothing downloaded. */
-const VERSION = 1
+/**
+ * Bump when these tables change, so the next refresh builds them with nothing downloaded. 2: overtimes
+ * from the league's play by play where the game logs and ESPN do not tell them (T1301.7).
+ */
+const VERSION = 2
+
+/**
+ * The league's play by play, in the plays tier: read for a game's overtimes where nothing in the core
+ * tier tells them (most games of 1997 to 2001). It loads after this recipe first runs, so a refresh
+ * that writes it builds the tables again at its end (`IDENTITY_LATE`).
+ */
+const [PBP] = IDENTITY_LATE.wnba
 
 const NEEDS = [
   'src_wnba_schedule',
@@ -128,9 +139,10 @@ const TEAM = `CREATE OR REPLACE TABLE team AS
  * A 0-0 row that ESPN marks a forfeit is played: it counts in the standings with no box score, and
  * `forfeit_winner_id` names the side ESPN's standings give the win (the one with a win more than its
  * scored games). Overtimes come from the game logs' team minutes (200 in regulation, 25 more for each
- * overtime), and from ESPN's last period for a game the game logs do not have.
+ * overtime), then from ESPN's last period, then from the last period of the league's play by play,
+ * which equals the other two on every game where they tell them (`wnba-agreement.md`).
  */
-const gameSql = (league: League, standings: boolean): string => {
+const gameSql = (league: League, standings: boolean, pbp: boolean): string => {
   const regulation = league.gameMinutes * 5
   const overtime = league.overtimeMinutes * 5
   const cupDates = CUP_FINAL_DATES.map((d) => `DATE '${d}'`).join(', ')
@@ -160,6 +172,12 @@ const gameSql = (league: League, standings: boolean): string => {
     LEFT JOIN team a ON abs(a.team_id) = l.away_team_id AND a.season = l.season
   ), team_minutes AS (
     SELECT game_id, max(min) AS minutes FROM src_wnba_game_logs WHERE player_id IS NULL GROUP BY 1
+  ), pbp_periods AS (
+    ${
+      pbp
+        ? `SELECT game_id::VARCHAR AS game_id, max(period)::INTEGER AS last_period FROM ${PBP} GROUP BY 1`
+        : 'SELECT NULL::VARCHAR AS game_id, NULL::INTEGER AS last_period'
+    }
   ), espn AS (
     SELECT DISTINCT ON (game_id) game_id AS espn_game_id, year(game_date::DATE) AS season,
            game_date::DATE AS game_date, home_id, away_id, home_score, away_score, neutral_site,
@@ -238,11 +256,15 @@ const gameSql = (league: League, standings: boolean): string => {
            CASE WHEN m.minutes >= ${regulation} THEN round((m.minutes - ${regulation}) / ${overtime})::INTEGER
                 WHEN e.status_type_name = 'STATUS_FINAL'
                   AND e.status_period >= e.format_regulation_periods
-                THEN (e.status_period - e.format_regulation_periods)::INTEGER END AS overtimes
+                THEN (e.status_period - e.format_regulation_periods)::INTEGER
+                WHEN pp.last_period IS NOT NULL
+                THEN greatest(0, pp.last_period - ${regulationPeriodsSql(league, 'g.season')})::INTEGER
+           END AS overtimes
     FROM league_games g
     LEFT JOIN link l USING (game_id)
     LEFT JOIN espn e ON e.espn_game_id = l.espn_game_id
     LEFT JOIN team_minutes m USING (game_id)
+    LEFT JOIN pbp_periods pp USING (game_id)
   )
   SELECT r.game_id, r.nba_game_id, r.espn_game_id, r.season, r.game_type, r.game_date,
          r.home_team_id, r.away_team_id, r.home_score, r.away_score,
@@ -372,7 +394,8 @@ export const WNBA_IDENTITY: IdentityRecipe = {
   needs: NEEDS,
   async build(db: StatsDb, league: League) {
     await db.exec(TEAM)
-    await db.exec(gameSql(league, await hasTables(db, ['src_espn_standings'])))
+    const standings = await hasTables(db, ['src_espn_standings'])
+    await db.exec(gameSql(league, standings, await hasTables(db, [PBP])))
     await db.exec(linesSql(await hasTables(db, ['src_wnba_player_box'])))
     const rosters = await hasTables(db, ['src_wnba_rosters'])
     await db.exec(playerIdsWnba(rosters))

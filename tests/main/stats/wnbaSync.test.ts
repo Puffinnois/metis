@@ -5,7 +5,7 @@ import type { Downloads, FetchedFile } from '@main/stats/download'
 import { leftOutIn, leftOutProblem, requiredReleases } from '@main/stats/leftOut'
 import { openStatsService, type StatsService } from '@main/stats/service'
 import { fileUrl, SOURCES, SOURCES_BY_LEAGUE, type SourceFile } from '@main/stats/sources'
-import { refreshStats, STATS_DERIVED_STEP } from '@main/stats/sync'
+import { refreshStats, STATS_DERIVED_STEP, STATS_PUBLISHED_STEP } from '@main/stats/sync'
 import { LEAGUES } from '@shared/leagues'
 import { openTestDb, tempDir } from '../../fixtures/stats'
 
@@ -75,11 +75,12 @@ describe('a WNBA refresh', () => {
       {},
       [sourceOf('wnba_game_logs')]
     )
-    // Every season's file not published here, so nothing written and no build step logged.
-    expect(result.steps).toHaveLength(30)
-    expect(
-      result.steps.every((s) => s.status === 'skipped' && s.source !== STATS_DERIVED_STEP)
-    ).toBe(true)
+    // Every season's file not published here, so nothing written and no game table built. The
+    // published step (T1301.7) creates its tables on a file that has none, as the NBA's does.
+    const files = result.steps.filter((s) => s.source !== STATS_PUBLISHED_STEP)
+    expect(files).toHaveLength(30)
+    expect(files.every((s) => s.status === 'skipped' && s.source !== STATS_DERIVED_STEP)).toBe(true)
+    expect(result.steps.filter((s) => s.source === STATS_PUBLISHED_STEP)).toHaveLength(1)
   })
 })
 

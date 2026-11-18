@@ -1,3 +1,5 @@
+import type { League } from '@shared/leagues'
+import { playsRecipe } from './playsRecipe'
 import { column, type Have } from './sql'
 
 /**
@@ -93,27 +95,39 @@ export const eventsBootstrap = (): string[] => [
 const select = (columns: Columns, values: Record<string, string>): string =>
   columns.map(([n, t]) => `(${values[n] ?? 'NULL'})::${t} AS ${n}`).join(',\n           ')
 
-const SIDES = {
-  opponent_id: `CASE team WHEN g.home_team_id THEN g.away_team_id WHEN g.away_team_id THEN g.home_team_id END`,
-  home: 'team = g.home_team_id'
-}
+/** The opponent and the side of a row whose team is `team`, the game's side. */
+const sides = (team = 'team'): { opponent_id: string; home: string } => ({
+  opponent_id: `CASE ${team} WHEN g.home_team_id THEN g.away_team_id WHEN g.away_team_id THEN g.home_team_id END`,
+  home: `${team} = g.home_team_id`
+})
+const SIDES = sides()
+
+/** A source's team column `team` as the game's side `g`, by the league's recipe. */
+const sideOf = (league: League | undefined, team = 'team'): string =>
+  playsRecipe(league).side(team, 'g.home_team_id', 'g.away_team_id')
 
 const isoClock = (c: string): string =>
   `TRY_CAST(regexp_extract(${c}, 'PT(\\d+)M', 1) AS DOUBLE) * 60
    + TRY_CAST(regexp_extract(${c}, 'M([\\d.]+)S', 1) AS DOUBLE)`
 
-export const nbaShotsSql = (have: Have): string =>
-  `CREATE OR REPLACE VIEW ${SHOT_VIEWS.nba} AS ${nbaShotsSelect(have)}`
+export const nbaShotsSql = (have: Have, league?: League): string =>
+  `CREATE OR REPLACE VIEW ${SHOT_VIEWS.nba} AS ${nbaShotsSelect(have, undefined, league)}`
 
 /**
- * The NBA's shots keyed to the game, every season or one: the shot tables read a season straight from
- * here, since the view is only created after they are built.
+ * The league's shots keyed to the game, every season or one: the shot tables read a season straight
+ * from here, since the view is only created after they are built. A shot the file gives no location
+ * (the recipe's `unlocated`) keeps its attempt and value, with no coordinates and no distance.
  */
-export function nbaShotsSelect(have: Have, season?: number): string {
-  const t = 'src_nba_shots'
+export function nbaShotsSelect(have: Have, season?: number, league?: League): string {
+  const recipe = playsRecipe(league)
+  const t = recipe.shots
   const c = (name: string, type = 'BIGINT'): string => column(have, t, 's', name, type)
   const bySource = have.columns.get(t)?.has('season') ? ` AND s.season = ${season}` : ''
   const one = season === undefined ? '' : `WHERE g.season = ${season}${bySource}`
+  const unlocated = recipe.unlocated?.(c('x_legacy', 'DOUBLE'), c('y_legacy', 'DOUBLE'))
+  const located = (sql: string): string =>
+    unlocated ? `CASE WHEN NOT coalesce(${unlocated}, false) THEN ${sql} END` : sql
+  const team = sideOf(league)
   return `SELECT ${select(SHOT_COLUMNS, {
     game_id: 'g.game_id',
     season: 'g.season',
@@ -121,15 +135,15 @@ export function nbaShotsSelect(have: Have, season?: number): string {
     game_date: 'g.game_date',
     period: c('period'),
     clock: isoClock(c('clock', 'VARCHAR')),
-    team_id: 'team',
-    ...SIDES,
+    team_id: team,
+    ...sides(team),
     player_id: `nullif(${c('person_id')}, 0)`,
     free_throw: 'false',
     made: `${c('shot_result', 'VARCHAR')} = 'Made'`,
     value: c('shot_value'),
-    distance: c('shot_distance'),
-    x: c('x_legacy', 'DOUBLE'),
-    y: c('y_legacy', 'DOUBLE'),
+    distance: located(c('shot_distance')),
+    x: located(c('x_legacy', 'DOUBLE')),
+    y: located(c('y_legacy', 'DOUBLE')),
     action: c('action_type', 'VARCHAR'),
     subtype: `nullif(${c('sub_type', 'VARCHAR')}, '')`
   })}
@@ -176,8 +190,9 @@ export function espnShotsSql(have: Have): string {
  * The dataset's possessions: derived by SportsDataverse from the NBA's play by play, not published
  * by the NBA. The players are the NBA's person ids, which are the app's player ids.
  */
-export function possessionsSql(have: Have): string {
-  const t = 'src_nba_possessions'
+export function possessionsSql(have: Have, league?: League): string {
+  const t = playsRecipe(league).possessions
+  const team = sideOf(league)
   const c = (name: string, type = 'BIGINT'): string => column(have, t, 's', name, type)
   const counts = ['points', 'fg2a', 'fg2m', 'fg3a', 'fg3m', 'fta', 'ftm', 'oreb', 'dreb', 'tov']
   return `CREATE OR REPLACE VIEW ${POSSESSIONS_VIEW} AS
@@ -188,8 +203,8 @@ export function possessionsSql(have: Have): string {
       game_date: 'g.game_date',
       period: c('period'),
       possession: c('possession_number'),
-      team_id: 'team',
-      ...SIDES,
+      team_id: team,
+      ...sides(team),
       start_seq: c('start_order_index'),
       end_seq: c('end_order_index'),
       start_clock: c('start_seconds_remaining', 'DOUBLE'),
@@ -209,8 +224,8 @@ export function possessionsSql(have: Have): string {
     JOIN game g ON g.nba_game_id = ${c('game_id', 'VARCHAR')}`
 }
 
-export const eventsSql = (have: Have): string[] => [
-  nbaShotsSql(have),
+export const eventsSql = (have: Have, league?: League): string[] => [
+  nbaShotsSql(have, league),
   espnShotsSql(have),
-  possessionsSql(have)
+  possessionsSql(have, league)
 ]

@@ -449,7 +449,7 @@ export async function openStatsService(
       }),
     player: (id) => read((reader) => readPlayer(reader, id)),
     games: (season) => read((reader) => readGames(reader, season, league)),
-    game: (id) => read((reader) => readGame(reader, id)),
+    game: (id) => read((reader) => readGame(reader, id, league)),
     standings: (season) => read((reader) => readStandings(reader, season)),
     matchups: (player, season, scope) =>
       read((reader) => readMatchups(reader, player, season, scope)),

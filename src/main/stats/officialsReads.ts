@@ -10,6 +10,7 @@ import {
   type StatsOfficiatingTotals
 } from '@shared/stats/types'
 import type { StatsDb } from './db'
+import { playsRecipe } from './derived/playsRecipe'
 import { inspect } from './derived/sql'
 
 /**
@@ -22,7 +23,8 @@ import { inspect } from './derived/sql'
  * sides' box scores counts toward the rates; the league's figure counts the same kind of games.
  */
 
-const SOURCE = 'src_nba_officials'
+/** The league's officials file (its plays recipe's). */
+const sourceOf = (league: League): string => playsRecipe(league).officials
 
 /** The order of an official's rows, newest last: a playoff id sorts after every regular-season one. */
 const LATEST = (a: string): string => `${a}.season::VARCHAR || ${a}.game_id::VARCHAR`
@@ -80,7 +82,7 @@ const typesOf = (types: GameType[]): GameType[] =>
  * `crew` (a row per official and game), `box` (each played game with both box scores) and `names`
  * (each official's name and number as the file last lists them).
  */
-function ctes(seasonWhere: string, types: string): string {
+function ctes(seasonWhere: string, types: string, SOURCE: string): string {
   return `played AS (
       SELECT g.game_id, g.nba_game_id, g.season, g.home_score > g.away_score AS home_win
       FROM game g WHERE g.played AND ${seasonWhere} AND g.game_type IN ${types}
@@ -128,7 +130,7 @@ async function coverage(
   return out
 }
 
-const ready = async (db: StatsDb): Promise<boolean> => {
+const ready = async (db: StatsDb, SOURCE: string): Promise<boolean> => {
   const have = await inspect(db)
   const held = have.columns.get(SOURCE)
   return (
@@ -154,9 +156,10 @@ export async function readOfficialsSeason(
     officials: [],
     reason: null
   }
-  if (!Number.isInteger(season) || types.length === 0 || !(await ready(db))) return empty
+  const SOURCE = sourceOf(of)
+  if (!Number.isInteger(season) || types.length === 0 || !(await ready(db, SOURCE))) return empty
   const params: (string | number)[] = [season, ...types]
-  const pre = ctes('g.season = $1', `(${types.map((_, i) => `$${i + 2}`).join(', ')})`)
+  const pre = ctes('g.season = $1', `(${types.map((_, i) => `$${i + 2}`).join(', ')})`, SOURCE)
   const cover = (await coverage(db, pre, params)).get(season) ?? empty.coverage
   const league = await db.get<TotalsRow>(`WITH ${pre} SELECT ${SUMS} FROM box b`, params)
   const rows = await db.all<TotalsRow & { id: string; name: string | null; jersey: string | null }>(
@@ -191,7 +194,8 @@ export async function readOfficialCareer(
   of: League
 ): Promise<StatsOfficialCareer | null> {
   const types = typesOf(gameTypes)
-  if (!ID.test(id) || types.length === 0 || !(await ready(db))) return null
+  const SOURCE = sourceOf(of)
+  if (!ID.test(id) || types.length === 0 || !(await ready(db, SOURCE))) return null
   const official = Number(id)
   const named = await db.get<{ name: string | null; jersey: string | null }>(
     `SELECT arg_max(trim(concat_ws(' ', o.first_name, o.last_name)), ${LATEST('o')}) AS name,
@@ -206,7 +210,7 @@ export async function readOfficialCareer(
   const worked = `g.season IN (
       SELECT g2.season FROM ${SOURCE} o2 JOIN game g2 ON g2.nba_game_id = TRY_CAST(o2.game_id AS VARCHAR)
       WHERE TRY_CAST(o2.official_id AS BIGINT) = $1 AND g2.game_type IN ${typeList})`
-  const pre = ctes(worked, typeList)
+  const pre = ctes(worked, typeList, SOURCE)
   const cover = await coverage(db, pre, params)
   const league = await db.all<TotalsRow & { season: number }>(
     `WITH ${pre} SELECT b.season, ${SUMS} FROM box b GROUP BY b.season`,
