@@ -160,6 +160,37 @@ describe('games out, from the injury reports', () => {
     ])
   })
 
+  it('breaks a tie between two teams on one report the same way on every build', async () => {
+    // Player 9, traded, is listed on one report for team 7's game 2 and team 5's game 3 (Jonas
+    // Valanciunas's 2025 row read Washington in one build and Sacramento in another).
+    await db.exec(`INSERT INTO src_nba_injury_report (report_datetime, team_id, report_player_name,
+      current_status, reason, game_id, person_id) VALUES
+      (TIMESTAMP '2026-02-06 17:30:00', 7, 'Valanciunas, Jonas', 'Out', 'Trade Pending', 'g2', 9),
+      (TIMESTAMP '2026-02-06 17:30:00', 5, 'Valanciunas, Jonas', 'Out', 'Trade Pending', 'g3', 9)`)
+    const teamOf = async (): Promise<number | undefined> => {
+      await buildPublished(db)
+      const row = await db.get<{ team: number }>(
+        `SELECT row_team_id AS team FROM pub_player_availability
+         WHERE game_type = 'regular' AND player_id = 9`
+      )
+      return row?.team
+    }
+    // With no box score to say whom they played for, the lower team id.
+    expect(await teamOf()).toBe(5)
+    await db.exec('ALTER TABLE game ADD COLUMN game_date DATE')
+    await db.exec(
+      `UPDATE game SET game_date = DATE '2026-01-01' + CAST(right(game_id, 1) AS INTEGER)`
+    )
+    await db.exec(`CREATE TABLE player_game (season INTEGER, game_type VARCHAR, game_id VARCHAR,
+      player_id BIGINT, team_id BIGINT)`)
+    // The team they played for last that season decides: team 7.
+    await db.exec(`INSERT INTO player_game VALUES (2026, 'regular', 'g1', 9, 5),
+      (2026, 'regular', 'g3', 9, 7)`)
+    expect(await teamOf()).toBe(7)
+    await db.exec(`DELETE FROM player_game WHERE game_id = 'g3'`)
+    expect(await teamOf()).toBe(5)
+  })
+
   it('builds empty, and does not fail, without the reports or without the games', async () => {
     await db.exec('DROP TABLE src_nba_injury_report')
     await buildPublished(db)

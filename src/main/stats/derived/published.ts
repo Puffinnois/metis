@@ -29,8 +29,9 @@ export interface PublishedRecipe {
 }
 
 export const NBA_PUBLISHED: PublishedRecipe = {
-  // 13: a NaN as published reads NULL (T1301.7).
-  version: 13,
+  // 13: a NaN as published reads NULL (T1301.7). 14: the availability table breaks a tie between
+  // two teams on one report the same way on every build (T1301.8).
+  version: 14,
   sources: {},
   team: (id) => id
 }
