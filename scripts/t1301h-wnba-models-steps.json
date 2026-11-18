@@ -1,0 +1,86 @@
+[
+  {
+    "size": [1500, 950]
+  },
+  {
+    "wait": 6000
+  },
+  {
+    "eval": "window.sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nwindow.until = async (fn, ms = 15000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await fn()) return true; await sleep(200) } return false };\nwindow.nav = async (name) => { const b = [...document.querySelectorAll('nav button')].find((x) => x.textContent.trim() === name); if (!b) return 'NO NAV ' + name; b.click(); await sleep(2500); return 'nav ' + name };\nwindow.chooseSelect = async (title, value) => { const el = [...document.querySelectorAll('select')].find((x) => x.title === title); if (!el) return 'NO SELECT ' + title; Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(el, String(value)); el.dispatchEvent(new Event('change', { bubbles: true })); await sleep(2500); return title + ' = ' + (el.selectedOptions[0]?.textContent ?? el.value) };\nwindow.press = async (text) => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === text); if (!b) return 'NO BUTTON ' + text; b.click(); await sleep(2500); return 'pressed ' + text };\nwindow.toggle = async (label) => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim().endsWith(label)); if (!b) return 'NO TOGGLE ' + label; b.click(); await sleep(2500); return label + ' ' + b.getAttribute('aria-pressed') };\nwindow.pressed = (label) => [...document.querySelectorAll('button')].find((x) => x.textContent.trim().endsWith(label))?.getAttribute('aria-pressed');\nwindow.rows = () => [...document.querySelectorAll('tbody tr')].filter((r) => r.querySelector('td'));\nwindow.cells = (r) => [...r.querySelectorAll('td')].map((c) => c.textContent.trim());\nwindow.has = (text) => document.body.innerText.includes(text);\nwindow.total = () => document.body.innerText.match(/[0-9,]+ of [0-9,]+ \\u00b7 sorted by/)?.[0] ?? 'NO TOTAL';\nwindow.trigger = () => document.querySelector('button[aria-label^=\"League: \"]');\nwindow.league = () => trigger()?.getAttribute('aria-label')?.replace('League: ', '') ?? null;\nwindow.statusLine = () => document.querySelector('[title=\"See what is loaded\"]')?.textContent.trim() ?? null;\nwindow.h1 = () => document.querySelector('main h1')?.textContent.trim() ?? null;\nwindow.switchTo = async (name) => { const t = trigger(); if (!t) return 'NO MENU'; t.focus(); t.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); await until(() => document.querySelectorAll('[role=menuitemradio]').length > 0, 3000); const item = [...document.querySelectorAll('[role=menuitemradio]')].find((x) => x.textContent.startsWith(name)); if (!item) return 'NO ITEM ' + name; item.click(); await until(() => league() === name, 5000); await sleep(3000); return league() };\nwindow.setInput = (input, value) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, value); input.dispatchEvent(new Event('input', { bubbles: true })); input.dispatchEvent(new Event('change', { bubbles: true })) };\nwindow.openPlayer = async (name) => { const input = document.querySelector('input[aria-label=\"Search players\"]'); if (!input) return 'NO SEARCH'; setInput(input, name); await until(() => [...document.querySelectorAll('aside button')].some((x) => x.textContent.includes(name))); const b = [...document.querySelectorAll('aside button')].find((x) => x.textContent.includes(name)); if (!b) return 'NOT LISTED ' + name; b.click(); await sleep(3500); return 'opened ' + name };\nwindow.check = (label, ok, got) => (ok ? 'OK ' : 'MISMATCH ') + label + ' got ' + JSON.stringify(got);\nwindow.tab = async (label) => { const t = [...document.querySelectorAll('[role=tab], button')].find((x) => x.textContent.trim() === label); if (!t) return 'NO TAB ' + label; t.click(); await sleep(3500); return 'tab ' + label };\nwindow.main = () => document.querySelector('main')?.innerText ?? '';\nwindow.openRow = async (pred) => { await until(() => rows().some((r) => pred(r.innerText)), 10000); const r = rows().find((x) => pred(x.innerText)); if (!r) return 'NO ROW'; (r.querySelector('button, a') ?? r).click(); await sleep(3500); return 'opened row' };\nwindow.openTeam = async (id) => chooseSelect('Team', id);\nwindow.openGame = async (season, day, pred) => { await chooseSelect('Season', season); await chooseSelect('Day', day); const b = [...document.querySelectorAll('[aria-label=\"The day’s games\"] button')].find((x) => pred(x.textContent)); if (!b) return 'NO GAME'; b.click(); await sleep(3500); return 'opened game' };\nwindow.flowLabels = () => [...document.querySelectorAll('section[aria-label=\"Game flow\"] svg text')].map((x) => x.textContent.trim()).filter((l) => /^(H[12]|Q[1-4]|[0-9]?OT)$/.test(l));\n'helpers ready'"
+  },
+  {
+    "eval": "window.heads = () => [...document.querySelectorAll('thead th,[role=columnheader]')].map((t) => t.textContent.trim()).filter(Boolean);\nwindow.titles = (re) => [...document.querySelectorAll('[title]')].map((x) => x.title).filter((t) => re.test(t));\nwindow.boardRow = (name) => { const r = [...document.querySelectorAll('tr,[role=row]')].find((x) => x.textContent.includes(name)); return r ? [...r.querySelectorAll('[role=cell],td')].map((c) => c.textContent.trim()) : 'NO ROW ' + name };\nwindow.clickText = async (text) => { const b = [...document.querySelectorAll('button,[role=tab],a')].find((x) => x.textContent.trim() === text); if (!b) return 'NO ' + text; b.click(); await sleep(2500); return 'clicked ' + text };\nwindow.marks = () => [...document.querySelectorAll('[data-stability-words]')].map((x) => x.dataset.stabilityWords);\n'helpers 2'"
+  },
+  {
+    "eval": "(async () => {\n    const t0 = Date.now()\n    const idle = await until(async () => {\n      const [n, w] = await Promise.all([window.api.stats.status('nba'), window.api.stats.status('wnba')])\n      return !n.busy && !w.busy\n    }, 20 * 60000)\n    const w = await window.api.stats.status('wnba')\n    return check('both leagues finish the launch refresh; the WNBA has its tables', idle && w.available && !w.noData, { seconds: Math.round((Date.now() - t0) / 1000), w })\n  })()"
+  },
+  {
+    "eval": "(async () => [await switchTo('WNBA'), await nav('Leaderboards')].join(' / '))()"
+  },
+  {
+    "eval": "(async () => {\n    const r = await window.api.stats.query('wnba', {\"entity\":\"player\",\"metrics\":[\"per\",\"ws\",\"ws_48\",\"bpm\",\"vorp\"],\"scope\":{\"seasons\":[2024],\"gameTypes\":[\"regular\"]},\"sort\":{\"metric\":\"ws\",\"dir\":\"desc\"},\"limit\":5})\n    const w = r.rows.find((x) => x.name === \"A'ja Wilson\")\n    const v = (m) => w?.values[m]?.value\n    const cols = Object.fromEntries(r.columns.map((c) => [c.id, [c.short, c.reason]]))\n    return check(\"2024 ratings: A'ja Wilson PER 34.78 (table 34.7764; B-R 34.9), WS 11.19 (B-R 10.9: B-R leaves out team turnovers from 2018), WS/40 0.342; BPM and VORP read why\", Math.abs(v('per') - 34.7764) < 0.0001 && Math.abs(v('ws') - 11.1861) < 0.0001 && Math.abs(v('ws_48') - 0.34234) < 0.00001 && cols.ws_48[0] === 'WS/40' && /^Not computed for the WNBA/.test(cols.bpm[1] ?? '') && /^Not computed for the WNBA/.test(cols.vorp[1] ?? ''), { per: v('per'), ws: v('ws'), ws40: v('ws_48'), cols })\n  })()"
+  },
+  {
+    "eval": "(async () => {\n    const r = await window.api.stats.query('wnba', {\"entity\":\"player\",\"metrics\":[\"per\",\"ws\",\"ws_48\"],\"scope\":{\"seasons\":[2010],\"gameTypes\":[\"regular\"]},\"sort\":{\"metric\":\"ws\",\"dir\":\"desc\"},\"limit\":5})\n    const c = r.rows.find((x) => x.name === 'Tamika Catchings')\n    return check('2010: Tamika Catchings PER 27.17, WS 7.89 (table; B-R 7.9)', Math.abs(c.values.per.value - 27.1677) < 0.0001 && Math.abs(c.values.ws.value - 7.8939) < 0.0001, { per: c.values.per.value, ws: c.values.ws.value })\n  })()"
+  },
+  {
+    "eval": "(async () => {\n    await nav('Players')\n    await chooseSelect('Season', 2024)\n    const fam = await chooseSelect('Metric family', 'box_composites')\n    await sleep(3000)\n    return check('the WNBA player board, box-score ratings 2024: PER and WS/40 heads, stability marks on them', heads().some((h) => /PER/.test(h)) && heads().some((h) => /WS\\/40/.test(h)) && marks().includes('High stability'), { fam, heads: heads().slice(0, 14), marks: marks().slice(0, 8), wilson: boardRow(\"A'ja Wilson\") })\n  })()"
+  },
+  {
+    "shot": "t1301h-01-wnba-ratings-2024"
+  },
+  {
+    "eval": "(async () => {\n    await chooseSelect('Season', 2005)\n    await sleep(3000)\n    return check('the same board for 2005', !has('could not be opened') && rows().length > 5, { first: rows()[0] && cells(rows()[0]).slice(0, 10) })\n  })()"
+  },
+  {
+    "shot": "t1301h-02-wnba-ratings-2005"
+  },
+  {
+    "eval": "(async () => {\n    const o = await openPlayer(\"A'ja Wilson\")\n    await chooseSelect('Season', 2024)\n    await sleep(3000)\n    return check(\"A'ja Wilson's 2024 dashboard: her ratings read, BPM's reason states itself\", /opened/.test(o) && /34\\.8/.test(main()), { o, text: main().match(/PER[^\\n]*/)?.[0], bpm: titles(/Not computed for the WNBA/).slice(0, 1) })\n  })()"
+  },
+  {
+    "shot": "t1301h-03-wilson-dashboard-2024"
+  },
+  {
+    "eval": "(async () => {\n    await nav('Standings')\n    await chooseSelect('Season', 2026)\n    await sleep(3000)\n    const r = await window.api.stats.query('wnba', {\"entity\":\"team\",\"metrics\":[\"team_srs\",\"team_elo\",\"team_pyth_w\",\"team_proj_w\",\"team_playoff_pct\",\"team_conf_finals_pct\",\"team_play_in_pct\"],\"scope\":{\"seasons\":[2026],\"gameTypes\":[\"regular\"]},\"limit\":20})\n    const m = r.rows.find((x) => x.name === 'Minnesota Lynx')\n    const v = (k) => m?.values[k]?.value\n    return check('2026 standings: Minnesota SRS 6.95 (table 6.9475; B-R 6.95), projected wins 33 = its record, playoff odds 100 % (the season is complete), play-in reads why', Math.abs(v('team_srs') - 6.9475) < 0.0001 && v('team_proj_w') === 33 && v('team_playoff_pct') === 1 && /no play-in/.test(r.columns.find((c) => c.id === 'team_play_in_pct').reason ?? '') && r.columns.find((c) => c.id === 'team_conf_finals_pct').short === 'SF%', { srs: v('team_srs'), elo: v('team_elo'), pyth: v('team_pyth_w'), proj: v('team_proj_w'), p: v('team_playoff_pct'), heads: heads().slice(0, 14), row: boardRow('Minnesota Lynx') })\n  })()"
+  },
+  {
+    "shot": "t1301h-04-standings-2026"
+  },
+  {
+    "eval": "(async () => {\n    await nav('Teams')\n    await chooseSelect('Season', 2026)\n    const b = await clickText('Team leaderboards →')\n    const r = await chooseSelect('Metric family', 'ratings')\n    await sleep(3000)\n    return check('the WNBA team board, Ratings preset 2026: SRS, Elo, adjusted net rating, projected wins, playoff odds, Pythagorean wins', ['SRS', 'ELO', 'ADJ NRtg', 'PROJ W', 'PLAYOFF%', 'PYTH W'].every((h) => heads().some((x) => x.includes(h))), { b, r, heads: heads(), row: boardRow('Minnesota Lynx') })\n  })()"
+  },
+  {
+    "shot": "t1301h-05-team-ratings-2026"
+  },
+  {
+    "eval": "(async () => {\n    await chooseSelect('Season', 2010)\n    await sleep(3000)\n    const r = await window.api.stats.query('wnba', {\"entity\":\"team\",\"metrics\":[\"team_elo\",\"team_srs\",\"team_proj_w\",\"team_title_pct\"],\"scope\":{\"seasons\":[2010],\"gameTypes\":[\"regular\"]},\"sort\":{\"metric\":\"team_elo\",\"dir\":\"desc\"},\"limit\":3})\n    return check('2010: Seattle first by Elo, 1622.6 (table), its forecast columns read', r.rows[0]?.name === 'Seattle Storm' && Math.abs(r.rows[0].values.team_elo.value - 1622.6) < 0.01 && r.rows[0].values.team_proj_w.value > 0, { top: r.rows.map((x) => [x.name, x.values.team_elo.value, x.values.team_proj_w.value, x.values.team_title_pct.value]), row: boardRow('Seattle Storm') })\n  })()"
+  },
+  {
+    "shot": "t1301h-06-team-ratings-2010"
+  },
+  {
+    "eval": "(async () => {\n    await chooseSelect('Season', 2009)\n    await sleep(3000)\n    const r = await window.api.stats.query('wnba', {\"entity\":\"team\",\"metrics\":[\"team_adj_nrtg\",\"team_srs\"],\"scope\":{\"seasons\":[2009],\"gameTypes\":[\"regular\"]},\"limit\":3})\n    const reason = r.columns[0].reason\n    return check('2009, a season too even to rate: the adjusted ratings read their reason, SRS reads', /^Not shown for 2004 and 2009/.test(reason ?? '') && r.rows.every((x) => x.values.team_srs.value !== null), { reason, onScreen: titles(/Not shown for 2004/).slice(0, 1) })\n  })()"
+  },
+  {
+    "shot": "t1301h-07-team-2009-thin"
+  },
+  {
+    "eval": "(async () => {\n    const c = await window.api.stats.catalogue('wnba')\n    const m = (id) => c.find((x) => x.id === id)\n    const s = (id) => m(id)?.stability\n    return check('stability on the WNBA: PER high on its own seasons, SRS medium, BPM reads why', s('per')?.reliability === 'high' && s('team_srs')?.reliability === 'medium' && /Not computed for the WNBA/.test(s('bpm')?.reason ?? ''), { per: s('per'), srs: s('team_srs')?.reliability, bpm: s('bpm')?.reason })\n  })()"
+  },
+  {
+    "eval": "(async () => {\n    const g = await window.api.stats.games('wnba', 1999)\n    const one = g.find((x) => x.score)\n    const d = one ? await window.api.stats.game('wnba', one.id) : null\n    return check('a 1999 game: Elo reads from 2001 (no rating in the burn-in)', d && d.elo === null, { id: one?.id, elo: d?.elo })\n  })()"
+  },
+  {
+    "eval": "(async () => {\n    const n = await switchTo('NBA')\n    const r = await window.api.stats.query('nba', {\"entity\":\"team\",\"metrics\":[\"team_srs\",\"team_elo\",\"team_pyth_pct\",\"team_play_in_pct\",\"team_round2_pct\"],\"scope\":{\"seasons\":[2016],\"gameTypes\":[\"regular\"]},\"sort\":{\"metric\":\"team_srs\",\"dir\":\"desc\"},\"limit\":2})\n    const gs = r.rows.find((x) => x.name === 'Golden State Warriors')\n    const p = await window.api.stats.query('nba', {\"entity\":\"player\",\"metrics\":[\"bpm\",\"vorp\",\"ws_48\"],\"scope\":{\"seasons\":[2016],\"gameTypes\":[\"regular\"]},\"sort\":{\"metric\":\"vorp\",\"dir\":\"desc\"},\"limit\":1})\n    return check('back on the NBA: 2015-16 Golden State SRS 10.38 as Stage 10 checked, BPM and VORP read, WS/48', n === 'NBA' && Math.abs(gs.values.team_srs.value - 10.38) < 0.005 && p.columns.every((c) => !c.reason) && p.columns.find((c) => c.id === 'ws_48').short === 'WS/48', { srs: gs.values.team_srs.value, top: p.rows[0]?.name, vorp: p.rows[0]?.values.vorp.value })\n  })()"
+  },
+  {
+    "eval": "(async () => {\n    await nav('Standings')\n    await chooseSelect('Season', 2016)\n    await sleep(3000)\n    return check('the NBA standings 2015-16 as before', JSON.stringify(boardRow('Golden State Warriors')).includes('10.38'), boardRow('Golden State Warriors'))\n  })()"
+  },
+  {
+    "shot": "t1301h-08-nba-standings-2016"
+  },
+  {
+    "eval": "'ERRORS ON SCREEN ' + JSON.stringify([...document.querySelectorAll('.text-bad')].map((e) => e.textContent).slice(0, 5))"
+  }
+]
