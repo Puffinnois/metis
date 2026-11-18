@@ -23,7 +23,15 @@ const ESPN = 'src_espn_schedule'
  * `game_id`. A game ESPN's schedule is not linked to (one far ahead) is matched by its sides and
  * date. Without ESPN's schedule only the Cup final is neutral.
  */
-export function neutralSitesSql(have: Have, seasons?: { from: number; to: number }): string {
+export function neutralSitesSql(
+  have: Have,
+  seasons?: { from: number; to: number },
+  cities: readonly string[] = [BUBBLE_CITY]
+): string {
+  const atOneSite =
+    cities.length > 0
+      ? `OR coalesce(city IN (${cities.map((c) => `'${c.replaceAll("'", "''")}'`).join(', ')}), false)`
+      : ''
   const within = (expr: string, pad: number): string =>
     seasons
       ? `${expr} BETWEEN ${Math.trunc(seasons.from) - pad} AND ${Math.trunc(seasons.to) + pad}`
@@ -56,6 +64,6 @@ export function neutralSitesSql(have: Have, seasons?: { from: number; to: number
     SELECT game_id,
            coalesce(neutral_site, false) OR game_type = 'cup-final'
              OR coalesce(notes ILIKE '%semifinal%' AND (notes ILIKE '%cup%' OR notes ILIKE '%tournament%'), false)
-             OR coalesce(city = '${BUBBLE_CITY}', false) AS neutral
+             ${atOneSite} AS neutral
     FROM marked`
 }

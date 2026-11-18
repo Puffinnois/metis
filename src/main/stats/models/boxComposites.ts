@@ -1,3 +1,5 @@
+import { vorpGamesIn } from '@shared/leagues'
+import { derivedRecipe } from '../derived/build'
 import type { ModelBuilder, ModelContext, ModelRows, ModelTable } from './build'
 import type { Box, TeamSeason } from './box'
 import { COMPOSITE_SUMS, seasonComposites, type CompositeLine } from './composites'
@@ -91,7 +93,19 @@ const LISTED: Record<string, number> = { G: 1.5, F: 3.5, C: 5 }
  */
 function teamTurnovers(ctx: ModelContext): string {
   const parts: string[] = []
-  if (ctx.have.tables.has('play_team_game')) {
+  if (ctx.have.tables.has('play_team_game') && derivedRecipe(ctx.league).teamTurnovers === 'own') {
+    // The team's row already holds its own turnovers where it is above its players' sum: add only
+    // what the play by play counts beyond that, so a row that lacks them (the WNBA's 1998, 1999, 2001
+    // and 2002) gets them and a row that has them is not counted twice.
+    parts.push(`SELECT p.game_id, p.team_id,
+               greatest(0, p.tov_team - greatest(0, coalesce(t.tov, 0) - coalesce(s.tov, 0))) AS team_tov
+        FROM play_team_game p JOIN game g USING (game_id)
+        JOIN team_game t ON t.game_id = p.game_id AND t.team_id = p.team_id
+        LEFT JOIN (SELECT game_id, team_id, sum(tov) AS tov FROM player_game
+                   WHERE season = ${ctx.season} GROUP BY 1, 2) s
+          ON s.game_id = p.game_id AND s.team_id = p.team_id
+        WHERE g.season = ${ctx.season}`)
+  } else if (ctx.have.tables.has('play_team_game')) {
     parts.push(`SELECT p.game_id, p.team_id, p.tov_team AS team_tov
         FROM play_team_game p JOIN game g USING (game_id) WHERE g.season = ${ctx.season}`)
   }
@@ -198,7 +212,22 @@ async function schedule(ctx: ModelContext, gameType: string): Promise<Map<number
 
 const finite = (x: number): number | null => (Number.isFinite(x) ? x : null)
 
+/**
+ * BPM and what follows from it: VORP, and the position and role its coefficients slide with. A league
+ * whose registry says Metis's BPM is not shown for it stores them NULL, so no estimate the checks did
+ * not stand behind reaches a screen (`League.models.bpmUnavailable`).
+ */
+export const BPM_COLUMNS: readonly string[] = [
+  'bpm_num',
+  'obpm_num',
+  'vorp',
+  'position_num',
+  'role_num'
+]
+
 async function build(ctx: ModelContext): Promise<ModelRows> {
+  const withBpm = ctx.league.models.bpmUnavailable === null
+  const shown = (c: string): boolean => withBpm || !BPM_COLUMNS.includes(c)
   const players: Record<string, unknown>[] = []
   const teams: Record<string, unknown>[] = []
   for (const gameType of COMPOSITE_TYPES) {
@@ -207,19 +236,20 @@ async function build(ctx: ModelContext): Promise<ModelRows> {
     const result = seasonComposites(
       await playerLines(ctx, gameType),
       seasons,
-      await schedule(ctx, gameType)
+      await schedule(ctx, gameType),
+      vorpGamesIn(ctx.league, ctx.season)
     )
     const keys = { season: ctx.season, game_type: gameType }
     for (const p of result.players) {
       // The engine adds a traded player's teams itself, so only the rows per team are stored.
       if (p.teamId === null) continue
       const row: Record<string, unknown> = { ...keys, team_id: p.teamId, player_id: p.playerId }
-      for (const c of COMPOSITE_SUMS) row[c] = finite(p[c])
+      for (const c of COMPOSITE_SUMS) row[c] = shown(c) ? finite(p[c]) : null
       players.push(row)
     }
     for (const t of result.teams) {
       const row: Record<string, unknown> = { ...keys, team_id: t.teamId }
-      for (const c of COMPOSITE_SUMS) row[c] = finite(t[c])
+      for (const c of COMPOSITE_SUMS) row[c] = shown(c) ? finite(t[c]) : null
       teams.push(row)
     }
   }

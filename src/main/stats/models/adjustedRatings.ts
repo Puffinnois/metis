@@ -42,7 +42,11 @@ interface GameRow extends EfficiencyGame<number> {
  * whatever `neutralSitesSql` says, so Elo and these ratings give the same games no home court.
  */
 async function games(ctx: ModelContext): Promise<GameRow[]> {
-  const neutral = neutralSitesSql(ctx.have, { from: ctx.season, to: ctx.season })
+  const neutral = neutralSitesSql(
+    ctx.have,
+    { from: ctx.season, to: ctx.season },
+    ctx.league.models.neutralCities
+  )
   // The season's rows of team_game first: joined whole, the table costs ten times as much.
   return ctx.db.all<GameRow>(
     `WITH t AS (
@@ -71,7 +75,7 @@ async function build(ctx: ModelContext): Promise<ModelRows> {
     gameOf.set(`${g.date}|${g.home}`, g.game_id)
     gameOf.set(`${g.date}|${g.away}`, g.game_id)
   }
-  const rows = adjustedByDay(list).map((r) => ({
+  const rows = adjustedByDay(list, ctx.league.models.ridgePossessions).map((r) => ({
     season: ctx.season,
     game_type: 'regular',
     team_id: r.team,

@@ -30,6 +30,13 @@ export interface DerivedRecipe {
   /** `team_game.source` for a team's own box score, and the SQL for one summed from its players (`p`). */
   boxSource: string
   summedSource: string
+  /**
+   * What `team_game.tov` counts. `players`: its players' sum, which leaves out the team's own (a
+   * shot-clock violation charged to no player), so the composites add them from the play by play.
+   * `own`: the team's row, which holds them where the league's rows count them, so the composites add
+   * only what a row lacks of the play by play's (T1301.8).
+   */
+  teamTurnovers: 'players' | 'own'
   /** The first season of each of ESPN's points by kind holding values in this league. */
   espnKinds: { paint: number; fastBreak: number; turnover: number }
   /** All-Star dates the schedule does not hold, as SQL rows `(season, DATE '…')`. */
@@ -460,6 +467,7 @@ export const NBA_DERIVED: DerivedRecipe = {
   teamBox: nbaTeamBox,
   boxSource: 'nba',
   summedSource: "'espn'",
+  teamTurnovers: 'players',
   espnKinds: { paint: 2009, fastBreak: 2002, turnover: 1995 },
   breaks: ["(1994, DATE '1994-02-13')", "(1995, DATE '1995-02-12')", "(1996, DATE '1996-02-11')"]
 }
