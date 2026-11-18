@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { perGameQualifier } from '@/lib/stats/boards'
+import { sinceText } from '@/lib/stats/format'
 import { presetsIn } from '@/lib/stats/chart'
 import { defaultColumns } from '@/lib/stats/compare'
 import { sectionNote, shownTab, shownTabs } from '@/lib/stats/dashboard'
@@ -159,5 +160,25 @@ describe('what a league does not have is not offered', () => {
     expect(defaultColumns('player', WNBA).every((id) => !w.get(id)?.unavailable)).toBe(true)
     expect(presetsIn('player', w).map((p) => p.label)).not.toContain('Drives vs points per drive')
     expect(presetsIn('player', byId(NBA))).toHaveLength(4)
+  })
+})
+
+describe('a metric’s seasons, on its card and in the Glossary', () => {
+  const nbaLabel = (s: number): string => LEAGUES.nba.seasonLabel(s)
+  const wnbaLabel = (s: number): string => LEAGUES.wnba.seasonLabel(s)
+  it('gives the reason for a metric the league does not have, never a first season', () => {
+    expect(sinceText(byId(WNBA).get('drives')!, wnbaLabel, 2026)).toMatch(
+      /^Not published for the WNBA/
+    )
+  })
+  it('says where a metric stops rather than listing every season to come', () => {
+    expect(sinceText(byId(WNBA).get('pbp_fd')!, wnbaLabel, 2026)).toBe(
+      '2006 to 2017, except 2011, 2012'
+    )
+    expect(sinceText(byId(NBA).get('pbp_fd')!, nbaLabel, 2027)).toBe('2006-07 to 2016-17')
+    expect(sinceText({ firstSeason: 1997, missingSeasons: [2004, 2009] }, wnbaLabel, 2026)).toBe(
+      '1997, except 2004, 2009'
+    )
+    expect(sinceText({ firstSeason: 2014 }, nbaLabel, 2027)).toBe('2013-14')
   })
 })

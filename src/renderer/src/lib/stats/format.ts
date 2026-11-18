@@ -118,6 +118,31 @@ const FAMILY_LABELS: Record<MetricInfo['family'], string> = {
   availability: 'Availability'
 }
 
+/**
+ * A metric's seasons, as its card and the Glossary write them: "2013-14", "1997, except 2004, 2009", or
+ * for one that stops, "2006 to 2017, except 2011, 2012" (a run of missing seasons past the current one
+ * is where it stops, not a list of every season to come). A metric the league does not have gives its
+ * reason instead ("Not published for the WNBA: …"), never a first season it does not have.
+ */
+export function sinceText(
+  info: Pick<MetricInfo, 'firstSeason' | 'missingSeasons' | 'unavailable'>,
+  label: (season: number) => string,
+  current: number
+): string {
+  if (info.unavailable) return info.unavailable
+  const missing = [...(info.missingSeasons ?? [])].sort((a, b) => a - b)
+  let stops: number | null = null
+  if (missing.length && missing[missing.length - 1] > current) {
+    let i = missing.length - 1
+    while (i > 0 && missing[i - 1] === missing[i] - 1) i--
+    stops = missing[i] - 1
+    missing.splice(i)
+  }
+  const span =
+    stops === null ? label(info.firstSeason) : `${label(info.firstSeason)} to ${label(stops)}`
+  return missing.length ? `${span}, except ${missing.map(label).join(', ')}` : span
+}
+
 export function familyLabel(family: MetricInfo['family']): string {
   return FAMILY_LABELS[family]
 }

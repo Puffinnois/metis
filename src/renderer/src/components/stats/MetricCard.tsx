@@ -1,5 +1,5 @@
 import { HoverCard } from 'radix-ui'
-import { familyLabel, kindLabel } from '@/lib/stats/format'
+import { familyLabel, kindLabel, sinceText } from '@/lib/stats/format'
 import {
   STABILITY_BARS,
   STABILITY_WORDS,
@@ -31,12 +31,8 @@ const whoWords = (info: MetricInfo): string => {
   return info.side === 'defense' ? 'Team defense' : 'Team offense'
 }
 
-const sinceWords = (info: MetricInfo): string => {
-  const since = seasonLabel(info.firstSeason)
-  return info.missingSeasons?.length
-    ? `${since}, except ${info.missingSeasons.map(seasonLabel).join(', ')}`
-    : since
-}
+const sinceWords = (info: MetricInfo): string =>
+  sinceText(info, seasonLabel, currentLeague().currentSeason(new Date()))
 
 /**
  * Three bars filled by how much the metric carries over from one season to the next (Plan T1006):
