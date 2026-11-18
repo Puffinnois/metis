@@ -336,6 +336,8 @@ export interface League {
   threePointLines: readonly ThreePointLine[]
   /** The first season of the league's published five-player units (the lineup dashboards). */
   lineupsFrom: number
+  /** The first season of its published standings. */
+  standingsFrom: number
   /**
    * What a screen says while the league's tables are not built: before its first load gets that far,
    * or always while `builds` lacks `derived`.
@@ -531,6 +533,8 @@ const NBA: League = {
   threePointLines: [{ from: 1994, arc: 237.5, corner: 220 }],
   // Five-man units are published from 2007-08.
   lineupsFrom: 2008,
+  // The league dashboards' standings reach 1995-96, the core file's 1996-97 (`readStandings`).
+  standingsFrom: 1996,
   notBuilt: 'No NBA stats yet: the first load has not got that far.',
   metricsByDefault: true,
   // Stage 10's values, each fitted and checked in `nba-data-sources.md` ("Elo", "Adjusted ratings",
@@ -656,6 +660,8 @@ const WNBA: League = {
   ],
   // The lineup dashboards list units from 1997, the playoffs from 2001 (`wnba-data-sources.md`).
   lineupsFrom: 1997,
+  // The league dashboards' standings, from the first season, last ten and streaks with them.
+  standingsFrom: 1997,
   notBuilt: 'No WNBA stats yet: the first load has not got that far.',
   metricsByDefault: false,
   models: {

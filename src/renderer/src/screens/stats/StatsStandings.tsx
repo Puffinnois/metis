@@ -9,6 +9,7 @@ import {
   forecastNote,
   forecastQuery,
   HEAD_METRICS,
+  standingsColumns,
   standingsHead,
   standingsNotes,
   standingsTables,
@@ -19,11 +20,6 @@ import {
 } from '@/lib/stats/standings'
 import { useStandings, useStatsQuery, type StatsData } from '@/lib/stats/useStats'
 import { currentLeague, seasonLabel } from '@/lib/stats/league'
-
-const COLUMNS =
-  '24px minmax(190px,1.6fr) 32px 32px 44px 40px 52px 52px 52px 52px 44px 44px 48px 48px 48px 56px 52px 52px 52px'
-/** The forecast's three: the projected record and two odds (Plan T1003). */
-const FORECAST_COLUMNS = ' 56px 64px 56px'
 
 /** The published standings of a season, by conference or by division. */
 export function StatsStandings({
@@ -91,9 +87,9 @@ export function StatsStandings({
               <div className="overflow-x-auto">
                 <MiniTable
                   label={`${t.title} standings`}
-                  columns={forecast ? COLUMNS + FORECAST_COLUMNS : COLUMNS}
+                  columns={standingsColumns(forecast, rows)}
                   minWidth={forecast ? 1400 : 1200}
-                  head={standingsHead(forecast).map((h) =>
+                  head={standingsHead(forecast, rows).map((h) =>
                     HEAD_METRICS[h] ? (
                       <MetricHead key={h} id={h} label={h} info={data.byId.get(HEAD_METRICS[h])} />
                     ) : (
@@ -122,7 +118,7 @@ export function StatsStandings({
           <Notes
             notes={[
               ...standingsNotes(scope.season, rows),
-              ...(forecast ? [forecastNote(forecast.runs)] : [])
+              ...(forecast ? [forecastNote(forecast.runs, scope.season)] : [])
             ]}
           />
         </div>

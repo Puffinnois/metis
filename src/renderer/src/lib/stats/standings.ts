@@ -1,4 +1,5 @@
-import { seasonLabel } from '@/lib/stats/league'
+import { currentLeague } from '@/lib/stats/league'
+import { playoffEraIn, type League } from '@shared/leagues'
 import type { StatsQuery, StatsResult, StatsStanding } from '@shared/stats/types'
 import { fmtStat, ordinal } from './format'
 
@@ -135,15 +136,67 @@ export function forecastCells(result: StatsResult | null): ForecastCells | null 
   }
 }
 
-/** The head, with the forecast's columns when there is one. */
-export const standingsHead = (forecast: ForecastCells | null): string[] =>
-  forecast ? [...STANDINGS_HEAD, ...FORECAST_HEAD] : STANDINGS_HEAD
+/**
+ * The head, with the forecast's columns when there is one. A season whose teams are in no division
+ * (the WNBA's, always) has no DIV column: its file publishes "0-0" for every team there.
+ */
+export const standingsHead = (
+  forecast: ForecastCells | null,
+  rows: readonly StatsStanding[] | null = null
+): string[] => {
+  const head = forecast ? [...STANDINGS_HEAD, ...FORECAST_HEAD] : STANDINGS_HEAD
+  return rows && rows.length > 0 && !hasDivisions(rows) ? head.filter((h) => h !== 'DIV') : head
+}
 
-/** What the forecast is, in a line under the table. */
-export const forecastNote = (runs: number | null): string =>
+/** The grid's widths, with DIV's left out where the head leaves it out. */
+export function standingsColumns(
+  forecast: ForecastCells | null,
+  rows: readonly StatsStanding[] | null = null
+): string {
+  const widths = [...STANDINGS_WIDTHS, ...(forecast ? FORECAST_WIDTHS : [])]
+  const head = forecast ? [...STANDINGS_HEAD, ...FORECAST_HEAD] : STANDINGS_HEAD
+  const shown = new Set(standingsHead(forecast, rows))
+  return widths.filter((_, i) => shown.has(head[i])).join(' ')
+}
+
+const STANDINGS_WIDTHS = [
+  '24px',
+  'minmax(190px,1.6fr)',
+  '32px',
+  '32px',
+  '44px',
+  '40px',
+  '52px',
+  '52px',
+  '52px',
+  '52px',
+  '44px',
+  '44px',
+  '48px',
+  '48px',
+  '48px',
+  '56px',
+  '52px',
+  '52px',
+  '52px'
+]
+/** The forecast's three: the projected record and two odds (Plan T1003). */
+const FORECAST_WIDTHS = ['56px', '64px', '56px']
+
+/**
+ * What the forecast is, in a line under the table: the play-in only where the season's format has one
+ * (the NBA's from 2020-21; the WNBA never has).
+ */
+export const forecastNote = (
+  runs: number | null,
+  season: number,
+  league: League = currentLeague()
+): string =>
   `PROJ, PLAYOFF% and TITLE% are a model’s odds, computed by Metis: the rest of the season played ${
     runs === null ? 'many' : runs.toLocaleString('en-US')
-  } times from its Elo ratings, then the play-in and the playoffs.`
+  } times from its Elo ratings, then ${
+    playoffEraIn(league, season).playIn === 'none' ? 'the playoffs' : 'the play-in and the playoffs'
+  }.`
 
 /** "+7.45" or "−2.10": a rating's sign always shows, with a real minus. */
 export function fmtSigned(x: number | null, decimals: number): string {
@@ -189,7 +242,8 @@ function row(
   s: StatsStanding,
   by: StandingsView,
   strength: StrengthCells | null,
-  forecast: ForecastCells | null
+  forecast: ForecastCells | null,
+  divisions = true
 ): StandingRow {
   const rank = by === 'conference' ? s.conferenceRank : s.divisionRank
   const back = by === 'conference' ? s.conferenceGamesBack : s.divisionGamesBack
@@ -208,7 +262,7 @@ function row(
       fmtGamesBack(back),
       dash(s.home),
       dash(s.road),
-      dash(s.divisionRecord),
+      ...(divisions ? [dash(s.divisionRecord)] : []),
       dash(s.conferenceRecord),
       dash(s.last10),
       dash(s.streak),
@@ -233,12 +287,13 @@ export function conferenceTables(
   forecast: ForecastCells | null = null
 ): StandingsTable[] {
   const names = [...new Set(rows.map((r) => r.conference ?? 'Unknown'))].sort()
+  const divisions = hasDivisions(rows)
   return names.map((title) => ({
     title,
     rows: rows
       .filter((r) => (r.conference ?? 'Unknown') === title)
       .sort((a, b) => rankOf(a.conferenceRank) - rankOf(b.conferenceRank))
-      .map((r) => row(r, 'conference', strength, forecast))
+      .map((r) => row(r, 'conference', strength, forecast, divisions))
   }))
 }
 
@@ -278,31 +333,40 @@ export const standingsTables = (
     ? conferenceTables(rows, strength, forecast)
     : divisionTables(rows, strength, forecast)
 
-/** The first season with published standings, by final year, and with streaks and the last ten. */
-const FIRST_STANDINGS = 1996
-const FIRST_STREAKS = 2002
+/** Metis's own columns are not the league's, and the table says so, with the league's exponent. */
+export const strengthNote = (league: League = currentLeague()): string =>
+  `PYTH W, SRS, SOS and ELO are computed by Metis from the final scores: Pythagorean wins with the exponent ${league.models.pythagoreanExponent}, SRS and the strength of schedule solved on the regular season, Elo after the last regular-season game.`
 
-/** Metis's own columns are not the NBA's, and the table says so. */
-export const STRENGTH_NOTE =
-  'PYTH W, SRS, SOS and ELO are computed by Metis from the final scores: Pythagorean wins with the exponent 14, SRS and the strength of schedule solved on the regular season, Elo after the last regular-season game.'
-
-/** What the table depends on, or why there is none. */
-export function standingsNotes(season: number, rows: readonly StatsStanding[]): string[] {
+/**
+ * What the table depends on, or why there is none. What is missing is read from the rows, so a league
+ * whose file publishes the last ten and the streak from its first season (the WNBA's, 1997) says
+ * nothing of them.
+ */
+export function standingsNotes(
+  season: number,
+  rows: readonly StatsStanding[],
+  league: League = currentLeague()
+): string[] {
   if (rows.length === 0) {
-    return season < FIRST_STANDINGS
-      ? [`Published standings start in ${seasonLabel(FIRST_STANDINGS)}.`]
-      : []
+    return season < league.standingsFrom
+      ? [`Published standings start in ${league.seasonLabel(league.standingsFrom)}.`]
+      : [`No standings are published for ${league.seasonLabel(season)}.`]
   }
   const notes: string[] = []
-  if (season < FIRST_STREAKS) {
-    notes.push(`The last ten and the streak are published from ${seasonLabel(FIRST_STREAKS)}.`)
-  }
-  if (rows.every((r) => r.conferenceRecord === null && r.divisionRecord === null)) {
+  if (rows.every((r) => r.last10 === null && r.streak === null)) {
     notes.push(
-      `The NBA’s file has no real conference or division records for ${seasonLabel(season)}.`
+      `The last ten and the streak are not published for ${league.seasonLabel(season)}.`
     )
   }
-  notes.push(STRENGTH_NOTE)
+  const records = hasDivisions(rows)
+    ? rows.every((r) => r.conferenceRecord === null && r.divisionRecord === null)
+    : rows.every((r) => r.conferenceRecord === null)
+  if (records) {
+    notes.push(
+      `The ${league.name}’s file has no real conference ${hasDivisions(rows) ? 'or division ' : ''}records for ${league.seasonLabel(season)}.`
+    )
+  }
+  notes.push(strengthNote(league))
   return notes
 }
 
