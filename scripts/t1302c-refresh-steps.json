@@ -1,0 +1,56 @@
+[
+  {
+    "size": [1500, 950]
+  },
+  {
+    "wait": 9000
+  },
+  {
+    "eval": "window.sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nwindow.until = async (fn, ms = 15000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await fn()) return true; await sleep(250) } return false };\nwindow.nav = async (name) => { const b = [...document.querySelectorAll('nav button')].find((x) => x.textContent.trim() === name); if (!b) return 'NO NAV ' + name; b.click(); await sleep(2000); return 'nav ' + name };\nwindow.button = (name, within) => [...(within ?? document).querySelectorAll('button')].find((x) => x.textContent.trim() === name);\nwindow.section = (name) => document.querySelector('section[aria-label=\"' + name + '\"]');\nwindow.dl = async (league) => (await window.api.leagues.downloads()).leagues.find((l) => l.league === league);\nwindow.BOARD = { entity: 'player', metrics: ['pts', 'reb', 'ast', 'stl', 'blk', 'ts_pct'], scope: { seasons: [2026] } };\nwindow.timeBoard = async () => { const t0 = performance.now(); const r = await window.api.stats.query('nba', BOARD); return { ms: Math.round(performance.now() - t0), rows: r.rows.length, top: r.rows[0]?.name } };\nwindow.check = (label, ok, got) => (ok ? 'OK ' : 'MISMATCH ') + label + ' got ' + JSON.stringify(got);\nwindow.trigger = () => document.querySelector('button[aria-label^=\"League: \"]');\nwindow.league = () => trigger()?.getAttribute('aria-label')?.replace('League: ', '') ?? null;\nwindow.mainText = () => document.querySelector('main')?.innerText ?? '';\nwindow.switchTo = async (name) => { const t = trigger(); if (!t) return 'NO MENU'; t.focus(); t.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); await until(() => document.querySelectorAll('[role=menuitemradio]').length > 0, 3000); const item = [...document.querySelectorAll('[role=menuitemradio]')].find((x) => x.textContent.startsWith(name)); if (!item) return 'NO ITEM ' + name; item.click(); await until(() => league() === name, 5000); await sleep(3000); return league() };\nwindow.families = async (league) => (await window.api.stats.data(league)).families;\n'helpers ready'"
+  },
+  {
+    "eval": "(async () => { const d = await window.api.leagues.downloads(); const by = Object.fromEntries(d.leagues.map((l) => [l.league, { on: l.on, hasFile: l.hasFile, gb: Math.round(l.fileBytes / 1e7) / 100 }])); return check('the NBA and the WNBA are on, both college leagues off with their files kept', by.nba.on && by.wnba.on && !by.ncaam.on && by.ncaam.hasFile && !by.ncaaw.on && by.ncaaw.hasFile, by) })()"
+  },
+  {
+    "eval": "(async () => { const runs = []; for (let i = 0; i < 5; i++) runs.push(await timeBoard()); window.before = runs.map((r) => r.ms).sort((a, b) => a - b); return check('an NBA leaderboard reads before the college refresh', runs.every((r) => r.rows >= 100), { ms: window.before, top: runs[0].top, rows: runs[0].rows }) })()"
+  },
+  {
+    "eval": "(async () => { await nav('Leaderboards'); await sleep(2500); return check('an NBA leaderboard on screen', league() === 'NBA' && /leaderboard/i.test(document.querySelector('h1')?.textContent ?? ''), { league: league(), h1: document.querySelector('h1')?.textContent }) })()"
+  },
+  {
+    "shot": "t1302c-01-nba-leaderboard"
+  },
+  {
+    "eval": "(async () => { document.querySelector('[title=\"See what is loaded\"]').click(); await until(() => section('NCAA Men') && section('NCAA Women')); const m = section('NCAA Men')?.innerText ?? ''; return check('the Data panel shows NCAA Men off, its file kept', /Off/.test(m), m.split('\\n').filter(Boolean).slice(0, 4)) })()"
+  },
+  {
+    "shot": "t1302c-02-data-before"
+  },
+  {
+    "eval": "(async () => { const b = button('Turn the NCAA Men on'); if (!b) return 'NO BUTTON'; window.refreshStarted = Date.now(); b.click(); const started = await until(async () => (await window.api.stats.status('ncaam')).busy, 60000); return check('turning NCAA Men on starts its refresh', started && (await dl('ncaam')).on, await window.api.stats.status('ncaam')) })()"
+  },
+  {
+    "eval": "(async () => { await nav('Leaderboards'); const samples = []; let s; do { await sleep(5000); const t = await timeBoard(); s = await window.api.stats.status('ncaam'); samples.push({ ms: t.ms, rows: t.rows, ncaam: s.progress ? s.progress.done + '/' + s.progress.total : (s.busy ? 'building' : 'idle') }) } while ((s.busy || s.progress) && Date.now() - window.refreshStarted < 30 * 60000); window.during = samples; const ms = samples.map((x) => x.ms).sort((a, b) => a - b); return check('the NBA leaderboard reads while NCAA Men refreshes', samples.every((x) => x.rows >= 100) && league() === 'NBA', { before: window.before, during: { n: ms.length, median: ms[ms.length >> 1], max: ms.at(-1), min: ms[0] }, refreshMinutes: Math.round((Date.now() - window.refreshStarted) / 6000) / 10, first: samples.slice(0, 4), last: samples.at(-1) }) })()"
+  },
+  {
+    "shot": "t1302c-03-nba-during"
+  },
+  {
+    "eval": "(async () => { const f = await families('ncaam'); const s = await window.api.stats.status('ncaam'); const out = f.filter((x) => x.state === 'left-out').map((x) => x.label); const bad = f.filter((x) => x.state === 'failed').map((x) => x.label + ': ' + x.lastError); const loaded = f.filter((x) => x.state === 'loaded').length; return check('after the refresh NCAA Men holds its releases, ESPN play by play left out, nothing failed', bad.length === 0 && out.length === 1 && out[0] === 'Play by play (ESPN)' && loaded === 28 && !s.busy, { loaded, out, bad, files: f.reduce((n, x) => n + x.filesLoaded, 0) + ' of ' + f.reduce((n, x) => n + x.filesExpected, 0), noData: s.noData }) })()"
+  },
+  {
+    "eval": "(async () => { const q = await window.api.stats.query('ncaam', { entity: 'player', metrics: ['pts'], scope: { seasons: [2026] } }); return check('NCAA Men, loaded and not built, says so, never an error', q.rows.length === 0 && q.notes.length === 1 && /NCAA/.test(q.notes[0]), q.notes) })()"
+  },
+  {
+    "eval": "(async () => { const w = await switchTo('NCAA Women'); document.querySelector('[title=\"See what is loaded\"]').click(); await until(() => section('NCAA Women')); await sleep(1500); const text = section('NCAA Women')?.innerText ?? ''; const f = await families('ncaaw'); const out = f.filter((x) => x.state === 'left-out').map((x) => x.label); return check('NCAA Women on screen: its Data panel lists its releases, ESPN play by play not in this version', w === 'NCAA Women' && /Not in this version/.test(text) && out.length === 1 && f.length === 29, { league: w, out, lines: text.split('\\n').filter(Boolean).slice(0, 6) }) })()"
+  },
+  {
+    "shot": "t1302c-04-ncaaw-data"
+  },
+  {
+    "eval": "(async () => { const w = await switchTo('NBA'); await nav('Leaderboards'); await sleep(2000); const runs = []; for (let i = 0; i < 5; i++) runs.push(await timeBoard()); return check('back on the NBA, its leaderboard reads as before', w === 'NBA' && runs.every((r) => r.rows >= 100), { ms: runs.map((r) => r.ms).sort((a, b) => a - b), before: window.before, top: runs[0].top }) })()"
+  },
+  {
+    "shot": "t1302c-05-nba-after"
+  }
+]
