@@ -1,0 +1,23 @@
+[
+  {
+    "size": [1500, 950]
+  },
+  {
+    "wait": 9000
+  },
+  {
+    "eval": "window.sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nwindow.until = async (fn, ms = 15000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await fn()) return true; await sleep(250) } return false };\nwindow.section = (name) => document.querySelector('section[aria-label=\"' + name + '\"]');\nwindow.check = (label, ok, got) => (ok ? 'OK ' : 'MISMATCH ') + label + ' got ' + JSON.stringify(got);\nwindow.trigger = () => document.querySelector('button[aria-label^=\"League: \"]');\nwindow.league = () => trigger()?.getAttribute('aria-label')?.replace('League: ', '') ?? null;\nwindow.switchTo = async (name) => { const t = trigger(); if (!t) return 'NO MENU'; t.focus(); t.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); await until(() => document.querySelectorAll('[role=menuitemradio]').length > 0, 3000); const item = [...document.querySelectorAll('[role=menuitemradio]')].find((x) => x.textContent.startsWith(name)); if (!item) return 'NO ITEM ' + name; item.click(); await until(() => league() === name, 5000); await sleep(3000); return league() };\nwindow.side = async (id, name) => { const w = await switchTo(name); document.querySelector('[title=\"See what is loaded\"]').click(); await until(() => section(name)); await sleep(1500); const f = (await window.api.stats.data(id)).families; const s = await window.api.stats.status(id); const q = await window.api.stats.query(id, { entity: 'player', metrics: ['pts'], scope: { seasons: [2026] } }); const out = f.filter((x) => x.state === 'left-out').map((x) => x.label); const loaded = f.filter((x) => x.state === 'loaded').map((x) => x.label); const failed = f.filter((x) => x.state === 'failed'); const text = section(name)?.innerText ?? ''; return { w, out, loaded: loaded.length, failed: failed.length, notes: q.notes, available: s.available, notInVersion: (text.match(/Not in this version/g) ?? []).length, files: f.reduce((n, x) => n + x.filesLoaded, 0) } };\n'helpers ready'"
+  },
+  {
+    "eval": "(async () => { const r = await side('ncaam', 'NCAA Men'); return check('NCAA Men on ESPN tables alone: 14 releases not in this version, the rest loaded, no failure, its reason', r.w === 'NCAA Men' && r.out.length === 14 && r.loaded === 15 && r.failed === 0 && r.notInVersion === 14 && r.available && r.notes.length === 1, r) })()"
+  },
+  {
+    "shot": "t1302c-switch-01-ncaam"
+  },
+  {
+    "eval": "(async () => { const r = await side('ncaaw', 'NCAA Women'); return check('NCAA Women on ESPN tables alone: 14 releases not in this version, the rest loaded, no failure, its reason', r.w === 'NCAA Women' && r.out.length === 14 && r.loaded === 15 && r.failed === 0 && r.notInVersion === 14 && r.available && r.notes.length === 1, r) })()"
+  },
+  {
+    "shot": "t1302c-switch-02-ncaaw"
+  }
+]

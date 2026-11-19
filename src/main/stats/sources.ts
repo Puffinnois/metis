@@ -638,6 +638,8 @@ const WNBA_LABELS: Record<string, string> = {
  * the dataset's crosswalks and groups under the NBA's names, with its team ratings and player values
  * beside them. Left out:
  * - `*_team_group_seasons.parquet`, the combined group file: its season files row for row (D23);
+ * - `*_games_in_data_repo.parquet`: from 2021-22 on, every row of it is a row of the schedule master,
+ *   every column equal (30,507 men's rows of the master's 31,103, 28,313 women's of 28,987; D23);
  * - ESPN's play by play, which no metric reads (D42), listed in `LEFT_OUT_RELEASES` so the Data panel
  *   names it.
  * The keys will be built from ESPN's schedules and player box scores, the crosswalk and the groups
@@ -704,13 +706,10 @@ function collegeSources({ espn, ncaa, short, rostersFrom }: College): SourceFile
     // The season's Division I list (D40).
     ids('src_team_groups', 'groups', `${short}_team_group_seasons`, 'team-season'),
 
-    // Almost every game twice a season (ncaa-data-sources.md, "Traps"), as published.
+    // Each game once a season in the window. The master has the same games to 2025-26 but is not a
+    // repeat: two men's rows and the women's team names differ (ncaa-data-sources.md, "Traps").
     e('schedule', `${short}_schedule`, 'core', 'game', 'schedules', keys),
     e('schedule_master', `${short}_schedule_master`, 'core', 'game', 'schedules', {
-      ...every,
-      ...keys
-    }),
-    e('games_in_repo', `${short}_games_in_data_repo`, 'core', 'game', 'schedules', {
       ...every,
       ...keys
     }),

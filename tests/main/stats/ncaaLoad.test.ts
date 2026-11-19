@@ -21,9 +21,10 @@ import { openTestDb, tempDir } from '../../fixtures/stats'
  * (`~/.cache/metis-dev/ncaa-raw`): one 2025-26 game, 401823425, from ESPN's and stats.ncaa.org's
  * player box scores; three games of 2020-21 and three of 2021-22 from ESPN's schedule master; two
  * teams of the stats.ncaa.org team crosswalk in 2020-21, 2021-22 and 2025-26; the whole groups file;
- * one conference of the combined group file and of its 2025-26 season file. They prove the window
- * (D39), the season published as text, ids kept as published, the repeat that keeps the combined
- * group file out (D23), and the switch that runs a league without stats.ncaa.org's releases (D41).
+ * one conference of the combined group file and of its 2025-26 season file; the games-in-repo rows of
+ * the master's three 2021-22 games. They prove the window (D39), the season published as text, ids
+ * kept as published, the repeats that keep the combined group file and the games-in-repo file out
+ * (D23), and the switch that runs a league without stats.ncaa.org's releases (D41).
  */
 const FIXTURES = join(__dirname, '../../fixtures/ncaa')
 const fixture = (name: string): string => join(FIXTURES, `${name}.parquet`)
@@ -134,6 +135,27 @@ describe('the combined group file', () => {
     )
     expect(differ!.n).toBe(0)
     expect(ncaam.some((s) => s.stem === 'mbb_team_group_seasons' && s.allSeasons)).toBe(false)
+  })
+})
+
+describe('the games-in-repo file', () => {
+  it('repeats the schedule master’s rows from 2021-22 on, so it is not loaded (D23)', async () => {
+    const db = await openTestDb()
+    await load(db, sourceOf('espn_schedule_master'), 0, 'mbb_schedule_master')
+    const repo: SourceFile = {
+      ...sourceOf('espn_schedule_master'),
+      id: 'left_out_repo',
+      table: 'src_left_out_repo',
+      stem: 'mbb_games_in_data_repo'
+    }
+    const loaded = await load(db, repo, 0, 'mbb_games_in_data_repo')
+    expect(loaded.rows).toBe(3)
+    const extra = await db.get<{ n: number }>(
+      `SELECT count(*)::INTEGER AS n FROM (
+         SELECT * FROM src_left_out_repo EXCEPT ALL SELECT * FROM src_espn_schedule_master)`
+    )
+    expect(extra!.n).toBe(0)
+    expect(ncaam.some((s) => s.stem === 'mbb_games_in_data_repo')).toBe(false)
   })
 })
 

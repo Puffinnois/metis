@@ -81,21 +81,23 @@ const LISTINGS: Listing[] = [
     through: 2027,
     // RAPM is published once a season is over.
     knownAbsent: (path) => /_rapm(_within_team)?_2027\.parquet$/.test(path),
-    // The combined group file repeats its season files (ncaa-data-sources.md, "Which files repeat
-    // others").
-    skipped: (path) => /^[mw]bb_groups\/[mw]bb_team_group_seasons\.parquet$/.test(path),
+    // The combined group file repeats its season files, and the games-in-repo file the schedule
+    // master from 2021-22 on (ncaa-data-sources.md, "Which files repeat others").
+    skipped: (path) =>
+      /^[mw]bb_groups\/[mw]bb_team_group_seasons\.parquet$/.test(path) ||
+      /_college_basketball_schedules\/[mw]bb_games_in_data_repo\.parquet$/.test(path),
     beforeFirst: (path) => {
       const season = /_(\d{4})\.parquet$/.exec(path)
       return season !== null && Number(season[1]) < 2022
     },
-    skippedCount: 1,
+    skippedCount: 2,
     // Listed on 2026-11-18, every season of the 29 releases a side.
     listed: league === 'ncaam' ? 648 : 596,
     // ESPN's rosters begin in 2024-25 for the men, 2025-26 for the women.
     tiers:
       league === 'ncaam'
-        ? { core: 127, published: 22, events: 30, plays: 12 }
-        : { core: 126, published: 22, events: 30, plays: 12 }
+        ? { core: 126, published: 22, events: 30, plays: 12 }
+        : { core: 125, published: 22, events: 30, plays: 12 }
   }))
 ]
 
@@ -249,7 +251,6 @@ describe('the college sources', () => {
       const every = sources.filter((s) => s.allSeasons)
       expect(every.map((s) => s.stem).sort()).toEqual(
         [
-          `${short}_games_in_data_repo`,
           `${short}_group_aliases`,
           `${short}_group_seasons`,
           `${short}_groups`,
