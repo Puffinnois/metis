@@ -1,0 +1,53 @@
+[
+  {
+    "size": [1500, 950]
+  },
+  {
+    "wait": 9000
+  },
+  {
+    "eval": "window.sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nwindow.until = async (fn, ms = 15000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await fn()) return true; await sleep(150) } return false };\nwindow.nav = async (name) => { const b = [...document.querySelectorAll('nav button')].find((x) => x.textContent.trim() === name); if (!b) return 'NO NAV ' + name; b.click(); await sleep(2500); return 'nav ' + name };\nwindow.check = (label, ok, got) => (ok ? 'OK ' : 'MISMATCH ') + label + ' got ' + JSON.stringify(got);\nwindow.trigger = () => document.querySelector('button[aria-label^=\"League: \"]');\nwindow.league = () => trigger()?.getAttribute('aria-label')?.replace('League: ', '') ?? null;\nwindow.statusLine = () => document.querySelector('[title=\"See what is loaded\"]')?.textContent.trim() ?? null;\nwindow.h1 = () => document.querySelector('main h1')?.textContent.trim() ?? null;\nwindow.button = (name, within = document) => [...within.querySelectorAll('button')].find((x) => x.textContent.trim() === name);\nwindow.mainText = () => document.querySelector('main')?.innerText ?? '';\nwindow.settled = () => until(() => !/Loading|loading…/.test(mainText()) && mainText().length > 0, 15000);\nwindow.switchTo = async (name) => { const t = trigger(); if (!t) return 'NO MENU'; t.focus(); t.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); await until(() => document.querySelectorAll('[role=menuitemradio]').length > 0, 3000); const item = [...document.querySelectorAll('[role=menuitemradio]')].find((x) => x.textContent.startsWith(name)); if (!item) return 'NO ITEM ' + name; item.click(); await until(() => league() === name, 5000); await sleep(3000); await settled(); return league() };\nwindow.sides = { 'NCAA Men': \"men's\", 'NCAA Women': \"women's\" };\nwindow.collegeReads = (name) => { const t = mainText(); return { ok: t.includes('No NCAA ' + sides[name] + ' stats yet: the first load has not got that far.') && !button('Turn it on in the Data panel') && !/could not be opened|unknown league|Error|has no .* yet/.test(t), text: t.slice(0, 160), status: statusLine() } };\nwindow.fingerprint = () => ({ h1: h1(), text: mainText().slice(0, 600) });\nwindow.screenTrip = async (screen) => { await nav(screen); if (league() !== 'NBA') await switchTo('NBA'); await settled(); await sleep(1500); const nba = fingerprint(); const out = { screen }; for (const name of ['NCAA Men', 'NCAA Women']) { const w = await switchTo(name); out[name] = { league: w, h1: h1(), ...collegeReads(name) } } const w = await switchTo('WNBA'); await sleep(1500); out.wnba = { league: w, h1: h1(), hasData: !/stats yet/.test(mainText()) && !/stats yet/.test(statusLine() ?? '') }; const n = await switchTo('NBA'); await sleep(1500); const back = fingerprint(); const same = JSON.stringify(back) === JSON.stringify(nba); return check(screen + ': both NCAA leagues, turned on with their files, read that their stat tables are not built, with no error; the WNBA reads its data; the NBA comes back unchanged', out['NCAA Men'].ok && out['NCAA Women'].ok && out['NCAA Men'].league === 'NCAA Men' && out['NCAA Women'].league === 'NCAA Women' && out.wnba.league === 'WNBA' && out.wnba.hasData && n === 'NBA' && same, same ? out : { ...out, nba, back }) };\nwindow.dl = async (league) => (await window.api.leagues.downloads()).leagues.find((d) => d.league === league);\n'helpers ready'"
+  },
+  {
+    "eval": "(async () => { await settled(); return check('the app opens on the NBA with its data', league() === 'NBA' && /^Data through|season complete/.test(statusLine()), { league: league(), status: statusLine(), h1: h1() }) })()"
+  },
+  {
+    "eval": "(async () => { const d = await window.api.leagues.setDownloads({ ncaam: true, ncaaw: true }); await sleep(3000); const by = Object.fromEntries(d.leagues.map((l) => [l.league, { on: l.on, hasFile: l.hasFile, gb: Math.round(l.fileBytes / 1e7) / 100 }])); return check('both college leagues turned on, each with its file of 2021-22 on, the NBA and the WNBA on', by.nba.on && by.wnba.on && by.ncaam.on && by.ncaam.hasFile && by.ncaaw.on && by.ncaaw.hasFile, by) })()"
+  },
+  {
+    "eval": "(async () => { const out = {}; for (const id of ['ncaam', 'ncaaw']) { const s = await window.api.stats.status(id); out[id] = { noData: s.noData, paused: s.paused, busy: s.busy } } return check('each college league is paused, with no refresh running, and reads its not-built reason', out.ncaam.noData === \"No NCAA men's stats yet: the first load has not got that far.\" && out.ncaaw.noData === \"No NCAA women's stats yet: the first load has not got that far.\" && out.ncaam.paused && out.ncaaw.paused && !out.ncaam.busy && !out.ncaaw.busy, out) })()"
+  },
+  {
+    "eval": "(async () => { const out = {}; for (const id of ['ncaam', 'ncaaw']) { const d = await window.api.stats.data(id); out[id] = { keys: Object.keys(d), families: (d.families ?? []).length, failed: (d.families ?? []).filter((f) => f.state === 'failed').length } } return check('the Data panel reads both college leagues, no family failed', out.ncaam.failed === 0 && out.ncaaw.failed === 0 && out.ncaam.families > 0, out) })()"
+  },
+  {
+    "eval": "screenTrip('Games')"
+  },
+  {
+    "eval": "(async () => { await nav('Games'); await switchTo('NCAA Men'); return collegeReads('NCAA Men').ok ? 'on NCAA Men games' : 'MISMATCH ' + mainText().slice(0, 160) })()"
+  },
+  {
+    "shot": "t1302d-01-ncaam-games"
+  },
+  {
+    "eval": "screenTrip('Teams')"
+  },
+  {
+    "eval": "(async () => { await nav('Teams'); await switchTo('NCAA Women'); return collegeReads('NCAA Women').ok ? 'on NCAA Women teams' : 'MISMATCH ' + mainText().slice(0, 160) })()"
+  },
+  {
+    "shot": "t1302d-02-ncaaw-teams"
+  },
+  {
+    "eval": "(async () => { await nav('Games'); const w = await switchTo('WNBA'); await sleep(1500); return check('the WNBA games screen reads its games', w === 'WNBA' && !/stats yet/.test(mainText()), { h1: h1(), text: mainText().slice(0, 200) }) })()"
+  },
+  {
+    "shot": "t1302d-03-wnba-games"
+  },
+  {
+    "eval": "(async () => { await nav('Teams'); const n = await switchTo('NBA'); await sleep(1500); const d = await window.api.leagues.downloads(); return check('back on the NBA teams screen, every league on with its file', n === 'NBA' && !/stats yet/.test(mainText()) && d.leagues.every((l) => l.on && l.hasFile), { h1: h1(), leagues: d.leagues.map((l) => [l.league, l.on, l.hasFile]) }) })()"
+  },
+  {
+    "shot": "t1302d-04-nba-teams"
+  }
+]
