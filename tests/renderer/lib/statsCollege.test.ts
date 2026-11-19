@@ -18,7 +18,13 @@ import type { StatsGame, StatsSeason } from '@shared/stats/types'
 afterEach(() => setLeague('nba'))
 
 const season = (types: StatsGame['type'][]): StatsSeason =>
-  ({ season: 2026, types: types.map((type) => ({ type, games: 10 })), teams: [] }) as StatsSeason
+  ({
+    season: 2026,
+    firstDate: '2025-11-03',
+    lastDate: '2026-04-06',
+    types: types.map((type) => ({ type, games: 10 })),
+    teams: []
+  }) as StatsSeason
 
 const game = (type: StatsGame['type'], date: string): StatsGame => ({
   id: date,
