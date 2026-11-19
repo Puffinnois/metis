@@ -207,11 +207,12 @@ describe('the college leagues (D38)', () => {
     expect(wnba.gamesRule).toEqual({ kind: 'scaled' })
   })
 
-  it('hold no data yet: no built tables, recipes or models, and their own reasons and sizes', () => {
+  it('build their game, team and player tables alone, and give their own reasons and sizes', () => {
     for (const league of [men, women]) {
-      expect(league.builds).toEqual([])
+      expect(league.builds).toEqual(['identity'])
+      expect(builds(league, 'identity')).toBe(true)
       expect([league.identity, league.derived, league.published, league.plays]).toEqual([
-        null,
+        'college',
         null,
         null,
         null

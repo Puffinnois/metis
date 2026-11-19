@@ -10,11 +10,12 @@ import { hasTables } from './identityShared'
  * measured in `docs/reference/ncaa-data-sources.md` ("Traps") on the first load of T1302.3:
  *
  * - ESPN's ids are the keys: `game_id`, `team_id` and `athlete_id` hold across seasons and transfers.
- *   stats.ncaa.org's ids change every season, so they are never keys; its games join through its own
- *   `espn_game_id`, the schedule crosswalk, or the same two teams within a day, and its players
+ *   stats.ncaa.org's ids change every season, so they are never keys; its games join through the
+ *   ESPN id it or the schedule crosswalk gives, or the same teams and score (`LINK`), and its players
  *   through the player crosswalk, the same box-score lines, or the same name on the same team.
  * - ESPN lacks some games stats.ncaa.org has (334 of the women's 2024-25, of which 16 postseason):
- *   they are games all the same, filled from stats.ncaa.org.
+ *   they are games all the same, filled from stats.ncaa.org. stats.ncaa.org also lists a few
+ *   exhibitions, which ESPN does not, and which are left out (`FILLED`).
  * - Season types are the events (D45), from ESPN's headlines: the NCAA tournament (`playoffs`), the
  *   NIT and WNIT, and the smaller postseason events. Conference tournaments and early-season events are
  *   regular season, flagged by their `tournament_id` and named in `event`.
@@ -42,7 +43,8 @@ const NCAA_GAMES = ['src_ncaa_schedule', 'src_ncaa_team_box']
 const NCAA_LINES = ['src_ncaa_player_box']
 
 /** A word in lower-cased text, as SQL: `nit` is in "NIT - First Round", not in "Unity". */
-const word = (text: string, w: string): string => `regexp_matches(${text}, '(^|[^a-z])${w}([^a-z]|$)')`
+const word = (text: string, w: string): string =>
+  `regexp_matches(${text}, '(^|[^a-z])${w}([^a-z]|$)')`
 
 /**
  * The event of an ESPN postseason game (type 3), from its headline as D45 has it. ESPN spells the
@@ -110,9 +112,10 @@ const espnGamesSql = (league: League): string => `CREATE OR REPLACE TEMP TABLE c
  * that. The team box's minutes tell the overtimes.
  */
 /**
- * D28's key for an opponent no source gives an ESPN id: a team outside Division I that ESPN does not
- * list, in a game ESPN lacks (12 men's games of 2021-22 to 2026-27). The negative of a number from the
- * name stats.ncaa.org prints, so every game of that name shares the key and no ESPN id equals it.
+ * D28's key for an opponent no source gives an ESPN id: a school outside Division I that ESPN does not
+ * list, in a contest only stats.ncaa.org has (11 in the window, men and women). The negative of a
+ * number from the name stats.ncaa.org prints, so no ESPN id equals it: the link reads such a side as
+ * unknown, and `FILLED` leaves the contest out as an exhibition, as the comment there says.
  */
 const OUTSIDE_KEY = (name: string): string =>
   `CASE WHEN nullif(trim(${name}), '') IS NOT NULL
@@ -173,12 +176,16 @@ const SAME_TEAMS = (e: string, n: string): string =>
 const SAME_SCORE = (e: string, n: string): string =>
   `((${e}.home_score = ${n}.home_score AND ${e}.away_score = ${n}.away_score)
      OR (${e}.home_score = ${n}.away_score AND ${e}.away_score = ${n}.home_score))`
-const DAYS = (e: string, n: string): string => `abs(date_diff('day', ${e}.game_date, ${n}.game_date))`
+const DAYS = (e: string, n: string): string =>
+  `abs(date_diff('day', ${e}.game_date, ${n}.game_date))`
 
 /** One round of `LINK`: the pairs each side ranks first, of those whose two sides are still free. */
 const linkRound = (from: string, taken: readonly string[]): string => {
   const free = taken
-    .map((t) => `contest_id NOT IN (SELECT contest_id FROM ${t}) AND game_id NOT IN (SELECT game_id FROM ${t})`)
+    .map(
+      (t) =>
+        `contest_id NOT IN (SELECT contest_id FROM ${t}) AND game_id NOT IN (SELECT game_id FROM ${t})`
+    )
     .join(' AND ')
   return `SELECT * FROM ${from} ${free ? `WHERE ${free}` : ''}
     QUALIFY row_number() OVER (PARTITION BY contest_id ORDER BY rank DESC, days, game_id) = 1
@@ -192,9 +199,12 @@ const linkRound = (from: string, taken: readonly string[]): string => {
  * day, and stats.ncaa.org's team box gives Hawaii Hilo Northern Colorado's ESPN id. So every candidate
  * pair is ranked, and the pairs both sides rank first are linked, in rounds:
  *
- * 4. the given id, with the same score either way round;
- * 3. the same two teams, either way round (neutral sites), and the same score, within a day;
- * 2. one team in common and the same score, within a day (a side's id given wrong);
+ * 5. the given id, with the same score either way round;
+ * 4. the same two teams, either way round (neutral sites), and the same score, within a day;
+ * 3. one team in common and the same score, within a day (a side's id given wrong);
+ * 2. the same two teams and the same score on another day of the season: a postponed game, which
+ *    stats.ncaa.org can keep on the day first set (Towson against Delaware, 69-57, on 2022-01-27 there
+ *    and 2022-02-28 in ESPN's);
  * 1. the given id, with one team in common or a side with no ESPN id (the two sources' scores differ
  *    by a point or two on about one game in a thousand);
  * 0. the same two teams within a day.
@@ -211,20 +221,19 @@ const LINK = `CREATE OR REPLACE TEMP TABLE college_link AS
     SELECT n.contest_id, e.game_id, false, n.home_id, n.away_id, e.home_id, e.away_id,
            ${SAME_TEAMS('e', 'n')}, ${SAME_SCORE('e', 'n')}, ${DAYS('e', 'n')}
     FROM college_ncaa n JOIN college_espn e ON e.season = n.season AND e.home_id IN (n.home_id, n.away_id)
-    WHERE ${DAYS('e', 'n')} <= 1
     UNION ALL
     SELECT n.contest_id, e.game_id, false, n.home_id, n.away_id, e.home_id, e.away_id,
            ${SAME_TEAMS('e', 'n')}, ${SAME_SCORE('e', 'n')}, ${DAYS('e', 'n')}
     FROM college_ncaa n JOIN college_espn e ON e.season = n.season AND e.away_id IN (n.home_id, n.away_id)
-    WHERE ${DAYS('e', 'n')} <= 1
   ), ranked AS (
     SELECT contest_id, game_id, max(rank) AS rank, min(days) AS days FROM (
       SELECT contest_id, game_id, days,
-             CASE WHEN by_id AND same_score THEN 4
-                  WHEN same_teams AND same_score THEN 3
-                  WHEN NOT by_id AND same_score THEN 2
+             CASE WHEN by_id AND same_score THEN 5
+                  WHEN same_teams AND same_score AND days <= 1 THEN 4
+                  WHEN NOT by_id AND same_score AND days <= 1 THEN 3
+                  WHEN same_teams AND same_score THEN 2
                   WHEN by_id AND (nh IN (eh, ea) OR na IN (eh, ea) OR nh < 0 OR na < 0) THEN 1
-                  WHEN same_teams THEN 0
+                  WHEN same_teams AND days <= 1 THEN 0
              END AS rank
       FROM pairs
     ) WHERE rank IS NOT NULL GROUP BY 1, 2
@@ -233,14 +242,21 @@ const LINK = `CREATE OR REPLACE TEMP TABLE college_link AS
   ), round3 AS (${linkRound('ranked', ['round1', 'round2'])}
   )
   SELECT contest_id, game_id AS espn_game_id,
-         CASE WHEN rank IN (4, 1) THEN 'espn id' WHEN rank IN (3, 0) THEN 'teams and date'
-              ELSE 'one team, score and date' END AS method
+         CASE WHEN rank IN (5, 1) THEN 'espn id' WHEN rank IN (4, 0) THEN 'teams and date'
+              WHEN rank = 3 THEN 'one team, score and date' ELSE 'teams and score' END AS method
   FROM (SELECT * FROM round1 UNION ALL SELECT * FROM round2 UNION ALL SELECT * FROM round3)`
 
 /**
  * The games ESPN lacks, from stats.ncaa.org, keyed as `LINK` says. Only games with a score. A contest
- * with the two teams of an ESPN game within a day is that game listed twice, not another game:
- * stats.ncaa.org has Iowa against Virginia Tech of 2026-11-10 under two contest ids, 88-93 and 89-93.
+ * with the two teams of an ESPN game within a day, or with the same score as one no contest is linked
+ * to, is that game listed twice, not another game: stats.ncaa.org has Iowa against Virginia Tech of
+ * 88-93 and 89-93.
+ *
+ * A contest against a team no source gives an ESPN id is left out: ESPN lists every opponent a
+ * Division I team plays, so such a game is one only stats.ncaa.org lists, against a school outside
+ * Division I, and Sports Reference's records leave out 10 of the 11 in the window (most before
+ * opening day, as Clemson against Georgia Southwestern on 2021-11-01): exhibitions, which the NCAA
+ * does not count. The eleventh, Alabama State against Tuskegee on 2021-11-22, is lost with them.
  */
 const FILLED = `CREATE OR REPLACE TEMP TABLE college_filled AS
   SELECT n.*,
@@ -251,10 +267,12 @@ const FILLED = `CREATE OR REPLACE TEMP TABLE college_filled AS
   WHERE n.contest_id NOT IN (SELECT contest_id FROM college_link)
     AND n.home_score IS NOT NULL AND n.away_score IS NOT NULL
     AND n.home_score + n.away_score > 0
+    AND n.home_id > 0 AND n.away_id > 0
     AND NOT EXISTS (
       SELECT 1 FROM college_espn e
-      WHERE e.season = n.season AND abs(date_diff('day', e.game_date, n.game_date)) <= 1
-        AND ${SAME_TEAMS('e', 'n')})
+      WHERE e.season = n.season AND ${SAME_TEAMS('e', 'n')}
+        AND (abs(date_diff('day', e.game_date, n.game_date)) <= 1
+             OR (${SAME_SCORE('e', 'n')} AND e.game_id NOT IN (SELECT espn_game_id FROM college_link))))
   QUALIFY coalesce(espn_game_id, 0) = 0
        OR row_number() OVER (PARTITION BY espn_game_id ORDER BY n.contest_id) = 1`
 
@@ -266,7 +284,10 @@ const FILLED = `CREATE OR REPLACE TEMP TABLE college_filled AS
  * the season's list (D40). stats.ncaa.org's team id of the season and its school id are the team
  * crosswalk's.
  */
-const teamSql = (xwalkTeams: boolean, xwalkTeam: boolean): string => `CREATE OR REPLACE TABLE team AS
+const teamSql = (
+  xwalkTeams: boolean,
+  xwalkTeam: boolean
+): string => `CREATE OR REPLACE TABLE team AS
   WITH sides AS (
     SELECT season, home_id AS team_id, home_display_name AS name, home_abbreviation AS code, game_date
     FROM college_espn
@@ -496,7 +517,11 @@ const ncaaPlayerIdsSql = (have: boolean, xwalkPlayer: boolean): string =>
  * are ESPN's athlete file's latest with a value, else ESPN's rosters'; class, hometown and high school
  * are stats.ncaa.org's team rosters' latest, through `ncaa_player_ids`. Anything none holds is NULL.
  */
-const playerSql = (core: boolean, rosters: boolean, ncaaRosters: boolean): string => `CREATE OR REPLACE TABLE player AS
+const playerSql = (
+  core: boolean,
+  rosters: boolean,
+  ncaaRosters: boolean
+): string => `CREATE OR REPLACE TABLE player AS
   WITH espn AS (
     SELECT TRY_CAST(athlete_id AS BIGINT) AS player_id,
            arg_max(athlete_display_name, game_date) FILTER (WHERE nullif(athlete_display_name, '') IS NOT NULL) AS name,

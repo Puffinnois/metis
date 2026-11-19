@@ -62,12 +62,14 @@ afterEach(async () => {
 })
 
 describe('the college leagues before their data', () => {
-  it('have no recipes or models, and the accessors refuse to read them', () => {
+  it('have only their identity recipe, no models, and the accessors refuse to read the rest', () => {
     for (const league of COLLEGE) {
-      expect(league.builds).toEqual([])
+      // The game, team and player tables (T1302.4); every later table still reads its reason.
+      expect(league.builds).toEqual(['identity'])
+      expect(recipeOf(league, 'identity')).toBe('college')
       expect(SOURCES_BY_LEAGUE[league.id].length).toBeGreaterThan(0)
       expect(() => modelsOf(league)).toThrow(`the ${league.name} has no ratings or models yet`)
-      for (const kind of ['identity', 'derived', 'published', 'plays'] as const) {
+      for (const kind of ['derived', 'published', 'plays'] as const) {
         expect(() => recipeOf(league, kind)).toThrow(`the ${league.name} has no ${kind} recipe yet`)
       }
     }
