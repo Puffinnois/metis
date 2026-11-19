@@ -236,7 +236,10 @@ function validate(q: StatsQuery, ctx: CompileContext): Checked {
   })
   const scope = q.scope
   integers(scope.seasons, 'scope.seasons', league.firstSeason, ctx.currentSeason)
-  const gameTypes = scope.gameTypes ?? ['regular']
+  // A query that names no type reads the league's default scope: the regular season, or every counted
+  // game where the league counts them all together (D45: the college leagues).
+  const gameTypes =
+    scope.gameTypes ?? (league.defaultType === 'counted' ? [...league.countedTypes] : ['regular'])
   if (!Array.isArray(gameTypes) || gameTypes.length === 0) {
     fail('scope.gameTypes must be a non-empty list')
   }
@@ -1292,6 +1295,25 @@ function ownGamesCte(
     ...(c.grain === 'game' ? gameWhere(q, params) : [])
   ]
   if (s.teams) where.push(`w.team_id IN ${params.list(s.teams.map(Number))}`)
+  if (c.grain === 'season') {
+    // At the season grain no filter splits a season, so the season tables answer: each player's teams
+    // of the seasons and types in scope, and each team's games with a box score. Read from them, not
+    // from the rows in scope, it costs a few milliseconds where the game rows cost a second (T1302.5).
+    const players = s.players ? ` AND w.player_id IN ${params.list(s.players.map(Number))}` : ''
+    return `${name} AS (
+      WITH team_games AS (
+        SELECT w.team_id, w.season, sum(w.box_games)::DOUBLE AS n
+        FROM team_season w WHERE ${where.join(' AND ')} GROUP BY 1, 2
+      ), per_season AS (
+        SELECT r.player_id AS id, r.season, max(t.n) AS n
+        FROM (SELECT DISTINCT w.player_id, w.season, w.team_id FROM player_season w
+              WHERE ${where.join(' AND ')} AND w.team_id IS NOT NULL${players}) r
+        JOIN team_games t ON t.team_id = r.team_id AND t.season = r.season
+        GROUP BY 1, 2
+      )
+      SELECT id${c.groupBy.includes('season') ? ', season AS g_season' : ''}, sum(n) AS team_games
+      FROM per_season GROUP BY id${c.groupBy.includes('season') ? ', season' : ''})`
+  }
   const columns: Partial<Record<GroupBy, string>> = {
     opponent: 'w.opponent_id',
     month: 'month(w.game_date)',
@@ -1303,16 +1325,9 @@ function ownGamesCte(
       ? ''
       : `LEFT JOIN ${SPLIT_TEAM} st ON st.team_id = w.team_id AND st.game_id = w.game_id AND st.split = ${split}`
   const share = split === null ? '' : ' * coalesce(sum(st.seconds) / nullif(sum(w.seconds), 0), 0)'
-  // The row's teams: at the game grain each line's own; at the season grain the row's team, or for a
-  // player's row of no team every team of theirs that season and type.
+  // The row's teams at the game grain: each line's own.
   const others = c.groupBy.filter((d) => d !== 'season')
-  const teams =
-    c.grain === 'game'
-      ? `SELECT DISTINCT id, season, team_id${others.map((d) => `, ${d}`).join('')} FROM ${base}`
-      : `SELECT DISTINCT b.id, b.season, coalesce(b.row_team, o.team_id) AS team_id
-         FROM ${base} b LEFT JOIN player_season o
-           ON b.row_team IS NULL AND o.player_id = b.id AND o.season = b.season
-          AND o.game_type = b.game_type AND o.team_id IS NOT NULL`
+  const teams = `SELECT DISTINCT id, season, team_id${others.map((d) => `, ${d}`).join('')} FROM ${base}`
   const outer = c.groupBy.map((d) => (d === 'season' ? 'season' : d))
   return `${name} AS (
     WITH team_games AS (

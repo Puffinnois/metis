@@ -54,6 +54,30 @@ const SUBJECTS = {
     span: [`${season}-06-01`, `${season}-07-31`],
     month: [`${season}-07-01`, `${season}-07-31`],
     day: `${season}-07-15`
+  },
+  // The college leagues (T1302.5): their players last a season or four, so every-season reads name
+  // players of the window's last seasons; dates are the winter's, as the NBA's.
+  ncaam: {
+    star: '5142718',
+    shooter: '4702680',
+    young: '5041935',
+    out: '4431674',
+    team: '150',
+    other: '252',
+    span: [`${season - 1}-12-01`, `${season}-01-31`],
+    month: [`${season}-01-01`, `${season}-01-31`],
+    day: `${season}-01-15`
+  },
+  ncaaw: {
+    star: '5174674',
+    shooter: '5240565',
+    young: '5239107',
+    out: '4684384',
+    team: '87',
+    other: '41',
+    span: [`${season - 1}-12-01`, `${season}-01-31`],
+    month: [`${season}-01-01`, `${season}-01-31`],
+    day: `${season}-01-15`
   }
 }[leagueArg()]
 
@@ -210,7 +234,8 @@ const CASES = [
   [
     'Trends: the pool, 14 seasons by season',
     player(
-      { seasons: Array.from({ length: 14 }, (_, i) => season - 13 + i), qualifiedOnly: true },
+      // Fourteen seasons, or every one a league has when it has fewer (the college leagues' five).
+      { seasons: everySeason().slice(-14), qualifiedOnly: true },
       {
         metrics: ['pts', 'min'],
         groupBy: ['season'],
