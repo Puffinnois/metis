@@ -48,6 +48,13 @@ export const nameKeySql = (n: string): string =>
 const lastFirst = (n: string): string =>
   `CASE WHEN ${n} LIKE '%,%' THEN trim(split_part(${n}, ',', 2)) || ' ' || trim(split_part(${n}, ',', 1)) ELSE ${n} END`
 
+/**
+ * The shot file's code for a player it gives no id (`AuPace`: two letters of the first name, then the
+ * last), from a play-by-play name (`AUSTIN.PACE`), lower case and letters only, to match the code.
+ */
+const shooterCodeSql = (player: string): string =>
+  `lower(left(split_part(${player}, '.', 1), 2) || regexp_replace(substr(${player}, strpos(${player}, '.') + 1), '[^A-Za-z]', '', 'g'))`
+
 /** A key of D28's kind for a player no row of `ncaa_player_ids` names: negative, past every id. */
 const fallbackKey = (season: string, team: string, name: string): string =>
   `-(1000000000000 + hash(${season}, ${team}, lower(trim(${name}))) % 1000000000000)::BIGINT`
@@ -103,7 +110,11 @@ export function collegeShotsSelect(have: Have, season?: number): string {
     team_id: 's.team',
     opponent_id: `CASE s.team WHEN g.home_team_id THEN g.away_team_id WHEN g.away_team_id THEN g.home_team_id END`,
     home: 's.team = g.home_team_id',
-    player_id: `coalesce(pi.player_id, pn.player_id, -TRY_CAST(${c('shooter_player_id', 'VARCHAR')} AS BIGINT))`,
+    // By id where the file gives one (a negative id of D28's kind where no row names it), by name
+    // within the team where it gives none.
+    player_id: `CASE WHEN ${c('shooter_player_id', 'VARCHAR')} IS NOT NULL
+                     THEN coalesce(pi.player_id, -TRY_CAST(${c('shooter_player_id', 'VARCHAR')} AS BIGINT))
+                     ELSE coalesce(pn.player_id, ${fallbackKey('g.season', 's.team', c('shooter_id', 'VARCHAR'))}) END`,
     free_throw: 'false',
     made: c('made', 'BOOLEAN'),
     value: c('point_value'),
@@ -112,21 +123,27 @@ export function collegeShotsSelect(have: Have, season?: number): string {
     y: `${c('shot_y', 'DOUBLE')} * 10`,
     action: c('shot_zone', 'VARCHAR')
   })}
-    FROM (SELECT s.*, ${team} AS team
-          FROM (SELECT * FROM ${t} s ${one}) s
-          JOIN game g ON g.ncaa_game_id = ${c('contest_id', 'VARCHAR')}
-          LEFT JOIN team tm ON tm.season = g.season AND tm.ncaa_team_id = ${c('ncaa_team_id')}
-          LEFT JOIN team te ON te.season = g.season AND te.espn_team_id = ${c('espn_team_id', 'INTEGER')}) s
+    FROM (
+      -- A team the file gives no id (a school outside Division I) is the game's other side, where every
+      -- other shot of the game is one team's.
+      SELECT s.*, coalesce(s.mapped, CASE WHEN min(s.mapped) OVER w = max(s.mapped) OVER w
+                                          THEN CASE max(s.mapped) OVER w WHEN s.gh THEN s.ga WHEN s.ga THEN s.gh END
+                                     END) AS team
+      FROM (SELECT s.*, g.home_team_id AS gh, g.away_team_id AS ga, ${team} AS mapped
+            FROM (SELECT * FROM ${t} s ${one}) s
+            JOIN game g ON g.ncaa_game_id = ${c('contest_id', 'VARCHAR')}
+            LEFT JOIN team tm ON tm.season = g.season AND tm.ncaa_team_id = ${c('ncaa_team_id')}
+            LEFT JOIN team te ON te.season = g.season AND te.espn_team_id = ${c('espn_team_id', 'INTEGER')}) s
+      WINDOW w AS (PARTITION BY s.contest_id)) s
     JOIN game g ON g.ncaa_game_id = ${c('contest_id', 'VARCHAR')}
     LEFT JOIN ncaa_player_ids pi ON pi.season = g.season
       AND pi.ncaa_player_id = ${c('shooter_player_id', 'VARCHAR')}
     LEFT JOIN (SELECT season, team_id, k, arg_max(player_id, lines) AS player_id
-               FROM (SELECT season, team_id, player_id, lines,
-                            ${nameKeySql("coalesce(name, replace(player, '.', ' '))")} AS k
+               FROM (SELECT season, team_id, player_id, lines, ${shooterCodeSql('player')} AS k
                      FROM ncaa_player_ids)
-               GROUP BY 1, 2, 3) pn
-      ON ${c('shooter_player_id', 'VARCHAR')} IS NULL AND pn.season = g.season AND pn.team_id = s.team
-      AND pn.k = ${nameKeySql(c('shooter_clean_name', 'VARCHAR'))}`
+               WHERE k <> '' GROUP BY 1, 2, 3) pn
+      ON pn.season = g.season AND pn.team_id = s.team
+      AND pn.k = lower(regexp_replace(${c('shooter_id', 'VARCHAR')}, '[^A-Za-z]', '', 'g'))`
 }
 
 // ----- Units on the floor -----------------------------------------------------------------------------
@@ -355,7 +372,7 @@ function stintsSql(have: Have): string {
                 FROM src_ncaa_team_ids i JOIN team t ON t.season = i.season AND t.ncaa_team_id = TRY_CAST(i.id AS BIGINT)
                 GROUP BY 1, 2),
     x AS (
-      SELECT s.*, g.game_id, g.season AS g_season, g.game_type, g.game_date,
+      SELECT s.*, g.game_id, g.season AS g_season, g.game_type, g.game_date AS g_date,
              ${sideSql('h.team_id', 'a.team_id')} AS h_team,
              ${sideSql('a.team_id', 'h.team_id')} AS a_team
       FROM ${t} s JOIN game g ON g.ncaa_game_id = ${c('contest_id', 'VARCHAR')}
@@ -366,7 +383,7 @@ function stintsSql(have: Have): string {
       game_id: 'x.game_id',
       season: 'x.g_season',
       game_type: 'x.game_type',
-      game_date: 'x.game_date',
+      game_date: 'x.g_date',
       period: 'x.period',
       stint: 'x.game_stint_num',
       start_seconds: 'x.start_seconds',
@@ -396,10 +413,16 @@ function possessionsSql(have: Have): string {
   const c = (name: string, type = 'BIGINT'): string => column(have, t, 's', name, type)
   const team = (ncaa: string): string =>
     `(SELECT any_value(t.team_id) FROM team t WHERE t.season = g.season AND t.ncaa_team_id = TRY_CAST(${ncaa} AS BIGINT))`
-  const who = (side: 'home' | 'away', i: number): string =>
-    `coalesce((SELECT any_value(p.player_id) FROM ncaa_player_ids p
+  // By the file's player id; else by its play-by-play name within the team (`AJ.DYBANTSA`); else D28's.
+  const who = (side: 'home' | 'away', i: number): string => {
+    const team = side === 'home' ? 'x.h' : 'x.a'
+    return `coalesce((SELECT any_value(p.player_id) FROM ncaa_player_ids p
                WHERE p.season = g.season AND p.ncaa_player_id = s.${side}_${i}_player_id),
-              -TRY_CAST(s.${side}_${i}_player_id AS BIGINT))`
+              -TRY_CAST(s.${side}_${i}_player_id AS BIGINT),
+              (SELECT arg_max(p.player_id, p.lines) FROM ncaa_player_ids p
+               WHERE p.season = g.season AND p.team_id = ${team} AND p.player = s.${side}_${i}),
+              CASE WHEN s.${side}_${i} IS NOT NULL THEN ${fallbackKey('g.season', team, `s.${side}_${i}`)} END)`
+  }
   const offense = `CASE WHEN s.poss_team = s.home THEN x.h ELSE x.a END`
   return `CREATE OR REPLACE VIEW ${POSSESSIONS_VIEW} AS
     SELECT ${selectColumns(POSSESSION_COLUMNS, {

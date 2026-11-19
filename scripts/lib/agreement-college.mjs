@@ -6,6 +6,8 @@
 // Division I teams or the NCAA tournament's games of a finished season, or a player's game rows not
 // adding up to their season row.
 
+import { collegeDepthAgreement } from './agreement-college-depth.mjs'
+
 const COUNT = new Intl.NumberFormat('en-US')
 const pct = (part, whole) => (whole ? ((100 * part) / whole).toFixed(1) : '–')
 const share = (part, whole) => (whole ? `${COUNT.format(part)} (${pct(part, whole)} %)` : '–')
@@ -375,5 +377,7 @@ export async function collegeAgreement(league, read, out, query) {
     '',
     table(['Season', 'Teams equal', 'Leading scorers'], engine)
   )
+  // The shots, lineups, stints, possessions and published models (T1302.6).
+  wrong += await collegeDepthAgreement(league, read, out, query)
   return wrong
 }

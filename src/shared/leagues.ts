@@ -1014,9 +1014,12 @@ const college = (
   playTables: false,
   // The college lane is 12 feet wide, for men and women alike (the NBA's is 16).
   laneHalfWidth: 60,
-  // 6.75 metres (22 feet 1.75 inches) at the arc for both across D39's seasons (D38), the line FIBA
-  // draws, whose straight sides are 6.6 metres (21 feet 8 inches) from the basket.
-  threePointLines: [{ from: NCAA_FIRST_SEASON, arc: 221.5, corner: 216.5 }],
+  // 6.75 metres (22 feet 1.75 inches) at the arc for both across D39's seasons (D38). Measured on
+  // stats.ncaa.org's located shots of every season, men and women (T1302.6, `ncaa-data-sources.md`,
+  // "Shots"): twos reach 22.15 feet and threes begin at 22.26 above the corners; in the corners twos
+  // reach 20.5 feet across and threes begin at 21.0, not FIBA's 6.6 metres (21.65 feet), which 1 % of
+  // corner threes fall inside. The chart draws the line where the data put it.
+  threePointLines: [{ from: NCAA_FIRST_SEASON, arc: 221.5, corner: 210 }],
   // Within the window, stats.ncaa.org's lineups and located shots and ESPN's standings cover every
   // season (D39, D40).
   lineupsFrom: NCAA_FIRST_SEASON,
