@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { gamesToQualify, perGameQualifier } from '@/lib/stats/boards'
-import { defaultDay, eloView } from '@/lib/stats/games'
+import { defaultDay, eloView, noBoxNote } from '@/lib/stats/games'
 import { setLeague } from '@/lib/stats/league'
 import { lineupGap } from '@/lib/stats/lineups'
 import { typeTag } from '@/lib/stats/player'
@@ -50,6 +50,24 @@ describe('season types in the college leagues (D45)', () => {
     setLeague('ncaaw')
     expect(typeLabel('wbit')).toBe('WBIT')
     expect(typeTag('wnit')).toBe('WNIT')
+  })
+
+  it('call exhibitions so, never offer them as a scope, and say why their box score is not shown', () => {
+    setLeague('ncaam')
+    expect(typeTag('preseason')).toBe('Exhibition')
+    expect(seasonTypes(season(['regular', 'playoffs', 'preseason']))).toEqual([
+      'regular',
+      'playoffs',
+      'counted'
+    ])
+    expect(noBoxNote(game('preseason', '2025-11-01'), null)).toBe(
+      'Exhibitions do not count, and their box scores are not shown.'
+    )
+    setLeague('nba')
+    expect(typeTag('preseason')).toBe('Preseason')
+    expect(noBoxNote(game('preseason', '2025-10-02'), null)).toBe(
+      'Preseason games have no box score in either source.'
+    )
   })
 
   it('keeps the NBA’s and the WNBA’s names as they were', () => {

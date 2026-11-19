@@ -15,7 +15,7 @@ import { hasTables } from './identityShared'
  *   through the player crosswalk, the same box-score lines, or the same name on the same team.
  * - ESPN lacks some games stats.ncaa.org has (334 of the women's 2024-25, of which 16 postseason):
  *   they are games all the same, filled from stats.ncaa.org. stats.ncaa.org also lists a few
- *   exhibitions, which ESPN does not, and which are left out (`FILLED`).
+ *   exhibitions, which ESPN does not: kept, typed `preseason` ("Exhibition"), never counted.
  * - Season types are the events (D45), from ESPN's headlines: the NCAA tournament (`playoffs`), the
  *   NIT and WNIT, and the smaller postseason events. Conference tournaments and early-season events are
  *   regular season, flagged by their `tournament_id` and named in `event`.
@@ -114,8 +114,8 @@ const espnGamesSql = (league: League): string => `CREATE OR REPLACE TEMP TABLE c
 /**
  * D28's key for an opponent no source gives an ESPN id: a school outside Division I that ESPN does not
  * list, in a contest only stats.ncaa.org has (11 in the window, men and women). The negative of a
- * number from the name stats.ncaa.org prints, so no ESPN id equals it: the link reads such a side as
- * unknown, and `FILLED` leaves the contest out as an exhibition, as the comment there says.
+ * number from the name stats.ncaa.org prints, so every game of that name shares the key and no ESPN
+ * id equals it; the team is kept outside Division I, and the game is typed as `gameSql` says.
  */
 const OUTSIDE_KEY = (name: string): string =>
   `CASE WHEN nullif(trim(${name}), '') IS NOT NULL
@@ -252,11 +252,6 @@ const LINK = `CREATE OR REPLACE TEMP TABLE college_link AS
  * to, is that game listed twice, not another game: stats.ncaa.org has Iowa against Virginia Tech of
  * 88-93 and 89-93.
  *
- * A contest against a team no source gives an ESPN id is left out: ESPN lists every opponent a
- * Division I team plays, so such a game is one only stats.ncaa.org lists, against a school outside
- * Division I, and Sports Reference's records leave out 10 of the 11 in the window (most before
- * opening day, as Clemson against Georgia Southwestern on 2021-11-01): exhibitions, which the NCAA
- * does not count. The eleventh, Alabama State against Tuskegee on 2021-11-22, is lost with them.
  */
 const FILLED = `CREATE OR REPLACE TEMP TABLE college_filled AS
   SELECT n.*,
@@ -267,7 +262,6 @@ const FILLED = `CREATE OR REPLACE TEMP TABLE college_filled AS
   WHERE n.contest_id NOT IN (SELECT contest_id FROM college_link)
     AND n.home_score IS NOT NULL AND n.away_score IS NOT NULL
     AND n.home_score + n.away_score > 0
-    AND n.home_id > 0 AND n.away_id > 0
     AND NOT EXISTS (
       SELECT 1 FROM college_espn e
       WHERE e.season = n.season AND ${SAME_TEAMS('e', 'n')}
@@ -331,7 +325,7 @@ const teamSql = (
         : 'SELECT NULL::INTEGER AS season, NULL::INTEGER AS team_id, NULL::VARCHAR AS name, NULL::VARCHAR AS code WHERE false'
     }
   )
-  SELECT t.season, t.team_id, t.team_id AS espn_team_id,
+  SELECT t.season, t.team_id, CASE WHEN t.team_id > 0 THEN t.team_id END AS espn_team_id,
          coalesce(n.code, c.code, x.code) AS code, coalesce(n.name, d.name, c.name, x.name) AS name,
          cg.short_name AS conference, dg.short_name AS division,
          d.conference_id, d.division_id, d.team_id IS NOT NULL AS division_i,
@@ -352,6 +346,14 @@ const teamSql = (
  * A filled game played on or after the season's first postseason game takes the event one of its
  * teams played in that season, the home team's first (each team plays at most one postseason event
  * a season); before it, or when neither team played one, it is the regular season.
+ *
+ * stats.ncaa.org also lists exhibitions, which ESPN does not, and nothing in the data marks one. A
+ * filled game against a team no source gives an ESPN id (a school outside Division I that ESPN does
+ * not list) played before opening day, the season's first ESPN regular-season game, is one: it keeps
+ * its row as `preseason`, which the college leagues call "Exhibition" and never count unless a query
+ * asks for it (Clemson against Georgia Southwestern, 2021-11-01). The same kind of game from opening
+ * day on is a regular-season game, counted (Alabama State against Tuskegee, 2021-11-22); its
+ * `source`, `ncaa`, says only stats.ncaa.org holds it (D45, added 2026-11-18).
  */
 const gameSql = (league: League): string => {
   const regulation = league.gameMinutes
@@ -363,13 +365,17 @@ const gameSql = (league: League): string => {
     SELECT DISTINCT season, game_type, away_id FROM college_espn WHERE game_type <> 'regular'
   ), postseason AS (
     SELECT season, min(game_date) AS first FROM college_espn WHERE season_type = 3 GROUP BY 1
+  ), opening AS (
+    SELECT season, min(game_date) AS day FROM college_espn
+    WHERE season_type = 2 AND completed GROUP BY 1
   ), filled AS (
     SELECT f.*,
-           CASE WHEN f.game_date >= p.first THEN coalesce(
+           CASE WHEN (f.home_id < 0 OR f.away_id < 0) AND f.game_date < o.day THEN 'preseason'
+                WHEN f.game_date >= p.first THEN coalesce(
              (SELECT any_value(e.game_type) FROM event_teams e WHERE e.season = f.season AND e.team_id = f.home_id),
              (SELECT any_value(e.game_type) FROM event_teams e WHERE e.season = f.season AND e.team_id = f.away_id),
              'regular') ELSE 'regular' END AS game_type
-    FROM college_filled f LEFT JOIN postseason p USING (season)
+    FROM college_filled f LEFT JOIN postseason p USING (season) LEFT JOIN opening o USING (season)
   )
   SELECT e.game_id::VARCHAR AS game_id, NULL::VARCHAR AS nba_game_id, e.game_id::BIGINT AS espn_game_id,
          l.contest_id AS ncaa_game_id, e.season, e.game_type, e.game_date,

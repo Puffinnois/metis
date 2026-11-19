@@ -172,10 +172,21 @@ describe('the college leagues (D38)', () => {
   })
 
   it('have the events as season types, all of them counted, every game by default (D45)', () => {
-    expect(men.seasonTypes).toEqual(['regular', 'playoffs', 'nit', 'cbi', 'cit', 'tbc', 'crown'])
-    expect(women.seasonTypes).toEqual(['regular', 'playoffs', 'wnit', 'wbi', 'wbit'])
+    expect(men.seasonTypes).toEqual([
+      'regular',
+      'playoffs',
+      'nit',
+      'cbi',
+      'cit',
+      'tbc',
+      'crown',
+      'preseason'
+    ])
+    expect(women.seasonTypes).toEqual(['regular', 'playoffs', 'wnit', 'wbi', 'wbit', 'preseason'])
     for (const league of [men, women]) {
-      expect(league.countedTypes).toEqual(league.seasonTypes)
+      // Exhibitions are a type, named so, and never counted.
+      expect(league.countedTypes).toEqual(league.seasonTypes.filter((t) => t !== 'preseason'))
+      expect(league.typeNames.preseason).toBe('Exhibition')
       expect(league.typeNames.playoffs).toBe('NCAA tournament')
       expect(playoffsWords(league)).toBe('the NCAA tournament')
       expect(league.countedName).toBe('Every game')

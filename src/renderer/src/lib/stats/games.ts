@@ -257,7 +257,13 @@ export function noBoxNote(game: StatsGame, through: string | null): string {
       ? 'This game was not played.'
       : 'This game has not been played yet.'
   }
-  if (game.type === 'preseason') return 'Preseason games have no box score in either source.'
+  if (game.type === 'preseason') {
+    // The college leagues' exhibitions come from stats.ncaa.org, which may hold their box scores; they
+    // never count, so none is shown.
+    return currentLeague().typeNames.preseason
+      ? 'Exhibitions do not count, and their box scores are not shown.'
+      : 'Preseason games have no box score in either source.'
+  }
   if (game.type === 'all-star') return 'Neither source has a box score for this All-Star game.'
   return 'Neither source has a box score for this game, only the final score.'
 }

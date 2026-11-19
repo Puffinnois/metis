@@ -21,8 +21,8 @@ import { openTestDb } from '../../fixtures/stats'
  *   the Northern Colorado one and stats.ncaa.org gives Hawaii Hilo Northern Colorado's team id;
  *   Towson against Delaware, postponed from 2022-01-27 (stats.ncaa.org's date) to 2022-02-28 (ESPN's);
  *   Iowa against Virginia Tech of 2026-11-10, which stats.ncaa.org lists twice; an exhibition
- *   (Clemson against Georgia Southwestern, 2021-11-01) and the one real game the exhibition rule loses
- *   (Alabama State against Tuskegee); a game of each event, a conference tournament game, an early
+ *   (Clemson against Georgia Southwestern, 2021-11-01) and a game of the same kind after opening day
+ *   (Alabama State against Tuskegee, 2021-11-22); a game of each event, a conference tournament game, an early
  *   season event, a forfeit, a double overtime, a cancelled and a scheduled row; links by each method;
  *   Alex Karaban's 2026 lines, which the player crosswalk lacks; Nick Boyd's transfer;
  * - women: the 2024-25 WNIT final and a WBIT game ESPN lacks, a regular-season game it lacks, Virginia
@@ -235,13 +235,30 @@ describe("stats.ncaa.org's games", () => {
     ).toBe(3)
   })
 
-  it('make no game of a contest listed twice, nor of an exhibition', async () => {
+  it('make no game of a contest listed twice', async () => {
     expect(await byContest(m, '6638547')).toBeNull()
     expect(await byContest(m, '6670672')).toMatchObject({ game_id: '401920378' })
-    expect(await byContest(m, '2139618')).toBeNull()
-    // The rule's one real loss: Alabama State against Tuskegee, a team no source gives an ESPN id.
-    expect(await byContest(m, '2142614')).toBeNull()
-    expect(await count(m, "SELECT * FROM game WHERE source = 'ncaa'")).toBe(0)
+  })
+
+  it('keep a game against a team ESPN does not list as an exhibition before opening day, counted after', async () => {
+    // Before the season's first ESPN regular-season game (2021-11-09): an exhibition, never counted.
+    expect(await byContest(m, '2139618')).toMatchObject({
+      game_id: 'ncaa:2139618',
+      game_type: 'preseason',
+      source: 'ncaa',
+      played: true,
+      home_score: 77,
+      away_score: 51
+    })
+    // From opening day: a regular-season game, counted, which only stats.ncaa.org holds.
+    const tuskegee = await byContest(m, '2142614')
+    expect(tuskegee).toMatchObject({ game_type: 'regular', source: 'ncaa', played: true })
+    const outside = await m.get<Row>('SELECT * FROM team WHERE season = 2022 AND team_id = ?', [
+      tuskegee?.away_team_id as number
+    ])
+    expect(outside).toMatchObject({ name: 'Tuskegee', division_i: false, espn_team_id: null })
+    expect((outside?.team_id as number) < 0).toBe(true)
+    expect(await count(m, "SELECT * FROM game WHERE source = 'ncaa'")).toBe(2)
   })
 
   it("fill the games ESPN lacks, keyed by ESPN's id, typed by the event their teams played", async () => {
@@ -259,8 +276,10 @@ describe("stats.ncaa.org's games", () => {
     })
     expect(await game(w, '401757018')).toMatchObject({ source: 'ncaa', game_type: 'wbit' })
     expect(await game(w, '401715020')).toMatchObject({ source: 'ncaa', game_type: 'regular' })
-    // Virginia Tech's exhibition with Limestone, 2024-10-22.
-    expect(await count(w, "SELECT * FROM game WHERE game_date = DATE '2024-10-22'")).toBe(0)
+    // Virginia Tech's exhibition with Limestone, 2024-10-22, before opening day.
+    expect(
+      await w.get<Row>("SELECT game_type, source FROM game WHERE game_date = DATE '2024-10-22'")
+    ).toEqual({ game_type: 'preseason', source: 'ncaa' })
   })
 })
 
