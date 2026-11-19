@@ -33,10 +33,7 @@
     "shot": "t1302f-02-ncaam-onoff"
   },
   {
-    "eval": "(async () => {\n  await tab('Matchups')\n  await sleep(1500)\n  return check('the Matchups tab reads its reason (D44)', has('Not published for college basketball: no release holds matchups.'), main().slice(0, 300))\n})()"
-  },
-  {
-    "eval": "(async () => {\n  await tab('Tracking')\n  await sleep(1500)\n  return check('the Tracking tab reads its reason (D44)', has('Not published for college basketball: no release holds player tracking.'), main().slice(0, 200))\n})()"
+    "eval": "(async () => {\n  const offered = [...document.querySelectorAll('[role=tab], button')].map((x) => x.textContent.trim())\n  const c = await window.api.stats.catalogue('ncaam')\n  const why = (f) => [...new Set(c.filter((x) => x.family === f && x.entity === 'player').map((x) => x.unavailable))]\n  const ok = !offered.includes('Tracking') && !offered.includes('Matchups') && why('tracking').length === 1 && /^Not published for college basketball: no release holds player tracking/.test(why('tracking')[0]) && /^Not published for college basketball: no release holds matchups/.test(why('matchups')[0] ?? '')\n  return check('no Tracking or Matchups tab is offered; their metrics give the reason (D44)', ok, { tracking: why('tracking'), matchups: why('matchups') })\n})()"
   },
   {
     "eval": "(async () => {\n  await nav('Teams')\n  await chooseSelect('Season', 2026)\n  const o = await openTeam('252')\n  await tab('Lineups')\n  await sleep(3500)\n  const t = main()\n  const units = Number(t.match(/([0-9,]+) units/)?.[1]?.replace(/,/g, '') ?? 0)\n  return check('the team\\'s lineups read stats.ncaa.org\\'s five-player units', units > 0 && !bad(t), { o, units, text: t.slice(0, 200) })\n})()"
@@ -54,7 +51,7 @@
     "eval": "(async () => {\n  const u = await window.api.stats.onCourtUnits('ncaam', '252', 2026, { gameTypes: ['regular', 'playoffs'] }, 5)\n  const w = await window.api.stats.withOrWithout('ncaam', (await window.api.stats.query('ncaam', { entity: 'player', metrics: ['min'], scope: { seasons: [2026], teams: ['252'] }, limit: 1 })).rows[0].id, null, 2026, { gameTypes: ['regular', 'playoffs'] })\n  return check('units of five and with-or-without read, no reason', u.units.length > 0 && u.reason === null && w.reason === null && w.teammates.length > 0, { units: u.units.length, teammates: w.teammates.length, reason: [u.reason, w.reason] })\n})()"
   },
   {
-    "eval": "(async () => {\n  await nav('Games')\n  await sleep(2000)\n  const o = await tab('Officials')\n  await sleep(4000)\n  const t = main()\n  return check('the officials\\' season reads ESPN\\'s crews', !bad(t) && /games/i.test(t) && !/No officials/.test(t), { o, text: t.slice(0, 300) })\n})()"
+    "eval": "(async () => {\n  await nav('Games')\n  await sleep(2000)\n  const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim().startsWith('Officials of'))\n  if (b) b.click()\n  const o = b ? b.textContent.trim() : 'NO OFFICIALS BUTTON'\n  await sleep(4000)\n  const t = main()\n  return check('the officials\\' season reads ESPN\\'s crews', !bad(t) && /games/i.test(t) && !/No officials/.test(t), { o, text: t.slice(0, 300) })\n})()"
   },
   {
     "shot": "t1302f-05-ncaam-officials"
@@ -87,10 +84,7 @@
     "shot": "t1302f-02-ncaaw-onoff"
   },
   {
-    "eval": "(async () => {\n  await tab('Matchups')\n  await sleep(1500)\n  return check('the Matchups tab reads its reason (D44)', has('Not published for college basketball: no release holds matchups.'), main().slice(0, 300))\n})()"
-  },
-  {
-    "eval": "(async () => {\n  await tab('Tracking')\n  await sleep(1500)\n  return check('the Tracking tab reads its reason (D44)', has('Not published for college basketball: no release holds player tracking.'), main().slice(0, 200))\n})()"
+    "eval": "(async () => {\n  const offered = [...document.querySelectorAll('[role=tab], button')].map((x) => x.textContent.trim())\n  const c = await window.api.stats.catalogue('ncaaw')\n  const why = (f) => [...new Set(c.filter((x) => x.family === f && x.entity === 'player').map((x) => x.unavailable))]\n  const ok = !offered.includes('Tracking') && !offered.includes('Matchups') && why('tracking').length === 1 && /^Not published for college basketball: no release holds player tracking/.test(why('tracking')[0]) && /^Not published for college basketball: no release holds matchups/.test(why('matchups')[0] ?? '')\n  return check('no Tracking or Matchups tab is offered; their metrics give the reason (D44)', ok, { tracking: why('tracking'), matchups: why('matchups') })\n})()"
   },
   {
     "eval": "(async () => {\n  await nav('Teams')\n  await chooseSelect('Season', 2026)\n  const o = await openTeam('238')\n  await tab('Lineups')\n  await sleep(3500)\n  const t = main()\n  const units = Number(t.match(/([0-9,]+) units/)?.[1]?.replace(/,/g, '') ?? 0)\n  return check('the team\\'s lineups read stats.ncaa.org\\'s five-player units', units > 0 && !bad(t), { o, units, text: t.slice(0, 200) })\n})()"
@@ -108,7 +102,7 @@
     "eval": "(async () => {\n  const u = await window.api.stats.onCourtUnits('ncaaw', '238', 2026, { gameTypes: ['regular', 'playoffs'] }, 5)\n  const w = await window.api.stats.withOrWithout('ncaaw', (await window.api.stats.query('ncaaw', { entity: 'player', metrics: ['min'], scope: { seasons: [2026], teams: ['238'] }, limit: 1 })).rows[0].id, null, 2026, { gameTypes: ['regular', 'playoffs'] })\n  return check('units of five and with-or-without read, no reason', u.units.length > 0 && u.reason === null && w.reason === null && w.teammates.length > 0, { units: u.units.length, teammates: w.teammates.length, reason: [u.reason, w.reason] })\n})()"
   },
   {
-    "eval": "(async () => {\n  await nav('Games')\n  await sleep(2000)\n  const o = await tab('Officials')\n  await sleep(4000)\n  const t = main()\n  return check('the officials\\' season reads ESPN\\'s crews', !bad(t) && /games/i.test(t) && !/No officials/.test(t), { o, text: t.slice(0, 300) })\n})()"
+    "eval": "(async () => {\n  await nav('Games')\n  await sleep(2000)\n  const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim().startsWith('Officials of'))\n  if (b) b.click()\n  const o = b ? b.textContent.trim() : 'NO OFFICIALS BUTTON'\n  await sleep(4000)\n  const t = main()\n  return check('the officials\\' season reads ESPN\\'s crews', !bad(t) && /games/i.test(t) && !/No officials/.test(t), { o, text: t.slice(0, 300) })\n})()"
   },
   {
     "shot": "t1302f-05-ncaaw-officials"
@@ -138,6 +132,6 @@
     "shot": "t1302f-06-nba-shots"
   },
   {
-    "eval": "(async () => {\n  const g = (await window.api.stats.games('nba', 2026)).find((x) => x.homeScore !== null)\n  const one = await window.api.stats.game('nba', g.id)\n  const s = await window.api.stats.officialsSeason('nba', 2026, ['regular'])\n  return check(\"the NBA's officials as before\", one.officials.length > 0 && s.officials.length > 50, { game: one.officials.map((o) => o.name), officials: s.officials.length })\n})()"
+    "eval": "(async () => {\n  const games = await window.api.stats.games('nba', 2025)\n  let one = null\n  for (const g of games.slice(0, 20)) { one = await window.api.stats.game('nba', g.id); if (one?.officials?.length) break }\n  const s = await window.api.stats.officialsSeason('nba', 2025, ['regular'])\n  return check(\"the NBA's officials as before\", (one?.officials.length ?? 0) > 0 && s.officials.length > 50, { game: one?.officials.map((o) => o.name), officials: s.officials.length })\n})()"
   }
 ]

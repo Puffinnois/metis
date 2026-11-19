@@ -79,6 +79,7 @@ describe('the recipes', () => {
     expect(playBuildersOf(LEAGUES.nba)).toBe(PLAY_BUILDERS)
     expect(playBuildersOf(LEAGUES.wnba)).toBe(PLAY_BUILDERS)
     expect(COLLEGE_PLAY_BUILDERS.map((b) => b.table)).toEqual([
+      'shot_key',
       'shot_player_game',
       'shot_team_game',
       'unit_game',

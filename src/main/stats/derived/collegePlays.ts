@@ -101,21 +101,90 @@ const PLAYERS = [1, 2, 3, 4, 5] as const
 
 // ----- Shots ----------------------------------------------------------------------------------------
 
+/** Who each shot's team and shooter are, resolved once a season by the plays step (`SHOT_KEYS`). */
+export const SHOT_KEYS = 'shot_key'
+
+/**
+ * A shot's key in the file: its game, its team's name, the shooter's code and id (empty where it has
+ * none, so the key always equals itself).
+ */
+export const SHOT_KEY_COLUMNS: Columns = [
+  ['season', 'INTEGER'],
+  ['contest_id', 'VARCHAR'],
+  ['team_name', 'VARCHAR'],
+  ['shooter', 'VARCHAR'],
+  ['ncaa_player', 'VARCHAR'],
+  ['team_id', 'BIGINT'],
+  ['player_id', 'BIGINT']
+]
+
+/**
+ * One season's shot keys, each with its team and player: the team by the file's stats.ncaa.org id, its
+ * ESPN id, then its name (`teamNamesSql`), and where none names it (a school outside Division I) the
+ * game's other side, when every other shot of the game is one team's; the shooter by the file's id
+ * through `ncaa_player_ids` (D28's negative id where no row names it), else by its code within the
+ * team (`AuPace`), else D28's key. Worked out once here, so a read of the shots is equality joins.
+ */
+export function collegeShotKeysSql(have: Have, season: number): string {
+  const t = COLLEGE_PLAYS.shots
+  if (!have.tables.has(t)) return none(SHOT_KEY_COLUMNS)
+  const c = (name: string, type = 'BIGINT'): string => column(have, t, 's', name, type)
+  const s = Number(season)
+  const mapped = `CASE WHEN tm.team_id IN (g.home_team_id, g.away_team_id) THEN tm.team_id
+                     WHEN te.team_id IN (g.home_team_id, g.away_team_id) THEN te.team_id
+                     ELSE ${nameSide('tn.ids')} END`
+  return `WITH k AS (
+      SELECT ${c('season', 'INTEGER')} AS season, ${c('contest_id', 'VARCHAR')} AS contest_id,
+             coalesce(${c('team_id', 'VARCHAR')}, '') AS team_name,
+             coalesce(${c('shooter_id', 'VARCHAR')}, '') AS shooter,
+             coalesce(${c('shooter_player_id', 'VARCHAR')}, '') AS ncaa_player,
+             any_value(g.home_team_id) AS gh, any_value(g.away_team_id) AS ga,
+             any_value(${mapped}) AS mapped
+      FROM ${t} s JOIN game g ON g.ncaa_game_id = ${c('contest_id', 'VARCHAR')} AND g.season = ${s}
+      LEFT JOIN team tm ON tm.season = g.season AND tm.ncaa_team_id = ${c('ncaa_team_id')}
+      LEFT JOIN team te ON te.season = g.season AND te.espn_team_id = ${c('espn_team_id', 'INTEGER')}
+      LEFT JOIN (${teamNamesSql(String(s))}) tn ON tn.name = ${c('team_id', 'VARCHAR')}
+      WHERE s.season = ${s}
+      GROUP BY 1, 2, 3, 4, 5
+    ),
+    sided AS (
+      SELECT k.*, coalesce(mapped, CASE WHEN min(mapped) OVER w = max(mapped) OVER w
+                                        THEN CASE max(mapped) OVER w WHEN gh THEN ga WHEN ga THEN gh END
+                                   END) AS team_id
+      FROM k WINDOW w AS (PARTITION BY contest_id)
+    ),
+    pn AS (
+      SELECT team_id, k, arg_max(player_id, lines) AS player_id
+      FROM (SELECT team_id, player_id, lines, ${shooterCodeSql('player')} AS k
+            FROM ncaa_player_ids WHERE season = ${s})
+      WHERE k <> '' GROUP BY 1, 2
+    )
+    SELECT x.season, x.contest_id, x.team_name, x.shooter, x.ncaa_player, x.team_id,
+           CASE WHEN x.ncaa_player <> ''
+                THEN coalesce(pi.player_id, -TRY_CAST(x.ncaa_player AS BIGINT))
+                WHEN x.shooter <> ''
+                THEN coalesce(pn.player_id, ${fallbackKey('x.season', 'x.team_id', 'x.shooter')}) END
+    FROM sided x
+    LEFT JOIN (SELECT ncaa_player_id, any_value(player_id) AS player_id FROM ncaa_player_ids
+               WHERE season = ${s} AND ncaa_player_id IS NOT NULL GROUP BY 1) pi
+      ON pi.ncaa_player_id = x.ncaa_player
+    LEFT JOIN pn ON pn.team_id = x.team_id
+      AND pn.k = lower(regexp_replace(x.shooter, '[^A-Za-z]', '', 'g'))`
+}
+
 /**
  * stats.ncaa.org's shots keyed to the game, every season or one, in the shot charts' frame: its
  * coordinates are feet from the basket (`dist_ft` is their distance), so tenths are ten times them.
  * Every shot is located (`ncaa-data-sources.md`, "Coverage"). It gives no shot type and no assist, and
- * a period and clock only from 2026-27, so those read NULL where it has none.
+ * a period and clock only from 2026-27, so those read NULL where it has none. The team and shooter are
+ * the season's `shot_key` rows', joined on the shot's own key, so a read filters by season first.
  */
 export function collegeShotsSelect(have: Have, season?: number): string {
   const t = COLLEGE_PLAYS.shots
+  // `shot_key` is the plays step's own table, made before any season is built.
   if (!have.tables.has(t)) return none(SHOT_COLUMNS)
   const c = (name: string, type = 'BIGINT'): string => column(have, t, 's', name, type)
   const one = season === undefined ? '' : `WHERE s.season = ${season}`
-  // By the file's stats.ncaa.org id, its ESPN id, then the season's name for it (`teamNamesSql`).
-  const team = `CASE WHEN tm.team_id IN (g.home_team_id, g.away_team_id) THEN tm.team_id
-                     WHEN te.team_id IN (g.home_team_id, g.away_team_id) THEN te.team_id
-                     ELSE ${nameSide('tn.ids')} END`
   return `SELECT ${selectColumns(SHOT_COLUMNS, {
     game_id: 'g.game_id',
     season: 's.season',
@@ -123,15 +192,10 @@ export function collegeShotsSelect(have: Have, season?: number): string {
     game_date: 'g.game_date',
     period: c('period'),
     clock: c('sec_left', 'DOUBLE'),
-    // The file's season, the game's: a read of one season filters the file before anything is joined.
-    team_id: 's.team',
-    opponent_id: `CASE s.team WHEN g.home_team_id THEN g.away_team_id WHEN g.away_team_id THEN g.home_team_id END`,
-    home: 's.team = g.home_team_id',
-    // By id where the file gives one (a negative id of D28's kind where no row names it), by name
-    // within the team where it gives none.
-    player_id: `CASE WHEN ${c('shooter_player_id', 'VARCHAR')} IS NOT NULL
-                     THEN coalesce(pi.player_id, -TRY_CAST(${c('shooter_player_id', 'VARCHAR')} AS BIGINT))
-                     ELSE coalesce(pn.player_id, ${fallbackKey('g.season', 's.team', c('shooter_id', 'VARCHAR'))}) END`,
+    team_id: 'k.team_id',
+    opponent_id: `CASE k.team_id WHEN g.home_team_id THEN g.away_team_id WHEN g.away_team_id THEN g.home_team_id END`,
+    home: 'k.team_id = g.home_team_id',
+    player_id: 'k.player_id',
     free_throw: 'false',
     made: c('made', 'BOOLEAN'),
     value: c('point_value'),
@@ -140,29 +204,13 @@ export function collegeShotsSelect(have: Have, season?: number): string {
     y: `${c('shot_y', 'DOUBLE')} * 10`,
     action: c('shot_zone', 'VARCHAR')
   })}
-    FROM (
-      -- A team the file gives no id (a school outside Division I) is the game's other side, where every
-      -- other shot of the game is one team's.
-      SELECT s.*, coalesce(s.mapped, CASE WHEN min(s.mapped) OVER w = max(s.mapped) OVER w
-                                          THEN CASE max(s.mapped) OVER w WHEN s.gh THEN s.ga WHEN s.ga THEN s.gh END
-                                     END) AS team
-      FROM (SELECT s.*, g.home_team_id AS gh, g.away_team_id AS ga, ${team} AS mapped
-            FROM (SELECT * FROM ${t} s ${one}) s
-            JOIN game g ON g.ncaa_game_id = ${c('contest_id', 'VARCHAR')}
-            LEFT JOIN team tm ON tm.season = g.season AND tm.ncaa_team_id = ${c('ncaa_team_id')}
-            LEFT JOIN team te ON te.season = g.season AND te.espn_team_id = ${c('espn_team_id', 'INTEGER')}
-            LEFT JOIN (${teamNamesSql()}) tn
-              ON tn.season = g.season AND tn.name = ${c('team_id', 'VARCHAR')}) s
-      WINDOW w AS (PARTITION BY s.season, s.contest_id)) s
+    FROM ${t} s
+    JOIN ${SHOT_KEYS} k ON k.season = s.season AND k.contest_id = ${c('contest_id', 'VARCHAR')}
+      AND k.team_name = coalesce(${c('team_id', 'VARCHAR')}, '')
+      AND k.shooter = coalesce(${c('shooter_id', 'VARCHAR')}, '')
+      AND k.ncaa_player = coalesce(${c('shooter_player_id', 'VARCHAR')}, '')
     JOIN game g ON g.ncaa_game_id = ${c('contest_id', 'VARCHAR')}
-    LEFT JOIN ncaa_player_ids pi ON pi.season = g.season
-      AND pi.ncaa_player_id = ${c('shooter_player_id', 'VARCHAR')}
-    LEFT JOIN (SELECT season, team_id, k, arg_max(player_id, lines) AS player_id
-               FROM (SELECT season, team_id, player_id, lines, ${shooterCodeSql('player')} AS k
-                     FROM ncaa_player_ids)
-               WHERE k <> '' GROUP BY 1, 2, 3) pn
-      ON pn.season = g.season AND pn.team_id = s.team
-      AND pn.k = lower(regexp_replace(${c('shooter_id', 'VARCHAR')}, '[^A-Za-z]', '', 'g'))`
+    ${one}`
 }
 
 // ----- Units on the floor -----------------------------------------------------------------------------
@@ -323,6 +371,14 @@ export function collegeLineupsSql(_have: Have, season: number): string {
            concat_ws(' - ', ${PLAYERS.map((i) => `coalesce(n${i}.name, 'Unknown')`).join(', ')}) AS names,
            k.games, k.minutes, ${LINEUP_STORED.map((c) => `k.${c.id}`).join(', ')}
     FROM k ${PLAYERS.map((i) => `LEFT JOIN player n${i} ON n${i}.player_id = k.p${i}`).join(' ')}`
+}
+
+/** The shot keys, built first: the shot tables and the shot view read them. */
+export const COLLEGE_SHOT_KEY_BUILDER: PlayBuilder = {
+  table: SHOT_KEYS,
+  columns: SHOT_KEY_COLUMNS,
+  select: collegeShotKeysSql,
+  order: 'contest_id, team_name, shooter'
 }
 
 /** The builders the plays step runs for the college leagues after the shot tables, in order. */

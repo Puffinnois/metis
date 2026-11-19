@@ -1,6 +1,6 @@
 import type { League } from '@shared/leagues'
 import type { StatsDb } from '../db'
-import { COLLEGE_UNIT_BUILDERS, collegeEventsSql } from './collegePlays'
+import { COLLEGE_SHOT_KEY_BUILDER, COLLEGE_UNIT_BUILDERS, collegeEventsSql } from './collegePlays'
 import { eventsSql } from './events'
 import { PLAY_DETAIL_BUILDERS } from './playDetail'
 import { ON_COURT_BUILDERS } from './onCourt'
@@ -61,11 +61,16 @@ export const PLAY_BUILDERS: PlayBuilder[] = [
 ]
 
 /**
- * The college leagues' builders (`PlaysRecipe.builders`): the shot tables from stats.ncaa.org's shots,
+ * The college leagues' builders (`PlaysRecipe.builders`): each shot's team and shooter (`shot_key`), the
+ * shot tables from stats.ncaa.org's shots,
  * then the units, player on-court lines and the lineups tab from its lineup file. The play table, the
  * splits and the play-derived counts read its play by play, and come with T1302.7.
  */
-export const COLLEGE_PLAY_BUILDERS: PlayBuilder[] = [...SHOT_BUILDERS, ...COLLEGE_UNIT_BUILDERS]
+export const COLLEGE_PLAY_BUILDERS: PlayBuilder[] = [
+  COLLEGE_SHOT_KEY_BUILDER,
+  ...SHOT_BUILDERS,
+  ...COLLEGE_UNIT_BUILDERS
+]
 
 /** The builders a league's plays step runs, in order. */
 export const playBuildersOf = (league?: League): readonly PlayBuilder[] =>
