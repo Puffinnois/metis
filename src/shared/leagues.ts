@@ -229,7 +229,18 @@ export interface LeagueModels {
  * (D33, D37: 58 of 82); `share`, a share of the team games in scope, rounded up, since a share is
  * asked "at least" (D43: the NCAA's 75 percent of the team's games). Every other minimum is scaled.
  */
-export type GamesRule = { kind: 'scaled' } | { kind: 'share'; share: number }
+export type GamesRule =
+  | { kind: 'scaled' }
+  | {
+      kind: 'share'
+      share: number
+      /**
+       * The per-game categories the rule covers: those the league's own record book ranks per game.
+       * A metric listed here qualifies on games in this league whatever the catalogue's `qualifyBy`
+       * (`metricIn`); one not listed keeps the catalogue's qualifier.
+       */
+      perGame: readonly string[]
+    }
 
 export interface League {
   id: LeagueId
@@ -921,7 +932,10 @@ const college = (
   minimumsMinutes: 48,
   minimumsNote: "scaled, until the NCAA's own are read",
   // "To be ranked, a student-athlete must appear in 75 percent of the team's games" (D43).
-  gamesRule: { kind: 'share', share: 0.75 },
+  // It covers every category the NCAA's record books rank per game (D43, added 2026-11-19): scoring,
+  // rebounds, assists, steals, blocks and three-pointers made. Double-doubles and triple-doubles are
+  // ranked as totals, and the percentages and the assist-to-turnover ratio keep their own qualifiers.
+  gamesRule: { kind: 'share', share: 0.75, perGame: ['pts', 'reb', 'ast', 'stl', 'blk', 'fg3m'] },
   // Nothing before 2021-22 is loaded (D39); Division I teams alone are ranked (D40).
   loadedWindow: true,
   divisionIOnly: true,

@@ -208,7 +208,11 @@ describe('the college leagues (D38)', () => {
 
   it('qualify by the NCAA’s 75 % games rule, the makes scaled as D37 has them (D43)', () => {
     for (const league of [men, women]) {
-      expect(league.gamesRule).toEqual({ kind: 'share', share: 0.75 })
+      expect(league.gamesRule).toEqual({
+        kind: 'share',
+        share: 0.75,
+        perGame: ['pts', 'reb', 'ast', 'stl', 'blk', 'fg3m']
+      })
       expect(league.minimumsGames).toBe(82)
       expect(league.minimumsMinutes).toBe(48)
       expect(league.minimumsNote).toBe("scaled, until the NCAA's own are read")

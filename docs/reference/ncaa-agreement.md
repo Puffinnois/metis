@@ -265,8 +265,8 @@ The engine leads each category among qualified players over every counted game (
 | Three-point field goals made per game | 2022   | Darius McGhee, Liberty           | 33 / 142       | same    |                            | 33 / 142                             | equal   |
 | Three-point field goals made per game | 2023   | Antoine Davis, Detroit Mercy     | 33 / 159       | same    |                            | 33 / 159                             | equal   |
 | Three-point field goals made per game | 2024   | Jack Gohlke, Oakland             | 36 / 137       | same    |                            | 36 / 137                             | equal   |
-| Three-point field goals made per game | 2025   | Abdi Bashir Jr., Monmouth        | 33 / 127       | differs | Anthony Roy 4.364          | 33 / 127                             | equal   |
-| Three-point field goals made per game | 2026   | Jadin Booth, Samford             | 30 / 127       | differs | Connor Dubsky 5.000        | 30 / 127                             | equal   |
+| Three-point field goals made per game | 2025   | Abdi Bashir Jr., Monmouth        | 33 / 127       | same    |                            | 33 / 127                             | equal   |
+| Three-point field goals made per game | 2026   | Jadin Booth, Samford             | 30 / 127       | same    |                            | 30 / 127                             | equal   |
 | Three-point field-goal percentage     | 2022   | Kyle Foster, Howard              | 29 / 105 / 229 | differs | Oliver Lynch-Daniels 0.545 | 29 / 105 / 229                       | equal   |
 | Three-point field-goal percentage     | 2023   | Jordan Johnson, New Orleans      | 27 / 93 / 193  | differs | Luke Avdalovic 0.511       | 1 / 0 / 2; 31 / 0 / 0; 27 / 93 / 193 | equal   |
 | Three-point field-goal percentage     | 2024   | Koby Brea, Dayton                | 33 / 100 / 201 | differs | Reed Sheppard 0.521        | 33 / 100 / 201                       | equal   |
@@ -312,7 +312,7 @@ The engine leads each category among qualified players over every counted game (
 | ------------------------------------- | ----------- | --------- |
 | Scoring average                       | 5 of 5      | 5 of 5    |
 | Field-goal percentage                 | 1 of 5      | 5 of 5    |
-| Three-point field goals made per game | 3 of 5      | 5 of 5    |
+| Three-point field goals made per game | 5 of 5      | 5 of 5    |
 | Three-point field-goal percentage     | 0 of 5      | 5 of 5    |
 | Free-throw percentage                 | 1 of 5      | 4 of 5    |
 | Rebound average                       | 5 of 5      | 5 of 5    |
@@ -321,7 +321,11 @@ The engine leads each category among qualified players over every counted game (
 | Blocked-shot average                  | 4 of 5      | 5 of 5    |
 | Steal average                         | 5 of 5      | 5 of 5    |
 | Double-doubles                        | 5 of 5      | 5 of 5    |
-| Every category                        | 34 of 55    | 54 of 55  |
+| Every category                        | 36 of 55    | 54 of 55  |
+
+Stated differences: the app keeps its leader.
+
+- Blocked-shot average, 2025: Malcolm Wilson of Queens leads, 115 blocks in 35 games, equal in both families. Queens was reclassifying to Division I; the record book appears to leave reclassifying schools out of its rankings, and names Obinna Anochili-Killen (102 in 32).
 
 ## Women's champions against the NCAA's record books
 
@@ -339,10 +343,10 @@ The engine leads each category among qualified players over every counted game (
 | Field-goal percentage                 | 2024   | Raegan Beers, Oregon St.            | 31 / 221 / 333 | differs | Jo Langbehn 0.665        | 31 / 221 / 333            | equal   |
 | Field-goal percentage                 | 2025   | Jordana Reisma, Cleveland St.       | 37 / 203 / 300 | same    |                          | 37 / 203 / 300            | equal   |
 | Field-goal percentage                 | 2026   | Gracie Merkle, Penn St.             | 26 / 216 / 298 | same    |                          | 26 / 216 / 298            | equal   |
-| Three-point field goals made per game | 2022   | Taylor Robertson, Oklahoma          | 34 / 124       | differs | Skyler Curran 5.000      | 34 / 124                  | equal   |
-| Three-point field goals made per game | 2023   | Caitlin Clark, Iowa                 | 38 / 140       | differs | Shy Tuelle 3.714         | 38 / 140                  | equal   |
+| Three-point field goals made per game | 2022   | Taylor Robertson, Oklahoma          | 34 / 124       | same    |                          | 34 / 124                  | equal   |
+| Three-point field goals made per game | 2023   | Caitlin Clark, Iowa                 | 38 / 140       | same    |                          | 38 / 140                  | equal   |
 | Three-point field goals made per game | 2024   | Caitlin Clark, Iowa                 | 39 / 201       | same    |                          | 39 / 201                  | equal   |
-| Three-point field goals made per game | 2025   | Alyssa Durazo-Frescas, Grand Canyon | 32 / 124       | differs | Taliah Scott 5.333       | 32 / 124                  | equal   |
+| Three-point field goals made per game | 2025   | Alyssa Durazo-Frescas, Grand Canyon | 32 / 124       | same    |                          | 32 / 124                  | equal   |
 | Three-point field goals made per game | 2026   | Briana Rivera, Samford              | 35 / 112       | same    |                          | 35 / 112                  | equal   |
 | Three-point field-goal percentage     | 2022   | Tess Amundsen, CSUN                 | 28 / 56 / 114  | differs | Paige Meyer 0.534        | 28 / 56 / 114             | equal   |
 | Three-point field-goal percentage     | 2023   | Alex Giannaros, Boston U.           | 25 / 50 / 97   | differs | Mariana Valenzuela 0.533 | 25 / 50 / 97              | equal   |
@@ -394,7 +398,7 @@ The engine leads each category among qualified players over every counted game (
 | ------------------------------------- | ----------- | --------- |
 | Scoring average                       | 5 of 5      | 5 of 5    |
 | Field-goal percentage                 | 3 of 5      | 5 of 5    |
-| Three-point field goals made per game | 2 of 5      | 5 of 5    |
+| Three-point field goals made per game | 5 of 5      | 5 of 5    |
 | Three-point field-goal percentage     | 1 of 5      | 5 of 5    |
 | Free-throw percentage                 | 4 of 5      | 5 of 5    |
 | Rebound average                       | 5 of 5      | 5 of 5    |
@@ -404,4 +408,4 @@ The engine leads each category among qualified players over every counted game (
 | Steal average                         | 5 of 5      | 5 of 5    |
 | Triple-doubles                        | 5 of 5      | 4 of 5    |
 | Double-doubles                        | 5 of 5      | 5 of 5    |
-| Every category                        | 47 of 60    | 59 of 60  |
+| Every category                        | 50 of 60    | 59 of 60  |

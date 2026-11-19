@@ -85,6 +85,21 @@ function inExponent(def: MetricDef, league: League): Partial<MetricDef> {
   return { value: def.value.replace(pow, `pow($1, ${x})`) }
 }
 
+/** The games minimum the catalogue's per-game leaders state over 82 team games (D33's 58). */
+const PER_GAME_MINIMUM = 58
+
+/**
+ * A per-game category the league's games rule covers (`GamesRule.perGame`, D43: the NCAA's record
+ * books rank three-pointers made per game with the others) qualifies on games there, as the
+ * catalogue's per-game leaders do; elsewhere the catalogue's qualifier stands.
+ */
+function inGamesRule(def: MetricDef, league: League): Partial<MetricDef> {
+  const rule = league.gamesRule
+  if (rule.kind !== 'share' || !rule.perGame.includes(def.id) || def.qualifyBy === 'games')
+    return {}
+  return { qualifyBy: 'games', minSample: PER_GAME_MINIMUM }
+}
+
 /** A metric's formula and words in a league of another game length: pace per 48 becomes per 40. */
 function inGameLength(def: MetricDef, league: League): Partial<MetricDef> {
   if (!def.gameLength || league.gameMinutes === CATALOGUE_GAME_MINUTES) return {}
@@ -160,7 +175,11 @@ const resolved = new WeakMap<League, WeakMap<MetricDef, MetricDef>>()
  */
 export function metricIn(def: MetricDef, league: League): MetricDef {
   const tables = tablesOf(def)
-  const length = { ...inGameLength(def, league), ...inExponent(def, league) }
+  const length = {
+    ...inGameLength(def, league),
+    ...inExponent(def, league),
+    ...inGamesRule(def, league)
+  }
   if (
     def.leagues?.[league.id] === undefined &&
     league.metricsByDefault &&

@@ -4,6 +4,7 @@ import { buildDerived } from '@main/stats/derived/build'
 import { compileQuery, type CompileContext } from '@main/stats/engine/compile'
 import { runQuery } from '@main/stats/engine/run'
 import { gamesToQualifyIn, LEAGUES, type League } from '@shared/leagues'
+import { METRICS, metricIn } from '@shared/stats/catalogue'
 import type { StatsQuery, StatsResult } from '@shared/stats/types'
 import {
   addGame,
@@ -215,9 +216,43 @@ describe('the share of the player’s own team’s games (D43)', () => {
     Object.fromEntries(
       (await rows(league, q)).map((r) => [
         `${r.name}${r.group.team ? `@${r.group.team}` : ''}${r.group.opponent ? ` v ${r.group.opponent}` : ''}`,
-        r.values.pts.qualified
+        r.values[q.metrics?.[0] ?? 'pts'].qualified
       ])
     )
+
+  it('covers three-pointers made per game, as the NCAA’s record books rank it (D43)', async () => {
+    // The college leagues' rule lists it with the five per-game leaders; the NBA's catalogue does not.
+    expect(metricIn(METRICS.get('fg3m')!, ncaam).qualifyBy).toBe('games')
+    expect(metricIn(METRICS.get('fg3m')!, LEAGUES.ncaaw).qualifyBy).toBe('games')
+    expect(METRICS.get('fg3m')!.qualifyBy).toBeUndefined()
+    expect(metricIn(METRICS.get('fg3m')!, nba).qualifyBy).toBeUndefined()
+    // The percentages keep their makes; a team's threes are not a leader's category.
+    expect(metricIn(METRICS.get('fg3_pct')!, ncaam).qualifyBy).toBe('fg3m')
+    expect(metricIn(METRICS.get('team_fg3m')!, ncaam).qualifyBy).toBeUndefined()
+    const fg3m: Partial<StatsQuery> = { metrics: ['fg3m'] }
+    expect(compileQuery({ ...perGame, ...fg3m }, ctx(ncaam)).sql).toContain('0.75 * team_games')
+    expect(compileQuery({ ...perGame, ...fg3m }, ctx(nba)).sql).not.toContain('team_games')
+    // Worked by hand as for points: Ann 4 of Boston's 6, short of 5; Lu 3 of 4; Eve 3 of the larger
+    // 4; Fay 1 of 4. The NBA's threes per game have no games minimum: everyone with a line.
+    const f = await flags(ncaam, fg3m)
+    expect([f.Ann, f.Lu, f.Eve, f.Fay]).toEqual([false, true, true, false])
+    expect(await flags(nba, fg3m)).toMatchObject({ Ann: true, Lu: true, Eve: true, Fay: true })
+  })
+
+  it('gives the same qualifiers at the season grain as at the game grain', async () => {
+    // A date range over the whole season reads the game rows; no filter reads the season rows, whose
+    // own-team games come from the season tables (`ownGamesCte`).
+    const whole: Partial<StatsQuery> = {
+      scope: { seasons: [2026], dates: ['2025-08-01', '2026-07-31'] }
+    }
+    for (const league of [ncaam, ncaaw]) {
+      for (const metrics of [['pts'], ['fg3m'], ['reb']]) {
+        const season = await flags(league, { metrics })
+        expect(Object.keys(season).length).toBeGreaterThan(4)
+        expect(await flags(league, { metrics, ...whole })).toEqual(season)
+      }
+    }
+  })
 
   it('asks 75 % of the row’s own team games, not of the league’s average', async () => {
     const f = await flags(ncaam)

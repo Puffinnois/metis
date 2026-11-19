@@ -301,6 +301,19 @@ const BOOKS = {
   ]
 }
 
+/**
+ * Leaders the app keeps where the book names another, each with why (the manager's decision of
+ * 2026-11-19): the groups file is the Division I list (D40), and both families agree on the line.
+ */
+const STATED = {
+  ncaam: {
+    'blk 2025': {
+      leader: 'Malcolm Wilson',
+      why: 'Malcolm Wilson of Queens leads, 115 blocks in 35 games, equal in both families. Queens was reclassifying to Division I; the record book appears to leave reclassifying schools out of its rankings, and names Obinna Anochili-Killen (102 in 32).'
+    }
+  }
+}
+
 /** The counts each metric's champion is checked on: its total, and a ratio's denominator. */
 const PARTS = {
   pts: ['pts'],
@@ -367,6 +380,7 @@ const out = [
   '| --- | --- | --- | --- | --- | --- | --- | --- |'
 ]
 const tally = { leader: 0, line: 0, all: 0 }
+const notes = []
 const byCategory = new Map()
 for (const [category, metric, transform, seasons] of BOOKS[league]) {
   for (const [season, [name, team, games, total, under]] of Object.entries(seasons)) {
@@ -386,6 +400,9 @@ for (const [category, metric, transform, seasons] of BOOKS[league]) {
     const appLine = (r) => [r.games, ...parts.map((c) => r[c])]
     const line = mine.find((r) => appLine(r).join('/') === book.join('/'))
     const leader = top && key(top.name) === key(name)
+    const stated = !leader && top ? STATED[league]?.[`${metric} ${season}`] : undefined
+    if (stated && key(top.name) === key(stated.leader))
+      notes.push(`- ${category}, ${season}: ${stated.why}`)
     tally.all++
     if (leader) tally.leader++
     if (line) tally.line++
@@ -404,6 +421,7 @@ out.push(
   '| Category | Same leader | Same line |',
   '| --- | --- | --- |',
   ...[...byCategory].map(([cat, [l, n, all]]) => `| ${cat} | ${l} of ${all} | ${n} of ${all} |`),
-  `| Every category | ${tally.leader} of ${tally.all} | ${tally.line} of ${tally.all} |`
+  `| Every category | ${tally.leader} of ${tally.all} | ${tally.line} of ${tally.all} |`,
+  ...(notes.length ? ['', 'Stated differences: the app keeps its leader.', '', ...notes] : [])
 )
 console.log(out.join('\n'))

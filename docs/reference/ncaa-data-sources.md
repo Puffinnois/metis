@@ -250,7 +250,29 @@ Built on 2026-11-19 by the college recipe (`src/main/stats/derived/gameCollege.t
 
 **Checked** (exact unless said; [ncaa-agreement.md](ncaa-agreement.md)): games, Division I teams and the NCAA tournament's 67 games every finished season, 0 wrong; ESPN's team box read whole on every team-game whose box is ESPN's; the two families' team boxes equal on points 99.8 to 100 %, field goals 99.2 to 100 %, rebounds 98.4 to 100 %, assists 96.8 to 99.2 %; player sums equal the team's points on 99.8 to 100 % of team-games; every player's game rows add up to their season row; every Division I team's record equals ESPN's standings but the teams with a forfeit; through the engine, every Division I team's points, rebounds and possessions equal the tables summed, 2021-22 and 2025-26. With stats.ncaa.org's tables dropped (D41) both leagues build from ESPN's alone in 22 seconds, every `ncaa_*` column empty.
 
-**Leaders against the record books** (`scripts/check-ncaa-leaders.mjs`, every category the books print, 2021-22 to 2025-26). The champion's own games and totals equal the book's in 54 of 55 men's category-seasons and 59 of 60 women's: Foster Loyer's free throws of 2021-22 (116 of 124 here, 118 of 126 in the book) and Olivia Miles's triple-doubles of 2025-26 (6 in both families, 8 in the book). The engine's leader is the champion in every season of scoring, rebounds, assists and steals in both leagues, double-doubles for the men, blocks for the women and triple-doubles; blocks for the men but 2024-25, whose leader is Malcolm Wilson of Queens (115 in 35, both families agreeing), a school reclassifying to Division I that the book leaves out. The percentages, the assist-to-turnover ratio and threes per game lead otherwise, as rules: D37's scaled makes are not the NCAA's own minimums, and threes per game qualify on the 1,000-minute row qualifier, where the 75 % rule would name the book's champion in 10 of 10 seasons (a decision put to the manager).
+**Leaders against the record books** (`scripts/check-ncaa-leaders.mjs`, every category the books print, 2021-22 to 2025-26). The champion's own games and totals equal the book's in 54 of 55 men's category-seasons and 59 of 60 women's: Foster Loyer's free throws of 2021-22 (116 of 124 here, 118 of 126 in the book) and Olivia Miles's triple-doubles of 2025-26 (6 in both families, 8 in the book). The engine's leader is the champion in 36 of 55 and 50 of 60: every season of scoring, rebounds, assists, steals and threes made per game in both leagues (threes per game under the 75 % rule since D43's addition of 2026-11-19: 5 of 10 before, 10 of 10 after), double-doubles for the men, blocks for the women and triple-doubles. **A stated difference:** men's blocks of 2024-25, whose leader in the app is Malcolm Wilson of Queens (115 in 35, equal in both families). Queens was reclassifying to Division I; the record book appears to leave reclassifying schools out of its rankings, and names Obinna Anochili-Killen (102 in 32). The groups file is the Division I list (D40), so the app keeps its leader, and the check says so. The percentages and the assist-to-turnover ratio lead otherwise, as rules: D37's scaled makes are not the NCAA's own minimums, which are not read (D43).
+
+**Engine speed** (`scripts/engine-speed.mjs <folder> 2026 --league=…`, 2025-26, about 5,000 players a season; median and worst of the runs, the worst being the first, cold):
+
+| Query                                  | Rows (men) | Men median | Men worst | Women median | Women worst |
+| -------------------------------------- | ---------- | ---------- | --------- | ------------ | ----------- |
+| A leaderboard: ten columns, one season | 5,019      | 268        | 623       | 258          | 598         |
+| The same, per game                     | 5,019      | 262        | 271       | 257          | 259         |
+| 40 columns                             | 5,019      | **974**    | **1,043** | **946**      | **968**     |
+| A home board                           | 3,120      | 51         | 62        | 50           | 66          |
+| A team leaderboard                     | 365        | 39         | 42        | 39           | 40          |
+| A date range                           | 4,790      | 112        | 113       | 110          | 113         |
+| Last 10 appearances                    | 5,019      | 135        | 139       | 127          | 131         |
+| By month                               | 22,107     | 382        | 410       | 365          | 415         |
+| By opponent                            | 92,902     | **947**    | **967**   | **909**      | **919**     |
+| Every season: one leaderboard          | 12,197     | 422        | 425       | 406          | 415         |
+| Every season by season: all players    | 25,394     | **665**    | **684**   | **627**      | **669**     |
+| Compare: a season of players, 23 rows  | 5,019      | **503**    | **509**   | 482          | 493         |
+| Compare: three players, every season   | 3          | 401        | 403       | 388          | 392         |
+| Trends: the pool by season             | 14,571     | 161        | 164       | 147          | 158         |
+| Every other read of the script         | –          | 18 to 147  | 20 to 207 | 17 to 143    | 19 to 201   |
+
+The everyday boards are inside the 500 ms budget; four are over it (bold), as the NBA's slowest was at 561 ms (T1301.8). The Division I filter and the own-team 75 % rule are not the cause: with both switched off the men's 40 columns take 1,186 ms, by opponent 856 and every season by season 764 (the own-team rule costs about 10 ms since its season-grain path reads `player_season` and `team_season`). They go to T1302.9 (the manager's decision of 2026-11-19).
 
 ## Which files repeat others
 
