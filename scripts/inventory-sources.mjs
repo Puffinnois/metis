@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Lists every Parquet file of one league in the sportsdataverse-data releases and writes the list to
 // tests/fixtures/<league>-inventory.tsv, where a test compares it with SOURCES_BY_LEAGUE in
-// src/main/stats/sources.ts. `--league=wnba` for the WNBA; the NBA's by default.
+// src/main/stats/sources.ts. `--league=wnba` for the WNBA, `ncaam` and `ncaaw` for NCAA Division I;
+// the NBA's by default. Every season is listed, those before a league's first season too.
 // Development only: it needs the GitHub CLI signed in, since a release listing takes more calls
 // than GitHub's anonymous allowance. The app itself never lists a release.
 //
@@ -17,7 +18,9 @@ const REPO = 'sportsdataverse/sportsdataverse-data'
 // The release prefixes of each league, as `releases.prefixes` in src/shared/leagues.ts states them.
 const PREFIXES = {
   nba: ['espn_nba_', 'nba_stats_', 'nba_'],
-  wnba: ['espn_wnba_', 'wnba_stats_', 'wnba_']
+  wnba: ['espn_wnba_', 'wnba_stats_', 'wnba_'],
+  ncaam: ['espn_mens_college_basketball_', 'ncaa_mbb_', 'mbb_'],
+  ncaaw: ['espn_womens_college_basketball_', 'ncaa_wbb_', 'wbb_']
 }
 const league =
   process.argv.find((a) => a.startsWith('--league='))?.slice('--league='.length) ?? 'nba'

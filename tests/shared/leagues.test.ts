@@ -222,9 +222,10 @@ describe('the college leagues (D38)', () => {
       expect(league.noData).toMatch(/^No NCAA (men|women)'s stats yet: turn NCAA (Men|Women) on/)
       expect(league.size.roomBytes).toBe(6 * 1024 ** 3)
     }
-    // D42's estimates: 818 and 763 MB to download, 4.1 and 3.9 GB on disk.
-    expect(men.size.downloadBytes).toBe(818 * 1024 ** 2)
-    expect(women.size.downloadBytes).toBe(763 * 1024 ** 2)
+    // The first loads of T1302.3: 767 and 718 MiB downloaded, 3.38 and 3.17 GiB on disk.
+    expect(men.size.downloadBytes).toBe(803_921_971)
+    expect(women.size.downloadBytes).toBe(752_895_003)
+    expect(men.size.fileBytes).toBe(3_632_803_840)
     expect(men.size.fileBytes).toBeGreaterThan(women.size.fileBytes)
   })
 })

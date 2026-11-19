@@ -14,8 +14,8 @@ import type { StatsQuery } from '@shared/stats/types'
 import { openTestDb, tempDir } from '../../fixtures/stats'
 
 /**
- * The college leagues before their data (Plan T1302.2): no sources, no built tables, no recipes and no
- * models. Their recipes and models are null behind accessors that throw (`recipeOf`, `modelsOf`), so
+ * The college leagues before their built tables (Plan T1302.2): their sources load (T1302.3), but no
+ * built tables, no recipes and no models yet. Their recipes and models are null behind accessors that throw (`recipeOf`, `modelsOf`), so
  * every read a screen makes, with the league off or turned on with its file empty, must answer with
  * the league's reason and never reach one: a read that did would reject with the accessor's error.
  */
@@ -65,7 +65,7 @@ describe('the college leagues before their data', () => {
   it('have no recipes or models, and the accessors refuse to read them', () => {
     for (const league of COLLEGE) {
       expect(league.builds).toEqual([])
-      expect(SOURCES_BY_LEAGUE[league.id]).toEqual([])
+      expect(SOURCES_BY_LEAGUE[league.id].length).toBeGreaterThan(0)
       expect(() => modelsOf(league)).toThrow(`the ${league.name} has no ratings or models yet`)
       for (const kind of ['identity', 'derived', 'published', 'plays'] as const) {
         expect(() => recipeOf(league, kind)).toThrow(`the ${league.name} has no ${kind} recipe yet`)
@@ -87,7 +87,13 @@ describe('the college leagues before their data', () => {
         scope: { seasons: [2026] }
       })
       expect(result.notes).toEqual([league.noData])
-      expect((await reads.data()).families).toEqual([])
+      // Every release waits, but ESPN's play by play, which this build leaves out (D42).
+      const families = (await reads.data()).families
+      expect(families).toHaveLength(29)
+      expect(families.filter((f) => f.state === 'left-out').map((f) => f.label)).toEqual([
+        'Play by play (ESPN)'
+      ])
+      expect(families.every((f) => f.state === 'left-out' || f.state === 'waiting')).toBe(true)
     }
   })
 
