@@ -38,10 +38,11 @@ export const BUILT_TABLES = ['identity', 'derived', 'published', 'plays', 'model
 export type BuiltTables = (typeof BUILT_TABLES)[number]
 
 /**
- * The identity recipes, named for the sources they read: the NBA's schedule, or the WNBA's schedule
- * and game logs.
+ * The identity recipes, named for the sources they read: the NBA's schedule, the WNBA's schedule
+ * and game logs, or the college leagues' ESPN schedules with stats.ncaa.org's beside them (one recipe
+ * for the men and the women, D38).
  */
-export type IdentityRecipeName = 'nba' | 'wnba'
+export type IdentityRecipeName = 'nba' | 'wnba' | 'college'
 
 /**
  * The game and season table recipes, named for the box scores they read: the NBA's box scores, or the
@@ -879,10 +880,12 @@ const college = (
   // games an opponent, in five months, both sides alike.
   seasonShape: { opponents: 24, months: 5 },
   statsFile: `stats-${league.id}.duckdb`,
-  builds: [],
+  // The game, team and player tables (T1302.4); the game and season tables come with T1302.5.
+  builds: ['identity'],
   // The families no release publishes (D44) read their reasons from T1302.6, with the tables.
   unpublished: {},
-  identity: null,
+  // ESPN's ids are the keys, stats.ncaa.org's games and players linked to them (D40).
+  identity: 'college',
   derived: null,
   published: null,
   plays: null,

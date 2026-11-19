@@ -10,5 +10,7 @@ export const IDENTITY_LATE: Readonly<Record<IdentityRecipeName, readonly string[
   nba: [],
   // The league's play by play: a game's overtimes where the game logs and ESPN do not tell them, most
   // games of 1997 to 2001 (`identityWnba.ts`).
-  wnba: ['src_wnba_pbp']
+  wnba: ['src_wnba_pbp'],
+  // The college recipe reads the core tier alone; its overtimes are ESPN's and stats.ncaa.org's team box.
+  college: []
 }
