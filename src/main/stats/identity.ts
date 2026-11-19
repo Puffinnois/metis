@@ -7,6 +7,7 @@ import {
 } from '@shared/leagues'
 import type { StatsDb } from './db'
 import { hasTables, NAME_KEY, playerIdsSql } from './identityShared'
+import { COLLEGE_IDENTITY } from './identityCollege'
 import { WNBA_IDENTITY } from './identityWnba'
 
 /**
@@ -225,7 +226,8 @@ const NBA_IDENTITY: IdentityRecipe = {
 /** Every recipe, by the name a league's registry entry gives (`League.identity`). */
 export const IDENTITY_RECIPES: Readonly<Record<IdentityRecipeName, IdentityRecipe>> = {
   nba: NBA_IDENTITY,
-  wnba: WNBA_IDENTITY
+  wnba: WNBA_IDENTITY,
+  college: COLLEGE_IDENTITY
 }
 
 /** Every table any recipe reads: whatever the league, their releases cannot be left out. */

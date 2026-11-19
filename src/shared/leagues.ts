@@ -38,10 +38,11 @@ export const BUILT_TABLES = ['identity', 'derived', 'published', 'plays', 'model
 export type BuiltTables = (typeof BUILT_TABLES)[number]
 
 /**
- * The identity recipes, named for the sources they read: the NBA's schedule, or the WNBA's schedule
- * and game logs.
+ * The identity recipes, named for the sources they read: the NBA's schedule, the WNBA's schedule
+ * and game logs, or the college leagues' ESPN schedules with stats.ncaa.org's beside them (one recipe
+ * for the men and the women, D38).
  */
-export type IdentityRecipeName = 'nba' | 'wnba'
+export type IdentityRecipeName = 'nba' | 'wnba' | 'college'
 
 /**
  * The game and season table recipes, named for the box scores they read: the NBA's box scores, or the
@@ -860,10 +861,11 @@ const college = (
   // Early November to the Final Four in early April (ncaa-data-sources.md, "Coverage").
   seasonMonths: { first: 11, last: 4 },
   // Every event counts, as the NCAA's official statistics include conference and NCAA tournaments
-  // (D45); leaving one out is a filter.
+  // (D45); leaving one out is a filter. Exhibitions never count: they are `preseason`, read only when
+  // a query asks for them.
   countedTypes: league.seasonTypes.filter((t) => t !== 'all-star' && t !== 'preseason'),
-  typeNames: { playoffs: 'NCAA tournament' },
-  typeTags: { playoffs: 'NCAA tournament' },
+  typeNames: { playoffs: 'NCAA tournament', preseason: 'Exhibition' },
+  typeTags: { playoffs: 'NCAA tournament', preseason: 'Exhibition' },
   countedName: 'Every game',
   defaultType: 'counted',
   firstSeason: NCAA_FIRST_SEASON,
@@ -879,10 +881,12 @@ const college = (
   // games an opponent, in five months, both sides alike.
   seasonShape: { opponents: 24, months: 5 },
   statsFile: `stats-${league.id}.duckdb`,
-  builds: [],
+  // The game, team and player tables (T1302.4); the game and season tables come with T1302.5.
+  builds: ['identity'],
   // The families no release publishes (D44) read their reasons from T1302.6, with the tables.
   unpublished: {},
-  identity: null,
+  // ESPN's ids are the keys, stats.ncaa.org's games and players linked to them (D40).
+  identity: 'college',
   derived: null,
   published: null,
   plays: null,
@@ -922,7 +926,8 @@ const NCAAM: League = college({
   // The men's postseason events of D45's window: the NCAA tournament (as `playoffs`), the NIT, CBI
   // (2021-22 to 2024-25), CIT (2023-24), The Basketball Classic (2021-22) and the College Basketball
   // Crown (2024-25 on).
-  seasonTypes: ['regular', 'playoffs', 'nit', 'cbi', 'cit', 'tbc', 'crown'],
+  // Then the exhibitions stats.ncaa.org lists, before opening day (D45, added 2026-11-18).
+  seasonTypes: ['regular', 'playoffs', 'nit', 'cbi', 'cit', 'tbc', 'crown', 'preseason'],
   releases: {
     prefixes: ['espn_mens_college_basketball_', 'ncaa_mbb_', 'mbb_'],
     registry: 'SOURCES_BY_LEAGUE.ncaam in src/main/stats/sources.ts',
@@ -941,7 +946,7 @@ const NCAAW: League = college({
   periods: [{ from: NCAA_FIRST_SEASON, periods: 4, minutes: 10, name: 'quarter' }],
   // The women's postseason events of D45's window: the NCAA tournament (as `playoffs`), the WNIT, the
   // WBI (2021-22, 2022-23) and the WBIT (2023-24 on).
-  seasonTypes: ['regular', 'playoffs', 'wnit', 'wbi', 'wbit'],
+  seasonTypes: ['regular', 'playoffs', 'wnit', 'wbi', 'wbit', 'preseason'],
   releases: {
     prefixes: ['espn_womens_college_basketball_', 'ncaa_wbb_', 'wbb_'],
     registry: 'SOURCES_BY_LEAGUE.ncaaw in src/main/stats/sources.ts',
