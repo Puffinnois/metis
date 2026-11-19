@@ -132,6 +132,6 @@
     "shot": "t1302f-06-nba-shots"
   },
   {
-    "eval": "(async () => {\n  const games = await window.api.stats.games('nba', 2025)\n  let one = null\n  for (const g of games.slice(0, 20)) { one = await window.api.stats.game('nba', g.id); if (one?.officials?.length) break }\n  const s = await window.api.stats.officialsSeason('nba', 2025, ['regular'])\n  return check(\"the NBA's officials as before\", (one?.officials.length ?? 0) > 0 && s.officials.length > 50, { game: one?.officials.map((o) => o.name), officials: s.officials.length })\n})()"
+    "eval": "(async () => {\n  const games = await window.api.stats.games('nba', 2025)\n  let one = null\n  for (const g of games.filter((x) => x.homeScore !== null).slice(-40)) { one = await window.api.stats.game('nba', g.id); if (one?.officials?.length) break }\n  const s = await window.api.stats.officialsSeason('nba', 2025, ['regular'])\n  return check(\"the NBA's officials as before\", (one?.officials.length ?? 0) > 0 && s.officials.length > 50, { game: one?.officials.map((o) => o.name), officials: s.officials.length })\n})()"
   }
 ]
