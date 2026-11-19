@@ -36,9 +36,19 @@ export interface SourceFile {
    * not exist yet names them here. Absent means no.
    */
   keys?: boolean
+  /**
+   * A file of every season keeps only its rows from this season on, read from its `season` column; a
+   * file with no such column is kept whole. The college leagues start at 2021-22 (D39), and their
+   * schedule masters hold every season from 2002-03. Absent: every row.
+   */
+  fromSeason?: number
+  /** `season` is published as text, `2025-26`, and read as its final year, `2026` (`seasonSql`). */
+  seasonSpan?: boolean
 }
 
-type Options = Partial<Pick<SourceFile, 'allSeasons' | 'shared' | 'id' | 'keys'>>
+type Options = Partial<
+  Pick<SourceFile, 'allSeasons' | 'shared' | 'id' | 'keys' | 'fromSeason' | 'seasonSpan'>
+>
 
 function source(
   table: string,
@@ -620,27 +630,263 @@ const WNBA_LABELS: Record<string, string> = {
   wnba_groups: 'Aliases and conferences (SportsDataverse)'
 }
 
+/**
+ * NCAA Division I, men and women (D38), as `docs/reference/ncaa-data-sources.md` measured them on
+ * 2026-11-18: 29 releases a side, the same tables in both, so one shape names them. Seasons from
+ * 2021-22 (`2022`, D39); a file of every season keeps its rows from then on (`fromSeason`). Tables are
+ * named by source as the WNBA's are: `src_espn_*` for ESPN's, `src_ncaa_*` for stats.ncaa.org's, and
+ * the dataset's crosswalks and groups under the NBA's names, with its team ratings and player values
+ * beside them. Left out:
+ * - `*_team_group_seasons.parquet`, the combined group file: its season files row for row (D23);
+ * - ESPN's play by play, which no metric reads (D42), listed in `LEFT_OUT_RELEASES` so the Data panel
+ *   names it.
+ * The keys will be built from ESPN's schedules and player box scores, the crosswalk and the groups
+ * (D40), so those four releases are marked `keys`. The `ncaa_*` releases are not: each league must run
+ * without them (D41, `NCAA_STATS_LEFT_OUT`).
+ */
+const NCAA_FIRST_SEASON = 2022
+const IN_WINDOW = { fromSeason: NCAA_FIRST_SEASON }
+
+interface College {
+  /** `espn_mens_college_basketball`: ESPN's releases. */
+  espn: string
+  /** `ncaa_mbb`: stats.ncaa.org's releases, and the stem of their files. */
+  ncaa: string
+  /** `mbb`: the dataset's crosswalk, groups and models. */
+  short: string
+  /** ESPN's rosters start later than its other files: 2024-25 for the men, 2025-26 for the women. */
+  rostersFrom: number
+}
+
+function collegeSources({ espn, ncaa, short, rostersFrom }: College): SourceFile[] {
+  const first = NCAA_FIRST_SEASON
+  const e = (
+    name: string,
+    stem: string,
+    tier: LoadTier,
+    grain: string,
+    release = name,
+    options: Options = {},
+    firstSeason = first
+  ): SourceFile =>
+    source(`src_espn_${name}`, `${espn}_${release}`, stem, tier, grain, firstSeason, options)
+  const n = (name: string, tier: LoadTier, grain: string): SourceFile =>
+    source(`src_ncaa_${name}`, `${ncaa}_${name}`, `${ncaa}_${name}`, tier, grain, first)
+  const ids = (
+    table: string,
+    release: 'crosswalk' | 'groups',
+    stem: string,
+    grain: string,
+    options: Options = {}
+  ): SourceFile =>
+    source(table, `${short}_${release}`, stem, 'core', grain, first, { ...keys, ...options })
+  const every = { ...allSeasons, ...IN_WINDOW }
+  return [
+    ids('src_xwalk_player', 'crosswalk', `${short}_player_crosswalk`, 'player-team'),
+    ids('src_xwalk_team', 'crosswalk', `${short}_team_crosswalk`, 'team'),
+    ids('src_xwalk_game', 'crosswalk', `${short}_schedule_crosswalk`, 'game'),
+    // ESPN's team ids against stats.ncaa.org's, which change every season; the same two schools files
+    // in both leagues' releases, loaded into each league's own file (D36).
+    ids('src_xwalk_schools', 'crosswalk', 'ncaa_espn_schools', 'school', every),
+    ids('src_xwalk_school_seasons', 'crosswalk', 'ncaa_espn_school_seasons', 'school-season', {
+      ...every,
+      seasonSpan: true
+    }),
+    ids('src_xwalk_ncaa_teams', 'crosswalk', 'ncaa_espn_team_crosswalk', 'team-season', {
+      ...every,
+      seasonSpan: true
+    }),
+    ids('src_groups', 'groups', `${short}_groups`, 'group', every),
+    ids('src_group_aliases', 'groups', `${short}_group_aliases`, 'alias', every),
+    ids('src_group_seasons', 'groups', `${short}_group_seasons`, 'group-season', every),
+    ids('src_player_aliases', 'groups', `${short}_player_aliases`, 'alias', every),
+    ids('src_team_aliases', 'groups', `${short}_team_aliases`, 'alias', every),
+    // The season's Division I list (D40).
+    ids('src_team_groups', 'groups', `${short}_team_group_seasons`, 'team-season'),
+
+    // Almost every game twice a season (ncaa-data-sources.md, "Traps"), as published.
+    e('schedule', `${short}_schedule`, 'core', 'game', 'schedules', keys),
+    e('schedule_master', `${short}_schedule_master`, 'core', 'game', 'schedules', {
+      ...every,
+      ...keys
+    }),
+    e('games_in_repo', `${short}_games_in_data_repo`, 'core', 'game', 'schedules', {
+      ...every,
+      ...keys
+    }),
+    e('player_box', 'player_box', 'core', 'player-game', 'player_boxscores', keys),
+    e('team_box', 'team_box', 'core', 'team-game', 'team_boxscores'),
+    e('player_core', 'player_core', 'core', 'player-season'),
+    e('player_season', 'player_season_stats', 'core', 'player-season-stat', 'player_season_stats'),
+    e('team_season', 'team_season_stats', 'core', 'team-season-stat', 'team_season_stats'),
+    e('game_rosters', 'game_rosters', 'core', 'player-game'),
+    e('standings', 'standings', 'core', 'team-season-stat'),
+    e('officials', 'officials', 'core', 'official-game'),
+    e('rosters', 'rosters', 'core', 'player-team', 'rosters', {}, rostersFrom),
+    e('shots', 'shots', 'events', 'shot'),
+    e('pbp', 'play_by_play', 'plays', 'play'),
+
+    n('schedule', 'core', 'game'),
+    n('team_ids', 'core', 'team-season'),
+    n('rosters', 'core', 'player-team-season'),
+    n('team_rosters', 'core', 'player-team-season'),
+    n('team_box', 'core', 'team-game'),
+    n('player_box', 'core', 'player-game'),
+    // The dataset's RAPM from stats.ncaa.org's plays, published once a season is over.
+    n('rapm', 'published', 'player-season'),
+    n('rapm_within_team', 'published', 'player-season'),
+    n('shots', 'events', 'shot'),
+    n('possessions', 'events', 'possession'),
+    n('lineups', 'events', 'lineup-stint'),
+    n('matchup_stints', 'events', 'stint'),
+    n('pbp', 'plays', 'play'),
+
+    source(
+      'src_ratings',
+      `${short}_ratings`,
+      `${short}_ratings`,
+      'published',
+      'team-season',
+      first
+    ),
+    source(
+      'src_player_value',
+      `${short}_player_value`,
+      `${short}_player_value`,
+      'published',
+      'player-season',
+      first
+    )
+  ]
+}
+
+const MEN: College = {
+  espn: 'espn_mens_college_basketball',
+  ncaa: 'ncaa_mbb',
+  short: 'mbb',
+  rostersFrom: 2025
+}
+const WOMEN: College = {
+  espn: 'espn_womens_college_basketball',
+  ncaa: 'ncaa_wbb',
+  short: 'wbb',
+  rostersFrom: 2026
+}
+
+export const NCAAM_SOURCES: SourceFile[] = collegeSources(MEN)
+export const NCAAW_SOURCES: SourceFile[] = collegeSources(WOMEN)
+
+function collegeLabels({ espn, ncaa, short }: College): Record<string, string> {
+  return {
+    [`${espn}_schedules`]: 'Schedules (ESPN)',
+    [`${espn}_player_boxscores`]: 'Player box scores (ESPN)',
+    [`${espn}_team_boxscores`]: 'Team box scores (ESPN)',
+    [`${espn}_player_core`]: 'Player details (ESPN)',
+    [`${espn}_player_season_stats`]: 'Player season stats (ESPN)',
+    [`${espn}_team_season_stats`]: 'Team season stats (ESPN)',
+    [`${espn}_game_rosters`]: 'Game rosters (ESPN)',
+    [`${espn}_standings`]: 'Standings (ESPN)',
+    [`${espn}_officials`]: 'Officials (ESPN)',
+    [`${espn}_rosters`]: 'Rosters (ESPN)',
+    [`${espn}_shots`]: 'Shots (ESPN)',
+    [`${espn}_pbp`]: 'Play by play (ESPN)',
+    [`${ncaa}_schedule`]: 'Schedules (stats.ncaa.org)',
+    [`${ncaa}_team_ids`]: 'Team ids (stats.ncaa.org)',
+    [`${ncaa}_rosters`]: 'Rosters (stats.ncaa.org)',
+    [`${ncaa}_team_rosters`]: 'Team rosters (stats.ncaa.org)',
+    [`${ncaa}_team_box`]: 'Team box scores (stats.ncaa.org)',
+    [`${ncaa}_player_box`]: 'Player box scores (stats.ncaa.org)',
+    [`${ncaa}_shots`]: 'Shots (stats.ncaa.org)',
+    [`${ncaa}_pbp`]: 'Play by play (stats.ncaa.org)',
+    [`${ncaa}_possessions`]: 'Possessions (SportsDataverse)',
+    [`${ncaa}_lineups`]: 'Lineups (SportsDataverse)',
+    [`${ncaa}_matchup_stints`]: 'Lineups on court (SportsDataverse)',
+    [`${ncaa}_rapm`]: 'RAPM (SportsDataverse)',
+    [`${ncaa}_rapm_within_team`]: 'RAPM within team (SportsDataverse)',
+    [`${short}_ratings`]: 'Team ratings (SportsDataverse)',
+    [`${short}_player_value`]: 'Player value (SportsDataverse)',
+    [`${short}_crosswalk`]: 'Id crosswalks (SportsDataverse)',
+    [`${short}_groups`]: 'Aliases and conferences (SportsDataverse)'
+  }
+}
+
 /** Each release as the Data panel names it. SportsDataverse's are its own calculations. */
-export const RELEASE_LABELS: Readonly<Record<string, string>> = { ...NBA_LABELS, ...WNBA_LABELS }
+export const RELEASE_LABELS: Readonly<Record<string, string>> = {
+  ...NBA_LABELS,
+  ...WNBA_LABELS,
+  ...collegeLabels(MEN),
+  ...collegeLabels(WOMEN)
+}
 
 /** Each league's files, the registry's `releases.registry`. */
 export const SOURCES_BY_LEAGUE: Readonly<Record<LeagueId, readonly SourceFile[]>> = {
   nba: SOURCES,
   wnba: WNBA_SOURCES,
-  // The college leagues' files come with T1302.3; until then a league turned on downloads nothing,
-  // and its every read gives `League.notBuilt`.
-  ncaam: [],
-  ncaaw: []
+  ncaam: NCAAM_SOURCES,
+  ncaaw: NCAAW_SOURCES
 }
 
 /**
- * Release tags left out of this build, named exactly (`nba_stats_synergy`, `nba_player_impact`).
- * Empty: every release loads. A tag listed here is not downloaded; the next refresh drops what it had
- * loaded and rebuilds from the rest, and its metrics read null with a reason. The releases the game,
- * team and player tables are built from cannot be listed (`leftOut.ts`).
+ * The stats.ncaa.org releases of both college leagues, 13 a side: the box scores with their shot-zone
+ * splits, the play by play with the ten players, possessions, lineups, stints, located shots and RAPM.
+ */
+export const NCAA_STATS_RELEASES: readonly string[] = [MEN.ncaa, WOMEN.ncaa].flatMap((ncaa) =>
+  [
+    'schedule',
+    'team_ids',
+    'rosters',
+    'team_rosters',
+    'team_box',
+    'player_box',
+    'rapm',
+    'rapm_within_team',
+    'shots',
+    'possessions',
+    'lineups',
+    'matchup_stints',
+    'pbp'
+  ].map((name) => `${ncaa}_${name}`)
+)
+
+/**
+ * The switch D41 asks for: true ships both college leagues without the stats.ncaa.org releases, on
+ * ESPN's tables alone, within a day, through `LEFT_OUT_RELEASES` as any release is left out. Those
+ * releases state no licence and their upstream refuses plain clients (`data-rights.md`). False: they
+ * load. Leaving them out drops their tables on the next refresh, and the metrics that read them give
+ * their reasons (Plan T1302.5 on).
+ */
+export const NCAA_STATS_LEFT_OUT: boolean = false
+
+/**
+ * ESPN's college play by play, the one table of D39's seasons not loaded (D42): no metric reads it,
+ * since stats.ncaa.org's holds every game with the ten players on the floor, and it would cost about
+ * 1.45 GB a league against D22's 6 GB. Revisited only if a metric needs it.
+ */
+const COLLEGE_ESPN_PBP = [`${MEN.espn}_pbp`, `${WOMEN.espn}_pbp`]
+
+/**
+ * Release tags left out of this build, named exactly (`nba_stats_synergy`, `nba_player_impact`). A tag
+ * listed here is not downloaded; the next refresh drops what it had loaded and rebuilds from the rest,
+ * its metrics read null with a reason, and the Data panel lists it as not in this version. The
+ * releases the game, team and player tables are built from cannot be listed (`leftOut.ts`). Every NBA
+ * and WNBA release loads; the college leagues leave out ESPN's play by play (D42), and stats.ncaa.org's
+ * releases when `NCAA_STATS_LEFT_OUT` is set (D41).
  * `docs/reference/stats-database.md`, "Leaving a source out".
  */
-export const LEFT_OUT_RELEASES: readonly string[] = []
+export const LEFT_OUT_RELEASES: readonly string[] = [
+  ...COLLEGE_ESPN_PBP,
+  ...(NCAA_STATS_LEFT_OUT ? NCAA_STATS_RELEASES : [])
+]
+
+/**
+ * A file's season as an INTEGER, as SQL over its `season` column: cast, or for a span published as
+ * text (`2025-26`) its final year, so a season reads as every other file's (D27).
+ */
+export function seasonSql(source: SourceFile): string {
+  return source.seasonSpan
+    ? "CASE WHEN regexp_full_match(CAST(season AS VARCHAR), '\\d{4}-\\d{2}') THEN TRY_CAST(left(CAST(season AS VARCHAR), 4) AS INTEGER) + 1 END"
+    : 'TRY_CAST(season AS INTEGER)'
+}
 
 /** The file of one season (0 for a file of all seasons). */
 export function fileName(source: SourceFile, season: number): string {

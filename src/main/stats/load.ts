@@ -1,5 +1,5 @@
 import { sqlIdent, sqlString, type StatsDb } from './db'
-import type { SourceFile } from './sources'
+import { seasonSql, type SourceFile } from './sources'
 
 /** A file's (or select's) columns and their DuckDB types, in order. */
 export type Columns = Map<string, string>
@@ -133,7 +133,8 @@ export interface LoadedFile {
  * reload replaces. `season` is not overwritten by it: ESPN's 2000 files hold 450 games of 1998-99,
  * rightly marked 1999. Rows of a shared table carry `source_file`. Season types and team codes stay
  * as published; they are mapped in the `game` and `team` tables, so a correction to a mapping never
- * means downloading the files again (D27).
+ * means downloading the files again (D27). A season published as text, `2025-26`, reads as its final
+ * year (`seasonSql`), and a file of every season keeps its rows from `fromSeason` on (D39).
  */
 export async function loadSourceFile(
   db: StatsDb,
@@ -141,13 +142,19 @@ export async function loadSourceFile(
   season: number,
   path: string
 ): Promise<LoadedFile> {
-  const from = `read_parquet(${sqlString(path)})`
-  const columns = await describe(db, `SELECT * FROM ${from}`)
+  const file = `read_parquet(${sqlString(path)})`
+  const columns = await describe(db, `SELECT * FROM ${file}`)
   const notes: string[] = []
   const standard: Record<string, string> = {}
   const published = columns.get('season')
-  if (published !== undefined && published !== 'INTEGER') {
-    standard.season = 'TRY_CAST(season AS INTEGER)'
+  // Rows of seasons before the league's first are not loaded; the filter reads the column as
+  // published, before it is replaced below.
+  const from =
+    source.allSeasons && source.fromSeason !== undefined && published !== undefined
+      ? `(SELECT * FROM ${file} WHERE ${seasonSql(source)} >= ${source.fromSeason})`
+      : file
+  if (published !== undefined && (published !== 'INTEGER' || source.seasonSpan)) {
+    standard.season = seasonSql(source)
   }
   if (!source.allSeasons) {
     standard.file_season = `${season}::INTEGER`

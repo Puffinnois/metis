@@ -7,6 +7,8 @@
 // usage: node scripts/check-source-rows.mjs <folder> <raw folder> [--league=wnba] [--through=2026]
 //   <raw folder> holds one folder per release, as `~/.cache/metis-dev/wnba-raw` does.
 //   --through  the last season the raw files were taken in (2026 by default)
+// A release left out of the build (`LEFT_OUT_RELEASES`) is not counted. A file of every season is
+// counted from its `fromSeason` on, as the loader keeps it.
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -28,10 +30,10 @@ if (!folder || !rawDir) {
 const registry = ts.transpileModule(readFileSync(join(ROOT, 'src/main/stats/sources.ts'), 'utf8'), {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 }
 }).outputText
-const { SOURCES_BY_LEAGUE, fileName, seasonsOf } = await import(
+const { SOURCES_BY_LEAGUE, LEFT_OUT_RELEASES, fileName, seasonSql, seasonsOf } = await import(
   `data:text/javascript,${encodeURIComponent(registry)}`
 )
-const sources = SOURCES_BY_LEAGUE[league]
+const sources = SOURCES_BY_LEAGUE[league].filter((s) => !LEFT_OUT_RELEASES.includes(s.release))
 
 const raw = await (await DuckDBInstance.create(':memory:')).connect()
 const stats = openStatsWorker(folder, { league })
@@ -46,7 +48,15 @@ for (const source of sources) {
       t.missing++
       continue
     }
-    const rows = (await raw.runAndReadAll(`SELECT count(*) AS n FROM read_parquet('${path}')`))
+    const file = `read_parquet('${path}')`
+    const hasSeason = (await raw.runAndReadAll(`DESCRIBE SELECT * FROM ${file}`))
+      .getRowObjects()
+      .some((r) => r.column_name === 'season')
+    const where =
+      source.allSeasons && source.fromSeason !== undefined && hasSeason
+        ? ` WHERE ${seasonSql(source)} >= ${source.fromSeason}`
+        : ''
+    const rows = (await raw.runAndReadAll(`SELECT count(*) AS n FROM ${file}${where}`))
       .getRowObjects()
       .map((r) => num(r.n))[0]
     t.files++

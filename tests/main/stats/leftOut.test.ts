@@ -4,12 +4,13 @@ import {
   isTableLeftOut,
   LEFT_OUT_REASON,
   leftOutGap,
+  leftOutIn,
   leftOutProblem,
   leftOutSources,
   leftOutTables,
   requiredReleases
 } from '@main/stats/leftOut'
-import { LEFT_OUT_RELEASES, SOURCES } from '@main/stats/sources'
+import { LEFT_OUT_RELEASES, SOURCES, SOURCES_BY_LEAGUE } from '@main/stats/sources'
 import { CATALOGUE, METRICS } from '@shared/stats/catalogue'
 import { LEAGUES } from '@shared/leagues'
 
@@ -20,9 +21,17 @@ const metric = (id: string): NonNullable<ReturnType<typeof METRICS.get>> => {
 }
 
 describe('the releases left out of this build', () => {
-  it('are none as committed, and that list builds', () => {
-    expect(LEFT_OUT_RELEASES).toEqual([])
-    expect(leftOutProblem()).toBeNull()
+  it('are ESPN’s college play by play alone as committed (D42), and that list builds', () => {
+    expect(LEFT_OUT_RELEASES).toEqual([
+      'espn_mens_college_basketball_pbp',
+      'espn_womens_college_basketball_pbp'
+    ])
+    for (const sources of Object.values(SOURCES_BY_LEAGUE)) {
+      expect(leftOutProblem(leftOutIn(LEFT_OUT_RELEASES, sources), sources)).toBeNull()
+    }
+    // Every NBA and WNBA release loads.
+    expect(leftOutIn(LEFT_OUT_RELEASES, SOURCES)).toEqual([])
+    expect(leftOutIn(LEFT_OUT_RELEASES, SOURCES_BY_LEAGUE.wnba)).toEqual([])
     expect(includedSources()).toEqual(SOURCES)
   })
 
