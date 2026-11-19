@@ -1,0 +1,68 @@
+[
+  {
+    "size": [1500, 950]
+  },
+  {
+    "wait": 9000
+  },
+  {
+    "eval": "\nwindow.sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nwindow.until = async (fn, ms = 20000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await fn()) return true; await sleep(150) } return false };\nwindow.nav = async (name) => { const b = [...document.querySelectorAll('nav button')].find((x) => x.textContent.trim() === name); if (!b) return 'NO NAV ' + name; b.click(); await sleep(2500); return 'nav ' + name };\nwindow.check = (label, ok, got) => (ok ? 'OK ' : 'MISMATCH ') + label + ' got ' + JSON.stringify(got);\nwindow.trigger = () => document.querySelector('button[aria-label^=\"League: \"]');\nwindow.league = () => trigger()?.getAttribute('aria-label')?.replace('League: ', '') ?? null;\nwindow.statusLine = () => document.querySelector('[title=\"See what is loaded\"]')?.textContent.trim() ?? null;\nwindow.h1 = () => document.querySelector('main h1')?.textContent.trim() ?? null;\nwindow.mainText = () => document.querySelector('main')?.innerText ?? '';\nwindow.settled = () => until(() => !/Loading|loading…/.test(mainText()) && mainText().length > 0, 20000);\nwindow.switchTo = async (name) => { const t = trigger(); if (!t) return 'NO MENU'; t.focus(); t.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); await until(() => document.querySelectorAll('[role=menuitemradio]').length > 0, 3000); const item = [...document.querySelectorAll('[role=menuitemradio]')].find((x) => x.textContent.startsWith(name)); if (!item) return 'NO ITEM ' + name; item.click(); await until(() => league() === name, 5000); await sleep(3000); await settled(); await sleep(1500); return league() };\nwindow.bad = (t) => /stats yet|could not be opened|unknown league|Something went wrong|Error:|has no .* recipe|No standings are published/.test(t);\nwindow.fingerprint = () => ({ h1: h1(), text: mainText().slice(0, 600) });\nwindow.collegeReads = (name, expect) => { const t = mainText(); const missing = expect.filter((x) => !t.includes(x)); return { ok: league() === name && !bad(t) && /\\d/.test(t) && missing.length === 0, missing, h1: h1(), text: t.slice(0, 300), status: statusLine() } };\nwindow.trip = async (screen, expect) => { await nav(screen); if (league() !== 'NBA') await switchTo('NBA'); await settled(); await sleep(2000); const nba = fingerprint(); const out = { screen }; for (const name of ['NCAA Men', 'NCAA Women']) { await switchTo(name); out[name] = collegeReads(name, expect[name] ?? []) } const w = await switchTo('WNBA'); out.wnba = { league: w, h1: h1(), ok: w === 'WNBA' && !bad(mainText()) }; const n = await switchTo('NBA'); await sleep(2000); const back = fingerprint(); const same = JSON.stringify(back) === JSON.stringify(nba); return check(screen + ': both NCAA leagues read their game and season tables with no error; the WNBA reads its data; the NBA comes back unchanged', out['NCAA Men'].ok && out['NCAA Women'].ok && out.wnba.ok && n === 'NBA' && same, same ? out : { ...out, nba, back }) };\n'helpers ready'"
+  },
+  {
+    "eval": "(async () => { await settled(); return check('the app opens on the NBA with its data', league() === 'NBA' && !bad(mainText()), { league: league(), status: statusLine(), h1: h1() }) })()"
+  },
+  {
+    "eval": "(async () => { const d = await window.api.leagues.setDownloads({ nba: true, wnba: true, ncaam: true, ncaaw: true }); await sleep(3000); const by = Object.fromEntries(d.leagues.map((l) => [l.league, { on: l.on, hasFile: l.hasFile, gb: Math.round(l.fileBytes / 1e7) / 100 }])); return check('every league on with its file', Object.values(by).every((l) => l.on && l.hasFile), by) })()"
+  },
+  {
+    "eval": "(async () => { const out = {}; for (const id of ['ncaam', 'ncaaw', 'nba', 'wnba']) { const s = await window.api.stats.status(id); out[id] = { noData: s.noData ?? null, paused: s.paused, busy: s.busy, through: s.through } } return check('every league paused, no refresh running, the colleges read their data with no not-built reason', Object.values(out).every((s) => s.paused && !s.busy && !s.noData), out) })()"
+  },
+  {
+    "eval": "trip('Leaderboards', {})"
+  },
+  {
+    "eval": "(async () => { await nav('Leaderboards'); await switchTo('NCAA Men'); return collegeReads('NCAA Men', []).ok ? 'on NCAA Men leaderboards' : 'MISMATCH ' + mainText().slice(0, 300) })()"
+  },
+  {
+    "shot": "t1302e-01-ncaam-leaderboards"
+  },
+  {
+    "eval": "trip('Players', {})"
+  },
+  {
+    "eval": "(async () => { await nav('Players'); await switchTo('NCAA Women'); return collegeReads('NCAA Women', []).ok ? 'on NCAA Women players' : 'MISMATCH ' + mainText().slice(0, 300) })()"
+  },
+  {
+    "shot": "t1302e-02-ncaaw-players"
+  },
+  {
+    "eval": "trip('Teams', {})"
+  },
+  {
+    "eval": "(async () => { await nav('Teams'); await switchTo('NCAA Men'); return collegeReads('NCAA Men', []).ok ? 'on NCAA Men teams' : 'MISMATCH ' + mainText().slice(0, 300) })()"
+  },
+  {
+    "shot": "t1302e-03-ncaam-teams"
+  },
+  {
+    "eval": "(async () => { const t = mainText(); const codes = [...document.querySelectorAll('main select option')].map((o) => o.textContent.trim()); return check('the NCAA Men team picker lists Division I teams alone, and Pythagorean wins give their reason', codes.length > 300 && codes.length < 400 && !codes.includes('ABAC') && !codes.includes('ALBI') && codes.includes('DUKE') && /Pythagorean exponent is fitted/.test(t), { teams: codes.length, first: codes.slice(0, 5) }) })()"
+  },
+  {
+    "eval": "trip('Standings', { 'NCAA Men': ['Every game, the postseason with it, as ESPN publishes it', 'ACC'], 'NCAA Women': ['Every game, the postseason with it, as ESPN publishes it', 'SEC'] })"
+  },
+  {
+    "eval": "(async () => { await nav('Standings'); await switchTo('NCAA Women'); return collegeReads('NCAA Women', ['SEC']).ok ? 'on NCAA Women standings' : 'MISMATCH ' + mainText().slice(0, 300) })()"
+  },
+  {
+    "shot": "t1302e-04-ncaaw-standings"
+  },
+  {
+    "eval": "(async () => { const q = (id) => window.api.stats.query(id, { entity: 'player', metrics: ['pts'], transform: 'perGame', scope: { seasons: [2026], qualifiedOnly: true }, limit: 1 }); const m = (await q('ncaam')).rows[0]; const w = (await q('ncaaw')).rows[0]; return check(\"2025-26's leading scorers per game are the record books' (AJ Dybantsa, Mikayla Blakes)\", m?.name === 'AJ Dybantsa' && w?.name === 'Mikayla Blakes', { men: [m?.name, m?.values.pts.value, m?.games], women: [w?.name, w?.values.pts.value, w?.games] }) })()"
+  },
+  {
+    "eval": "(async () => { await nav('Leaderboards'); const n = await switchTo('NBA'); return check('back on the NBA leaderboards', n === 'NBA' && !bad(mainText()), { h1: h1() }) })()"
+  },
+  {
+    "shot": "t1302e-05-nba-leaderboards"
+  }
+]

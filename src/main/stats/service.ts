@@ -423,7 +423,13 @@ export async function openStatsService(
           name: string
           conference: string | null
           division: string | null
-        }>('SELECT season, team_id, code, name, conference, division FROM team ORDER BY code')
+        }>(
+          // A college league's pickers list its Division I teams (D40): the 300 and more schools
+          // outside it are opponents in its games, not teams of its own.
+          `SELECT season, team_id, code, name, conference, division FROM team${
+            league.divisionIOnly ? ' WHERE division_i' : ''
+          } ORDER BY code`
+        )
         const bySeason = new Map<number, StatsSeason>()
         for (const r of held) {
           const s = bySeason.get(r.season) ?? {

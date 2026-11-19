@@ -358,7 +358,7 @@ export interface League {
   unpublished: Partial<Record<UnpublishedFamily, string>>
   /**
    * The recipes below and `models` are null for a league whose tables are not built yet (the college
-   * leagues, `builds` empty, until T1302.4 to T1302.8 name them). Each is read through an accessor
+   * leagues' published tables, plays and models, until T1302.6 to T1302.8 name them). Each is read through an accessor
    * that throws on null (`identityRecipe`, `derivedRecipe`, `publishedRecipe`, `playsRecipe`,
    * `modelsOf`), and a refresh reaches one only for a step `builds` lists.
    *
@@ -845,8 +845,9 @@ const WNBA: BuiltLeague = {
  * other: seasons from 2021-22 (D39), labelled by their final year as the NBA's, November to April, 40
  * minutes and per-40 rates, one three-point line, the events as season types counted together (D45),
  * the NCAA's games rule (D43). What differs comes from each league's own fields below: the periods,
- * the releases, the events and the measured size. None of the data yet (Plan T1302.2): no sources
- * (`SOURCES_BY_LEAGUE` empty), no built tables, no recipes and no models, which T1302.3 to T1302.8 add.
+ * the releases, the events and the measured size. Its sources (T1302.3), its game, team and player
+ * tables (T1302.4) and its game and season tables (T1302.5) are built; the published tables, the plays
+ * and the models come with T1302.6 to T1302.8.
  */
 const NCAA_FIRST_SEASON = 2022
 

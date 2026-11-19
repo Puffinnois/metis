@@ -206,6 +206,9 @@ const SAME_AS: Record<string, string> = {
   team_pace40: 'College pace is per 40 minutes already: see Pace.'
 }
 
+const PYTHAGOREAN =
+  "Not computed for the college leagues yet: the Pythagorean exponent is fitted on each league's own seasons with Metis's ratings and models, in a later version."
+
 /** Components ESPN's college box scores do not have, and why. */
 const NOT_IN_BOX: readonly [readonly string[], string][] = [
   [
@@ -234,6 +237,9 @@ const LATER: readonly [readonly string[], number][] = [
 export function collegeCoverage(def: MetricDef, parts: readonly string[]): MetricCoverage {
   const same = SAME_AS[def.id]
   if (same) return { firstSeason: FIRST, unavailable: same }
+  // The exponent is the NBA's until the league's own is fitted with its models (T1302.8): shown as a
+  // value, it would be the NBA's rule on college scores.
+  if (def.pythagorean) return { firstSeason: FIRST, unavailable: PYTHAGOREAN }
   for (const [columns, reason] of NOT_IN_BOX) {
     if (parts.some((p) => columns.includes(p))) return { firstSeason: FIRST, unavailable: reason }
   }

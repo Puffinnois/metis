@@ -163,6 +163,11 @@ describe('the college leagues before their data', () => {
       expect(coverageReason(paint, [2020], league)).toBe('Loaded from 2021-22.')
       // ESPN's college box scores have no plus-minus: it says so.
       expect(metricIn(METRICS.get('plus_minus')!, league).unavailable).toMatch(/plus-minus/)
+      // Pythagorean wins would read the NBA's exponent until the league's own is fitted: a reason.
+      for (const id of ['team_pyth_pct', 'team_pyth_w']) {
+        const def = METRICS.get(id)
+        if (def) expect(metricIn(def, league).unavailable).toMatch(/Pythagorean exponent/)
+      }
     }
     // The NBA's words are as they were.
     expect(coverageReason(METRICS.get('plus_minus')!, [1990], LEAGUES.nba)).toBe(
