@@ -238,6 +238,47 @@ The crosswalk misses are mostly lines with no player id (6,300 to 9,500 a season
 
 **Without the `ncaa_*` releases (D41)** both leagues build from ESPN's tables alone in under a second: the same ESPN games, every team and Division I flag, `ncaa_player_ids` empty, and the women's 334 games of 2024-25 missing.
 
+## Game and season tables, built (T1302.5)
+
+Built on 2026-11-19 by the college recipe (`src/main/stats/derived/gameCollege.ts`, one for both leagues) on fresh copies of the identity loads (`t1302d-*`), through the built worker's refresh (`scripts/load-report.mjs`): men 0.9 minutes and 1.82 GB peak, women 0.8 minutes and 2.08 GB, no problem. The tables take 446 and 420 DuckDB blocks (about 112 and 105 MiB), which the files' free blocks held: the files stay at 3.63 and 3.41 GB, inside D22's 6 GB. Kept as `~/.cache/metis-dev/t1302e-ncaam` and `t1302e-ncaaw`. The checks and their tables are in [ncaa-agreement.md](ncaa-agreement.md).
+
+**What each table reads (D40).** A player's line is ESPN's, its `athlete_id` the key; a team-game ESPN has no line for reads stats.ncaa.org's lines instead (the women's 334 games of 2024-25, 6,723 lines, and 0 to 165 lines a season otherwise), and the two are never added together in one team-game. A team's counts are ESPN's team box, which equals its players' sums on the shots, assists, steals, blocks and points and adds the team rebounds and the team's own turnovers (as stats.ncaa.org's does); stats.ncaa.org's team box where the lines are its own; the players' sums where neither has a count (stats.ncaa.org's has no steals or fouls). Seconds are the game's regulation and overtimes. A forfeit (ESPN's 2-0 row) counts in the record as the `game` table has it and has no box score; "Points" from the final score (`team_pts`) count its 2-0 as ESPN publishes it. An exhibition keeps stats.ncaa.org's box score, typed `preseason`, which no counted total reads.
+
+**stats.ncaa.org beside ESPN.** Its shot zones (rim, mid-range, three, which add up to its field-goal attempts on every line), putbacks, blocks by zone, transition and assisted splits and possessions are `ncaa_*` columns (`src/main/stats/derived/ncaaSplits.ts`): on a player's ESPN line wherever stats.ncaa.org has a line for the same player and game (99.3 to 99.9 % of men's lines, 99.4 to 99.8 % of women's, 2021-22 to 2025-26), on a team's game summed over every line of the team's, linked or not, with the team box's possessions. Their metrics (`catalogue/college.ts`: rim and mid-range percentages and rates, putbacks, rim blocks, transition rate, points and eFG%, assisted shares, possessions and points per 100) divide stats.ncaa.org's counts by its own, never ESPN's, and name it as their source. On the paired lines the two families give the same points, attempts, makes and turnovers on 99.4 to 100 % (men) and 99.4 to 100 % (women).
+
+**The rules on the boards.** Division I teams alone are ranked, listed on a board and in the team pickers, and make the league's sums and the scope's average team games (D40); every game counts for the Division I side. The 75 % rule (D43) asks each player row's own team games in scope, counting a team's games with a box score (a forfeit is no game a player could appear in); a player of two teams in one season takes the team with more games, never their sum. The field-goal, three-point and free-throw percentages and the assist-to-turnover ratio ask a count per game played in 75 % of the team's games (D43, added 2026-11-19, `League.madePerGame`): 5 field goals, 2.5 free throws and 3 assists a game, threes 2.5 for the men and 2.0 for the women, the NCAA's minimums as its champions show them. The minutes and the catalogue's other minimums stay D37's, scaled by the Division I teams' average games in scope (the 300 and more teams outside Division I play one to three games each, and would have halved it). A query naming no type reads every counted game (D45).
+
+**Checked** (exact unless said; [ncaa-agreement.md](ncaa-agreement.md)): games, Division I teams and the NCAA tournament's 67 games every finished season, 0 wrong; ESPN's team box read whole on every team-game whose box is ESPN's; the two families' team boxes equal on points 99.8 to 100 %, field goals 99.2 to 100 %, rebounds 98.4 to 100 %, assists 96.8 to 99.2 %; player sums equal the team's points on 99.8 to 100 % of team-games; every player's game rows add up to their season row; every Division I team's record equals ESPN's standings but the teams with a forfeit; through the engine, every Division I team's points, rebounds and possessions equal the tables summed, 2021-22 and 2025-26. With stats.ncaa.org's tables dropped (D41) both leagues build from ESPN's alone in 22 seconds, every `ncaa_*` column empty.
+
+**Leaders against the record books** (`scripts/check-ncaa-leaders.mjs`, every category the books print, 2021-22 to 2025-26). The champion's own games and totals equal the book's in 54 of 55 men's category-seasons and 59 of 60 women's. The two that differ:
+
+- Foster Loyer's free throws of 2021-22: 116 of 124 here, 118 of 126 in the book. In one game (Davidson's of 2021-11-19) ESPN's box score has him 2 of 2 and stats.ncaa.org's 4 of 4; every other game is equal. The book's line is stats.ncaa.org's (`ncaa_ftm`, `ncaa_fta` beside the line give 118 and 126); the app's counts are ESPN's (D40).
+- Olivia Miles's triple-doubles of 2025-26: 6 here, 8 in the book. Both families give the same six games, the same 38 games played, and no game short by one rebound, assist or steal; the book's other two are not in either source, unexplained.
+
+The engine's leader is the champion in 53 of 55 men's and 58 of 60 women's category-seasons: every season of every category in both leagues but four. The per-game categories by the 75 % rule (threes made per game since D43's addition of 2026-11-19: 5 of 10 before, 10 of 10 after); the percentages and the assist-to-turnover ratio by the makes per game played (D43's addition of the same day: 12 of 40 before, 37 of 40 after). **Stated differences, kept:** the four are leaders at schools reclassifying to Division I, which the NCAA lists at the bottom of its rankings and does not rank ("These reclassifying schools will not be ranked but rather listed at the bottom of the weekly rankings", Statistics Policies and Guidelines, `ForSIDs_Policies.txt` lines 1054-1058): Jake Kosakowski of UC San Diego (men's 3FG%, 2021-22), Malcolm Wilson of Queens (men's blocks, 2024-25: 115 in 35, equal in both families), Gracie Merkle of Bellarmine (women's FG%, 2022-23) and Jo Langbehn of St. Thomas (women's FG%, 2023-24). The groups file is the Division I list (D40) and holds no reclassifying flag, so the app ranks them, and the check names each with the reason.
+
+**Engine speed** (`scripts/engine-speed.mjs <folder> 2026 --league=…`, 2025-26, about 5,000 players a season; median and worst of the runs, the worst being the first, cold):
+
+| Query                                  | Rows (men) | Men median | Men worst | Women median | Women worst |
+| -------------------------------------- | ---------- | ---------- | --------- | ------------ | ----------- |
+| A leaderboard: ten columns, one season | 5,019      | 268        | 623       | 258          | 598         |
+| The same, per game                     | 5,019      | 262        | 271       | 257          | 259         |
+| 40 columns                             | 5,019      | **974**    | **1,043** | **946**      | **968**     |
+| A home board                           | 3,120      | 51         | 62        | 50           | 66          |
+| A team leaderboard                     | 365        | 39         | 42        | 39           | 40          |
+| A date range                           | 4,790      | 112        | 113       | 110          | 113         |
+| Last 10 appearances                    | 5,019      | 135        | 139       | 127          | 131         |
+| By month                               | 22,107     | 382        | 410       | 365          | 415         |
+| By opponent                            | 92,902     | **947**    | **967**   | **909**      | **919**     |
+| Every season: one leaderboard          | 12,197     | 422        | 425       | 406          | 415         |
+| Every season by season: all players    | 25,394     | **665**    | **684**   | **627**      | **669**     |
+| Compare: a season of players, 23 rows  | 5,019      | **503**    | **509**   | 482          | 493         |
+| Compare: three players, every season   | 3          | 401        | 403       | 388          | 392         |
+| Trends: the pool by season             | 14,571     | 161        | 164       | 147          | 158         |
+| Every other read of the script         | –          | 18 to 147  | 20 to 207 | 17 to 143    | 19 to 201   |
+
+The everyday boards are inside the 500 ms budget; four are over it (bold), as the NBA's slowest was at 561 ms (T1301.8). The Division I filter and the own-team 75 % rule are not the cause: with both switched off the men's 40 columns take 1,186 ms, by opponent 856 and every season by season 764 (the own-team rule costs about 10 ms since its season-grain path reads `player_season` and `team_season`). They go to T1302.9 (the manager's decision of 2026-11-19).
+
 ## Which files repeat others
 
 Measured on the downloaded files. A file is skipped only when proven to repeat others (D23).
@@ -301,6 +342,8 @@ The NCAA's record books, read with a plain client (below), list each season's in
 - Men's scoring, 2025-26: the record book has AJ Dybantsa, BYU, 35 games, 894 points, 25.5 a game. stats.ncaa.org's player box gives the same 35 games and 894 points, ranked first.
 - Women's steals, 2025-26: the record book has Hannah Hidalgo, Notre Dame, 36 games, 202 steals. ESPN's player box gives the same 36 and 202.
 - ESPN's men's and women's player box scores rank one-game players from non-Division I teams above them (Bloomfield, Briar Cliff and others, 36 and 40 points in one game) unless rows are kept to Division I teams. See "Traps".
+
+Every category of every season, through the app's leaderboards, came with the game and season tables: "Game and season tables, built (T1302.5)" above, and [ncaa-agreement.md](ncaa-agreement.md).
 
 ## Which source each table reads (2021-22 on)
 
@@ -520,7 +563,7 @@ So **the NCAA's own published statistics cannot be read as tables**. stats.ncaa.
 
 The NCAA's Statistics Policies and Guidelines ("Ranking Minimums", read on 2026-11-18): "To be ranked, a student-athlete must appear in 75 percent of the team's games." The minimums for each category "shall be determined by the national office … and shall be reviewed annually". They are published with the rankings on stats.ncaa.org, which refused a plain client, and the record books print each season's champion without the category's minimum. National per-game rankings count "the number of games an individual actually plays", and a player in for one play has a game. A team must play the minimum number of games set for sports sponsorship to be ranked at all; the men's record book gives 13 games as the minimum for record-book inclusion in 2021, "the minimum required for NCAA championship consideration".
 
-So the games rule can be the NCAA's own: 75 % of the team's games. The makes minimums for the shooting percentages stay D37's scaled rule until the NCAA's are read (D43).
+So the games rule can be the NCAA's own: 75 % of the team's games. The category minimums are not printed for a season (the policies leave them to the national office, `ForSIDs_Policies.txt` lines 825-828; the men's book prints "Min. 3 assists per game" on the season assist-to-turnover record, line 231, and per-game career minimums, lines 94, 137 and 211; the women's book none). Measured on the record books' champions (T1302.5), the NCAA asks a count per game played: 5 field goals, 2.5 free throws, 3 assists, and threes 2.5 for the men and 2.0 for the women, which the app adopts as the NCAA's minimums as its champions show them (D43, added 2026-11-19). Reading stats.ncaa.org's footnotes in a browser would confirm them.
 
 ## What the NCAA data can support, 2021-22 on
 

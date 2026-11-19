@@ -115,8 +115,76 @@ const ON_POSS = 22.5
 // An hour of the team's eight: a side plays five slots, so 0.625 of one slot's minutes.
 const X_PIE_DEN = ((5 * SECONDS) / TEAM_SECONDS) * PIE_TOTAL
 
+/**
+ * stats.ncaa.org's counts beside the box score, the college leagues' (D40): each side's own, never
+ * the box score's. Rim, mid-range and three attempts add up to the field-goal attempts.
+ */
+interface NcaaSide {
+  fgm: number
+  fga: number
+  fg3m: number
+  rimm: number
+  rima: number
+  midm: number
+  mida: number
+  pbackm: number
+  pbacka: number
+  blk_rim: number
+  fgm_trans: number
+  fga_trans: number
+  fg3m_trans: number
+  pts_trans: number
+  fgm_ast: number
+  fg3m_ast: number
+  rimm_ast: number
+  pts: number
+  poss: number
+}
+const NCAA_PLAYER: NcaaSide = {
+  ...{ fgm: 9, fga: 20, fg3m: 2, rimm: 5, rima: 8, midm: 2, mida: 6, pbackm: 2, pbacka: 3 },
+  ...{ blk_rim: 2, fgm_trans: 3, fga_trans: 5, fg3m_trans: 1, pts_trans: 8, fgm_ast: 4 },
+  ...{ fg3m_ast: 2, rimm_ast: 3, pts: 24, poss: 60 }
+}
+const NCAA_TEAM: NcaaSide = {
+  ...{ fgm: 60, fga: 130, fg3m: 18, rimm: 30, rima: 50, midm: 12, mida: 30, pbackm: 9 },
+  ...{ pbacka: 14, blk_rim: 7, fgm_trans: 16, fga_trans: 28, fg3m_trans: 5, pts_trans: 40 },
+  ...{ fgm_ast: 38, fg3m_ast: 15, rimm_ast: 17, pts: 160, poss: 140 }
+}
+const NCAA_OPP: NcaaSide = {
+  ...{ fgm: 55, fga: 128, fg3m: 15, rimm: 26, rima: 47, midm: 14, mida: 33, pbackm: 7 },
+  ...{ pbacka: 12, blk_rim: 5, fgm_trans: 12, fga_trans: 22, fg3m_trans: 3, pts_trans: 30 },
+  ...{ fgm_ast: 30, fg3m_ast: 12, rimm_ast: 15, pts: 150, poss: 139 }
+}
+const ncaaColumns = (s: NcaaSide, prefix: string, games: number): Record<string, number> => ({
+  ...Object.fromEntries(Object.entries(s).map(([k, v]) => [`${prefix}ncaa_${k}`, v])),
+  [`${prefix}ncaa_games`]: games
+})
+
+/** The college splits worked by hand: shares of stats.ncaa.org's own counts. */
+const NCAA_SHARED: Record<string, (s: NcaaSide) => number> = {
+  ncaa_rim_pct: (s) => s.rimm / s.rima,
+  ncaa_rim_rate: (s) => s.rima / s.fga,
+  ncaa_mid_pct: (s) => s.midm / s.mida,
+  ncaa_mid_rate: (s) => s.mida / s.fga,
+  ncaa_putbacks: (s) => s.pbackm,
+  ncaa_putback_pct: (s) => s.pbackm / s.pbacka,
+  ncaa_rim_blocks: (s) => s.blk_rim,
+  ncaa_trans_rate: (s) => s.fga_trans / s.fga,
+  ncaa_trans_pts: (s) => s.pts_trans,
+  ncaa_trans_efg_pct: (s) => (s.fgm_trans + 0.5 * s.fg3m_trans) / s.fga_trans,
+  ncaa_assisted_pct: (s) => s.fgm_ast / s.fgm,
+  ncaa_assisted_3pm_pct: (s) => s.fg3m_ast / s.fg3m,
+  ncaa_assisted_rim_pct: (s) => s.rimm_ast / s.rimm
+}
+/** A team's own: its possessions and points per 100 of them, both stats.ncaa.org's. */
+const NCAA_TEAM_ONLY: Record<string, (s: NcaaSide) => number> = {
+  ncaa_poss: (s) => s.poss,
+  ncaa_rtg: (s) => (100 * s.pts) / s.poss
+}
+
 /** The stored components of a player's row. */
 const PLAYER_ROW: Record<string, number> = {
+  ...ncaaColumns(NCAA_PLAYER, '', 2),
   games: 2,
   starts: 1,
   wins: 1,
@@ -146,6 +214,8 @@ const PLAYER_ROW: Record<string, number> = {
 
 /** The stored components of a team's row. */
 const TEAM_ROW: Record<string, number> = {
+  ...ncaaColumns(NCAA_TEAM, '', 2),
+  ...ncaaColumns(NCAA_OPP, 'opp_', 2),
   games: 3,
   box_games: 2,
   starts_known: 2,
@@ -234,6 +304,13 @@ const share = (c: keyof Side): number => PLAYER[c] / TEAM[c]
 
 /** What each metric should read on these rows: a worked value for every id in the catalogue. */
 const EXPECTED: Record<string, number> = {
+  ...Object.fromEntries(Object.entries(NCAA_SHARED).map(([id, f]) => [id, f(NCAA_PLAYER)])),
+  ...Object.fromEntries(
+    Object.entries({ ...NCAA_SHARED, ...NCAA_TEAM_ONLY }).flatMap(([id, f]) => [
+      [`team_${id}`, f(NCAA_TEAM)],
+      [`opp_${id}`, f(NCAA_OPP)]
+    ])
+  ),
   ...Object.fromEntries(Object.entries(SHARED).map(([id, f]) => [id, f(PLAYER)])),
   ...Object.fromEntries(Object.entries(SHARED).map(([id, f]) => [`team_${id}`, f(TEAM)])),
   ...Object.fromEntries(Object.entries(SHARED).map(([id, f]) => [`opp_${id}`, f(OPP)])),

@@ -42,9 +42,11 @@ export function StatsStandings({
   // The season forecast, for the season in progress only (`forecastQuery` says why): not one the
   // league has finished, though the data runs through it (the WNBA's in November).
   const inProgress = seasonInProgress(scope.season, data.status)
+  // A league with no models fitted (the college leagues until T1302.8) has no forecast to show.
+  const forecasts = currentLeague().models !== null
   const fq = useMemo(
-    () => (inProgress ? forecastQuery(scope.season) : null),
-    [inProgress, scope.season]
+    () => (inProgress && forecasts ? forecastQuery(scope.season) : null),
+    [inProgress, forecasts, scope.season]
   )
   const forecast = forecastCells(useStatsQuery(fq, data.version, { keepLast: false }).result)
   return (
@@ -55,7 +57,8 @@ export function StatsStandings({
             {seasonLabel(scope.season)} standings
           </h1>
           <div className="text-[13px] text-fg-2">
-            Regular season, as the {currentLeague().name} publishes it
+            {currentLeague().standingsWords ??
+              `Regular season, as the ${currentLeague().name} publishes it`}
             {inProgress ? ', to date' : ''}
           </div>
         </div>

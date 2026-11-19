@@ -121,6 +121,12 @@ export interface MetricDef {
    * it. A rate's sample, what shrinking weighs, stays the attempts.
    */
   qualifyBy?: string
+  /**
+   * A minimum of `qualifyBy` per game played, with the league's games rule beside it, in place of
+   * `minSample` scaled to the season: set by a league's `madePerGame` (the colleges, D43), never by
+   * the catalogue.
+   */
+  minPerGame?: number
   /** What a total divides by to be per game, when not `games`: a box score's count, not the record's. */
   perGameBy?: string
   /** Stays a total under per game, per 36 and the rest: wins per game would read as a win rate. */
@@ -128,6 +134,12 @@ export interface MetricDef {
   /** Scales per game, and no other way: minutes per 36 minutes would read 36. */
   perGameOnly?: boolean
   sources: string[]
+  /**
+   * The source tables a box-score metric's own columns come from, beyond the box scores every build
+   * has: stats.ncaa.org's player and team boxes for the college leagues' splits (D40). With every file
+   * of one left out of a build (D41), the metric answers with the reason (`leftOutGap`).
+   */
+  reads?: string[]
   /**
    * The first season holding real values, by the data's label, in every league that takes the
    * metric's own coverage (`League.metricsByDefault`: the NBA). `leagues` states it for the others.

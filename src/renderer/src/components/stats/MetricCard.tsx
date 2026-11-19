@@ -13,8 +13,15 @@ import { gamesShareWords } from '@shared/leagues'
 import type { MetricInfo } from '@shared/stats/types'
 
 const sampleWords = (info: MetricInfo): string => {
-  if (!info.minSample) return info.sampleLabel
   const league = currentLeague()
+  // A count per game played with the games rule (D43, `madePerGame`): the colleges' rate categories.
+  if (info.minPerGame !== undefined) {
+    const share = gamesShareWords(league)
+    const games = share ? ` in ${share} of the team's games` : ''
+    const note = league.madePerGame ? `, ${league.madePerGame.note}` : ''
+    return `${info.minPerGame} ${info.qualifyLabel} per game${games} to qualify${note}`
+  }
+  if (!info.minSample) return info.sampleLabel
   // A minimum in minutes is stated in the minimums' game length: 1,000 is 833 in a 40-minute league.
   const scale = info.qualifyLabel === 'minutes' ? league.gameMinutes / league.minimumsMinutes : 1
   const min = Math.round(info.minSample * scale).toLocaleString('en-US')

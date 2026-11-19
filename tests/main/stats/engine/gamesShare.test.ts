@@ -4,13 +4,15 @@ import { buildDerived } from '@main/stats/derived/build'
 import { compileQuery, type CompileContext } from '@main/stats/engine/compile'
 import { runQuery } from '@main/stats/engine/run'
 import { gamesToQualifyIn, LEAGUES, type League } from '@shared/leagues'
-import type { StatsQuery } from '@shared/stats/types'
+import { METRICS, metricIn } from '@shared/stats/catalogue'
+import type { StatsQuery, StatsResult } from '@shared/stats/types'
 import {
   addGame,
   addNbaLine,
   BOS,
   emptySources,
   LAL,
+  MIA,
   type Stats
 } from '../../../fixtures/boxScores'
 import { openTestDb } from '../../../fixtures/stats'
@@ -41,6 +43,8 @@ beforeEach(async () => {
   await db.exec(`INSERT INTO team VALUES
     (2026, ${BOS}, 2, 'BOS', 'Boston', 'east', 'atlantic'),
     (2026, ${LAL}, 13, 'LAL', 'Los Angeles', 'west', 'pacific')`)
+  // The college leagues rank their Division I teams alone (D40): both teams here are.
+  await db.exec('ALTER TABLE team ADD COLUMN division_i BOOLEAN DEFAULT true')
   await db.exec(`CREATE TABLE player (player_id BIGINT, name VARCHAR)`)
   await db.exec(`INSERT INTO player VALUES (1, 'Ana'), (2, 'Bea'), (3, 'Cat')`)
   await addGame(db, { id: 'a', date: '2026-01-05', home: BOS, away: LAL, scores: [100, 90] })
@@ -84,10 +88,13 @@ describe('the games rule as a share of the team’s games (D43)', () => {
   it('writes the share into the engine’s SQL for the per-game leaders alone', () => {
     const q: StatsQuery = { ...perGame, metrics: ['pts', 'fg_pct', 'min'] }
     const college = compileQuery(q, ctx(ncaam)).sql
-    // 0.75 × the 82 games the factor is stated over: 61.5.
-    expect(college).toContain('>= ceil(round(61.5 * $factor, 3))')
-    // The makes and the minutes stay D37's, scaled: 300 field goals, 1,000 minutes by 40 / 48.
-    expect(college).toContain('round(300 * $factor)')
+    // 0.75 of the row's own team games in scope (`team_games`), not of the scope's average.
+    expect(college).toContain('>= ceil(round(0.75 * team_games, 3))')
+    expect(college).not.toContain('61.5 * $factor')
+    // The field-goal percentage asks 5 made a game played (D43, added 2026-11-19), not D37's 300
+    // scaled; the minutes stay D37's, scaled: 1,000 by 40 / 48.
+    expect(college).toContain('>= 5 * games AND games >= ceil(round(0.75 * team_games, 3))')
+    expect(college).not.toContain('round(300 * $factor)')
     expect(college).toContain(`round(1000 * $factor * ${(40 / 48).toFixed(6)})`)
     expect(college).not.toContain('round(58 * $factor)')
     // The NBA's and the WNBA's SQL is as it was.
@@ -95,6 +102,8 @@ describe('the games rule as a share of the team’s games (D43)', () => {
       const sql = compileQuery(q, ctx(league)).sql
       expect(sql).toContain('round(58 * $factor)')
       expect(sql).not.toContain('ceil(')
+      expect(sql).not.toContain('team_games')
+      expect(sql).not.toContain('division_i')
     }
   })
 
@@ -132,5 +141,253 @@ describe('the games rule as a share of the team’s games (D43)', () => {
       ).rows.map((r) => r.name)
     expect(await board(nba)).toEqual(['Cat', 'Ana', 'Bea'])
     expect(await board(ncaam)).toEqual(['Ana', 'Bea'])
+  })
+})
+
+/**
+ * D43 asks 75 % of the player's own team's games, and college teams play 25 to 40 a season: the rule
+ * must read each row's team, never an average over the league. Seven games, worked by hand:
+ *
+ * - a BOS–LAL, b LAL–BOS, c BOS–MIA, d MIA–BOS, e LAL–MIA, f BOS–MIA, g BOS–LAL;
+ * - Boston plays 6, Los Angeles 4, Miami 4. The average is 4.67, whose 75 % asks 4 games of anyone;
+ *   the own-team rule asks 5 of Boston's players (75 % of 6 is 4.5) and 3 of the others' (of 4, 3).
+ *
+ * Ann plays 4 of Boston's 6 (a to d), Lu 3 of Los Angeles's 4 (a, b, e). Eve plays a for Los Angeles,
+ * then d and f for Miami: two teams in one season, 3 games. Fay plays c for Miami. Gus, Hal and Ivy
+ * fill the other sides so every team-game has a box score.
+ */
+describe('the share of the player’s own team’s games (D43)', () => {
+  const ANN = 11
+  const LU = 12
+  const EVE = 13
+  const FAY = 14
+  let db2: StatsDb
+
+  beforeEach(async () => {
+    db2 = await openTestDb()
+    await emptySources(db2)
+    await db2.exec(`INSERT INTO team VALUES
+      (2026, ${BOS}, 2, 'BOS', 'Boston', 'east', 'atlantic'),
+      (2026, ${LAL}, 13, 'LAL', 'Los Angeles', 'west', 'pacific'),
+      (2026, ${MIA}, 14, 'MIA', 'Miami', 'east', 'southeast')`)
+    await db2.exec('ALTER TABLE team ADD COLUMN division_i BOOLEAN DEFAULT true')
+    await db2.exec(`CREATE TABLE player (player_id BIGINT, name VARCHAR)`)
+    await db2.exec(`INSERT INTO player VALUES (11, 'Ann'), (12, 'Lu'), (13, 'Eve'), (14, 'Fay'),
+      (15, 'Gus'), (16, 'Hal'), (17, 'Ivy')`)
+    const games: [string, string, number, number][] = [
+      ['a', '2026-01-05', BOS, LAL],
+      ['b', '2026-01-07', LAL, BOS],
+      ['c', '2026-01-09', BOS, MIA],
+      ['d', '2026-01-11', MIA, BOS],
+      ['e', '2026-01-13', LAL, MIA],
+      ['f', '2026-01-15', BOS, MIA],
+      ['g', '2026-01-17', BOS, LAL]
+    ]
+    for (const [id, date, home, away] of games) await addGame(db2, { id, date, home, away })
+    const lines: [string, number, number][] = [
+      ...(['a', 'b', 'c', 'd'] as const).map((g): [string, number, number] => [g, ANN, BOS]),
+      ...(['a', 'b', 'e'] as const).map((g): [string, number, number] => [g, LU, LAL]),
+      ['a', EVE, LAL],
+      ['d', EVE, MIA],
+      ['f', EVE, MIA],
+      ['c', FAY, MIA],
+      ['e', 15, MIA],
+      ['f', 16, BOS],
+      ['g', 16, BOS],
+      ['g', 17, LAL]
+    ]
+    for (const [game, player, team] of lines) {
+      await addNbaLine(db2, game, player, team, { stats: scoring(10), minutes: '20:00' })
+    }
+    await buildDerived(db2)
+  })
+
+  const rows = async (league: League, q: Partial<StatsQuery> = {}): Promise<StatsResult['rows']> =>
+    (
+      await runQuery(
+        db2,
+        { ...perGame, ...q, scope: { ...perGame.scope, ...q.scope } },
+        ctx(league)
+      )
+    ).rows
+
+  const flags = async (
+    league: League,
+    q: Partial<StatsQuery> = {}
+  ): Promise<Record<string, boolean>> =>
+    Object.fromEntries(
+      (await rows(league, q)).map((r) => [
+        `${r.name}${r.group.team ? `@${r.group.team}` : ''}${r.group.opponent ? ` v ${r.group.opponent}` : ''}`,
+        r.values[q.metrics?.[0] ?? 'pts'].qualified
+      ])
+    )
+
+  it('covers three-pointers made per game, as the NCAA’s record books rank it (D43)', async () => {
+    // The college leagues' rule lists it with the five per-game leaders; the NBA's catalogue does not.
+    expect(metricIn(METRICS.get('fg3m')!, ncaam).qualifyBy).toBe('games')
+    expect(metricIn(METRICS.get('fg3m')!, LEAGUES.ncaaw).qualifyBy).toBe('games')
+    expect(METRICS.get('fg3m')!.qualifyBy).toBeUndefined()
+    expect(metricIn(METRICS.get('fg3m')!, nba).qualifyBy).toBeUndefined()
+    // The percentages keep their makes; a team's threes are not a leader's category.
+    expect(metricIn(METRICS.get('fg3_pct')!, ncaam).qualifyBy).toBe('fg3m')
+    expect(metricIn(METRICS.get('team_fg3m')!, ncaam).qualifyBy).toBeUndefined()
+    const fg3m: Partial<StatsQuery> = { metrics: ['fg3m'] }
+    expect(compileQuery({ ...perGame, ...fg3m }, ctx(ncaam)).sql).toContain('0.75 * team_games')
+    expect(compileQuery({ ...perGame, ...fg3m }, ctx(nba)).sql).not.toContain('team_games')
+    // Worked by hand as for points: Ann 4 of Boston's 6, short of 5; Lu 3 of 4; Eve 3 of the larger
+    // 4; Fay 1 of 4. The NBA's threes per game have no games minimum: everyone with a line.
+    const f = await flags(ncaam, fg3m)
+    expect([f.Ann, f.Lu, f.Eve, f.Fay]).toEqual([false, true, true, false])
+    expect(await flags(nba, fg3m)).toMatchObject({ Ann: true, Lu: true, Eve: true, Fay: true })
+  })
+
+  it('gives the same qualifiers at the season grain as at the game grain', async () => {
+    // A date range over the whole season reads the game rows; no filter reads the season rows, whose
+    // own-team games come from the season tables (`ownGamesCte`).
+    const whole: Partial<StatsQuery> = {
+      scope: { seasons: [2026], dates: ['2025-08-01', '2026-07-31'] }
+    }
+    for (const league of [ncaam, ncaaw]) {
+      for (const metrics of [['pts'], ['fg3m'], ['reb']]) {
+        const season = await flags(league, { metrics })
+        expect(Object.keys(season).length).toBeGreaterThan(4)
+        expect(await flags(league, { metrics, ...whole })).toEqual(season)
+      }
+    }
+  })
+
+  it('asks 75 % of the row’s own team games, not of the league’s average', async () => {
+    const f = await flags(ncaam)
+    // Ann: 4 of Boston's 6 is short of 5, though 4 is the average's 75 %. Lu: 3 of 4 is enough,
+    // though the average's would ask 4.
+    expect([f.Ann, f.Lu, f.Fay]).toEqual([false, true, false])
+    // The NBA's rule is as it was: 58 of 82 of the average 4.67 games is 3.3, so 3.
+    expect(await flags(nba)).toMatchObject({ Ann: true, Lu: true, Fay: false })
+  })
+
+  it('takes the team with more games for a player of two teams in one season, not their sum', async () => {
+    // Eve: 3 games, for Los Angeles (4 games) and Miami (4). The more of the two is 4, so 3 games
+    // qualify; the sum, 8, would ask 6.
+    expect((await flags(ncaaw)).Eve).toBe(true)
+    // By team, each row reads its own team: 1 of Los Angeles's 4, 2 of Miami's 4, neither 3.
+    const byTeam = await flags(ncaaw, { groupBy: ['team'] })
+    expect(byTeam[`Eve@${LAL}`]).toBe(false)
+    expect(byTeam[`Eve@${MIA}`]).toBe(false)
+  })
+
+  it('counts a team’s games against the opponent a row is grouped by', async () => {
+    // Los Angeles met Miami once (e) and Boston three times (a, b, g): Lu played e and a, b.
+    const f = await flags(ncaam, { groupBy: ['opponent'] })
+    expect(f[`Lu v ${MIA}`]).toBe(true)
+    expect(f[`Lu v ${BOS}`]).toBe(false)
+  })
+
+  it('ranks and lists Division I teams’ players alone, and reads the others when named', async () => {
+    await db2.exec(`UPDATE team SET division_i = false WHERE team_id = ${MIA}`)
+    const names = (await rows(ncaam)).map((r) => r.name).sort()
+    // Fay and Gus played for Miami alone; Eve's season row is her last team's, Miami.
+    expect(names).toEqual(['Ann', 'Hal', 'Ivy', 'Lu'])
+    // The scope's average games, which the makes minimums scale by, are Division I teams' too.
+    const compiled = compileQuery(perGame, ctx(ncaam))
+    expect(compiled.gamesSql).toContain('dt.division_i')
+    expect(compileQuery(perGame, ctx(nba)).gamesSql).not.toContain('division_i')
+    // A query that names a player reads them, whatever their team.
+    const fay = await rows(ncaam, { scope: { seasons: [2026], players: [String(FAY)] } })
+    expect(fay.map((r) => r.name)).toEqual(['Fay'])
+    // The NBA ranks every team's players.
+    expect((await rows(nba)).map((r) => r.name)).toContain('Fay')
+  })
+})
+
+/**
+ * D43's addition of 2026-11-19: a college rate category asks a count per game played, with the 75 %
+ * rule, in place of D37's count scaled to the season. Free throws, 2.5 made a game, worked by hand on
+ * four Boston games (a to d), every one against Los Angeles:
+ *
+ * - Dee makes 3, 3, 2, 2 in all four: 10 in 4, exactly 2.5 a game: qualifies;
+ * - Eli makes 3, 2, 2, 2: 9 in 4, 2.25: does not;
+ * - Ivy makes 3, 3, 2 in three: 8 in 3 games played, 2.67 a game: qualifies. Per team game it would
+ *   be 8 in 4, 2.0, and would not: the minimum is per game played, as the record books' champions
+ *   show it (Alex Giannaros, 50 threes in 25 of Boston University's 33 games);
+ * - Gil makes 3, 3 in two: 3.0 a game, but 2 games are short of 75 % of 4 (3): does not.
+ *
+ * The NBA's rule asks 125 made over 82 games, scaled: 125 × 4 / 82 is 6.1, so 6, which all four reach.
+ */
+describe('the makes per game played in the college leagues’ rate categories (D43)', () => {
+  let db3: StatsDb
+  const ft = (n: number): Stats => [0, 0, 0, 0, n, n, 0, 0, 0, 0, 0, 0, 0, n]
+
+  beforeEach(async () => {
+    db3 = await openTestDb()
+    await emptySources(db3)
+    await db3.exec(`INSERT INTO team VALUES
+      (2026, ${BOS}, 2, 'BOS', 'Boston', 'east', 'atlantic'),
+      (2026, ${LAL}, 13, 'LAL', 'Los Angeles', 'west', 'pacific')`)
+    await db3.exec('ALTER TABLE team ADD COLUMN division_i BOOLEAN DEFAULT true')
+    await db3.exec(`CREATE TABLE player (player_id BIGINT, name VARCHAR)`)
+    await db3.exec(
+      `INSERT INTO player VALUES (21, 'Dee'), (22, 'Eli'), (23, 'Ivy'), (24, 'Gil'), (25, 'Hal')`
+    )
+    const made: Record<string, number[]> = {
+      Dee: [3, 3, 2, 2],
+      Eli: [3, 2, 2, 2],
+      Ivy: [3, 3, 2],
+      Gil: [3, 3]
+    }
+    const ids: Record<string, number> = { Dee: 21, Eli: 22, Ivy: 23, Gil: 24 }
+    for (const [i, id] of ['a', 'b', 'c', 'd'].entries()) {
+      await addGame(db3, { id, date: `2026-01-0${i + 1}`, home: BOS, away: LAL })
+      await addNbaLine(db3, id, 25, LAL, { stats: ft(4), minutes: '30:00' })
+      for (const [name, games] of Object.entries(made)) {
+        if (i < games.length) {
+          await addNbaLine(db3, id, ids[name], BOS, { stats: ft(games[i]), minutes: '20:00' })
+        }
+      }
+    }
+    await buildDerived(db3)
+  })
+
+  const qualified = async (league: League): Promise<Record<string, boolean>> =>
+    Object.fromEntries(
+      (
+        await runQuery(
+          db3,
+          { entity: 'player', metrics: ['ft_pct'], scope: { seasons: [2026] } },
+          ctx(league)
+        )
+      ).rows.map((r) => [r.name, r.values.ft_pct.qualified])
+    )
+
+  it('asks the count per game played and 75 % of the team’s games, worked by hand', async () => {
+    for (const league of [ncaam, ncaaw]) {
+      expect(await qualified(league)).toMatchObject({
+        Dee: true,
+        Eli: false,
+        Ivy: true,
+        Gil: false
+      })
+    }
+    expect(await qualified(nba)).toMatchObject({ Dee: true, Eli: true, Ivy: true, Gil: true })
+  })
+
+  it('reads the league’s minimums from its entry, the colleges alone', () => {
+    expect(metricIn(METRICS.get('ft_pct')!, ncaam)).toMatchObject({
+      qualifyBy: 'ftm',
+      minPerGame: 2.5
+    })
+    expect(metricIn(METRICS.get('fg3_pct')!, ncaam).minPerGame).toBe(2.5)
+    expect(metricIn(METRICS.get('fg3_pct')!, ncaaw).minPerGame).toBe(2)
+    expect(metricIn(METRICS.get('ast_tov')!, ncaaw)).toMatchObject({
+      qualifyBy: 'ast',
+      minPerGame: 3
+    })
+    expect(metricIn(METRICS.get('fg_pct')!, ncaam).minSample).toBeUndefined()
+    // A team's rate has no minimum, and the NBA's keep their makes.
+    expect(metricIn(METRICS.get('team_ft_pct')!, ncaam).minPerGame).toBeUndefined()
+    expect(metricIn(METRICS.get('ft_pct')!, nba)).toMatchObject({
+      qualifyBy: 'ftm',
+      minSample: 125
+    })
+    expect(metricIn(METRICS.get('ft_pct')!, nba).minPerGame).toBeUndefined()
   })
 })

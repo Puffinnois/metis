@@ -236,7 +236,10 @@ function validate(q: StatsQuery, ctx: CompileContext): Checked {
   })
   const scope = q.scope
   integers(scope.seasons, 'scope.seasons', league.firstSeason, ctx.currentSeason)
-  const gameTypes = scope.gameTypes ?? ['regular']
+  // A query that names no type reads the league's default scope: the regular season, or every counted
+  // game where the league counts them all together (D45: the college leagues).
+  const gameTypes =
+    scope.gameTypes ?? (league.defaultType === 'counted' ? [...league.countedTypes] : ['regular'])
   if (!Array.isArray(gameTypes) || gameTypes.length === 0) {
     fail('scope.gameTypes must be a non-empty list')
   }
@@ -731,6 +734,10 @@ function aggregate(
   const needed = neededComponents(q, c)
 
   const where = [`w.season IN ${seasons}`, `w.game_type IN ${types}`]
+  const teamColumn = player && season ? 'w.last_team_id' : 'w.team_id'
+  // A league that ranks its Division I teams alone (D40) lists only their rows, and its league sums
+  // are theirs; a query naming its players or teams reads them whatever their division.
+  if (c.league.divisionIOnly && !s.players && !s.teams) where.push(divisionIOf(teamColumn))
   // A player's season table holds a row per team and one with no team. Exactly one kind is read, so
   // a traded player's teams are never added to their total.
   if (s.teams) where.push(`w.team_id IN ${params.list(s.teams.map(Number))}`)
@@ -766,7 +773,6 @@ function aggregate(
         <= ${params.add(s.lastN)}`
     }
   }
-  const teamColumn = player && season ? 'w.last_team_id' : 'w.team_id'
   // The row's own team at the season grain, for a built table: NULL on a player's row of no team,
   // which `builtCte` relies on.
   // The stability measure's halves: the odd and the even games of each player's (team's) season.
@@ -793,6 +799,10 @@ function aggregate(
            ${[...needed].map(component).join(', ')}
     FROM ${table} w ${recentJoin} ${splitJoin}
     WHERE ${where.join(' AND ')} ${lastN})`)
+  // A per-game leader in a league whose games rule is a share of the team's games (D43) qualifies
+  // on its own team's games in scope, not the scope's average.
+  const own = league === undefined && ownGamesRule(q, c)
+  if (own) ctes.push(ownGamesCte(`${p}own`, q, c, params, base, split))
   // A table that adds rows lists its players with no line in scope beside the box-score rows; the
   // league's sums never have them (Plan T1206).
   const adding = league === undefined && c.adds.length > 0
@@ -885,9 +895,13 @@ function aggregate(
       ${dims.length > 0 ? `GROUP BY ${dims.join(', ')}` : ''})`)
     return ctes.join(',\n')
   }
+  if (own) {
+    const by = c.groupBy.map((d) => ` AND o.g_${d} IS NOT DISTINCT FROM s.g_${d}`).join('')
+    joins.push(`LEFT JOIN ${p}own o ON o.id = s.id${by}`)
+  }
   ctes.push(`${p}agg AS (
     SELECT s.id, ${c.groupBy.map((d) => `s.g_${d}, `).join('')} s.team_id, s.last_season, s.position,
-           ${adding ? 's.no_line, s.added_name,' : ''}
+           ${adding ? 's.no_line, s.added_name,' : ''}${own ? ` ${ownGamesOf(q, c, params)} AS team_games,` : ''}
            s.games::DOUBLE AS games, ${metricColumns(q, c, sumOf).join(', ')}
     FROM ${p}sums s ${joins.join(' ')})`)
   return ctes.join(',\n')
@@ -1149,15 +1163,26 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
   // A row without a box-score line never qualifies, for any metric (Plan T1206): it is never ranked,
   // never in a league mean or percentile, and its sample is a count with nothing to qualify.
   const adding = c.adds.length > 0
+  const ownGames = ownGamesRule(q, c)
   const flags = c.metrics.map((m, i) => {
     const count =
       m.qualifyBy !== undefined && m.qualifyBy !== m.sample ? `coalesce(k${i}, 0)` : `s${i}`
     // A minimum counted in minutes is stated in the minimums' game length: a 40-minute league scales
     // it by 40 over that. Where the lengths agree (the NBA) the SQL is as it was.
     const counted = m.qualifyBy ?? m.sample
+    const rule = c.league.gamesRule
+    if (m.minPerGame !== undefined) {
+      // A count per game played, and the games rule beside it (D43, `madePerGame`): 2.5 free throws
+      // made a game, in 75 % of the team's games.
+      const games =
+        ownGames && rule.kind === 'share'
+          ? ` AND games >= ceil(round(${rule.share} * team_games, 3))`
+          : ''
+      return `(s${i} > 0 AND ${count} >= ${m.minPerGame} * games${games}${adding ? ' AND NOT no_line' : ''}) AS q${i}`
+    }
     const minutes = counted === 'minutes' ? c.league.gameMinutes / c.league.minimumsMinutes : 1
     const scale = minutes === 1 ? '' : ` * ${minutes.toFixed(6)}`
-    return `(s${i} > 0 AND ${count} >= ${minimumSql(m, c.league)}${scale})${adding ? ' AND NOT no_line' : ''}) AS q${i}`
+    return `(s${i} > 0 AND ${count} >= ${minimumSql(m, c.league, ownGames)}${scale})${adding ? ' AND NOT no_line' : ''}) AS q${i}`
   })
   const sort = q.sort ? q.metrics.indexOf(q.sort.metric) : 0
   const lower = c.metrics[sort].direction === 'lower' && c.transform !== 'percentile'
@@ -1190,6 +1215,9 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
     ...gameWhere(q, gp)
   ]
   if (q.scope.teams) gamesWhere.push(`w.team_id IN ${gp.list(q.scope.teams.map(Number))}`)
+  // A college season's team games are its Division I teams': the 300 and more teams outside it play
+  // one to three games each against them, and would halve the average the makes minimums scale by.
+  else if (ctx.league.divisionIOnly) gamesWhere.push(divisionIOf('w.team_id'))
   // Under a split, a sample scales to the split's share of the time as well: clutch is about 8 %
   // of a team's minutes, so it needs about 8 % of the minutes to qualify.
   const shareJoin = q.scope.split
@@ -1235,6 +1263,108 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
 
 const isState = (m: MetricDef): boolean => modelTable(m.model)?.kind === 'state'
 
+/** SQL: the row's team (`column`, with `w.season`) is in the season's Division I list (D40). */
+const divisionIOf = (column: string): string =>
+  `EXISTS (SELECT 1 FROM team dt WHERE dt.team_id = ${column} AND dt.season = w.season AND dt.division_i)`
+
+/**
+ * Whether a query's per-game leaders qualify on each row's own team games: a player query in a league
+ * whose games rule is a share (D43), with such a metric answered. The NBA's and the WNBA's rule scales
+ * a count by the scope's games (`$factor`), and their SQL does not change.
+ */
+function ownGamesRule(q: StatsQuery, c: Checked): boolean {
+  return (
+    q.entity === 'player' &&
+    c.league.gamesRule.kind === 'share' &&
+    c.metrics.some(
+      (m, i) => (m.qualifyBy === 'games' || m.minPerGame !== undefined) && c.gaps[i] === null
+    )
+  )
+}
+
+/**
+ * The team games each output row's own teams played in scope (D43: "75 percent of the team's games").
+ * Every filter on a game holds as it does for the box-score rows, and a row grouped by opponent, month
+ * or game counts the team's games against that opponent, in that month or that game. A game with no
+ * box score (a forfeit: ESPN's 2-0 row) is no game a player could appear in, so it is not counted.
+ * A player who played for two teams in one season takes the team with more games in scope, so the
+ * rule never asks less than either team's share; across seasons the seasons' games add up, so a
+ * transfer between seasons reads each season's team. Under a split, each team's games scale by its
+ * share of the time in the split, as `$factor` does.
+ */
+function ownGamesCte(
+  name: string,
+  q: StatsQuery,
+  c: Checked,
+  params: Params,
+  base: string,
+  split: string | null
+): string {
+  const s = q.scope
+  const where = [
+    `w.season IN ${params.list(s.seasons)}`,
+    `w.game_type IN ${params.list(c.gameTypes)}`,
+    ...(c.grain === 'game' ? gameWhere(q, params) : [])
+  ]
+  if (s.teams) where.push(`w.team_id IN ${params.list(s.teams.map(Number))}`)
+  if (c.grain === 'season') {
+    // At the season grain no filter splits a season, so the season tables answer: each player's teams
+    // of the seasons and types in scope, and each team's games with a box score. Read from them, not
+    // from the rows in scope, it costs a few milliseconds where the game rows cost a second (T1302.5).
+    const players = s.players ? ` AND w.player_id IN ${params.list(s.players.map(Number))}` : ''
+    return `${name} AS (
+      WITH team_games AS (
+        SELECT w.team_id, w.season, sum(w.box_games)::DOUBLE AS n
+        FROM team_season w WHERE ${where.join(' AND ')} GROUP BY 1, 2
+      ), per_season AS (
+        SELECT r.player_id AS id, r.season, max(t.n) AS n
+        FROM (SELECT DISTINCT w.player_id, w.season, w.team_id FROM player_season w
+              WHERE ${where.join(' AND ')} AND w.team_id IS NOT NULL${players}) r
+        JOIN team_games t ON t.team_id = r.team_id AND t.season = r.season
+        GROUP BY 1, 2
+      )
+      SELECT id${c.groupBy.includes('season') ? ', season AS g_season' : ''}, sum(n) AS team_games
+      FROM per_season GROUP BY id${c.groupBy.includes('season') ? ', season' : ''})`
+  }
+  const columns: Partial<Record<GroupBy, string>> = {
+    opponent: 'w.opponent_id',
+    month: 'month(w.game_date)',
+    game: 'w.game_id'
+  }
+  const by = c.groupBy.filter((d) => columns[d] !== undefined)
+  const shareJoin =
+    split === null
+      ? ''
+      : `LEFT JOIN ${SPLIT_TEAM} st ON st.team_id = w.team_id AND st.game_id = w.game_id AND st.split = ${split}`
+  const share = split === null ? '' : ' * coalesce(sum(st.seconds) / nullif(sum(w.seconds), 0), 0)'
+  // The row's teams at the game grain: each line's own.
+  const others = c.groupBy.filter((d) => d !== 'season')
+  const teams = `SELECT DISTINCT id, season, team_id${others.map((d) => `, ${d}`).join('')} FROM ${base}`
+  const outer = c.groupBy.map((d) => (d === 'season' ? 'season' : d))
+  return `${name} AS (
+    WITH team_games AS (
+      SELECT w.team_id, w.season${by.map((d) => `, ${columns[d]} AS ${d}`).join('')},
+             sum(w.box_games)::DOUBLE${share} AS n
+      FROM team_game w ${shareJoin} WHERE ${where.join(' AND ')}
+      GROUP BY w.team_id, w.season${by.map((d) => `, ${columns[d]}`).join('')}
+    ), per_season AS (
+      SELECT r.id, r.season${others.map((d) => `, r.${d}`).join('')}, max(t.n) AS n
+      FROM (${teams}) r
+      JOIN team_games t ON t.team_id = r.team_id AND t.season = r.season${by.map((d) => ` AND t.${d} = r.${d}`).join('')}
+      GROUP BY r.id, r.season${others.map((d) => `, r.${d}`).join('')}
+    )
+    SELECT id${outer.map((d) => `, ${d} AS g_${d}`).join('')}, sum(n) AS team_games
+    FROM per_season GROUP BY id${outer.map((d) => `, ${d}`).join('')})`
+}
+
+/** The row's own team games as its minimum reads them: half of them for a half, at most the last N. */
+function ownGamesOf(q: StatsQuery, c: Checked, params: Params): string {
+  let games = 'coalesce(o.team_games, 0)'
+  if (c.groupBy.includes(HALF)) games = `${games} / 2`
+  if (q.scope.lastN !== undefined) games = `least(${games}, ${params.add(q.scope.lastN)})`
+  return games
+}
+
 /**
  * A metric's minimum in SQL, less a minutes scale and its closing bracket: the catalogue's count scaled
  * to the games in scope (`$factor` is the row's team games over `minimumsGames`), rounded as the NBA
@@ -1243,9 +1373,11 @@ const isState = (m: MetricDef): boolean => modelTable(m.model)?.kind === 'state'
  * The share is the same `$factor` times `minimumsGames`, rounded to three places first so the factor's
  * six decimals cannot lift a whole count (24.000006) to the next.
  */
-function minimumSql(m: MetricDef, league: League): string {
+function minimumSql(m: MetricDef, league: League, ownGames: boolean): string {
   const rule = league.gamesRule
   if (m.qualifyBy === 'games' && rule.kind === 'share') {
+    // The row's own team games (`ownGamesCte`) where the query has them: a player's rows.
+    if (ownGames) return `ceil(round(${rule.share} * team_games, 3)`
     return `ceil(round(${rule.share * league.minimumsGames} * $factor, 3)`
   }
   return `round(${m.minSample ?? 0} * $factor`

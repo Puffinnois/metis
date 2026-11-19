@@ -206,31 +206,49 @@ describe('the college leagues (D38)', () => {
     ])
   })
 
-  it('qualify by the NCAA’s 75 % games rule, the makes scaled as D37 has them (D43)', () => {
+  it('qualify by the NCAA’s 75 % games rule and its makes per game as its champions show them (D43)', () => {
+    // 5 field goals, 2.5 free throws, 3 assists a game played; threes 2.5 for the men, 2.0 for the women.
+    expect(men.madePerGame?.minimums).toEqual({
+      fg_pct: { count: 'fgm', perGame: 5 },
+      fg3_pct: { count: 'fg3m', perGame: 2.5 },
+      ft_pct: { count: 'ftm', perGame: 2.5 },
+      ast_tov: { count: 'ast', perGame: 3 }
+    })
+    expect(women.madePerGame?.minimums.fg3_pct).toEqual({ count: 'fg3m', perGame: 2 })
+    expect(men.madePerGame?.note).toBe("the NCAA's minimums as its champions show them")
+    expect(nba.madePerGame).toBeUndefined()
+    expect(wnba.madePerGame).toBeUndefined()
     for (const league of [men, women]) {
-      expect(league.gamesRule).toEqual({ kind: 'share', share: 0.75 })
+      expect(league.gamesRule).toEqual({
+        kind: 'share',
+        share: 0.75,
+        perGame: ['pts', 'reb', 'ast', 'stl', 'blk', 'fg3m']
+      })
       expect(league.minimumsGames).toBe(82)
       expect(league.minimumsMinutes).toBe(48)
-      expect(league.minimumsNote).toBe("scaled, until the NCAA's own are read")
+      expect(league.minimumsNote).toBe('scaled to the games in range')
       expect(league.seasonShape).toEqual({ opponents: 24, months: 5 })
     }
     expect(nba.gamesRule).toEqual({ kind: 'scaled' })
     expect(wnba.gamesRule).toEqual({ kind: 'scaled' })
   })
 
-  it('build their game, team and player tables alone, and give their own reasons and sizes', () => {
+  it('build their game, team, player, game and season tables alone, and give their own reasons and sizes', () => {
     for (const league of [men, women]) {
-      expect(league.builds).toEqual(['identity'])
+      expect(league.builds).toEqual(['identity', 'derived'])
       expect(builds(league, 'identity')).toBe(true)
       expect([league.identity, league.derived, league.published, league.plays]).toEqual([
         'college',
-        null,
+        'college',
         null,
         null
       ])
       expect(league.models).toBeNull()
       expect(league.metricsByDefault).toBe(false)
-      expect(builds(league, 'derived')).toBe(false)
+      expect(builds(league, 'derived')).toBe(true)
+      expect(builds(league, 'published')).toBe(false)
+      // Nothing before 2021-22 is loaded (D39); Division I teams alone are ranked (D40).
+      expect([league.loadedWindow, league.divisionIOnly]).toEqual([true, true])
       expect(league.noData).toMatch(/^No NCAA (men|women)'s stats yet: turn NCAA (Men|Women) on/)
       expect(league.size.roomBytes).toBe(6 * 1024 ** 3)
     }

@@ -32,6 +32,7 @@ import type {
   StatsStatus
 } from '@shared/stats/types'
 import { builds, leagueOf, type League } from '@shared/leagues'
+import { notBuiltYet } from '@shared/stats/coverage'
 import { sqlString, StatsDb, type Row } from './db'
 import { databaseBytes, freeBytes, roomNeeded } from './disk'
 import { createDownloads } from './download'
@@ -422,7 +423,13 @@ export async function openStatsService(
           name: string
           conference: string | null
           division: string | null
-        }>('SELECT season, team_id, code, name, conference, division FROM team ORDER BY code')
+        }>(
+          // A college league's pickers list its Division I teams (D40): the 300 and more schools
+          // outside it are opponents in its games, not teams of its own.
+          `SELECT season, team_id, code, name, conference, division FROM team${
+            league.divisionIOnly ? ' WHERE division_i' : ''
+          } ORDER BY code`
+        )
         const bySeason = new Map<number, StatsSeason>()
         for (const r of held) {
           const s = bySeason.get(r.season) ?? {
@@ -512,7 +519,35 @@ export async function openStatsService(
       db.close()
     }
   }
-  if (builds(league, 'derived')) return service
+  if (builds(league, 'derived')) {
+    // A league whose plays or published tables are not built yet (the college leagues until
+    // T1302.6) answers the reads of them with the reason, never an empty table or a recipe it lacks.
+    const plays = builds(league, 'plays')
+      ? null
+      : offlineStats(league, notBuiltYet(league, 'plays'))
+    const published = builds(league, 'published')
+      ? null
+      : offlineStats(league, notBuiltYet(league, 'published'))
+    return {
+      ...service,
+      ...(plays && {
+        officialCareer: plays.officialCareer,
+        onCourtUnits: plays.onCourtUnits,
+        withOrWithout: plays.withOrWithout,
+        shots: plays.shots,
+        assists: plays.assists,
+        gameFlow: plays.gameFlow
+      }),
+      ...(published && {
+        matchups: published.matchups,
+        gameMatchups: published.gameMatchups,
+        lineups: published.lineups,
+        profile: published.profile,
+        availability: published.availability,
+        coaches: published.coaches
+      })
+    }
+  }
   // A league whose game and season tables are not built yet loads and lists its files, and every
   // screen's read answers with the reason, never an error: its file has none of the tables they read
   // (its game, team and player tables may be there, but no screen reads them alone).

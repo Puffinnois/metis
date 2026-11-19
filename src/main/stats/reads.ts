@@ -733,7 +733,94 @@ export async function readStandings(db: StatsDb, season: number): Promise<StatsS
       }))
     }
   }
-  return []
+  return have.tables.has(ESPN_STANDINGS) ? readEspnStandings(db, have, season) : []
+}
+
+/** ESPN's standings file, the college leagues' (D40): one row per team, stat and split. */
+const ESPN_STANDINGS = 'src_espn_standings'
+
+/**
+ * ESPN's college standings, read where no league file has standings: a row per team, stat and split,
+ * by conference. They count every game of the season, the postseason with it, as the NCAA's records
+ * do, and agree with the game table's wins on 348 of 358 to every Division I team a season (the
+ * forfeits apart; T1302.5). A team ESPN also lists under an event's group (the eight College
+ * Basketball Crown teams of 2025-26) is read under its conference. There is no division, no last ten
+ * and no published differential per game, which is the points per game less those allowed.
+ */
+async function readEspnStandings(
+  db: StatsDb,
+  have: Awaited<ReturnType<typeof inspect>>,
+  season: number
+): Promise<StatsStanding[]> {
+  const value = (type: string): string => `max(s.value) FILTER (WHERE s.stat_type = '${type}')`
+  const shown = (type: string): string =>
+    `nullif(max(s.display_value) FILTER (WHERE s.stat_type = '${type}'), '-')`
+  const conference = have.columns.get('team')?.has('conference_id')
+    ? 'tm.conference_id'
+    : 'NULL::VARCHAR'
+  const rows = await db.all<{
+    team_id: number
+    code: string | null
+    name: string
+    conference: string | null
+    rank: number | null
+    wins: number
+    losses: number
+    win_pct: number | null
+    back: number | null
+    home: string | null
+    road: string | null
+    conference_record: string | null
+    streak: string | null
+    ppg: number | null
+    allowed: number | null
+  }>(
+    `WITH one_group AS (
+       SELECT s.team_id, s.group_id
+       FROM ${ESPN_STANDINGS} s LEFT JOIN team tm ON tm.team_id = s.team_id AND tm.season = s.season
+       WHERE s.season = ? AND s.stat_type = 'wins'
+       QUALIFY row_number() OVER (
+         PARTITION BY s.team_id ORDER BY (s.group_id = ${conference}) DESC NULLS LAST, s.group_id) = 1
+     )
+     SELECT s.team_id, coalesce(tm.code, any_value(s.team_abbreviation)) AS code,
+            coalesce(tm.name, any_value(s.team_display_name)) AS name,
+            coalesce(tm.conference, any_value(s.group_short_name)) AS conference,
+            ${value('playoffseed')}::INTEGER AS rank, ${value('wins')}::INTEGER AS wins,
+            ${value('losses')}::INTEGER AS losses, ${value('winpercent')} AS win_pct,
+            ${value('gamesbehind')} AS back, ${shown('home')} AS home, ${shown('road')} AS road,
+            ${shown('vsconf')} AS conference_record, ${shown('streak')} AS streak,
+            ${value('avgpointsfor')} AS ppg, ${value('avgpointsagainst')} AS allowed
+     FROM ${ESPN_STANDINGS} s
+     JOIN one_group o ON o.team_id = s.team_id AND o.group_id = s.group_id
+     LEFT JOIN team tm ON tm.team_id = s.team_id AND tm.season = s.season
+     WHERE s.season = ?
+     GROUP BY s.team_id, tm.code, tm.name, tm.conference
+     ORDER BY conference, rank`,
+    [season, season]
+  )
+  return rows.map((r) => ({
+    teamId: String(r.team_id),
+    code: r.code,
+    name: r.name,
+    conference: r.conference,
+    division: null,
+    conferenceRank: r.rank,
+    divisionRank: null,
+    wins: r.wins,
+    losses: r.losses,
+    winPct: r.win_pct,
+    conferenceGamesBack: r.back,
+    divisionGamesBack: null,
+    home: r.home,
+    road: r.road,
+    conferenceRecord: r.conference_record,
+    divisionRecord: null,
+    last10: null,
+    streak: r.streak,
+    pointsPerGame: r.ppg,
+    allowedPerGame: r.allowed,
+    differential: r.ppg !== null && r.allowed !== null ? r.ppg - r.allowed : null
+  }))
 }
 
 /** A whole regular season, which the pair file answers. */

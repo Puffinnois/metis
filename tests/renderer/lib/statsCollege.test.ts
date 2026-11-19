@@ -136,10 +136,10 @@ describe('the 75 % games rule on screen (D43)', () => {
     )
   })
 
-  it('says the per-game leaders ask the share and the shooting leaders the NBA’s makes', () => {
+  it('says the per-game leaders ask the share and the shooting leaders the NCAA’s makes per game', () => {
     setLeague('ncaaw')
     expect(leaderboardQualifier()).toBe(
-      "Qualified: 833 minutes over 82 games, scaled to the games in range; per-game leaders by 75 % of the team's games, the league's own rule; shooting leaders by the NBA's makes, scaled, until the NCAA's own are read"
+      "Qualified: 833 minutes over 82 games, scaled to the games in range; per-game leaders by 75 % of the team's games, the league's own rule; shooting leaders and the assist-to-turnover ratio by made per game in 75 % of the team's games, the NCAA's minimums as its champions show them"
     )
   })
 

@@ -45,10 +45,11 @@ export type BuiltTables = (typeof BUILT_TABLES)[number]
 export type IdentityRecipeName = 'nba' | 'wnba' | 'college'
 
 /**
- * The game and season table recipes, named for the box scores they read: the NBA's box scores, or the
- * WNBA's game logs and 2026 box scores.
+ * The game and season table recipes, named for the box scores they read: the NBA's box scores, the
+ * WNBA's game logs and 2026 box scores, or the college leagues' ESPN box scores with stats.ncaa.org's
+ * beside them (one recipe for the men and the women, D38).
  */
-export type DerivedRecipeName = 'nba' | 'wnba'
+export type DerivedRecipeName = 'nba' | 'wnba' | 'college'
 
 /**
  * The published table recipes, named for the files they read: the NBA's, or the WNBA's (its impact
@@ -228,7 +229,18 @@ export interface LeagueModels {
  * (D33, D37: 58 of 82); `share`, a share of the team games in scope, rounded up, since a share is
  * asked "at least" (D43: the NCAA's 75 percent of the team's games). Every other minimum is scaled.
  */
-export type GamesRule = { kind: 'scaled' } | { kind: 'share'; share: number }
+export type GamesRule =
+  | { kind: 'scaled' }
+  | {
+      kind: 'share'
+      share: number
+      /**
+       * The per-game categories the rule covers: those the league's own record book ranks per game.
+       * A metric listed here qualifies on games in this league whatever the catalogue's `qualifyBy`
+       * (`metricIn`); one not listed keeps the catalogue's qualifier.
+       */
+      perGame: readonly string[]
+    }
 
 export interface League {
   id: LeagueId
@@ -298,6 +310,32 @@ export interface League {
   minimumsNote?: string
   /** How the per-game leaders' games minimum is set (`GamesRule`). */
   gamesRule: GamesRule
+  /**
+   * The categories ranked by a rate whose minimum is a count per game played, with the games rule
+   * beside it, in place of D37's counts scaled to the season (D43, added 2026-11-19: the colleges'
+   * field-goal, three-point and free-throw percentages and assist-to-turnover ratio). `note` is how
+   * the screens name the rule. None for the NBA and the WNBA.
+   */
+  madePerGame?: {
+    note: string
+    minimums: Readonly<Record<string, { count: string; perGame: number }>>
+  }
+  /**
+   * Whether the seasons before `firstSeason` exist but are not loaded, by decision (D39: the college
+   * leagues from 2021-22), so a metric there reads "Loaded from …" rather than "Recorded from …".
+   */
+  loadedWindow?: boolean
+  /**
+   * What the Standings screen says its table counts, where it is not the league's own regular season:
+   * ESPN's college standings count every game, the postseason with it.
+   */
+  standingsWords?: string
+  /**
+   * Whether ranks, percentiles, league means and the rows a board lists keep to the season's
+   * Division I teams (D40): every game counts for the Division I side, but a team outside Division I
+   * and its players are never ranked. A query that names its players or teams still reads them.
+   */
+  divisionIOnly?: boolean
   /** A regular season's shape, for qualifying rows grouped by opponent or month. */
   seasonShape: SeasonShape
   /** The league's stats file in the data folder (D36). */
@@ -341,7 +379,7 @@ export interface League {
   unpublished: Partial<Record<UnpublishedFamily, string>>
   /**
    * The recipes below and `models` are null for a league whose tables are not built yet (the college
-   * leagues, `builds` empty, until T1302.4 to T1302.8 name them). Each is read through an accessor
+   * leagues' published tables, plays and models, until T1302.6 to T1302.8 name them). Each is read through an accessor
    * that throws on null (`identityRecipe`, `derivedRecipe`, `publishedRecipe`, `playsRecipe`,
    * `modelsOf`), and a refresh reaches one only for a step `builds` lists.
    *
@@ -828,10 +866,39 @@ const WNBA: BuiltLeague = {
  * other: seasons from 2021-22 (D39), labelled by their final year as the NBA's, November to April, 40
  * minutes and per-40 rates, one three-point line, the events as season types counted together (D45),
  * the NCAA's games rule (D43). What differs comes from each league's own fields below: the periods,
- * the releases, the events and the measured size. None of the data yet (Plan T1302.2): no sources
- * (`SOURCES_BY_LEAGUE` empty), no built tables, no recipes and no models, which T1302.3 to T1302.8 add.
+ * the releases, the events and the measured size. Its sources (T1302.3), its game, team and player
+ * tables (T1302.4) and its game and season tables (T1302.5) are built; the published tables, the plays
+ * and the models come with T1302.6 to T1302.8.
  */
 const NCAA_FIRST_SEASON = 2022
+
+/**
+ * How the catalogue's words read on the college leagues' metrics: ESPN's box scores are the counts,
+ * stats.ncaa.org's fill the games ESPN lacks (D40), and the NBA's eras and published figures do not
+ * apply. A phrase naming the NBA's formula (the Four Factors "as the NBA counts them", PIE) stays.
+ */
+const COLLEGE_WORDS: League['catalogueWords'] = [
+  ["The NBA's box scores from 1996-97", "ESPN's box scores"],
+  ["ESPN's box scores before them", "stats.ncaa.org's for the games ESPN has none of"],
+  ["The NBA's box scores", "ESPN's box scores"],
+  [
+    "ESPN's flag is the only source before 2017-18, and it is missing for some games, mostly in 2001-02, 2004-05 and 2005-06.",
+    "ESPN's flag, so none for a game whose box score is stats.ncaa.org's."
+  ],
+  [
+    ' Who started is unknown for some games, mostly in 2001-02, 2004-05 and 2005-06, so per game counts only those known.',
+    " Who started is unknown for a game whose box score is stats.ncaa.org's, so per game counts only those known."
+  ],
+  [' Most lines in 2003-04 and 2004-05 are rounded to the minute.', ''],
+  [' They read low before 2004-05: about 5 a game, against 11 to 15 after.', ''],
+  [' Published by the NBA as PCT_FGA_3PT.', ''],
+  [' Published by the NBA as PCT_FGA_2PT.', ''],
+  ["It is not the NBA's published figure.", 'It is not a published figure.'],
+  [
+    "Whole games: the NBA's published share counts only the minutes they were on the floor.",
+    'Whole games, not only the minutes they were on the floor.'
+  ]
+]
 
 const college = (
   league: Pick<
@@ -845,6 +912,7 @@ const college = (
     | 'size'
     | 'noData'
     | 'notBuilt'
+    | 'madePerGame'
   >
 ): League => ({
   ...league,
@@ -873,21 +941,31 @@ const college = (
   // minimum in minutes by 40 over 48, until the NCAA's own are read (D43).
   minimumsGames: 82,
   minimumsMinutes: 48,
-  minimumsNote: "scaled, until the NCAA's own are read",
+  // The other minimums are the catalogue's, over 82 team games, scaled to the games in range.
+  minimumsNote: 'scaled to the games in range',
   // "To be ranked, a student-athlete must appear in 75 percent of the team's games" (D43).
-  gamesRule: { kind: 'share', share: 0.75 },
+  // It covers every category the NCAA's record books rank per game (D43, added 2026-11-19): scoring,
+  // rebounds, assists, steals, blocks and three-pointers made. Double-doubles and triple-doubles are
+  // ranked as totals, and the percentages and the assist-to-turnover ratio keep their own qualifiers.
+  gamesRule: { kind: 'share', share: 0.75, perGame: ['pts', 'reb', 'ast', 'stl', 'blk', 'fg3m'] },
+  // Nothing before 2021-22 is loaded (D39); Division I teams alone are ranked (D40).
+  loadedWindow: true,
+  divisionIOnly: true,
+  standingsWords: 'Every game, the postseason with it, as ESPN publishes it',
   // Measured on ESPN's team box scores of 2021-22 to 2025-26, teams with 20 games or more: about 33
   // games a season (30 to 33 for the women) against 22.6 to 24.3 opponents (21.5 to 23.6), about 1.4
   // games an opponent, in five months, both sides alike.
   seasonShape: { opponents: 24, months: 5 },
   statsFile: `stats-${league.id}.duckdb`,
-  // The game, team and player tables (T1302.4); the game and season tables come with T1302.5.
-  builds: ['identity'],
+  // The game, team and player tables (T1302.4), the game and season tables (T1302.5); the published
+  // tables, the plays and the models come with T1302.6 to T1302.8.
+  builds: ['identity', 'derived'],
   // The families no release publishes (D44) read their reasons from T1302.6, with the tables.
   unpublished: {},
   // ESPN's ids are the keys, stats.ncaa.org's games and players linked to them (D40).
   identity: 'college',
-  derived: null,
+  // ESPN's box scores for the counts, stats.ncaa.org's splits and possessions beside them (D40).
+  derived: 'college',
   published: null,
   plays: null,
   // 6.75 metres (22 feet 1.75 inches) at the arc for both across D39's seasons (D38), the line FIBA
@@ -901,7 +979,7 @@ const college = (
   shotsLocatedFrom: NCAA_FIRST_SEASON,
   metricsByDefault: false,
   models: null,
-  catalogueWords: []
+  catalogueWords: COLLEGE_WORDS
 })
 
 /**
@@ -915,6 +993,27 @@ const collegeSize = (downloadBytes: number, fileBytes: number): League['size'] =
   fileBytes,
   roomBytes: 6 * GB,
   loadedBytes: 3 * GB
+})
+
+/**
+ * The NCAA's minimums for its rate categories as its champions show them (D43, added 2026-11-19): a
+ * count per game played, with the 75 % games rule. Its policies leave them to the national office and
+ * print none for a season; the men's record book prints "Min. 3 assists per game" on the season
+ * assist-to-turnover record, and the career minimums in the same shape (4 field goals, 2.0 threes, 2.5
+ * free throws made per game). Measured on the record books' champions of 2021-22 to 2025-26: 5 field
+ * goals and 2.5 free throws made and 3 assists a game played name every champion of both leagues, and
+ * threes made per game 2.5 for the men and 2.0 for the women (Boston University's Alex Giannaros: 50 in
+ * 25 games, 2.00), except where the leader plays for a school reclassifying to Division I, which the
+ * NCAA lists and does not rank (`ncaa-data-sources.md`).
+ */
+const collegeMinimums = (threes: number): NonNullable<League['madePerGame']> => ({
+  note: "the NCAA's minimums as its champions show them",
+  minimums: {
+    fg_pct: { count: 'fgm', perGame: 5 },
+    fg3_pct: { count: 'fg3m', perGame: threes },
+    ft_pct: { count: 'ftm', perGame: 2.5 },
+    ast_tov: { count: 'ast', perGame: 3 }
+  }
 })
 
 const NCAAM: League = college({
@@ -935,7 +1034,8 @@ const NCAAM: League = college({
   },
   size: collegeSize(803_921_971, 3_632_803_840),
   noData: "No NCAA men's stats yet: turn NCAA Men on in the Data panel to download them.",
-  notBuilt: "No NCAA men's stats yet: the first load has not got that far."
+  notBuilt: "No NCAA men's stats yet: the first load has not got that far.",
+  madePerGame: collegeMinimums(2.5)
 })
 
 const NCAAW: League = college({
@@ -954,7 +1054,8 @@ const NCAAW: League = college({
   },
   size: collegeSize(752_895_003, 3_407_097_856),
   noData: "No NCAA women's stats yet: turn NCAA Women on in the Data panel to download them.",
-  notBuilt: "No NCAA women's stats yet: the first load has not got that far."
+  notBuilt: "No NCAA women's stats yet: the first load has not got that far.",
+  madePerGame: collegeMinimums(2.0)
 })
 
 /**

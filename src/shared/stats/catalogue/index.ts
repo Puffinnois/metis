@@ -18,6 +18,7 @@ import { SHOOTING } from './shooting'
 import { SHOTS } from './shots'
 import { TRADITIONAL } from './traditional'
 import { wnbaCoverage } from './wnba'
+import { COLLEGE, collegeCoverage } from './college'
 
 /**
  * The metric catalogue: every metric the engine computes, its formula over component sums, and the
@@ -40,7 +41,8 @@ export const CATALOGUE: MetricDef[] = [
   ...SHOTS,
   ...PLAYS,
   ...RATINGS,
-  ...BOX_COMPOSITES
+  ...BOX_COMPOSITES,
+  ...COLLEGE
 ]
 // The league indexes read the rates above, so they are added once those are all there.
 CATALOGUE.push(...leagueIndexes(CATALOGUE))
@@ -63,10 +65,14 @@ export function componentsOf(
   ]
 }
 
-// Each metric's coverage in the WNBA, stated from the rules in `wnba.ts` where the metric states none.
+// Each metric's coverage in the WNBA and the college leagues, stated from the rules in `wnba.ts` and
+// `college.ts` where the metric states none. The two college leagues share one rule (D38).
 for (const m of CATALOGUE) {
-  if (m.leagues?.wnba === undefined)
-    m.leagues = { ...m.leagues, wnba: wnbaCoverage(m, componentsOf(m)) }
+  const leagues = { ...m.leagues }
+  if (leagues.wnba === undefined) leagues.wnba = wnbaCoverage(m, componentsOf(m))
+  if (leagues.ncaam === undefined) leagues.ncaam = collegeCoverage(m, componentsOf(m))
+  if (leagues.ncaaw === undefined) leagues.ncaaw = collegeCoverage(m, componentsOf(m))
+  m.leagues = leagues
 }
 
 export const METRICS: ReadonlyMap<string, MetricDef> = new Map(CATALOGUE.map((m) => [m.id, m]))
