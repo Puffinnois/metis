@@ -12,8 +12,8 @@ import {
   CATALOGUE,
   coverageReason,
   METRICS,
-  notBuiltYet,
-  notInLeague
+  notInLeague,
+  playTablesNotBuilt
 } from '@shared/stats/catalogue'
 import { metricIn } from '@shared/stats/catalogue'
 import type { StatsQuery } from '@shared/stats/types'
@@ -71,16 +71,15 @@ afterEach(async () => {
 describe('the college leagues before their data', () => {
   it('have their identity and game recipes, no models, and the accessors refuse to read the rest', () => {
     for (const league of COLLEGE) {
-      // The game, team and player tables (T1302.4) and the game and season tables (T1302.5); every
-      // later table still reads its reason.
-      expect(league.builds).toEqual(['identity', 'derived'])
-      expect(recipeOf(league, 'identity')).toBe('college')
-      expect(recipeOf(league, 'derived')).toBe('college')
+      // The game, team and player tables (T1302.4), the game and season tables (T1302.5), the
+      // published tables and the plays step's shots and lineups (T1302.6); the models still read
+      // their reason.
+      expect(league.builds).toEqual(['identity', 'derived', 'published', 'plays'])
+      for (const kind of ['identity', 'derived', 'published', 'plays'] as const) {
+        expect(recipeOf(league, kind)).toBe('college')
+      }
       expect(SOURCES_BY_LEAGUE[league.id].length).toBeGreaterThan(0)
       expect(() => modelsOf(league)).toThrow(`the ${league.name} has no ratings or models yet`)
-      for (const kind of ['published', 'plays'] as const) {
-        expect(() => recipeOf(league, kind)).toThrow(`the ${league.name} has no ${kind} recipe yet`)
-      }
     }
     // The NBA's and the WNBA's are named, read without a check.
     expect(modelsOf(LEAGUES.nba).elo.k).toBe(20)
@@ -113,8 +112,13 @@ describe('the college leagues before their data', () => {
       expect(catalogueInfo(league).length).toBe(CATALOGUE.length)
       for (const def of CATALOGUE) {
         expect(() => metricIn(def, league)).not.toThrow()
-        // The source switch, asked with a release left out, names nothing of tables not built.
-        expect(leftOutGap(def, true, ['ncaa_mbb_pbp'], league)).toBeNull()
+        // The source switch (D41): with stats.ncaa.org's releases out, a box-score metric that names
+        // none of them still answers; one that reads them gives the reason.
+        const gap = leftOutGap(def, false, NCAA_STATS_RELEASES, league)
+        if (!def.published && !def.built && !def.reads) expect(gap, def.id).toBeNull()
+        if (def.published === 'pub_player_ncaa_rapm' || def.built === 'shot_player_game') {
+          expect(gap, def.id).toBe(LEFT_OUT_REASON)
+        }
       }
     }
   })
@@ -135,17 +139,28 @@ describe('the college leagues before their data', () => {
       ).rejects.toThrow(league.notBuilt)
       await readEverything(s, false)
       expect(await s.games(2026)).toEqual([])
-      // The plays and the published tables come in later parts: their reads give that reason.
-      const plays = notBuiltYet(league, 'plays')
+      // The shots are built (T1302.6), so an empty file reads none; the play by play's own tables
+      // come in T1302.7 and the game flow gives that reason; no source publishes matchups (D44).
       const shots = await s.shots({
         entity: 'player',
         id: '1',
         seasons: [2026],
         scope: { gameTypes: ['regular'] }
       })
-      expect(shots.reason).toBe(plays)
-      expect((await s.gameFlow('1')).reason).toBe(plays)
-      expect((await s.gameMatchups('1')).reason).toBe(notBuiltYet(league, 'published'))
+      expect(shots.reason).toBeNull()
+      expect(shots.total).toBe(0)
+      expect((await s.gameFlow('1')).reason).toBe(playTablesNotBuilt(league))
+      expect(
+        (
+          await s.assists({
+            entity: 'team',
+            id: '1',
+            seasons: [2026],
+            scope: { gameTypes: ['regular'] }
+          } as never)
+        ).reason
+      ).toBe(playTablesNotBuilt(league))
+      expect((await s.gameMatchups('1')).reason).toBe(league.unpublished.matchups)
       await service.close()
       service = null
     }

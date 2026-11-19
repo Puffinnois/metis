@@ -52,21 +52,36 @@ export type IdentityRecipeName = 'nba' | 'wnba' | 'college'
 export type DerivedRecipeName = 'nba' | 'wnba' | 'college'
 
 /**
- * The published table recipes, named for the files they read: the NBA's, or the WNBA's (its impact
- * file under its own name, and the 2026 Portland Fire's key). `PUBLISHED_RECIPES` in
- * `src/main/stats/derived/published.ts`.
+ * The published table recipes, named for the files they read: the NBA's, the WNBA's (its impact
+ * file under its own name, and the 2026 Portland Fire's key), or the college leagues' SportsDataverse
+ * team ratings, box-score BPM and RAPM (D44, one recipe for the men and the women).
+ * `PUBLISHED_RECIPES` in `src/main/stats/derived/published.ts`.
  */
-export type PublishedRecipeName = 'nba' | 'wnba'
+export type PublishedRecipeName = 'nba' | 'wnba' | 'college'
 
 /**
  * The play table recipes, named for the play by play, shots, possessions and lineups they read: the
- * NBA's files or the WNBA's (`PLAYS_RECIPES` in `src/main/stats/derived/playsRecipe.ts`).
+ * NBA's files, the WNBA's, or the college leagues' stats.ncaa.org shots, lineups, stints and
+ * possessions with ESPN's shots and officials beside them (`PLAYS_RECIPES` in
+ * `src/main/stats/derived/playsRecipe.ts`).
  */
-export type PlaysRecipeName = 'nba' | 'wnba'
+export type PlaysRecipeName = 'nba' | 'wnba' | 'college'
 
-/** Families of stats a league's releases may not publish at all (`League.unpublished`). */
+/**
+ * Families of stats a league's releases may not publish at all (`League.unpublished`). The last four
+ * are the college leagues' (D44): the NET, its quadrants, the polls and the tournament's seeds.
+ */
 export type UnpublishedFamily =
-  'tracking' | 'hustle' | 'play_types' | 'matchups' | 'availability' | 'combine'
+  | 'tracking'
+  | 'hustle'
+  | 'play_types'
+  | 'matchups'
+  | 'availability'
+  | 'combine'
+  | 'net'
+  | 'quadrants'
+  | 'polls'
+  | 'seeds'
 
 /**
  * The three-point line from a season on, in the shot charts' frame (tenths of a foot from the basket):
@@ -398,6 +413,18 @@ export interface League {
   published: PublishedRecipeName | null
   /** The recipe that builds its play, shot, split and on-court tables (`PLAYS_RECIPES`). */
   plays: PlaysRecipeName | null
+  /**
+   * False while the league's plays step builds its shots, on-court units, lineups and officials but
+   * not yet the tables of its play by play (the college leagues until T1302.7): their metrics, the
+   * splits, the assist network and the game flow read `notBuiltYet` for the plays. Absent everywhere
+   * else (`buildsPlayTables`).
+   */
+  playTables?: false
+  /**
+   * Half the width of the lane in the shot charts' frame (tenths of a foot), where it is not the
+   * NBA's 16 feet (`COURT.laneHalfWidth` in `stats/shots.ts`): the paint zone and the chart read it.
+   */
+  laneHalfWidth?: number
   /** The three-point line by era, oldest first (`threePointLineIn`). */
   threePointLines: readonly ThreePointLine[]
   /** The first season of the league's published five-player units (the lineup dashboards). */
@@ -957,17 +984,36 @@ const college = (
   // games an opponent, in five months, both sides alike.
   seasonShape: { opponents: 24, months: 5 },
   statsFile: `stats-${league.id}.duckdb`,
-  // The game, team and player tables (T1302.4), the game and season tables (T1302.5); the published
-  // tables, the plays and the models come with T1302.6 to T1302.8.
-  builds: ['identity', 'derived'],
-  // The families no release publishes (D44) read their reasons from T1302.6, with the tables.
-  unpublished: {},
+  // The game, team and player tables (T1302.4), the game and season tables (T1302.5), the published
+  // tables and the shots, lineups and officials of the plays step (T1302.6); the play by play's own
+  // tables come with T1302.7 (`playTables`), the models with T1302.8.
+  builds: ['identity', 'derived', 'published', 'plays'],
+  // The families no release publishes (D44, `ncaa-data-sources.md`, "Tables"), each with its reason.
+  unpublished: {
+    tracking: 'Not published for college basketball: no release holds player tracking.',
+    hustle: 'Not published for college basketball: no release holds hustle stats.',
+    play_types: 'Not published for college basketball: no release holds play types.',
+    matchups: 'Not published for college basketball: no release holds matchups.',
+    availability:
+      'Not published for college basketball: there is no injury report, and no release lists who missed a game.',
+    combine: 'Not published for college basketball: the NCAA holds no draft or combine.',
+    net: "Not available: no release holds the NET, stats.ncaa.org refuses a plain client, and ncaa.com's NET page holds only the latest ranking.",
+    quadrants:
+      'Not available: quadrants need the NET of each opponent on each game day, which no source publishes.',
+    polls: 'Not available: no release holds the polls.',
+    seeds: "Not available: no release holds the NCAA tournament committee's seeds."
+  },
   // ESPN's ids are the keys, stats.ncaa.org's games and players linked to them (D40).
   identity: 'college',
   // ESPN's box scores for the counts, stats.ncaa.org's splits and possessions beside them (D40).
   derived: 'college',
-  published: null,
-  plays: null,
+  // SportsDataverse's team ratings, box-score BPM and RAPM, under its name (D44).
+  published: 'college',
+  // stats.ncaa.org's located shots, lineups, stints and possessions, ESPN's shots and officials (D40).
+  plays: 'college',
+  playTables: false,
+  // The college lane is 12 feet wide, for men and women alike (the NBA's is 16).
+  laneHalfWidth: 60,
   // 6.75 metres (22 feet 1.75 inches) at the arc for both across D39's seasons (D38), the line FIBA
   // draws, whose straight sides are 6.6 metres (21 feet 8 inches) from the basket.
   threePointLines: [{ from: NCAA_FIRST_SEASON, arc: 221.5, corner: 216.5 }],
@@ -1120,6 +1166,20 @@ export function leagueOf(id: LeagueId): League {
 /** Whether a league's refresh builds these tables. */
 export const builds = (league: League, tables: BuiltTables): boolean =>
   league.builds.includes(tables)
+
+/**
+ * Whether the league's plays step builds the tables of its play by play (the plays, splits and
+ * play-derived counts), not only its shots, on-court units and officials (`League.playTables`).
+ */
+export const buildsPlayTables = (league: League): boolean =>
+  builds(league, 'plays') && league.playTables !== false
+
+/** The NBA's lane, `COURT.laneHalfWidth` in `stats/shots.ts`, kept here so the registry needs no import. */
+const NBA_LANE_HALF_WIDTH = 80
+
+/** Half the lane's width in the shot charts' frame: the league's, else the NBA's 16 feet. */
+export const laneHalfWidthOf = (league: League | undefined): number =>
+  league?.laneHalfWidth ?? NBA_LANE_HALF_WIDTH
 
 /** The playoff format of a season: the era it falls in, the first era before any. */
 export function playoffEraIn(league: League, season: number): PlayoffEra {

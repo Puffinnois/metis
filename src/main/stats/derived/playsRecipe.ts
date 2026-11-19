@@ -52,6 +52,23 @@ export interface PlaysRecipe {
    * (`ESPN_DRAWN_FOUL_TYPES`): the fouled player is named on the same types, written another way.
    */
   espnFoulNames: Readonly<Record<string, string>>
+  /**
+   * Which builders the plays step runs: every one from the league's play by play (absent), or the
+   * college leagues' (`collegePlays.ts`): their shots, lineups and on-court units from stats.ncaa.org's
+   * files, while the play by play's own tables wait for T1302.7 (`League.playTables`).
+   */
+  builders?: 'college'
+  /** False where no file names a shot's assist yet: the shot tables' assisted makes read NULL. */
+  assists?: false
+  /**
+   * ESPN's free throws in its shot file, as SQL over its `type_text`; absent, the NBA's spelling
+   * ('Free Throw …'). A made free throw is never a field-goal attempt.
+   */
+  espnFreeThrow?: (typeText: string) => string
+  /** The `game` column the officials file's `game_id` matches: the league's own id, or ESPN's. */
+  officialsGame?: 'game_id'
+  /** The league's ten-player stints, where a release publishes them (stats.ncaa.org's). */
+  stints?: string
 }
 
 /** `type_text` read through a recipe's spellings: the column as it is when there are none. */
@@ -129,10 +146,42 @@ export const WNBA_PLAYS: PlaysRecipe = {
   }
 }
 
+/** The college leagues' officials, ESPN's, as the officials reads name the columns (`collegePlays.ts`). */
+export const COLLEGE_OFFICIALS_VIEW = 'official_espn'
+
+/**
+ * The college leagues' files (`ncaa-data-sources.md`, D40): stats.ncaa.org's located shots, five-player
+ * lineups, ten-player stints and possessions, and its play by play, read by T1302.7; ESPN's officials.
+ * Its shots name no assist and its team ids are ESPN's, so a source's id is the game's side as it is.
+ * Every shot has a location from 2021-22, so none is unlocated. One recipe for the men and the women
+ * (D38): their lines are the same across the window.
+ */
+export const COLLEGE_PLAYS: PlaysRecipe = {
+  version: 1,
+  pbp: 'src_ncaa_pbp',
+  shots: 'src_ncaa_shots',
+  possessions: 'src_ncaa_possessions',
+  gameLineups: 'src_ncaa_lineups',
+  officials: COLLEGE_OFFICIALS_VIEW,
+  gameMatchups: null,
+  side: (id) => id,
+  unlocated: null,
+  espnThree: espnThreeByEra(leagueOf('ncaam')),
+  espnFoulNames: {},
+  builders: 'college',
+  assists: false,
+  // ESPN's college shot file spells a free throw `MadeFreeThrow`, and holds no missed one.
+  espnFreeThrow: (typeText) =>
+    `(${typeText} ILIKE 'Free Throw%' OR ${typeText} ILIKE '%FreeThrow%')`,
+  officialsGame: 'game_id',
+  stints: 'src_ncaa_matchup_stints'
+}
+
 /** Every recipe, by the name a league's registry entry gives. */
 export const PLAYS_RECIPES: Readonly<Record<PlaysRecipeName, PlaysRecipe>> = {
   nba: NBA_PLAYS,
-  wnba: WNBA_PLAYS
+  wnba: WNBA_PLAYS,
+  college: COLLEGE_PLAYS
 }
 
 // A script or test that names no league reads the NBA's, the league every file was before leagues.

@@ -1,6 +1,7 @@
 import { LEAGUES } from '../../leagues'
 import { NCAA_PLAYER_BOX, NCAA_TEAM_BOX } from '../ncaaSplits'
-import type { MetricCoverage, MetricDef } from '../types'
+import { SHOT_BANDS, SHOT_TYPES, SHOT_ZONE_GROUPS, SHOT_ZONES } from '../shots'
+import type { MetricCoverage, MetricDef, MetricFamily } from '../types'
 import { metric, ratio, teamSides, type Opts } from './define'
 
 /**
@@ -233,10 +234,63 @@ const LATER: readonly [readonly string[], number][] = [
   ]
 ]
 
+/**
+ * Families no college release publishes (D44, `League.unpublished`), with the registry's reasons, so
+ * the metrics and the reads behind their tabs say the same.
+ */
+const NOT_PUBLISHED: Partial<Record<MetricFamily, string>> = LEAGUES.ncaam.unpublished
+
+/** The college leagues' own published tables (`derived/publishedCollege.ts`); none other has rows. */
+const COLLEGE_PUBLISHED = new Set([
+  'pub_team_sdv_ratings',
+  'pub_player_sdv_bpm',
+  'pub_player_ncaa_rapm',
+  'pub_player_ncaa_rapm_team'
+])
+
+/** Why an NBA dashboard or model is not read for the colleges: none of their releases holds it. */
+const NBA_PUBLISHED =
+  'Not published for college basketball: no release holds the league dashboards this comes from.'
+const NBA_IMPACT =
+  "Not published for college basketball: SportsDataverse's college models are listed under their own names (its RAPM, BPM and team ratings)."
+
+/**
+ * stats.ncaa.org's shot file gives no shot type: every shot would read "other", so the counts by type
+ * are not shown (`ncaa-data-sources.md`, "Shots").
+ */
+const NO_SHOT_TYPE = "stats.ncaa.org's shot file gives no shot type."
+const TYPE_PARTS = new RegExp(
+  `^(opp_)?(${SHOT_TYPES.map((t) => t.key).join('|')})_(fga|fgm|pts|ast|xfgm|xpts)$`
+)
+
+/**
+ * Neither shot file names a make's assist; the play by play does, and its tables come in a later version
+ * (T1302.7), so assisted makes by zone are not counted yet (`PlaysRecipe.assists`).
+ */
+const NO_ASSISTS =
+  'Not built for the college leagues yet: assisted shots are read from the play by play, which comes in a later version.'
+const ASSIST_PARTS = new RegExp(
+  `^(opp_)?(${[...SHOT_ZONES, ...SHOT_ZONE_GROUPS, ...SHOT_BANDS, ...SHOT_TYPES]
+    .map((b): string => b.key)
+    .concat('shots')
+    .join('|')})_ast$`
+)
+
 /** The metric's coverage in a college league, from the components it reads (`componentsOf`). */
 export function collegeCoverage(def: MetricDef, parts: readonly string[]): MetricCoverage {
   const same = SAME_AS[def.id]
   if (same) return { firstSeason: FIRST, unavailable: same }
+  const family = NOT_PUBLISHED[def.family]
+  if (family) return { firstSeason: FIRST, unavailable: family }
+  if (def.published && !COLLEGE_PUBLISHED.has(def.published)) {
+    return { firstSeason: FIRST, unavailable: def.family === 'impact' ? NBA_IMPACT : NBA_PUBLISHED }
+  }
+  if (def.family === 'shots' || def.built?.startsWith('shot_')) {
+    if (parts.some((p) => TYPE_PARTS.test(p)))
+      return { firstSeason: FIRST, unavailable: NO_SHOT_TYPE }
+    if (parts.some((p) => ASSIST_PARTS.test(p)))
+      return { firstSeason: FIRST, unavailable: NO_ASSISTS }
+  }
   // The exponent is the NBA's until the league's own is fitted with its models (T1302.8): shown as a
   // value, it would be the NBA's rule on college scores.
   if (def.pythagorean) return { firstSeason: FIRST, unavailable: PYTHAGOREAN }

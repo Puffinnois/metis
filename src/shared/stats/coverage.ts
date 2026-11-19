@@ -7,6 +7,8 @@ type Coverage = Pick<MetricDef, 'firstSeason' | 'missingSeasons' | 'missingReaso
 export const WHOLE_SEASONS_ONLY = 'Published for whole seasons only.'
 /** Why it has none for the play-in, the Cup final and the rest: the dataset publishes only these. */
 export const PUBLISHED_TYPES_ONLY = 'Published for the regular season and playoffs only.'
+/** Why a model published for every game of a season together has none for a part of its games. */
+export const EVERY_GAME_ONLY = 'Published for every game of a season together.'
 /** Why a metric that is one season's state, such as a projection, has none over several seasons. */
 export const ONE_SEASON_ONLY = 'Published for one season at a time.'
 /** Why it has none in the playoffs: its playoff rows repeat the regular season's. */
@@ -69,6 +71,19 @@ const STEP_NAMES: Record<BuiltTables, string> = {
  */
 export const notBuiltYet = (league: League, tables: BuiltTables): string =>
   `Not built for the ${league.name} yet: ${STEP_NAMES[tables]} come in a later version.`
+
+/**
+ * The game tables built from the play by play alone (`GAME_TABLES` whose only source is `pbp`): a
+ * league whose plays step does not build its play by play's tables yet (`League.playTables`) has none.
+ */
+export const PLAY_BY_PLAY_TABLES: readonly string[] = ['play_player_game', 'play_team_game']
+
+/**
+ * Why a metric, a split, the assists or the game flow read nothing in a league whose plays step builds
+ * its shots and lineups but not yet its play by play's tables (`League.playTables`).
+ */
+export const playTablesNotBuilt = (league: League): string =>
+  `Not built for the ${league.name} yet: its stats from the play by play come in a later version.`
 
 /** The game length the catalogue's formulas and words are written in (`MetricDef.gameLength`). */
 export const CATALOGUE_GAME_MINUTES = 48
@@ -211,6 +226,13 @@ export function metricIn(def: MetricDef, league: League): MetricDef {
     if (coverage.words) Object.assign(out, coverage.words)
     if (coverage.unavailable) out.unavailable = coverage.unavailable
     else if (!builds(league, tables)) out.unavailable = notBuiltYet(league, tables)
+    else if (
+      league.playTables === false &&
+      def.built !== undefined &&
+      PLAY_BY_PLAY_TABLES.includes(def.built)
+    ) {
+      out.unavailable = playTablesNotBuilt(league)
+    }
   }
   cache.set(def, out)
   return out

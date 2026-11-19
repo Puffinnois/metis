@@ -19,6 +19,7 @@ import { SHOTS } from './shots'
 import { TRADITIONAL } from './traditional'
 import { wnbaCoverage } from './wnba'
 import { COLLEGE, collegeCoverage } from './college'
+import { COLLEGE_DEPTH } from './collegeDepth'
 
 /**
  * The metric catalogue: every metric the engine computes, its formula over component sums, and the
@@ -42,7 +43,8 @@ export const CATALOGUE: MetricDef[] = [
   ...PLAYS,
   ...RATINGS,
   ...BOX_COMPOSITES,
-  ...COLLEGE
+  ...COLLEGE,
+  ...COLLEGE_DEPTH
 ]
 // The league indexes read the rates above, so they are added once those are all there.
 CATALOGUE.push(...leagueIndexes(CATALOGUE))
@@ -86,6 +88,8 @@ export {
   metricIn,
   notBuiltYet,
   notInLeague,
+  playTablesNotBuilt,
+  EVERY_GAME_ONLY,
   tablesOf,
   MODEL_NO_SPLIT,
   ONE_SEASON_ONLY,

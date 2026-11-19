@@ -32,6 +32,11 @@ export interface PublishedRecipe {
   sources: Readonly<Record<string, string>>
   /** A team's id in the league's files, in the season `season` names, as its key in `team`. */
   team: (id: string, season: string) => string
+  /**
+   * False where the lineups tab is not the league's published dashboards: the college leagues' units
+   * are built by their plays step from stats.ncaa.org's lineup file (`collegePlays.ts`).
+   */
+  lineups?: false
 }
 
 export const NBA_PUBLISHED: PublishedRecipe = {
@@ -55,10 +60,23 @@ export const WNBA_PUBLISHED: PublishedRecipe = {
            THEN -(${id}) ELSE ${id} END)`
 }
 
+/**
+ * The college leagues' (D44): SportsDataverse's team ratings, box-score BPM and two RAPM fits
+ * (`publishedCollege.ts`). The team files' ids are ESPN's, the teams' keys. No league dashboard is
+ * published, so the lineups tab is the plays step's.
+ */
+export const COLLEGE_PUBLISHED: PublishedRecipe = {
+  version: 1,
+  sources: {},
+  team: (id) => id,
+  lineups: false
+}
+
 /** Every recipe, by the name a league's registry entry gives. */
 export const PUBLISHED_RECIPES: Readonly<Record<PublishedRecipeName, PublishedRecipe>> = {
   nba: NBA_PUBLISHED,
-  wnba: WNBA_PUBLISHED
+  wnba: WNBA_PUBLISHED,
+  college: COLLEGE_PUBLISHED
 }
 
 // A script or test that names no league builds the NBA's, the league every file was before leagues.
@@ -308,9 +326,11 @@ export async function buildPublished(db: StatsDb, league?: League): Promise<numb
   await db.exec(matchupPairsSql(have))
   const pairs = await db.get<{ n: number }>(`SELECT count(*)::INTEGER AS n FROM ${MATCHUP_PAIRS}`)
   rows += pairs?.n ?? 0
-  await db.exec(lineupsSql(have, recipe.team, (league ?? NBA).lineupsFrom))
-  const units = await db.get<{ n: number }>(`SELECT count(*)::INTEGER AS n FROM ${LINEUPS}`)
-  rows += units?.n ?? 0
+  if (recipe.lineups !== false) {
+    await db.exec(lineupsSql(have, recipe.team, (league ?? NBA).lineupsFrom))
+    const units = await db.get<{ n: number }>(`SELECT count(*)::INTEGER AS n FROM ${LINEUPS}`)
+    rows += units?.n ?? 0
+  }
   await db.exec('INSERT OR REPLACE INTO derived_state VALUES (?, ?)', ['published', recipe.version])
   return rows
 }
