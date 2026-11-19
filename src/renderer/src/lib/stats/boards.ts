@@ -1,5 +1,5 @@
 import { NBA_MINIMUMS } from '@shared/stats/catalogue/define'
-import { seasonGamesIn, type League } from '@shared/leagues'
+import { gamesShareWords, gamesToQualifyIn, seasonGamesIn, type League } from '@shared/leagues'
 import { currentLeague } from './league'
 import type { Entity, MetricInfo, StatsQuery, StatsResult } from '@shared/stats/types'
 import { fmtStat, type ValueFormat } from './format'
@@ -41,9 +41,10 @@ export const BOARD_ROWS = 6
  * A per-game leader needs the NBA's 58 games of 82 (D33), scaled to the games in scope as the league
  * scales it in a shortened season, rounded as the engine rounds it: a player with ten great games
  * should not lead a season. Over the league's base (82 in both leagues, D37): 31 of a 44-game season.
+ * In a league whose rule is a share (D43), that share of the games, rounded up: 24 of 31 at 75 %.
  */
 export const gamesToQualify = (most: number): number =>
-  Math.round((most * NBA_MINIMUMS.games) / currentLeague().minimumsGames)
+  gamesToQualifyIn(currentLeague(), most, NBA_MINIMUMS.games)
 
 /**
  * What the per-game minimum asks in a season, as the home states it: the rule scaled to the season's
@@ -51,6 +52,9 @@ export const gamesToQualify = (most: number): number =>
  * its rule is another league's (D37).
  */
 export function perGameQualifier(season: number, league: League = currentLeague()): string {
+  // A share needs no season length: it is asked of each team's games (D43).
+  const share = gamesShareWords(league)
+  if (share) return `Per game: ${share} of the team's games to qualify, the league's own rule`
   const games = seasonGamesIn(league, season)
   const min = Math.round((games * NBA_MINIMUMS.games) / league.minimumsGames)
   const note = league.minimumsNote ? `, the NBA's minimum ${league.minimumsNote}` : ''

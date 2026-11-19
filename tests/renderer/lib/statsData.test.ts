@@ -101,7 +101,7 @@ describe('which leagues download', () => {
   }
 
   it('offers the default league ticked and the others not', () => {
-    expect(defaultChoice()).toEqual({ nba: true, wnba: false })
+    expect(defaultChoice()).toEqual({ nba: true, wnba: false, ncaam: false, ncaaw: false })
   })
 
   it('states each league’s measured size and whether the free space covers it', () => {

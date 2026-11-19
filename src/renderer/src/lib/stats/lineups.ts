@@ -7,7 +7,7 @@ import {
   type LineupGroup
 } from '@shared/stats/lineups'
 import { currentLeague, inLeague, seasonLabel } from '@/lib/stats/league'
-import { PER_MINUTE } from '@shared/leagues'
+import { PER_MINUTE, playoffsWords } from '@shared/leagues'
 import type { BoardMode, GameType, StatsLineupUnit } from '@shared/stats/types'
 import { fmtClock, fmtStat } from './format'
 import type { StatsScope } from './scope'
@@ -35,10 +35,10 @@ export function lineupGap(scope: StatsScope): string | null {
   if (scope.season < league.lineupsFrom) return `Recorded from ${seasonLabel(league.lineupsFrom)}.`
   if (scope.range.kind !== 'season') return LINEUPS_WHOLE_SEASONS
   if (scope.seasonType === 'counted') {
-    return `The ${league.name} publishes the regular season and the playoffs apart: pick one.`
+    return `The ${league.name} publishes the regular season and ${playoffsWords(league)} apart: pick one.`
   }
   if (scope.seasonType !== 'regular' && scope.seasonType !== 'playoffs') {
-    return `The ${league.name} publishes lineups for the regular season and the playoffs only.`
+    return `The ${league.name} publishes lineups for the regular season and ${playoffsWords(league)} only.`
   }
   return null
 }

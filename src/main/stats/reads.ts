@@ -561,7 +561,8 @@ async function readGameElo(
       `SELECT ${before}, NULL::DOUBLE AS elo, NULL::DOUBLE AS opp_elo FROM ${ELO_SCHEDULE_TABLE}
        WHERE game_id = $1 AND home AND season >= $2`
   ].filter((x): x is string => typeof x === 'string')
-  if (tables.length === 0) return null
+  // A league with no models fitted has no Elo tables either; checked so the read never asks for them.
+  if (tables.length === 0 || league.models === null) return null
   const r = await db.get<{
     neutral: boolean
     home_court: number

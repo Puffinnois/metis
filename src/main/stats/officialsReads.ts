@@ -1,4 +1,4 @@
-import type { League } from '@shared/leagues'
+import { builds, type League } from '@shared/leagues'
 import { officiatingReason } from '@shared/stats/officials'
 import {
   GAME_TYPES,
@@ -23,8 +23,12 @@ import { inspect } from './derived/sql'
  * sides' box scores counts toward the rates; the league's figure counts the same kind of games.
  */
 
-/** The league's officials file (its plays recipe's). */
-const sourceOf = (league: League): string => playsRecipe(league).officials
+/**
+ * The league's officials file (its plays recipe's); null for a league whose plays are not built, whose
+ * recipe may not be named yet (the college leagues until T1302.6), so it has no officials to read.
+ */
+const sourceOf = (league: League): string | null =>
+  builds(league, 'plays') ? playsRecipe(league).officials : null
 
 /** The order of an official's rows, newest last: a playoff id sorts after every regular-season one. */
 const LATEST = (a: string): string => `${a}.season::VARCHAR || ${a}.game_id::VARCHAR`
@@ -157,7 +161,8 @@ export async function readOfficialsSeason(
     reason: null
   }
   const SOURCE = sourceOf(of)
-  if (!Number.isInteger(season) || types.length === 0 || !(await ready(db, SOURCE))) return empty
+  if (SOURCE === null || !Number.isInteger(season) || types.length === 0) return empty
+  if (!(await ready(db, SOURCE))) return empty
   const params: (string | number)[] = [season, ...types]
   const pre = ctes('g.season = $1', `(${types.map((_, i) => `$${i + 2}`).join(', ')})`, SOURCE)
   const cover = (await coverage(db, pre, params)).get(season) ?? empty.coverage
@@ -195,7 +200,8 @@ export async function readOfficialCareer(
 ): Promise<StatsOfficialCareer | null> {
   const types = typesOf(gameTypes)
   const SOURCE = sourceOf(of)
-  if (!ID.test(id) || types.length === 0 || !(await ready(db, SOURCE))) return null
+  if (SOURCE === null || !ID.test(id) || types.length === 0) return null
+  if (!(await ready(db, SOURCE))) return null
   const official = Number(id)
   const named = await db.get<{ name: string | null; jersey: string | null }>(
     `SELECT arg_max(trim(concat_ws(' ', o.first_name, o.last_name)), ${LATEST('o')}) AS name,

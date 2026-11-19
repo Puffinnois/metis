@@ -43,11 +43,11 @@ describe('the Windows installer', () => {
     expect(setting('nsis', 'include')).toBe('build/installer.nsh')
     expect(nsh).toContain('!macro customWelcomePage')
     expect(nsh).toContain(
-      'It is not affiliated with or endorsed by the NBA, the WNBA, ESPN or SportsDataverse.'
+      'It is not affiliated with or endorsed by the NBA, the WNBA, the NCAA, ESPN or SportsDataverse.'
     )
     // The app's own credit says the same.
     expect(text('src/renderer/src/lib/stats/credit.ts')).toContain(
-      'not affiliated with or endorsed by the NBA, the WNBA, ESPN or SportsDataverse.'
+      'not affiliated with or endorsed by the NBA, the WNBA, the NCAA, ESPN or SportsDataverse.'
     )
   })
 

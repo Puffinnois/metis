@@ -13,8 +13,11 @@ import {
   PER_MINUTE,
   periodsIn,
   periodStartSeconds,
+  playoffsWords,
   regulationPeriodsSql,
-  seasonLabel
+  seasonEnd,
+  seasonLabel,
+  threePointLineIn
 } from '@shared/leagues'
 import { GAME_TYPES } from '@shared/stats/types'
 
@@ -121,5 +124,107 @@ describe('the league registry', () => {
     expect(regulationPeriodsSql(wnba, 'season')).toBe(
       '(CASE WHEN season >= 2006 THEN 4 ELSE 2 END)'
     )
+  })
+})
+
+describe('the college leagues (D38)', () => {
+  const men = LEAGUES.ncaam
+  const women = LEAGUES.ncaaw
+
+  it('share one college shape: 2021-22 on, labelled as the NBA, 40 minutes and per 40', () => {
+    for (const league of [men, women]) {
+      expect(league.firstSeason).toBe(2022)
+      expect(seasonLabel(league, 2026)).toBe('2025-26')
+      expect(league.gameMinutes).toBe(40)
+      expect(league.perMinute).toEqual(['per36', 'per40'])
+      expect(league.overtimeMinutes).toBe(5)
+      expect(league.statsFile).toBe(`stats-${league.id}.duckdb`)
+      // 6.75 metres at the arc for both (D38).
+      expect(threePointLineIn(league, 2026).arc).toBe(221.5)
+      expect(league.threePointLines).toHaveLength(1)
+    }
+    expect(men.name).toBe('NCAA Men')
+    expect(women.name).toBe('NCAA Women')
+  })
+
+  it('run November to April, the label turning in August', () => {
+    for (const league of [men, women]) {
+      expect(league.seasonMonths).toEqual({ first: 11, last: 4 })
+      expect(inSeason(league, new Date('2026-11-18T00:00:00Z'))).toBe(true)
+      expect(inSeason(league, new Date('2026-04-06T00:00:00Z'))).toBe(true)
+      expect(inSeason(league, new Date('2026-05-01T00:00:00Z'))).toBe(false)
+      expect(inSeason(league, new Date('2026-10-31T00:00:00Z'))).toBe(false)
+      // 2025-26 is over at the start of May 2026.
+      expect(seasonEnd(league, 2026).toISOString()).toBe('2026-05-01T00:00:00.000Z')
+      expect(league.currentSeason(new Date('2026-07-31T12:00:00Z'))).toBe(2026)
+      expect(league.currentSeason(new Date('2026-11-18T12:00:00Z'))).toBe(2027)
+    }
+  })
+
+  it('play two halves for the men and four quarters for the women', () => {
+    expect(periodsIn(men, 2026)).toMatchObject({ periods: 2, minutes: 20, name: 'half' })
+    expect(periodsIn(women, 2026)).toMatchObject({ periods: 4, minutes: 10, name: 'quarter' })
+    expect(gameSeconds(men, 2026, 3)).toBe(2400 + 300)
+    expect(gameSeconds(women, 2026, 5)).toBe(2400 + 300)
+    expect(elapsedSeconds(men, 2026, 2, 0)).toBe(2400)
+    expect(regulationPeriodsSql(men, 'season')).toBe('2')
+    expect(regulationPeriodsSql(women, 'season')).toBe('4')
+  })
+
+  it('have the events as season types, all of them counted, every game by default (D45)', () => {
+    expect(men.seasonTypes).toEqual(['regular', 'playoffs', 'nit', 'cbi', 'cit', 'tbc', 'crown'])
+    expect(women.seasonTypes).toEqual(['regular', 'playoffs', 'wnit', 'wbi', 'wbit'])
+    for (const league of [men, women]) {
+      expect(league.countedTypes).toEqual(league.seasonTypes)
+      expect(league.typeNames.playoffs).toBe('NCAA tournament')
+      expect(playoffsWords(league)).toBe('the NCAA tournament')
+      expect(league.countedName).toBe('Every game')
+      expect(league.defaultType).toBe('counted')
+    }
+    // The NBA and the WNBA as they were.
+    expect(playoffsWords(nba)).toBe('the playoffs')
+    expect(nba.defaultType).toBe('regular')
+    expect(wnba.defaultType).toBe('regular')
+    expect(nba.seasonTypes).toEqual([
+      'regular',
+      'play-in',
+      'playoffs',
+      'cup-final',
+      'all-star',
+      'preseason'
+    ])
+  })
+
+  it('qualify by the NCAA’s 75 % games rule, the makes scaled as D37 has them (D43)', () => {
+    for (const league of [men, women]) {
+      expect(league.gamesRule).toEqual({ kind: 'share', share: 0.75 })
+      expect(league.minimumsGames).toBe(82)
+      expect(league.minimumsMinutes).toBe(48)
+      expect(league.minimumsNote).toBe("scaled, until the NCAA's own are read")
+      expect(league.seasonShape).toEqual({ opponents: 24, months: 5 })
+    }
+    expect(nba.gamesRule).toEqual({ kind: 'scaled' })
+    expect(wnba.gamesRule).toEqual({ kind: 'scaled' })
+  })
+
+  it('hold no data yet: no built tables, recipes or models, and their own reasons and sizes', () => {
+    for (const league of [men, women]) {
+      expect(league.builds).toEqual([])
+      expect([league.identity, league.derived, league.published, league.plays]).toEqual([
+        null,
+        null,
+        null,
+        null
+      ])
+      expect(league.models).toBeNull()
+      expect(league.metricsByDefault).toBe(false)
+      expect(builds(league, 'derived')).toBe(false)
+      expect(league.noData).toMatch(/^No NCAA (men|women)'s stats yet: turn NCAA (Men|Women) on/)
+      expect(league.size.roomBytes).toBe(6 * 1024 ** 3)
+    }
+    // D42's estimates: 818 and 763 MB to download, 4.1 and 3.9 GB on disk.
+    expect(men.size.downloadBytes).toBe(818 * 1024 ** 2)
+    expect(women.size.downloadBytes).toBe(763 * 1024 ** 2)
+    expect(men.size.fileBytes).toBeGreaterThan(women.size.fileBytes)
   })
 })

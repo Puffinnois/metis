@@ -1,4 +1,4 @@
-import type { League } from '@shared/leagues'
+import { gamesShareWords, type League } from '@shared/leagues'
 import { currentLeague } from './league'
 
 /**
@@ -18,8 +18,15 @@ export const rowMinutes = (league: League = currentLeague()): number =>
 export const rowQualifier = (league: League = currentLeague()): string =>
   `${rowMinutes(league).toLocaleString('en-US')} minutes over ${league.minimumsGames} games`
 
-/** What a leaderboard says of who qualifies. */
-export const leaderboardQualifier = (league: League = currentLeague()): string =>
-  `Qualified: ${rowQualifier(league)}, scaled to the games in range; the NBA's leader stats by their own minimum${
-    league.minimumsNote ? `, ${league.minimumsNote}` : ''
-  }`
+/**
+ * What a leaderboard says of who qualifies. In a league whose games rule is a share (D43), its per-game
+ * leaders ask that share and only the shooting leaders the NBA's makes.
+ */
+export function leaderboardQualifier(league: League = currentLeague()): string {
+  const note = league.minimumsNote ? `, ${league.minimumsNote}` : ''
+  const share = gamesShareWords(league)
+  if (share) {
+    return `Qualified: ${rowQualifier(league)}, scaled to the games in range; per-game leaders by ${share} of the team's games, the league's own rule; shooting leaders by the NBA's makes${note}`
+  }
+  return `Qualified: ${rowQualifier(league)}, scaled to the games in range; the NBA's leader stats by their own minimum${note}`
+}

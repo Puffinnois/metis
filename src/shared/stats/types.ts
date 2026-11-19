@@ -1,13 +1,27 @@
 import type { LeagueId } from '../leagues'
 import type { FlowSummary } from './playDetail'
-/** The one set of game types (D12). All-Star and preseason never count unless asked for. */
+/**
+ * The one set of game types (D12). All-Star and preseason never count unless asked for. The college
+ * leagues' postseason events are types of their own (D45), each league listing its own
+ * (`League.seasonTypes`): the NCAA tournament is `playoffs` under its own name; the NIT, CBI, CIT, The
+ * Basketball Classic (`tbc`) and the College Basketball Crown are the men's; the WNIT, WBI and WBIT the
+ * women's.
+ */
 export const GAME_TYPES = [
   'regular',
   'play-in',
   'playoffs',
   'cup-final',
   'all-star',
-  'preseason'
+  'preseason',
+  'nit',
+  'cbi',
+  'cit',
+  'tbc',
+  'crown',
+  'wnit',
+  'wbi',
+  'wbit'
 ] as const
 export type GameType = (typeof GAME_TYPES)[number]
 

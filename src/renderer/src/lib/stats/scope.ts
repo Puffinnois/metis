@@ -87,7 +87,7 @@ export function freshness(
 }
 
 /** What the season-type control offers: one type, or every game that counts. */
-export type SeasonType = 'regular' | 'play-in' | 'playoffs' | 'cup-final' | 'counted' | 'all-star'
+export type SeasonType = Exclude<GameType, 'preseason'> | 'counted'
 
 /** The types that count, as the league on screen has them (the registry's `countedTypes`). */
 const counted = (): GameType[] => [...currentLeague().countedTypes]
@@ -98,7 +98,16 @@ const TYPE_LABELS: Record<SeasonType, string> = {
   playoffs: 'Playoffs',
   'cup-final': 'Cup final',
   counted: 'Regular season and after',
-  'all-star': 'All-Star'
+  'all-star': 'All-Star',
+  // The college leagues' postseason events (D45).
+  nit: 'NIT',
+  cbi: 'CBI',
+  cit: 'CIT',
+  tbc: 'The Basketball Classic',
+  crown: 'College Basketball Crown',
+  wnit: 'WNIT',
+  wbi: 'WBI',
+  wbit: 'WBIT'
 }
 
 export type StatsRange =
@@ -116,9 +125,15 @@ export interface StatsScope {
 /** The last-N choices the scope bar offers. */
 export const LAST_N = [5, 10, 15, 20, 30]
 
-/** A type's name; where the league names it its own way (the NBA Cup final), the league's. */
-export const typeLabel = (type: SeasonType): string =>
-  (type !== 'counted' && currentLeague().typeNames[type]) || TYPE_LABELS[type]
+/**
+ * A type's name; where the league names it its own way (the NBA Cup final, the NCAA tournament, every
+ * game together in the college leagues), the league's.
+ */
+export function typeLabel(type: SeasonType): string {
+  const league = currentLeague()
+  const own = type === 'counted' ? league.countedName : league.typeNames[type]
+  return own || TYPE_LABELS[type]
+}
 
 /**
  * The types a season has box scores for. Preseason games have none anywhere, so they never appear,
@@ -135,10 +150,15 @@ export function seasonTypes(season: StatsSeason | undefined): SeasonType[] {
   ]
 }
 
-/** The latest season with box scores, its regular season, whole. */
+/**
+ * The latest season with box scores, whole, on the league's default type (`League.defaultType`): its
+ * regular season, or every game in the college leagues (D45) where the season has more than one type.
+ */
 export function defaultScope(seasons: StatsSeason[], status: StatsStatus | null): StatsScope {
   const latest = seasons[0]?.season ?? status?.through?.season ?? new Date().getUTCFullYear()
-  return { season: latest, seasonType: 'regular', range: { kind: 'season' } }
+  const every =
+    currentLeague().defaultType === 'counted' && seasonTypes(seasons[0]).includes('counted')
+  return { season: latest, seasonType: every ? 'counted' : 'regular', range: { kind: 'season' } }
 }
 
 export const seasonOf = (seasons: StatsSeason[], season: number): StatsSeason | undefined =>

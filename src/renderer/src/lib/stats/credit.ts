@@ -20,6 +20,13 @@ export const ESPN_NBA_URL = 'https://www.espn.com/nba/'
  */
 export const WNBA_STATS_URL = 'https://www.wnba.com/stats'
 export const ESPN_WNBA_URL = 'https://www.espn.com/wnba/'
+/**
+ * NCAA Division I's sources (data-rights.md, "The NCAA's releases"): ESPN's college pages and the
+ * NCAA's statistics site. Only ESPN's files carry CC BY 4.0; the stats.ncaa.org files state no licence
+ * (D41). Links only: Metis never requests either.
+ */
+export const ESPN_NCAA_URL = 'https://www.espn.com/mens-college-basketball/'
+export const NCAA_STATS_URL = 'https://stats.ncaa.org'
 
 export const CREDIT_TITLE = 'Data and credit'
 
@@ -40,14 +47,22 @@ export const CREDIT_LEAD: CreditSegment[] = [
   { text: 'ESPN', url: ESPN_WNBA_URL },
   ' and ',
   { text: 'WNBA.com', url: WNBA_STATS_URL },
-  '. Metis downloads it to this computer, reshapes it into its own tables and computes stats from it. It shares nothing.'
+  '. NCAA Division I data is published by ',
+  { text: 'SportsDataverse', url: DATASET_URL },
+  ', from ',
+  { text: 'ESPN', url: ESPN_NCAA_URL },
+  ', its files under ',
+  { text: 'CC BY 4.0', url: CC_BY_URL },
+  ', and from the NCAA’s ',
+  { text: 'stats.ncaa.org', url: NCAA_STATS_URL },
+  ', whose files state no licence. Metis downloads it to this computer, reshapes it into its own tables and computes stats from it. It shares nothing.'
 ]
 
 /** Whose each number is, in the order a reader meets them. */
 export const CREDIT_WHOSE: { label: string; text: string }[] = [
   {
     label: 'As published',
-    text: 'Box scores, play by play, shots, tracking, hustle, play types, matchups, lineups and standings, as ESPN, NBA.com and WNBA.com publish them.'
+    text: 'Box scores, play by play, shots, tracking, hustle, play types, matchups, lineups and standings, as ESPN, NBA.com, WNBA.com and stats.ncaa.org publish them.'
   },
   {
     label: 'SportsDataverse’s calculations',
@@ -60,7 +75,7 @@ export const CREDIT_WHOSE: { label: string; text: string }[] = [
 ]
 
 export const CREDIT_NOTES: string[] = [
-  'Metis is not affiliated with or endorsed by the NBA, the WNBA, ESPN or SportsDataverse. Team and player names, and the NBA, WNBA and ESPN names, belong to their owners.',
+  'Metis is not affiliated with or endorsed by the NBA, the WNBA, the NCAA, ESPN or SportsDataverse. Team, school and player names, and the NBA, WNBA, NCAA and ESPN names, belong to their owners.',
   'Metis is open source under the Apache License 2.0. That covers the app, not the data, which keeps its own terms.'
 ]
 

@@ -51,7 +51,9 @@ describe('leagueDownloads', () => {
     expect(d.decided).toBe(false)
     expect(d.leagues.map((l) => [l.league, l.on, l.hasData])).toEqual([
       ['nba', false, false],
-      ['wnba', false, false]
+      ['wnba', false, false],
+      ['ncaam', false, false],
+      ['ncaaw', false, false]
     ])
     expect(d.freeBytes).toBe(50 * 1024 ** 3)
     // Each league's first load needs its own measured room.

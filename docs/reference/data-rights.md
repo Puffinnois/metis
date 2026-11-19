@@ -7,10 +7,10 @@ Plan T1101. What the terms of the dataset, its producers and its upstreams say, 
 The same for every source below:
 
 - **Downloads** the dataset's Parquet files from `github.com/sportsdataverse/sportsdataverse-data/releases`, on the user's own machine, with a plain client. That is the only host it fetches data from (`src/main/stats/sources.ts`).
-- **Stores** them locally in a stats file per league (`stats-nba.duckdb`, `stats-wnba.duckdb`), reshapes them into its own tables and computes stats from them (Stage 10's ratings and composites).
+- **Stores** them locally in a stats file per league (`stats-nba.duckdb`, `stats-wnba.duckdb`, `stats-ncaam.duckdb`, `stats-ncaaw.duckdb`), reshapes them into its own tables and computes stats from them (Stage 10's ratings and composites).
 - **Redistributes nothing.** The installer ships no data (D6, D29); nothing is uploaded or shared.
 - **Shows** the numbers in a free, open-source desktop app (Apache-2.0), with no account, ads or payment.
-- **Never calls ESPN, stats.nba.com, stats.wnba.com or WNBA.com,** and never disguises a client (D7). It shows no logos, photos or video: only names and numbers.
+- **Never calls ESPN, stats.nba.com, stats.wnba.com, WNBA.com, stats.ncaa.org or ncaa.com,** and never disguises a client (D7). It shows no logos, photos or video: only names and numbers.
 - **Downloads a league only when the user turns it on** (D35): an existing profile keeps the NBA and downloads nothing for the WNBA until then.
 
 ## The texts
@@ -95,6 +95,19 @@ Added for Plan T1301.4, from what `docs/reference/wnba-data-sources.md` ("The so
 
 **What Metis does.** Downloads the WNBA's releases (`espn_wnba_*`, `wnba_stats_*`, `wnba_player_impact`, `wnba_crosswalk`, `wnba_groups`) as above, into `stats-wnba.duckdb`, only once the user turns the WNBA on. It makes no request to stats.wnba.com or WNBA.com. The credit names SportsDataverse and CC BY 4.0, and adds the WNBA (WNBA.com) and ESPN as the WNBA's sources, on the Data screen and in the README.
 
+### The NCAA's releases
+
+Added for Plan T1302.2, from what `docs/reference/ncaa-data-sources.md` ("Producers and licences") read on 2026-11-18 through the GitHub API, and decided in D41. The NCAA's, ESPN's and stats.ncaa.org's own terms of use were not read for that part or this one, and this entry draws no conclusion about them.
+
+**What the texts say.** The college releases sit in the same release store as the NBA's and the WNBA's, sportsdataverse-data, under the same `LICENSE` (MIT) and README badge (CC BY 4.0). They come in two families from different producers:
+
+- **ESPN's** (`espn_mens_college_basketball_*`, `espn_womens_college_basketball_*`), built by [hoopR-mbb-data](https://github.com/sportsdataverse/hoopR-mbb-data) and [wehoop-wbb-data](https://github.com/sportsdataverse/wehoop-wbb-data). Each carries a `LICENSE.md` putting its "data, code, and documentation" under CC BY 4.0 and a `DESCRIPTION` saying `License: CC BY 4.0`, as the NBA's and the WNBA's producers do. Their release notes name the upstream: ESPN's men's and women's college basketball APIs. The dataset's own files beside them (`mbb_*`, `wbb_*`: the crosswalks, the groups, the team ratings and the box-score BPM) name ESPN and NCAA inputs, "scored through the hoopR model stack" (the women's, wehoop).
+- **stats.ncaa.org's** (`ncaa_mbb_*`, `ncaa_wbb_*`), built by [ncaa-mbb-hoops-data](https://github.com/sportsdataverse/ncaa-mbb-hoops-data) and [ncaa-wbb-hoops-data](https://github.com/sportsdataverse/ncaa-wbb-hoops-data) and their `-raw` capture repositories. **These hold no licence file:** a `README.md` alone. Their upstream is "stats.ncaa.org official box scores and play-by-play", the NCAA's own statistics site, which refused a plain client (HTTP 403) when the research tried it. Their release notes say the site "bans aggressive clients, so capture runs from the SportsDataverse droplet under a rate budget". That is the same position as the NBA's `nba_stats_*` releases, captured from stats.nba.com.
+
+No repository speaks for the NCAA's or ESPN's terms. ncaa.com's NET page answered a plain client only some of the time, and Metis reads nothing from it (D44).
+
+**What Metis does.** D41, the manager's decision of 2026-11-18 under D31 (the owner delegated this work's decisions and may reverse it), puts the stats.ncaa.org releases on the same footing as the `nba_stats_*` releases under the owner's rights decision of 2026-11-15: personal, non-commercial use; the sources credited; the takedown paragraph in the README; and a way to ship without the releases within a day. So each college league can be shipped and run without the `ncaa_*` releases, on ESPN's tables alone, and every metric that reads them then gives its reason (T1302.3 builds the switch). Metis downloads the college releases into `stats-ncaam.duckdb` and `stats-ncaaw.duckdb` only once the user turns that league on, from 2021-22 on (D39), and leaves ESPN's play by play out (D42). It makes no request to stats.ncaa.org, ncaa.com or ESPN. The credit names SportsDataverse, says that ESPN's files are under CC BY 4.0 and that stats.ncaa.org's state no licence, and adds ESPN and stats.ncaa.org as the sources, on the Data screen and in the README; the disclaimer names the NCAA. D31's line on the name, icon and domain reads "NBA", "WNBA" or "NCAA".
+
 ### Basketball-Reference and the published methods
 
 **What the text says.** The method pages describe PER (John Hollinger's), Win Shares (after Bill James and Dean Oliver), BPM 2.0 (written by its developer, Daniel Myers) and VORP, with formulas and constants. Each page carries the Sports Reference copyright notice and a trademark line, and states no terms for using the methods. Sports Reference's terms forbid, among other things, automated access that harms the site, using its content to build a database or service that substitutes for its own, and using it for AI training. Its data-use page notes that facts cannot be copyrighted.
@@ -109,7 +122,7 @@ FiveThirtyEight's NBA Elo method (T1002), Dean Oliver's ratings (from Basketball
 
 ## The credit given
 
-- **In the app:** the Data screen, reached from the load status in the nav, ends with "Data and credit" (`src/renderer/src/lib/stats/credit.ts`, checked by `tests/renderer/lib/statsCredit.test.ts`): SportsDataverse linked, CC BY 4.0 linked, ESPN and NBA.com linked as the NBA's sources, ESPN and WNBA.com as the WNBA's, what Metis changes, whose each number is, no affiliation or endorsement, names belong to their owners, and Apache-2.0 kept apart from the data's terms.
+- **In the app:** the Data screen, reached from the load status in the nav, ends with "Data and credit" (`src/renderer/src/lib/stats/credit.ts`, checked by `tests/renderer/lib/statsCredit.test.ts`): SportsDataverse linked, CC BY 4.0 linked, ESPN and NBA.com linked as the NBA's sources, ESPN and WNBA.com as the WNBA's, ESPN and stats.ncaa.org as NCAA Division I's (ESPN's files under CC BY 4.0, stats.ncaa.org's with no licence stated), what Metis changes, whose each number is, no affiliation or endorsement, names belong to their owners, and Apache-2.0 kept apart from the data's terms.
 - **In the README:** a "Data and credit" section with the same facts, and a "Contact and takedown" paragraph: a rights holder with a concern can open an issue on the repository.
 - **Attribution form:** CC BY 4.0 asks for credit "in any reasonable manner", a licence link and a note of changes; neither the release store nor the producers ask for a set wording. hoopR asks for a citation only in publications.
 

@@ -1,9 +1,10 @@
 import {
   DEFAULT_LEAGUE,
-  leagueOf,
-  threePointLineSql,
   type League,
-  type PlaysRecipeName
+  leagueOf,
+  type PlaysRecipeName,
+  recipeOf,
+  threePointLineSql
 } from '@shared/leagues'
 
 /**
@@ -138,4 +139,5 @@ export const PLAYS_RECIPES: Readonly<Record<PlaysRecipeName, PlaysRecipe>> = {
 const NBA = leagueOf(DEFAULT_LEAGUE)
 
 /** The recipe a league's registry entry names. */
-export const playsRecipe = (league: League = NBA): PlaysRecipe => PLAYS_RECIPES[league.plays]
+export const playsRecipe = (league: League = NBA): PlaysRecipe =>
+  PLAYS_RECIPES[recipeOf(league, 'plays')]

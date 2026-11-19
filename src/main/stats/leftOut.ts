@@ -1,5 +1,5 @@
 import type { MetricDef } from '@shared/stats/types'
-import { DEFAULT_LEAGUE, leagueOf, type League } from '@shared/leagues'
+import { builds, DEFAULT_LEAGUE, leagueOf, type League } from '@shared/leagues'
 import { DERIVED_NEEDS } from './derived/build'
 import { gameTable } from './derived/gameTables'
 import { playsRecipe } from './derived/playsRecipe'
@@ -108,13 +108,17 @@ export function leftOutGap(
   league: League = leagueOf(DEFAULT_LEAGUE)
 ): string | null {
   if (list.length === 0) return null
-  const plays = playsRecipe(league)
-  const ownPublished = publishedRecipe(league).sources
+  // A league that does not build these tables yet may name no recipe for them (the college leagues),
+  // and has nothing of theirs to leave out.
+  const plays = builds(league, 'plays') ? playsRecipe(league) : null
+  const ownPublished: Readonly<Partial<Record<string, string>>> = builds(league, 'published')
+    ? publishedRecipe(league).sources
+    : {}
   const published = m.published ? publishedTable(m.published)?.source : undefined
   const tables = [
     ...(published ? [ownPublished[published] ?? published] : []),
-    ...(m.built ? (gameTable(m.built)?.sources ?? []).map((f) => plays[f]) : []),
-    ...(split ? [plays.pbp] : [])
+    ...(m.built && plays ? (gameTable(m.built)?.sources ?? []).map((f) => plays[f]) : []),
+    ...(split && plays ? [plays.pbp] : [])
   ]
   const files = SOURCES_BY_LEAGUE[league.id]
   return tables.some((t) => typeof t === 'string' && isTableLeftOut(t, list, files))

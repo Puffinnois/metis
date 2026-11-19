@@ -1,4 +1,10 @@
-import { DEFAULT_LEAGUE, leagueOf, type League, type PublishedRecipeName } from '@shared/leagues'
+import {
+  DEFAULT_LEAGUE,
+  type League,
+  leagueOf,
+  type PublishedRecipeName,
+  recipeOf
+} from '@shared/leagues'
 import type { StatsDb } from '../db'
 import {
   ADDED_ROW_COLUMNS,
@@ -60,7 +66,7 @@ const NBA = leagueOf(DEFAULT_LEAGUE)
 
 /** The recipe a league's registry entry names. */
 export const publishedRecipe = (league: League = NBA): PublishedRecipe =>
-  PUBLISHED_RECIPES[league.published]
+  PUBLISHED_RECIPES[recipeOf(league, 'published')]
 
 /** The NBA recipe's version: bump a recipe's when its tables change, so the next refresh builds them. */
 export const PUBLISHED_VERSION = NBA_PUBLISHED.version

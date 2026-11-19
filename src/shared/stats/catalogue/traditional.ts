@@ -17,7 +17,10 @@ const f = { family: 'traditional' } as const
 const pct = (a: string, b: string, minSample: number, tier: MetricDef['tier'] = 'extended'): Opts =>
   share(a, b, b, { ...f, minSample, tier })
 
-/** One of the NBA's per-game leaders: qualified on 58 games of 82 alone, as the league does (D33). */
+/**
+ * One of the NBA's per-game leaders: qualified on 58 games of 82 alone, as the league does (D33). A
+ * league whose games rule is a share asks that share of the team's games instead (D43, `GamesRule`).
+ */
 const nbaPerGame = { minSample: NBA_MINIMUMS.games, qualifyBy: 'games' } as const
 
 /** One of the NBA's shooting leaders: qualified on makes alone, as the league does (D33). */

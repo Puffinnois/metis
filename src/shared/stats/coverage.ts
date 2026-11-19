@@ -74,7 +74,8 @@ export const CATALOGUE_PYTHAGOREAN_EXPONENT = 14
 
 /** A Pythagorean formula with the league's exponent in place of the catalogue's. */
 function inExponent(def: MetricDef, league: League): Partial<MetricDef> {
-  const x = league.models.pythagoreanExponent
+  // A league with no models fitted has no Pythagorean metric to rewrite (`notBuiltYet`).
+  const x = league.models?.pythagoreanExponent ?? CATALOGUE_PYTHAGOREAN_EXPONENT
   if (!def.pythagorean || x === CATALOGUE_PYTHAGOREAN_EXPONENT) return {}
   const pow = new RegExp(`pow[(]([^,()]+), ${CATALOGUE_PYTHAGOREAN_EXPONENT}[)]`, 'g')
   return { value: def.value.replace(pow, `pow($1, ${x})`) }

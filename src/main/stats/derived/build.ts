@@ -1,4 +1,10 @@
-import { DEFAULT_LEAGUE, leagueOf, type DerivedRecipeName, type League } from '@shared/leagues'
+import {
+  DEFAULT_LEAGUE,
+  type DerivedRecipeName,
+  type League,
+  leagueOf,
+  recipeOf
+} from '@shared/leagues'
 import type { StatsDb } from '../db'
 import { buildGameTables, NBA_DERIVED, type DerivedRecipe } from './game'
 import { WNBA_DERIVED } from './gameWnba'
@@ -24,7 +30,8 @@ export const DERIVED_NEEDS = [...new Set(Object.values(DERIVED_RECIPES).flatMap(
 const NBA = leagueOf(DEFAULT_LEAGUE)
 
 /** The recipe a league's registry entry names. */
-export const derivedRecipe = (league: League): DerivedRecipe => DERIVED_RECIPES[league.derived]
+export const derivedRecipe = (league: League): DerivedRecipe =>
+  DERIVED_RECIPES[recipeOf(league, 'derived')]
 
 export async function canDerive(db: StatsDb, league: League = NBA): Promise<boolean> {
   const needs = derivedRecipe(league).needs

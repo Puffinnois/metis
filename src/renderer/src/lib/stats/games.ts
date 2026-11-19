@@ -30,8 +30,6 @@ export interface GamesState {
 
 export const DEFAULT_GAMES: GamesState = { date: null, game: null }
 
-const COUNTS: readonly StatsGame['type'][] = ['regular', 'play-in', 'playoffs', 'cup-final']
-
 /** Every day with a game, in order. */
 export const gameDays = (games: readonly StatsGame[]): string[] => [
   ...new Set(games.map((g) => g.date))
@@ -40,7 +38,8 @@ export const gameDays = (games: readonly StatsGame[]): string[] => [
 /** The latest day a game that counts was played; else any game; else the schedule's first day. */
 export function defaultDay(games: readonly StatsGame[]): string | null {
   const played = games.filter((g) => g.played)
-  const counted = played.filter((g) => COUNTS.includes(g.type))
+  const counts = currentLeague().countedTypes
+  const counted = played.filter((g) => counts.includes(g.type))
   return (counted.at(-1) ?? played.at(-1) ?? games[0])?.date ?? null
 }
 
@@ -210,6 +209,8 @@ export interface EloView {
  */
 export function eloView(game: StatsGame, detail: StatsGameDetail | null): EloView | null {
   const league = currentLeague()
+  // A league with no models fitted (the college leagues until T1302.8) rates no game.
+  if (league.models === null) return null
   const { elo: constants, eloGameTypes } = league.models
   if (!eloGameTypes.includes(game.type)) return null
   if (game.season < constants.firstSeason) {

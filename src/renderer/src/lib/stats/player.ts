@@ -932,10 +932,21 @@ const TYPE_TAGS: Partial<Record<StatsGame['type'], string>> = {
   playoffs: 'Playoffs',
   'cup-final': 'Cup final',
   'all-star': 'All-Star',
-  preseason: 'Preseason'
+  preseason: 'Preseason',
+  // The college leagues' postseason events (D45).
+  nit: 'NIT',
+  cbi: 'CBI',
+  cit: 'CIT',
+  tbc: 'TBC',
+  crown: 'Crown',
+  wnit: 'WNIT',
+  wbi: 'WBI',
+  wbit: 'WBIT'
 }
 
-export const typeTag = (type: StatsGame['type']): string | null => TYPE_TAGS[type] ?? null
+/** A game's tag in a list; the league's own where it has one (the NCAA tournament's). */
+export const typeTag = (type: StatsGame['type']): string | null =>
+  currentLeague().typeTags?.[type] ?? TYPE_TAGS[type] ?? null
 
 /** How the game reads for the team with this code. */
 export function gameFacts(g: StatsGame, code: string | null): GameFacts {
