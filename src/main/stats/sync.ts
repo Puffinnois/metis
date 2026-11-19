@@ -369,7 +369,8 @@ export async function refreshStats(
   // A later tier's file the identity recipe reads (`IdentityRecipe.late`), so its tables and the game
   // tables after them are built again at the end.
   let identityLate = false
-  const identityLateSources = IDENTITY_LATE[deps.league.identity]
+  // A league with no identity recipe yet builds no identity, so no file is late for it.
+  const identityLateSources = deps.league.identity ? IDENTITY_LATE[deps.league.identity] : []
   const today = nowOf(deps)
   const current = deps.league.currentSeason(today)
   const ended = (season: number): boolean =>

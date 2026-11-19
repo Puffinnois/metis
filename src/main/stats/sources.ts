@@ -626,7 +626,11 @@ export const RELEASE_LABELS: Readonly<Record<string, string>> = { ...NBA_LABELS,
 /** Each league's files, the registry's `releases.registry`. */
 export const SOURCES_BY_LEAGUE: Readonly<Record<LeagueId, readonly SourceFile[]>> = {
   nba: SOURCES,
-  wnba: WNBA_SOURCES
+  wnba: WNBA_SOURCES,
+  // The college leagues' files come with T1302.3; until then a league turned on downloads nothing,
+  // and its every read gives `League.notBuilt`.
+  ncaam: [],
+  ncaaw: []
 }
 
 /**

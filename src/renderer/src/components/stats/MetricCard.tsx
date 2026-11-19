@@ -9,6 +9,7 @@ import {
 } from '@/lib/stats/stability'
 import { cn } from '@/lib/utils'
 import { currentLeague, seasonLabel } from '@/lib/stats/league'
+import { gamesShareWords } from '@shared/leagues'
 import type { MetricInfo } from '@shared/stats/types'
 
 const sampleWords = (info: MetricInfo): string => {
@@ -19,7 +20,10 @@ const sampleWords = (info: MetricInfo): string => {
   const min = Math.round(info.minSample * scale).toLocaleString('en-US')
   const base = league.minimumsGames
   const note = league.minimumsNote ? `, ${league.minimumsNote}` : ''
-  // The NBA's per-game leaders qualify on games alone (D33).
+  // The per-game leaders qualify on games alone: the NBA's count (D33), or the league's share (D43).
+  const share = gamesShareWords(league)
+  if (info.qualifyBy === 'games' && share)
+    return `${share} of the team's games to qualify, the league's own rule`
   if (info.qualifyBy === 'games')
     return `${min} games of ${base} to qualify, the NBA's minimum${note}`
   const nba = info.qualifyBy ? `, the NBA's minimum${note}` : ''

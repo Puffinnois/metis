@@ -112,7 +112,7 @@ const DOWNLOADS: LeagueDownloads = {
   freeBytes: 100 * GB
 }
 
-const statuses: Record<LeagueId, StatsStatus> = { nba: STATUS, wnba: STATUS }
+const statuses: Partial<Record<LeagueId, StatsStatus>> = { nba: STATUS, wnba: STATUS }
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -121,7 +121,7 @@ beforeEach(() => {
   vi.mocked(api.stats.data).mockImplementation(async (league) =>
     league === 'nba' ? NBA_REPORT : WNBA_REPORT
   )
-  vi.mocked(api.stats.status).mockImplementation(async (league) => statuses[league])
+  vi.mocked(api.stats.status).mockImplementation(async (league) => statuses[league] ?? STATUS)
   vi.mocked(api.leagues.downloads).mockResolvedValue(DOWNLOADS)
 })
 afterEach(cleanup)
@@ -150,11 +150,13 @@ describe('the Data panel', () => {
     expect(within(nba).getByText('HTTP 500 for a file')).toBeTruthy()
   })
 
-  it('credits the data of both leagues', async () => {
+  it('credits the data of every league', async () => {
     render(<StatsData />)
     const links = await screen.findAllByRole('link', { name: 'SportsDataverse' })
-    expect(links).toHaveLength(2)
+    // The NBA's, the WNBA's and NCAA Division I's, the two college leagues sharing their sources.
+    expect(links).toHaveLength(3)
     expect(screen.getByRole('link', { name: 'WNBA.com' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'stats.ncaa.org' })).toBeTruthy()
   })
 
   it('turns a league on, and off', async () => {
@@ -259,7 +261,12 @@ describe('the first run', () => {
     )
     fireEvent.click(nba)
     fireEvent.click(screen.getByRole('button', { name: 'Download' }))
-    expect(api.leagues.setDownloads).toHaveBeenCalledWith({ nba: false, wnba: true })
+    expect(api.leagues.setDownloads).toHaveBeenCalledWith({
+      nba: false,
+      wnba: true,
+      ncaam: false,
+      ncaaw: false
+    })
   })
 
   it('downloads nothing until at least one league is chosen', async () => {

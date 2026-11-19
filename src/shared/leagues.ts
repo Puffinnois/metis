@@ -7,7 +7,7 @@ import type { GameType } from './stats/types'
  * IPC call names it. No code outside this file branches on a league's id.
  * `docs/reference/stats-database.md`, "Leagues", describes the mechanism.
  */
-export const LEAGUE_IDS = ['nba', 'wnba'] as const
+export const LEAGUE_IDS = ['nba', 'wnba', 'ncaam', 'ncaaw'] as const
 export type LeagueId = (typeof LEAGUE_IDS)[number]
 
 /** The league the app opens on, and the one every row saved before leagues belongs to (D35). */
@@ -221,6 +221,14 @@ export interface LeagueModels {
   bpmUnavailable: string | null
 }
 
+/**
+ * How a per-game leader's games minimum is set (a metric that qualifies on games alone, `qualifyBy`
+ * `games`): `scaled`, the catalogue's count over `minimumsGames` scaled to the team games in scope
+ * (D33, D37: 58 of 82); `share`, a share of the team games in scope, rounded up, since a share is
+ * asked "at least" (D43: the NCAA's 75 percent of the team's games). Every other minimum is scaled.
+ */
+export type GamesRule = { kind: 'scaled' } | { kind: 'share'; share: number }
+
 export interface League {
   id: LeagueId
   /** As the screens write it: "NBA". */
@@ -258,6 +266,18 @@ export interface League {
   countedTypes: readonly GameType[]
   /** What the screens call a type where the league's name differs (the NBA Cup final). */
   typeNames: Partial<Record<GameType, string>>
+  /**
+   * The short tag a game of a type carries in a list where the league's differs from the shared one
+   * ("Playoffs"): the NCAA tournament's in the college leagues. None for the NBA and the WNBA.
+   */
+  typeTags?: Partial<Record<GameType, string>>
+  /** What the screens call every counted type together: "Regular season and after" unless named. */
+  countedName?: string
+  /**
+   * The season type a scope starts on: the regular season, or every counted game (D45: the college
+   * leagues count every game, as the NCAA's statistics do).
+   */
+  defaultType: 'regular' | 'counted'
   /** The first season any of its data holds, by the data's label. */
   firstSeason: number
   /**
@@ -275,6 +295,8 @@ export interface League {
    * qualify by another league's (D37).
    */
   minimumsNote?: string
+  /** How the per-game leaders' games minimum is set (`GamesRule`). */
+  gamesRule: GamesRule
   /** A regular season's shape, for qualifying rows grouped by opponent or month. */
   seasonShape: SeasonShape
   /** The league's stats file in the data folder (D36). */
@@ -317,21 +339,26 @@ export interface League {
    */
   unpublished: Partial<Record<UnpublishedFamily, string>>
   /**
+   * The recipes below and `models` are null for a league whose tables are not built yet (the college
+   * leagues, `builds` empty, until T1302.4 to T1302.8 name them). Each is read through an accessor
+   * that throws on null (`identityRecipe`, `derivedRecipe`, `publishedRecipe`, `playsRecipe`,
+   * `modelsOf`), and a refresh reaches one only for a step `builds` lists.
+   *
    * The recipe that builds its `game`, `team` and `player` tables, named for the sources it reads
    * (`IDENTITY_RECIPES` in `src/main/stats/identity.ts`). The shared SQL stays shared; only what
    * differs between the leagues' sources is written per recipe.
    */
-  identity: IdentityRecipeName
+  identity: IdentityRecipeName | null
   /**
    * The recipe that builds its `player_game` and `team_game` (`DERIVED_RECIPES` in
    * `src/main/stats/derived/build.ts`): which box scores it reads. The season tables after them, and
    * the SQL the recipes share, are one for every league.
    */
-  derived: DerivedRecipeName
+  derived: DerivedRecipeName | null
   /** The recipe that builds its published tables (`PUBLISHED_RECIPES`). */
-  published: PublishedRecipeName
+  published: PublishedRecipeName | null
   /** The recipe that builds its play, shot, split and on-court tables (`PLAYS_RECIPES`). */
-  plays: PlaysRecipeName
+  plays: PlaysRecipeName | null
   /** The three-point line by era, oldest first (`threePointLineIn`). */
   threePointLines: readonly ThreePointLine[]
   /** The first season of the league's published five-player units (the lineup dashboards). */
@@ -356,8 +383,11 @@ export interface League {
    * metrics in each one's `leagues` (`catalogueIn`).
    */
   metricsByDefault: boolean
-  /** Constants and fitted values of its ratings and models (Plan T1301.8). */
-  models: LeagueModels
+  /**
+   * Constants and fitted values of its ratings and models (Plan T1301.8); null while the league has
+   * none fitted (the college leagues until T1302.8). Read through `modelsOf`.
+   */
+  models: LeagueModels | null
   /**
    * How the catalogue's words, written for the NBA, read on this league's metrics (`metricIn`): each
    * pair's text is replaced where it stands as whole words, in one pass, the longest first, so a pair
@@ -365,6 +395,15 @@ export interface League {
    * Empty for the NBA, whose catalogue reads as written.
    */
   catalogueWords: readonly (readonly [string, string])[]
+}
+
+/** A league with every recipe and its models named: the NBA and the WNBA. */
+export type BuiltLeague = League & {
+  identity: IdentityRecipeName
+  derived: DerivedRecipeName
+  published: PublishedRecipeName
+  plays: PlaysRecipeName
+  models: LeagueModels
 }
 
 const MB = 1024 ** 2
@@ -499,7 +538,7 @@ const WNBA_2025: PlayoffEra = {
   rounds: ['1-1-1', '2-2-1', '2-2-1-1-1']
 }
 
-const NBA: League = {
+const NBA: BuiltLeague = {
   id: 'nba',
   name: 'NBA',
   fullName: 'National Basketball Association',
@@ -516,9 +555,11 @@ const NBA: League = {
   seasonTypes: ['regular', 'play-in', 'playoffs', 'cup-final', 'all-star', 'preseason'],
   countedTypes: ['regular', 'play-in', 'playoffs', 'cup-final'],
   typeNames: { 'cup-final': 'NBA Cup final' },
+  defaultType: 'regular',
   firstSeason: 1994,
   minimumsGames: 82,
   minimumsMinutes: 48,
+  gamesRule: { kind: 'scaled' },
   // A team meets each of 29 opponents about three times a season, over about six months.
   seasonShape: { opponents: 29, months: 6 },
   statsFile: 'stats-nba.duckdb',
@@ -604,7 +645,7 @@ const NBA: League = {
  * a 34-game season and 31 of a 44-game one, and a minimum in minutes scales by 40 over 48, until the
  * owner reads the league's own rule.
  */
-const WNBA: League = {
+const WNBA: BuiltLeague = {
   id: 'wnba',
   name: 'WNBA',
   fullName: "Women's National Basketball Association",
@@ -626,10 +667,12 @@ const WNBA: League = {
   seasonTypes: ['regular', 'playoffs', 'cup-final', 'all-star'],
   countedTypes: ['regular', 'playoffs', 'cup-final'],
   typeNames: { 'cup-final': "Commissioner's Cup final" },
+  defaultType: 'regular',
   firstSeason: 1997,
   minimumsGames: 82,
   minimumsMinutes: 48,
   minimumsNote: "scaled, until the WNBA's own are read",
+  gamesRule: { kind: 'scaled' },
   // Eleven opponents in the twelve-team seasons (2010 to 2024, the most of any size), over about four
   // months from mid-May to mid-September (D37).
   seasonShape: { opponents: 11, months: 4 },
@@ -779,7 +822,184 @@ const WNBA: League = {
   ]
 }
 
-export const LEAGUES: Readonly<Record<LeagueId, League>> = { nba: NBA, wnba: WNBA }
+/**
+ * NCAA Division I's college shape (D38), shared by the men's and women's leagues so neither copies the
+ * other: seasons from 2021-22 (D39), labelled by their final year as the NBA's, November to April, 40
+ * minutes and per-40 rates, one three-point line, the events as season types counted together (D45),
+ * the NCAA's games rule (D43). What differs comes from each league's own fields below: the periods,
+ * the releases, the events and the measured size. None of the data yet (Plan T1302.2): no sources
+ * (`SOURCES_BY_LEAGUE` empty), no built tables, no recipes and no models, which T1302.3 to T1302.8 add.
+ */
+const NCAA_FIRST_SEASON = 2022
+
+const college = (
+  league: Pick<
+    League,
+    | 'id'
+    | 'name'
+    | 'fullName'
+    | 'periods'
+    | 'seasonTypes'
+    | 'releases'
+    | 'size'
+    | 'noData'
+    | 'notBuilt'
+  >
+): League => ({
+  ...league,
+  gameMinutes: 40,
+  perMinute: ['per36', 'per40'],
+  overtimeMinutes: 5,
+  seasonLabel: finalYear,
+  // Labelled by the final year, as the NBA's (D10): the season that tips off in November 2026 is
+  // `2027`. The label turns in August, before the schedules appear; a file not published yet is
+  // skipped, not an error.
+  currentSeason: (now) => now.getUTCFullYear() + (now.getUTCMonth() >= 7 ? 1 : 0),
+  // No draft or combine is held by the NCAA; the label's convention is the NBA's.
+  eventYear: (season) => season - 1,
+  // Early November to the Final Four in early April (ncaa-data-sources.md, "Coverage").
+  seasonMonths: { first: 11, last: 4 },
+  // Every event counts, as the NCAA's official statistics include conference and NCAA tournaments
+  // (D45); leaving one out is a filter.
+  countedTypes: league.seasonTypes.filter((t) => t !== 'all-star' && t !== 'preseason'),
+  typeNames: { playoffs: 'NCAA tournament' },
+  typeTags: { playoffs: 'NCAA tournament' },
+  countedName: 'Every game',
+  defaultType: 'counted',
+  firstSeason: NCAA_FIRST_SEASON,
+  // The makes minimums stay D37's, the NBA's per 82 team games scaled to the games in scope, and a
+  // minimum in minutes by 40 over 48, until the NCAA's own are read (D43).
+  minimumsGames: 82,
+  minimumsMinutes: 48,
+  minimumsNote: "scaled, until the NCAA's own are read",
+  // "To be ranked, a student-athlete must appear in 75 percent of the team's games" (D43).
+  gamesRule: { kind: 'share', share: 0.75 },
+  // Measured on ESPN's team box scores of 2021-22 to 2025-26, teams with 20 games or more: about 33
+  // games a season (30 to 33 for the women) against 22.6 to 24.3 opponents (21.5 to 23.6), about 1.4
+  // games an opponent, in five months, both sides alike.
+  seasonShape: { opponents: 24, months: 5 },
+  statsFile: `stats-${league.id}.duckdb`,
+  builds: [],
+  // The families no release publishes (D44) read their reasons from T1302.6, with the tables.
+  unpublished: {},
+  identity: null,
+  derived: null,
+  published: null,
+  plays: null,
+  // 6.75 metres (22 feet 1.75 inches) at the arc for both across D39's seasons (D38), the line FIBA
+  // draws, whose straight sides are 6.6 metres (21 feet 8 inches) from the basket.
+  threePointLines: [{ from: NCAA_FIRST_SEASON, arc: 221.5, corner: 216.5 }],
+  // Within the window, stats.ncaa.org's lineups and located shots and ESPN's standings cover every
+  // season (D39, D40).
+  lineupsFrom: NCAA_FIRST_SEASON,
+  standingsFrom: NCAA_FIRST_SEASON,
+  shotsFrom: NCAA_FIRST_SEASON,
+  shotsLocatedFrom: NCAA_FIRST_SEASON,
+  metricsByDefault: false,
+  models: null,
+  catalogueWords: []
+})
+
+/**
+ * The size of a first load is D42's estimate until T1302.3 measures one: the files of 2021-22 on
+ * without ESPN's play by play, and the stats file they make. A load asks D22's 6 GB free, as the
+ * NBA's, and counts as done past 3 GB.
+ */
+const collegeSize = (downloadMb: number, fileGb: number): League['size'] => ({
+  downloadBytes: downloadMb * MB,
+  fileBytes: Math.round(fileGb * GB),
+  roomBytes: 6 * GB,
+  loadedBytes: 3 * GB
+})
+
+const NCAAM: League = college({
+  id: 'ncaam',
+  name: 'NCAA Men',
+  fullName: "NCAA Division I Men's Basketball",
+  // Two 20-minute halves (D38).
+  periods: [{ from: NCAA_FIRST_SEASON, periods: 2, minutes: 20, name: 'half' }],
+  // The men's postseason events of D45's window: the NCAA tournament (as `playoffs`), the NIT, CBI
+  // (2021-22 to 2024-25), CIT (2023-24), The Basketball Classic (2021-22) and the College Basketball
+  // Crown (2024-25 on).
+  seasonTypes: ['regular', 'playoffs', 'nit', 'cbi', 'cit', 'tbc', 'crown'],
+  releases: {
+    prefixes: ['espn_mens_college_basketball_', 'ncaa_mbb_', 'mbb_'],
+    registry: 'SOURCES_BY_LEAGUE.ncaam in src/main/stats/sources.ts',
+    reference: 'docs/reference/ncaa-data-sources.md'
+  },
+  size: collegeSize(818, 4.1),
+  noData: "No NCAA men's stats yet: turn NCAA Men on in the Data panel to download them.",
+  notBuilt: "No NCAA men's stats yet: the first load has not got that far."
+})
+
+const NCAAW: League = college({
+  id: 'ncaaw',
+  name: 'NCAA Women',
+  fullName: "NCAA Division I Women's Basketball",
+  // Four 10-minute quarters (D38), the women's game since 2015-16.
+  periods: [{ from: NCAA_FIRST_SEASON, periods: 4, minutes: 10, name: 'quarter' }],
+  // The women's postseason events of D45's window: the NCAA tournament (as `playoffs`), the WNIT, the
+  // WBI (2021-22, 2022-23) and the WBIT (2023-24 on).
+  seasonTypes: ['regular', 'playoffs', 'wnit', 'wbi', 'wbit'],
+  releases: {
+    prefixes: ['espn_womens_college_basketball_', 'ncaa_wbb_', 'wbb_'],
+    registry: 'SOURCES_BY_LEAGUE.ncaaw in src/main/stats/sources.ts',
+    reference: 'docs/reference/ncaa-data-sources.md'
+  },
+  size: collegeSize(763, 3.9),
+  noData: "No NCAA women's stats yet: turn NCAA Women on in the Data panel to download them.",
+  notBuilt: "No NCAA women's stats yet: the first load has not got that far."
+})
+
+/**
+ * Every league by id. The NBA and the WNBA are typed with their recipes and models named, so code that
+ * names one reads them without a check; a league read by id may have none (`modelsOf`).
+ */
+export const LEAGUES: {
+  readonly nba: BuiltLeague
+  readonly wnba: BuiltLeague
+  readonly ncaam: League
+  readonly ncaaw: League
+} = { nba: NBA, wnba: WNBA, ncaam: NCAAM, ncaaw: NCAAW }
+
+/**
+ * A league's models; throws for a league with none fitted, which only a step `builds` lists may ask
+ * for (the college leagues list none until T1302.8).
+ */
+export function modelsOf(league: League): LeagueModels {
+  if (league.models === null) throw new Error(`the ${league.name} has no ratings or models yet`)
+  return league.models
+}
+
+/** A league's recipe of a kind; throws for one with none named yet, as `modelsOf`. */
+export function recipeOf<K extends 'identity' | 'derived' | 'published' | 'plays'>(
+  league: League,
+  kind: K
+): NonNullable<League[K]> {
+  const name = league[kind]
+  if (name === null) throw new Error(`the ${league.name} has no ${kind} recipe yet`)
+  return name as NonNullable<League[K]>
+}
+
+/** "75 %": a share games rule as the screens write it; null for a scaled one. */
+export const gamesShareWords = (league: League): string | null =>
+  league.gamesRule.kind === 'share' ? `${Math.round(league.gamesRule.share * 100)} %` : null
+
+/** "the playoffs", or the league's own name for them: "the NCAA tournament". */
+export const playoffsWords = (league: League): string =>
+  league.typeNames.playoffs ? `the ${league.typeNames.playoffs}` : 'the playoffs'
+
+/**
+ * The games a row needs to qualify for a per-game leader (`GamesRule`), given the team games it covers
+ * and the catalogue's count over `minimumsGames`: 58 of 82 is 31 of a 44-game season, scaled and
+ * rounded as the engine rounds it; 75 percent of 31 is 24, rounded up.
+ */
+export function gamesToQualifyIn(league: League, teamGames: number, minimum: number): number {
+  // Rounded to three places before rounding up, as the engine's SQL, so 0.75 × 32 stays 24.
+  const rule = league.gamesRule
+  if (rule.kind === 'share') return Math.ceil(Number((teamGames * rule.share).toFixed(3)))
+  return Math.round((teamGames * minimum) / league.minimumsGames)
+}
 
 export const isLeagueId = (value: unknown): value is LeagueId =>
   typeof value === 'string' && (LEAGUE_IDS as readonly string[]).includes(value)
@@ -796,21 +1016,26 @@ export const builds = (league: League, tables: BuiltTables): boolean =>
 
 /** The playoff format of a season: the era it falls in, the first era before any. */
 export function playoffEraIn(league: League, season: number): PlayoffEra {
-  let era = league.models.playoffs[0]
-  for (const e of league.models.playoffs) if (season >= e.from) era = e
+  const { playoffs } = modelsOf(league)
+  let era = playoffs[0]
+  for (const e of playoffs) if (season >= e.from) era = e
   return era
 }
 
 /** A regular season's games a team, by the season's era. */
 export function seasonGamesIn(league: League, season: number): number {
-  let length = league.models.seasonGames[0]
-  for (const l of league.models.seasonGames) if (season >= l.from) length = l
+  const { seasonGames } = modelsOf(league)
+  let length = seasonGames[0]
+  for (const l of seasonGames) if (season >= l.from) length = l
   return length.games
 }
 
 /** The games VORP scales a season to: the league's fixed number, or the season's length. */
 export const vorpGamesIn = (league: League, season: number): number =>
-  league.models.vorpGames === 'season' ? seasonGamesIn(league, season) : league.models.vorpGames
+  vorpScale(modelsOf(league).vorpGames, league, season)
+
+const vorpScale = (games: number | 'season', league: League, season: number): number =>
+  games === 'season' ? seasonGamesIn(league, season) : games
 
 /** The three-point line in a season: the era it falls in. */
 export function threePointLineIn(league: League, season: number): ThreePointLine {

@@ -4,7 +4,7 @@
 ; the installer silently, so they never show it.
 !macro customWelcomePage
   !insertmacro skipPageIfUpdated
-  !define MUI_WELCOMEPAGE_TEXT "Setup will install $(^NameDA) on this computer.$\r$\n$\r$\nMetis is an independent project. It is not affiliated with or endorsed by the NBA, the WNBA, ESPN or SportsDataverse.$\r$\n$\r$\nClick Next to continue."
+  !define MUI_WELCOMEPAGE_TEXT "Setup will install $(^NameDA) on this computer.$\r$\n$\r$\nMetis is an independent project. It is not affiliated with or endorsed by the NBA, the WNBA, the NCAA, ESPN or SportsDataverse.$\r$\n$\r$\nClick Next to continue."
   !insertmacro MUI_PAGE_WELCOME
 !macroend
 

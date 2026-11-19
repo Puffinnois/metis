@@ -1,4 +1,4 @@
-import { LEAGUES, seasonGamesIn, type League as LeagueEntry } from '@shared/leagues'
+import { type League as LeagueEntry, LEAGUES, modelsOf, seasonGamesIn } from '@shared/leagues'
 import type { ModelBuilder, ModelContext, ModelRows, ModelTable } from './build'
 import { eloShift, winProbability } from './elo'
 import { stagesOf } from './playoffs'
@@ -37,7 +37,7 @@ export const SNAPSHOTS = 20
  * season's length (`seasonGamesIn`).
  */
 export function eloModelOf(league: LeagueEntry): EloModel {
-  const { elo, marginSd } = league.models
+  const { elo, marginSd } = modelsOf(league)
   return {
     homeCourt: elo.homeCourt,
     winProbability,
@@ -195,7 +195,10 @@ export interface ForecastRuns {
 }
 
 async function build(ctx: ModelContext, runCount: ForecastRuns): Promise<ModelRows> {
-  if (ctx.season < ctx.league.models.forecastFirstSeason || !ctx.have.tables.has(ELO_GAME_TABLE)) {
+  if (
+    ctx.season < modelsOf(ctx.league).forecastFirstSeason ||
+    !ctx.have.tables.has(ELO_GAME_TABLE)
+  ) {
     return { [FORECAST_TABLE]: [] }
   }
   const eloModel = eloModelOf(ctx.league)
@@ -244,7 +247,7 @@ async function build(ctx: ModelContext, runCount: ForecastRuns): Promise<ModelRo
   }
   const ratingAt = (team: number, day: string): number => {
     const rows = byTeam.get(team) ?? []
-    let rating = rows[0]?.elo_pre ?? ctx.league.models.elo.newTeam
+    let rating = rows[0]?.elo_pre ?? modelsOf(ctx.league).elo.newTeam
     for (const r of rows) {
       if (r.game_date > day || !r.played || r.elo === null) break
       rating = r.elo

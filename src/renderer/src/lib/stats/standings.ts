@@ -335,7 +335,9 @@ export const standingsTables = (
 
 /** Metis's own columns are not the league's, and the table says so, with the league's exponent. */
 export const strengthNote = (league: League = currentLeague()): string =>
-  `PYTH W, SRS, SOS and ELO are computed by Metis from the final scores: Pythagorean wins with the exponent ${league.models.pythagoreanExponent}, SRS and the strength of schedule solved on the regular season, Elo after the last regular-season game.`
+  league.models === null
+    ? `PYTH W, SRS, SOS and ELO are Metis's own, not computed for the ${league.name} yet.`
+    : `PYTH W, SRS, SOS and ELO are computed by Metis from the final scores: Pythagorean wins with the exponent ${league.models.pythagoreanExponent}, SRS and the strength of schedule solved on the regular season, Elo after the last regular-season game.`
 
 /**
  * What the table depends on, or why there is none. What is missing is read from the rows, so a league

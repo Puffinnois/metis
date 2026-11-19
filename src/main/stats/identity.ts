@@ -1,4 +1,10 @@
-import { DEFAULT_LEAGUE, leagueOf, type IdentityRecipeName, type League } from '@shared/leagues'
+import {
+  DEFAULT_LEAGUE,
+  type IdentityRecipeName,
+  type League,
+  leagueOf,
+  recipeOf
+} from '@shared/leagues'
 import type { StatsDb } from './db'
 import { hasTables, NAME_KEY, playerIdsSql } from './identityShared'
 import { WNBA_IDENTITY } from './identityWnba'
@@ -231,7 +237,8 @@ export const IDENTITY_NEEDS = [
 const NBA = leagueOf(DEFAULT_LEAGUE)
 
 /** The recipe a league's registry entry names. */
-export const identityRecipe = (league: League): IdentityRecipe => IDENTITY_RECIPES[league.identity]
+export const identityRecipe = (league: League): IdentityRecipe =>
+  IDENTITY_RECIPES[recipeOf(league, 'identity')]
 
 export const canBuildIdentity = (db: StatsDb, league: League = NBA): Promise<boolean> =>
   hasTables(db, identityRecipe(league).needs)

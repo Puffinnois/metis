@@ -1157,7 +1157,7 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
     const counted = m.qualifyBy ?? m.sample
     const minutes = counted === 'minutes' ? c.league.gameMinutes / c.league.minimumsMinutes : 1
     const scale = minutes === 1 ? '' : ` * ${minutes.toFixed(6)}`
-    return `(s${i} > 0 AND ${count} >= round(${m.minSample ?? 0} * $factor${scale})${adding ? ' AND NOT no_line' : ''}) AS q${i}`
+    return `(s${i} > 0 AND ${count} >= ${minimumSql(m, c.league)}${scale})${adding ? ' AND NOT no_line' : ''}) AS q${i}`
   })
   const sort = q.sort ? q.metrics.indexOf(q.sort.metric) : 0
   const lower = c.metrics[sort].direction === 'lower' && c.transform !== 'percentile'
@@ -1234,6 +1234,22 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
 }
 
 const isState = (m: MetricDef): boolean => modelTable(m.model)?.kind === 'state'
+
+/**
+ * A metric's minimum in SQL, less a minutes scale and its closing bracket: the catalogue's count scaled
+ * to the games in scope (`$factor` is the row's team games over `minimumsGames`), rounded as the NBA
+ * rounds a shortened season's. A per-game leader in a league whose games rule is a share (D43's 75
+ * percent) asks that share of the row's team games instead, rounded up: 75 percent of 31 games is 24.
+ * The share is the same `$factor` times `minimumsGames`, rounded to three places first so the factor's
+ * six decimals cannot lift a whole count (24.000006) to the next.
+ */
+function minimumSql(m: MetricDef, league: League): string {
+  const rule = league.gamesRule
+  if (m.qualifyBy === 'games' && rule.kind === 'share') {
+    return `ceil(round(${rule.share * league.minimumsGames} * $factor, 3)`
+  }
+  return `round(${m.minSample ?? 0} * $factor`
+}
 
 /** What `shrunk` did, and the rates it could not shrink. */
 function shrunkNotes(q: StatsQuery, c: Checked, shrunk: boolean[]): string[] {

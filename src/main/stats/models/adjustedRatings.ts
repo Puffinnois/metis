@@ -1,3 +1,4 @@
+import { modelsOf } from '@shared/leagues'
 import { adjustedByDay, type EfficiencyGame } from './adjusted'
 import type { ModelBuilder, ModelContext, ModelRows, ModelTable } from './build'
 import { neutralSitesSql } from './neutral'
@@ -45,7 +46,7 @@ async function games(ctx: ModelContext): Promise<GameRow[]> {
   const neutral = neutralSitesSql(
     ctx.have,
     { from: ctx.season, to: ctx.season },
-    ctx.league.models.neutral
+    modelsOf(ctx.league).neutral
   )
   // The season's rows of team_game first: joined whole, the table costs ten times as much.
   return ctx.db.all<GameRow>(
@@ -75,7 +76,7 @@ async function build(ctx: ModelContext): Promise<ModelRows> {
     gameOf.set(`${g.date}|${g.home}`, g.game_id)
     gameOf.set(`${g.date}|${g.away}`, g.game_id)
   }
-  const rows = adjustedByDay(list, ctx.league.models.ridgePossessions).map((r) => ({
+  const rows = adjustedByDay(list, modelsOf(ctx.league).ridgePossessions).map((r) => ({
     season: ctx.season,
     game_type: 'regular',
     team_id: r.team,

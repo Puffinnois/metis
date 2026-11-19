@@ -70,7 +70,7 @@ Short log of decisions and why. Newest last. The previous implementation's log (
 
 ## 2026-11-15: the lines Metis holds
 
-**D31. The lines Metis holds,** the owner's decision. No money, ads, sponsorship, or donations tied to features. No gambling or odds. No fantasy features (D4). No real-time or in-game data. No logos, photos or video. "NBA" or "WNBA" never in the app's name, icon or domain. No list or replay of a game's plays as a product. NBA.com and ESPN credited as the sources. The data reached only through the dataset's releases (D6, D7). _Why:_ Metis is a personal project that shows statistics for private, non-commercial use, and these lines keep it one. Its use of the data stays as it is; the question is reopened if that use changes (`docs/reference/data-rights.md`, Plan T1101).
+**D31. The lines Metis holds,** the owner's decision. No money, ads, sponsorship, or donations tied to features. No gambling or odds. No fantasy features (D4). No real-time or in-game data. No logos, photos or video. "NBA", "WNBA" or "NCAA" never in the app's name, icon or domain. No list or replay of a game's plays as a product. NBA.com and ESPN credited as the sources. The data reached only through the dataset's releases (D6, D7). _Why:_ Metis is a personal project that shows statistics for private, non-commercial use, and these lines keep it one. Its use of the data stays as it is; the question is reopened if that use changes (`docs/reference/data-rights.md`, Plan T1101).
 
 ## 2026-11-16: unsigned releases
 

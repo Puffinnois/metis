@@ -1,3 +1,4 @@
+import { modelsOf } from '@shared/leagues'
 import type { GameType } from '@shared/stats/types'
 import type { ModelBuilder, ModelContext, ModelRows, ModelTable } from './build'
 import { runSeason, seasonStart, type EloGame } from './elo'
@@ -102,11 +103,13 @@ interface GameRow {
  * (`neutralSitesSql`, shared with the other models).
  */
 async function seasonGames(ctx: ModelContext): Promise<GameRow[]> {
-  const types = ctx.league.models.eloGameTypes.map((t) => `'${t}'`).join(', ')
+  const types = modelsOf(ctx.league)
+    .eloGameTypes.map((t) => `'${t}'`)
+    .join(', ')
   const neutral = neutralSitesSql(
     ctx.have,
     { from: ctx.season, to: ctx.season },
-    ctx.league.models.neutral
+    modelsOf(ctx.league).neutral
   )
   return ctx.db.all<GameRow>(
     `SELECT g.game_id, strftime(g.game_date, '%Y-%m-%d') AS game_date, g.game_type,
@@ -138,7 +141,7 @@ async function build(ctx: ModelContext): Promise<ModelRows> {
   const teams = [...new Set(rows.flatMap((g) => [g.home, g.away]).map(Number))]
   // The season before, as this step left it: computed first, since seasons run in order. With none
   // (the first season held), every team starts at 1500.
-  const constants = ctx.league.models.elo
+  const constants = modelsOf(ctx.league).elo
   const last = await finalRatings(ctx, ctx.season - 1)
   const start =
     last.size > 0
