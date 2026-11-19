@@ -9,7 +9,9 @@ const sums = (columns: readonly string[]): string =>
  * player's total is its own row: anything reading this table takes the rows of a team or the row with
  * no team, never both, so the two cannot be added together.
  */
-const playerSeason = (columns: readonly string[]): string => `CREATE OR REPLACE TABLE player_season AS
+const playerSeason = (
+  columns: readonly string[]
+): string => `CREATE OR REPLACE TABLE player_season AS
   SELECT player_id, season, game_type, team_id,
          arg_max(team_id, game_date) AS last_team_id, max(game_date) AS last_date,
          mode(position) AS position, ${sums(columns)}

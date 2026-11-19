@@ -53,7 +53,13 @@ const splitShare = (a: string, b: string, minSample: number, o: Partial<Opts> = 
   split({ value: ratio(a, b), sample: b, unit: 'pct', minSample, ...o })
 
 /** The same metric for players, teams and their opponents. */
-function sides(id: string, label: string, short: string, description: string, o: Opts) {
+function sides(
+  id: string,
+  label: string,
+  short: string,
+  description: string,
+  o: Opts
+): MetricDef[] {
   return [metric(id, label, short, description, o), ...teamSides(id, label, short, description, o)]
 }
 

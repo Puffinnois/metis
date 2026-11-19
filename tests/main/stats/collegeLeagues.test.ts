@@ -2,29 +2,36 @@ import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { catalogueInfo } from '@main/stats/engine/registry'
-import { leftOutGap } from '@main/stats/leftOut'
+import { LEFT_OUT_REASON, leftOutGap } from '@main/stats/leftOut'
 import { offlineStats, type StatsReads } from '@main/stats/offline'
 import { openStatsService, type StatsService } from '@main/stats/service'
-import { SOURCES_BY_LEAGUE } from '@main/stats/sources'
+import { NCAA_STATS_RELEASES, SOURCES_BY_LEAGUE } from '@main/stats/sources'
 import { refreshStats, STATS_DERIVED_STEP } from '@main/stats/sync'
 import { LEAGUES, modelsOf, recipeOf, type League } from '@shared/leagues'
-import { CATALOGUE } from '@shared/stats/catalogue'
+import {
+  CATALOGUE,
+  coverageReason,
+  METRICS,
+  notBuiltYet,
+  notInLeague
+} from '@shared/stats/catalogue'
 import { metricIn } from '@shared/stats/catalogue'
 import type { StatsQuery } from '@shared/stats/types'
 import { openTestDb, tempDir } from '../../fixtures/stats'
 
 /**
- * The college leagues before their built tables (Plan T1302.2): their sources load (T1302.3), but no
- * built tables, no recipes and no models yet. Their recipes and models are null behind accessors that throw (`recipeOf`, `modelsOf`), so
- * every read a screen makes, with the league off or turned on with its file empty, must answer with
- * the league's reason and never reach one: a read that did would reject with the accessor's error.
+ * The college leagues before their later built tables: their sources load (T1302.3), their game, team
+ * and player tables (T1302.4) and their game and season tables (T1302.5) are built, but no published
+ * tables, plays or models yet. Those recipes and the models are null behind accessors that throw
+ * (`recipeOf`, `modelsOf`), so every read a screen makes, with the league off or turned on, must
+ * answer with a reason and never reach one: a read that did would reject with the accessor's error.
  */
 const COLLEGE: League[] = [LEAGUES.ncaam, LEAGUES.ncaaw]
 const NOW = new Date('2026-11-18T12:00:00Z')
 
 /** Every read a screen makes, once each, with arguments of the right shape. */
-async function readEverything(reads: StatsReads): Promise<void> {
-  const query: StatsQuery = {
+async function readEverything(reads: StatsReads, query = true): Promise<void> {
+  const asked: StatsQuery = {
     entity: 'player',
     metrics: ['pts', 'reb'],
     scope: { seasons: [2026] }
@@ -52,7 +59,7 @@ async function readEverything(reads: StatsReads): Promise<void> {
   await reads.assists({ player: '1', seasons: [2026], gameTypes: ['regular'] } as never)
   await reads.gameFlow('1')
   // The engine answers a query with the league's reason, never an error.
-  await reads.query(query)
+  if (query) await reads.query(asked)
 }
 
 let service: StatsService | null = null
@@ -62,14 +69,16 @@ afterEach(async () => {
 })
 
 describe('the college leagues before their data', () => {
-  it('have only their identity recipe, no models, and the accessors refuse to read the rest', () => {
+  it('have their identity and game recipes, no models, and the accessors refuse to read the rest', () => {
     for (const league of COLLEGE) {
-      // The game, team and player tables (T1302.4); every later table still reads its reason.
-      expect(league.builds).toEqual(['identity'])
+      // The game, team and player tables (T1302.4) and the game and season tables (T1302.5); every
+      // later table still reads its reason.
+      expect(league.builds).toEqual(['identity', 'derived'])
       expect(recipeOf(league, 'identity')).toBe('college')
+      expect(recipeOf(league, 'derived')).toBe('college')
       expect(SOURCES_BY_LEAGUE[league.id].length).toBeGreaterThan(0)
       expect(() => modelsOf(league)).toThrow(`the ${league.name} has no ratings or models yet`)
-      for (const kind of ['derived', 'published', 'plays'] as const) {
+      for (const kind of ['published', 'plays'] as const) {
         expect(() => recipeOf(league, kind)).toThrow(`the ${league.name} has no ${kind} recipe yet`)
       }
     }
@@ -110,7 +119,7 @@ describe('the college leagues before their data', () => {
     }
   })
 
-  it('answer every read with their reason once turned on, the file empty', async () => {
+  it('answer every read once turned on, the file empty, those of tables not built with the reason', async () => {
     for (const league of COLLEGE) {
       const dir = tempDir()
       mkdirSync(join(dir, 'tmp'))
@@ -120,17 +129,66 @@ describe('the college leagues before their data', () => {
         tempDir: join(dir, 'tmp')
       })
       const s = service
-      const result = await s.query({
-        entity: 'player',
-        metrics: ['pts'],
-        scope: { seasons: [2026] }
-      })
-      expect(result.notes).toEqual([league.notBuilt])
-      await readEverything(s)
+      // Before the first load builds the season tables, a query says so, as the NBA's does.
+      await expect(
+        s.query({ entity: 'player', metrics: ['pts'], scope: { seasons: [2026] } })
+      ).rejects.toThrow(league.notBuilt)
+      await readEverything(s, false)
       expect(await s.games(2026)).toEqual([])
-      expect((await s.status()).noData).toBe(league.notBuilt)
+      // The plays and the published tables come in later parts: their reads give that reason.
+      const plays = notBuiltYet(league, 'plays')
+      const shots = await s.shots({
+        entity: 'player',
+        id: '1',
+        seasons: [2026],
+        scope: { gameTypes: ['regular'] }
+      })
+      expect(shots.reason).toBe(plays)
+      expect((await s.gameFlow('1')).reason).toBe(plays)
+      expect((await s.gameMatchups('1')).reason).toBe(notBuiltYet(league, 'published'))
       await service.close()
       service = null
+    }
+  })
+
+  it('read every metric outside the window as loaded from 2021-22 (D39)', () => {
+    for (const league of COLLEGE) {
+      const pts = metricIn(METRICS.get('pts')!, league)
+      expect(coverageReason(pts, [2021], league)).toBe('Loaded from 2021-22.')
+      expect(coverageReason(pts, [2022], league)).toBeNull()
+      // A metric that starts later in the window keeps its own words: ESPN's paint points.
+      const paint = metricIn(METRICS.get('team_paint_pts')!, league)
+      expect(paint.firstSeason).toBe(2024)
+      expect(coverageReason(paint, [2023], league)).toBe('Recorded from 2023-24.')
+      expect(coverageReason(paint, [2020], league)).toBe('Loaded from 2021-22.')
+      // ESPN's college box scores have no plus-minus: it says so.
+      expect(metricIn(METRICS.get('plus_minus')!, league).unavailable).toMatch(/plus-minus/)
+    }
+    // The NBA's words are as they were.
+    expect(coverageReason(METRICS.get('plus_minus')!, [1990], LEAGUES.nba)).toBe(
+      'Recorded from 1996-97.'
+    )
+  })
+
+  it('give the stats.ncaa.org splits their reason when those releases are left out (D41)', () => {
+    const splits = CATALOGUE.filter((m) => m.reads?.length)
+    expect(splits.length).toBeGreaterThan(30)
+    for (const league of COLLEGE) {
+      for (const m of splits) {
+        const def = metricIn(m, league)
+        expect(def.unavailable).toBeUndefined()
+        expect(leftOutGap(def, false, [], league)).toBeNull()
+        expect(leftOutGap(def, false, NCAA_STATS_RELEASES, league)).toBe(LEFT_OUT_REASON)
+      }
+      // A box-score metric reads ESPN's, which always loads.
+      expect(
+        leftOutGap(metricIn(METRICS.get('pts')!, league), false, NCAA_STATS_RELEASES, league)
+      ).toBeNull()
+    }
+    // The splits are the colleges' alone.
+    for (const m of splits) {
+      expect(metricIn(m, LEAGUES.nba).unavailable).toBe(notInLeague(LEAGUES.nba))
+      expect(metricIn(m, LEAGUES.wnba).unavailable).toBe(notInLeague(LEAGUES.wnba))
     }
   })
 

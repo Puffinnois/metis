@@ -357,6 +357,9 @@ export function standingsNotes(
   const notes: string[] = []
   if (rows.every((r) => r.last10 === null && r.streak === null)) {
     notes.push(`The last ten and the streak are not published for ${league.seasonLabel(season)}.`)
+  } else if (rows.every((r) => r.last10 === null)) {
+    // ESPN's college standings publish the streak but no last ten.
+    notes.push(`The last ten is not published for ${league.seasonLabel(season)}.`)
   }
   const records = hasDivisions(rows)
     ? rows.every((r) => r.conferenceRecord === null && r.divisionRecord === null)

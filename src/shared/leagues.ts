@@ -305,6 +305,11 @@ export interface League {
    */
   loadedWindow?: boolean
   /**
+   * What the Standings screen says its table counts, where it is not the league's own regular season:
+   * ESPN's college standings count every game, the postseason with it.
+   */
+  standingsWords?: string
+  /**
    * Whether ranks, percentiles, league means and the rows a board lists keep to the season's
    * Division I teams (D40): every game counts for the Division I side, but a team outside Division I
    * and its players are never ranked. A query that names its players or teams still reads them.
@@ -919,6 +924,7 @@ const college = (
   // Nothing before 2021-22 is loaded (D39); Division I teams alone are ranked (D40).
   loadedWindow: true,
   divisionIOnly: true,
+  standingsWords: 'Every game, the postseason with it, as ESPN publishes it',
   // Measured on ESPN's team box scores of 2021-22 to 2025-26, teams with 20 games or more: about 33
   // games a season (30 to 33 for the women) against 22.6 to 24.3 opponents (21.5 to 23.6), about 1.4
   // games an opponent, in five months, both sides alike.

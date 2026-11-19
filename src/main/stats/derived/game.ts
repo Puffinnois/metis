@@ -370,7 +370,7 @@ function teamGame(have: Have, recipe: DerivedRecipe, league: League): string {
   const forfeits = have.columns.get('game')?.has('forfeit_winner_id') ?? false
   const key = recipe.teamBoxKey ?? 'nba_game_id'
   const extras = recipe.extras
-  const won =(op: '>' | '<', winner: string): string =>
+  const won = (op: '>' | '<', winner: string): string =>
     forfeits
       ? `CASE WHEN t.forfeit_winner_id IS NOT NULL THEN t.team_id ${winner} t.forfeit_winner_id
               ELSE t.points_for ${op} t.points_against END`
@@ -423,7 +423,9 @@ function teamGame(have: Have, recipe: DerivedRecipe, league: League): string {
       FROM sides s
       LEFT JOIN nba n ON n.${key} = s.${key} AND n.team_id = s.team_id
       LEFT JOIN players p ON p.game_id = s.game_id AND p.team_id = s.team_id${
-        extras ? '\n      LEFT JOIN extras x ON x.game_id = s.game_id AND x.team_id = s.team_id' : ''
+        extras
+          ? '\n      LEFT JOIN extras x ON x.game_id = s.game_id AND x.team_id = s.team_id'
+          : ''
       }
       LEFT JOIN kinds k ON k.espn_game_id = s.espn_game_id AND k.home = s.home
       LEFT JOIN breaks b ON b.season = s.season
