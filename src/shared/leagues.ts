@@ -311,6 +311,16 @@ export interface League {
   /** How the per-game leaders' games minimum is set (`GamesRule`). */
   gamesRule: GamesRule
   /**
+   * The categories ranked by a rate whose minimum is a count per game played, with the games rule
+   * beside it, in place of D37's counts scaled to the season (D43, added 2026-11-19: the colleges'
+   * field-goal, three-point and free-throw percentages and assist-to-turnover ratio). `note` is how
+   * the screens name the rule. None for the NBA and the WNBA.
+   */
+  madePerGame?: {
+    note: string
+    minimums: Readonly<Record<string, { count: string; perGame: number }>>
+  }
+  /**
    * Whether the seasons before `firstSeason` exist but are not loaded, by decision (D39: the college
    * leagues from 2021-22), so a metric there reads "Loaded from …" rather than "Recorded from …".
    */
@@ -902,6 +912,7 @@ const college = (
     | 'size'
     | 'noData'
     | 'notBuilt'
+    | 'madePerGame'
   >
 ): League => ({
   ...league,
@@ -930,7 +941,8 @@ const college = (
   // minimum in minutes by 40 over 48, until the NCAA's own are read (D43).
   minimumsGames: 82,
   minimumsMinutes: 48,
-  minimumsNote: "scaled, until the NCAA's own are read",
+  // The other minimums are the catalogue's, over 82 team games, scaled to the games in range.
+  minimumsNote: 'scaled to the games in range',
   // "To be ranked, a student-athlete must appear in 75 percent of the team's games" (D43).
   // It covers every category the NCAA's record books rank per game (D43, added 2026-11-19): scoring,
   // rebounds, assists, steals, blocks and three-pointers made. Double-doubles and triple-doubles are
@@ -983,6 +995,27 @@ const collegeSize = (downloadBytes: number, fileBytes: number): League['size'] =
   loadedBytes: 3 * GB
 })
 
+/**
+ * The NCAA's minimums for its rate categories as its champions show them (D43, added 2026-11-19): a
+ * count per game played, with the 75 % games rule. Its policies leave them to the national office and
+ * print none for a season; the men's record book prints "Min. 3 assists per game" on the season
+ * assist-to-turnover record, and the career minimums in the same shape (4 field goals, 2.0 threes, 2.5
+ * free throws made per game). Measured on the record books' champions of 2021-22 to 2025-26: 5 field
+ * goals and 2.5 free throws made and 3 assists a game played name every champion of both leagues, and
+ * threes made per game 2.5 for the men and 2.0 for the women (Boston University's Alex Giannaros: 50 in
+ * 25 games, 2.00), except where the leader plays for a school reclassifying to Division I, which the
+ * NCAA lists and does not rank (`ncaa-data-sources.md`).
+ */
+const collegeMinimums = (threes: number): NonNullable<League['madePerGame']> => ({
+  note: "the NCAA's minimums as its champions show them",
+  minimums: {
+    fg_pct: { count: 'fgm', perGame: 5 },
+    fg3_pct: { count: 'fg3m', perGame: threes },
+    ft_pct: { count: 'ftm', perGame: 2.5 },
+    ast_tov: { count: 'ast', perGame: 3 }
+  }
+})
+
 const NCAAM: League = college({
   id: 'ncaam',
   name: 'NCAA Men',
@@ -1001,7 +1034,8 @@ const NCAAM: League = college({
   },
   size: collegeSize(803_921_971, 3_632_803_840),
   noData: "No NCAA men's stats yet: turn NCAA Men on in the Data panel to download them.",
-  notBuilt: "No NCAA men's stats yet: the first load has not got that far."
+  notBuilt: "No NCAA men's stats yet: the first load has not got that far.",
+  madePerGame: collegeMinimums(2.5)
 })
 
 const NCAAW: League = college({
@@ -1020,7 +1054,8 @@ const NCAAW: League = college({
   },
   size: collegeSize(752_895_003, 3_407_097_856),
   noData: "No NCAA women's stats yet: turn NCAA Women on in the Data panel to download them.",
-  notBuilt: "No NCAA women's stats yet: the first load has not got that far."
+  notBuilt: "No NCAA women's stats yet: the first load has not got that far.",
+  madePerGame: collegeMinimums(2.0)
 })
 
 /**

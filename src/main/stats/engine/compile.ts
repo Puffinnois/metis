@@ -1170,6 +1170,16 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
     // A minimum counted in minutes is stated in the minimums' game length: a 40-minute league scales
     // it by 40 over that. Where the lengths agree (the NBA) the SQL is as it was.
     const counted = m.qualifyBy ?? m.sample
+    const rule = c.league.gamesRule
+    if (m.minPerGame !== undefined) {
+      // A count per game played, and the games rule beside it (D43, `madePerGame`): 2.5 free throws
+      // made a game, in 75 % of the team's games.
+      const games =
+        ownGames && rule.kind === 'share'
+          ? ` AND games >= ceil(round(${rule.share} * team_games, 3))`
+          : ''
+      return `(s${i} > 0 AND ${count} >= ${m.minPerGame} * games${games}${adding ? ' AND NOT no_line' : ''}) AS q${i}`
+    }
     const minutes = counted === 'minutes' ? c.league.gameMinutes / c.league.minimumsMinutes : 1
     const scale = minutes === 1 ? '' : ` * ${minutes.toFixed(6)}`
     return `(s${i} > 0 AND ${count} >= ${minimumSql(m, c.league, ownGames)}${scale})${adding ? ' AND NOT no_line' : ''}) AS q${i}`
@@ -1266,7 +1276,9 @@ function ownGamesRule(q: StatsQuery, c: Checked): boolean {
   return (
     q.entity === 'player' &&
     c.league.gamesRule.kind === 'share' &&
-    c.metrics.some((m, i) => m.qualifyBy === 'games' && c.gaps[i] === null)
+    c.metrics.some(
+      (m, i) => (m.qualifyBy === 'games' || m.minPerGame !== undefined) && c.gaps[i] === null
+    )
   )
 }
 

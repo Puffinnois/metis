@@ -5,9 +5,10 @@
 // with a plain client in T1302.1 (`s3.amazonaws.com/fs.ncaa.org/Docs/stats/m_basketball_RB/
 // m_basketball_RB_D1.pdf` and the women's, "Annual Individual Champions"), kept outside the
 // repository in `~/.cache/metis-dev/ncaa-probe/pdf`; the champions below are transcribed from them.
-// The books rank the per-game categories by the NCAA's 75 % rule and the percentages by the NCAA's
-// own makes minimums, which are not read (D43): Metis asks the NBA's makes scaled, so a different
-// percentage leader is a difference of rules to read, not an error.
+// The books rank the per-game categories by the NCAA's 75 % rule, and the percentages and the
+// assist-to-turnover ratio by minimums its policies leave to the national office; the app asks the
+// counts per game played the champions show (D43, added 2026-11-19), with the 75 % rule. A leader the
+// app keeps where the book names another is a stated difference, with why (`STATED`).
 //
 // usage: node scripts/check-ncaa-leaders.mjs <folder holding stats-<league>.duckdb> --league=ncaam
 // Build first with `npm run build`. Prints a Markdown report.
@@ -305,11 +306,27 @@ const BOOKS = {
  * Leaders the app keeps where the book names another, each with why (the manager's decision of
  * 2026-11-19): the groups file is the Division I list (D40), and both families agree on the line.
  */
+const RECLASSIFYING =
+  'The NCAA lists a school reclassifying to Division I at the bottom of its rankings and does not rank it ("These reclassifying schools will not be ranked but rather listed at the bottom of the weekly rankings", Statistics Policies and Guidelines, `ForSIDs_Policies.txt` lines 1054-1058); the data has no list of them, so the app ranks them.'
 const STATED = {
   ncaam: {
     'blk 2025': {
       leader: 'Malcolm Wilson',
-      why: 'Malcolm Wilson of Queens leads, 115 blocks in 35 games, equal in both families. Queens was reclassifying to Division I; the record book appears to leave reclassifying schools out of its rankings, and names Obinna Anochili-Killen (102 in 32).'
+      why: `Malcolm Wilson of Queens leads, 115 blocks in 35 games, equal in both families; the book names Obinna Anochili-Killen (102 in 32). ${RECLASSIFYING}`
+    },
+    'fg3_pct 2022': {
+      leader: 'Jake Kosakowski',
+      why: `Jake Kosakowski of UC San Diego leads, 70 of 148 in 28 games (2.5 made a game); the book names Kyle Foster (105 of 229). ${RECLASSIFYING}`
+    }
+  },
+  ncaaw: {
+    'fg_pct 2023': {
+      leader: 'Gracie Merkle',
+      why: `Gracie Merkle of Bellarmine leads, 191 of 272 in 31 games; the book names Mya Berkman (196 of 282). ${RECLASSIFYING}`
+    },
+    'fg_pct 2024': {
+      leader: 'Jo Langbehn',
+      why: `Jo Langbehn of St. Thomas leads, 169 of 254 in 31 games; the book names Raegan Beers (221 of 333). ${RECLASSIFYING}`
     }
   }
 }
@@ -374,7 +391,7 @@ async function seasonRows(season) {
 const out = [
   `# ${league === 'ncaam' ? "Men's" : "Women's"} champions against the NCAA's record books`,
   '',
-  'The engine leads each category among qualified players over every counted game (D45), under the 75 % rule for the per-game categories and D37\'s scaled makes for the percentages (D43). "Leader" says whether its first row is the champion; "Line" whether the champion\'s games and totals equal the book\'s.',
+  'The engine leads each category among qualified players over every counted game (D45), under the 75 % rule for the per-game categories, and for the percentages and the assist-to-turnover ratio the counts per game played with the 75 % rule (D43). "Leader" says whether its first row is the champion; "Line" whether the champion\'s games and totals equal the book\'s.',
   '',
   '| Category | Season | Champion (book) | Book line | Leader | App leader | App line for the champion | Line |',
   '| --- | --- | --- | --- | --- | --- | --- | --- |'

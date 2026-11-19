@@ -206,7 +206,18 @@ describe('the college leagues (D38)', () => {
     ])
   })
 
-  it('qualify by the NCAA’s 75 % games rule, the makes scaled as D37 has them (D43)', () => {
+  it('qualify by the NCAA’s 75 % games rule and its makes per game as its champions show them (D43)', () => {
+    // 5 field goals, 2.5 free throws, 3 assists a game played; threes 2.5 for the men, 2.0 for the women.
+    expect(men.madePerGame?.minimums).toEqual({
+      fg_pct: { count: 'fgm', perGame: 5 },
+      fg3_pct: { count: 'fg3m', perGame: 2.5 },
+      ft_pct: { count: 'ftm', perGame: 2.5 },
+      ast_tov: { count: 'ast', perGame: 3 }
+    })
+    expect(women.madePerGame?.minimums.fg3_pct).toEqual({ count: 'fg3m', perGame: 2 })
+    expect(men.madePerGame?.note).toBe("the NCAA's minimums as its champions show them")
+    expect(nba.madePerGame).toBeUndefined()
+    expect(wnba.madePerGame).toBeUndefined()
     for (const league of [men, women]) {
       expect(league.gamesRule).toEqual({
         kind: 'share',
@@ -215,7 +226,7 @@ describe('the college leagues (D38)', () => {
       })
       expect(league.minimumsGames).toBe(82)
       expect(league.minimumsMinutes).toBe(48)
-      expect(league.minimumsNote).toBe("scaled, until the NCAA's own are read")
+      expect(league.minimumsNote).toBe('scaled to the games in range')
       expect(league.seasonShape).toEqual({ opponents: 24, months: 5 })
     }
     expect(nba.gamesRule).toEqual({ kind: 'scaled' })

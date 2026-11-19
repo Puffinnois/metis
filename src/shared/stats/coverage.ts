@@ -94,6 +94,9 @@ const PER_GAME_MINIMUM = 58
  * catalogue's per-game leaders do; elsewhere the catalogue's qualifier stands.
  */
 function inGamesRule(def: MetricDef, league: League): Partial<MetricDef> {
+  // A rate whose minimum is a count per game played in this league (D43, `madePerGame`).
+  const made = def.entity === 'player' ? league.madePerGame?.minimums[def.id] : undefined
+  if (made) return { qualifyBy: made.count, minSample: undefined, minPerGame: made.perGame }
   const rule = league.gamesRule
   if (rule.kind !== 'share' || !rule.perGame.includes(def.id) || def.qualifyBy === 'games')
     return {}

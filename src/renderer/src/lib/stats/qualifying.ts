@@ -25,6 +25,9 @@ export const rowQualifier = (league: League = currentLeague()): string =>
 export function leaderboardQualifier(league: League = currentLeague()): string {
   const note = league.minimumsNote ? `, ${league.minimumsNote}` : ''
   const share = gamesShareWords(league)
+  if (share && league.madePerGame) {
+    return `Qualified: ${rowQualifier(league)}, scaled to the games in range; per-game leaders by ${share} of the team's games, the league's own rule; shooting leaders and the assist-to-turnover ratio by made per game in ${share} of the team's games, ${league.madePerGame.note}`
+  }
   if (share) {
     return `Qualified: ${rowQualifier(league)}, scaled to the games in range; per-game leaders by ${share} of the team's games, the league's own rule; shooting leaders by the NBA's makes${note}`
   }
