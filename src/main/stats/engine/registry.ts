@@ -2,15 +2,19 @@ import type { League } from '@shared/leagues'
 import { CATALOGUE, componentsOf, metricIn } from '@shared/stats/catalogue'
 import { sampleLabel } from '@shared/stats/samples'
 import type { Entity, Grain, MetricDef, MetricInfo, MetricStability } from '@shared/stats/types'
-import { PLAYER_SUMS, TEAM_SUMS } from '../derived/game'
+import { EXTRA_PLAYER_SUMS, EXTRA_TEAM_SUMS, PLAYER_SUMS, TEAM_SUMS } from '../derived/game'
 import { gameTable } from '../derived/gameTables'
 import { publishedComponents, publishedTable } from '../derived/published'
 import { modelTable } from '../models/build'
 
-/** The columns each entity's game and season tables can sum. */
+/**
+ * The columns each entity's game and season tables can sum, a recipe's own among them (the college
+ * leagues' stats.ncaa.org splits): a metric over those is not in the other leagues, so no query there
+ * reads them.
+ */
 export const COMPONENTS: Record<Entity, ReadonlySet<string>> = {
-  player: new Set(PLAYER_SUMS),
-  team: new Set(TEAM_SUMS)
+  player: new Set([...PLAYER_SUMS, ...EXTRA_PLAYER_SUMS]),
+  team: new Set([...TEAM_SUMS, ...EXTRA_TEAM_SUMS])
 }
 
 /**

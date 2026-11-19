@@ -7,6 +7,7 @@ import {
 } from '@shared/leagues'
 import type { StatsDb } from '../db'
 import { buildGameTables, NBA_DERIVED, type DerivedRecipe } from './game'
+import { COLLEGE_DERIVED } from './gameCollege'
 import { WNBA_DERIVED } from './gameWnba'
 import { buildSeasonTables } from './season'
 import { inspect } from './sql'
@@ -14,7 +15,8 @@ import { inspect } from './sql'
 /** Every recipe, by the name a league's registry entry gives (`League.derived`). */
 export const DERIVED_RECIPES: Readonly<Record<DerivedRecipeName, DerivedRecipe>> = {
   nba: NBA_DERIVED,
-  wnba: WNBA_DERIVED
+  wnba: WNBA_DERIVED,
+  college: COLLEGE_DERIVED
 }
 
 /** The NBA recipe's version; each recipe keeps its own, so changing one never rebuilds another. */

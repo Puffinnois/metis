@@ -129,6 +129,12 @@ export interface MetricDef {
   perGameOnly?: boolean
   sources: string[]
   /**
+   * The source tables a box-score metric's own columns come from, beyond the box scores every build
+   * has: stats.ncaa.org's player and team boxes for the college leagues' splits (D40). With every file
+   * of one left out of a build (D41), the metric answers with the reason (`leftOutGap`).
+   */
+  reads?: string[]
+  /**
    * The first season holding real values, by the data's label, in every league that takes the
    * metric's own coverage (`League.metricsByDefault`: the NBA). `leagues` states it for the others.
    */

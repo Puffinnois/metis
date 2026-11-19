@@ -1,7 +1,7 @@
 import { coachRole, isInjuryReason } from '@shared/stats/availability'
 import type { StatsAvailability, StatsCoach, StatsOfficial } from '@shared/stats/types'
 import type { StatsDb } from './db'
-import type { League } from '@shared/leagues'
+import { builds, type League } from '@shared/leagues'
 import { playsRecipe } from './derived/playsRecipe'
 import { column, inspect, type Have } from './derived/sql'
 
@@ -139,6 +139,9 @@ export async function readOfficials(
   gameId: string,
   league?: League
 ): Promise<StatsOfficial[]> {
+  // A league whose plays are not built may name no plays recipe yet (the college leagues until
+  // T1302.6), and its officials come with them.
+  if (league && !builds(league, 'plays')) return []
   const t = playsRecipe(league).officials
   const have = await inspect(db)
   if (!have.tables.has(t) || !have.tables.has('game')) return []

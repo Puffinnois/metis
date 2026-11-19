@@ -32,6 +32,7 @@ import type {
   StatsStatus
 } from '@shared/stats/types'
 import { builds, leagueOf, type League } from '@shared/leagues'
+import { notBuiltYet } from '@shared/stats/coverage'
 import { sqlString, StatsDb, type Row } from './db'
 import { databaseBytes, freeBytes, roomNeeded } from './disk'
 import { createDownloads } from './download'
@@ -512,7 +513,35 @@ export async function openStatsService(
       db.close()
     }
   }
-  if (builds(league, 'derived')) return service
+  if (builds(league, 'derived')) {
+    // A league whose plays or published tables are not built yet (the college leagues until
+    // T1302.6) answers the reads of them with the reason, never an empty table or a recipe it lacks.
+    const plays = builds(league, 'plays')
+      ? null
+      : offlineStats(league, notBuiltYet(league, 'plays'))
+    const published = builds(league, 'published')
+      ? null
+      : offlineStats(league, notBuiltYet(league, 'published'))
+    return {
+      ...service,
+      ...(plays && {
+        officialCareer: plays.officialCareer,
+        onCourtUnits: plays.onCourtUnits,
+        withOrWithout: plays.withOrWithout,
+        shots: plays.shots,
+        assists: plays.assists,
+        gameFlow: plays.gameFlow
+      }),
+      ...(published && {
+        matchups: published.matchups,
+        gameMatchups: published.gameMatchups,
+        lineups: published.lineups,
+        profile: published.profile,
+        availability: published.availability,
+        coaches: published.coaches
+      })
+    }
+  }
   // A league whose game and season tables are not built yet loads and lists its files, and every
   // screen's read answers with the reason, never an error: its file has none of the tables they read
   // (its game, team and player tables may be there, but no screen reads them alone).

@@ -45,10 +45,11 @@ export type BuiltTables = (typeof BUILT_TABLES)[number]
 export type IdentityRecipeName = 'nba' | 'wnba' | 'college'
 
 /**
- * The game and season table recipes, named for the box scores they read: the NBA's box scores, or the
- * WNBA's game logs and 2026 box scores.
+ * The game and season table recipes, named for the box scores they read: the NBA's box scores, the
+ * WNBA's game logs and 2026 box scores, or the college leagues' ESPN box scores with stats.ncaa.org's
+ * beside them (one recipe for the men and the women, D38).
  */
-export type DerivedRecipeName = 'nba' | 'wnba'
+export type DerivedRecipeName = 'nba' | 'wnba' | 'college'
 
 /**
  * The published table recipes, named for the files they read: the NBA's, or the WNBA's (its impact
@@ -298,6 +299,17 @@ export interface League {
   minimumsNote?: string
   /** How the per-game leaders' games minimum is set (`GamesRule`). */
   gamesRule: GamesRule
+  /**
+   * Whether the seasons before `firstSeason` exist but are not loaded, by decision (D39: the college
+   * leagues from 2021-22), so a metric there reads "Loaded from …" rather than "Recorded from …".
+   */
+  loadedWindow?: boolean
+  /**
+   * Whether ranks, percentiles, league means and the rows a board lists keep to the season's
+   * Division I teams (D40): every game counts for the Division I side, but a team outside Division I
+   * and its players are never ranked. A query that names its players or teams still reads them.
+   */
+  divisionIOnly?: boolean
   /** A regular season's shape, for qualifying rows grouped by opponent or month. */
   seasonShape: SeasonShape
   /** The league's stats file in the data folder (D36). */
@@ -833,6 +845,34 @@ const WNBA: BuiltLeague = {
  */
 const NCAA_FIRST_SEASON = 2022
 
+/**
+ * How the catalogue's words read on the college leagues' metrics: ESPN's box scores are the counts,
+ * stats.ncaa.org's fill the games ESPN lacks (D40), and the NBA's eras and published figures do not
+ * apply. A phrase naming the NBA's formula (the Four Factors "as the NBA counts them", PIE) stays.
+ */
+const COLLEGE_WORDS: League['catalogueWords'] = [
+  ["The NBA's box scores from 1996-97", "ESPN's box scores"],
+  ["ESPN's box scores before them", "stats.ncaa.org's for the games ESPN has none of"],
+  ["The NBA's box scores", "ESPN's box scores"],
+  [
+    "ESPN's flag is the only source before 2017-18, and it is missing for some games, mostly in 2001-02, 2004-05 and 2005-06.",
+    "ESPN's flag, so none for a game whose box score is stats.ncaa.org's."
+  ],
+  [
+    ' Who started is unknown for some games, mostly in 2001-02, 2004-05 and 2005-06, so per game counts only those known.',
+    " Who started is unknown for a game whose box score is stats.ncaa.org's, so per game counts only those known."
+  ],
+  [' Most lines in 2003-04 and 2004-05 are rounded to the minute.', ''],
+  [' They read low before 2004-05: about 5 a game, against 11 to 15 after.', ''],
+  [' Published by the NBA as PCT_FGA_3PT.', ''],
+  [' Published by the NBA as PCT_FGA_2PT.', ''],
+  ["It is not the NBA's published figure.", 'It is not a published figure.'],
+  [
+    "Whole games: the NBA's published share counts only the minutes they were on the floor.",
+    'Whole games, not only the minutes they were on the floor.'
+  ]
+]
+
 const college = (
   league: Pick<
     League,
@@ -876,18 +916,23 @@ const college = (
   minimumsNote: "scaled, until the NCAA's own are read",
   // "To be ranked, a student-athlete must appear in 75 percent of the team's games" (D43).
   gamesRule: { kind: 'share', share: 0.75 },
+  // Nothing before 2021-22 is loaded (D39); Division I teams alone are ranked (D40).
+  loadedWindow: true,
+  divisionIOnly: true,
   // Measured on ESPN's team box scores of 2021-22 to 2025-26, teams with 20 games or more: about 33
   // games a season (30 to 33 for the women) against 22.6 to 24.3 opponents (21.5 to 23.6), about 1.4
   // games an opponent, in five months, both sides alike.
   seasonShape: { opponents: 24, months: 5 },
   statsFile: `stats-${league.id}.duckdb`,
-  // The game, team and player tables (T1302.4); the game and season tables come with T1302.5.
-  builds: ['identity'],
+  // The game, team and player tables (T1302.4), the game and season tables (T1302.5); the published
+  // tables, the plays and the models come with T1302.6 to T1302.8.
+  builds: ['identity', 'derived'],
   // The families no release publishes (D44) read their reasons from T1302.6, with the tables.
   unpublished: {},
   // ESPN's ids are the keys, stats.ncaa.org's games and players linked to them (D40).
   identity: 'college',
-  derived: null,
+  // ESPN's box scores for the counts, stats.ncaa.org's splits and possessions beside them (D40).
+  derived: 'college',
   published: null,
   plays: null,
   // 6.75 metres (22 feet 1.75 inches) at the arc for both across D39's seasons (D38), the line FIBA
@@ -901,7 +946,7 @@ const college = (
   shotsLocatedFrom: NCAA_FIRST_SEASON,
   metricsByDefault: false,
   models: null,
-  catalogueWords: []
+  catalogueWords: COLLEGE_WORDS
 })
 
 /**

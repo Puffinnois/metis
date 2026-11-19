@@ -1,3 +1,4 @@
+import { NCAA_TEAM_SPLITS } from '../ncaaSplits'
 import type { MetricDef } from '../types'
 
 /** A metric's fields beyond its words: `value` and `sample` are required, the rest have defaults. */
@@ -89,7 +90,9 @@ const TWO_SIDED = new Set([
   'poss',
   'paint_pts',
   'fast_break_pts',
-  'turnover_pts'
+  'turnover_pts',
+  // The college leagues' stats.ncaa.org splits, kept for both sides of a team's game.
+  ...NCAA_TEAM_SPLITS
 ])
 
 const TOKEN = /\{([a-z0-9_]+)\}/g

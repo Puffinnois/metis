@@ -99,7 +99,8 @@ export function leftOutTables(
  * The reason a metric has no answer because its source is not in this build; null when it is. A
  * published metric reads its published table's source, a built one its game table's sources, and any
  * metric under a split the play by play the splits are counted from, each under the league's own
- * names (its published and plays recipes). A box-score metric reads the box scores, which are always in.
+ * names (its published and plays recipes). A box-score metric reads the box scores, which are always in,
+ * and the source tables it names in `reads` (the college leagues' stats.ncaa.org splits).
  */
 export function leftOutGap(
   m: MetricDef,
@@ -116,6 +117,7 @@ export function leftOutGap(
     : {}
   const published = m.published ? publishedTable(m.published)?.source : undefined
   const tables = [
+    ...(m.reads ?? []),
     ...(published ? [ownPublished[published] ?? published] : []),
     ...(m.built && plays ? (gameTable(m.built)?.sources ?? []).map((f) => plays[f]) : []),
     ...(split && plays ? [plays.pbp] : [])

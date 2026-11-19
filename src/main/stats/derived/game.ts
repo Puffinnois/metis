@@ -1,5 +1,6 @@
 import type { League } from '@shared/leagues'
 import type { StatsDb } from '../db'
+import { NCAA_PLAYER_SUMS, NCAA_TEAM_SUMS } from './ncaaSplits'
 import { column, per, type Have } from './sql'
 
 /**
@@ -31,6 +32,11 @@ export interface DerivedRecipe {
   boxSource: string
   summedSource: string
   /**
+   * SQL for `team_game.source` over the team box (`n`) where one recipe's team box comes from more
+   * than one source (the college leagues' ESPN and stats.ncaa.org); `boxSource` when not set.
+   */
+  boxSourceSql?: string
+  /**
    * What `team_game.tov` counts. `players`: its players' sum, which leaves out the team's own (a
    * shot-clock violation charged to no player), so the composites add them from the play by play.
    * `own`: the team's row, which holds them where the league's rows count them, so the composites add
@@ -41,6 +47,22 @@ export interface DerivedRecipe {
   espnKinds: { paint: number; fastBreak: number; turnover: number }
   /** All-Star dates the schedule does not hold, as SQL rows `(season, DATE '…')`. */
   breaks: readonly string[]
+  /**
+   * What `teamBox` is keyed by: the league's own game id (`nba_game_id`, the default), or the game's
+   * key itself where the league has no other id (the college leagues, whose key is ESPN's).
+   */
+  teamBoxKey?: 'nba_game_id' | 'game_id'
+  /**
+   * Columns of its own a recipe carries beside the shared ones: on `lines`, which `player_game` keeps,
+   * and from `sql` (`game_id`, `team_id` and the columns), which `team_game` keeps for both sides
+   * (`opp_`). Summed in the season tables where present (`EXTRA_PLAYER_SUMS`, `EXTRA_TEAM_SUMS`).
+   * None for the NBA and the WNBA, whose tables are as they were.
+   */
+  extras?: {
+    player: readonly string[]
+    team: readonly string[]
+    teamSql(have: Have): string
+  }
 }
 
 /** Every box-score count, as `player_game`, `team_game` and the season tables name them. */
@@ -182,6 +204,14 @@ export const PLAYER_SUMS: readonly string[] = [
   ...Object.keys(TEAM_CONTEXT),
   ...Object.keys(ON_COURT)
 ]
+
+/**
+ * The columns only some recipes write (`DerivedRecipe.extras`): the college leagues' stats.ncaa.org
+ * splits. The season tables sum them where the game tables hold them, and the engine reads them as
+ * components, so a metric over them answers in the leagues that have them and nowhere else.
+ */
+export const EXTRA_PLAYER_SUMS: readonly string[] = NCAA_PLAYER_SUMS
+export const EXTRA_TEAM_SUMS: readonly string[] = NCAA_TEAM_SUMS
 
 /** "6:34", "240:00" or, on 88 old lines, "26" whole minutes. Anything else reads as NULL. */
 const CLOCK_SECONDS = `CREATE OR REPLACE TEMP MACRO clock_seconds(m) AS CASE
@@ -338,7 +368,9 @@ const brefHalf = (us: string, them: string): string =>
  */
 function teamGame(have: Have, recipe: DerivedRecipe, league: League): string {
   const forfeits = have.columns.get('game')?.has('forfeit_winner_id') ?? false
-  const won = (op: '>' | '<', winner: string): string =>
+  const key = recipe.teamBoxKey ?? 'nba_game_id'
+  const extras = recipe.extras
+  const won =(op: '>' | '<', winner: string): string =>
     forfeits
       ? `CASE WHEN t.forfeit_winner_id IS NOT NULL THEN t.team_id ${winner} t.forfeit_winner_id
               ELSE t.points_for ${op} t.points_against END`
@@ -366,7 +398,7 @@ function teamGame(have: Have, recipe: DerivedRecipe, league: League): string {
              away_team_id, home_team_id, false, away_score, home_score${forfeits ? ', forfeit_winner_id' : ''}
       FROM game WHERE played AND home_team_id IS NOT NULL AND away_team_id IS NOT NULL
     ), nba AS (${recipe.teamBox(have, league)}
-    ), players AS (
+    ),${extras ? ` extras AS (${extras.teamSql(have)}),` : ''} players AS (
       SELECT game_id, team_id, mode(source) AS source, sum(seconds) AS seconds,
              ${BOX_COUNTS.map((c) => `sum(${c}) AS ${c}`).join(', ')},
              sum(pts) FILTER (starter) AS starter_pts, sum(pts) FILTER (NOT starter) AS bench_pts,
@@ -375,11 +407,13 @@ function teamGame(have: Have, recipe: DerivedRecipe, league: League): string {
     ), kinds AS (${espnKinds(have, recipe.espnKinds)}),
     one_side AS (
       SELECT s.*,
-             CASE WHEN n.team_id IS NOT NULL THEN '${recipe.boxSource}'
+             CASE WHEN n.team_id IS NOT NULL THEN ${recipe.boxSourceSql ?? `'${recipe.boxSource}'`}
                   WHEN p.team_id IS NOT NULL THEN ${recipe.summedSource} END AS source,
              coalesce(n.seconds, p.seconds) AS seconds,
              ${BOX_COUNTS.map((c) => `coalesce(n.${c}, p.${c}) AS ${c}`).join(', ')},
-             p.starter_pts, p.bench_pts, p.known_starters, k.paint_pts, k.fast_break_pts, k.turnover_pts,
+             p.starter_pts, p.bench_pts, p.known_starters, k.paint_pts, k.fast_break_pts, k.turnover_pts,${
+               extras ? extras.team.map((c) => ` x.${c},`).join('') : ''
+             }
              date_diff('day',
                lag(s.game_date) OVER (
                  PARTITION BY s.season, s.team_id, s.game_type = 'preseason'
@@ -387,8 +421,10 @@ function teamGame(have: Have, recipe: DerivedRecipe, league: League): string {
                s.game_date) - 1 AS rest_days,
              CASE WHEN b.break_date IS NOT NULL THEN s.game_date > b.break_date END AS after_break
       FROM sides s
-      LEFT JOIN nba n ON n.nba_game_id = s.nba_game_id AND n.team_id = s.team_id
-      LEFT JOIN players p ON p.game_id = s.game_id AND p.team_id = s.team_id
+      LEFT JOIN nba n ON n.${key} = s.${key} AND n.team_id = s.team_id
+      LEFT JOIN players p ON p.game_id = s.game_id AND p.team_id = s.team_id${
+        extras ? '\n      LEFT JOIN extras x ON x.game_id = s.game_id AND x.team_id = s.team_id' : ''
+      }
       LEFT JOIN kinds k ON k.espn_game_id = s.espn_game_id AND k.home = s.home
       LEFT JOIN breaks b ON b.season = s.season
     )
@@ -401,7 +437,9 @@ function teamGame(have: Have, recipe: DerivedRecipe, league: League): string {
            t.seconds / 60.0 AS minutes,
            ${BOX_COUNTS.map((c) => `o.${c} AS opp_${c}`).join(', ')},
            o.paint_pts AS opp_paint_pts, o.fast_break_pts AS opp_fast_break_pts,
-           o.turnover_pts AS opp_turnover_pts,
+           o.turnover_pts AS opp_turnover_pts,${
+             extras ? extras.team.map((c) => ` o.${c} AS opp_${c},`).join('') : ''
+           }
            ${possOf('t.')} AS poss, ${possOf('o.')} AS opp_poss,
            0.5 * (${possOf('t.')} + ${possOf('o.')}) AS poss_sym,
            0.5 * (${brefHalf('t.', 'o.')} + ${brefHalf('o.', 't.')}) AS poss_bref,
@@ -415,7 +453,7 @@ function teamGame(have: Have, recipe: DerivedRecipe, league: League): string {
  * One row per player per game they appeared in. Rates are never stored: every column here is summed
  * and divided when read, so any date range or group of games is exact.
  */
-const PLAYER_GAME = `CREATE OR REPLACE TABLE player_game AS
+const playerGame = (extras: readonly string[]): string => `CREATE OR REPLACE TABLE player_game AS
   WITH categories AS (
     SELECT *,
            (coalesce(pts, 0) >= 10)::INTEGER + (coalesce(reb, 0) >= 10)::INTEGER
@@ -438,7 +476,7 @@ const PLAYER_GAME = `CREATE OR REPLACE TABLE player_game AS
            .join(', ')},
          ${Object.entries(ON_COURT)
            .map(([name, sql]) => `${sql} AS ${name}`)
-           .join(', ')}
+           .join(', ')}${extras.map((c) => `, l.${c}`).join('')}
   FROM categories l
   JOIN team_game t ON t.game_id = l.game_id AND t.team_id = l.team_id
   LEFT JOIN player_position p ON p.player_id = l.player_id AND p.season = t.season`
@@ -486,7 +524,7 @@ export async function buildGameTables(
   await db.exec(POSITION_GROUP)
   for (const sql of recipe.lines(have, league)) await db.exec(sql)
   await db.exec(teamGame(have, recipe, league))
-  await db.exec(PLAYER_GAME)
+  await db.exec(playerGame(recipe.extras?.player ?? []))
   for (const temp of [...recipe.temps, 'lines', 'player_position']) {
     await db.exec(`DROP TABLE ${temp}`)
   }

@@ -29,6 +29,10 @@ export function coverageReason(
   league: League
 ): string | null {
   if (seasons.some((s) => covers(def, s))) return null
+  // Seasons a league has but does not load (D39: the college leagues from 2021-22).
+  if (league.loadedWindow && seasons.every((s) => s < league.firstSeason)) {
+    return `Loaded from ${seasonLabel(league, league.firstSeason)}.`
+  }
   if (seasons.some((s) => s < def.firstSeason)) {
     return `Recorded from ${seasonLabel(league, def.firstSeason)}.`
   }
