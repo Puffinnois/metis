@@ -59,12 +59,26 @@ const shooterCodeSql = (player: string): string =>
 const fallbackKey = (season: string, team: string, name: string): string =>
   `-(1000000000000 + hash(${season}, ${team}, lower(trim(${name}))) % 1000000000000)::BIGINT`
 
-/** A season's stats.ncaa.org team names, each as its key in `team`. */
+/**
+ * stats.ncaa.org's team names, each with every key in `team` it may be (a season, or every season):
+ * the season's team list, and the names `ncaa_player_ids` resolved (T1302.4), which hold the schools
+ * the list lacks (FDU, Saint Francis in 2022-23). A name can be two schools' (East Texas A&M's), so
+ * each name holds every key it may be (`ids`), and `nameSide` reads it as one of the game's sides.
+ */
 const teamNamesSql = (
-  season: string
-): string => `SELECT i.team AS name, any_value(t.team_id) AS team_id
-    FROM src_ncaa_team_ids i JOIN team t ON t.season = i.season AND t.ncaa_team_id = TRY_CAST(i.id AS BIGINT)
-    WHERE i.season = ${season} GROUP BY 1`
+  season?: string
+): string => `SELECT season, name, list(DISTINCT team_id) AS ids FROM (
+      SELECT i.season, i.team AS name, t.team_id
+      FROM src_ncaa_team_ids i JOIN team t ON t.season = i.season AND t.ncaa_team_id = TRY_CAST(i.id AS BIGINT)
+      UNION ALL
+      SELECT season, ncaa_team, team_id FROM ncaa_player_ids WHERE team_id IS NOT NULL)
+    WHERE name IS NOT NULL${season === undefined ? '' : ` AND season = ${season}`}
+    GROUP BY 1, 2`
+
+/** The game's side a name's keys (`ids` of `teamNamesSql`) point to, when they point to one alone. */
+const nameSide = (ids: string): string => `CASE
+      WHEN list_contains(${ids}, g.home_team_id) AND NOT list_contains(${ids}, g.away_team_id) THEN g.home_team_id
+      WHEN list_contains(${ids}, g.away_team_id) AND NOT list_contains(${ids}, g.home_team_id) THEN g.away_team_id END`
 
 /** A season's players by name within their team: the row with the most lines where two share one. */
 const playersByNameSql = (
@@ -98,15 +112,18 @@ export function collegeShotsSelect(have: Have, season?: number): string {
   if (!have.tables.has(t)) return none(SHOT_COLUMNS)
   const c = (name: string, type = 'BIGINT'): string => column(have, t, 's', name, type)
   const one = season === undefined ? '' : `WHERE s.season = ${season}`
+  // By the file's stats.ncaa.org id, its ESPN id, then the season's name for it (`teamNamesSql`).
   const team = `CASE WHEN tm.team_id IN (g.home_team_id, g.away_team_id) THEN tm.team_id
-                     WHEN te.team_id IN (g.home_team_id, g.away_team_id) THEN te.team_id END`
+                     WHEN te.team_id IN (g.home_team_id, g.away_team_id) THEN te.team_id
+                     ELSE ${nameSide('tn.ids')} END`
   return `SELECT ${selectColumns(SHOT_COLUMNS, {
     game_id: 'g.game_id',
-    season: 'g.season',
+    season: 's.season',
     game_type: 'g.game_type',
     game_date: 'g.game_date',
     period: c('period'),
     clock: c('sec_left', 'DOUBLE'),
+    // The file's season, the game's: a read of one season filters the file before anything is joined.
     team_id: 's.team',
     opponent_id: `CASE s.team WHEN g.home_team_id THEN g.away_team_id WHEN g.away_team_id THEN g.home_team_id END`,
     home: 's.team = g.home_team_id',
@@ -133,8 +150,10 @@ export function collegeShotsSelect(have: Have, season?: number): string {
             FROM (SELECT * FROM ${t} s ${one}) s
             JOIN game g ON g.ncaa_game_id = ${c('contest_id', 'VARCHAR')}
             LEFT JOIN team tm ON tm.season = g.season AND tm.ncaa_team_id = ${c('ncaa_team_id')}
-            LEFT JOIN team te ON te.season = g.season AND te.espn_team_id = ${c('espn_team_id', 'INTEGER')}) s
-      WINDOW w AS (PARTITION BY s.contest_id)) s
+            LEFT JOIN team te ON te.season = g.season AND te.espn_team_id = ${c('espn_team_id', 'INTEGER')}
+            LEFT JOIN (${teamNamesSql()}) tn
+              ON tn.season = g.season AND tn.name = ${c('team_id', 'VARCHAR')}) s
+      WINDOW w AS (PARTITION BY s.season, s.contest_id)) s
     JOIN game g ON g.ncaa_game_id = ${c('contest_id', 'VARCHAR')}
     LEFT JOIN ncaa_player_ids pi ON pi.season = g.season
       AND pi.ncaa_player_id = ${c('shooter_player_id', 'VARCHAR')}
@@ -190,7 +209,7 @@ export function collegeUnitGameSql(have: Have, season: number): string {
     pn AS (${playersByNameSql(String(s), nameKeySql("coalesce(name, replace(player, '.', ' '))"))}),
     x AS (
       SELECT l.*, g.game_id, g.season AS g_season, g.game_type, g.game_date, g.home_team_id, g.away_team_id,
-             ${sideSql('tt.team_id', 'ot.team_id')} AS team_id
+             ${sideSql(nameSide('tt.ids'), nameSide('ot.ids'))} AS team_id
       FROM ${t} l JOIN g ON g.ncaa_game_id = ${c('contest_id', 'VARCHAR')}
       LEFT JOIN tn tt ON tt.name = ${c('team', 'VARCHAR')}
       LEFT JOIN tn ot ON ot.name = ${c('opponent', 'VARCHAR')}
@@ -368,13 +387,11 @@ function stintsSql(have: Have): string {
              FROM ncaa_player_ids p WHERE p.season = x.season AND p.team_id = ${team} AND p.player = x.${side}_${i})`
   }
   return `CREATE OR REPLACE VIEW ${STINTS_VIEW} AS
-    WITH tn AS (SELECT i.season, i.team AS name, any_value(t.team_id) AS team_id
-                FROM src_ncaa_team_ids i JOIN team t ON t.season = i.season AND t.ncaa_team_id = TRY_CAST(i.id AS BIGINT)
-                GROUP BY 1, 2),
+    WITH tn AS (${teamNamesSql()}),
     x AS (
       SELECT s.*, g.game_id, g.season AS g_season, g.game_type, g.game_date AS g_date,
-             ${sideSql('h.team_id', 'a.team_id')} AS h_team,
-             ${sideSql('a.team_id', 'h.team_id')} AS a_team
+             ${sideSql(nameSide('h.ids'), nameSide('a.ids'))} AS h_team,
+             ${sideSql(nameSide('a.ids'), nameSide('h.ids'))} AS a_team
       FROM ${t} s JOIN game g ON g.ncaa_game_id = ${c('contest_id', 'VARCHAR')}
       LEFT JOIN tn h ON h.season = g.season AND h.name = ${c('home', 'VARCHAR')}
       LEFT JOIN tn a ON a.season = g.season AND a.name = ${c('away', 'VARCHAR')}

@@ -157,7 +157,8 @@ export const COLLEGE_OFFICIALS_VIEW = 'official_espn'
  * (D38): their lines are the same across the window.
  */
 export const COLLEGE_PLAYS: PlaysRecipe = {
-  version: 1,
+  // 2: the shot view reads one season before it joins, and names a team by its name where it has no id.
+  version: 2,
   pbp: 'src_ncaa_pbp',
   shots: 'src_ncaa_shots',
   possessions: 'src_ncaa_possessions',
