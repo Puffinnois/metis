@@ -950,6 +950,16 @@ const COLLEGE_WORDS: League['catalogueWords'] = [
   [' Most lines in 2003-04 and 2004-05 are rounded to the minute.', ''],
   [' They read low before 2004-05: about 5 a game, against 11 to 15 after.', ''],
   [' Published by the NBA as PCT_FGA_3PT.', ''],
+  // Fouls drawn: stats.ncaa.org's play by play names the fouled player on every foul (T1302.7).
+  [
+    'Personal fouls drawn, from ESPN’s play by play, which names the fouled player from 2006-07 to 2016-17 only.',
+    "Personal fouls drawn, from stats.ncaa.org's play by play, which names the fouled player on every foul."
+  ],
+  [
+    'Shooting fouls drawn, from ESPN’s play by play, 2006-07 to 2016-17.',
+    "Shooting fouls drawn, from stats.ncaa.org's play by play."
+  ],
+  ["ESPN's play by play (the fouled player)", "stats.ncaa.org's play by play (the fouled player)"],
   [' Published by the NBA as PCT_FGA_2PT.', ''],
   ["It is not the NBA's published figure.", 'It is not a published figure.'],
   [

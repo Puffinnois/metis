@@ -335,13 +335,16 @@ const awayFive = (alias: string): string => `[${SLOTS.map((i) => `${alias}.away_
  * Each player's stretches on the floor in a season, for the splits' players' time (`split_stints` of
  * `splits.ts`): the time between a play and the one before it in the period is credited to the ten the
  * file names at the play, as the play-credited units credit it, so a player's consecutive plays on the
- * floor make one stretch, from the clock of the play before the first to the clock of the last.
+ * floor make one stretch, from the clock of the play before the first to the clock of the last. The
+ * file writes no row at a period's end (its last play is at 0:02 or 0:05), so the time after a period's
+ * last play goes to the ten on the floor at it, as the period's start goes to the ten of its first.
  */
 export function collegeStintsCte(season: number, league: League): string {
   const s = Number(season)
   const periodLength = periodLengthSql(league, String(s), 'p.period')
   return `split_on AS (
-    SELECT p.game_id, p.period, p.clock AS lo,
+    SELECT p.game_id, p.period,
+           CASE WHEN lead(p.seq) OVER w IS NULL THEN 0 ELSE p.clock END AS lo,
            coalesce(lag(p.clock) OVER w, ${periodLength}) AS hi,
            row_number() OVER w AS rn, p.home_team_id, p.away_team_id,
            ${homeFive('l')} AS h, ${awayFive('l')} AS a
@@ -402,8 +405,13 @@ export const collegePossessionsCte = (season: number): string => `split_poss_src
 /**
  * One season's units credited play by play, as the NBA's builder credits them (`unitGameSql`): each
  * play's time to the ten the file names at it, free throws to the players on the floor at the foul, and
- * each possession to the players on the floor at its last play. Kept beside the lineup file's units under
- * its own name, or under `unit_game` when the league's entry reads it (`League.onCourtFrom`).
+ * each possession to the players on the floor at its last play. The file writes no row at a period's end,
+ * so each period gets one with no counts at its last second (`kind` `period`), the ten of its last play
+ * on the floor until then. A free throw goes to the players on the floor at the foul, as the NBA's do,
+ * only where a foul precedes it at the same moment: in 2021-22 to 2023-24's older format a free throw is
+ * sometimes listed before its foul, and the period's last foul before it would be minutes old. Kept
+ * beside the lineup file's units under its own name, or under `unit_game` when the league's entry reads
+ * it (`League.onCourtFrom`).
  */
 export function collegePlayUnitsSql(_have: Have, season: number, league: League): string {
   const s = Number(season)
@@ -431,7 +439,7 @@ export function collegePlayUnitsSql(_have: Have, season: number, league: League)
       WHERE n.season = ${s} AND n.possession IS NOT NULL
       GROUP BY n.game_id, n.possession
     ),
-    plays AS (
+    played AS (
       SELECT x.season, x.game_type, x.game_id, x.game_date, x.seq, x.period, x.kind,
              x.team_id, x.player_id, g.home_team_id, g.away_team_id, e.poss_off,
              ${counts.map((c) => `x.${c}::INTEGER AS ${c}`).join(', ')},
@@ -442,6 +450,21 @@ export function collegePlayUnitsSql(_have: Have, season: number, league: League)
       LEFT JOIN ${PLAY_LINEUP} l ON l.season = x.season AND l.game_id = x.game_id AND l.seq = x.seq
       LEFT JOIN ends e ON e.game_id = x.game_id AND e.seq = x.seq
       WHERE x.season = ${s}
+    ),
+    plays AS (
+      SELECT * REPLACE (
+               CASE WHEN kind = 'free_throw' AND NOT coalesce(bool_or(kind = 'foul') OVER (
+                      PARTITION BY game_id, period, el ORDER BY seq
+                      ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), false)
+                    THEN 'free_throw_alone' ELSE kind END AS kind)
+      FROM played
+      UNION ALL
+      SELECT season, game_type, game_id, game_date, max(seq) + 1, period, 'period', NULL, NULL,
+             any_value(home_team_id), any_value(away_team_id), NULL,
+             ${counts.map(() => '0').join(', ')},
+             ${elapsedSql(league, String(s), 'period', '0')}, any_value(p0),
+             arg_max(h, seq), arg_max(a, seq)
+      FROM played GROUP BY season, game_type, game_id, game_date, period
     ),
     ${unitTailSql()}`
 }

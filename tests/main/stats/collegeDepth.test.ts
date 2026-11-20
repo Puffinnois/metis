@@ -82,9 +82,19 @@ describe('the recipes', () => {
       'shot_key',
       'shot_player_game',
       'shot_team_game',
+      // The play by play's own tables (T1302.7, `collegePlaysPbp.test.ts`).
+      'play_lineup',
+      'play_nba',
+      'split_team',
+      'split_player',
+      // The lineup file's units under the names the screens read, the plays' beside them.
       'unit_game',
+      'unit_game_plays',
       'player_on_court',
-      'pub_lineups'
+      'player_on_court_plays',
+      'pub_lineups',
+      'play_player_game',
+      'play_team_game'
     ])
     // The lineups tab's table keeps the shape `lineupsBootstrap` gives it.
     expect(COLLEGE_LINEUP_COLUMNS.slice(9).map(([n]) => n)).toEqual([
@@ -94,15 +104,14 @@ describe('the recipes', () => {
     ])
   })
 
-  it('leaves the play by play’s own tables empty until T1302.7', async () => {
+  it('build the play by play’s own tables from its file (T1302.7)', async () => {
     for (const db of [m, w]) {
       const r = await one(
         db,
-        `SELECT (SELECT count(*) FROM play_nba)::INTEGER AS plays,
-                (SELECT count(*) FROM split_player)::INTEGER AS splits,
-                (SELECT count(*) FROM play_player_game)::INTEGER AS detail`
+        `SELECT (SELECT count(*) FROM play_nba)::INTEGER = (SELECT count(*) FROM play_lineup)::INTEGER AS same,
+                (SELECT count(*) FROM play_nba)::INTEGER > 0 AS plays`
       )
-      expect(r).toEqual({ plays: 0, splits: 0, detail: 0 })
+      expect(r).toEqual({ same: true, plays: true })
     }
   })
 })
@@ -517,17 +526,9 @@ describe('reasons', () => {
     expect(nba.description).not.toMatch(/lineup file/)
   })
 
-  it('read the play by play’s tables and splits as not built yet', async () => {
+  it('read the play by play’s tables once T1302.7 builds them', () => {
     const detail = [...METRICS.values()].find((d) => d.built === 'play_player_game')!
-    expect(metricIn(detail, men).unavailable).toBe(playTablesNotBuilt(men))
-    const split = await runQuery(
-      m,
-      { entity: 'player', metrics: ['pts'], scope: { seasons: [2026], split: 'q4' } },
-      { league: men, currentSeason: 2027 }
-    ).catch((e: Error) => e)
-    if (!(split instanceof Error)) {
-      for (const row of split.rows) expect(row.values.pts.value).toBeNull()
-    }
+    expect(metricIn(detail, men).unavailable).not.toBe(playTablesNotBuilt(men))
   })
 
   it('build every table with stats.ncaa.org’s releases left out (D41), and say why', async () => {

@@ -175,10 +175,10 @@ const counts = (t: string, o: string): string => {
 }
 
 const unit = (sideFive: string, team: string, opp: string, home: string): string => `
-  SELECT season, game_type, game_id, game_date, ${team} AS team_id, ${opp} AS opponent_id,
-         ${home} AS home, ${known(sideFive)} AS five, sum(secs) AS secs,
-         ${counts(team, opp)}
-  FROM credited GROUP BY ALL`
+    SELECT season, game_type, game_id, game_date, ${team} AS team_id, ${opp} AS opponent_id,
+           ${home} AS home, ${known(sideFive)} AS five, sum(secs) AS secs,
+           ${counts(team, opp)}
+    FROM credited GROUP BY ALL`
 
 /**
  * The rest of a units SELECT after its `plays` CTE, shared by the NBA's builder and the college

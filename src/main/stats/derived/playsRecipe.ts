@@ -55,7 +55,7 @@ export interface PlaysRecipe {
   /**
    * Which builders the plays step runs: every one from the league's play by play (absent), or the
    * college leagues' (`collegePlays.ts`): their shots, lineups and on-court units from stats.ncaa.org's
-   * files, while the play by play's own tables wait for T1302.7 (`League.playTables`).
+   * files and its play by play (`collegePbp.ts`).
    */
   builders?: 'college'
   /** False where no file names a shot's assist yet: the shot tables' assisted makes read NULL. */
@@ -151,15 +151,15 @@ export const COLLEGE_OFFICIALS_VIEW = 'official_espn'
 
 /**
  * The college leagues' files (`ncaa-data-sources.md`, D40): stats.ncaa.org's located shots, five-player
- * lineups, ten-player stints and possessions, and its play by play, read by T1302.7; ESPN's officials.
+ * lineups, ten-player stints and possessions, and its play by play (`collegePbp.ts`); ESPN's officials.
  * Its shots name no assist and its team ids are ESPN's, so a source's id is the game's side as it is.
  * Every shot has a location from 2021-22, so none is unlocated. One recipe for the men and the women
  * (D38): their lines are the same across the window.
  */
 export const COLLEGE_PLAYS: PlaysRecipe = {
   // 3: each shot's team and shooter resolved once a season (`shot_key`), a team named by its name
-  // where it has no id.
-  version: 3,
+  // where it has no id. 4: the play by play's own tables (T1302.7), the play-credited units beside.
+  version: 4,
   pbp: 'src_ncaa_pbp',
   shots: 'src_ncaa_shots',
   possessions: 'src_ncaa_possessions',
