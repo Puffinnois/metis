@@ -15,13 +15,13 @@
     "eval": "(async () => {\n  const d = await window.api.leagues.setDownloads({ nba: true, wnba: true, ncaam: true, ncaaw: true })\n  await sleep(3000)\n  const out = {}\n  for (const id of ['ncaam', 'ncaaw', 'nba', 'wnba']) { const s = await window.api.stats.status(id); out[id] = { noData: s.noData ?? null, paused: s.paused, busy: s.busy } }\n  return check('four leagues on and paused, the colleges with their tables', Object.values(out).every((s) => s.paused && !s.busy && s.noData === null), out)\n})()"
   },
   {
-    "eval": "(async () => {\n  await nav('Players')\n  await switchTo('NCAA Men')\n  await chooseSelect('Season', 2026)\n  const o = await openPlayer('AJ Dybantsa')\n  await tab('Splits')\n  await sleep(3500)\n  const t = main()\n  const ok = /opened/.test(o) && !bad(t) && !/Not built/.test(t) && /half/i.test(t) && !/4th quarter/i.test(t)\n  return check(\"AJ Dybantsa's Splits tab reads the halves on NCAA Men, no reason\", ok, t.slice(0, 500))\n})()"
+    "eval": "(async () => {\n  await nav('Players')\n  await switchTo('NCAA Men')\n  await chooseSelect('Season', 2026)\n  const o = await openPlayer('AJ Dybantsa')\n  await tab('Splits')\n  await sleep(3500)\n  const t = main()\n  const ok = /opened/.test(o) && !bad(t) && !/Not built|is not valid/.test(t) && /1st half/.test(t) && /2nd half/.test(t) && !/4th quarter/.test(t) && /Clutch/.test(t)\n  const at = t.search(/1st (half|quarter)/)\n  return check(\"AJ Dybantsa's Splits tab reads the halves and clutch on NCAA Men, no reason\", ok, t.slice(Math.max(0, at - 100), at + 400))\n})()"
   },
   {
     "shot": "t1302g-01-ncaam-splits"
   },
   {
-    "eval": "(async () => {\n  const q = (split) => window.api.stats.query('ncaam', { entity: 'team', metrics: ['team_pts'], scope: { seasons: [2026], teams: ['252'], ...(split ? { split } : {}) }, transform: 'total', limit: 1 })\n  const whole = await q(null)\n  const parts = await Promise.all(['h1', 'h2', 'ot'].map(q))\n  const v = (r) => r.rows[0]?.values.team_pts?.value ?? 0\n  const sum = parts.reduce((s, r) => s + v(r), 0)\n  return check('the team\\'s halves and overtimes add up to its points through the engine', sum > 0 && Math.abs(sum - v(whole)) < 0.5, { whole: v(whole), parts: parts.map(v) })\n})()"
+    "eval": "(async () => {\n  const q = (split) => window.api.stats.query('ncaam', { entity: 'team', metrics: ['team_pts'], scope: { seasons: [2026], teams: ['252'], ...(split ? { split } : {}) }, transform: 'raw', limit: 1 })\n  const whole = await q(null)\n  const parts = await Promise.all(['h1', 'h2', 'ot'].map(q))\n  const v = (r) => r.rows[0]?.values.team_pts?.value ?? 0\n  const sum = parts.reduce((s, r) => s + v(r), 0)\n  return check('the team\\'s halves and overtimes add up to its points through the engine', sum > 0 && Math.abs(sum - v(whole)) < 0.5, { whole: v(whole), parts: parts.map(v) })\n})()"
   },
   {
     "eval": "(async () => {\n  await tab('Play by play')\n  await sleep(3500)\n  const t = main()\n  return check(\"AJ Dybantsa's Play by play tab reads the play-derived counts, no reason\", !bad(t) && !/Not built/.test(t) && /[0-9]/.test(t), t.slice(0, 400))\n})()"
@@ -54,13 +54,13 @@
     "shot": "t1302g-04-ncaam-game"
   },
   {
-    "eval": "(async () => {\n  await nav('Players')\n  await switchTo('NCAA Women')\n  await chooseSelect('Season', 2026)\n  const o = await openPlayer('Mikayla Blakes')\n  await tab('Splits')\n  await sleep(3500)\n  const t = main()\n  const ok = /opened/.test(o) && !bad(t) && !/Not built/.test(t) && /quarter/i.test(t)\n  return check(\"Mikayla Blakes's Splits tab reads the quarters on NCAA Women, no reason\", ok, t.slice(0, 500))\n})()"
+    "eval": "(async () => {\n  await nav('Players')\n  await switchTo('NCAA Women')\n  await chooseSelect('Season', 2026)\n  const o = await openPlayer('Mikayla Blakes')\n  await tab('Splits')\n  await sleep(3500)\n  const t = main()\n  const ok = /opened/.test(o) && !bad(t) && !/Not built|is not valid/.test(t) && /1st quarter/.test(t) && /4th quarter/.test(t) && /Clutch/.test(t)\n  const at = t.search(/1st (half|quarter)/)\n  return check(\"Mikayla Blakes's Splits tab reads the quarters and clutch on NCAA Women, no reason\", ok, t.slice(Math.max(0, at - 100), at + 400))\n})()"
   },
   {
     "shot": "t1302g-01-ncaaw-splits"
   },
   {
-    "eval": "(async () => {\n  const q = (split) => window.api.stats.query('ncaaw', { entity: 'team', metrics: ['team_pts'], scope: { seasons: [2026], teams: ['238'], ...(split ? { split } : {}) }, transform: 'total', limit: 1 })\n  const whole = await q(null)\n  const parts = await Promise.all(['q1', 'q2', 'q3', 'q4', 'ot'].map(q))\n  const v = (r) => r.rows[0]?.values.team_pts?.value ?? 0\n  const sum = parts.reduce((s, r) => s + v(r), 0)\n  return check('the team\\'s quarters and overtimes add up to its points through the engine', sum > 0 && Math.abs(sum - v(whole)) < 0.5, { whole: v(whole), parts: parts.map(v) })\n})()"
+    "eval": "(async () => {\n  const q = (split) => window.api.stats.query('ncaaw', { entity: 'team', metrics: ['team_pts'], scope: { seasons: [2026], teams: ['238'], ...(split ? { split } : {}) }, transform: 'raw', limit: 1 })\n  const whole = await q(null)\n  const parts = await Promise.all(['q1', 'q2', 'q3', 'q4', 'ot'].map(q))\n  const v = (r) => r.rows[0]?.values.team_pts?.value ?? 0\n  const sum = parts.reduce((s, r) => s + v(r), 0)\n  return check('the team\\'s quarters and overtimes add up to its points through the engine', sum > 0 && Math.abs(sum - v(whole)) < 0.5, { whole: v(whole), parts: parts.map(v) })\n})()"
   },
   {
     "eval": "(async () => {\n  await tab('Play by play')\n  await sleep(3500)\n  const t = main()\n  return check(\"Mikayla Blakes's Play by play tab reads the play-derived counts, no reason\", !bad(t) && !/Not built/.test(t) && /[0-9]/.test(t), t.slice(0, 400))\n})()"

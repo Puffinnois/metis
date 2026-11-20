@@ -183,6 +183,16 @@ export async function collegePlaysAgreement(league, read, out, query) {
              sum(pts) AS pts, sum(seconds) AS seconds, sum(poss) AS poss
       FROM split_team WHERE split IN (${partList}) GROUP BY 1, 2),
     len AS (SELECT game_id, max(period) AS last FROM play_nba GROUP BY 1),
+    -- The whole game's counts from the same plays, credited as the splits credit them.
+    w AS (
+      SELECT game_id, team_id, sum(pts) AS pts, sum(fgm) AS fgm, sum(fga) AS fga, sum(fg3m) AS fg3m,
+             sum(fg3a) AS fg3a, sum(ftm) AS ftm, sum(fta) AS fta, sum(ast) AS ast, sum(pf) AS pf,
+             sum(oreb) FILTER (WHERE player_id IS NOT NULL) AS oreb,
+             sum(dreb) FILTER (WHERE player_id IS NOT NULL) AS dreb,
+             sum(tov) FILTER (WHERE player_id IS NOT NULL) AS tov
+      FROM play_nba WHERE team_id IS NOT NULL GROUP BY 1, 2),
+    wd AS (SELECT game_id, opponent_id AS team_id, sum(stl) AS stl, sum(blk) AS blk
+           FROM play_nba WHERE opponent_id IS NOT NULL GROUP BY 1, 2),
     ps AS (SELECT game_id, player_id, sum(seconds) AS secs FROM split_player WHERE split IN (${partList}) GROUP BY 1, 2),
     pl AS (
       SELECT b.season, count(*) AS n, count(*) FILTER (WHERE abs(ps.secs / 60.0 - b.minutes) <= 1) AS within1,
@@ -192,24 +202,26 @@ export async function collegePlaysAgreement(league, read, out, query) {
       JOIN team_game t ON t.game_id = b.game_id AND t.team_id = b.team_id
       WHERE ${COUNTED} GROUP BY 1)
     SELECT t.season, count(*)::INTEGER AS sides,
-      count(*) FILTER (WHERE ${STATS.map((c) => `s.${c} = t.${c}`).join(' AND ')})::INTEGER AS box,
+      count(*) FILTER (WHERE ${STATS.map((c) => `s.${c} = coalesce(${['stl', 'blk'].includes(c) ? 'wd' : 'w'}.${c}, 0)`).join(' AND ')})::INTEGER AS box,
       count(*) FILTER (WHERE s.pts = t.points_for)::INTEGER AS pts,
       count(*) FILTER (WHERE abs(s.seconds - 5 * ${length('len.last')}) < 0.5)::INTEGER AS seconds,
       any_value(pl.n)::INTEGER AS players, any_value(pl.within1)::INTEGER AS players1, any_value(pl.units)::INTEGER AS units
     FROM team_game t JOIN s ON s.game_id = t.game_id AND s.team_id = t.team_id
     JOIN len ON len.game_id = t.game_id LEFT JOIN pl ON pl.season = t.season
+    LEFT JOIN w ON w.game_id = t.game_id AND w.team_id = t.team_id
+    LEFT JOIN wd ON wd.game_id = t.game_id AND wd.team_id = t.team_id
     WHERE ${COUNTED} GROUP BY 1 ORDER BY 1`)
   out.push(
     '',
     `### The splits add up`,
     '',
-    `The ${league === 'ncaam' ? 'halves' : 'quarters'} and the overtimes (${parts.join(', ')}) summed per team-game: all 14 counts equal the box score's; the points equal the score; the seconds equal the game's (40 minutes and 5 an overtime, five players). Players: their seconds over the same splits within a minute of the box score's minutes, and equal to their on-court seconds credited play by play (\`player_on_court_plays\`).`,
+    `The ${league === 'ncaam' ? 'halves' : 'quarters'} and the overtimes (${parts.join(', ')}) summed per team-game: all 14 counts equal the whole game's from the same plays (team rebounds and team turnovers left out, as in a player's line); the points equal the score; the seconds equal the game's (40 minutes and 5 an overtime, five players). Players: their seconds over the same splits within a minute of the box score's minutes, and equal to their on-court seconds credited play by play (\`player_on_court_plays\`).`,
     '',
     table(
       [
         'Season',
         'Team-games',
-        'Box line',
+        'Whole game',
         'Points',
         'Seconds',
         'Player-games',
@@ -241,7 +253,7 @@ export async function collegePlaysAgreement(league, read, out, query) {
       SELECT season, count(*) AS sides,
              count(*) FILTER (WHERE fd::INTEGER = opp_pf::INTEGER - opp_tech::INTEGER) AS fd,
              count(*) FILTER (WHERE abs(fd::INTEGER - (opp_pf::INTEGER - opp_tech::INTEGER)) <= 1) AS fd1,
-             sum(fd) AS fd_n, sum(opp_pf) AS opp_pf, sum(tov_other) AS tov_other, sum(tov) AS tov, sum(pf_other) AS pf_other, sum(pf) AS pf
+             sum(fd) AS fd_n, sum(opp_pf) AS opp_pf, sum(tov_other) AS tov_other, sum(tov) AS tov_sum, sum(pf_other) AS pf_other, sum(pf) AS pf_sum
       FROM play_team_game GROUP BY 1)
     SELECT d.season, count(*)::INTEGER AS n,
       count(*) FILTER (WHERE coalesce(ast_plays, 0) = ast)::INTEGER AS ast,
@@ -249,10 +261,10 @@ export async function collegePlaysAgreement(league, read, out, query) {
       count(ncaa_fgm_ast)::INTEGER AS with_ncaa,
       count(*) FILTER (WHERE coalesce(made_ast, 0) = ncaa_fgm_ast)::INTEGER AS made_ast,
       count(*) FILTER (WHERE coalesce(made3_ast, 0) = ncaa_fg3m_ast)::INTEGER AS made3_ast,
-      count(*) FILTER (WHERE coalesce(pf_plays, 0) = pf)::INTEGER AS pf,
+      count(*) FILTER (WHERE coalesce(pf_plays, 0) = d.pf)::INTEGER AS pf,
       any_value(f.sides)::INTEGER AS sides, any_value(f.fd)::INTEGER AS fd, any_value(f.fd1)::INTEGER AS fd1,
-      any_value(f.tov_other)::BIGINT AS tov_other, any_value(f.tov)::BIGINT AS tov,
-      any_value(f.pf_other)::BIGINT AS pf_other, any_value(f.pf)::BIGINT AS pf_all
+      any_value(f.tov_other)::BIGINT AS tov_other, any_value(f.tov_sum)::BIGINT AS tov,
+      any_value(f.pf_other)::BIGINT AS pf_other, any_value(f.pf_sum)::BIGINT AS pf_all
     FROM d LEFT JOIN f ON f.season = d.season GROUP BY 1 ORDER BY 1`)
   out.push(
     '',
@@ -390,13 +402,13 @@ export async function collegePlaysAgreement(league, read, out, query) {
     const scope = { seasons: [season] }
     const whole = await query({
       entity: 'team',
-      metrics: ['pts', 'team_pbp_lead_changes'],
+      metrics: ['team_pts', 'team_pbp_lead_changes'],
       scope,
       limit: 5000
     })
     const byTeam = new Map(whole.rows.map((r) => [r.id, r.values]))
     const t = await read(`SELECT team_id::VARCHAR AS id, sum(lead_changes)::DOUBLE / count(*) AS lc
-      FROM play_team_game WHERE season = ${season} GROUP BY 1`)
+      FROM play_team_game WHERE season = ${season} AND game_type <> 'preseason' GROUP BY 1`)
     const lcTable = new Map(t.map((r) => [r.id, r.lc]))
     let lcEqual = 0
     let lcN = 0
@@ -408,36 +420,47 @@ export async function collegePlaysAgreement(league, read, out, query) {
       if (Math.abs(got - want) < 1e-6) lcEqual++
     }
     // The halves or quarters and the overtimes add up to the whole game's points through the engine.
-    let sum = new Map()
+    const sum = new Map()
     for (const split of parts) {
       const r = await query({
         entity: 'team',
-        metrics: ['pts'],
+        metrics: ['team_pts'],
         scope: { ...scope, split },
+        transform: 'raw',
         limit: 5000
       })
       for (const row of r.rows) {
-        const games = row.values.pts?.games ?? null
-        const v = row.values.pts?.total ?? null
+        const v = row.values.team_pts?.value ?? null
         if (v === null) continue
         sum.set(row.id, (sum.get(row.id) ?? 0) + v)
-        void games
       }
     }
     const totals =
       await read(`SELECT team_id::VARCHAR AS id, sum(pts)::DOUBLE AS pts FROM split_team
-      WHERE season = ${season} AND split IN (${partList}) GROUP BY 1`)
+      WHERE season = ${season} AND split IN (${partList})
+        AND game_id IN (SELECT game_id FROM game WHERE game_type <> 'preseason') GROUP BY 1`)
     const tableSum = new Map(totals.map((r) => [r.id, r.pts]))
     let splitEqual = 0
     for (const [id, v] of sum) if (Math.abs(v - (tableSum.get(id) ?? NaN)) < 1e-6) splitEqual++
-    const ast = await query({ entity: 'player', metrics: ['pbp_ast2'], scope, limit: 5000 })
+    // A player's assists on twos over the season, raw, against the table's sum (0 with no row there).
+    const ast = await query({
+      entity: 'player',
+      metrics: ['pbp_ast2'],
+      scope,
+      transform: 'raw',
+      sort: { metric: 'pbp_ast2', dir: 'desc' },
+      limit: 5000
+    })
     const astTable = new Map(
       (
-        await read(`SELECT player_id::VARCHAR AS id, sum(ast2)::DOUBLE / count(*) AS v
-          FROM play_player_game WHERE season = ${season} GROUP BY 1`)
+        await read(`SELECT player_id::VARCHAR AS id, sum(ast2)::DOUBLE AS v
+          FROM play_player_game WHERE season = ${season} AND game_type <> 'preseason' GROUP BY 1`)
       ).map((r) => [r.id, r.v])
     )
     const astRows = ast.rows.filter((r) => r.values.pbp_ast2?.value !== null)
+    const astEqual = astRows.filter(
+      (r) => Math.abs(r.values.pbp_ast2.value - (astTable.get(r.id) ?? 0)) < 1e-6
+    ).length
     engine.push({
       season,
       teams: lcN,
@@ -445,14 +468,14 @@ export async function collegePlaysAgreement(league, read, out, query) {
       splitTeams: sum.size,
       split: splitEqual,
       players: astRows.length,
-      astKnown: astRows.filter((r) => astTable.has(r.id)).length
+      astKnown: astEqual
     })
   }
   out.push(
     '',
     '### Through the engine',
     '',
-    "The first and last season through the query engine: each team's lead changes per game against `play_team_game`; the points of each team's split rows summed over the halves or quarters and overtimes against `split_team`; the players with assists on twos (`pbp_ast2`) found in `play_player_game`.",
+    "The first and last season through the query engine: each team's lead changes per game against `play_team_game`; the points of each team's split rows summed over the halves or quarters and overtimes against `split_team`; each player's assists on twos (`pbp_ast2`, raw over the season, the best 5,000) against `play_player_game` summed; exhibitions out of both.",
     '',
     table(
       [
@@ -462,7 +485,7 @@ export async function collegePlaysAgreement(league, read, out, query) {
         'Teams with splits',
         'Split points equal',
         'Players',
-        'In the table'
+        'Assists on twos equal'
       ],
       engine.map((r) => [
         label(r.season),

@@ -274,6 +274,143 @@ Every player row of the engine's board over every counted game (players of Divis
 | 2021-22 | 5,091 | 5,037 of 5,091 (98.9 %) | 5,035 of 5,091 (98.9 %) |
 | 2025-26 | 5,019 | 5,014 of 5,019 (99.9 %) | 5,014 of 5,019 (99.9 %) |
 
+### The plays (T1302.7)
+
+Measured on 2026-11-19 on `t1302g-ncaam` (the T1302.6 file rebuilt by the built worker's refresh) by `scripts/check-agreement.mjs` (`scripts/lib/agreement-college-plays.mjs`).
+
+stats.ncaa.org's play by play read into the play table (`play_nba`) and the ten on the floor (`play_lineup`), and what the shared builders make of them, per season. A team-game is counted with a box score, exhibitions out; a player-game is a box-score line of such a game.
+
+#### The event names
+
+Every `event_type` the file spells (kept as `action`) with its count over every season, the play kind it maps to and the counts it carries. 80 rarer spellings (474 rows: the player's name or "null" before a type in 2021-22 to 2024-25, read without it) are summed in the last row. Unmapped (`other` but the fouls drawn, which the play-derived counts read): 594 of 15,299,464 rows (0.0 %).
+
+| Event type                | Kind         | Rows      | FGA       | FTA       | REB       | TOV     | PF        | STL     | BLK     |
+| ------------------------- | ------------ | --------- | --------- | --------- | --------- | ------- | --------- | ------- | ------- |
+| Enters Game               | substitution | 2,041,771 | 0         | 0         | 0         | 0       | 0         | 0       | 0       |
+| Leaves Game               | substitution | 2,041,747 | 0         | 0         | 0         | 0       | 0         | 0       | 0       |
+| Defensive Rebound         | rebound      | 1,582,495 | 0         | 0         | 1,582,495 | 0       | 0         | 0       | 0       |
+| Three Point Jumper        | field_goal   | 1,435,299 | 1,435,299 | 0         | 0         | 0       | 0         | 0       | 14,477  |
+| Layup                     | field_goal   | 1,269,774 | 1,269,774 | 0         | 0         | 0       | 0         | 0       | 145,473 |
+| Free Throw                | free_throw   | 1,199,742 | 0         | 1,199,742 | 0         | 0       | 0         | 0       | 0       |
+| Commits Foul              | foul         | 1,088,840 | 0         | 0         | 0         | 0       | 1,086,457 | 0       | 0       |
+| Draw Foul                 | other        | 1,064,966 | 0         | 0         | 0         | 0       | 0         | 0       | 0       |
+| Two Point Jumper          | field_goal   | 817,272   | 817,272   | 0         | 0         | 0       | 0         | 0       | 44,106  |
+| Turnover                  | turnover     | 785,557   | 0         | 0         | 0         | 785,557 | 0         | 423,839 | 0       |
+| Offensive Rebound         | rebound      | 658,379   | 0         | 0         | 658,379   | 0       | 0         | 0       | 0       |
+| Steal                     | steal        | 427,239   | 0         | 0         | 0         | 0       | 0         | 0       | 0       |
+| Blocked Shot              | block        | 211,620   | 0         | 0         | 0         | 0       | 0         | 0       | 0       |
+| Deadball Rebound          | rebound      | 185,681   | 0         | 0         | 0         | 0       | 0         | 0       | 0       |
+| Timeout                   | timeout      | 158,826   | 0         | 0         | 0         | 0       | 0         | 0       | 0       |
+| Dunk                      | field_goal   | 142,855   | 142,855   | 0         | 0         | 0       | 0         | 0       | 4,672   |
+| Hook                      | field_goal   | 71,984    | 71,984    | 0         | 0         | 0       | 0         | 0       | 2,008   |
+| Jumpball (held ball)      | jump_ball    | 38,944    | 0         | 0         | 0         | 0       | 0         | 0       | 0       |
+| won Jumpball              | jump_ball    | 33,673    | 0         | 0         | 0         | 0       | 0         | 0       | 0       |
+| lost Jumpball             | jump_ball    | 33,673    | 0         | 0         | 0         | 0       | 0         | 0       | 0       |
+| Challenge (Out of Bounds) | replay       | 2,485     | 0         | 0         | 0         | 0       | 0         | 0       | 0       |
+| Media Timeout             | timeout      | 1,174     | 0         | 0         | 0         | 0       | 0         | 0       | 0       |
+| Second Timeout            | timeout      | 1,131     | 0         | 0         | 0         | 0       | 0         | 0       | 0       |
+| Jumpball (lodged ball)    | jump_ball    | 1,038     | 0         | 0         | 0         | 0       | 0         | 0       | 0       |
+| Team Timeout              | timeout      | 703       | 0         | 0         | 0         | 0       | 0         | 0       | 0       |
+| Tip In                    | field_goal   | 559       | 559       | 0         | 0         | 0       | 0         | 0       | 6       |
+| (empty)                   | other        | 520       | 0         | 0         | 0         | 0       | 0         | 0       | 0       |
+| media Timeout             | timeout      | 517       | 0         | 0         | 0         | 0       | 0         | 0       | 0       |
+| Jumpball (out of bounds)  | jump_ball    | 315       | 0         | 0         | 0         | 0       | 0         | 0       | 0       |
+| Challenge (Interference)  | replay       | 211       | 0         | 0         | 0         | 0       | 0         | 0       | 0       |
+| Rarer spellings           | –            | 474       | 192       | 17        | 50        | 30      | 11        | 2       | 12      |
+
+#### Player-games rebuilt from the plays
+
+Each box-score line of a game with plays against the same line rebuilt from the play table's flags: the actor's counts (rebounds and turnovers where a player is named), assists to `assist_id`, steals and blocks to the player put on the turnover or the miss. Exact when all 14 counts equal the box score's (ESPN's, or stats.ncaa.org's for the games ESPN lacks); the per-stat columns are the share with that count exact.
+
+| Season  | Lines   | Exact  | Within 1 | PTS  | FGM  | FGA  | FG3M  | FG3A | FTM   | FTA  | OREB | DREB | AST  | STL  | BLK   | TOV  | PF   |
+| ------- | ------- | ------ | -------- | ---- | ---- | ---- | ----- | ---- | ----- | ---- | ---- | ---- | ---- | ---- | ----- | ---- | ---- |
+| 2021-22 | 120,262 | 97.9 % | 99.3 %   | 99.8 | 99.8 | 99.7 | 99.9  | 99.8 | 99.9  | 99.9 | 99.8 | 99.7 | 99.5 | 98.8 | 99.9  | 99.8 | 99.8 |
+| 2022-23 | 125,347 | 99.0 % | 99.7 %   | 99.9 | 99.9 | 99.8 | 100.0 | 99.9 | 100.0 | 99.9 | 99.9 | 99.9 | 99.7 | 99.5 | 99.9  | 99.9 | 99.9 |
+| 2023-24 | 125,960 | 99.5 % | 99.8 %   | 99.9 | 99.9 | 99.9 | 100.0 | 99.9 | 100.0 | 99.9 | 99.9 | 99.9 | 99.9 | 99.7 | 100.0 | 99.9 | 99.9 |
+| 2024-25 | 127,485 | 99.7 % | 99.8 %   | 99.9 | 99.9 | 99.8 | 99.9  | 99.9 | 99.9  | 99.9 | 99.9 | 99.9 | 99.9 | 99.9 | 99.9  | 99.9 | 99.9 |
+| 2025-26 | 127,472 | 99.2 % | 99.4 %   | 99.5 | 99.6 | 99.4 | 99.8  | 99.6 | 99.8  | 99.7 | 99.7 | 99.6 | 99.7 | 99.7 | 99.9  | 99.6 | 99.5 |
+| 2026-27 | 22,068  | 98.2 % | 99.2 %   | 99.4 | 99.5 | 99.1 | 99.8  | 99.4 | 99.7  | 99.6 | 99.5 | 99.4 | 99.4 | 99.6 | 99.7  | 99.4 | 99.5 |
+
+#### The score and the possessions
+
+Per team-game with plays: the plays' final score (the highest each side reached) against the game's; the team's points summed from the plays; the points scored in its possessions (the file's `poss_num`, each the team with the ball at its last play) against the score, exact and within 2; and its possessions within 2 of stats.ncaa.org's team box (`ncaa_poss`).
+
+| Season  | Team-games | Final score | Points from plays | Possessions' points | Within 2 | Possessions within 2 |
+| ------- | ---------- | ----------- | ----------------- | ------------------- | -------- | -------------------- |
+| 2021-22 | 11,932     | 99.9 %      | 99.9 %            | 91.7 %              | 99.2 %   | 100.0 %              |
+| 2022-23 | 12,442     | 100.0 %     | 99.9 %            | 89.3 %              | 99.0 %   | 100.0 %              |
+| 2023-24 | 12,486     | 100.0 %     | 100.0 %           | 91.7 %              | 99.2 %   | 100.0 %              |
+| 2024-25 | 12,586     | 100.0 %     | 99.9 %            | 92.3 %              | 99.3 %   | 100.0 %              |
+| 2025-26 | 12,594     | 100.0 %     | 99.9 %            | 92.6 %              | 99.4 %   | 100.0 %              |
+| 2026-27 | 1,906      | 99.9 %      | 99.8 %            | 92.2 %              | 99.2 %   | 99.9 %               |
+
+#### The splits add up
+
+The halves and the overtimes (h1, h2, ot) summed per team-game: all 14 counts equal the whole game's from the same plays (team rebounds and team turnovers left out, as in a player's line); the points equal the score; the seconds equal the game's (40 minutes and 5 an overtime, five players). Players: their seconds over the same splits within a minute of the box score's minutes, and equal to their on-court seconds credited play by play (`player_on_court_plays`).
+
+| Season  | Team-games | Whole game | Points  | Seconds | Player-games | Minutes within 1 | Equal on court |
+| ------- | ---------- | ---------- | ------- | ------- | ------------ | ---------------- | -------------- |
+| 2021-22 | 11,932     | 100.0 %    | 99.9 %  | 100.0 % | 119,686      | 91.7 %           | 99.8 %         |
+| 2022-23 | 12,442     | 100.0 %    | 99.9 %  | 100.0 % | 124,853      | 92.6 %           | 99.9 %         |
+| 2023-24 | 12,486     | 100.0 %    | 100.0 % | 100.0 % | 125,391      | 92.8 %           | 99.9 %         |
+| 2024-25 | 12,586     | 100.0 %    | 99.9 %  | 100.0 % | 126,942      | 94.5 %           | 100.0 %        |
+| 2025-26 | 12,594     | 100.0 %    | 99.9 %  | 100.0 % | 126,380      | 94.3 %           | 99.9 %         |
+| 2026-27 | 1,906      | 100.0 %    | 99.8 %  | 100.0 % | 21,825       | 93.8 %           | 99.9 %         |
+
+#### Assists, assisted makes and fouls drawn
+
+Per player-game with plays: assists on twos and threes (`ast2 + ast3`) against the box score's assists; makes split assisted and unassisted against its field goals made; assisted makes and assisted threes against stats.ncaa.org's box (`ncaa_fgm_ast`, `ncaa_fg3m_ast`, on the lines it has); personal fouls. Per team-game: fouls drawn (the file's own rows naming the fouled player) against the other side's personal fouls less its technicals, exact and within 1; and the share of turnovers and fouls of no kind (`other`).
+
+| Season  | Player-games | AST    | Makes split | Assisted makes (stats.ncaa.org) | Assisted threes | PF     | Fouls drawn | Within 1 | TOV of no kind | PF of no kind |
+| ------- | ------------ | ------ | ----------- | ------------------------------- | --------------- | ------ | ----------- | -------- | -------------- | ------------- |
+| 2021-22 | 120,262      | 99.5 % | 99.8 %      | 100.0 %                         | 100.0 %         | 99.8 % | 92.8 %      | 97.2 %   | 3.8 %          | 4.2 %         |
+| 2022-23 | 125,347      | 99.7 % | 99.9 %      | 100.0 %                         | 100.0 %         | 99.9 % | 88.7 %      | 97.8 %   | 2.4 %          | 2.9 %         |
+| 2023-24 | 125,960      | 99.9 % | 99.9 %      | 100.0 %                         | 100.0 %         | 99.9 % | 95.6 %      | 99.3 %   | 1.5 %          | 2.2 %         |
+| 2024-25 | 127,485      | 99.9 % | 99.9 %      | 100.0 %                         | 100.0 %         | 99.9 % | 96.9 %      | 99.9 %   | 0.8 %          | 1.5 %         |
+| 2025-26 | 127,472      | 99.7 % | 99.6 %      | 100.0 %                         | 100.0 %         | 99.5 % | 96.1 %      | 99.9 %   | 0.7 %          | 1.5 %         |
+| 2026-27 | 22,068       | 99.4 % | 99.5 %      | 100.0 %                         | 100.0 %         | 99.5 % | 95.8 %      | 99.9 %   | 0.8 %          | 1.3 %         |
+
+#### The game flow
+
+Per game with plays: the last scoring play's score against the final score, the flow's length against the game's (40 minutes and 5 an overtime), and a winning home side's largest lead at least its final margin.
+
+| Season  | Games | Ends on the final score | Length  | Largest lead ≥ margin |
+| ------- | ----- | ----------------------- | ------- | --------------------- |
+| 2021-22 | 5,966 | 99.9 %                  | 100.0 % | 100.0 %               |
+| 2022-23 | 6,221 | 100.0 %                 | 100.0 % | 100.0 %               |
+| 2023-24 | 6,243 | 100.0 %                 | 100.0 % | 100.0 %               |
+| 2024-25 | 6,292 | 100.0 %                 | 100.0 % | 100.0 %               |
+| 2025-26 | 6,297 | 100.0 %                 | 100.0 % | 100.0 %               |
+| 2026-27 | 953   | 99.9 %                  | 100.0 % | 100.0 %               |
+
+#### Time on the floor: the play by play against the lineup file
+
+Both sources side by side (policy 5): stats.ncaa.org's lineup file (`unit_game`, `player_on_court`, what the on-court screens read) and the units credited play by play (`unit_game_plays`, `player_on_court_plays`), each team-game's units summed: minutes equal to the game's (within a second), points equal to the box score's, and the share of the game's minutes covered; each player-game with minutes: a line from the source, and its on-court minutes within a minute of the box score's.
+
+| Season  | Source       | Team-games | With units | Minutes equal the game's | Minutes covered | Points equal the box score's | Player-games | With a line | Minutes within 1 |
+| ------- | ------------ | ---------- | ---------- | ------------------------ | --------------- | ---------------------------- | ------------ | ----------- | ---------------- |
+| 2021-22 | lineup file  | 11,934     | 100.0 %    | 58.3 %                   | 96.5 %          | 66.6 %                       | 119,405      | 98.0 %      | 41.2 %           |
+| 2021-22 | play by play | 11,934     | 100.0 %    | 100.0 %                  | 100.0 %         | 99.9 %                       | 119,406      | 99.6 %      | 91.4 %           |
+| 2022-23 | lineup file  | 12,444     | 100.0 %    | 57.4 %                   | 96.5 %          | 66.1 %                       | 124,422      | 98.1 %      | 40.9 %           |
+| 2022-23 | play by play | 12,444     | 100.0 %    | 100.0 %                  | 100.0 %         | 99.9 %                       | 124,422      | 99.7 %      | 92.3 %           |
+| 2023-24 | lineup file  | 12,486     | 100.0 %    | 59.9 %                   | 96.8 %          | 68.2 %                       | 124,976      | 98.6 %      | 42.5 %           |
+| 2023-24 | play by play | 12,486     | 100.0 %    | 100.0 %                  | 100.0 %         | 100.0 %                      | 124,976      | 99.7 %      | 92.6 %           |
+| 2024-25 | lineup file  | 12,586     | 100.0 %    | 59.3 %                   | 96.8 %          | 67.6 %                       | 126,666      | 99.0 %      | 42.4 %           |
+| 2024-25 | play by play | 12,586     | 100.0 %    | 100.0 %                  | 100.0 %         | 99.9 %                       | 126,666      | 99.7 %      | 94.2 %           |
+| 2025-26 | lineup file  | 12,600     | 99.8 %     | 59.1 %                   | 97.0 %          | 67.3 %                       | 126,804      | 98.5 %      | 41.7 %           |
+| 2025-26 | play by play | 12,600     | 100.0 %    | 100.0 %                  | 100.0 %         | 99.9 %                       | 126,805      | 99.1 %      | 93.6 %           |
+| 2026-27 | lineup file  | 2,066      | 92.3 %     | 45.6 %                   | 96.0 %          | 54.4 %                       | 23,723       | 90.9 %      | 38.3 %           |
+| 2026-27 | play by play | 2,066      | 92.3 %     | 92.3 %                   | 100.0 %         | 92.1 %                       | 23,723       | 91.6 %      | 85.9 %           |
+
+#### Through the engine
+
+The first and last season through the query engine: each team's lead changes per game against `play_team_game`; the points of each team's split rows summed over the halves or quarters and overtimes against `split_team`; each player's assists on twos (`pbp_ast2`, raw over the season, the best 5,000) against `play_player_game` summed; exhibitions out of both.
+
+| Season  | Teams | Lead changes equal | Teams with splits | Split points equal | Players | Assists on twos equal |
+| ------- | ----- | ------------------ | ----------------- | ------------------ | ------- | --------------------- |
+| 2021-22 | 358   | 100.0 %            | 358               | 100.0 %            | 5,000   | 100.0 %               |
+| 2026-27 | 365   | 100.0 %            | 365               | 100.0 %            | 5,000   | 100.0 %               |
+
 ## NCAA Division I women's agreement checks
 
 ### Games and teams
@@ -545,6 +682,142 @@ Every player row of the engine's board over every counted game (players of Divis
 | ------- | ----- | ----------------------- | ----------------------- |
 | 2021-22 | 4,806 | 4,762 of 4,806 (99.1 %) | 4,762 of 4,806 (99.1 %) |
 | 2025-26 | 4,694 | 4,688 of 4,694 (99.9 %) | 4,688 of 4,694 (99.9 %) |
+
+### The plays (T1302.7)
+
+Measured on 2026-11-19 on `t1302g-ncaaw` (the T1302.6 file rebuilt by the built worker's refresh) by `scripts/check-agreement.mjs` (`scripts/lib/agreement-college-plays.mjs`).
+
+stats.ncaa.org's play by play read into the play table (`play_nba`) and the ten on the floor (`play_lineup`), and what the shared builders make of them, per season. A team-game is counted with a box score, exhibitions out; a player-game is a box-score line of such a game.
+
+#### The event names
+
+Every `event_type` the file spells (kept as `action`) with its count over every season, the play kind it maps to and the counts it carries. 37 rarer spellings (278 rows: the player's name or "null" before a type in 2021-22 to 2024-25, read without it) are summed in the last row. Unmapped (`other` but the fouls drawn, which the play-derived counts read): 187 of 14,760,049 rows (0.0 %).
+
+| Event type                | Kind         | Rows      | FGA       | FTA     | REB       | TOV     | PF        | STL     | BLK     |
+| ------------------------- | ------------ | --------- | --------- | ------- | --------- | ------- | --------- | ------- | ------- |
+| Enters Game               | substitution | 1,945,213 | 0         | 0       | 0         | 0       | 0         | 0       | 0       |
+| Leaves Game               | substitution | 1,945,135 | 0         | 0       | 0         | 0       | 0         | 0       | 0       |
+| Defensive Rebound         | rebound      | 1,514,735 | 0         | 0       | 1,514,735 | 0       | 0         | 0       | 0       |
+| Layup                     | field_goal   | 1,373,742 | 1,373,742 | 0       | 0         | 0       | 0         | 0       | 121,224 |
+| Three Point Jumper        | field_goal   | 1,173,545 | 1,173,545 | 0       | 0         | 0       | 0         | 0       | 13,950  |
+| Commits Foul              | foul         | 1,009,309 | 0         | 0       | 0         | 0       | 1,008,693 | 0       | 0       |
+| Draw Foul                 | other        | 995,129   | 0         | 0       | 0         | 0       | 0         | 0       | 0       |
+| Free Throw                | free_throw   | 992,777   | 0         | 992,777 | 0         | 0       | 0         | 0       | 0       |
+| Turnover                  | turnover     | 973,523   | 0         | 0       | 0         | 973,523 | 0         | 475,819 | 0       |
+| Two Point Jumper          | field_goal   | 958,557   | 958,557   | 0       | 0         | 0       | 0         | 0       | 51,913  |
+| Offensive Rebound         | rebound      | 688,406   | 0         | 0       | 688,406   | 0       | 0         | 0       | 0       |
+| Steal                     | steal        | 479,477   | 0         | 0       | 0         | 0       | 0         | 0       | 0       |
+| Deadball Rebound          | rebound      | 192,632   | 0         | 0       | 0         | 0       | 0         | 0       | 0       |
+| Blocked Shot              | block        | 189,305   | 0         | 0       | 0         | 0       | 0         | 0       | 0       |
+| Timeout                   | timeout      | 143,108   | 0         | 0       | 0         | 0       | 0         | 0       | 0       |
+| Jumpball (held ball)      | jump_ball    | 85,988    | 0         | 0       | 0         | 0       | 0         | 0       | 0       |
+| won Jumpball              | jump_ball    | 31,334    | 0         | 0       | 0         | 0       | 0         | 0       | 0       |
+| lost Jumpball             | jump_ball    | 31,334    | 0         | 0       | 0         | 0       | 0         | 0       | 0       |
+| Hook                      | field_goal   | 30,691    | 30,691    | 0       | 0         | 0       | 0         | 0       | 1,396   |
+| Challenge (Out of Bounds) | replay       | 1,608     | 0         | 0       | 0         | 0       | 0         | 0       | 0       |
+| Second Timeout            | timeout      | 941       | 0         | 0       | 0         | 0       | 0         | 0       | 0       |
+| Jumpball (lodged ball)    | jump_ball    | 690       | 0         | 0       | 0         | 0       | 0         | 0       | 0       |
+| Dunk                      | field_goal   | 689       | 689       | 0       | 0         | 0       | 0         | 0       | 12      |
+| Media Timeout             | timeout      | 570       | 0         | 0       | 0         | 0       | 0         | 0       | 0       |
+| Jumpball (out of bounds)  | jump_ball    | 397       | 0         | 0       | 0         | 0       | 0         | 0       | 0       |
+| Team Timeout              | timeout      | 315       | 0         | 0       | 0         | 0       | 0         | 0       | 0       |
+| media Timeout             | timeout      | 238       | 0         | 0       | 0         | 0       | 0         | 0       | 0       |
+| Tip In                    | field_goal   | 211       | 211       | 0       | 0         | 0       | 0         | 0       | 4       |
+| (empty)                   | field_goal   | 172       | 172       | 0       | 0         | 0       | 0         | 0       | 11      |
+| Rarer spellings           | –            | 278       | 27        | 10      | 11        | 4       | 8         | 0       | 2       |
+
+#### Player-games rebuilt from the plays
+
+Each box-score line of a game with plays against the same line rebuilt from the play table's flags: the actor's counts (rebounds and turnovers where a player is named), assists to `assist_id`, steals and blocks to the player put on the turnover or the miss. Exact when all 14 counts equal the box score's (ESPN's, or stats.ncaa.org's for the games ESPN lacks); the per-stat columns are the share with that count exact.
+
+| Season  | Lines   | Exact  | Within 1 | PTS  | FGM   | FGA  | FG3M  | FG3A | FTM   | FTA   | OREB  | DREB | AST  | STL  | BLK   | TOV  | PF   |
+| ------- | ------- | ------ | -------- | ---- | ----- | ---- | ----- | ---- | ----- | ----- | ----- | ---- | ---- | ---- | ----- | ---- | ---- |
+| 2021-22 | 112,034 | 97.6 % | 99.1 %   | 99.6 | 99.7  | 99.5 | 99.9  | 99.8 | 99.9  | 99.9  | 99.8  | 99.7 | 99.6 | 98.7 | 99.9  | 99.7 | 99.8 |
+| 2022-23 | 117,617 | 99.1 % | 99.7 %   | 99.9 | 99.9  | 99.8 | 100.0 | 99.9 | 99.9  | 99.9  | 99.9  | 99.9 | 99.7 | 99.5 | 99.9  | 99.9 | 99.9 |
+| 2023-24 | 118,490 | 99.4 % | 99.7 %   | 99.9 | 99.9  | 99.9 | 100.0 | 99.9 | 99.9  | 99.9  | 99.9  | 99.9 | 99.8 | 99.7 | 100.0 | 99.9 | 99.9 |
+| 2024-25 | 121,111 | 99.8 % | 99.9 %   | 99.9 | 100.0 | 99.9 | 100.0 | 99.9 | 100.0 | 100.0 | 100.0 | 99.9 | 99.9 | 99.9 | 100.0 | 99.9 | 99.9 |
+| 2025-26 | 121,923 | 99.4 % | 99.5 %   | 99.6 | 99.7  | 99.5 | 99.9  | 99.7 | 99.8  | 99.8  | 99.8  | 99.6 | 99.7 | 99.7 | 99.9  | 99.6 | 99.6 |
+| 2026-27 | 20,419  | 98.4 % | 99.3 %   | 99.5 | 99.6  | 99.2 | 99.9  | 99.5 | 99.8  | 99.7  | 99.7  | 99.4 | 99.5 | 99.6 | 99.8  | 99.3 | 99.6 |
+
+#### The score and the possessions
+
+Per team-game with plays: the plays' final score (the highest each side reached) against the game's; the team's points summed from the plays; the points scored in its possessions (the file's `poss_num`, each the team with the ball at its last play) against the score, exact and within 2; and its possessions within 2 of stats.ncaa.org's team box (`ncaa_poss`).
+
+| Season  | Team-games | Final score | Points from plays | Possessions' points | Within 2 | Possessions within 2 |
+| ------- | ---------- | ----------- | ----------------- | ------------------- | -------- | -------------------- |
+| 2021-22 | 11,016     | 99.9 %      | 99.9 %            | 96.5 %              | 99.7 %   | 100.0 %              |
+| 2022-23 | 11,638     | 100.0 %     | 99.9 %            | 96.3 %              | 99.7 %   | 100.0 %              |
+| 2023-24 | 11,792     | 100.0 %     | 100.0 %           | 96.5 %              | 99.7 %   | 100.0 %              |
+| 2024-25 | 11,918     | 100.0 %     | 100.0 %           | 96.8 %              | 99.8 %   | 99.9 %               |
+| 2025-26 | 12,038     | 100.0 %     | 100.0 %           | 94.9 %              | 99.8 %   | 100.0 %              |
+| 2026-27 | 1,880      | 99.9 %      | 99.8 %            | 95.0 %              | 99.6 %   | 100.0 %              |
+
+#### The splits add up
+
+The quarters and the overtimes (q1, q2, q3, q4, ot) summed per team-game: all 14 counts equal the whole game's from the same plays (team rebounds and team turnovers left out, as in a player's line); the points equal the score; the seconds equal the game's (40 minutes and 5 an overtime, five players). Players: their seconds over the same splits within a minute of the box score's minutes, and equal to their on-court seconds credited play by play (`player_on_court_plays`).
+
+| Season  | Team-games | Whole game | Points  | Seconds | Player-games | Minutes within 1 | Equal on court |
+| ------- | ---------- | ---------- | ------- | ------- | ------------ | ---------------- | -------------- |
+| 2021-22 | 11,016     | 100.0 %    | 99.9 %  | 100.0 % | 111,610      | 88.2 %           | 99.9 %         |
+| 2022-23 | 11,638     | 100.0 %    | 99.9 %  | 100.0 % | 117,216      | 89.0 %           | 99.9 %         |
+| 2023-24 | 11,792     | 100.0 %    | 100.0 % | 100.0 % | 118,091      | 89.8 %           | 99.9 %         |
+| 2024-25 | 11,918     | 100.0 %    | 100.0 % | 100.0 % | 120,863      | 95.0 %           | 99.9 %         |
+| 2025-26 | 12,038     | 100.0 %    | 100.0 % | 100.0 % | 121,168      | 94.5 %           | 99.8 %         |
+| 2026-27 | 1,880      | 100.0 %    | 99.8 %  | 99.9 %  | 20,273       | 92.2 %           | 100.0 %        |
+
+#### Assists, assisted makes and fouls drawn
+
+Per player-game with plays: assists on twos and threes (`ast2 + ast3`) against the box score's assists; makes split assisted and unassisted against its field goals made; assisted makes and assisted threes against stats.ncaa.org's box (`ncaa_fgm_ast`, `ncaa_fg3m_ast`, on the lines it has); personal fouls. Per team-game: fouls drawn (the file's own rows naming the fouled player) against the other side's personal fouls less its technicals, exact and within 1; and the share of turnovers and fouls of no kind (`other`).
+
+| Season  | Player-games | AST    | Makes split | Assisted makes (stats.ncaa.org) | Assisted threes | PF     | Fouls drawn | Within 1 | TOV of no kind | PF of no kind |
+| ------- | ------------ | ------ | ----------- | ------------------------------- | --------------- | ------ | ----------- | -------- | -------------- | ------------- |
+| 2021-22 | 112,034      | 99.6 % | 99.7 %      | 100.0 %                         | 100.0 %         | 99.8 % | 93.9 %      | 97.1 %   | 3.9 %          | 3.5 %         |
+| 2022-23 | 117,617      | 99.7 % | 99.9 %      | 100.0 %                         | 100.0 %         | 99.9 % | 95.3 %      | 98.8 %   | 2.2 %          | 1.9 %         |
+| 2023-24 | 118,490      | 99.8 % | 99.9 %      | 100.0 %                         | 100.0 %         | 99.9 % | 96.2 %      | 99.4 %   | 1.6 %          | 1.2 %         |
+| 2024-25 | 121,111      | 99.9 % | 100.0 %     | 100.0 %                         | 100.0 %         | 99.9 % | 96.7 %      | 99.8 %   | 0.9 %          | 0.8 %         |
+| 2025-26 | 121,923      | 99.7 % | 99.7 %      | 100.0 %                         | 100.0 %         | 99.6 % | 96.3 %      | 99.8 %   | 1.0 %          | 0.8 %         |
+| 2026-27 | 20,419       | 99.5 % | 99.6 %      | 100.0 %                         | 100.0 %         | 99.6 % | 96.8 %      | 99.9 %   | 1.4 %          | 0.7 %         |
+
+#### The game flow
+
+Per game with plays: the last scoring play's score against the final score, the flow's length against the game's (40 minutes and 5 an overtime), and a winning home side's largest lead at least its final margin.
+
+| Season  | Games | Ends on the final score | Length  | Largest lead ≥ margin |
+| ------- | ----- | ----------------------- | ------- | --------------------- |
+| 2021-22 | 5,508 | 99.9 %                  | 100.0 % | 100.0 %               |
+| 2022-23 | 5,819 | 100.0 %                 | 100.0 % | 100.0 %               |
+| 2023-24 | 5,896 | 100.0 %                 | 100.0 % | 100.0 %               |
+| 2024-25 | 5,959 | 100.0 %                 | 100.0 % | 100.0 %               |
+| 2025-26 | 6,019 | 100.0 %                 | 100.0 % | 100.0 %               |
+| 2026-27 | 940   | 99.9 %                  | 100.0 % | 100.0 %               |
+
+#### Time on the floor: the play by play against the lineup file
+
+Both sources side by side (policy 5): stats.ncaa.org's lineup file (`unit_game`, `player_on_court`, what the on-court screens read) and the units credited play by play (`unit_game_plays`, `player_on_court_plays`), each team-game's units summed: minutes equal to the game's (within a second), points equal to the box score's, and the share of the game's minutes covered; each player-game with minutes: a line from the source, and its on-court minutes within a minute of the box score's.
+
+| Season  | Source       | Team-games | With units | Minutes equal the game's | Minutes covered | Points equal the box score's | Player-games | With a line | Minutes within 1 |
+| ------- | ------------ | ---------- | ---------- | ------------------------ | --------------- | ---------------------------- | ------------ | ----------- | ---------------- |
+| 2021-22 | lineup file  | 11,024     | 99.9 %     | 56.2 %                   | 95.5 %          | 65.1 %                       | 111,317      | 98.1 %      | 39.6 %           |
+| 2021-22 | play by play | 11,024     | 99.9 %     | 99.9 %                   | 100.0 %         | 99.8 %                       | 111,317      | 99.6 %      | 88.0 %           |
+| 2022-23 | lineup file  | 11,640     | 100.0 %    | 54.9 %                   | 95.8 %          | 64.5 %                       | 116,883      | 98.3 %      | 38.9 %           |
+| 2022-23 | play by play | 11,640     | 100.0 %    | 99.9 %                   | 100.0 %         | 99.9 %                       | 116,883      | 99.7 %      | 88.8 %           |
+| 2023-24 | lineup file  | 11,798     | 99.9 %     | 55.2 %                   | 95.9 %          | 64.6 %                       | 117,840      | 98.4 %      | 39.1 %           |
+| 2023-24 | play by play | 11,798     | 99.9 %     | 99.9 %                   | 100.0 %         | 99.9 %                       | 117,816      | 99.7 %      | 89.5 %           |
+| 2024-25 | lineup file  | 11,932     | 99.9 %     | 55.5 %                   | 96.1 %          | 64.8 %                       | 120,706      | 99.4 %      | 41.1 %           |
+| 2024-25 | play by play | 11,932     | 99.9 %     | 99.9 %                   | 100.0 %         | 99.8 %                       | 120,706      | 99.7 %      | 94.7 %           |
+| 2025-26 | lineup file  | 12,058     | 99.8 %     | 56.0 %                   | 96.1 %          | 65.7 %                       | 121,487      | 99.0 %      | 40.5 %           |
+| 2025-26 | play by play | 12,058     | 99.8 %     | 99.8 %                   | 100.0 %         | 99.8 %                       | 121,488      | 99.2 %      | 93.8 %           |
+| 2026-27 | lineup file  | 2,014      | 93.3 %     | 48.2 %                   | 96.0 %          | 58.0 %                       | 21,740       | 92.8 %      | 38.1 %           |
+| 2026-27 | play by play | 2,014      | 93.3 %     | 93.2 %                   | 100.0 %         | 93.1 %                       | 21,740       | 93.0 %      | 85.7 %           |
+
+#### Through the engine
+
+The first and last season through the query engine: each team's lead changes per game against `play_team_game`; the points of each team's split rows summed over the halves or quarters and overtimes against `split_team`; each player's assists on twos (`pbp_ast2`, raw over the season, the best 5,000) against `play_player_game` summed; exhibitions out of both.
+
+| Season  | Teams | Lead changes equal | Teams with splits | Split points equal | Players | Assists on twos equal |
+| ------- | ----- | ------------------ | ----------------- | ------------------ | ------- | --------------------- |
+| 2021-22 | 356   | 100.0 %            | 356               | 100.0 %            | 4,806   | 100.0 %               |
+| 2026-27 | 363   | 100.0 %            | 363               | 100.0 %            | 4,458   | 100.0 %               |
 
 ## Men's champions against the NCAA's record books
 

@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
+import { setLeague } from '@/lib/stats/league'
 import { defaultBoard, leaderboardQuery } from '@/lib/stats/leaderboard'
 import { splitTable } from '@/lib/stats/player'
 import type { StatsScope } from '@/lib/stats/scope'
@@ -16,6 +17,22 @@ import type { StatsResult, StatsRow, StatsSeason } from '@shared/stats/types'
 import { catalogueFixture } from '../../fixtures/catalogue'
 
 const byId = new Map(catalogueFixture().map((m) => [m.id, m]))
+afterEach(() => setLeague('nba'))
+
+describe('a league in halves every season (the NCAA men)', () => {
+  it('words the rules by the half, and says nothing of quarters', () => {
+    setLeague('ncaam')
+    const defs = playSplitDefs()
+    const clutch = defs.find((d) => d.key === 'play-clutch')!
+    expect(clutch.note).toBe('The last 5 minutes of the 2nd half or overtime, the score within 5.')
+    expect(defs.find((d) => d.key === 'play-h1')!.group).toBe('By half')
+    expect(defs.some((d) => /4th quarter/.test(d.note ?? ''))).toBe(false)
+    expect(playSplitNotes(SCOPE).join(' ')).not.toMatch(/quarter/i)
+    // The women play quarters: the NBA's words.
+    setLeague('ncaaw')
+    expect(playSplitDefs().find((d) => d.key === 'play-clutch')!.note).toMatch(/4th quarter/)
+  })
+})
 const SCOPE: StatsScope = { season: 2026, seasonType: 'regular', range: { kind: 'season' } }
 const SEASON: StatsSeason = {
   season: 2026,
