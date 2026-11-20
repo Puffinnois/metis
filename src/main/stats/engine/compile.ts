@@ -24,7 +24,7 @@ import {
   type League,
   type PerMinuteMode
 } from '@shared/leagues'
-import { SPLIT_IDS, SPLITS_FIRST_SEASON, splitById } from '@shared/stats/splits'
+import { SPLIT_IDS, SPLITS_FIRST_SEASON, splitById, splitRuleIn } from '@shared/stats/splits'
 import {
   POSITION_GROUPS,
   type GameType,
@@ -1059,7 +1059,10 @@ function notesOf(q: StatsQuery, c: Checked): string[] {
   }
   const split = splitById(s.split)
   if (split) {
-    notes.add(`${split.label}: ${split.rule} Counted from the ${c.league.name}'s play by play.`)
+    const halvesOnly = c.league.periods.every((e) => e.name === 'half')
+    notes.add(
+      `${split.label}: ${splitRuleIn(split, halvesOnly)} Counted from the ${c.league.name}'s play by play.`
+    )
     const halves = halvesNote(c.league, s.seasons)
     if (halves) notes.add(halves)
     if (s.seasons.some((x) => x < SPLITS_FIRST_SEASON)) {

@@ -15,7 +15,7 @@
     "eval": "(async () => {\n  const d = await window.api.leagues.setDownloads({ nba: true, wnba: true, ncaam: true, ncaaw: true })\n  await sleep(3000)\n  const out = {}\n  for (const id of ['ncaam', 'ncaaw', 'nba', 'wnba']) { const s = await window.api.stats.status(id); out[id] = { noData: s.noData ?? null, paused: s.paused, busy: s.busy } }\n  return check('four leagues on and paused, the colleges with their tables', Object.values(out).every((s) => s.paused && !s.busy && s.noData === null), out)\n})()"
   },
   {
-    "eval": "(async () => {\n  await nav('Players')\n  await switchTo('NCAA Men')\n  await chooseSelect('Season', 2026)\n  const o = await openPlayer('AJ Dybantsa')\n  await tab('Splits')\n  await sleep(3500)\n  const t = main()\n  const ok = /opened/.test(o) && !bad(t) && !/Not built|is not valid/.test(t) && /1st half/.test(t) && /2nd half/.test(t) && !/4th quarter/.test(t) && /Clutch/.test(t)\n  const at = t.search(/1st (half|quarter)/)\n  return check(\"AJ Dybantsa's Splits tab reads the halves and clutch on NCAA Men, no reason\", ok, t.slice(Math.max(0, at - 100), at + 400))\n})()"
+    "eval": "(async () => {\n  await nav('Players')\n  await switchTo('NCAA Men')\n  await chooseSelect('Season', 2026)\n  const o = await openPlayer('AJ Dybantsa')\n  await tab('Splits')\n  await sleep(3500)\n  const t = main()\n  const ok = /opened/.test(o) && !bad(t) && !/Not built|is not valid/.test(t) && /1st half/.test(t) && /2nd half/.test(t) && !rows().some((r) => /quarter/.test(cells(r)[0] ?? '')) && !/4th quarter/.test(t.slice(t.indexOf('Split'))) && /Clutch/.test(t)\n  const at = t.search(/1st (half|quarter)/)\n  return check(\"AJ Dybantsa's Splits tab reads the halves and clutch on NCAA Men, no reason\", ok, { q4: t.includes('4th quarter') ? t.slice(t.indexOf('4th quarter') - 200, t.indexOf('4th quarter') + 60) : null, bad: bad(t), at: t.slice(Math.max(0, at - 100), at + 200) })\n})()"
   },
   {
     "shot": "t1302g-01-ncaam-splits"
@@ -54,7 +54,7 @@
     "shot": "t1302g-04-ncaam-game"
   },
   {
-    "eval": "(async () => {\n  await nav('Players')\n  await switchTo('NCAA Women')\n  await chooseSelect('Season', 2026)\n  const o = await openPlayer('Mikayla Blakes')\n  await tab('Splits')\n  await sleep(3500)\n  const t = main()\n  const ok = /opened/.test(o) && !bad(t) && !/Not built|is not valid/.test(t) && /1st quarter/.test(t) && /4th quarter/.test(t) && /Clutch/.test(t)\n  const at = t.search(/1st (half|quarter)/)\n  return check(\"Mikayla Blakes's Splits tab reads the quarters and clutch on NCAA Women, no reason\", ok, t.slice(Math.max(0, at - 100), at + 400))\n})()"
+    "eval": "(async () => {\n  await nav('Players')\n  await switchTo('NCAA Women')\n  await chooseSelect('Season', 2026)\n  const o = await openPlayer('Mikayla Blakes')\n  await tab('Splits')\n  await sleep(3500)\n  const t = main()\n  const ok = /opened/.test(o) && !bad(t) && !/Not built|is not valid/.test(t) && /1st quarter/.test(t) && /4th quarter/.test(t) && /Clutch/.test(t)\n  const at = t.search(/1st (half|quarter)/)\n  return check(\"Mikayla Blakes's Splits tab reads the quarters and clutch on NCAA Women, no reason\", ok, { q4: t.includes('4th quarter') ? t.slice(t.indexOf('4th quarter') - 200, t.indexOf('4th quarter') + 60) : null, bad: bad(t), at: t.slice(Math.max(0, at - 100), at + 200) })\n})()"
   },
   {
     "shot": "t1302g-01-ncaaw-splits"

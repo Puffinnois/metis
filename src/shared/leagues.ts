@@ -1314,6 +1314,8 @@ export function periodsIn(league: League, season: number): PeriodEra {
  */
 export function halvesNote(league: League, seasons: readonly number[]): string | null {
   const halves = league.periods.filter((e) => e.name === 'half')
+  // A league in halves every season (the NCAA men) words its rules by the half (`splitRuleIn`).
+  if (halves.length === league.periods.length) return null
   if (!seasons.some((s) => periodsIn(league, s).name === 'half')) return null
   const next = league.periods.find((e) => e.from > halves[halves.length - 1].from)
   const until = next ? ` to ${league.seasonLabel(next.from - 1)}` : ''

@@ -12,7 +12,8 @@ import {
   teamSplitDefs,
   teamSplitQueries
 } from '@/lib/stats/splits'
-import { SPLITS } from '@shared/stats/splits'
+import { halvesNote, LEAGUES } from '@shared/leagues'
+import { splitRuleIn, SPLITS } from '@shared/stats/splits'
 import type { StatsResult, StatsRow, StatsSeason } from '@shared/stats/types'
 import { catalogueFixture } from '../../fixtures/catalogue'
 
@@ -26,8 +27,23 @@ describe('a league in halves every season (the NCAA men)', () => {
     const clutch = defs.find((d) => d.key === 'play-clutch')!
     expect(clutch.note).toBe('The last 5 minutes of the 2nd half or overtime, the score within 5.')
     expect(defs.find((d) => d.key === 'play-h1')!.group).toBe('By half')
+    expect(defs.some((d) => d.key === 'play-q1')).toBe(false)
     expect(defs.some((d) => /4th quarter/.test(d.note ?? ''))).toBe(false)
     expect(playSplitNotes(SCOPE).join(' ')).not.toMatch(/quarter/i)
+    expect(
+      splitRuleIn(
+        SPLITS.find((s) => s.id === 'h1')!,
+        true
+      )
+    ).toBe('The first half.')
+    expect(
+      splitRuleIn(
+        SPLITS.find((s) => s.id === 'h1')!,
+        false
+      )
+    ).toBe('The first and second quarters.')
+    expect(halvesNote(LEAGUES.ncaam, [2026])).toBeNull()
+    expect(halvesNote(LEAGUES.wnba, [2005])).toMatch(/two halves/)
     // The women play quarters: the NBA's words.
     setLeague('ncaaw')
     expect(playSplitDefs().find((d) => d.key === 'play-clutch')!.note).toMatch(/4th quarter/)

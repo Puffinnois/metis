@@ -1,6 +1,6 @@
 import { currentLeague, seasonLabel } from '@/lib/stats/league'
 import { halvesNote } from '@shared/leagues'
-import { SPLIT_GROUPS, SPLITS, SPLITS_FIRST_SEASON } from '@shared/stats/splits'
+import { splitAnswersIn, SPLIT_GROUPS, SPLITS, SPLITS_FIRST_SEASON } from '@shared/stats/splits'
 import type { BoardMode, StatsQuery, StatsResult, StatsSeason } from '@shared/stats/types'
 import { splitDefs, splitNotes, type SplitDef } from './player'
 import { queryScope, type StatsScope } from './scope'
@@ -22,9 +22,11 @@ const byHalf = (text: string): string =>
 
 /** One row per split, grouped as `SPLIT_GROUPS` orders them, each group with its rule. */
 export function playSplitDefs(): SplitDef[] {
-  const words = inHalves() ? byHalf : (t: string): string => t
+  // No quarter has an answer there: they are not listed, nor queried.
+  const halves = inHalves()
+  const words = halves ? byHalf : (t: string): string => t
   return SPLIT_GROUPS.flatMap(({ group, title, note }) =>
-    SPLITS.filter((s) => s.group === group).map((s) => ({
+    SPLITS.filter((s) => s.group === group && (!halves || splitAnswersIn(s, 2))).map((s) => ({
       key: `play-${s.id}`,
       group: words(title),
       label: s.label,
