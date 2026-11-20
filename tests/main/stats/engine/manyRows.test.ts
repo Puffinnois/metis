@@ -131,7 +131,18 @@ describe('a league of many rows', () => {
       scope: { seasons: [2026], ...(extra.scope ?? {}) }
     }
     const grouped = (q.groupBy ?? []).length > 0
-    expect(strip(await run(many, q), grouped)).toEqual(strip(await run(one, q), grouped))
+    // A z score's and a value against the league's mean and spread are summed over the rows in
+    // another order, so their last digits can differ: compared to nine significant digits.
+    const loose = q.transform === 'zScore' || q.transform === 'vsLeague'
+    const shown = async (league: League): Promise<unknown> => {
+      const r = strip(await run(league, q), grouped)
+      return loose
+        ? JSON.parse(
+            JSON.stringify(r, (_, v) => (typeof v === 'number' ? Number(v.toPrecision(9)) : v))
+          )
+        : r
+    }
+    expect(await shown(many)).toEqual(await shown(one))
   })
 
   it('gives the same team board', async () => {

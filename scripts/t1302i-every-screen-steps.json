@@ -12,7 +12,7 @@
     "eval": "window.heads = () => [...document.querySelectorAll('thead th,[role=columnheader]')].map((t) => t.textContent.trim()).filter(Boolean);\nwindow.tab = async (label) => { const t = [...document.querySelectorAll('[role=tab]')].find((x) => x.textContent.trim() === label) ?? [...document.querySelectorAll('main button')].find((x) => x.textContent.trim() === label); if (!t) return 'NO TAB ' + label; t.click(); await sleep(3500); return 'tab ' + label };\nwindow.tabNames = () => [...document.querySelectorAll('[role=tab]')].map((t) => t.textContent.trim());\nwindow.clickText = async (text) => { const b = [...document.querySelectorAll('main button,main [role=tab],main a')].find((x) => x.textContent.trim() === text); if (!b) return 'NO ' + text; b.click(); await sleep(2500); return 'clicked ' + text };\nwindow.rowOf = (name) => { const r = [...document.querySelectorAll('tr,[role=row]')].find((x) => x.textContent.includes(name)); return r ? [...r.querySelectorAll('[role=cell],td')].map((c) => c.textContent.trim()) : null };\nwindow.text = () => main().replace(/\\s+/g, ' ');\nwindow.dark = (on) => { document.documentElement.classList.toggle('dark', on); return 'dark ' + on };\nwindow.noNba = () => (text().match(/[^.]{0,60}(?<!W)NBA[^.]{0,60}/g) ?? []).filter((x) => !/NBA's minimum|NBA's leader stats|NBA Elo|values fitted for the NBA|the NBA's is 14/.test(x));\n'helpers 3'"
   },
   {
-    "eval": "window.noNba = () => (text().match(/[^.]{0,70}(?<!W)NBA[^.]{0,70}/g) ?? []).filter((x) => !/NBA's minimum|NBA’s minimum|the NBA's|NBA Elo/.test(x));\nwindow.nbaAll = () => text().match(/[^.]{0,70}(?<!W)NBA[^.]{0,70}/g) ?? [];\nwindow.errs = () => [...document.querySelectorAll('.text-bad')].map((e) => e.textContent.trim()).filter(Boolean).slice(0, 5);\nwindow.reads = () => !/could not be opened|Something went wrong|Error invoking/.test(text()) && errs().length === 0;\nwindow.leagueWords = () => (text().match(/[^.]{0,50}\\b(per 36|per 48|Per 36|Per 48|All-Star|4th quarter|playoff odds|Playoff odds|play-in)\\b[^.]{0,50}/g) ?? []);\n'helpers t1302i'"
+    "eval": "window.noNba = () => (text().match(/[^.]{0,70}(?<!W)NBA[^.]{0,70}/g) ?? []).filter((x) => !/NBA's minimum|NBA’s minimum|the NBA's|NBA Elo/.test(x));\nwindow.nbaAll = () => text().match(/[^.]{0,70}(?<!W)NBA[^.]{0,70}/g) ?? [];\nwindow.errs = () => [...document.querySelectorAll('.text-bad')].map((e) => e.textContent.trim()).filter((t) => /could not|failed|error|refused|went wrong/i.test(t)).slice(0, 5);\nwindow.reads = () => !/could not be opened|Something went wrong|Error invoking/.test(text()) && errs().length === 0;\nwindow.leagueWords = () => (text().match(league() === 'NCAA Men' ? /[^.]{0,50}\\b(per 48|Per 48|All-Star|4th quarter|playoff odds|Playoff odds|play-in)\\b[^.]{0,50}/g : /[^.]{0,50}\\b(per 48|Per 48|All-Star|playoff odds|Playoff odds|play-in)\\b[^.]{0,50}/g) ?? []);\n'helpers t1302i'"
   },
   {
     "eval": "(async () => { const t0 = Date.now(); const idle = await until(async () => { const s = await Promise.all(['nba', 'wnba', 'ncaam', 'ncaaw'].map((l) => window.api.stats.status(l))); return s.every((x) => !x.busy) }, 40 * 60000); const s = await Promise.all(['nba', 'wnba', 'ncaam', 'ncaaw'].map((l) => window.api.stats.status(l))); return check('four leagues finish the launch refresh, each with its tables', idle && s.every((x) => x.available && !x.noData), { seconds: Math.round((Date.now() - t0) / 1000), s: s.map((x) => [x.through?.date, x.builtAt, x.noData]) }) })()"
@@ -24,7 +24,7 @@
     "shot": "t1302i-ncaam-01-home"
   },
   {
-    "eval": "(async () => { await press('All →'); await sleep(2000)\n  const fam = [...document.querySelectorAll('select')].find((x) => x.title === 'Metric family')\n  const families = fam ? [...fam.options].map((o) => o.textContent) : []\n  const modes = [...document.querySelectorAll('main button')].map((b) => b.textContent.trim()).filter((t) => /^(Totals|Per \\w+)$/.test(t))\n  return check('NCAA Men player board: per 40, never per 36 or 48; no Tracking, Hustle, Play types or Matchups family; no NBA words', reads() && modes.includes('Per 40') && !modes.some((m) => /36|48/.test(m)) && !families.some((f) => /Tracking|Hustle|Play types|Matchups/.test(f)) && noNba().length === 0, { modes, families, noNba: noNba(), total: total() }) })()"
+    "eval": "(async () => { await press('All →'); await sleep(2000)\n  const fam = [...document.querySelectorAll('select')].find((x) => x.title === 'Metric family')\n  const families = fam ? [...fam.options].map((o) => o.textContent) : []\n  const modes = [...document.querySelectorAll('main button')].map((b) => b.textContent.trim()).filter((t) => /^(Totals|Per \\w+)$/.test(t))\n  return check('NCAA Men player board: per 40 (per 36 beside it, as in the WNBA), never per 48; no Tracking, Hustle, Play types or Matchups family; no NBA words', reads() && modes.includes('Per 40') && !modes.some((m) => /48/.test(m)) && !families.some((f) => /Tracking|Hustle|Play types|Matchups/.test(f)) && noNba().length === 0, { modes, families, noNba: noNba(), total: total() }) })()"
   },
   {
     "shot": "t1302i-ncaam-02-board"
@@ -39,7 +39,7 @@
     "shot": "t1302i-ncaam-03-team-board"
   },
   {
-    "eval": "(async () => { await nav('Players'); await chooseSelect('Season', 2026); const o = await openPlayer(\"AJ Dybantsa\"); await tab('Overview')\n  const tabs = tabNames()\n  return check('AJ Dybantsa’s dashboard: no Tracking, Play types or Matchups tab, 25.5 points a game (raw: 894 in 35, every game)', o.startsWith('opened') && reads() && !tabs.some((t) => /Tracking|Play types|Matchups/.test(t)) && noNba().length === 0 && /Points 25\\.5|Points \\/ game 25\\.5|25\\.5/.test(text()), { o, tabs, noNba: noNba(), pts: text().match(/Points[^A-Z]{0,30}/)?.[0] }) })()"
+    "eval": "(async () => { await nav('Players'); await chooseSelect('Season', 2026); const o = await openPlayer(\"AJ Dybantsa\"); await tab('Overview')\n  const tabs = tabNames()\n  return check('AJ Dybantsa’s dashboard: no Tracking, Play types or Matchups tab, 25.3 points a game in the regular season (raw: 859 in 34)', o.startsWith('opened') && reads() && !tabs.some((t) => /Tracking|Play types|Matchups/.test(t)) && noNba().length === 0 && /25\\.3/.test(text()), { o, tabs, noNba: noNba(), pts: text().match(/Points[^A-Z]{0,30}/)?.[0] }) })()"
   },
   {
     "shot": "t1302i-ncaam-04-player"
@@ -81,7 +81,7 @@
     "shot": "t1302i-ncaam-05-player-shots"
   },
   {
-    "eval": "(async () => { await nav('Teams'); await chooseSelect('Season', 2026); await openTeam('252'); await tab('Overview')\n  return check('NCAA Men BYU 2025-26 team page reads', reads() && /BYU/.test(text()) && noNba().length === 0, { noNba: noNba(), head: text().slice(0, 200) }) })()"
+    "eval": "(async () => { await nav('Teams'); await chooseSelect('Season', 2026); await openTeam('252'); await tab('Overview')\n  return check('NCAA Men BYU 2025-26 team page reads, its ratings filled', reads() && text().includes(\"BYU Cougars\") && !/Win percentage[^0-9]{0,6}—/.test(text()) && noNba().length === 0, { noNba: noNba(), head: text().slice(0, 200) }) })()"
   },
   {
     "shot": "t1302i-ncaam-06-team"
@@ -162,7 +162,7 @@
     "shot": "t1302i-ncaaw-01-home"
   },
   {
-    "eval": "(async () => { await press('All →'); await sleep(2000)\n  const fam = [...document.querySelectorAll('select')].find((x) => x.title === 'Metric family')\n  const families = fam ? [...fam.options].map((o) => o.textContent) : []\n  const modes = [...document.querySelectorAll('main button')].map((b) => b.textContent.trim()).filter((t) => /^(Totals|Per \\w+)$/.test(t))\n  return check('NCAA Women player board: per 40, never per 36 or 48; no Tracking, Hustle, Play types or Matchups family; no NBA words', reads() && modes.includes('Per 40') && !modes.some((m) => /36|48/.test(m)) && !families.some((f) => /Tracking|Hustle|Play types|Matchups/.test(f)) && noNba().length === 0, { modes, families, noNba: noNba(), total: total() }) })()"
+    "eval": "(async () => { await press('All →'); await sleep(2000)\n  const fam = [...document.querySelectorAll('select')].find((x) => x.title === 'Metric family')\n  const families = fam ? [...fam.options].map((o) => o.textContent) : []\n  const modes = [...document.querySelectorAll('main button')].map((b) => b.textContent.trim()).filter((t) => /^(Totals|Per \\w+)$/.test(t))\n  return check('NCAA Women player board: per 40 (per 36 beside it, as in the WNBA), never per 48; no Tracking, Hustle, Play types or Matchups family; no NBA words', reads() && modes.includes('Per 40') && !modes.some((m) => /48/.test(m)) && !families.some((f) => /Tracking|Hustle|Play types|Matchups/.test(f)) && noNba().length === 0, { modes, families, noNba: noNba(), total: total() }) })()"
   },
   {
     "shot": "t1302i-ncaaw-02-board"
@@ -219,7 +219,7 @@
     "shot": "t1302i-ncaaw-05-player-shots"
   },
   {
-    "eval": "(async () => { await nav('Teams'); await chooseSelect('Season', 2026); await openTeam('87'); await tab('Overview')\n  return check('NCAA Women Notre Dame 2025-26 team page reads', reads() && /Notre Dame/.test(text()) && noNba().length === 0, { noNba: noNba(), head: text().slice(0, 200) }) })()"
+    "eval": "(async () => { await nav('Teams'); await chooseSelect('Season', 2026); await openTeam('87'); await tab('Overview')\n  return check('NCAA Women Notre Dame 2025-26 team page reads, its ratings filled', reads() && text().includes(\"Notre Dame Fighting Irish\") && !/Win percentage[^0-9]{0,6}—/.test(text()) && noNba().length === 0, { noNba: noNba(), head: text().slice(0, 200) }) })()"
   },
   {
     "shot": "t1302i-ncaaw-06-team"

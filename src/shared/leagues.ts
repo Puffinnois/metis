@@ -496,6 +496,11 @@ export interface League {
   /** The first season of its shot chart file. */
   shotsFrom: number
   /**
+   * The league plays no All-Star Game (the college leagues): the splits leave out before and after
+   * the break, which would only ever read empty. Unset, a season without one says so (the NBA's 1999).
+   */
+  noAllStarGame?: boolean
+  /**
    * The shot chart file in screen words, where it is not "the NBA’s shot chart file" (the NBA's and
    * the WNBA's screens as they were): the college leagues' is stats.ncaa.org's (T1302.6).
    */
@@ -1102,6 +1107,7 @@ const COLLEGE_WORDS: League['catalogueWords'] = [
   ["The NBA's box scores from 1996-97", "ESPN's box scores"],
   ["ESPN's box scores before them", "stats.ncaa.org's for the games ESPN has none of"],
   ["The NBA's box scores", "ESPN's box scores"],
+  ["The NBA's shot chart file", "stats.ncaa.org's shot file"],
   [
     "ESPN's flag is the only source before 2017-18, and it is missing for some games, mostly in 2001-02, 2004-05 and 2005-06.",
     "ESPN's flag, so none for a game whose box score is stats.ncaa.org's."
@@ -1191,6 +1197,7 @@ const college = (
   loadedWindow: true,
   divisionIOnly: true,
   manyRows: true,
+  noAllStarGame: true,
   standingsWords: 'Every game, the postseason with it, as ESPN publishes it',
   // Measured on ESPN's team box scores of 2021-22 to 2025-26, teams with 20 games or more: about 33
   // games a season (30 to 33 for the women) against 22.6 to 24.3 opponents (21.5 to 23.6), about 1.4

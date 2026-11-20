@@ -6,6 +6,10 @@ import { lineupGap, lineupNotes } from '@/lib/stats/lineups'
 import { DERIVED_NOTE, derivedNote, unitsNote } from '@/lib/stats/onCourt'
 import { typeTag } from '@/lib/stats/player'
 import { leaderboardQualifier, leaderRuleWords } from '@/lib/stats/qualifying'
+import { inLeague } from '@/lib/stats/league'
+import { splitDefs } from '@/lib/stats/player'
+import { teamPoolQuery } from '@/lib/stats/team'
+import { METRICS, metricIn } from '@shared/stats/catalogue'
 import { defaultScope, seasonTypes, typeLabel, type StatsScope } from '@/lib/stats/scope'
 import { strengthNote, strengthQuery } from '@/lib/stats/standings'
 import { LEAGUES } from '@shared/leagues'
@@ -34,6 +38,33 @@ describe('words a college screen must not take from the NBA (T1302.9)', () => {
       const words = leaderRuleWords(league)
       expect(`${words.note} ${words.clause}`).not.toContain('NBA')
     }
+  })
+
+  it('names stats.ncaa.org’s shot file in section notes and the catalogue', () => {
+    const note = 'From the {league}’s shot chart file, {shotsFrom}'
+    expect(inLeague(note, LEAGUES.ncaam)).toBe('From stats.ncaa.org’s shot file, 2021-22 on')
+    expect(inLeague(note, LEAGUES.wnba)).toBe(
+      'From the WNBA’s shot chart file, 1997 on, located from 2011'
+    )
+    const zone = [...METRICS.values()].find((m) => m.sources?.includes("The NBA's shot chart file"))
+    expect(zone).toBeDefined()
+    expect(metricIn(zone!, LEAGUES.ncaaw).sources).toEqual(["stats.ncaa.org's shot file"])
+    expect(metricIn(zone!, LEAGUES.nba).sources).toEqual(["The NBA's shot chart file"])
+  })
+
+  it('leaves out the All-Star break, which the colleges never have', () => {
+    setLeague('ncaam')
+    expect(splitDefs(undefined).some((d) => d.group === 'All-Star break')).toBe(false)
+    setLeague('nba')
+    expect(splitDefs(undefined).filter((d) => d.group === 'All-Star break')).toHaveLength(2)
+  })
+
+  it('asks for every Division I team on a team page', () => {
+    const scope: StatsScope = { season: 2026, seasonType: 'regular', range: { kind: 'season' } }
+    setLeague('ncaaw')
+    expect(teamPoolQuery(['team_ortg'], scope, 'perGame').limit).toBe(500)
+    setLeague('nba')
+    expect(teamPoolQuery(['team_ortg'], scope, 'perGame').limit).toBe(40)
   })
 })
 
