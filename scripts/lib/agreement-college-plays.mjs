@@ -47,7 +47,7 @@ export async function collegePlaysAgreement(league, read, out, query) {
     '',
     '## The plays (T1302.7)',
     '',
-    "stats.ncaa.org's play by play read into the play table (`play_nba`) and the ten on the floor (`play_lineup`), and what the shared builders make of them, per season. A team-game is counted with a box score, exhibitions out; a player-game is a box-score line of such a game."
+    "stats.ncaa.org's play by play read into the play table (`play_nba`), with the ten on the floor worked out at each build (`play_lineup`, not kept), and what the shared builders make of them, per season. A team-game is counted with a box score, exhibitions out; a player-game is a box-score line of such a game."
   )
 
   // 1. The feed's event names: every spelling, its count, and what it maps to.
@@ -132,11 +132,15 @@ export async function collegePlaysAgreement(league, read, out, query) {
   const score =
     await read(`WITH l AS (SELECT game_id, max(home_after) AS h, max(away_after) AS a FROM play_nba GROUP BY 1),
     p AS (SELECT game_id, team_id, sum(pts) AS pts FROM play_nba WHERE team_id IS NOT NULL GROUP BY 1, 2),
+    -- Each of the file's possessions (poss_num) is the team's that shot, turned it over or took an
+    -- offensive rebound in it, and its points are that team's.
+    pt AS (
+      SELECT game_id, possession, team_id, count(*) FILTER (WHERE fga + fta + tov + oreb > 0) AS acts,
+             sum(pts) AS pts
+      FROM play_nba WHERE possession IS NOT NULL AND team_id IS NOT NULL GROUP BY 1, 2, 3
+      QUALIFY row_number() OVER (PARTITION BY game_id, possession ORDER BY acts DESC, team_id) = 1),
     poss AS (
-      SELECT n.game_id, l.poss_team_id AS team_id, count(DISTINCT n.possession) AS n,
-             sum(n.pts) FILTER (WHERE n.team_id = l.poss_team_id) AS pts
-      FROM play_nba n JOIN play_lineup l ON l.season = n.season AND l.game_id = n.game_id AND l.seq = n.seq
-      WHERE n.possession IS NOT NULL AND l.poss_team_id IS NOT NULL GROUP BY 1, 2)
+      SELECT game_id, team_id, count(*) AS n, sum(pts) AS pts FROM pt WHERE acts > 0 GROUP BY 1, 2)
     SELECT t.season, count(*)::INTEGER AS sides,
       count(*) FILTER (WHERE (t.home AND l.h = t.points_for) OR (NOT t.home AND l.a = t.points_for))::INTEGER AS final,
       count(*) FILTER (WHERE p.pts = t.points_for)::INTEGER AS pts,
@@ -151,7 +155,7 @@ export async function collegePlaysAgreement(league, read, out, query) {
     '',
     '### The score and the possessions',
     '',
-    "Per team-game with plays: the plays' final score (the highest each side reached) against the game's; the team's points summed from the plays; the points scored in its possessions (the file's `poss_num`, each the team with the ball at its last play) against the score, exact and within 2; and its possessions within 2 of stats.ncaa.org's team box (`ncaa_poss`).",
+    "Per team-game with plays: the plays' final score (the highest each side reached) against the game's; the team's points summed from the plays; the points scored in its possessions (the file's `poss_num`, each the team's that shot, turned the ball over or took an offensive rebound in it) against the score, exact and within 2; and its possessions within 2 of stats.ncaa.org's team box (`ncaa_poss`).",
     '',
     table(
       [
@@ -198,7 +202,7 @@ export async function collegePlaysAgreement(league, read, out, query) {
       SELECT b.season, count(*) AS n, count(*) FILTER (WHERE abs(ps.secs / 60.0 - b.minutes) <= 1) AS within1,
              count(*) FILTER (WHERE abs(ps.secs - u.on_secs) < 0.5) AS units
       FROM player_game b JOIN ps ON ps.game_id = b.game_id AND ps.player_id = b.player_id
-      LEFT JOIN player_on_court_plays u ON u.game_id = b.game_id AND u.player_id = b.player_id
+      LEFT JOIN player_on_court u ON u.game_id = b.game_id AND u.player_id = b.player_id
       JOIN team_game t ON t.game_id = b.game_id AND t.team_id = b.team_id
       WHERE ${COUNTED} GROUP BY 1)
     SELECT t.season, count(*)::INTEGER AS sides,
@@ -215,7 +219,7 @@ export async function collegePlaysAgreement(league, read, out, query) {
     '',
     `### The splits add up`,
     '',
-    `The ${league === 'ncaam' ? 'halves' : 'quarters'} and the overtimes (${parts.join(', ')}) summed per team-game: all 14 counts equal the whole game's from the same plays (team rebounds and team turnovers left out, as in a player's line); the points equal the score; the seconds equal the game's (40 minutes and 5 an overtime, five players). Players: their seconds over the same splits within a minute of the box score's minutes, and equal to their on-court seconds credited play by play (\`player_on_court_plays\`).`,
+    `The ${league === 'ncaam' ? 'halves' : 'quarters'} and the overtimes (${parts.join(', ')}) summed per team-game: all 14 counts equal the whole game's from the same plays (team rebounds and team turnovers left out, as in a player's line); the points equal the score; the seconds equal the game's (40 minutes and 5 an overtime, five players). Players: their seconds over the same splits within a minute of the box score's minutes, and equal to their on-court seconds credited play by play (\`player_on_court\`).`,
     '',
     table(
       [
@@ -334,8 +338,8 @@ export async function collegePlaysAgreement(league, read, out, query) {
 
   // 7. Time on the floor: credited play by play against the lineup file, the two sources side by side.
   const sources = [
-    ['lineup file', 'unit_game', 'player_on_court'],
-    ['play by play', 'unit_game_plays', 'player_on_court_plays']
+    ['lineup file', 'unit_game_lineups', 'player_on_court_lineups'],
+    ['play by play', 'unit_game', 'player_on_court']
   ]
   const on = []
   for (const [name, units, players] of sources) {
@@ -365,7 +369,7 @@ export async function collegePlaysAgreement(league, read, out, query) {
     '',
     '### Time on the floor: the play by play against the lineup file',
     '',
-    "Both sources side by side (policy 5): stats.ncaa.org's lineup file (`unit_game`, `player_on_court`, what the on-court screens read) and the units credited play by play (`unit_game_plays`, `player_on_court_plays`), each team-game's units summed: minutes equal to the game's (within a second), points equal to the box score's, and the share of the game's minutes covered; each player-game with minutes: a line from the source, and its on-court minutes within a minute of the box score's.",
+    "Both sources side by side (policy 5): stats.ncaa.org's lineup file (`unit_game_lineups`, `player_on_court_lineups`) and the units credited play by play (`unit_game`, `player_on_court`, what the on-court screens read since T1302.7), each team-game's units summed: minutes equal to the game's (within a second), points equal to the box score's, and the share of the game's minutes covered; each player-game with minutes: a line from the source, and its on-court minutes within a minute of the box score's.",
     '',
     table(
       [

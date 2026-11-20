@@ -276,9 +276,9 @@ Every player row of the engine's board over every counted game (players of Divis
 
 ### The plays (T1302.7)
 
-Measured on 2026-11-19 on `t1302g-ncaam` (the T1302.6 file rebuilt by the built worker's refresh) by `scripts/check-agreement.mjs` (`scripts/lib/agreement-college-plays.mjs`).
+Measured on 2026-11-19 on `t1302g-ncaam` (the T1302.6 file rebuilt by the built worker's refresh, the on-court screens on the play by play) by `scripts/check-agreement.mjs` (`scripts/lib/agreement-college-plays.mjs`).
 
-stats.ncaa.org's play by play read into the play table (`play_nba`) and the ten on the floor (`play_lineup`), and what the shared builders make of them, per season. A team-game is counted with a box score, exhibitions out; a player-game is a box-score line of such a game.
+stats.ncaa.org's play by play read into the play table (`play_nba`), with the ten on the floor worked out at each build (`play_lineup`, not kept), and what the shared builders make of them, per season. A team-game is counted with a box score, exhibitions out; a player-game is a box-score line of such a game.
 
 #### The event names
 
@@ -304,8 +304,8 @@ Every `event_type` the file spells (kept as `action`) with its count over every 
 | Dunk                      | field_goal   | 142,855   | 142,855   | 0         | 0         | 0       | 0         | 0       | 4,672   |
 | Hook                      | field_goal   | 71,984    | 71,984    | 0         | 0         | 0       | 0         | 0       | 2,008   |
 | Jumpball (held ball)      | jump_ball    | 38,944    | 0         | 0         | 0         | 0       | 0         | 0       | 0       |
-| won Jumpball              | jump_ball    | 33,673    | 0         | 0         | 0         | 0       | 0         | 0       | 0       |
 | lost Jumpball             | jump_ball    | 33,673    | 0         | 0         | 0         | 0       | 0         | 0       | 0       |
+| won Jumpball              | jump_ball    | 33,673    | 0         | 0         | 0         | 0       | 0         | 0       | 0       |
 | Challenge (Out of Bounds) | replay       | 2,485     | 0         | 0         | 0         | 0       | 0         | 0       | 0       |
 | Media Timeout             | timeout      | 1,174     | 0         | 0         | 0         | 0       | 0         | 0       | 0       |
 | Second Timeout            | timeout      | 1,131     | 0         | 0         | 0         | 0       | 0         | 0       | 0       |
@@ -333,20 +333,20 @@ Each box-score line of a game with plays against the same line rebuilt from the 
 
 #### The score and the possessions
 
-Per team-game with plays: the plays' final score (the highest each side reached) against the game's; the team's points summed from the plays; the points scored in its possessions (the file's `poss_num`, each the team with the ball at its last play) against the score, exact and within 2; and its possessions within 2 of stats.ncaa.org's team box (`ncaa_poss`).
+Per team-game with plays: the plays' final score (the highest each side reached) against the game's; the team's points summed from the plays; the points scored in its possessions (the file's `poss_num`, each the team's that shot, turned the ball over or took an offensive rebound in it) against the score, exact and within 2; and its possessions within 2 of stats.ncaa.org's team box (`ncaa_poss`).
 
 | Season  | Team-games | Final score | Points from plays | Possessions' points | Within 2 | Possessions within 2 |
 | ------- | ---------- | ----------- | ----------------- | ------------------- | -------- | -------------------- |
-| 2021-22 | 11,932     | 99.9 %      | 99.9 %            | 91.7 %              | 99.2 %   | 100.0 %              |
-| 2022-23 | 12,442     | 100.0 %     | 99.9 %            | 89.3 %              | 99.0 %   | 100.0 %              |
-| 2023-24 | 12,486     | 100.0 %     | 100.0 %           | 91.7 %              | 99.2 %   | 100.0 %              |
-| 2024-25 | 12,586     | 100.0 %     | 99.9 %            | 92.3 %              | 99.3 %   | 100.0 %              |
-| 2025-26 | 12,594     | 100.0 %     | 99.9 %            | 92.6 %              | 99.4 %   | 100.0 %              |
-| 2026-27 | 1,906      | 99.9 %      | 99.8 %            | 92.2 %              | 99.2 %   | 99.9 %               |
+| 2021-22 | 11,932     | 99.9 %      | 99.9 %            | 95.8 %              | 99.3 %   | 96.9 %               |
+| 2022-23 | 12,442     | 100.0 %     | 99.9 %            | 93.9 %              | 99.2 %   | 96.6 %               |
+| 2023-24 | 12,486     | 100.0 %     | 100.0 %           | 95.7 %              | 99.2 %   | 96.9 %               |
+| 2024-25 | 12,586     | 100.0 %     | 99.9 %            | 96.3 %              | 99.4 %   | 97.0 %               |
+| 2025-26 | 12,594     | 100.0 %     | 99.9 %            | 96.2 %              | 99.4 %   | 96.8 %               |
+| 2026-27 | 1,906      | 99.9 %      | 99.8 %            | 95.4 %              | 99.4 %   | 96.1 %               |
 
 #### The splits add up
 
-The halves and the overtimes (h1, h2, ot) summed per team-game: all 14 counts equal the whole game's from the same plays (team rebounds and team turnovers left out, as in a player's line); the points equal the score; the seconds equal the game's (40 minutes and 5 an overtime, five players). Players: their seconds over the same splits within a minute of the box score's minutes, and equal to their on-court seconds credited play by play (`player_on_court_plays`).
+The halves and the overtimes (h1, h2, ot) summed per team-game: all 14 counts equal the whole game's from the same plays (team rebounds and team turnovers left out, as in a player's line); the points equal the score; the seconds equal the game's (40 minutes and 5 an overtime, five players). Players: their seconds over the same splits within a minute of the box score's minutes, and equal to their on-court seconds credited play by play (`player_on_court`).
 
 | Season  | Team-games | Whole game | Points  | Seconds | Player-games | Minutes within 1 | Equal on court |
 | ------- | ---------- | ---------- | ------- | ------- | ------------ | ---------------- | -------------- |
@@ -385,7 +385,7 @@ Per game with plays: the last scoring play's score against the final score, the 
 
 #### Time on the floor: the play by play against the lineup file
 
-Both sources side by side (policy 5): stats.ncaa.org's lineup file (`unit_game`, `player_on_court`, what the on-court screens read) and the units credited play by play (`unit_game_plays`, `player_on_court_plays`), each team-game's units summed: minutes equal to the game's (within a second), points equal to the box score's, and the share of the game's minutes covered; each player-game with minutes: a line from the source, and its on-court minutes within a minute of the box score's.
+Both sources side by side (policy 5): stats.ncaa.org's lineup file (`unit_game_lineups`, `player_on_court_lineups`) and the units credited play by play (`unit_game`, `player_on_court`, what the on-court screens read since T1302.7), each team-game's units summed: minutes equal to the game's (within a second), points equal to the box score's, and the share of the game's minutes covered; each player-game with minutes: a line from the source, and its on-court minutes within a minute of the box score's.
 
 | Season  | Source       | Team-games | With units | Minutes equal the game's | Minutes covered | Points equal the box score's | Player-games | With a line | Minutes within 1 |
 | ------- | ------------ | ---------- | ---------- | ------------------------ | --------------- | ---------------------------- | ------------ | ----------- | ---------------- |
@@ -685,9 +685,9 @@ Every player row of the engine's board over every counted game (players of Divis
 
 ### The plays (T1302.7)
 
-Measured on 2026-11-19 on `t1302g-ncaaw` (the T1302.6 file rebuilt by the built worker's refresh) by `scripts/check-agreement.mjs` (`scripts/lib/agreement-college-plays.mjs`).
+Measured on 2026-11-19 on `t1302g-ncaaw` (the T1302.6 file rebuilt by the built worker's refresh, the on-court screens on the play by play) by `scripts/check-agreement.mjs` (`scripts/lib/agreement-college-plays.mjs`).
 
-stats.ncaa.org's play by play read into the play table (`play_nba`) and the ten on the floor (`play_lineup`), and what the shared builders make of them, per season. A team-game is counted with a box score, exhibitions out; a player-game is a box-score line of such a game.
+stats.ncaa.org's play by play read into the play table (`play_nba`), with the ten on the floor worked out at each build (`play_lineup`, not kept), and what the shared builders make of them, per season. A team-game is counted with a box score, exhibitions out; a player-game is a box-score line of such a game.
 
 #### The event names
 
@@ -741,26 +741,26 @@ Each box-score line of a game with plays against the same line rebuilt from the 
 
 #### The score and the possessions
 
-Per team-game with plays: the plays' final score (the highest each side reached) against the game's; the team's points summed from the plays; the points scored in its possessions (the file's `poss_num`, each the team with the ball at its last play) against the score, exact and within 2; and its possessions within 2 of stats.ncaa.org's team box (`ncaa_poss`).
+Per team-game with plays: the plays' final score (the highest each side reached) against the game's; the team's points summed from the plays; the points scored in its possessions (the file's `poss_num`, each the team's that shot, turned the ball over or took an offensive rebound in it) against the score, exact and within 2; and its possessions within 2 of stats.ncaa.org's team box (`ncaa_poss`).
 
 | Season  | Team-games | Final score | Points from plays | Possessions' points | Within 2 | Possessions within 2 |
 | ------- | ---------- | ----------- | ----------------- | ------------------- | -------- | -------------------- |
-| 2021-22 | 11,016     | 99.9 %      | 99.9 %            | 96.5 %              | 99.7 %   | 100.0 %              |
-| 2022-23 | 11,638     | 100.0 %     | 99.9 %            | 96.3 %              | 99.7 %   | 100.0 %              |
-| 2023-24 | 11,792     | 100.0 %     | 100.0 %           | 96.5 %              | 99.7 %   | 100.0 %              |
-| 2024-25 | 11,918     | 100.0 %     | 100.0 %           | 96.8 %              | 99.8 %   | 99.9 %               |
-| 2025-26 | 12,038     | 100.0 %     | 100.0 %           | 94.9 %              | 99.8 %   | 100.0 %              |
-| 2026-27 | 1,880      | 99.9 %      | 99.8 %            | 95.0 %              | 99.6 %   | 100.0 %              |
+| 2021-22 | 11,016     | 99.9 %      | 99.9 %            | 98.2 %              | 99.7 %   | 96.7 %               |
+| 2022-23 | 11,638     | 100.0 %     | 99.9 %            | 97.7 %              | 99.7 %   | 97.1 %               |
+| 2023-24 | 11,792     | 100.0 %     | 100.0 %           | 98.0 %              | 99.6 %   | 97.0 %               |
+| 2024-25 | 11,918     | 100.0 %     | 100.0 %           | 98.1 %              | 99.7 %   | 97.2 %               |
+| 2025-26 | 12,038     | 100.0 %     | 100.0 %           | 97.5 %              | 99.6 %   | 97.2 %               |
+| 2026-27 | 1,880      | 99.9 %      | 99.8 %            | 97.2 %              | 99.5 %   | 95.9 %               |
 
 #### The splits add up
 
-The quarters and the overtimes (q1, q2, q3, q4, ot) summed per team-game: all 14 counts equal the whole game's from the same plays (team rebounds and team turnovers left out, as in a player's line); the points equal the score; the seconds equal the game's (40 minutes and 5 an overtime, five players). Players: their seconds over the same splits within a minute of the box score's minutes, and equal to their on-court seconds credited play by play (`player_on_court_plays`).
+The quarters and the overtimes (q1, q2, q3, q4, ot) summed per team-game: all 14 counts equal the whole game's from the same plays (team rebounds and team turnovers left out, as in a player's line); the points equal the score; the seconds equal the game's (40 minutes and 5 an overtime, five players). Players: their seconds over the same splits within a minute of the box score's minutes, and equal to their on-court seconds credited play by play (`player_on_court`).
 
 | Season  | Team-games | Whole game | Points  | Seconds | Player-games | Minutes within 1 | Equal on court |
 | ------- | ---------- | ---------- | ------- | ------- | ------------ | ---------------- | -------------- |
 | 2021-22 | 11,016     | 100.0 %    | 99.9 %  | 100.0 % | 111,610      | 88.2 %           | 99.9 %         |
 | 2022-23 | 11,638     | 100.0 %    | 99.9 %  | 100.0 % | 117,216      | 89.0 %           | 99.9 %         |
-| 2023-24 | 11,792     | 100.0 %    | 100.0 % | 100.0 % | 118,091      | 89.8 %           | 99.9 %         |
+| 2023-24 | 11,792     | 100.0 %    | 100.0 % | 100.0 % | 118,092      | 89.8 %           | 99.9 %         |
 | 2024-25 | 11,918     | 100.0 %    | 100.0 % | 100.0 % | 120,863      | 95.0 %           | 99.9 %         |
 | 2025-26 | 12,038     | 100.0 %    | 100.0 % | 100.0 % | 121,168      | 94.5 %           | 99.8 %         |
 | 2026-27 | 1,880      | 100.0 %    | 99.8 %  | 99.9 %  | 20,273       | 92.2 %           | 100.0 %        |
@@ -793,7 +793,7 @@ Per game with plays: the last scoring play's score against the final score, the 
 
 #### Time on the floor: the play by play against the lineup file
 
-Both sources side by side (policy 5): stats.ncaa.org's lineup file (`unit_game`, `player_on_court`, what the on-court screens read) and the units credited play by play (`unit_game_plays`, `player_on_court_plays`), each team-game's units summed: minutes equal to the game's (within a second), points equal to the box score's, and the share of the game's minutes covered; each player-game with minutes: a line from the source, and its on-court minutes within a minute of the box score's.
+Both sources side by side (policy 5): stats.ncaa.org's lineup file (`unit_game_lineups`, `player_on_court_lineups`) and the units credited play by play (`unit_game`, `player_on_court`, what the on-court screens read since T1302.7), each team-game's units summed: minutes equal to the game's (within a second), points equal to the box score's, and the share of the game's minutes covered; each player-game with minutes: a line from the source, and its on-court minutes within a minute of the box score's.
 
 | Season  | Source       | Team-games | With units | Minutes equal the game's | Minutes covered | Points equal the box score's | Player-games | With a line | Minutes within 1 |
 | ------- | ------------ | ---------- | ---------- | ------------------------ | --------------- | ---------------------------- | ------------ | ----------- | ---------------- |

@@ -42,7 +42,13 @@
     "eval": "(async () => {\n  const a = await window.api.stats.assists('ncaam', { entity: 'team', id: '252', seasons: [2026], scope: { gameTypes: ['regular', 'playoffs'] } })\n  return check('the team\\'s assist network reads, no reason', a.reason === null && (a.links?.length ?? a.pairs?.length ?? 0) > 0, { reason: a.reason, keys: Object.keys(a) })\n})()"
   },
   {
-    "eval": "(async () => {\n  await tab('Lineups')\n  await sleep(3500)\n  const t = main()\n  return check('the lineups still read stats.ncaa.org\\'s lineup file, its coverage stated (onCourtFrom: lineups)', !bad(t) && has('covers about 97 % of minutes'), t.slice(-300))\n})()"
+    "eval": "(async () => {\n  await tab('Lineups')\n  await sleep(3500)\n  const t = main()\n  const units = Number(t.match(/([0-9,]+) units/)?.[1]?.replace(/,/g, '') ?? 0)\n  return check('the lineups read the units credited play by play, their coverage stated and no lineup-file note (onCourtFrom: plays)', units > 0 && !bad(t) && has('every minute of a game is covered') && !has('covers about 97 % of minutes'), { units, text: t.slice(-300) })\n})()"
+  },
+  {
+    "eval": "(async () => {\n  await tab('On/off')\n  await sleep(3500)\n  const t = main()\n  const u = await window.api.stats.onCourtUnits('ncaam', '252', 2026, { gameTypes: ['regular', 'playoffs'] }, 5)\n  const pid = (await window.api.stats.query('ncaam', { entity: 'player', metrics: ['min'], scope: { seasons: [2026], teams: ['252'] }, limit: 1 })).rows[0].id\n  const w = await window.api.stats.withOrWithout('ncaam', pid, null, 2026, { gameTypes: ['regular', 'playoffs'] })\n  return check('the team\\'s On/off tab, its units of five and with-or-without read the play-credited units, no reason', !bad(t) && !/Not built/.test(t) && u.reason === null && u.units.length > 0 && w.reason === null && w.teammates.length > 0, { units: u.units.length, teammates: w.teammates.length })\n})()"
+  },
+  {
+    "shot": "t1302g-05-ncaam-team-onoff"
   },
   {
     "eval": "(async () => {\n  const games = (await window.api.stats.games('ncaam', 2026)).filter((g) => g.homeScore !== null)\n  const g = games[Math.floor(games.length / 2)]\n  const f = await window.api.stats.gameFlow('ncaam', g.id)\n  const last = f.points?.[f.points.length - 1] ?? f.scoring?.[f.scoring.length - 1] ?? null\n  return check('a game\\'s flow reads, no reason', f.reason === null, { game: g.id, score: [g.homeScore, g.awayScore], keys: Object.keys(f), last })\n})()"
@@ -81,7 +87,13 @@
     "eval": "(async () => {\n  const a = await window.api.stats.assists('ncaaw', { entity: 'team', id: '238', seasons: [2026], scope: { gameTypes: ['regular', 'playoffs'] } })\n  return check('the team\\'s assist network reads, no reason', a.reason === null && (a.links?.length ?? a.pairs?.length ?? 0) > 0, { reason: a.reason, keys: Object.keys(a) })\n})()"
   },
   {
-    "eval": "(async () => {\n  await tab('Lineups')\n  await sleep(3500)\n  const t = main()\n  return check('the lineups still read stats.ncaa.org\\'s lineup file, its coverage stated (onCourtFrom: lineups)', !bad(t) && has('covers about 97 % of minutes'), t.slice(-300))\n})()"
+    "eval": "(async () => {\n  await tab('Lineups')\n  await sleep(3500)\n  const t = main()\n  const units = Number(t.match(/([0-9,]+) units/)?.[1]?.replace(/,/g, '') ?? 0)\n  return check('the lineups read the units credited play by play, their coverage stated and no lineup-file note (onCourtFrom: plays)', units > 0 && !bad(t) && has('every minute of a game is covered') && !has('covers about 97 % of minutes'), { units, text: t.slice(-300) })\n})()"
+  },
+  {
+    "eval": "(async () => {\n  await tab('On/off')\n  await sleep(3500)\n  const t = main()\n  const u = await window.api.stats.onCourtUnits('ncaaw', '238', 2026, { gameTypes: ['regular', 'playoffs'] }, 5)\n  const pid = (await window.api.stats.query('ncaaw', { entity: 'player', metrics: ['min'], scope: { seasons: [2026], teams: ['238'] }, limit: 1 })).rows[0].id\n  const w = await window.api.stats.withOrWithout('ncaaw', pid, null, 2026, { gameTypes: ['regular', 'playoffs'] })\n  return check('the team\\'s On/off tab, its units of five and with-or-without read the play-credited units, no reason', !bad(t) && !/Not built/.test(t) && u.reason === null && u.units.length > 0 && w.reason === null && w.teammates.length > 0, { units: u.units.length, teammates: w.teammates.length })\n})()"
+  },
+  {
+    "shot": "t1302g-05-ncaaw-team-onoff"
   },
   {
     "eval": "(async () => {\n  const games = (await window.api.stats.games('ncaaw', 2026)).filter((g) => g.homeScore !== null)\n  const g = games[Math.floor(games.length / 2)]\n  const f = await window.api.stats.gameFlow('ncaaw', g.id)\n  const last = f.points?.[f.points.length - 1] ?? f.scoring?.[f.scoring.length - 1] ?? null\n  return check('a game\\'s flow reads, no reason', f.reason === null, { game: g.id, score: [g.homeScore, g.awayScore], keys: Object.keys(f), last })\n})()"
