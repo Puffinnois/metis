@@ -9,6 +9,7 @@ import { leaderboardQualifier, leaderRuleWords } from '@/lib/stats/qualifying'
 import { inLeague } from '@/lib/stats/league'
 import { splitDefs } from '@/lib/stats/player'
 import { teamPoolQuery } from '@/lib/stats/team'
+import { MOMENTS, momentsIn } from '@/lib/stats/splits'
 import { METRICS, metricIn } from '@shared/stats/catalogue'
 import { defaultScope, seasonTypes, typeLabel, type StatsScope } from '@/lib/stats/scope'
 import { strengthNote, strengthQuery } from '@/lib/stats/standings'
@@ -50,6 +51,19 @@ describe('words a college screen must not take from the NBA (T1302.9)', () => {
     expect(zone).toBeDefined()
     expect(metricIn(zone!, LEAGUES.ncaaw).sources).toEqual(["stats.ncaa.org's shot file"])
     expect(metricIn(zone!, LEAGUES.nba).sources).toEqual(["The NBA's shot chart file"])
+  })
+
+  it('offers the men no quarter among the Moments, and names the play by play’s source', () => {
+    setLeague('ncaam')
+    const men = momentsIn().map((m) => m.label)
+    expect(men.some((l) => /quarter/.test(l))).toBe(false)
+    expect(men).toContain('2nd half')
+    setLeague('ncaaw')
+    expect(momentsIn()).toEqual(MOMENTS)
+    setLeague('nba')
+    expect(momentsIn()).toEqual(MOMENTS)
+    const play = [...METRICS.values()].find((m) => m.sources?.includes("The NBA's play by play"))
+    expect(metricIn(play!, LEAGUES.ncaam).sources).toEqual(["stats.ncaa.org's play by play"])
   })
 
   it('leaves out the All-Star break, which the colleges never have', () => {

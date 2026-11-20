@@ -1108,6 +1108,7 @@ const COLLEGE_WORDS: League['catalogueWords'] = [
   ["ESPN's box scores before them", "stats.ncaa.org's for the games ESPN has none of"],
   ["The NBA's box scores", "ESPN's box scores"],
   ["The NBA's shot chart file", "stats.ncaa.org's shot file"],
+  ["The NBA's play by play", "stats.ncaa.org's play by play"],
   [
     "ESPN's flag is the only source before 2017-18, and it is missing for some games, mostly in 2001-02, 2004-05 and 2005-06.",
     "ESPN's flag, so none for a game whose box score is stats.ncaa.org's."

@@ -292,7 +292,7 @@ The everyday boards are inside the 500 ms budget; four are over it (bold), as th
 | By opponent                              | 953        | 437       | 932          | 426         |
 | Every season by season: all players      | 639        | 222       | 640          | 216         |
 | Compare: a season of players, 23 rows    | 468        | 125       | 541          | 132         |
-| Compare: three players over every season | 392        | –         | 378          | –           |
+| Compare: three players over every season | 392        | 46        | 378          | 47          |
 | The slowest read of the script (worst)   | 1,432      | 454       | 1,121        | 440         |
 
 Medians in milliseconds, `scripts/engine-speed.mjs` on 2025-26; before on a copy of T1302.8's `t1302h-*` files with `main`'s code, after on copies of T1302.9's clean first loads (`gate-ncaam-full`, `gate-ncaaw-full`). **The results are unchanged**, checked on every query shape a screen asks (every metric each league has under four scopes, 46 boards of 11 or 40 columns under 23 scopes and transforms: 3,224 a league), run through `main`'s engine on `main`'s tables and through this one on the narrowed tables. Single-threaded, where DuckDB's order is fixed, the rows, values, ranks, percentiles and order are identical on every shape but the eight z-score and vs-league boards, whose league mean is summed in another order: at most 5.4 × 10⁻¹³ apart. On two threads, as the app runs, `main` itself gives different last digits and different orders of tied rows from one run to the next on 22 of the shapes that differed (sums of decimals and `mode()` ties in whatever order the threads meet them).
@@ -640,6 +640,17 @@ The published tables and the plays step's shots, units, on-court lines and lineu
 ### With the plays, measured (T1302.7)
 
 Rebuilt on copies of the T1302.6 files by the built worker's refresh: the men's file grew from 3,797,954,560 to 4,512,296,960 bytes (3.80 to 4.51 GB, +0.71 GB) and the women's from 3,561,762,816 to 4,197,199,872 (3.56 to 4.20 GB, +0.64 GB), in 8.9 and 7.8 minutes at 2.75 and 2.76 GB peak memory, with `play_lineup` kept. The new tables were 604 and 609 MB (about 0.12 GB a full season). **With `play_lineup` dropped after the build** (the manager's decision), rebuilt again from the T1302.6 files: 10.6 and 12.4 minutes (the machine shared with other work), 2.64 and 2.85 GB peak; the files are 4,507,054,080 and 4,202,967,040 bytes (4.51 and 4.20 GB), DuckDB keeping the dropped table's blocks free inside the file (blocks in use 4.32 and 4.09 GB, 108 and 102 MB fewer), to be filled as the current season grows. **The horizon:** a full season now adds about 0.85 GB of source tables and 0.25 GB of built ones; 2026-27 is about 15 % loaded, so April 2027 comes to about 5.4 GB (men) and 5.1 GB (women) with `play_lineup` kept, about 5.3 and 5.0 without it, and 6 GB during 2027-28, before T1302.8's models. No limit is raised here (D42's addition of 2026-11-19): T1302.9 puts the colleges' size against D22 after T1302.8 and brings the options with numbers.
+
+### Everything built, a first load through the app (T1302.9)
+
+Measured on 2026-11-20 on a clean profile through the app as a user loads it (`scripts/t1302i-first-load-steps.json`: the men from the first-run question, then the women turned on in the Data panel), every table built, the app's memory sampled every 2 seconds. The WSL clock jumped about 95 minutes forward during the men's load, so their time is from the app's process clock and the sampler, not the page's.
+
+| League | Files | Download | Time     | Of it, the files | File                      | Peak memory (main process / all) |
+| ------ | ----- | -------- | -------- | ---------------- | ------------------------- | -------------------------------- |
+| Men    | 184   | 804 MB   | 16.8 min | 7.0 min          | 4.41 GB (4,408,225,792 B) | 2.98 / 3.23 GB                   |
+| Women  | 183   | 753 MB   | 16.7 min | 6.8 min          | 4.18 GB (4,177,276,928 B) | 3.33 / 3.59 GB                   |
+
+Inside D22 (6 GB, an hour, 4 GB). By season, each table's blocks spread over its seasons by rows (`table-sizes.mjs`'s way of counting): men 782, 816, 829, 841 and 852 MB for 2021-22 to 2025-26 and 160 MB for 2026-27 so far; women 731, 774, 785, 793, 815 and 154 MB. A full season adds about 0.85 GB (men) and 0.82 GB (women), growing some 12 MB a year. The largest tables: stats.ncaa.org's raw play by play (`src_ncaa_pbp`) 2.0 and 1.9 GB, 45 % of each file (a 330 and 319 MB download for six seasons), its possessions 416 and 400 MB, `play_nba` 294 and 280 MB, the lineup file 209 and 204 MB, the stints 156 and 154 MB, its shots 124 and 115 MB, ESPN's shots 117 and 102 MB. **Projected:** men 5.1 GB and women 4.8 GB at the end of 2026-27, 6.0 and 5.7 GB at the end of 2027-28, so D22's 6 GB is reached by the men at the end of 2027-28 and by the women during 2028-29. The options are T1302.9's report to the manager; the limit is unchanged.
 
 ### Estimated, every season (before the owner's decision)
 

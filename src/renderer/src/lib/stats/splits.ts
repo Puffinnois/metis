@@ -58,6 +58,16 @@ export const MOMENTS: { value: string; label: string }[] = [
   ...SPLITS.map((s) => ({ value: s.id, label: s.label }))
 ]
 
+/**
+ * The Moments the league on screen offers: in a league always in halves (the NCAA men) no quarter,
+ * which has no answer there, as the Splits tabs leave them out (T1302.9).
+ */
+export function momentsIn(): { value: string; label: string }[] {
+  if (!inHalves()) return MOMENTS
+  const answers = new Set(SPLITS.filter((s) => splitAnswersIn(s, 2)).map((s) => s.id))
+  return MOMENTS.filter((m) => m.value === '' || answers.has(m.value))
+}
+
 /** A team's Splits tab: the ratings and the four factors, for and against. */
 export const TEAM_SPLIT_METRICS = [
   'team_pts',
