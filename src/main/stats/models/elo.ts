@@ -157,7 +157,9 @@ export function seasonStart<T>(
   last: ReadonlyMap<T, number>,
   teams: readonly T[],
   carry: number = ELO.carry,
-  mean: number = ELO.mean
+  mean: number = ELO.mean,
+  /** False where teams join and leave as schools (`LeagueModels.pairMoves`): none is paired. */
+  pairMoves = true
 ): Map<T, number> {
   const out = new Map<T, number>()
   const here = new Set(teams)
@@ -167,7 +169,7 @@ export function seasonStart<T>(
     const r = last.get(t)
     if (r !== undefined) out.set(t, regress(r, carry, mean))
   }
-  if (arrived.length === 1 && gone.length === 1) {
+  if (pairMoves && arrived.length === 1 && gone.length === 1) {
     out.set(arrived[0], regress(last.get(gone[0])!, carry, mean))
   }
   return out

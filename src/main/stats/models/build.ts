@@ -44,6 +44,12 @@ export interface ModelTable {
   /** The season types it has rows for; a scope with none of them reads `typesReason`. */
   gameTypes?: readonly GameType[]
   typesReason?: string
+  /**
+   * The types a league's rows hold, when they are not `gameTypes` (the college leagues rate every
+   * counted game, T1302.8), and the reason a scope outside them reads; `every`: the rows hold every
+   * counted game together, so a scope must name all of `types`. Null keeps `gameTypes`.
+   */
+  typesIn?: (league: League) => { types: readonly GameType[]; reason: string; every?: true } | null
 }
 
 export interface ModelContext {

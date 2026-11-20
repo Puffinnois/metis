@@ -165,7 +165,12 @@ async function rowsOf(
   const query: StatsQuery = {
     entity,
     metrics: withQualifier ? [...ids, QUALIFIER] : ids,
-    scope: { seasons, gameTypes: ['regular'] },
+    // The league's default scope: the regular season, or every counted game in the college leagues
+    // (D45), whose composites are read over every game together (T1302.8).
+    scope: {
+      seasons,
+      gameTypes: league.defaultType === 'counted' ? [...league.countedTypes] : ['regular']
+    },
     groupBy: ['season'],
     transform: transformOf(batch[0]),
     ranks: false

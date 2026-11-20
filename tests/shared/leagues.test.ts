@@ -235,9 +235,9 @@ describe('the college leagues (D38)', () => {
     expect(wnba.gamesRule).toEqual({ kind: 'scaled' })
   })
 
-  it('build every table but the models, and give their own reasons and sizes', () => {
+  it('build every table, their models with them, and give their own reasons and sizes', () => {
     for (const league of [men, women]) {
-      expect(league.builds).toEqual(['identity', 'derived', 'published', 'plays'])
+      expect(league.builds).toEqual(['identity', 'derived', 'published', 'plays', 'models'])
       expect(builds(league, 'identity')).toBe(true)
       expect([league.identity, league.derived, league.published, league.plays]).toEqual([
         'college',
@@ -266,11 +266,11 @@ describe('the college leagues (D38)', () => {
           'tracking'
         ].sort()
       )
-      expect(league.models).toBeNull()
+      expect(league.models?.everyGame).toBe(true)
       expect(league.metricsByDefault).toBe(false)
       expect(builds(league, 'derived')).toBe(true)
       expect(builds(league, 'published')).toBe(true)
-      expect(builds(league, 'models')).toBe(false)
+      expect(builds(league, 'models')).toBe(true)
       // Nothing before 2021-22 is loaded (D39); Division I teams alone are ranked (D40).
       expect([league.loadedWindow, league.divisionIOnly]).toEqual([true, true])
       expect(league.noData).toMatch(/^No NCAA (men|women)'s stats yet: turn NCAA (Men|Women) on/)

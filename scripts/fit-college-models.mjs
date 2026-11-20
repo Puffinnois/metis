@@ -171,10 +171,11 @@ function runElo(p, start = null) {
   for (const s of seasons) {
     const list = bySeason.get(s)
     const teams = [...new Set(list.flatMap((g) => [g.home, g.away]))]
+    played.clear()
     const begin =
       lastRatings === null
         ? new Map(teams.map((t) => [t, start?.get(t) ?? START]))
-        : M.seasonStart(lastRatings, teams, p.carry, START)
+        : M.seasonStart(lastRatings, teams, p.carry, START, false)
     // A team new to Division I this season enters at `newTeam`: never matched to a team gone, since
     // schools join and leave the division in the same season without being one another.
     if (lastRatings !== null) for (const t of teams) if (!begin.has(t)) begin.set(t, p.newTeam)
@@ -207,8 +208,8 @@ const logLossOf = (rows) => M.logLoss(rows.map((r) => ({ p: r.p, won: r.won })))
 const ELO_FROM = FIRST + 1
 
 const grid = []
-for (let k = 10; k <= 60; k += 2)
-  for (let h = 0; h <= 240; h += 10)
+for (let k = 10; k <= 100; k += 2)
+  for (let h = 0; h <= 200; h += 10)
     for (let c = 0.3; c <= 0.951; c += 0.05)
       grid.push({ k, homeCourt: h, carry: Math.round(c * 100) / 100, newTeam: 1300 })
 let best = null
@@ -218,7 +219,7 @@ for (const p of grid) {
   if (best === null || b < best.train) best = { ...p, train: b }
 }
 // Then a new Division I team's start, with the rest fitted.
-for (const n of [1200, 1250, 1300, 1350, 1400, 1450, 1500]) {
+for (const n of [1000, 1050, 1100, 1150, 1200, 1250, 1300, 1350, 1400, 1450, 1500]) {
   const p = { ...best, newTeam: n }
   const b = brierOf(scored(runElo(p).rows, ELO_FROM, SPLIT - 1))
   if (b < best.train) best = { ...p, train: b }
@@ -241,7 +242,7 @@ const runs = candidates.map((c) => ({ ...c, ...runElo(c.p) }))
 const fitted = runs[0]
 say('## 2. Elo', '')
 say(
-  `Every game between Division I teams, ${games.length} in all. Grid: K 10 to 60 by 2, home court 0 to 240 by 10, share kept 0.30 to 0.95 by 0.05 (${grid.length} runs), then a new Division I team's start 1200 to 1500 by 50 (${(gridMs / 1000).toFixed(0)} s); fitted on the Brier score of ${label(ELO_FROM)} to ${label(SPLIT - 1)} (${label(FIRST)} is the burn-in), scored on ${label(SPLIT)}.`,
+  `Every game between Division I teams, ${games.length} in all. Grid: K 10 to 100 by 2, home court 0 to 200 by 10, share kept 0.30 to 0.95 by 0.05 (${grid.length} runs), then a new Division I team's start 1000 to 1500 by 50 (${(gridMs / 1000).toFixed(0)} s); fitted on the Brier score of ${label(ELO_FROM)} to ${label(SPLIT - 1)} (${label(FIRST)} is the burn-in), scored on ${label(SPLIT)}.`,
   ''
 )
 const test = (r) => scored(r.rows, SPLIT, LAST)
@@ -253,7 +254,16 @@ const homeRows = trainRows.filter((r) => !r.neutral)
 const homeRate = homeRows.filter((r) => r.won).length / homeRows.length
 const baseline = (rows) => rows.map((r) => ({ p: r.neutral ? 0.5 : homeRate, won: r.won }))
 table(
-  ['Values', 'K', 'Home', 'Kept', 'New team', 'Brier, fitted', 'Brier, 2025-26', 'Log loss, 2025-26'],
+  [
+    'Values',
+    'K',
+    'Home',
+    'Kept',
+    'New team',
+    'Brier, fitted',
+    'Brier, 2025-26',
+    'Log loss, 2025-26'
+  ],
   runs.map((r) => [
     r.name,
     r.p.k,
@@ -288,7 +298,9 @@ for (const r of fitted.rows.filter((x) => x.season >= ELO_FROM && x.season < SPL
   sdd += r.edge * r.edge
 }
 const perPoint = sdd / sdm
-const resid = fitted.rows.filter((r) => r.season >= ELO_FROM).map((r) => r.margin - r.edge / perPoint)
+const resid = fitted.rows
+  .filter((r) => r.season >= ELO_FROM)
+  .map((r) => r.margin - r.edge / perPoint)
 const rmean = resid.reduce((s, x) => s + x, 0) / resid.length
 const marginSd = Math.sqrt(resid.reduce((s, x) => s + (x - rmean) ** 2, 0) / (resid.length - 1))
 say(
@@ -321,7 +333,13 @@ table(
   ['Season', 'Games', 'Brier', 'Log loss', 'Baseline log loss'],
   seasons.map((s) => {
     const rows = fitted.rows.filter((r) => r.season === s)
-    return [label(s), rows.length, f(brierOf(rows)), f(logLossOf(rows)), f(M.logLoss(baseline(rows)))]
+    return [
+      label(s),
+      rows.length,
+      f(brierOf(rows)),
+      f(logLossOf(rows)),
+      f(M.logLoss(baseline(rows)))
+    ]
   })
 )
 
@@ -335,20 +353,29 @@ const byBucket = (rows) => {
   return t
 }
 const firstB = byBucket(fitted.rows.filter((r) => r.season === FIRST))
-const laterLL = logLossOf(fitted.rows.filter((r) => r.season > FIRST && r.season < SPLIT))
-const laterBrier = brierOf(fitted.rows.filter((r) => r.season > FIRST && r.season < SPLIT))
+const laterB = byBucket(fitted.rows.filter((r) => r.season > FIRST && r.season < SPLIT))
 say(
-  `Burn-in by games played: ${label(FIRST)}'s games by the fewer games either team had played between Division I teams before it (every team at ${START} on its first), against ${label(ELO_FROM)} to ${label(SPLIT - 1)}'s whole seasons (log loss ${f(laterLL)}, Brier ${f(laterBrier)}):`,
+  `Burn-in by games played: each game by the fewer games either team had played between Division I teams earlier in its season, ${label(FIRST)} (every team at ${START} on its first game) against the same point of ${label(ELO_FROM)} to ${label(SPLIT - 1)} (ratings carried from the season before). The excess is ${label(FIRST)}'s log loss less the later seasons'; early-season games are lopsided home games against weak opponents in every season, so each is read against the same point of the later seasons, not against their whole:`,
   ''
 )
 table(
-  ['Games before', 'Games', 'Log loss', 'Brier', 'Baseline log loss'],
+  [
+    'Games before',
+    `Games, ${label(FIRST)}`,
+    `Log loss, ${label(FIRST)}`,
+    'Log loss, later',
+    'Excess',
+    `Brier, ${label(FIRST)}`,
+    'Brier, later'
+  ],
   firstB.map((rows, i) => [
     `${BUCKETS[i]}${BUCKETS[i + 1] ? `–${BUCKETS[i + 1] - 1}` : '+'}`,
     rows.length,
     f(logLossOf(rows)),
+    f(logLossOf(laterB[i])),
+    f(logLossOf(rows) - logLossOf(laterB[i])),
     f(brierOf(rows)),
-    f(M.logLoss(baseline(rows)))
+    f(brierOf(laterB[i]))
   ])
 )
 // From random starts of 1300 to 1700: the largest gap of a team's final rating each season.
@@ -384,7 +411,12 @@ table(
   seasons.map((s) => {
     const v = [...fitted.finals.get(s).values()]
     const mean = v.reduce((a, b) => a + b, 0) / v.length
-    return [label(s), v.length, f(Math.sqrt(v.reduce((a, b) => a + (b - mean) ** 2, 0) / v.length), 1), f(mean, 1)]
+    return [
+      label(s),
+      v.length,
+      f(Math.sqrt(v.reduce((a, b) => a + (b - mean) ** 2, 0) / v.length), 1),
+      f(mean, 1)
+    ]
   })
 )
 
@@ -396,9 +428,12 @@ const eff = await read(`
          strftime(date_trunc('week', g.game_date), '%Y-%m-%d') AS week,
          g.home_team_id AS home, g.away_team_id AS away, h.pts::DOUBLE AS "homePts",
          a.pts::DOUBLE AS "awayPts", h.poss_sym::DOUBLE AS poss, coalesce(g.neutral, false) AS neutral
-  ${D1_GAMES.replace('FROM game g', `FROM game g
+  ${D1_GAMES.replace(
+    'FROM game g',
+    `FROM game g
   JOIN t h ON h.game_id = g.game_id AND h.team_id = g.home_team_id
-  JOIN t a ON a.game_id = g.game_id AND a.team_id = g.away_team_id`)}
+  JOIN t a ON a.game_id = g.game_id AND a.team_id = g.away_team_id`
+  )}
     AND h.pts IS NOT NULL AND a.pts IS NOT NULL AND h.poss_sym > 0
   ORDER BY g.season, g.game_date, g.game_id`)
 for (const g of eff) {
@@ -441,21 +476,13 @@ for (const s of seasons) {
   PRIORS.forEach((lambda, j) => {
     const fit = M.fitAdjusted(list, lambda)
     for (const t of fit.off.keys()) {
-      pulls[j].sum += Math.abs(fit.off.get(t) - fit.def.get(t) - (none.off.get(t) - none.def.get(t)))
+      pulls[j].sum += Math.abs(
+        fit.off.get(t) - fit.def.get(t) - (none.off.get(t) - none.def.get(t))
+      )
       pulls[j].n++
     }
   })
   for (const p of none.poss.values()) possPerTeam.push(p)
-  // Split-half reliability: each team's odd games against its even ones (by the order of its own
-  // games), the correlation of the two fits' net ratings.
-  const seen = new Map()
-  const odd = []
-  const even = []
-  for (const g of list) {
-    const nh = seen.get(g.home) ?? 0
-    seen.set(g.home, nh + 1)
-    ;(nh % 2 === 0 ? odd : even).push(g)
-  }
   reliability.push([s, list])
 }
 const medianPoss = [...possPerTeam].sort((a, b) => a - b)[Math.floor(possPerTeam.length / 2)]
@@ -487,10 +514,19 @@ const pearson = (a, b) => {
   }
   return sab / Math.sqrt(saa * sbb)
 }
-say('Split-half reliability: the season\'s games alternately in two halves (by date), each fitted with no prior; the correlation of the two halves\' net ratings over the teams.', '')
+say(
+  "Split-half reliability: the season's games alternately in two halves (by date), each fitted with no prior; the correlation of the two halves' net ratings over the teams.",
+  ''
+)
 const halves = reliability.map(([s, list]) => {
-  const a = M.fitAdjusted(list.filter((_, i) => i % 2 === 0), 0.01)
-  const b = M.fitAdjusted(list.filter((_, i) => i % 2 === 1), 0.01)
+  const a = M.fitAdjusted(
+    list.filter((_, i) => i % 2 === 0),
+    0.01
+  )
+  const b = M.fitAdjusted(
+    list.filter((_, i) => i % 2 === 1),
+    0.01
+  )
   const teams = [...a.off.keys()].filter((t) => b.off.has(t))
   const na = teams.map((t) => a.off.get(t) - a.def.get(t))
   const nb = teams.map((t) => b.off.get(t) - b.def.get(t))
@@ -507,7 +543,9 @@ say('## 4. SRS spread', '')
 table(
   ['Season', 'Teams', 'SD of SRS'],
   seasons.map((s) => {
-    const r = M.srs(bySeason.get(s).map((g) => ({ date: g.date, home: g.home, away: g.away, margin: g.margin })))
+    const r = M.srs(
+      bySeason.get(s).map((g) => ({ date: g.date, home: g.home, away: g.away, margin: g.margin }))
+    )
     const v = [...r.values()].map((x) => x.srs)
     const m = v.reduce((a, b) => a + b, 0) / v.length
     return [label(s), v.length, f(Math.sqrt(v.reduce((a, b) => a + (b - m) ** 2, 0) / v.length), 2)]

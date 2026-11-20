@@ -441,7 +441,7 @@ function gapOf(
   )
   if (coverage !== null) return coverage
   if (q.scope.split !== undefined) return splitGap(m, q, transform, league)
-  if (m.model) return modelGap(m, q, grain, gameTypes)
+  if (m.model) return modelGap(m, q, grain, gameTypes, league)
   if (!m.published) return null
   if (grain === 'game') {
     // A game table answers every season type it holds; a divisor it lacks is still a gap.
@@ -474,10 +474,24 @@ function gapOf(
  * Why a model metric has no answer: a season type it is not computed for, a table of whole seasons
  * under a filter that splits one, or a rating as of a game over several seasons at once.
  */
-function modelGap(m: MetricDef, q: StatsQuery, grain: Grain, gameTypes: GameType[]): string | null {
+function modelGap(
+  m: MetricDef,
+  q: StatsQuery,
+  grain: Grain,
+  gameTypes: GameType[],
+  league: League
+): string | null {
   const t = modelTable(m.model)
   if (!t) return null
-  if (t.gameTypes && !gameTypes.some((x) => t.gameTypes?.includes(x))) {
+  // A league whose models rate other types than the table's own list (the college leagues' every
+  // counted game), or read only over every counted game together (their composites).
+  const own = t.typesIn?.(league)
+  if (own) {
+    const ok = own.every
+      ? own.types.every((x) => gameTypes.includes(x))
+      : gameTypes.some((x) => own.types.includes(x))
+    if (!ok) return own.reason
+  } else if (t.gameTypes && !gameTypes.some((x) => t.gameTypes?.includes(x))) {
     return t.typesReason ?? `Computed for ${t.gameTypes.join(', ')} games only.`
   }
   if (t.kind === 'sum' && t.grain === 'season' && grain === 'game') return COMPUTED_WHOLE_SEASONS

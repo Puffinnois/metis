@@ -2,6 +2,7 @@ import { vorpGamesIn } from '@shared/leagues'
 import { derivedRecipe } from '../derived/build'
 import type { ModelBuilder, ModelContext, ModelRows, ModelTable } from './build'
 import type { Box, TeamSeason } from './box'
+import { everyGameIn } from './divisionI'
 import { COMPOSITE_SUMS, seasonComposites, type CompositeLine } from './composites'
 import { TEAM_STRENGTH_TABLE } from './teamStrength'
 
@@ -39,7 +40,8 @@ export const COMPOSITE_TABLES: readonly ModelTable[] = [
     ],
     components: COMPOSITE_SUMS,
     gameTypes: COMPOSITE_TYPES,
-    typesReason: COMPOSITE_TYPES_REASON
+    typesReason: COMPOSITE_TYPES_REASON,
+    typesIn: everyGameIn
   },
   {
     table: TEAM_COMPOSITE,
@@ -49,7 +51,8 @@ export const COMPOSITE_TABLES: readonly ModelTable[] = [
     columns: [['season', 'INTEGER'], ['game_type', 'VARCHAR'], ['team_id', 'BIGINT'], ...values],
     components: COMPOSITE_SUMS,
     gameTypes: COMPOSITE_TYPES,
-    typesReason: COMPOSITE_TYPES_REASON
+    typesReason: COMPOSITE_TYPES_REASON,
+    typesIn: everyGameIn
   }
 ]
 
@@ -135,6 +138,7 @@ async function teamSeasons(
 ): Promise<Map<number, TeamSeason>> {
   const own = COUNTS.map((c) => `coalesce(s.${c}, 0)::DOUBLE AS ${c}`)
   const opp = COUNTS.map((c) => `coalesce(s.opp_${c}, 0)::DOUBLE AS o_${c}`)
+  const together = togetherTypes(ctx)
   const rows = await ctx.db.all<Row>(
     `WITH tt AS MATERIALIZED (${teamTurnovers(ctx)}),
      turnovers AS (
@@ -143,15 +147,15 @@ async function teamSeasons(
        FROM team_game t
        LEFT JOIN tt a ON a.game_id = t.game_id AND a.team_id = t.team_id
        LEFT JOIN tt b ON b.game_id = t.game_id AND b.team_id = t.opponent_id
-       WHERE t.season = ? AND t.game_type = ? AND t.box_games = 1
+       WHERE t.season = ? AND ${typeIs('t', together)} AND t.box_games = 1
        GROUP BY 1
      )
      SELECT s.team_id, s.box_games AS games, coalesce(s.minutes, 0)::DOUBLE AS mp,
             ${own.join(', ')}, ${opp.join(', ')},
             coalesce(x.team_tov, 0) AS team_tov, coalesce(x.opp_team_tov, 0) AS opp_team_tov
-     FROM team_season s LEFT JOIN turnovers x USING (team_id)
+     FROM ${together ? togetherSeasons(together, ctx.season) : 'team_season'} s LEFT JOIN turnovers x USING (team_id)
      WHERE s.season = ? AND s.game_type = ? AND s.box_games > 0`,
-    [ctx.season, gameType, ctx.season, gameType]
+    together ? [ctx.season, ctx.season, gameType] : [ctx.season, gameType, ctx.season, gameType]
   )
   const teams = new Map<number, TeamSeason>()
   for (const r of rows) {
@@ -166,15 +170,46 @@ async function teamSeasons(
   return teams
 }
 
+/**
+ * A league whose composites are computed over every counted game together (`LeagueModels.everyGame`,
+ * the college leagues): those types; null for a league that computes each type apart.
+ */
+function togetherTypes(ctx: ModelContext): readonly string[] | null {
+  return ctx.league.models?.everyGame ? ctx.league.countedTypes : null
+}
+
+/** A type condition on a table aliased `a`: one type as a parameter, or the league's counted types. */
+const typeIs = (a: string, together: readonly string[] | null): string =>
+  together
+    ? `${a}.game_type IN (${together.map((t) => `'${t}'`).join(', ')})`
+    : `${a}.game_type = ?`
+
+/**
+ * The Division I teams' seasons over every counted game, added up and stored under the regular season:
+ * the league a college composite is measured against, as Sports Reference's college pages use the
+ * division's totals. A team outside Division I (one to three games a season) is no part of it.
+ */
+function togetherSeasons(types: readonly string[], season: number): string {
+  const sums = ['box_games', 'minutes', ...COUNTS, ...COUNTS.map((c) => `opp_${c}`)]
+    .map((c) => `sum(${c}) AS ${c}`)
+    .join(', ')
+  return `(SELECT team_id, season, 'regular' AS game_type, ${sums}
+      FROM team_season
+      WHERE season = ${Math.trunc(season)} AND game_type IN (${types.map((t) => `'${t}'`).join(', ')})
+        AND team_id IN (SELECT team_id FROM team WHERE season = ${Math.trunc(season)} AND division_i)
+      GROUP BY team_id, season)`
+}
+
 /** Every player's line with each team, from the same box-score games. */
 async function playerLines(ctx: ModelContext, gameType: string): Promise<CompositeLine[]> {
   const sums = COUNTS.map((c) => `coalesce(sum(${c}), 0)::DOUBLE AS ${c}`)
+  const together = togetherTypes(ctx)
   const rows = await ctx.db.all<Row>(
     `SELECT player_id, team_id, mode(position) AS position, sum(minutes)::DOUBLE AS mp,
             ${sums.join(', ')}
-     FROM player_game WHERE season = ? AND game_type = ?
+     FROM player_game WHERE season = ? AND ${together ? typeIs('player_game', together) : 'game_type = ?'}
      GROUP BY 1, 2 HAVING sum(minutes) > 0`,
-    [ctx.season, gameType]
+    together ? [ctx.season] : [ctx.season, gameType]
   )
   return rows.map((r) => ({
     playerId: Number(r.player_id),
@@ -203,9 +238,9 @@ async function schedule(ctx: ModelContext, gameType: string): Promise<Map<number
      )
      SELECT t.team_id, avg(f.srs) AS sos
      FROM team_game t JOIN final f ON f.team_id = t.opponent_id
-     WHERE t.season = ? AND t.game_type = ? AND t.box_games = 1
+     WHERE t.season = ? AND ${typeIs('t', togetherTypes(ctx))} AND t.box_games = 1
      GROUP BY 1`,
-    [ctx.season, ctx.season, gameType]
+    togetherTypes(ctx) ? [ctx.season, ctx.season] : [ctx.season, ctx.season, gameType]
   )
   return new Map(rows.map((r) => [Number(r.team_id), Number(r.sos)]))
 }
@@ -215,7 +250,8 @@ const finite = (x: number): number | null => (Number.isFinite(x) ? x : null)
 async function build(ctx: ModelContext): Promise<ModelRows> {
   const players: Record<string, unknown>[] = []
   const teams: Record<string, unknown>[] = []
-  for (const gameType of COMPOSITE_TYPES) {
+  // Over every counted game together, under the regular season, where the league says so.
+  for (const gameType of togetherTypes(ctx) ? (['regular'] as const) : COMPOSITE_TYPES) {
     const seasons = await teamSeasons(ctx, gameType)
     if (seasons.size === 0) continue
     const result = seasonComposites(

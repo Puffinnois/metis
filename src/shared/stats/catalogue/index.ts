@@ -1,3 +1,4 @@
+import { LEAGUES } from '../../leagues'
 import type { MetricDef } from '../types'
 import { BOX_COMPOSITES } from './boxComposites'
 import { COMPOSITE } from './composite'
@@ -72,8 +73,10 @@ export function componentsOf(
 for (const m of CATALOGUE) {
   const leagues = { ...m.leagues }
   if (leagues.wnba === undefined) leagues.wnba = wnbaCoverage(m, componentsOf(m))
-  if (leagues.ncaam === undefined) leagues.ncaam = collegeCoverage(m, componentsOf(m))
-  if (leagues.ncaaw === undefined) leagues.ncaaw = collegeCoverage(m, componentsOf(m))
+  if (leagues.ncaam === undefined)
+    leagues.ncaam = collegeCoverage(m, componentsOf(m), LEAGUES.ncaam)
+  if (leagues.ncaaw === undefined)
+    leagues.ncaaw = collegeCoverage(m, componentsOf(m), LEAGUES.ncaaw)
   m.leagues = leagues
 }
 
