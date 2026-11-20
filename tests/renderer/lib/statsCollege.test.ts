@@ -2,7 +2,8 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { gamesToQualify, perGameQualifier } from '@/lib/stats/boards'
 import { defaultDay, eloView, noBoxNote } from '@/lib/stats/games'
 import { setLeague } from '@/lib/stats/league'
-import { lineupGap } from '@/lib/stats/lineups'
+import { lineupGap, lineupNotes } from '@/lib/stats/lineups'
+import { DERIVED_NOTE, derivedNote, unitsNote } from '@/lib/stats/onCourt'
 import { typeTag } from '@/lib/stats/player'
 import { leaderboardQualifier } from '@/lib/stats/qualifying'
 import { defaultScope, seasonTypes, typeLabel, type StatsScope } from '@/lib/stats/scope'
@@ -122,6 +123,35 @@ describe('season types in the college leagues (D45)', () => {
     expect(lineupGap(scope)).toBe(
       'The NBA publishes the regular season and the playoffs apart: pick one.'
     )
+  })
+
+  it('says on screen what the lineup file covers, in place of the NBA’s notes (T1302.6, policy 4)', () => {
+    const scope: StatsScope = { season: 2026, seasonType: 'regular', range: { kind: 'season' } }
+    for (const id of ['ncaam', 'ncaaw'] as const) {
+      setLeague(id)
+      const note = LEAGUES[id].onCourtNote ?? ''
+      expect(note).toMatch(
+        /covers about 97 % of minutes and is short by a minute or more in about four team-games of ten/
+      )
+      expect(derivedNote()).toBe(note)
+      expect(unitsNote()).toBe(
+        'Every unit of five distinct players the lineup file knows, from 2021-22.'
+      )
+      expect(lineupNotes(scope, null, 'raw')).toEqual([note])
+      expect(lineupNotes(scope, null, 'per100')).toEqual([
+        note,
+        'Per 100 divides by the possessions the lineup file counts.'
+      ])
+    }
+    // The NBA's and the WNBA's notes as they were.
+    for (const id of ['nba', 'wnba'] as const) {
+      setLeague(id)
+      expect(derivedNote()).toBe(DERIVED_NOTE)
+      expect(unitsNote()).toBe(
+        'Every unit of five distinct players the lineups know, in every season from 1996-97.'
+      )
+      expect(lineupNotes(scope, null, 'raw')[0]).toMatch(/2,000 units/)
+    }
   })
 })
 

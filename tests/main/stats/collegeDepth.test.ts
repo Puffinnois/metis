@@ -19,7 +19,7 @@ import { LEFT_OUT_REASON, leftOutGap } from '@main/stats/leftOut'
 import { readOfficialsSeason } from '@main/stats/officialsReads'
 import { readShotChart } from '@main/stats/shotReads'
 import { NCAA_STATS_RELEASES } from '@main/stats/sources'
-import { LEAGUES, threePointLineIn, type League } from '@shared/leagues'
+import { COLLEGE_LINEUP_COVERAGE, LEAGUES, threePointLineIn, type League } from '@shared/leagues'
 import { EVERY_GAME_ONLY, METRICS, metricIn, playTablesNotBuilt } from '@shared/stats/catalogue'
 import { LINEUP_STORED } from '@shared/stats/lineups'
 import { openTestDb } from '../../fixtures/stats'
@@ -204,7 +204,7 @@ describe('shots', () => {
         (
           await one(
             m,
-            `SELECT ${zoneSql(String(x), String(y), value === null ? 'NULL' : String(value), { arc: '221.5', corner: '210' }, lane)} AS z`
+            `SELECT ${zoneSql(String(x), String(y), value === null ? 'NULL' : String(value), { arc: '221.5', corner: '216.5' }, lane)} AS z`
           )
         ).z
       )
@@ -215,11 +215,13 @@ describe('shots', () => {
     // A published three counts as one however near the line: the corner reads from the value.
     expect(await zone(212, 20, 3, 60)).toBe('c3r')
     expect(await zone(-212, 20, 3, 60)).toBe('c3l')
-    // With no value, the league's line decides: 21 feet in the corner (measured, T1302.6).
-    expect(await zone(212, 20, null, 60)).toBe('c3r')
-    expect(await zone(205, 20, null, 60)).toBe('mid')
-    expect(threePointLineIn(men, 2026)).toEqual({ from: 2022, arc: 221.5, corner: 210 })
-    expect(threePointLineIn(women, 2026)).toEqual({ from: 2022, arc: 221.5, corner: 210 })
+    // The line is the rule's, 21 feet 7⅞ inches in the corner; it decides only a shot with no value,
+    // which no college shot is: a corner three charted inside it stays a three.
+    expect(await zone(212, 20, 3, 60)).toBe('c3r')
+    expect(await zone(212, 20, null, 60)).toBe('mid')
+    expect(await zone(218, 20, null, 60)).toBe('c3r')
+    expect(threePointLineIn(men, 2026)).toEqual({ from: 2022, arc: 221.5, corner: 216.5 })
+    expect(threePointLineIn(women, 2026)).toEqual({ from: 2022, arc: 221.5, corner: 216.5 })
   })
 
   it('read on a player’s chart with zones that add up to the shot tables', async () => {
@@ -493,6 +495,26 @@ describe('reasons', () => {
       // The NBA and the WNBA have none of the college models.
       expect(metricIn(METRICS.get('sdv_adj_em')!, LEAGUES.nba).unavailable).toBeDefined()
     }
+  })
+
+  it('state on every on-court metric what the lineup file covers (policy 4)', async () => {
+    for (const league of [men, women]) {
+      const onc = metricIn(METRICS.get('onc_min')!, league)
+      expect(onc.description).toMatch(/covers about 97 % of minutes/)
+      expect(onc.sources).toEqual(["stats.ncaa.org's lineup file (SportsDataverse's release)"])
+      expect(onc.seasonNotes?.[0].note).toBe(COLLEGE_LINEUP_COVERAGE)
+      expect(onc.seasonNotes?.[0].seasons).toContain(2022)
+    }
+    const r = await runQuery(
+      m,
+      { entity: 'player', metrics: ['onc_min'], scope: { seasons: [2026] } },
+      { league: men, currentSeason: 2027 }
+    )
+    expect(r.notes.some((n) => n.includes(COLLEGE_LINEUP_COVERAGE))).toBe(true)
+    // The NBA's on-court metrics read as before.
+    const nba = metricIn(METRICS.get('onc_min')!, LEAGUES.nba)
+    expect(nba.seasonNotes).toBeUndefined()
+    expect(nba.description).not.toMatch(/lineup file/)
   })
 
   it('read the play by play’s tables and splits as not built yet', async () => {

@@ -169,6 +169,14 @@ export function lineupNotes(
   mode: BoardMode
 ): string[] {
   const notes: string[] = []
+  // A league whose units are built from a lineup file, not published dashboards (the colleges'):
+  // what the file covers, and nothing of the NBA's 2,000-unit lists.
+  const own = currentLeague().onCourtNote
+  if (own) {
+    notes.push(own)
+    if (mode === 'per100') notes.push('Per 100 divides by the possessions the lineup file counts.')
+    return notes
+  }
   if (scope.seasonType === 'regular') {
     notes.push(
       floorMinutes === null

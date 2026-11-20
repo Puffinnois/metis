@@ -27,7 +27,7 @@
     "eval": "(async () => {\n  const c = await window.api.stats.shots('ncaam', { entity: 'player', id: (await window.api.stats.query('ncaam', { entity: 'player', metrics: ['pts'], transform: 'perGame', scope: { seasons: [2026], qualifiedOnly: true }, limit: 1 })).rows[0].id, seasons: [2026], scope: { gameTypes: ['regular', 'playoffs'] } })\n  const sum = c.zones.reduce((s, z) => s + z.fga, 0)\n  return check('its zones add up to the shots, no reason', c.reason === null && c.total > 0 && sum === c.total, { total: c.total, sum, reason: c.reason })\n})()"
   },
   {
-    "eval": "(async () => {\n  await tab('On/off')\n  await sleep(2500)\n  const t = main()\n  return check('the On/off tab reads stats.ncaa.org\\'s lineups', /on the floor/i.test(t) && !bad(t) && !/Not built/.test(t), t.slice(0, 300))\n})()"
+    "eval": "(async () => {\n  await tab('On/off')\n  await sleep(2500)\n  const t = main()\n  return check('the On/off tab reads stats.ncaa.org\\'s lineups and says what the file covers', /on the floor/i.test(t) && !bad(t) && !/Not built/.test(t) && has('covers about 97 % of minutes'), t.slice(-400))\n})()"
   },
   {
     "shot": "t1302f-02-ncaam-onoff"
@@ -36,7 +36,7 @@
     "eval": "(async () => {\n  const offered = [...document.querySelectorAll('[role=tab], button')].map((x) => x.textContent.trim())\n  const c = await window.api.stats.catalogue('ncaam')\n  const why = (f) => [...new Set(c.filter((x) => x.family === f && x.entity === 'player').map((x) => x.unavailable))]\n  const ok = !offered.includes('Tracking') && !offered.includes('Matchups') && why('tracking').length === 1 && /^Not published for college basketball: no release holds player tracking/.test(why('tracking')[0]) && /^Not published for college basketball: no release holds matchups/.test(why('matchups')[0] ?? '')\n  return check('no Tracking or Matchups tab is offered; their metrics give the reason (D44)', ok, { tracking: why('tracking'), matchups: why('matchups') })\n})()"
   },
   {
-    "eval": "(async () => {\n  await nav('Teams')\n  await chooseSelect('Season', 2026)\n  const o = await openTeam('252')\n  await tab('Lineups')\n  await sleep(3500)\n  const t = main()\n  const units = Number(t.match(/([0-9,]+) units/)?.[1]?.replace(/,/g, '') ?? 0)\n  return check('the team\\'s lineups read stats.ncaa.org\\'s five-player units', units > 0 && !bad(t), { o, units, text: t.slice(0, 200) })\n})()"
+    "eval": "(async () => {\n  await nav('Teams')\n  await chooseSelect('Season', 2026)\n  const o = await openTeam('252')\n  await tab('Lineups')\n  await sleep(3500)\n  const t = main()\n  const units = Number(t.match(/([0-9,]+) units/)?.[1]?.replace(/,/g, '') ?? 0)\n  return check('the team\\'s lineups read stats.ncaa.org\\'s five-player units, the lineup file coverage stated and no NBA note', units > 0 && !bad(t) && has('covers about 97 % of minutes') && !has('2,000 units'), { o, units, text: t.slice(-300) })\n})()"
   },
   {
     "shot": "t1302f-03-ncaam-lineups"
@@ -78,7 +78,7 @@
     "eval": "(async () => {\n  const c = await window.api.stats.shots('ncaaw', { entity: 'player', id: (await window.api.stats.query('ncaaw', { entity: 'player', metrics: ['pts'], transform: 'perGame', scope: { seasons: [2026], qualifiedOnly: true }, limit: 1 })).rows[0].id, seasons: [2026], scope: { gameTypes: ['regular', 'playoffs'] } })\n  const sum = c.zones.reduce((s, z) => s + z.fga, 0)\n  return check('its zones add up to the shots, no reason', c.reason === null && c.total > 0 && sum === c.total, { total: c.total, sum, reason: c.reason })\n})()"
   },
   {
-    "eval": "(async () => {\n  await tab('On/off')\n  await sleep(2500)\n  const t = main()\n  return check('the On/off tab reads stats.ncaa.org\\'s lineups', /on the floor/i.test(t) && !bad(t) && !/Not built/.test(t), t.slice(0, 300))\n})()"
+    "eval": "(async () => {\n  await tab('On/off')\n  await sleep(2500)\n  const t = main()\n  return check('the On/off tab reads stats.ncaa.org\\'s lineups and says what the file covers', /on the floor/i.test(t) && !bad(t) && !/Not built/.test(t) && has('covers about 97 % of minutes'), t.slice(-400))\n})()"
   },
   {
     "shot": "t1302f-02-ncaaw-onoff"
@@ -87,7 +87,7 @@
     "eval": "(async () => {\n  const offered = [...document.querySelectorAll('[role=tab], button')].map((x) => x.textContent.trim())\n  const c = await window.api.stats.catalogue('ncaaw')\n  const why = (f) => [...new Set(c.filter((x) => x.family === f && x.entity === 'player').map((x) => x.unavailable))]\n  const ok = !offered.includes('Tracking') && !offered.includes('Matchups') && why('tracking').length === 1 && /^Not published for college basketball: no release holds player tracking/.test(why('tracking')[0]) && /^Not published for college basketball: no release holds matchups/.test(why('matchups')[0] ?? '')\n  return check('no Tracking or Matchups tab is offered; their metrics give the reason (D44)', ok, { tracking: why('tracking'), matchups: why('matchups') })\n})()"
   },
   {
-    "eval": "(async () => {\n  await nav('Teams')\n  await chooseSelect('Season', 2026)\n  const o = await openTeam('238')\n  await tab('Lineups')\n  await sleep(3500)\n  const t = main()\n  const units = Number(t.match(/([0-9,]+) units/)?.[1]?.replace(/,/g, '') ?? 0)\n  return check('the team\\'s lineups read stats.ncaa.org\\'s five-player units', units > 0 && !bad(t), { o, units, text: t.slice(0, 200) })\n})()"
+    "eval": "(async () => {\n  await nav('Teams')\n  await chooseSelect('Season', 2026)\n  const o = await openTeam('238')\n  await tab('Lineups')\n  await sleep(3500)\n  const t = main()\n  const units = Number(t.match(/([0-9,]+) units/)?.[1]?.replace(/,/g, '') ?? 0)\n  return check('the team\\'s lineups read stats.ncaa.org\\'s five-player units, the lineup file coverage stated and no NBA note', units > 0 && !bad(t) && has('covers about 97 % of minutes') && !has('2,000 units'), { o, units, text: t.slice(-300) })\n})()"
   },
   {
     "shot": "t1302f-03-ncaaw-lineups"

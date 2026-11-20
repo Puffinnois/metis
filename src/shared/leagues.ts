@@ -425,6 +425,12 @@ export interface League {
    * NBA's 16 feet (`COURT.laneHalfWidth` in `stats/shots.ts`): the paint zone and the chart read it.
    */
   laneHalfWidth?: number
+  /**
+   * Where the league's on-court, lineup and unit numbers come from and how much of the game they
+   * cover, where it is not the NBA's play by play (the college leagues' lineup file, policy 4): the
+   * on-court screens and the lineups tab state it in place of the NBA's notes.
+   */
+  onCourtNote?: string
   /** The three-point line by era, oldest first (`threePointLineIn`). */
   threePointLines: readonly ThreePointLine[]
   /** The first season of the league's published five-player units (the lineup dashboards). */
@@ -904,7 +910,23 @@ const NCAA_FIRST_SEASON = 2022
  * stats.ncaa.org's fill the games ESPN lacks (D40), and the NBA's eras and published figures do not
  * apply. A phrase naming the NBA's formula (the Four Factors "as the NBA counts them", PIE) stays.
  */
+/**
+ * The college leagues' on-court numbers come from stats.ncaa.org's lineup file, which loses time
+ * (T1302.6, measured on every season of both leagues: about 97 % of minutes, a team-game short by a
+ * minute or more in about four of ten), so their totals run under the box score's. Said on screen.
+ */
+export const COLLEGE_LINEUP_COVERAGE =
+  "stats.ncaa.org's lineup file covers about 97 % of minutes and is short by a minute or more in about four team-games of ten, so on-court totals run under the box score."
+
 const COLLEGE_WORDS: League['catalogueWords'] = [
+  [
+    "SportsDataverse's lineups and possessions, from the NBA's play by play",
+    "stats.ncaa.org's lineup file (SportsDataverse's release)"
+  ],
+  [
+    'Derived from the play by play, not official.',
+    `Derived from stats.ncaa.org's lineup file, not official: it covers about 97 % of minutes and is short by a minute or more in about four team-games of ten, so on-court totals run under the box score.`
+  ],
   ["The NBA's box scores from 1996-97", "ESPN's box scores"],
   ["ESPN's box scores before them", "stats.ncaa.org's for the games ESPN has none of"],
   ["The NBA's box scores", "ESPN's box scores"],
@@ -1014,12 +1036,15 @@ const college = (
   playTables: false,
   // The college lane is 12 feet wide, for men and women alike (the NBA's is 16).
   laneHalfWidth: 60,
-  // 6.75 metres (22 feet 1.75 inches) at the arc for both across D39's seasons (D38). Measured on
-  // stats.ncaa.org's located shots of every season, men and women (T1302.6, `ncaa-data-sources.md`,
-  // "Shots"): twos reach 22.15 feet and threes begin at 22.26 above the corners; in the corners twos
-  // reach 20.5 feet across and threes begin at 21.0, not FIBA's 6.6 metres (21.65 feet), which 1 % of
-  // corner threes fall inside. The chart draws the line where the data put it.
-  threePointLines: [{ from: NCAA_FIRST_SEASON, arc: 221.5, corner: 210 }],
+  // Who was on the floor, from stats.ncaa.org's lineup file, and how much of the game it covers.
+  onCourtNote: `Who was on the floor, and the counts while they were, are stats.ncaa.org's lineup file (SportsDataverse's release). ${COLLEGE_LINEUP_COVERAGE} Derived, not official.`,
+  // The rule for both across D39's seasons (D38): "22 feet, 1¾ inches on the perimeter and 21 feet, 7⅞
+  // inches in the corners" (the women's playing rules, `w_basketball_RB_PlayingRules.txt` line
+  // 427-428; the men's rules history, line 1299-1300), FIBA's 6.75 and 6.6 metres. The court is drawn
+  // to it. A college shot's value and zone are the file's own `point_value`, never this line
+  // (`zoneSql` reads the value first; every shot has one): its charted corner threes scatter inside
+  // the corner line on 1.0 to 1.7 % (T1302.6, `ncaa-data-sources.md`, "Shots").
+  threePointLines: [{ from: NCAA_FIRST_SEASON, arc: 221.5, corner: 216.5 }],
   // Within the window, stats.ncaa.org's lineups and located shots and ESPN's standings cover every
   // season (D39, D40).
   lineupsFrom: NCAA_FIRST_SEASON,

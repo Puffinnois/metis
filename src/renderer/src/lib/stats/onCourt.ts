@@ -22,6 +22,15 @@ export const ON_COURT_FIRST_SEASON = 1997
 export const DERIVED_NOTE =
   'Counted from the play by play: who was on the floor is SportsDataverse’s lineup of each play, and the possessions are its count. Derived, not official.'
 
+/** What the on-court numbers are and what they cover: the league's own note where it has one. */
+export const derivedNote = (): string => currentLeague().onCourtNote ?? DERIVED_NOTE
+
+/** What the units of five are drawn from, in the league on screen. */
+export const unitsNote = (): string =>
+  currentLeague().onCourtNote
+    ? `Every unit of five distinct players the lineup file knows, from ${seasonLabel(currentLeague().firstSeason)}.`
+    : 'Every unit of five distinct players the lineups know, in every season from 1996-97.'
+
 /** Why a season cannot be answered; null when it can. */
 export function onCourtGap(scope: StatsScope): string | null {
   return scope.season < ON_COURT_FIRST_SEASON
