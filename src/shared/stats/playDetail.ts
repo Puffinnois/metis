@@ -26,6 +26,11 @@ export interface PlayKind {
   label: string
   /** The feed's spellings, every era's, exactly as published (trimmed). */
   subtypes: readonly string[]
+  /**
+   * stats.ncaa.org's spellings for the college leagues (`ncaa-data-sources.md`, "Plays"): its
+   * `turnover_type`, and for a foul the class the college play table keeps (`collegePbp.ts`).
+   */
+  ncaa?: readonly string[]
 }
 
 /**
@@ -39,12 +44,14 @@ export const TURNOVER_KINDS: readonly PlayKind[] = [
   {
     key: 'bad_pass',
     label: 'Bad pass',
-    subtypes: ['Bad Pass', 'Out of Bounds - Bad Pass Turnover', 'Stolen Pass Turnover']
+    subtypes: ['Bad Pass', 'Out of Bounds - Bad Pass Turnover', 'Stolen Pass Turnover'],
+    ncaa: ['badpass']
   },
   {
     key: 'lost_ball',
     label: 'Lost ball',
-    subtypes: ['Lost Ball', 'Out of Bounds Lost Ball Turnover', 'Poss Lost Ball Turnover']
+    subtypes: ['Lost Ball', 'Out of Bounds Lost Ball Turnover', 'Poss Lost Ball Turnover'],
+    ncaa: ['lostball']
   },
   {
     key: 'off_foul',
@@ -55,10 +62,16 @@ export const TURNOVER_KINDS: readonly PlayKind[] = [
       'Illegal Screen Turnover',
       'Illegal Pick',
       'Swinging Elbows Turnover'
-    ]
+    ],
+    ncaa: ['offensive']
   },
-  { key: 'travel', label: 'Traveling', subtypes: ['Traveling'] },
-  { key: 'shot_clock', label: 'Shot clock', subtypes: ['Shot Clock Turnover'] },
+  { key: 'travel', label: 'Traveling', subtypes: ['Traveling'], ncaa: ['travel'] },
+  {
+    key: 'shot_clock',
+    label: 'Shot clock',
+    subtypes: ['Shot Clock Turnover'],
+    ncaa: ['shotclock']
+  },
   {
     key: 'out_of_bounds',
     label: 'Stepped out of bounds',
@@ -66,7 +79,8 @@ export const TURNOVER_KINDS: readonly PlayKind[] = [
       'Step Out of Bounds Turnover',
       'Out Of Bounds',
       'Player Out of Bounds Violation Turnover'
-    ]
+    ],
+    ncaa: ['outofbounds']
   },
   {
     key: 'violation',
@@ -95,7 +109,8 @@ export const TURNOVER_KINDS: readonly PlayKind[] = [
       'Opposite Basket Turnover',
       'Double Personal Turnover',
       'Post Up Turnover'
-    ]
+    ],
+    ncaa: ['3sec', '5sec', '10sec', 'dribbling', 'laneviolation', 'offensivegoaltending']
   },
   { key: 'other', label: 'Other', subtypes: [] }
 ]
@@ -106,7 +121,12 @@ export const TURNOVER_KINDS: readonly PlayKind[] = [
  * with their kind: on a shooter, shooting; else non-shooting.
  */
 export const FOUL_KINDS: readonly PlayKind[] = [
-  { key: 'shooting', label: 'Shooting', subtypes: ['Shooting', 'Shooting Block'] },
+  {
+    key: 'shooting',
+    label: 'Shooting',
+    subtypes: ['Shooting', 'Shooting Block'],
+    ncaa: ['shooting']
+  },
   {
     key: 'personal',
     label: 'Non-shooting',
@@ -118,10 +138,16 @@ export const FOUL_KINDS: readonly PlayKind[] = [
       'Inbound',
       'Elbow',
       'Punching'
-    ]
+    ],
+    ncaa: ['personal']
   },
-  { key: 'offensive', label: 'Offensive', subtypes: ['Offensive', 'Offensive Charge'] },
-  { key: 'loose_ball', label: 'Loose ball', subtypes: ['Loose Ball'] },
+  {
+    key: 'offensive',
+    label: 'Offensive',
+    subtypes: ['Offensive', 'Offensive Charge'],
+    ncaa: ['offensive']
+  },
+  { key: 'loose_ball', label: 'Loose ball', subtypes: ['Loose Ball'], ncaa: ['looseball'] },
   { key: 'take', label: 'Take', subtypes: ['Personal Take'] },
   { key: 'transition_take', label: 'Transition take', subtypes: ['Transition Take'] },
   { key: 'clear_path', label: 'Clear path', subtypes: ['Clear Path'] },
@@ -147,6 +173,23 @@ export const TECHNICAL_SUBTYPES: readonly string[] = [
   'Bench'
 ]
 export const DEFENSE_THREE_SECONDS = 'Defense 3 Second'
+
+/**
+ * The college play table's technical fouls (`collegePbp.ts`): a player's technical, counted in PF as the
+ * box score counts it, and the administrative technicals on a coach or the bench, which it does not.
+ */
+export const NCAA_TECHNICAL_SUBTYPES: readonly string[] = [
+  'technical',
+  'technical flagrant',
+  'adminTechnical',
+  'adminTechnical flagrant'
+]
+
+/** The college play table's shooting fouls, flagrant ones among them. */
+export const NCAA_SHOOTING_FOULS: readonly string[] = ['shooting', 'shooting flagrant']
+
+/** stats.ncaa.org's free-throw numbering: "1of1" after a make, "1of2" and "1of3" a trip's first. */
+export const NCAA_FREE_THROWS = { andOne: '1of1', two: '1of2', three: '1of3' } as const
 
 /** ESPN's shooting fouls, blocking fouls on a shooter among them. */
 export const ESPN_SHOOTING_FOUL_TYPES: readonly string[] = ['Shooting Foul', 'Shooting Block']

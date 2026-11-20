@@ -5,6 +5,9 @@ import {
   ESPN_DRAWN_FOUL_TYPES,
   ESPN_SHOOTING_FOUL_TYPES,
   FOUL_KINDS,
+  NCAA_FREE_THROWS,
+  NCAA_SHOOTING_FOULS,
+  NCAA_TECHNICAL_SUBTYPES,
   TECHNICAL_SUBTYPES,
   TRIP_FREE_THROWS,
   TURNOVER_KINDS,
@@ -38,13 +41,59 @@ export const PLAY_DETAIL_TEAM_GAME = 'play_team_game'
 const list = (xs: readonly string[]): string =>
   xs.map((x) => `'${x.replaceAll("'", "''")}'`).join(', ')
 
-/** `subtype`'s kind, in SQL, as `kindOf` gives it. */
-export function kindSql(kinds: readonly PlayKind[], subtype = 'subtype'): string {
+/**
+ * `subtype`'s kind, in SQL, as `kindOf` gives it: by the NBA's spellings, or stats.ncaa.org's where
+ * the play table is the college leagues' (`spellings` `ncaa`).
+ */
+export function kindSql(
+  kinds: readonly PlayKind[],
+  subtype = 'subtype',
+  spellings: 'subtypes' | 'ncaa' = 'subtypes'
+): string {
   const whens = kinds
-    .filter((k) => k.subtypes.length > 0)
-    .map((k) => `WHEN trim(${subtype}) IN (${list(k.subtypes)}) THEN '${k.key}'`)
+    .filter((k) => (k[spellings] ?? []).length > 0)
+    .map((k) => `WHEN trim(${subtype}) IN (${list(k[spellings] ?? [])}) THEN '${k.key}'`)
   return `CASE ${whens.join(' ')} ELSE 'other' END`
 }
+
+/**
+ * How a league's play table spells what the counts read: the NBA's feed (the WNBA's is the same), or
+ * stats.ncaa.org's in the college play table (`collegePbp.ts`), whose fouls drawn are its own rows.
+ */
+interface Spellings {
+  kinds: 'subtypes' | 'ncaa'
+  technicals: readonly string[]
+  defense3: string
+  andOneFreeThrow: string
+  shootingFouls: readonly string[]
+  trips: { two: string; three: string }
+  /** Fouls drawn: ESPN's play by play, or the play table's own "Draw Foul" rows. */
+  drawn: 'espn' | 'plays'
+}
+
+const NBA_SPELLINGS: Spellings = {
+  kinds: 'subtypes',
+  technicals: TECHNICAL_SUBTYPES,
+  defense3: DEFENSE_THREE_SECONDS,
+  andOneFreeThrow: AND_ONE_FREE_THROW,
+  shootingFouls: AND_ONE_FOULS,
+  trips: TRIP_FREE_THROWS,
+  drawn: 'espn'
+}
+
+const COLLEGE_SPELLINGS: Spellings = {
+  kinds: 'ncaa',
+  technicals: NCAA_TECHNICAL_SUBTYPES,
+  // The college feed records no defensive three seconds: the catalogue gives the reason.
+  defense3: DEFENSE_THREE_SECONDS,
+  andOneFreeThrow: NCAA_FREE_THROWS.andOne,
+  shootingFouls: NCAA_SHOOTING_FOULS,
+  trips: { two: NCAA_FREE_THROWS.two, three: NCAA_FREE_THROWS.three },
+  drawn: 'plays'
+}
+
+const spellingsOf = (league?: League): Spellings =>
+  league && playsRecipe(league).builders === 'college' ? COLLEGE_SPELLINGS : NBA_SPELLINGS
 
 /** Each counted thing: its column, and the condition on a row of `play_nba` (or on its scorer). */
 interface Count {
@@ -54,10 +103,8 @@ interface Count {
   when: string
 }
 
-const SHOOTING = list(AND_ONE_FOULS)
-
 /** Counts of the acting player, in the order the tables hold them. */
-const ACTOR: Count[] = [
+const actorCounts = (sp: Spellings): Count[] => [
   { name: 'tov', to: 'actor', when: 'tov = 1' },
   { name: 'tov_live', to: 'actor', when: 'tov = 1 AND steal_id IS NOT NULL' },
   { name: 'tov_dead', to: 'actor', when: 'tov = 1 AND steal_id IS NULL' },
@@ -75,12 +122,12 @@ const ACTOR: Count[] = [
   {
     name: 'tech',
     to: 'actor',
-    when: `kind = 'foul' AND trim(subtype) IN (${list(TECHNICAL_SUBTYPES)})`
+    when: `kind = 'foul' AND trim(subtype) IN (${list(sp.technicals)})`
   },
   {
     name: 'def3',
     to: 'actor',
-    when: `kind = 'foul' AND trim(subtype) = '${DEFENSE_THREE_SECONDS}'`
+    when: `kind = 'foul' AND trim(subtype) = '${sp.defense3}'`
   },
   { name: 'ejections', to: 'actor', when: "kind = 'ejection'" },
   { name: 'made2_ast', to: 'actor', when: 'fgm = 1 AND fg3m = 0 AND ast = 1' },
@@ -92,12 +139,12 @@ const ACTOR: Count[] = [
   {
     name: 'ft_trip2',
     to: 'actor',
-    when: `kind = 'free_throw' AND trim(subtype) = '${TRIP_FREE_THROWS.two}'`
+    when: `kind = 'free_throw' AND trim(subtype) = '${sp.trips.two}'`
   },
   {
     name: 'ft_trip3',
     to: 'actor',
-    when: `kind = 'free_throw' AND trim(subtype) = '${TRIP_FREE_THROWS.three}'`
+    when: `kind = 'free_throw' AND trim(subtype) = '${sp.trips.three}'`
   },
   {
     name: 'goaltend',
@@ -106,6 +153,7 @@ const ACTOR: Count[] = [
   },
   { name: 'kicked', to: 'actor', when: "kind = 'violation' AND trim(subtype) = 'Kicked Ball'" }
 ]
+const ACTOR = actorCounts(NBA_SPELLINGS)
 
 /** Counts of the passer: assists on twos and on threes, so assist points are 2 and 3 of them. */
 const PASSER: Count[] = [
@@ -196,19 +244,23 @@ const sumOf = (c: Count): string => `coalesce(sum((${c.when})::INTEGER), 0)::UTI
  * The season's plays, each with its turnover and foul kind and whether it is an and-one's free throw.
  * A play table with no rows (a season before the feed) gives no rows.
  */
-function playsCte(season: number): string {
+function playsCte(season: number, sp: Spellings = NBA_SPELLINGS): string {
   const p = PLAY_TABLES.nba
+  const kinds =
+    sp.kinds === 'subtypes'
+      ? `${kindSql(TURNOVER_KINDS)} AS tkind, ${kindSql(FOUL_KINDS)} AS fkind`
+      : `${kindSql(TURNOVER_KINDS, 'subtype', 'ncaa')} AS tkind, ${kindSql(FOUL_KINDS, 'subtype', 'ncaa')} AS fkind`
   return `p AS (
-    SELECT *, ${kindSql(TURNOVER_KINDS)} AS tkind, ${kindSql(FOUL_KINDS)} AS fkind
+    SELECT *, ${kinds}
     FROM ${p} WHERE season = ${season}
   ), shot_fouls AS (
     SELECT DISTINCT game_id, period, clock, team_id FROM p
-    WHERE kind = 'foul' AND trim(subtype) IN (${SHOOTING})
+    WHERE kind = 'foul' AND trim(subtype) IN (${list(sp.shootingFouls)})
   ), makes AS (
     SELECT DISTINCT game_id, period, clock, player_id FROM p WHERE fgm = 1
   ), plays AS (
     SELECT p.*,
-           (p.kind = 'free_throw' AND trim(p.subtype) = '${AND_ONE_FREE_THROW}'
+           (p.kind = 'free_throw' AND trim(p.subtype) = '${sp.andOneFreeThrow}'
             AND m.player_id IS NOT NULL AND f.team_id IS NOT NULL) AS and_one
     FROM p
     LEFT JOIN makes m ON m.game_id = p.game_id AND m.period = p.period AND m.clock = p.clock
@@ -223,6 +275,7 @@ function playsCte(season: number): string {
  * one their box-score line names. What ESPN lacks reads no rows.
  */
 function drawnCte(have: Have, season: number, league?: League): string {
+  if (spellingsOf(league).drawn === 'plays') return collegeDrawnCte()
   const t = 'src_espn_pbp'
   const c = (name: string, type = 'BIGINT'): string => column(have, t, 'e', name, type)
   if (!['player_ids', 'player_game'].every((x) => have.tables.has(x)) || !have.tables.has(t)) {
@@ -244,14 +297,37 @@ function drawnCte(have: Have, season: number, league?: League): string {
   )`
 }
 
+/**
+ * The college play table's fouls drawn: each "Draw Foul" row (the fouled player, `collegePbp.ts`) with
+ * the foul by the other team at the same moment nearest it in the play order, a shooting foul read as
+ * ESPN's "Shooting Foul" and any other personal foul as its "Personal Foul", so the counts read the same
+ * rule; a technical drawn is not a personal foul and is left out.
+ */
+const collegeDrawnCte = (): string => `drawn AS (
+    SELECT game_id, player_id, team_id,
+           CASE WHEN trim(coalesce(subtype, '')) IN (${list(NCAA_SHOOTING_FOULS)}) THEN 'Shooting Foul'
+                ELSE 'Personal Foul' END AS type_text
+    FROM (
+      SELECT d.game_id, d.player_id, d.team_id, f.subtype,
+             row_number() OVER (PARTITION BY d.game_id, d.seq ORDER BY abs(d.seq - f.seq), f.seq) AS pick
+      FROM p d LEFT JOIN p f
+        ON f.game_id = d.game_id AND f.period = d.period AND f.clock = d.clock
+       AND f.kind = 'foul' AND f.team_id IS DISTINCT FROM d.team_id
+      WHERE d.kind = 'other' AND d.action = 'Draw Foul' AND d.player_id IS NOT NULL
+    )
+    WHERE pick = 1 AND trim(coalesce(subtype, '')) NOT IN (${list(NCAA_TECHNICAL_SUBTYPES)})
+  )`
+
 /** One season's player-game rows. */
 export function playDetailPlayerSql(have: Have, season: number, league?: League): string {
+  const sp = spellingsOf(league)
+  const ACTOR = actorCounts(sp)
   const actor = ACTOR.map(sumOf).join(',\n           ')
   const passer = PASSER.map(sumOf).join(',\n           ')
   const drawn = DRAWN.map(sumOf).join(',\n           ')
   const zero = (cs: Count[]): string => cs.map((x) => `0::UTINYINT AS ${x.name}`).join(', ')
   const all = PLAY_DETAIL_COUNTS.map((n) => `sum(${n})::UTINYINT AS ${n}`).join(', ')
-  return `WITH ${playsCte(season)}, ${drawnCte(have, season, league)},
+  return `WITH ${playsCte(season, sp)}, ${drawnCte(have, season, league)},
   credits AS (
     SELECT game_id, player_id, any_value(team_id) AS team_id, ${actor}, ${zero(PASSER)}, ${zero(DRAWN)}
     FROM plays WHERE player_id IS NOT NULL GROUP BY 1, 2
@@ -358,6 +434,8 @@ const ds = (seconds: string): string => `round(10 * (${seconds}))::INTEGER`
 
 /** One season's team-game rows, each with the other team's side as `opp_*`. */
 export function playDetailTeamSql(have: Have, season: number, league: League): string {
+  const sp = spellingsOf(league)
+  const ACTOR = actorCounts(sp)
   const actor = ACTOR.map(sumOf).join(',\n           ')
   const drawn = DRAWN.map(sumOf).join(',\n           ')
   const flow = [
@@ -373,7 +451,7 @@ export function playDetailTeamSql(have: Have, season: number, league: League): s
     '1::UTINYINT AS flow_games'
   ]
   const opp = [...TEAM_COUNTS, ...FLOW_SIDED].map((n) => `o.${n} AS opp_${n}`)
-  return `WITH ${playsCte(season)}, ${drawnCte(have, season, league)}, ${flowCte(league)},
+  return `WITH ${playsCte(season, sp)}, ${drawnCte(have, season, league)}, ${flowCte(league)},
   own AS (
     SELECT game_id, team_id, ${actor},
            coalesce(sum((tov = 1 AND player_id IS NULL)::INTEGER), 0)::UTINYINT AS tov_team

@@ -9,6 +9,7 @@ import {
 } from '@shared/stats/splits'
 import type { PlayBuilder } from './playBuilders'
 import { BOX_COUNTS } from './game'
+import { collegePossessionsCte, collegeSegmentsCte, collegeStintsCte } from './collegePbp'
 import { possessionsSql } from './events'
 import { playsRecipe } from './playsRecipe'
 import { column, per, type Have } from './sql'
@@ -203,7 +204,12 @@ const bare = (name: string): string =>
 
 // ---- The season's rows ------------------------------------------------------------------------
 
-const timedBy = (have: Have, league: League): boolean => tenOf(have, league) !== null
+/** The college leagues' plays name the ten on every row (`play_lineup`), beside the play table. */
+const college = (league?: League): boolean =>
+  league !== undefined && playsRecipe(league).builders === 'college'
+
+const timedBy = (have: Have, league: League): boolean =>
+  college(league) ? have.tables.has(playsRecipe(league).pbp) : tenOf(have, league) !== null
 
 /** The season's plays, with the margin before and after each, from the home side. */
 const playsCte = (season: number): string => `split_plays AS (
@@ -387,7 +393,11 @@ const credits = (regulation: number): string => `credits AS (
 export function splitTeamSelect(have: Have, season: number, league?: League): string {
   const regulation = league ? periodsIn(league, season).periods : 4
   const margin = 'CASE WHEN x.home THEN p.mh_before ELSE -p.mh_before END'
-  return `WITH ${playsCte(season)}, ${SEGMENTS}, ${possessionsCte(have, season, league)}, ${credits(regulation)},
+  const poss = college(league)
+    ? collegePossessionsCte(season)
+    : possessionsCte(have, season, league)
+  const segments = league && college(league) ? collegeSegmentsCte(season, league) : SEGMENTS
+  return `WITH ${playsCte(season)}, ${segments}, ${poss}, ${credits(regulation)},
   counts AS (
     SELECT game_id, team AS team_id, split, ${countsOf()} FROM tagged GROUP BY 1, 2, 3
   ), sides AS (
@@ -432,7 +442,11 @@ export function splitTeamSelect(have: Have, season: number, league?: League): st
 export function splitPlayerSelect(have: Have, season: number, league: League): string {
   const timed = timedBy(have, league)
   const regulation = periodsIn(league, season).periods
-  return `WITH ${playsCte(season)}, ${SEGMENTS}, ${stintsCtes(have, season, league)}, ${credits(regulation)},
+  const stints = college(league)
+    ? collegeStintsCte(season, league)
+    : stintsCtes(have, season, league)
+  const segments = college(league) ? collegeSegmentsCte(season, league) : SEGMENTS
+  return `WITH ${playsCte(season)}, ${segments}, ${stints}, ${credits(regulation)},
   counts AS (
     SELECT game_id, team AS team_id, player AS player_id, split, ${countsOf()}
     FROM tagged WHERE player IS NOT NULL GROUP BY 1, 2, 3, 4

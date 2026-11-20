@@ -1,9 +1,23 @@
-import type { League } from '@shared/leagues'
+import { leagueOf, type League } from '@shared/leagues'
 import type { StatsDb } from '../db'
-import { COLLEGE_SHOT_KEY_BUILDER, COLLEGE_UNIT_BUILDERS, collegeEventsSql } from './collegePlays'
+import { COLLEGE_PBP_BUILDERS, collegePlayUnitsSql, onCourtTables } from './collegePbp'
+import {
+  COLLEGE_LINEUPS_BUILDER,
+  COLLEGE_SHOT_KEY_BUILDER,
+  collegeEventsSql,
+  collegePlayerOnCourtFrom,
+  collegeUnitGameSql
+} from './collegePlays'
 import { eventsSql } from './events'
 import { PLAY_DETAIL_BUILDERS } from './playDetail'
-import { ON_COURT_BUILDERS } from './onCourt'
+import {
+  ON_COURT_BUILDERS,
+  PLAYER_ON_COURT,
+  PLAYER_ON_COURT_COLUMNS,
+  playerOnCourtFrom,
+  UNIT_GAME,
+  UNIT_GAME_COLUMNS
+} from './onCourt'
 import { espnPlaysViewSql, nbaPlaysSql, PLAY_COLUMNS, PLAY_TABLES, playsViewSql } from './plays'
 import { NBA_PLAYS, playsRecipe } from './playsRecipe'
 import { SHOT_BUILDERS } from './shots'
@@ -60,21 +74,66 @@ export const PLAY_BUILDERS: PlayBuilder[] = [
   ...PLAY_DETAIL_BUILDERS
 ]
 
+const UNIT_ORDER = 'game_id, team_id, p1, p2, p3, p4, p5'
+const PLAYER_ORDER = 'game_id, team_id, player_id'
+
 /**
- * The college leagues' builders (`PlaysRecipe.builders`): each shot's team and shooter (`shot_key`), the
- * shot tables from stats.ncaa.org's shots,
- * then the units, player on-court lines and the lineups tab from its lineup file. The play table, the
- * splits and the play-derived counts read its play by play, and come with T1302.7.
+ * The college leagues' builders (`PlaysRecipe.builders`), one list for both, by where their on-court
+ * screens read from (`League.onCourtFrom`): each shot's team and shooter (`shot_key`) and the shot
+ * tables from stats.ncaa.org's shots; the ten on the floor at each play (`play_lineup`) and the play
+ * table from its play by play (`collegePbp.ts`); the splits; the units and player-games from its lineup
+ * file and, beside them, credited play by play (`onCourtTables` names which one the screens read); the
+ * lineups tab from the units read; and the play-derived counts and game flow.
  */
-export const COLLEGE_PLAY_BUILDERS: PlayBuilder[] = [
-  COLLEGE_SHOT_KEY_BUILDER,
-  ...SHOT_BUILDERS,
-  ...COLLEGE_UNIT_BUILDERS
-]
+function collegePlayBuilders(league: League): PlayBuilder[] {
+  const lineups = onCourtTables(league, 'lineups')
+  const plays = onCourtTables(league, 'plays')
+  return [
+    COLLEGE_SHOT_KEY_BUILDER,
+    ...SHOT_BUILDERS,
+    ...COLLEGE_PBP_BUILDERS,
+    ...SPLIT_BUILDERS,
+    {
+      table: lineups.units,
+      columns: UNIT_GAME_COLUMNS,
+      select: collegeUnitGameSql,
+      order: UNIT_ORDER
+    },
+    {
+      table: plays.units,
+      columns: UNIT_GAME_COLUMNS,
+      select: collegePlayUnitsSql,
+      order: UNIT_ORDER
+    },
+    {
+      table: lineups.players,
+      columns: PLAYER_ON_COURT_COLUMNS,
+      select: collegePlayerOnCourtFrom(lineups.units),
+      order: PLAYER_ORDER
+    },
+    {
+      table: plays.players,
+      columns: PLAYER_ON_COURT_COLUMNS,
+      select: playerOnCourtFrom(plays.units),
+      order: PLAYER_ORDER
+    },
+    COLLEGE_LINEUPS_BUILDER,
+    ...PLAY_DETAIL_BUILDERS
+  ]
+}
+
+/** The college leagues' builders with the on-court screens on the lineup file, as both read today. */
+export const COLLEGE_PLAY_BUILDERS: readonly PlayBuilder[] = collegePlayBuilders(leagueOf('ncaam'))
+const COLLEGE_ON_PLAYS: readonly PlayBuilder[] = collegePlayBuilders({
+  ...leagueOf('ncaam'),
+  onCourtFrom: 'plays'
+})
 
 /** The builders a league's plays step runs, in order. */
-export const playBuildersOf = (league?: League): readonly PlayBuilder[] =>
-  league && playsRecipe(league).builders === 'college' ? COLLEGE_PLAY_BUILDERS : PLAY_BUILDERS
+export const playBuildersOf = (league?: League): readonly PlayBuilder[] => {
+  if (!league || playsRecipe(league).builders !== 'college') return PLAY_BUILDERS
+  return league.onCourtFrom === 'plays' ? COLLEGE_ON_PLAYS : COLLEGE_PLAY_BUILDERS
+}
 
 /**
  * The NBA recipe's version. Each league's recipe keeps its own (`playsRecipe(league).version`): bump
@@ -181,8 +240,16 @@ export async function buildPlays(db: StatsDb, league: League): Promise<number> {
     await db.exec(`DROP TABLE ${PLAY_TABLES.espn}`)
     await checkpoint(db)
   }
-  // The college leagues load no ESPN play by play (D42), and their own plays come with T1302.7.
+  // The college leagues load no ESPN play by play (D42): their `play_espn` stays the empty view.
   if (!college) await db.exec(espnPlaysViewSql(have, league))
+  // The on-court source the screens no longer read under its own name, left from before a switch.
+  if (college) {
+    for (const source of ['lineups', 'plays'] as const) {
+      if (onCourtTables(league, source).units !== UNIT_GAME) continue
+      await db.exec(`DROP TABLE IF EXISTS ${UNIT_GAME}_${source}`)
+      await db.exec(`DROP TABLE IF EXISTS ${PLAYER_ON_COURT}_${source}`)
+    }
+  }
   for (const b of builders) {
     if (!(await shaped(db, b))) {
       await db.exec(
@@ -211,6 +278,7 @@ export async function buildPlays(db: StatsDb, league: League): Promise<number> {
     }
   }
   if (college) {
+    await db.exec(playsViewSql(league))
     for (const sql of collegeEventsSql(have, league)) await db.exec(sql)
   } else {
     await db.exec(playsViewSql(league))

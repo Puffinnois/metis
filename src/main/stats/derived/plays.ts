@@ -140,10 +140,10 @@ const bare = (name: string): string =>
 const sourceSeason = (have: Have, table: string, alias: string, season: number): string =>
   have.columns.get(table)?.has('season') ? `${alias}.season = ${season}` : 'true'
 
-const flag = (cond: string): string => `coalesce((${cond})::UTINYINT, 0)`
+export const flag = (cond: string): string => `coalesce((${cond})::UTINYINT, 0)`
 
 /** The final SELECT both sources share: the columns in order, with the flags worked out. */
-function finalColumns(flags: Record<PlayFlag, string>): string {
+export function finalColumns(flags: Record<PlayFlag, string>): string {
   return PLAY_COLUMNS.map(([name, type]) =>
     name in flags ? `${flags[name as PlayFlag]}::${type} AS ${name}` : `${name}::${type} AS ${name}`
   ).join(',\n         ')

@@ -431,6 +431,15 @@ export interface League {
    * on-court screens and the lineups tab state it in place of the NBA's notes.
    */
   onCourtNote?: string
+  /**
+   * Where the college leagues' on-court screens, units and lineups tab read who was on the floor:
+   * stats.ncaa.org's lineup file, or the ten its play by play names at each play, credited play by play
+   * as the NBA's are. Both are built; the other is kept beside it under its own name
+   * (`unit_game_plays` or `unit_game_lineups`, `onCourtTables` in `derived/collegePbp.ts`), so changing
+   * this one setting is the switch, and the next refresh rebuilds the tables. Absent where the league
+   * has the NBA's single source.
+   */
+  onCourtFrom?: 'lineups' | 'plays'
   /** The three-point line by era, oldest first (`threePointLineIn`). */
   threePointLines: readonly ThreePointLine[]
   /** The first season of the league's published five-player units (the lineup dashboards). */
@@ -1007,8 +1016,8 @@ const college = (
   seasonShape: { opponents: 24, months: 5 },
   statsFile: `stats-${league.id}.duckdb`,
   // The game, team and player tables (T1302.4), the game and season tables (T1302.5), the published
-  // tables and the shots, lineups and officials of the plays step (T1302.6); the play by play's own
-  // tables come with T1302.7 (`playTables`), the models with T1302.8.
+  // tables and the shots, lineups and officials of the plays step (T1302.6), and the play by play's own
+  // tables (T1302.7); the models come with T1302.8.
   builds: ['identity', 'derived', 'published', 'plays'],
   // The families no release publishes (D44, `ncaa-data-sources.md`, "Tables"), each with its reason.
   unpublished: {
@@ -1033,7 +1042,8 @@ const college = (
   published: 'college',
   // stats.ncaa.org's located shots, lineups, stints and possessions, ESPN's shots and officials (D40).
   plays: 'college',
-  playTables: false,
+  // Who was on the floor: stats.ncaa.org's lineup file, the play-credited units beside it (T1302.7).
+  onCourtFrom: 'lineups',
   // The college lane is 12 feet wide, for men and women alike (the NBA's is 16).
   laneHalfWidth: 60,
   // Who was on the floor, from stats.ncaa.org's lineup file, and how much of the game it covers.
