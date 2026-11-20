@@ -61,6 +61,19 @@ export function splitPiecesIn(s: SplitDef, regulation: number): SplitPiece[] {
   return s.halves ?? []
 }
 
+/**
+ * A split's rule in the league's words: in a league played in two halves every season (the NCAA men,
+ * D38) the halves are halves, not quarters added up, and the 4th quarter's rules read the 2nd half.
+ */
+export function splitRuleIn(s: SplitDef, halvesOnly: boolean): string {
+  if (!halvesOnly) return s.rule
+  if (s.id === 'h1') return 'The first half.'
+  if (s.id === 'h2') return 'The second half, without overtime.'
+  return s.rule
+    .replaceAll('the 4th quarter', 'the 2nd half')
+    .replaceAll('The 4th quarter', 'The 2nd half')
+}
+
 /** Whether a split has an answer in a season with `regulation` periods: no quarters in halves. */
 export const splitAnswersIn = (s: SplitDef, regulation: number): boolean =>
   splitPiecesIn(s, regulation).length > 0

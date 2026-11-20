@@ -28,7 +28,7 @@ export const derivedNote = (): string => currentLeague().onCourtNote ?? DERIVED_
 /** What the units of five are drawn from, in the league on screen. */
 export const unitsNote = (): string =>
   currentLeague().onCourtNote
-    ? `Every unit of five distinct players the lineup file knows, from ${seasonLabel(currentLeague().firstSeason)}.`
+    ? `Every unit of five distinct players the ${currentLeague().onCourtFrom === 'plays' ? 'play by play names on the floor' : 'lineup file knows'}, from ${seasonLabel(currentLeague().firstSeason)}.`
     : 'Every unit of five distinct players the lineups know, in every season from 1996-97.'
 
 /** Why a season cannot be answered; null when it can. */

@@ -1,6 +1,6 @@
 import { currentLeague, seasonLabel } from '@/lib/stats/league'
 import { halvesNote } from '@shared/leagues'
-import { SPLIT_GROUPS, SPLITS, SPLITS_FIRST_SEASON } from '@shared/stats/splits'
+import { splitAnswersIn, SPLIT_GROUPS, SPLITS, SPLITS_FIRST_SEASON } from '@shared/stats/splits'
 import type { BoardMode, StatsQuery, StatsResult, StatsSeason } from '@shared/stats/types'
 import { splitDefs, splitNotes, type SplitDef } from './player'
 import { queryScope, type StatsScope } from './scope'
@@ -10,15 +10,28 @@ import { queryScope, type StatsScope } from './scope'
  * dashboards' Splits tabs and the leaderboards' Moments control show them.
  */
 
+/** A league played in two halves in every season (the NCAA men, D38), whose rules read the halves. */
+const inHalves = (): boolean => currentLeague().periods.every((e) => e.name === 'half')
+
+/** A group's title and rule in such a league's words: its second half, not a 4th quarter. */
+const byHalf = (text: string): string =>
+  text
+    .replace('By quarter', 'By half')
+    .replaceAll('the 4th quarter', 'the 2nd half')
+    .replaceAll('The 4th quarter', 'The 2nd half')
+
 /** One row per split, grouped as `SPLIT_GROUPS` orders them, each group with its rule. */
 export function playSplitDefs(): SplitDef[] {
+  // No quarter has an answer there: they are not listed, nor queried.
+  const halves = inHalves()
+  const words = halves ? byHalf : (t: string): string => t
   return SPLIT_GROUPS.flatMap(({ group, title, note }) =>
-    SPLITS.filter((s) => s.group === group).map((s) => ({
+    SPLITS.filter((s) => s.group === group && (!halves || splitAnswersIn(s, 2))).map((s) => ({
       key: `play-${s.id}`,
-      group: title,
+      group: words(title),
       label: s.label,
       patch: { split: s.id },
-      note
+      note: words(note)
     }))
   )
 }
@@ -31,9 +44,10 @@ export function playSplitNotes(scope: StatsScope): string[] {
     ]
   }
   const league = currentLeague()
-  const halves = halvesNote(league, [scope.season])
+  // A league in halves every season says so in its rules already (`playSplitDefs`).
+  const halves = inHalves() ? null : halvesNote(league, [scope.season])
   return [
-    `Quarters, clutch, the score, the last minutes and garbage time are counted from the ${league.name}'s play by play. Plus-minus is not.`,
+    `${inHalves() ? 'Halves' : 'Quarters'}, clutch, the score, the last minutes and garbage time are counted from the ${league.name}'s play by play. Plus-minus is not.`,
     ...(halves ? [halves] : [])
   ]
 }

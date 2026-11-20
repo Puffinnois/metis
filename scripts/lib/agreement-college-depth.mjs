@@ -212,9 +212,9 @@ export async function collegeDepthAgreement(league, read, out, query) {
       SELECT game_id, team_id, sum(secs) AS secs, sum(pts)::INTEGER AS pts, sum(opp_pts)::INTEGER AS opp_pts,
              sum(fga)::INTEGER AS fga, sum(poss)::INTEGER AS poss,
              sum(secs) FILTER (WHERE NOT complete) AS partial
-      FROM unit_game GROUP BY 1, 2),
+      FROM unit_game_lineups GROUP BY 1, 2),
     p AS (SELECT game_id, team_id, sum(secs) FILTER (WHERE player_id < 0) AS fallback, sum(secs) AS secs
-          FROM (SELECT game_id, team_id, secs, unnest([p1, p2, p3, p4, p5]) AS player_id FROM unit_game)
+          FROM (SELECT game_id, team_id, secs, unnest([p1, p2, p3, p4, p5]) AS player_id FROM unit_game_lineups)
           GROUP BY 1, 2)
     SELECT t.season, count(*)::INTEGER AS sides, count(u.game_id)::INTEGER AS with_units,
       count(*) FILTER (WHERE abs(u.secs - (2400 + 300 * g.overtimes)) <= 60)::INTEGER AS minutes_near,
@@ -236,7 +236,7 @@ export async function collegeDepthAgreement(league, read, out, query) {
     '',
     '### Units on the floor against the box score',
     '',
-    "stats.ncaa.org's lineup file, each row a team's stint with five players, summed per team-game (`unit_game`): its minutes against the game's (40 and five an overtime), its points for and against and field-goal attempts against ESPN's team box, its possessions against stats.ncaa.org's team box within 2. Share of seconds with fewer than five known players, and of player-seconds on D28's keys (players no row of `ncaa_player_ids` names).",
+    "stats.ncaa.org's lineup file, each row a team's stint with five players, summed per team-game (`unit_game_lineups` since T1302.7, `unit_game` before): its minutes against the game's (40 and five an overtime), its points for and against and field-goal attempts against ESPN's team box, its possessions against stats.ncaa.org's team box within 2. Share of seconds with fewer than five known players, and of player-seconds on D28's keys (players no row of `ncaa_player_ids` names).",
     '',
     table(
       [
@@ -276,11 +276,11 @@ export async function collegeDepthAgreement(league, read, out, query) {
       count(*) FILTER (WHERE abs(o.minutes * 60 - b.seconds) <= 60)::INTEGER AS minute,
       count(*) FILTER (WHERE abs(o.minutes * 60 - b.seconds) <= 5)::INTEGER AS close,
       sum(o.minutes) / (sum(b.seconds) FILTER (WHERE b.player_id IS NOT NULL) / 60.0) AS ratio
-    FROM player_on_court o LEFT JOIN player_game b ON b.game_id = o.game_id AND b.player_id = o.player_id
+    FROM player_on_court_lineups o LEFT JOIN player_game b ON b.game_id = o.game_id AND b.player_id = o.player_id
     WHERE o.game_type <> 'preseason' GROUP BY 1 ORDER BY 1`)
   out.push(
     '',
-    "A player's minutes on the floor (`player_on_court`) against their box-score minutes (ESPN's), over the player-games both have.",
+    "A player's minutes on the floor (`player_on_court_lineups`) against their box-score minutes (ESPN's), over the player-games both have.",
     '',
     table(
       [

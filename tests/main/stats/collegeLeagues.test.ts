@@ -139,8 +139,8 @@ describe('the college leagues before their data', () => {
       ).rejects.toThrow(league.notBuilt)
       await readEverything(s, false)
       expect(await s.games(2026)).toEqual([])
-      // The shots are built (T1302.6), so an empty file reads none; the play by play's own tables
-      // come in T1302.7 and the game flow gives that reason; no source publishes matchups (D44).
+      // The shots (T1302.6) and the play by play's own tables (T1302.7) are built, so an empty file
+      // reads none and gives no reason; no source publishes matchups (D44).
       const shots = await s.shots({
         entity: 'player',
         id: '1',
@@ -149,7 +149,7 @@ describe('the college leagues before their data', () => {
       })
       expect(shots.reason).toBeNull()
       expect(shots.total).toBe(0)
-      expect((await s.gameFlow('1')).reason).toBe(playTablesNotBuilt(league))
+      expect((await s.gameFlow('1')).reason).not.toBe(playTablesNotBuilt(league))
       expect(
         (
           await s.assists({
@@ -159,7 +159,7 @@ describe('the college leagues before their data', () => {
             scope: { gameTypes: ['regular'] }
           } as never)
         ).reason
-      ).toBe(playTablesNotBuilt(league))
+      ).not.toBe(playTablesNotBuilt(league))
       expect((await s.gameMatchups('1')).reason).toBe(league.unpublished.matchups)
       await service.close()
       service = null

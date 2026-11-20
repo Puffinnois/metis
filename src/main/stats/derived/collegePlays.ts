@@ -12,8 +12,6 @@ import { LINEUPS } from './lineups'
 import {
   ON_COURT_COUNTS,
   OWN_COUNTS,
-  PLAYER_ON_COURT,
-  PLAYER_ON_COURT_COLUMNS,
   UNIT_GAME,
   UNIT_GAME_COLUMNS,
   type OnCourtCount
@@ -56,7 +54,7 @@ const shooterCodeSql = (player: string): string =>
   `lower(left(split_part(${player}, '.', 1), 2) || regexp_replace(substr(${player}, strpos(${player}, '.') + 1), '[^A-Za-z]', '', 'g'))`
 
 /** A key of D28's kind for a player no row of `ncaa_player_ids` names: negative, past every id. */
-const fallbackKey = (season: string, team: string, name: string): string =>
+export const fallbackKey = (season: string, team: string, name: string): string =>
   `-(1000000000000 + hash(${season}, ${team}, lower(trim(${name}))) % 1000000000000)::BIGINT`
 
 /**
@@ -65,7 +63,7 @@ const fallbackKey = (season: string, team: string, name: string): string =>
  * the list lacks (FDU, Saint Francis in 2022-23). A name can be two schools' (East Texas A&M's), so
  * each name holds every key it may be (`ids`), and `nameSide` reads it as one of the game's sides.
  */
-const teamNamesSql = (
+export const teamNamesSql = (
   season?: string
 ): string => `SELECT season, name, list(DISTINCT team_id) AS ids FROM (
       SELECT i.season, i.team AS name, t.team_id
@@ -76,7 +74,7 @@ const teamNamesSql = (
     GROUP BY 1, 2`
 
 /** The game's side a name's keys (`ids` of `teamNamesSql`) point to, when they point to one alone. */
-const nameSide = (ids: string): string => `CASE
+export const nameSide = (ids: string): string => `CASE
       WHEN list_contains(${ids}, g.home_team_id) AND NOT list_contains(${ids}, g.away_team_id) THEN g.home_team_id
       WHEN list_contains(${ids}, g.away_team_id) AND NOT list_contains(${ids}, g.home_team_id) THEN g.away_team_id END`
 
@@ -290,11 +288,13 @@ export function collegeUnitGameSql(have: Have, season: number): string {
  * line less the player's on-court line. The player's own counts are their box-score line in
  * `player_game`; a player kept under D28's key has none there, so theirs read 0.
  */
-export function collegePlayerOnCourtSql(_have: Have, season: number): string {
-  const s = Number(season)
-  const parts = ['secs', ...ON_COURT_COUNTS, ...ON_COURT_COUNTS.map((c) => `opp_${c}`)]
-  const sums = parts.map((p) => `sum(${p}) AS ${p}`).join(', ')
-  return `WITH u AS (SELECT * FROM ${UNIT_GAME} WHERE season = ${s}),
+export const collegePlayerOnCourtFrom =
+  (units: string) =>
+  (_have: Have, season: number): string => {
+    const s = Number(season)
+    const parts = ['secs', ...ON_COURT_COUNTS, ...ON_COURT_COUNTS.map((c) => `opp_${c}`)]
+    const sums = parts.map((p) => `sum(${p}) AS ${p}`).join(', ')
+    return `WITH u AS (SELECT * FROM ${units} WHERE season = ${s}),
     team AS (SELECT game_id, team_id, ${sums} FROM u GROUP BY 1, 2),
     onc AS (
       SELECT season, game_type, game_id, game_date, team_id, opponent_id, home, player_id, ${sums}
@@ -309,7 +309,7 @@ export function collegePlayerOnCourtSql(_have: Have, season: number): string {
            o.secs / 60.0 AS minutes
     FROM onc o JOIN team t ON t.game_id = o.game_id AND t.team_id = o.team_id
     LEFT JOIN own w ON w.game_id = o.game_id AND w.player_id = o.player_id`
-}
+  }
 
 // ----- The lineups tab ------------------------------------------------------------------------------
 
@@ -381,27 +381,13 @@ export const COLLEGE_SHOT_KEY_BUILDER: PlayBuilder = {
   order: 'contest_id, team_name, shooter'
 }
 
-/** The builders the plays step runs for the college leagues after the shot tables, in order. */
-export const COLLEGE_UNIT_BUILDERS: readonly PlayBuilder[] = [
-  {
-    table: UNIT_GAME,
-    columns: UNIT_GAME_COLUMNS,
-    select: collegeUnitGameSql,
-    order: 'game_id, team_id, p1, p2, p3, p4, p5'
-  },
-  {
-    table: PLAYER_ON_COURT,
-    columns: PLAYER_ON_COURT_COLUMNS,
-    select: collegePlayerOnCourtSql,
-    order: 'game_id, team_id, player_id'
-  },
-  {
-    table: LINEUPS,
-    columns: COLLEGE_LINEUP_COLUMNS,
-    select: collegeLineupsSql,
-    order: 'team_id, game_type, p1, p2, p3, p4, p5'
-  }
-]
+/** The lineups tab's units, from whichever units the on-court screens read (`unit_game`), built last. */
+export const COLLEGE_LINEUPS_BUILDER: PlayBuilder = {
+  table: LINEUPS,
+  columns: COLLEGE_LINEUP_COLUMNS,
+  select: collegeLineupsSql,
+  order: 'team_id, game_type, p1, p2, p3, p4, p5'
+}
 
 // ----- Views ----------------------------------------------------------------------------------------
 

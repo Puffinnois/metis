@@ -1,4 +1,4 @@
-import { COLLEGE_LINEUP_COVERAGE, LEAGUES } from '../../leagues'
+import { COLLEGE_LINEUP_COVERAGE, COLLEGE_PLAYS_COVERAGE, LEAGUES } from '../../leagues'
 import { NCAA_PLAYER_BOX, NCAA_TEAM_BOX } from '../ncaaSplits'
 import { SHOT_BANDS, SHOT_TYPES, SHOT_ZONE_GROUPS, SHOT_ZONES } from '../shots'
 import type { MetricCoverage, MetricDef, MetricFamily } from '../types'
@@ -264,11 +264,35 @@ const TYPE_PARTS = new RegExp(
 )
 
 /**
- * Neither shot file names a make's assist; the play by play does, and its tables come in a later version
- * (T1302.7), so assisted makes by zone are not counted yet (`PlaysRecipe.assists`).
+ * Neither shot file names a make's assist. The play by play does (`play_nba.assist_id`), but a shot
+ * carries no period or clock before 2026-27 to find its play, so assisted makes are counted by value
+ * (twos and threes, the play-derived counts) and not by zone (`PlaysRecipe.assists`).
  */
 const NO_ASSISTS =
-  'Not built for the college leagues yet: assisted shots are read from the play by play, which comes in a later version.'
+  "Not counted for the college leagues: stats.ncaa.org's shot file names no assist, and its shots carry no clock to find their play before 2026-27. Assisted twos and threes are counted from the play by play."
+
+/**
+ * What stats.ncaa.org's play by play does not record (`ncaa-data-sources.md`, "Plays"): no ejection, no
+ * defensive three seconds (not a rule in college basketball), no goaltending or kicked-ball violation (it
+ * names turnovers, not the other side's violations), and fouls by class (personal, shooting, offensive,
+ * loose ball, technical, flagrant) without the NBA's take, transition-take, clear-path or flagrant types.
+ */
+const NOT_IN_PLAYS: readonly [readonly string[], string][] = [
+  [['ejections'], "stats.ncaa.org's play by play records no ejections."],
+  [['def3'], 'College basketball has no defensive three-second rule.'],
+  [
+    ['goaltend', 'kicked'],
+    "stats.ncaa.org's play by play does not record the defense's goaltending or kicked-ball violations."
+  ],
+  [
+    ['pf_take', 'pf_transition_take', 'pf_clear_path'],
+    "stats.ncaa.org's play by play does not tell these fouls apart: they are counted as personal fouls."
+  ],
+  [
+    ['pf_flagrant1', 'pf_flagrant2'],
+    "stats.ncaa.org's play by play flags a flagrant foul without its type (1 or 2)."
+  ]
+]
 const ASSIST_PARTS = new RegExp(
   `^(opp_)?(${[...SHOT_ZONES, ...SHOT_ZONE_GROUPS, ...SHOT_BANDS, ...SHOT_TYPES]
     .map((b): string => b.key)
@@ -297,13 +321,20 @@ export function collegeCoverage(def: MetricDef, parts: readonly string[]): Metri
   for (const [columns, reason] of NOT_IN_BOX) {
     if (parts.some((p) => columns.includes(p))) return { firstSeason: FIRST, unavailable: reason }
   }
+  for (const [columns, reason] of NOT_IN_PLAYS) {
+    if (parts.some((p) => columns.includes(p.replace(/^opp_/, '')))) {
+      return { firstSeason: FIRST, unavailable: reason }
+    }
+  }
   let firstSeason = FIRST
   for (const [columns, from] of LATER) {
     if (parts.some((p) => columns.includes(p))) firstSeason = Math.max(firstSeason, from)
   }
-  // Policy 4: the lineup file's missing time is stated wherever an on-court number is read.
+  // Policy 4: what the source the on-court numbers read covers is stated wherever one is read.
   if (def.family === 'on_court') {
-    return { firstSeason, seasonNotes: [{ seasons: WINDOW, note: COLLEGE_LINEUP_COVERAGE }] }
+    const note =
+      LEAGUES.ncaam.onCourtFrom === 'plays' ? COLLEGE_PLAYS_COVERAGE : COLLEGE_LINEUP_COVERAGE
+    return { firstSeason, seasonNotes: [{ seasons: WINDOW, note }] }
   }
   return { firstSeason }
 }

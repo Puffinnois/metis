@@ -24,7 +24,7 @@ import {
   type League,
   type PerMinuteMode
 } from '@shared/leagues'
-import { SPLIT_IDS, SPLITS_FIRST_SEASON, splitById } from '@shared/stats/splits'
+import { SPLIT_IDS, SPLITS_FIRST_SEASON, splitById, splitRuleIn } from '@shared/stats/splits'
 import {
   POSITION_GROUPS,
   type GameType,
@@ -62,7 +62,11 @@ const TRANSFORMS: Transform[] = [
 ]
 const GROUPS: GroupBy[] = ['season', 'team', 'opponent', 'month', 'game']
 const ID = /^-?[0-9]{1,12}$/
-const WORD = /^[a-z-]{1,20}$/
+/**
+ * A conference or division as the league's `team` table names it: the NBA's `east`, a college
+ * conference's "ACC", "Big Ten" or "C-USA". Bound as a parameter, never written into the SQL.
+ */
+const GROUP_NAME = /^[A-Za-z0-9][A-Za-z0-9 &.'-]{0,39}$/
 const DATE = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/
 /** The NBA's id, or `espn:<id>` before 1996-97. */
 const GAME_ID = /^[a-z0-9:]{1,24}$/
@@ -271,8 +275,8 @@ function validate(q: StatsQuery, ctx: CompileContext): Checked {
   }
   if (scope.teams !== undefined) ids(scope.teams, 'scope.teams')
   if (scope.opponents !== undefined) ids(scope.opponents, 'scope.opponents')
-  if (scope.conferences !== undefined) texts(scope.conferences, 'scope.conferences', WORD)
-  if (scope.divisions !== undefined) texts(scope.divisions, 'scope.divisions', WORD)
+  if (scope.conferences !== undefined) texts(scope.conferences, 'scope.conferences', GROUP_NAME)
+  if (scope.divisions !== undefined) texts(scope.divisions, 'scope.divisions', GROUP_NAME)
   if (scope.months !== undefined) integers(scope.months, 'scope.months', 1, 12)
   if (scope.home !== undefined) flag(scope.home, 'scope.home')
   if (scope.allStarBreak !== undefined && !['before', 'after'].includes(scope.allStarBreak)) {
@@ -1055,7 +1059,10 @@ function notesOf(q: StatsQuery, c: Checked): string[] {
   }
   const split = splitById(s.split)
   if (split) {
-    notes.add(`${split.label}: ${split.rule} Counted from the ${c.league.name}'s play by play.`)
+    const halvesOnly = c.league.periods.every((e) => e.name === 'half')
+    notes.add(
+      `${split.label}: ${splitRuleIn(split, halvesOnly)} Counted from the ${c.league.name}'s play by play.`
+    )
     const halves = halvesNote(c.league, s.seasons)
     if (halves) notes.add(halves)
     if (s.seasons.some((x) => x < SPLITS_FIRST_SEASON)) {

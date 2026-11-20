@@ -235,7 +235,7 @@ describe('the college leagues (D38)', () => {
     expect(wnba.gamesRule).toEqual({ kind: 'scaled' })
   })
 
-  it('build every table but the models and the play by play’s, and give their own reasons and sizes', () => {
+  it('build every table but the models, and give their own reasons and sizes', () => {
     for (const league of [men, women]) {
       expect(league.builds).toEqual(['identity', 'derived', 'published', 'plays'])
       expect(builds(league, 'identity')).toBe(true)
@@ -245,9 +245,11 @@ describe('the college leagues (D38)', () => {
         'college',
         'college'
       ])
-      // The shots, lineups and officials of the plays step (T1302.6); the play by play's own tables
-      // wait for T1302.7, and the lane is the college's 12 feet.
-      expect(buildsPlayTables(league)).toBe(false)
+      // The shots, lineups and officials of the plays step (T1302.6) and the play by play's own tables
+      // (T1302.7), the on-court screens on the lineup file until the manager decides; the lane is the
+      // college's 12 feet.
+      expect(buildsPlayTables(league)).toBe(true)
+      expect(league.onCourtFrom).toBe('plays')
       expect(laneHalfWidthOf(league)).toBe(60)
       // The families no source publishes, each with its reason (D44).
       expect(Object.keys(league.unpublished).sort()).toEqual(

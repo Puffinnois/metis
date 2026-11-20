@@ -144,6 +144,77 @@ export const onCourtBootstrap = (): string[] => [
 const known = (list: string): string =>
   `list_sort(list_distinct(list_filter(${list}, x -> x IS NOT NULL)))`
 
+/** A count for side `t` against side `o`, from the acting team of each play. */
+const counts = (t: string, o: string): string => {
+  const own = (flag: string, who: string, player = false): string =>
+    `coalesce(sum(${flag}) FILTER (WHERE team_id = ${who}${player ? ' AND player_id IS NOT NULL' : ''}), 0)::INTEGER`
+  const by = (who: string, them: string): Record<OnCourtCount, string> => ({
+    poss: `count(*) FILTER (WHERE poss_off = ${who})::INTEGER`,
+    pts: own('pts', who),
+    fgm: own('fgm', who),
+    fga: own('fga', who),
+    fg3m: own('fg3m', who),
+    fg3a: own('fg3a', who),
+    ftm: own('ftm', who),
+    fta: own('fta', who),
+    oreb: own('oreb', who, true),
+    dreb: own('dreb', who, true),
+    ast: own('ast', who),
+    // A steal or a block sits on the other team's turnover or miss.
+    stl: own('stl', them),
+    blk: own('blk', them),
+    tov: own('tov', who, true),
+    pf: own('pf', who)
+  })
+  const mine = by(t, o)
+  const theirs = by(o, t)
+  return [
+    ...ON_COURT_COUNTS.map((c) => `${mine[c]} AS ${c}`),
+    ...ON_COURT_COUNTS.map((c) => `${theirs[c]} AS opp_${c}`)
+  ].join(',\n           ')
+}
+
+const unit = (sideFive: string, team: string, opp: string, home: string): string => `
+    SELECT season, game_type, game_id, game_date, ${team} AS team_id, ${opp} AS opponent_id,
+           ${home} AS home, ${known(sideFive)} AS five, sum(secs) AS secs,
+           ${counts(team, opp)}
+    FROM credited GROUP BY ALL`
+
+/**
+ * The rest of a units SELECT after its `plays` CTE, shared by the NBA's builder and the college
+ * leagues' play-by-play one (`collegePlayUnitsSql`): each play's time and lineup, free throws credited to
+ * the players on the floor at the foul, the units of both sides.
+ */
+export const unitTailSql = (): string => `filled AS (
+      SELECT *,
+             el - coalesce(lag(el) OVER w, p0) AS secs,
+             coalesce(last_value(h IGNORE NULLS) OVER upto, first_value(h IGNORE NULLS) OVER w) AS hl,
+             coalesce(last_value(a IGNORE NULLS) OVER upto, first_value(a IGNORE NULLS) OVER w) AS al
+      FROM plays
+      WINDOW w AS (PARTITION BY game_id, period ORDER BY seq),
+             upto AS (PARTITION BY game_id, period ORDER BY seq ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+    ),
+    credited AS (
+      SELECT *,
+             CASE WHEN kind = 'free_throw'
+                  THEN coalesce(last_value(CASE WHEN kind = 'foul' THEN hl END IGNORE NULLS) OVER upto, hl)
+                  ELSE hl END AS home_five,
+             CASE WHEN kind = 'free_throw'
+                  THEN coalesce(last_value(CASE WHEN kind = 'foul' THEN al END IGNORE NULLS) OVER upto, al)
+                  ELSE al END AS away_five
+      FROM filled
+      WINDOW upto AS (PARTITION BY game_id, period ORDER BY seq ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+    ),
+    units AS (
+      ${unit('home_five', 'home_team_id', 'away_team_id', 'true')}
+      UNION ALL
+      ${unit('away_five', 'away_team_id', 'home_team_id', 'false')}
+    )
+    SELECT season, game_type, game_id, game_date, team_id, opponent_id, home,
+           ${PLAYERS.map((p, i) => `five[${i + 1}] AS ${p}`).join(', ')}, len(five) = 5 AS complete,
+           secs, ${SIDE_COUNTS.map(([n]) => n).join(', ')}
+    FROM units WHERE team_id IS NOT NULL`
+
 /**
  * One season's units, from `play_nba`, the lineup file and the possessions file. What the sources
  * lack reads NULL: no lineup file, no units; no possessions file, no possessions.
@@ -165,41 +236,7 @@ export function unitGameSql(have: Have, season: number, league: League): string 
   const side = (i: string): string =>
     `[${[1, 2, 3, 4, 5].map((n) => lc(`${i}_player_${n}`)).join(', ')}]`
   const s = Number(season)
-  // A count for side `t` against side `o`, from the acting team of each play.
-  const counts = (t: string, o: string): string => {
-    const own = (flag: string, who: string, player = false): string =>
-      `coalesce(sum(${flag}) FILTER (WHERE team_id = ${who}${player ? ' AND player_id IS NOT NULL' : ''}), 0)::INTEGER`
-    const by = (who: string, them: string): Record<OnCourtCount, string> => ({
-      poss: `count(*) FILTER (WHERE poss_off = ${who})::INTEGER`,
-      pts: own('pts', who),
-      fgm: own('fgm', who),
-      fga: own('fga', who),
-      fg3m: own('fg3m', who),
-      fg3a: own('fg3a', who),
-      ftm: own('ftm', who),
-      fta: own('fta', who),
-      oreb: own('oreb', who, true),
-      dreb: own('dreb', who, true),
-      ast: own('ast', who),
-      // A steal or a block sits on the other team's turnover or miss.
-      stl: own('stl', them),
-      blk: own('blk', them),
-      tov: own('tov', who, true),
-      pf: own('pf', who)
-    })
-    const mine = by(t, o)
-    const theirs = by(o, t)
-    return [
-      ...ON_COURT_COUNTS.map((c) => `${mine[c]} AS ${c}`),
-      ...ON_COURT_COUNTS.map((c) => `${theirs[c]} AS opp_${c}`)
-    ].join(',\n           ')
-  }
   const games = `(SELECT game_id, nba_game_id, home_team_id, away_team_id FROM game WHERE season = ${s})`
-  const unit = (sideFive: string, team: string, opp: string, home: string): string => `
-    SELECT season, game_type, game_id, game_date, ${team} AS team_id, ${opp} AS opponent_id,
-           ${home} AS home, ${known(sideFive)} AS five, sum(secs) AS secs,
-           ${counts(team, opp)}
-    FROM credited GROUP BY ALL`
   return `WITH g AS ${games},
     lu AS (
       SELECT ${lc('game_id', 'VARCHAR')} AS nba_game_id, ${lc('action_number')} AS action_number,
@@ -250,35 +287,7 @@ export function unitGameSql(have: Have, season: number, league: League): string 
       LEFT JOIN ends e ON e.game_id = x.game_id AND e.seq = x.seq
       WHERE x.season = ${s}
     ),
-    filled AS (
-      SELECT *,
-             el - coalesce(lag(el) OVER w, p0) AS secs,
-             coalesce(last_value(h IGNORE NULLS) OVER upto, first_value(h IGNORE NULLS) OVER w) AS hl,
-             coalesce(last_value(a IGNORE NULLS) OVER upto, first_value(a IGNORE NULLS) OVER w) AS al
-      FROM plays
-      WINDOW w AS (PARTITION BY game_id, period ORDER BY seq),
-             upto AS (PARTITION BY game_id, period ORDER BY seq ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
-    ),
-    credited AS (
-      SELECT *,
-             CASE WHEN kind = 'free_throw'
-                  THEN coalesce(last_value(CASE WHEN kind = 'foul' THEN hl END IGNORE NULLS) OVER upto, hl)
-                  ELSE hl END AS home_five,
-             CASE WHEN kind = 'free_throw'
-                  THEN coalesce(last_value(CASE WHEN kind = 'foul' THEN al END IGNORE NULLS) OVER upto, al)
-                  ELSE al END AS away_five
-      FROM filled
-      WINDOW upto AS (PARTITION BY game_id, period ORDER BY seq ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
-    ),
-    units AS (
-      ${unit('home_five', 'home_team_id', 'away_team_id', 'true')}
-      UNION ALL
-      ${unit('away_five', 'away_team_id', 'home_team_id', 'false')}
-    )
-    SELECT season, game_type, game_id, game_date, team_id, opponent_id, home,
-           ${PLAYERS.map((p, i) => `five[${i + 1}] AS ${p}`).join(', ')}, len(five) = 5 AS complete,
-           secs, ${SIDE_COUNTS.map(([n]) => n).join(', ')}
-    FROM units WHERE team_id IS NOT NULL`
+    ${unitTailSql()}`
 }
 
 /**
@@ -286,17 +295,25 @@ export function unitGameSql(have: Have, season: number, league: League): string 
  * floor is the team's line in the game less the player's on-court line, so on and off add up to the
  * team's exactly. A player the lineups never put on the floor has no row.
  */
-export function playerOnCourtSql(_have: Have, season: number): string {
-  const s = Number(season)
-  const parts = ['secs', ...SIDE_COUNTS.map(([n]) => n)]
-  const sums = parts.map((p) => `sum(${p}) AS ${p}`).join(', ')
-  const own = OWN_COUNTS.map((c) => {
-    // An assist, a steal or a block belongs to the player named for it.
-    const who =
-      c === 'ast' ? 'assist_id' : c === 'stl' ? 'steal_id' : c === 'blk' ? 'block_id' : 'player_id'
-    return `sum(x.${c}::INTEGER) FILTER (WHERE x.${who} = o.player_id) AS ${c}`
-  })
-  return `WITH u AS (SELECT * FROM ${UNIT_GAME} WHERE season = ${s}),
+export const playerOnCourtFrom =
+  (units: string) =>
+  (_have: Have, season: number): string => {
+    const s = Number(season)
+    const parts = ['secs', ...SIDE_COUNTS.map(([n]) => n)]
+    const sums = parts.map((p) => `sum(${p}) AS ${p}`).join(', ')
+    const own = OWN_COUNTS.map((c) => {
+      // An assist, a steal or a block belongs to the player named for it.
+      const who =
+        c === 'ast'
+          ? 'assist_id'
+          : c === 'stl'
+            ? 'steal_id'
+            : c === 'blk'
+              ? 'block_id'
+              : 'player_id'
+      return `sum(x.${c}::INTEGER) FILTER (WHERE x.${who} = o.player_id) AS ${c}`
+    })
+    return `WITH u AS (SELECT * FROM ${units} WHERE season = ${s}),
     team AS (SELECT game_id, team_id, ${sums} FROM u GROUP BY 1, 2),
     onc AS (
       SELECT season, game_type, game_id, game_date, team_id, opponent_id, home, player_id, ${sums}
@@ -322,7 +339,10 @@ export function playerOnCourtSql(_have: Have, season: number): string {
            o.secs / 60.0 AS minutes
     FROM onc o JOIN team t ON t.game_id = o.game_id AND t.team_id = o.team_id
     LEFT JOIN own w ON w.game_id = o.game_id AND w.player_id = o.player_id`
-}
+  }
+
+/** The NBA's and the WNBA's player-games, from `unit_game`. */
+export const playerOnCourtSql = playerOnCourtFrom(UNIT_GAME)
 
 /** In build order: `player_on_court` reads `unit_game`. */
 export const ON_COURT_BUILDERS: PlayBuilder[] = [

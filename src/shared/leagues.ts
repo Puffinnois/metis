@@ -431,6 +431,15 @@ export interface League {
    * on-court screens and the lineups tab state it in place of the NBA's notes.
    */
   onCourtNote?: string
+  /**
+   * Where the college leagues' on-court screens, units and lineups tab read who was on the floor:
+   * stats.ncaa.org's lineup file, or the ten its play by play names at each play, credited play by play
+   * as the NBA's are. Both are built; the other is kept beside it under its own name
+   * (`unit_game_plays` or `unit_game_lineups`, `onCourtTables` in `derived/collegePbp.ts`), so changing
+   * this one setting is the switch, and the next refresh rebuilds the tables. Absent where the league
+   * has the NBA's single source.
+   */
+  onCourtFrom?: 'lineups' | 'plays'
   /** The three-point line by era, oldest first (`threePointLineIn`). */
   threePointLines: readonly ThreePointLine[]
   /** The first season of the league's published five-player units (the lineup dashboards). */
@@ -918,15 +927,51 @@ const NCAA_FIRST_SEASON = 2022
 export const COLLEGE_LINEUP_COVERAGE =
   "stats.ncaa.org's lineup file covers about 97 % of minutes and is short by a minute or more in about four team-games of ten, so on-court totals run under the box score."
 
+/**
+ * What the on-court numbers credited play by play cover (T1302.7, measured on 2021-22 to 2025-26 of both
+ * leagues): every minute of every game, points on the floor equal to the score on 99.8 to 100 % of
+ * team-games, a player's on-court minutes within one of the box score's on 88 to 95 % of player-games.
+ */
+export const COLLEGE_PLAYS_COVERAGE =
+  "Credited play by play from the ten players stats.ncaa.org's play by play names at each play: every minute of a game is covered, points on the floor equal the score on 99.8 to 100 % of team-games, and a player's on-court minutes are within one of the box score's on 88 to 95 % of player-games."
+
+/**
+ * Where both college leagues' on-court screens read who was on the floor (`League.onCourtFrom`): the one
+ * setting the switch is. The play by play, the manager's decision on T1302.7's comparison (players'
+ * on-court minutes within one of the box score's on 88 to 95 % of player-games against the lineup file's
+ * 39 to 42.5 %); the lineup file's units are kept beside them under their own name (policy 5). The
+ * screens' note and the catalogue's words follow it.
+ */
+export const COLLEGE_ON_COURT_FROM = 'plays' as 'lineups' | 'plays'
+
+/** What the on-court screens and the lineups tab say of the college leagues' source. */
+const COLLEGE_ON_COURT_NOTE =
+  COLLEGE_ON_COURT_FROM === 'lineups'
+    ? `Who was on the floor, and the counts while they were, are stats.ncaa.org's lineup file (SportsDataverse's release). ${COLLEGE_LINEUP_COVERAGE} Derived, not official.`
+    : `Who was on the floor, and the counts while they were, are stats.ncaa.org's play by play (SportsDataverse's release). ${COLLEGE_PLAYS_COVERAGE} Derived, not official.`
+
 const COLLEGE_WORDS: League['catalogueWords'] = [
-  [
-    "SportsDataverse's lineups and possessions, from the NBA's play by play",
-    "stats.ncaa.org's lineup file (SportsDataverse's release)"
-  ],
-  [
-    'Derived from the play by play, not official.',
-    `Derived from stats.ncaa.org's lineup file, not official: it covers about 97 % of minutes and is short by a minute or more in about four team-games of ten, so on-court totals run under the box score.`
-  ],
+  ...((COLLEGE_ON_COURT_FROM === 'lineups'
+    ? [
+        [
+          "SportsDataverse's lineups and possessions, from the NBA's play by play",
+          "stats.ncaa.org's lineup file (SportsDataverse's release)"
+        ],
+        [
+          'Derived from the play by play, not official.',
+          `Derived from stats.ncaa.org's lineup file, not official: it covers about 97 % of minutes and is short by a minute or more in about four team-games of ten, so on-court totals run under the box score.`
+        ]
+      ]
+    : [
+        [
+          "SportsDataverse's lineups and possessions, from the NBA's play by play",
+          "stats.ncaa.org's play by play (SportsDataverse's release)"
+        ],
+        [
+          'Derived from the play by play, not official.',
+          `Derived from stats.ncaa.org's play by play, not official. ${COLLEGE_PLAYS_COVERAGE}`
+        ]
+      ]) as League['catalogueWords']),
   ["The NBA's box scores from 1996-97", "ESPN's box scores"],
   ["ESPN's box scores before them", "stats.ncaa.org's for the games ESPN has none of"],
   ["The NBA's box scores", "ESPN's box scores"],
@@ -941,6 +986,16 @@ const COLLEGE_WORDS: League['catalogueWords'] = [
   [' Most lines in 2003-04 and 2004-05 are rounded to the minute.', ''],
   [' They read low before 2004-05: about 5 a game, against 11 to 15 after.', ''],
   [' Published by the NBA as PCT_FGA_3PT.', ''],
+  // Fouls drawn: stats.ncaa.org's play by play names the fouled player on every foul (T1302.7).
+  [
+    'Personal fouls drawn, from ESPN’s play by play, which names the fouled player from 2006-07 to 2016-17 only.',
+    "Personal fouls drawn, from stats.ncaa.org's play by play, which names the fouled player on every foul."
+  ],
+  [
+    'Shooting fouls drawn, from ESPN’s play by play, 2006-07 to 2016-17.',
+    "Shooting fouls drawn, from stats.ncaa.org's play by play."
+  ],
+  ["ESPN's play by play (the fouled player)", "stats.ncaa.org's play by play (the fouled player)"],
   [' Published by the NBA as PCT_FGA_2PT.', ''],
   ["It is not the NBA's published figure.", 'It is not a published figure.'],
   [
@@ -1007,8 +1062,8 @@ const college = (
   seasonShape: { opponents: 24, months: 5 },
   statsFile: `stats-${league.id}.duckdb`,
   // The game, team and player tables (T1302.4), the game and season tables (T1302.5), the published
-  // tables and the shots, lineups and officials of the plays step (T1302.6); the play by play's own
-  // tables come with T1302.7 (`playTables`), the models with T1302.8.
+  // tables and the shots, lineups and officials of the plays step (T1302.6), and the play by play's own
+  // tables (T1302.7); the models come with T1302.8.
   builds: ['identity', 'derived', 'published', 'plays'],
   // The families no release publishes (D44, `ncaa-data-sources.md`, "Tables"), each with its reason.
   unpublished: {
@@ -1033,11 +1088,12 @@ const college = (
   published: 'college',
   // stats.ncaa.org's located shots, lineups, stints and possessions, ESPN's shots and officials (D40).
   plays: 'college',
-  playTables: false,
+  // Who was on the floor: stats.ncaa.org's lineup file, the play-credited units beside it (T1302.7).
+  onCourtFrom: COLLEGE_ON_COURT_FROM,
   // The college lane is 12 feet wide, for men and women alike (the NBA's is 16).
   laneHalfWidth: 60,
   // Who was on the floor, from stats.ncaa.org's lineup file, and how much of the game it covers.
-  onCourtNote: `Who was on the floor, and the counts while they were, are stats.ncaa.org's lineup file (SportsDataverse's release). ${COLLEGE_LINEUP_COVERAGE} Derived, not official.`,
+  onCourtNote: COLLEGE_ON_COURT_NOTE,
   // The rule for both across D39's seasons (D38): "22 feet, 1¾ inches on the perimeter and 21 feet, 7⅞
   // inches in the corners" (the women's playing rules, `w_basketball_RB_PlayingRules.txt` line
   // 427-428; the men's rules history, line 1299-1300), FIBA's 6.75 and 6.6 metres. The court is drawn
@@ -1271,6 +1327,8 @@ export function periodsIn(league: League, season: number): PeriodEra {
  */
 export function halvesNote(league: League, seasons: readonly number[]): string | null {
   const halves = league.periods.filter((e) => e.name === 'half')
+  // A league in halves every season (the NCAA men) words its rules by the half (`splitRuleIn`).
+  if (halves.length === league.periods.length) return null
   if (!seasons.some((s) => periodsIn(league, s).name === 'half')) return null
   const next = league.periods.find((e) => e.from > halves[halves.length - 1].from)
   const until = next ? ` to ${league.seasonLabel(next.from - 1)}` : ''

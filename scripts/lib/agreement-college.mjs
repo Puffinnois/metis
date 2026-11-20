@@ -7,6 +7,7 @@
 // adding up to their season row.
 
 import { collegeDepthAgreement } from './agreement-college-depth.mjs'
+import { collegePlaysAgreement } from './agreement-college-plays.mjs'
 
 const COUNT = new Intl.NumberFormat('en-US')
 const pct = (part, whole) => (whole ? ((100 * part) / whole).toFixed(1) : '–')
@@ -379,5 +380,7 @@ export async function collegeAgreement(league, read, out, query) {
   )
   // The shots, lineups, stints, possessions and published models (T1302.6).
   wrong += await collegeDepthAgreement(league, read, out, query)
+  // The play by play's own tables and the time on the floor credited from it (T1302.7).
+  wrong += await collegePlaysAgreement(league, read, out, query)
   return wrong
 }

@@ -16,6 +16,14 @@ const refuses = (q: Partial<StatsQuery>, message: string | RegExp): void => {
 }
 
 describe('compileQuery', () => {
+  it('takes a conference or division as the league names it: the NBA’s, or a college’s', () => {
+    for (const c of ['east', 'ACC', 'Big Ten', 'C-USA', 'Atlantic 10', "Saint Mary's"]) {
+      expect(compile(scope({ conferences: [c] })).params).toContain(c)
+    }
+    // Bound as a parameter, never written into the SQL.
+    expect(compile(scope({ conferences: ['Big Ten'] })).sql).not.toContain('Big Ten')
+  })
+
   it('refuses what the catalogue does not allow, with a readable message', () => {
     refuses({ metrics: ['nope'] }, 'unknown metric "nope"')
     refuses({ metrics: ['team_ortg'] }, '"team_ortg" is a team metric, not a player one')
@@ -27,6 +35,8 @@ describe('compileQuery', () => {
     refuses(scope({ positions: ['XX' as 'G'] }), /unknown position "XX"/)
     refuses(scope({ teams: ['1; DROP TABLE game'] }), /is not valid/)
     refuses(scope({ games: ["x'; DROP TABLE game"] }), /is not valid/)
+    refuses(scope({ conferences: ["east'; DROP TABLE game"] }), /is not valid/)
+    refuses(scope({ divisions: ['a'.repeat(41)] }), /is not valid/)
     refuses(scope({ gameTypes: ['finals' as 'regular'] }), /unknown game type "finals"/)
     refuses(scope({ gameTypes: [] }), 'scope.gameTypes must be a non-empty list')
     refuses(scope({ months: [13] }), 'scope.months must be whole numbers from 1 to 12')
