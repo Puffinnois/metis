@@ -1,0 +1,50 @@
+[
+  {
+    "size": [1500, 950]
+  },
+  {
+    "wait": 6000
+  },
+  {
+    "eval": "window.sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nwindow.until = async (fn, ms = 15000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await fn()) return true; await sleep(250) } return false };\nwindow.button = (name, within) => [...(within ?? document).querySelectorAll('button')].find((x) => x.textContent.trim() === name);\nwindow.section = (name) => document.querySelector('section[aria-label=\"' + name + '\"]');\nwindow.dl = async (league) => (await window.api.leagues.downloads()).leagues.find((l) => l.league === league);\nwindow.check = (label, ok, got) => (ok ? 'OK ' : 'MISMATCH ') + label + ' got ' + JSON.stringify(got);\nwindow.settle = async (league, capMin) => { const t0 = Date.now(); let quietSince = null; const log = []; let last = ''; while (Date.now() - t0 < capMin * 60000) { const s = await window.api.stats.status(league); const line = s.busy ? (s.progress ? 'files ' + s.progress.done + '/' + s.progress.total : 'building') : 'idle'; if (line !== last && !line.startsWith('files') || (line.startsWith('files') && !last.startsWith('files'))) log.push(Math.round((Date.now() - t0) / 1000) + 's ' + line); last = line; if (!s.busy && !s.progress && s.builtAt) { quietSince ??= Date.now(); if (Date.now() - quietSince > 90000) return { minutes: Math.round((quietSince - t0) / 6000) / 10, status: s, log }; } else quietSince = null; await sleep(5000) } return { minutes: null, timedOut: true, log } };\n'helpers ready'"
+  },
+  {
+    "eval": "(async () => { const d = await window.api.leagues.downloads(); const dialog = document.querySelector('[role=dialog]')?.innerText ?? ''; return check('a clean profile asks which leagues to download, and nothing has started', !d.decided && d.leagues.every((l) => !l.on && !l.hasFile) && /Which leagues should Metis download/.test(dialog), { leagues: d.leagues.map((l) => l.league), dialog: dialog.slice(0, 300) }) })()"
+  },
+  {
+    "shot": "load-01-first-run"
+  },
+  {
+    "eval": "(async () => { const labels = [...document.querySelectorAll('[role=dialog] label')]; const box = (name) => labels.find((l) => l.innerText.includes(name))?.querySelector('input[type=checkbox]'); for (const l of labels) { const b = l.querySelector('input[type=checkbox]'); if (b && b.checked) b.click() } await sleep(200); box('NCAA Men').click(); await sleep(300); const ticked = labels.filter((l) => l.querySelector('input[type=checkbox]')?.checked).map((l) => l.innerText.split('\\n')[0]); return check('NCAA Men alone is ticked', ticked.length === 1 && /NCAA Men/.test(ticked[0]), ticked) })()"
+  },
+  {
+    "shot": "load-02-ncaam-ticked"
+  },
+  {
+    "eval": "(async () => { button('Download').click(); window.menStarted = Date.now(); const started = await until(async () => (await window.api.stats.status('ncaam')).busy, 60000); const d = await window.api.leagues.downloads(); return check('NCAA Men alone starts loading', started && d.decided && d.leagues.filter((l) => l.on).map((l) => l.league).join() === 'ncaam', d.leagues.map((l) => [l.league, l.on])) })()"
+  },
+  {
+    "eval": "(async () => { const r = await settle('ncaam', 120); window.menLoad = r; const d = await dl('ncaam'); return check('NCAA Men loaded and built from nothing', r.minutes !== null && d.hasFile, { minutes: r.minutes, fileBytes: d.fileBytes, through: r.status?.through, builtAt: r.status?.builtAt, log: r.log }) })()"
+  },
+  {
+    "eval": "(async () => { document.querySelector('[title=\"See what is loaded\"]').click(); await until(() => section('NCAA Men'), 20000); await sleep(1500); const t = section('NCAA Men')?.innerText ?? ''; return check('the Data panel shows NCAA Men loaded, with no failure', /On ·/.test(t) && !/[Ff]ailed/.test(t), t.split('\\n').filter(Boolean).slice(0, 40)) })()"
+  },
+  {
+    "shot": "load-03-ncaam-data"
+  },
+  {
+    "eval": "(async () => { const b = button('Turn the NCAA Women on'); if (!b) return 'NO BUTTON ' + [...document.querySelectorAll('button')].map((x) => x.textContent.trim()).filter((x) => /Turn/.test(x)).join('|'); b.click(); window.womenStarted = Date.now(); const started = await until(async () => (await window.api.stats.status('ncaaw')).busy, 60000); return check('turning NCAA Women on in the Data panel starts its load', started && (await dl('ncaaw')).on, await window.api.stats.status('ncaaw')) })()"
+  },
+  {
+    "eval": "(async () => { const r = await settle('ncaaw', 120); window.womenLoad = r; const d = await dl('ncaaw'); return check('NCAA Women loaded and built from nothing', r.minutes !== null && d.hasFile, { minutes: r.minutes, fileBytes: d.fileBytes, through: r.status?.through, builtAt: r.status?.builtAt, log: r.log }) })()"
+  },
+  {
+    "eval": "(async () => { document.querySelector('[title=\"See what is loaded\"]').click(); await until(() => section('NCAA Women'), 20000); await sleep(1500); const t = section('NCAA Women')?.innerText ?? ''; return check('the Data panel shows NCAA Women loaded, with no failure', /On ·/.test(t) && !/[Ff]ailed/.test(t), t.split('\\n').filter(Boolean).slice(0, 40)) })()"
+  },
+  {
+    "shot": "load-04-ncaaw-data"
+  },
+  {
+    "eval": "(async () => { const out = {}; for (const l of ['ncaam', 'ncaaw']) { const q = await window.api.stats.query(l, { entity: 'player', metrics: ['pts', 'reb', 'ast'], transform: 'perGame', scope: { seasons: [2026], qualifiedOnly: true } }); out[l] = { rows: q.rows.length, top: q.rows[0]?.name, notes: q.notes } } return check('both leagues answer a leaderboard after their first load', out.ncaam.rows > 100 && out.ncaaw.rows > 100, out) })()"
+  }
+]

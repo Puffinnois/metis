@@ -207,6 +207,7 @@ function ZoneTable({ shades, total }: { shades: ZoneShade[]; total: number }): R
 }
 
 function Legend({ mode, against }: { mode: Mode; against: boolean }): React.JSX.Element {
+  const league = useLeague()
   return mode === 'zones' ? (
     <div className="flex flex-wrap items-center gap-2 text-[12px] text-fg-3">
       <span>Below the league</span>
@@ -237,7 +238,9 @@ function Legend({ mode, against }: { mode: Mode; against: boolean }): React.JSX.
         </svg>
         Missed
       </span>
-      <span>From the NBA’s shot chart file; ESPN’s shots are not mixed in.</span>
+      <span>
+        From {league.shotsFile ?? 'the NBA’s shot chart file'}; ESPN’s shots are not mixed in.
+      </span>
     </div>
   )
 }

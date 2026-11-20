@@ -38,6 +38,7 @@ import { dashboardModes } from '@/lib/stats/dashboard'
 import type { ExploreSubject } from '@/lib/stats/explore'
 import { heatColor } from '@/lib/stats/format'
 import { RAIL_POSITIONS } from '@/lib/stats/player'
+import { leaderRuleWords } from '@/lib/stats/qualifying'
 import { seasonOf, type StatsScope } from '@/lib/stats/scope'
 import { useStatsQuery, type StatsData } from '@/lib/stats/useStats'
 import { cn } from '@/lib/utils'
@@ -119,7 +120,7 @@ export function StatsChart({
   const tab = chartTab(state)
   const qualifier = tab.qualifier ? info(tab.qualifier)?.sampleLabel : null
   const footnote = isPlayer
-    ? `Qualified: enough ${qualifier ?? 'minutes'} for the games in scope, as on the leaderboards, and each axis’s own sample; the NBA’s leader stats need only their own minimum.`
+    ? `Qualified: enough ${qualifier ?? 'minutes'} for the games in scope, as on the leaderboards, and each axis’s own sample; ${leaderRuleWords().note}.`
     : 'Qualified: each axis’s own sample; every team plays enough.'
   const wholeSeason = scope.range.kind === 'season'
   const useSeason = (): void => onScope({ ...scope, range: { kind: 'season' } })

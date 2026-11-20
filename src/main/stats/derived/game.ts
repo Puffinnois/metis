@@ -63,6 +63,12 @@ export interface DerivedRecipe {
     team: readonly string[]
     teamSql(have: Have): string
   }
+  /**
+   * Whether the built tables' counts are stored as BIGINT (`narrowCounts` in `build.ts`) rather than
+   * the 128-bit integers DuckDB's `sum()` gives. Unset for the NBA and the WNBA, whose tables and
+   * build SQL are as they were.
+   */
+  narrowCounts?: boolean
 }
 
 /** Every box-score count, as `player_game`, `team_game` and the season tables name them. */

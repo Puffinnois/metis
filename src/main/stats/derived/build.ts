@@ -51,6 +51,31 @@ export async function derivedStale(db: StatsDb, league: League = NBA): Promise<b
   return (row?.version ?? 0) < derivedRecipe(league).version
 }
 
+/** The tables `narrowCounts` rewrites. */
+export const NARROWED = ['player_game', 'team_game', 'player_season', 'team_season'] as const
+
+/**
+ * Rewrites the game and season tables with their 128-bit integer columns (what DuckDB's `sum()`
+ * gives) as BIGINT, in the same row order. The values are the same: a season's counts are far below
+ * BIGINT's limit, and a sum over BIGINT is again 128-bit, so no query reads a different number. A
+ * board reads the 128-bit integers some 40 times slower: about 40 ms a column over a college season
+ * table's 126,000 rows, against 1 ms. Each table replaces the old one in its own statement.
+ */
+export async function narrowCounts(db: StatsDb): Promise<void> {
+  for (const table of NARROWED) {
+    const wide = await db.all<{ c: string }>(
+      `SELECT column_name AS c FROM duckdb_columns()
+       WHERE schema_name = 'main' AND table_name = ? AND data_type = 'HUGEINT' ORDER BY column_index`,
+      [table]
+    )
+    if (wide.length === 0) continue
+    const cast = wide.map((r) => `${r.c}::BIGINT AS ${r.c}`).join(', ')
+    await db.exec(
+      `CREATE OR REPLACE TABLE ${table} AS SELECT * REPLACE (${cast}) FROM ${table} ORDER BY rowid`
+    )
+  }
+}
+
 /** Marks the tables out of date, so a build the app never got to still happens on the next refresh. */
 export async function markDerivedStale(db: StatsDb): Promise<void> {
   await db.exec("INSERT OR REPLACE INTO derived_state VALUES ('derived', 0)")
@@ -65,6 +90,7 @@ export async function buildDerived(db: StatsDb, league: League = NBA): Promise<n
   const recipe = derivedRecipe(league)
   const lines = await buildGameTables(db, await inspect(db), recipe, league)
   await buildSeasonTables(db)
+  if (recipe.narrowCounts) await narrowCounts(db)
   await db.exec('INSERT OR REPLACE INTO derived_state VALUES (?, ?)', ['derived', recipe.version])
   return lines
 }

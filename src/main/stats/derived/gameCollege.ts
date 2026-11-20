@@ -29,7 +29,8 @@ import { column, type Have } from './sql'
  */
 
 /** Bump when these tables change, so the next refresh builds them with nothing downloaded. */
-const VERSION = 1
+// 2: the tables' 128-bit counts narrowed to BIGINT (`narrowCounts`, T1302.9).
+const VERSION = 2
 
 const NCAA_BOX = 'src_ncaa_player_box'
 const NCAA_TEAM_BOX = 'src_ncaa_team_box'
@@ -290,5 +291,6 @@ export const COLLEGE_DERIVED: DerivedRecipe = {
     player: NCAA_PLAYER_SUMS,
     team: NCAA_TEAM_OWN,
     teamSql: teamSplits
-  }
+  },
+  narrowCounts: true
 }

@@ -12,6 +12,7 @@ import {
 import type { RailPosition } from '@/lib/stats/player'
 import { queryScope, rangeLabel, typeLabel, type StatsScope } from '@/lib/stats/scope'
 import { seasonLabel } from '@/lib/stats/league'
+import { leaderRuleWords } from '@/lib/stats/qualifying'
 import type {
   BoardMode,
   Entity,
@@ -456,7 +457,7 @@ export function fewNote(
         : lowerFirst(range.replace("Team's", "their team's"))
   const why =
     state.entity === 'player'
-      ? 'a player qualifies with enough minutes for the games in scope, and enough of each axis’s own sample, or the NBA’s own minimum alone for its leader stats'
+      ? `a player qualifies with enough minutes for the games in scope, and enough of each axis’s own sample, ${leaderRuleWords().clause}`
       : 'a team qualifies with enough of each axis’s own sample'
   const verb = qualified === 1 ? 'qualifies' : 'qualify'
   const who = qualified === 1 ? whoWords(state).replace(/s$/, '') : whoWords(state)

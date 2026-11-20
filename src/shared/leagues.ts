@@ -390,6 +390,14 @@ export interface League {
    * and its players are never ranked. A query that names its players or teams still reads them.
    */
   divisionIOnly?: boolean
+  /**
+   * A league of thousands of rows a season: a college season has about 5,000 players, ten times the
+   * NBA's. The engine then ranks every column of a board in one pass rather than two window functions
+   * a column, and picks the rows a board lists before reading their columns back (T1302.9: 40 columns
+   * took about a second, a board by opponent 950 ms). The values are the same. Unset, the SQL is the
+   * NBA's and the WNBA's as it was.
+   */
+  manyRows?: boolean
   /** A regular season's shape, for qualifying rows grouped by opponent or month. */
   seasonShape: SeasonShape
   /** The league's stats file in the data folder (D36). */
@@ -487,6 +495,11 @@ export interface League {
   standingsFrom: number
   /** The first season of its shot chart file. */
   shotsFrom: number
+  /**
+   * The shot chart file in screen words, where it is not "the NBA’s shot chart file" (the NBA's and
+   * the WNBA's screens as they were): the college leagues' is stats.ncaa.org's (T1302.6).
+   */
+  shotsFile?: string
   /**
    * The first season every shot has a location: before it, shots with none sit at (0, 0) and zones,
    * distances and charts read only those placed.
@@ -1177,6 +1190,7 @@ const college = (
   // Nothing before 2021-22 is loaded (D39); Division I teams alone are ranked (D40).
   loadedWindow: true,
   divisionIOnly: true,
+  manyRows: true,
   standingsWords: 'Every game, the postseason with it, as ESPN publishes it',
   // Measured on ESPN's team box scores of 2021-22 to 2025-26, teams with 20 games or more: about 33
   // games a season (30 to 33 for the women) against 22.6 to 24.3 opponents (21.5 to 23.6), about 1.4
@@ -1228,6 +1242,7 @@ const college = (
   lineupsFrom: NCAA_FIRST_SEASON,
   standingsFrom: NCAA_FIRST_SEASON,
   shotsFrom: NCAA_FIRST_SEASON,
+  shotsFile: 'stats.ncaa.org’s shot file',
   shotsLocatedFrom: NCAA_FIRST_SEASON,
   metricsByDefault: false,
   catalogueWords: COLLEGE_WORDS

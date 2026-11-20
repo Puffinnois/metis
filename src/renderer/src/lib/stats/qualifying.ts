@@ -22,6 +22,26 @@ export const rowQualifier = (league: League = currentLeague()): string =>
  * What a leaderboard says of who qualifies. In a league whose games rule is a share (D43), its per-game
  * leaders ask that share and only the shooting leaders the NBA's makes.
  */
+/**
+ * Whose minimum the leader stats qualify by, in the Explore chart's notes: the NBA's (D33, D37), or
+ * where a league's own rules set them (the college leagues' games share and makes per game, D43),
+ * that league's. The NBA's and the WNBA's words are as they were.
+ */
+export function leaderRuleWords(league: League = currentLeague()): {
+  note: string
+  clause: string
+} {
+  return league.madePerGame
+    ? {
+        note: 'the leader stats need only the league’s own rule',
+        clause: 'or the league’s own rule alone for its leader stats'
+      }
+    : {
+        note: 'the NBA’s leader stats need only their own minimum',
+        clause: 'or the NBA’s own minimum alone for its leader stats'
+      }
+}
+
 export function leaderboardQualifier(league: League = currentLeague()): string {
   const note = league.minimumsNote ? `, ${league.minimumsNote}` : ''
   const share = gamesShareWords(league)
