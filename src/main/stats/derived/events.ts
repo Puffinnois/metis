@@ -92,7 +92,8 @@ export const eventsBootstrap = (): string[] => [
   emptyView(POSSESSIONS_VIEW, POSSESSION_COLUMNS)
 ]
 
-const select = (columns: Columns, values: Record<string, string>): string =>
+/** A SELECT list of these columns, typed, each from its value in `values` (NULL when it has none). */
+export const selectColumns = (columns: Columns, values: Record<string, string>): string =>
   columns.map(([n, t]) => `(${values[n] ?? 'NULL'})::${t} AS ${n}`).join(',\n           ')
 
 /** The opponent and the side of a row whose team is `team`, the game's side. */
@@ -128,7 +129,7 @@ export function nbaShotsSelect(have: Have, season?: number, league?: League): st
   const located = (sql: string): string =>
     unlocated ? `CASE WHEN NOT coalesce(${unlocated}, false) THEN ${sql} END` : sql
   const team = sideOf(league)
-  return `SELECT ${select(SHOT_COLUMNS, {
+  return `SELECT ${selectColumns(SHOT_COLUMNS, {
     game_id: 'g.game_id',
     season: 'g.season',
     game_type: 'g.game_type',
@@ -151,12 +152,18 @@ export function nbaShotsSelect(have: Have, season?: number, league?: League): st
     JOIN game g ON g.nba_game_id = ${c('game_id', 'VARCHAR')} ${one}`
 }
 
-/** ESPN's shots name the team by ESPN id, matched through `team` for the game's season. */
-export function espnShotsSql(have: Have): string {
+/**
+ * ESPN's shots name the team by ESPN id, matched through `team` for the game's season. Its free throws
+ * are spelled by league (`PlaysRecipe.espnFreeThrow`); a free throw is never a field-goal attempt.
+ */
+export function espnShotsSql(have: Have, league?: League): string {
   const t = 'src_espn_shots'
   const c = (name: string, type = 'BIGINT'): string => column(have, t, 's', name, type)
+  const freeThrow =
+    playsRecipe(league).espnFreeThrow ?? ((typeText) => `${typeText} ILIKE 'Free Throw%'`)
+  const ft = freeThrow(c('type_text', 'VARCHAR'))
   return `CREATE OR REPLACE VIEW ${SHOT_VIEWS.espn} AS
-    SELECT ${select(SHOT_COLUMNS, {
+    SELECT ${selectColumns(SHOT_COLUMNS, {
       game_id: 'g.game_id',
       season: 'g.season',
       game_type: 'g.game_type',
@@ -168,9 +175,9 @@ export function espnShotsSql(have: Have): string {
       ...SIDES,
       player_id: 'p1.player_id',
       player2_id: 'p2.player_id',
-      free_throw: `${c('type_text', 'VARCHAR')} ILIKE 'Free Throw%'`,
+      free_throw: ft,
       made: `coalesce(${c('scoring_play', 'BOOLEAN')}, false)`,
-      value: `CASE WHEN ${c('type_text', 'VARCHAR')} ILIKE 'Free Throw%' THEN 1
+      value: `CASE WHEN ${ft} THEN 1
                    WHEN ${c('scoring_play', 'BOOLEAN')} AND ${c('score_value')} IN (2, 3) THEN ${c('score_value')} END`,
       x: c('coordinate_x', 'DOUBLE'),
       y: c('coordinate_y', 'DOUBLE'),
@@ -196,7 +203,7 @@ export function possessionsSql(have: Have, league?: League): string {
   const c = (name: string, type = 'BIGINT'): string => column(have, t, 's', name, type)
   const counts = ['points', 'fg2a', 'fg2m', 'fg3a', 'fg3m', 'fta', 'ftm', 'oreb', 'dreb', 'tov']
   return `CREATE OR REPLACE VIEW ${POSSESSIONS_VIEW} AS
-    SELECT ${select(POSSESSION_COLUMNS, {
+    SELECT ${selectColumns(POSSESSION_COLUMNS, {
       game_id: 'g.game_id',
       season: 'g.season',
       game_type: 'g.game_type',
@@ -226,6 +233,6 @@ export function possessionsSql(have: Have, league?: League): string {
 
 export const eventsSql = (have: Have, league?: League): string[] => [
   nbaShotsSql(have, league),
-  espnShotsSql(have),
+  espnShotsSql(have, league),
   possessionsSql(have, league)
 ]

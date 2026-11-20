@@ -31,8 +31,8 @@ import type {
   StatsCoach,
   StatsStatus
 } from '@shared/stats/types'
-import { builds, leagueOf, type League } from '@shared/leagues'
-import { notBuiltYet } from '@shared/stats/coverage'
+import { builds, buildsPlayTables, leagueOf, type League } from '@shared/leagues'
+import { notBuiltYet, playTablesNotBuilt } from '@shared/stats/coverage'
 import { sqlString, StatsDb, type Row } from './db'
 import { databaseBytes, freeBytes, roomNeeded } from './disk'
 import { createDownloads } from './download'
@@ -525,6 +525,11 @@ export async function openStatsService(
     const plays = builds(league, 'plays')
       ? null
       : offlineStats(league, notBuiltYet(league, 'plays'))
+    // A league whose plays step builds its shots and lineups but not yet its play by play's tables
+    // (the college leagues until T1302.7): the assists and the game flow read that reason.
+    const playTables = buildsPlayTables(league)
+      ? null
+      : offlineStats(league, playTablesNotBuilt(league))
     const published = builds(league, 'published')
       ? null
       : offlineStats(league, notBuiltYet(league, 'published'))
@@ -538,6 +543,11 @@ export async function openStatsService(
         assists: plays.assists,
         gameFlow: plays.gameFlow
       }),
+      ...(!plays &&
+        playTables && {
+          assists: playTables.assists,
+          gameFlow: playTables.gameFlow
+        }),
       ...(published && {
         matchups: published.matchups,
         gameMatchups: published.gameMatchups,

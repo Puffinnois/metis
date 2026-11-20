@@ -1,4 +1,4 @@
-import { seasonLabel, type League } from '@shared/leagues'
+import { laneHalfWidthOf, seasonLabel, type League } from '@shared/leagues'
 import { SHOT_CHART_LIMIT, SHOT_ZONES, SHOTS_FIRST_SEASON } from '@shared/stats/shots'
 import {
   GAME_TYPES,
@@ -130,7 +130,7 @@ export async function readShotChart(
     zone: string
   }>(
     `WITH g AS (${games})
-       SELECT v.x, v.y, coalesce(v.made, false) AS made, v.value, ${zoneSql('v.x', 'v.y', 'v.value', lineOver(league, 'v.season'))} AS zone
+       SELECT v.x, v.y, coalesce(v.made, false) AS made, v.value, ${zoneSql('v.x', 'v.y', 'v.value', lineOver(league, 'v.season'), laneHalfWidthOf(league))} AS zone
        FROM ${SHOT_VIEWS.nba} v SEMI JOIN g ON g.game_id = v.game_id
        WHERE ${who} AND v.season IN (${r.seasons.join(', ')})${located ? ' AND v.x IS NOT NULL' : ''}
        ORDER BY v.game_date DESC, v.game_id DESC, v.period DESC, v.clock ASC

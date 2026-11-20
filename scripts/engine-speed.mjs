@@ -152,6 +152,29 @@ const team = (scope, extra = {}) => ({
 
 const CASES = [
   ['A leaderboard: ten columns, one season', player({})],
+  // The college leagues' published models (T1302.6): SportsDataverse's ratings, BPM and RAPM.
+  ...(leagueArg().startsWith('ncaa')
+    ? [
+        [
+          'Published models: players, one season',
+          player({}, { metrics: ['sdv_box_bpm', 'sdv_ncaa_rapm', 'sdv_ncaa_team_rapm', 'min'] })
+        ],
+        [
+          'Published models: teams, one season',
+          team(
+            {},
+            { metrics: ['sdv_adj_o', 'sdv_adj_d', 'sdv_adj_em', 'sdv_adj_tempo'], limit: 400 }
+          )
+        ],
+        [
+          'Published models: players by season, every season',
+          player(
+            { seasons: everySeason() },
+            { metrics: ['sdv_box_bpm', 'sdv_ncaa_rapm'], groupBy: ['season'], limit: 5000 }
+          )
+        ]
+      ]
+    : []),
   ['The same, per game', player({}, { transform: 'perGame' })],
   ['40 columns', player({}, { metrics: ALL_PLAYER.slice(0, 40) })],
   ['A home board', player({ qualifiedOnly: true }, { metrics: ['pts'], transform: 'perGame' })],
@@ -282,7 +305,9 @@ const CASES = [
 // The play level (Plan T907): every Stage 9 read at its worst realistic scope, as the screens ask
 // it. A case is a query, or a function of the worker that makes the screen's calls at once and
 // waits for all of them, as the screen does.
-const SEASONS_PLAYS = Array.from({ length: season - 1996 }, (_, i) => 1997 + i)
+// From 1996-97 (the NBA's play by play), or the league's first season where it is later (the colleges').
+const PLAYS_FROM = Math.max(FIRST, 1997)
+const SEASONS_PLAYS = Array.from({ length: season - PLAYS_FROM + 1 }, (_, i) => PLAYS_FROM + i)
 const CURRY = SUBJECTS.shooter
 const LEBRON = SUBJECTS.star
 const OKC = SUBJECTS.team

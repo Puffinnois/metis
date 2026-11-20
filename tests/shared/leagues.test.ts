@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest'
 import {
   BUILT_TABLES,
   builds,
+  buildsPlayTables,
   DEFAULT_LEAGUE,
   elapsedSeconds,
   gameSeconds,
   inSeason,
   isLeagueId,
+  laneHalfWidthOf,
   LEAGUE_IDS,
   LEAGUES,
   leagueOf,
@@ -233,20 +235,40 @@ describe('the college leagues (D38)', () => {
     expect(wnba.gamesRule).toEqual({ kind: 'scaled' })
   })
 
-  it('build their game, team, player, game and season tables alone, and give their own reasons and sizes', () => {
+  it('build every table but the models and the play by play’s, and give their own reasons and sizes', () => {
     for (const league of [men, women]) {
-      expect(league.builds).toEqual(['identity', 'derived'])
+      expect(league.builds).toEqual(['identity', 'derived', 'published', 'plays'])
       expect(builds(league, 'identity')).toBe(true)
       expect([league.identity, league.derived, league.published, league.plays]).toEqual([
         'college',
         'college',
-        null,
-        null
+        'college',
+        'college'
       ])
+      // The shots, lineups and officials of the plays step (T1302.6); the play by play's own tables
+      // wait for T1302.7, and the lane is the college's 12 feet.
+      expect(buildsPlayTables(league)).toBe(false)
+      expect(laneHalfWidthOf(league)).toBe(60)
+      // The families no source publishes, each with its reason (D44).
+      expect(Object.keys(league.unpublished).sort()).toEqual(
+        [
+          'availability',
+          'combine',
+          'hustle',
+          'matchups',
+          'net',
+          'play_types',
+          'polls',
+          'quadrants',
+          'seeds',
+          'tracking'
+        ].sort()
+      )
       expect(league.models).toBeNull()
       expect(league.metricsByDefault).toBe(false)
       expect(builds(league, 'derived')).toBe(true)
-      expect(builds(league, 'published')).toBe(false)
+      expect(builds(league, 'published')).toBe(true)
+      expect(builds(league, 'models')).toBe(false)
       // Nothing before 2021-22 is loaded (D39); Division I teams alone are ranked (D40).
       expect([league.loadedWindow, league.divisionIOnly]).toEqual([true, true])
       expect(league.noData).toMatch(/^No NCAA (men|women)'s stats yet: turn NCAA (Men|Women) on/)

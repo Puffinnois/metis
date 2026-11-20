@@ -148,7 +148,7 @@ export async function readOfficials(
   const rows = await db.all<{ id: number; first: string | null; last: string | null }>(
     `SELECT DISTINCT TRY_CAST(s.official_id AS BIGINT) AS id,
             ${trimmed(have, t, 'first_name')} AS first, ${trimmed(have, t, 'last_name')} AS last
-     FROM ${t} s JOIN game g ON g.nba_game_id = s.game_id
+     FROM ${t} s JOIN game g ON g.${playsRecipe(league).officialsGame ?? 'nba_game_id'} = s.game_id
      WHERE g.game_id = ?`,
     [gameId]
   )

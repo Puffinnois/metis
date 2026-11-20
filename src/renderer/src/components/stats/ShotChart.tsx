@@ -18,7 +18,7 @@ import {
 } from '@/lib/stats/shotChart'
 import { useLeague } from '@/lib/stats/league'
 import { useShots } from '@/lib/stats/useStats'
-import { threePointLineIn } from '@shared/leagues'
+import { laneHalfWidthOf, threePointLineIn } from '@shared/leagues'
 import type { StatsShotRequest } from '@shared/stats/types'
 
 type Mode = 'zones' | 'shots'
@@ -51,8 +51,8 @@ export function ShotChart({
   const league = useLeague()
   const latest = request ? Math.max(...request.seasons) : league.firstSeason
   const line = threePointLineIn(league, latest)
-  const PATHS = zonePaths(line)
-  const LINES = courtLines(line)
+  const PATHS = zonePaths(line, laneHalfWidthOf(league))
+  const LINES = courtLines(line, laneHalfWidthOf(league))
   if (!value) {
     return (
       <section className="flex flex-col gap-2.5">

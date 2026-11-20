@@ -124,6 +124,156 @@ Every Division I team's points, rebounds and stats.ncaa.org possessions over eve
 | 2021-22 | 358 of 358 (358 rows) | Peter Kiss 25.2 (27 g); Darius McGhee 24.6 (33 g); Antoine Davis 23.9 (29 g)    |
 | 2025-26 | 365 of 365 (365 rows) | AJ Dybantsa 25.5 (35 g); Jordan Riley 23.6 (30 g); Darius Acuff Jr. 23.5 (36 g) |
 
+### The depth (T1302.6)
+
+stats.ncaa.org's shots, lineups, stints and possessions, ESPN's shots, and SportsDataverse's published models, per season. A team-game is counted with a box score, exhibitions out.
+
+#### Shots against the box score
+
+stats.ncaa.org's located shots summed per team-game (`shot_team_game`) against ESPN's team box (the app's counts, D40) and stats.ncaa.org's own (`ncaa_fga`). Exact unless the column says within 2.
+
+| Season  | Team-games | With shots | FGA = ESPN's | FGM = ESPN's | 3PA = ESPN's | FGA within 2 | FGA = stats.ncaa.org's | FGM = stats.ncaa.org's | Season FGA, shots / box | Season FGM, shots / box |
+| ------- | ---------- | ---------- | ------------ | ------------ | ------------ | ------------ | ---------------------- | ---------------------- | ----------------------- | ----------------------- |
+| 2021-22 | 11,934     | 97.3 %     | 96.9 %       | 97.2 %       | 87.6 %       | 97.2 %       | 97.2 %                 | 97.2 %                 | 673,127 / 692,371       | 294,041 / 302,367       |
+| 2022-23 | 12,444     | 98.5 %     | 98.4 %       | 98.5 %       | 90.5 %       | 98.5 %       | 98.5 %                 | 98.5 %                 | 707,685 / 718,714       | 312,136 / 316,986       |
+| 2023-24 | 12,486     | 99.4 %     | 99.3 %       | 99.4 %       | 93.6 %       | 99.4 %       | 99.4 %                 | 99.4 %                 | 729,580 / 734,232       | 322,134 / 324,189       |
+| 2024-25 | 12,586     | 100.0 %    | 99.8 %       | 99.9 %       | 95.1 %       | 100.0 %      | 99.9 %                 | 99.9 %                 | 736,259 / 736,458       | 325,946 / 326,022       |
+| 2025-26 | 12,600     | 100.0 %    | 99.8 %       | 99.9 %       | 95.5 %       | 99.9 %       | 99.9 %                 | 99.9 %                 | 740,861 / 741,185       | 331,183 / 331,319       |
+| 2026-27 | 1,924      | 99.1 %     | 98.3 %       | 98.8 %       | 94.3 %       | 98.8 %       | 98.9 %                 | 98.9 %                 | 115,137 / 116,265       | 50,324 / 50,820         |
+
+Shots by whom they are credited to: an ESPN athlete through `ncaa_player_ids`, or D28's negative key (kept and counted).
+
+| Season  | Shots   | ESPN athlete | D28's key | No player | No team |
+| ------- | ------- | ------------ | --------- | --------- | ------- |
+| 2021-22 | 673,623 | 98.9 %       | 7,331     | 0         | 0       |
+| 2022-23 | 707,685 | 99.1 %       | 6,569     | 0         | 0       |
+| 2023-24 | 729,580 | 99.2 %       | 5,616     | 0         | 0       |
+| 2024-25 | 736,259 | 99.4 %       | 4,469     | 0         | 0       |
+| 2025-26 | 740,861 | 99.4 %       | 4,087     | 0         | 0       |
+| 2026-27 | 115,137 | 99.0 %       | 1,160     | 0         | 0       |
+
+ESPN's shots beside stats.ncaa.org's (`shot_espn`), its made free throws left out of the attempts. Located: a field goal ESPN gives coordinates other than a basket's own point.
+
+| Season  | Team-games both have | FGA equal | FGM equal | Free throws left out | Located |
+| ------- | -------------------- | --------- | --------- | -------------------- | ------- |
+| 2021-22 | 11,426               | 79.8 %    | 87.1 %    | 196,862              | 12.2 %  |
+| 2022-23 | 12,104               | 81.2 %    | 88.0 %    | 216,427              | 8.9 %   |
+| 2023-24 | 12,254               | 93.9 %    | 95.7 %    | 232,104              | 6.3 %   |
+| 2024-25 | 12,268               | 97.0 %    | 98.3 %    | 219,904              | 26.0 %  |
+| 2025-26 | 12,546               | 98.9 %    | 99.7 %    | 253,492              | 99.6 %  |
+| 2026-27 | 1,895                | 98.8 %    | 99.7 %    | 40,005               | 99.7 %  |
+
+#### The three-point line
+
+On stats.ncaa.org's located shots, which give each shot's value and its feet from the basket on a half-foot grid across (`x`) and 0.94 feet along (`y`): in the corners (`y` within 4.7 feet of the basket) the widest two and the nearest three across, above them the farthest two and the nearest three from the basket.
+
+| Season  | Corner: widest two (ft) | Corner: nearest three (ft) | Arc: farthest two (ft) | Arc: nearest three (ft) | Corner threes inside 21.65 ft |
+| ------- | ----------------------- | -------------------------- | ---------------------- | ----------------------- | ----------------------------- |
+| 2021-22 | 20.50                   | 21.00                      | 22.150                 | 22.260                  | 683 of 45,706 (1.5 %)         |
+| 2022-23 | 20.50                   | 21.00                      | 22.150                 | 22.260                  | 558 of 48,712 (1.1 %)         |
+| 2023-24 | 20.50                   | 21.00                      | 22.150                 | 22.260                  | 624 of 50,444 (1.2 %)         |
+| 2024-25 | 20.50                   | 21.00                      | 22.150                 | 22.260                  | 640 of 53,495 (1.2 %)         |
+| 2025-26 | 20.50                   | 21.00                      | 22.150                 | 22.260                  | 601 of 56,654 (1.1 %)         |
+| 2026-27 | 20.50                   | 21.00                      | 22.150                 | 22.260                  | 102 of 9,763 (1.0 %)          |
+
+#### Units on the floor against the box score
+
+stats.ncaa.org's lineup file, each row a team's stint with five players, summed per team-game (`unit_game`): its minutes against the game's (40 and five an overtime), its points for and against and field-goal attempts against ESPN's team box, its possessions against stats.ncaa.org's team box within 2. Share of seconds with fewer than five known players, and of player-seconds on D28's keys (players no row of `ncaa_player_ids` names).
+
+| Season  | Team-games | With units | Minutes exact (1 s) | Minutes within 1 | Points | Points against | FGA    | Possessions within 2 | Partial units | D28's keys | Lineup rows with no game |
+| ------- | ---------- | ---------- | ------------------- | ---------------- | ------ | -------------- | ------ | -------------------- | ------------- | ---------- | ------------------------ |
+| 2021-22 | 11,934     | 100.0 %    | 58.3 %              | 64.5 %           | 66.6 % | 65.8 %         | 60.8 % | 58.3 %               | 0.00 %        | 1.59 %     | 0 of 259,513 (0.0 %)     |
+| 2022-23 | 12,444     | 100.0 %    | 57.4 %              | 63.9 %           | 66.1 % | 64.9 %         | 60.4 % | 57.9 %               | 0.00 %        | 1.42 %     | 0 of 272,021 (0.0 %)     |
+| 2023-24 | 12,486     | 100.0 %    | 59.9 %              | 66.4 %           | 68.2 % | 66.7 %         | 62.8 % | 59.3 %               | 0.00 %        | 1.07 %     | 0 of 276,701 (0.0 %)     |
+| 2024-25 | 12,586     | 100.0 %    | 59.3 %              | 65.9 %           | 67.6 % | 66.4 %         | 62.1 % | 58.9 %               | 0.08 %        | 0.58 %     | 0 of 282,737 (0.0 %)     |
+| 2025-26 | 12,600     | 99.8 %     | 59.1 %              | 66.0 %           | 67.3 % | 66.4 %         | 61.9 % | 58.3 %               | 0.00 %        | 0.82 %     | 0 of 288,918 (0.0 %)     |
+| 2026-27 | 1,924      | 99.1 %     | 48.9 %              | 57.0 %           | 58.4 % | 57.3 %         | 51.9 % | 47.9 %               | 0.00 %        | 1.02 %     | 30 of 45,899 (0.1 %)     |
+
+A player's minutes on the floor (`player_on_court`) against their box-score minutes (ESPN's), over the player-games both have.
+
+| Season  | On-court lines | With a box line | Within 5 s | Within 1 minute | Minutes, on court / box |
+| ------- | -------------- | --------------- | ---------- | --------------- | ----------------------- |
+| 2021-22 | 119,760        | 98.4 %          | 6.7 %      | 42.1 %          | 0.9834                  |
+| 2022-23 | 124,911        | 98.4 %          | 6.5 %      | 41.7 %          | 0.9806                  |
+| 2023-24 | 125,555        | 98.9 %          | 6.8 %      | 43.3 %          | 0.9811                  |
+| 2024-25 | 127,031        | 99.4 %          | 7.1 %      | 42.9 %          | 0.9764                  |
+| 2025-26 | 126,915        | 99.0 %          | 7.0 %      | 42.4 %          | 0.9807                  |
+| 2026-27 | 21,972         | 98.8 %          | 6.3 %      | 42.2 %          | 0.9726                  |
+
+#### Stints against the game
+
+stats.ncaa.org's ten-player stints (`stint`) summed per game: their seconds against the game's within a second, and both sides' points against the final score.
+
+| Season  | Games | With stints | Seconds equal | Points equal the score | Stints with a side unplaced |
+| ------- | ----- | ----------- | ------------- | ---------------------- | --------------------------- |
+| 2021-22 | 5,967 | 99.9 %      | 0.0 %         | 99.8 %                 | 0                           |
+| 2022-23 | 6,222 | 99.9 %      | 0.0 %         | 99.9 %                 | 0                           |
+| 2023-24 | 6,243 | 100.0 %     | 0.0 %         | 100.0 %                | 0                           |
+| 2024-25 | 6,293 | 100.0 %     | 0.0 %         | 100.0 %                | 0                           |
+| 2025-26 | 6,300 | 99.9 %      | 0.0 %         | 99.9 %                 | 0                           |
+| 2026-27 | 962   | 99.1 %      | 0.0 %         | 99.0 %                 | 0                           |
+
+#### Possessions against the team box
+
+stats.ncaa.org's possessions (`possession`) counted per team-game against its team box's possessions (`ncaa_poss`, an estimate it publishes), and their points against ESPN's team points.
+
+| Season  | Team-games | With possessions | Within 2 of the box | Mean difference | Points equal | Season, file / box |
+| ------- | ---------- | ---------------- | ------------------- | --------------- | ------------ | ------------------ |
+| 2021-22 | 11,934     | 99.8 %           | 99.8 %              | 0.03            | 84.8 %       | 828,885 / 830,133  |
+| 2022-23 | 12,444     | 99.7 %           | 99.7 %              | 0.03            | 81.1 %       | 861,561 / 863,356  |
+| 2023-24 | 12,486     | 99.8 %           | 99.8 %              | 0.02            | 84.7 %       | 870,420 / 872,219  |
+| 2024-25 | 12,586     | 99.8 %           | 99.8 %              | 0.02            | 86.0 %       | 872,163 / 873,221  |
+| 2025-26 | 12,600     | 99.9 %           | 99.8 %              | 0.02            | 86.4 %       | 878,168 / 878,714  |
+| 2026-27 | 1,924      | 99.1 %           | 99.0 %              | 0.02            | 85.1 %       | 138,044 / 137,920  |
+
+#### The published models through the engine
+
+SportsDataverse's values (D44) as the engine answers them over every counted game of a season, each row a Division I team or a player with a box score, against the file's value (a player of two rows: their weighted mean). Stored times what it was fitted on and divided back, so equal to nine decimals.
+
+| Season  | Metric             | Rows  | Equal to the file        | Check |
+| ------- | ------------------ | ----- | ------------------------ | ----- |
+| 2021-22 | sdv_adj_em         | 358   | 358 of 358 (100.0 %)     | ok    |
+| 2021-22 | sdv_adj_o          | 358   | 358 of 358 (100.0 %)     | ok    |
+| 2021-22 | sdv_box_bpm        | 5,071 | 5,071 of 5,071 (100.0 %) | ok    |
+| 2021-22 | sdv_ncaa_rapm      | 5,000 | 4,896 of 4,896 (100.0 %) | ok    |
+| 2021-22 | sdv_ncaa_team_rapm | 5,000 | 3,982 of 3,982 (100.0 %) | ok    |
+| 2025-26 | sdv_adj_em         | 365   | 365 of 365 (100.0 %)     | ok    |
+| 2025-26 | sdv_adj_o          | 365   | 365 of 365 (100.0 %)     | ok    |
+| 2025-26 | sdv_box_bpm        | 5,015 | 5,015 of 5,015 (100.0 %) | ok    |
+| 2025-26 | sdv_ncaa_rapm      | 5,000 | 4,969 of 4,969 (100.0 %) | ok    |
+| 2025-26 | sdv_ncaa_team_rapm | 5,000 | 4,117 of 4,117 (100.0 %) | ok    |
+
+Division I players with a box-score line, and those with 300 minutes or more (BPM's own qualifier), with a value in each published file. A RAPM row no `ncaa_player_ids` row names keeps D28's negative key.
+
+| Season  | Players | 300 min + | BPM    | BPM, 300 min + | RAPM   | RAPM, 300 min + | RAPM within team, 300 min + | RAPM rows on D28's keys |
+| ------- | ------- | --------- | ------ | -------------- | ------ | --------------- | --------------------------- | ----------------------- |
+| 2021-22 | 5,091   | 2,965     | 99.6 % | 100.0 %        | 96.2 % | 98.2 %          | 97.9 %                      | 42 of 4,942 (0.8 %)     |
+| 2022-23 | 5,102   | 3,024     | 99.8 % | 100.0 %        | 95.8 % | 97.6 %          | 97.5 %                      | 54 of 4,942 (1.1 %)     |
+| 2023-24 | 5,063   | 3,056     | 99.9 % | 100.0 %        | 96.6 % | 97.8 %          | 97.7 %                      | 29 of 4,919 (0.6 %)     |
+| 2024-25 | 5,119   | 3,062     | 99.9 % | 100.0 %        | 96.5 % | 98.3 %          | 98.0 %                      | 17 of 4,960 (0.3 %)     |
+| 2025-26 | 5,019   | 3,114     | 99.9 % | 100.0 %        | 99.0 % | 100.0 %         | 99.7 %                      | 4 of 4,974 (0.1 %)      |
+| 2026-27 | 4,978   | 0         | 99.5 % | – %            | 0.0 %  | – %             | – %                         | –                       |
+
+SportsDataverse's team ratings against an efficiency the tables give: each Division I team's points per 100 of stats.ncaa.org's possessions over its counted games. Its unadjusted ratings are over ESPN's box scores and its own possession estimate, so they are compared by correlation and mean difference, not equality.
+
+| Season  | Division I teams | Rated   | Same games | Raw O: r | Raw O − ORtg | Raw D: r | Raw D − DRtg | AdjEM against net rating: r |
+| ------- | ---------------- | ------- | ---------- | -------- | ------------ | -------- | ------------ | --------------------------- |
+| 2021-22 | 358              | 100.0 % | 99.4 %     | 0.995    | 1.39         | 0.994    | 1.58         | 0.785                       |
+| 2022-23 | 363              | 100.0 % | 99.2 %     | 0.994    | 1.37         | 0.991    | 1.55         | 0.790                       |
+| 2023-24 | 362              | 100.0 % | 97.8 %     | 0.996    | 1.39         | 0.993    | 1.57         | 0.790                       |
+| 2024-25 | 364              | 100.0 % | 96.2 %     | 0.994    | 1.43         | 0.992    | 1.64         | 0.774                       |
+| 2025-26 | 365              | 100.0 % | 99.2 %     | 0.994    | 1.51         | 0.990    | 1.71         | 0.785                       |
+| 2026-27 | 365              | 100.0 % | 99.7 %     | 0.906    | 0.72         | 0.898    | 0.99         | 0.727                       |
+
+#### Through the engine
+
+Every player row of the engine's board over every counted game (players of Division I teams, D40), its rim attempts and above-the-break threes made (`shot_player_game`) and its on-court minutes and plus-minus (`player_on_court`), against the tables summed directly.
+
+| Season  | Rows  | Shots equal             | On-court equal          |
+| ------- | ----- | ----------------------- | ----------------------- |
+| 2021-22 | 5,091 | 5,037 of 5,091 (98.9 %) | 5,035 of 5,091 (98.9 %) |
+| 2025-26 | 5,019 | 5,014 of 5,019 (99.9 %) | 5,014 of 5,019 (99.9 %) |
+
 ## NCAA Division I women's agreement checks
 
 ### Games and teams
@@ -245,6 +395,156 @@ Every Division I team's points, rebounds and stats.ncaa.org possessions over eve
 | ------- | --------------------- | --------------------------------------------------------------------------------- |
 | 2021-22 | 356 of 356 (356 rows) | Caitlin Clark 27.0 (32 g); Maddy Siegrist 25.3 (27 g); Jasmine Dickey 25.2 (31 g) |
 | 2025-26 | 363 of 363 (363 rows) | Mikayla Blakes 27.0 (34 g); Audi Crooks 25.8 (31 g); Hannah Hidalgo 25.3 (36 g)   |
+
+### The depth (T1302.6)
+
+stats.ncaa.org's shots, lineups, stints and possessions, ESPN's shots, and SportsDataverse's published models, per season. A team-game is counted with a box score, exhibitions out.
+
+#### Shots against the box score
+
+stats.ncaa.org's located shots summed per team-game (`shot_team_game`) against ESPN's team box (the app's counts, D40) and stats.ncaa.org's own (`ncaa_fga`). Exact unless the column says within 2.
+
+| Season  | Team-games | With shots | FGA = ESPN's | FGM = ESPN's | 3PA = ESPN's | FGA within 2 | FGA = stats.ncaa.org's | FGM = stats.ncaa.org's | Season FGA, shots / box | Season FGM, shots / box |
+| ------- | ---------- | ---------- | ------------ | ------------ | ------------ | ------------ | ---------------------- | ---------------------- | ----------------------- | ----------------------- |
+| 2021-22 | 11,024     | 97.2 %     | 96.4 %       | 96.9 %       | 86.1 %       | 96.9 %       | 97.0 %                 | 97.0 %                 | 630,038 / 648,053       | 252,493 / 259,598       |
+| 2022-23 | 11,640     | 98.9 %     | 98.5 %       | 98.6 %       | 89.3 %       | 98.6 %       | 98.7 %                 | 98.7 %                 | 673,097 / 680,220       | 271,996 / 274,734       |
+| 2023-24 | 11,798     | 99.4 %     | 99.1 %       | 99.1 %       | 91.6 %       | 99.2 %       | 99.2 %                 | 99.2 %                 | 688,869 / 692,849       | 279,566 / 281,062       |
+| 2024-25 | 11,932     | 99.8 %     | 99.5 %       | 99.6 %       | 92.7 %       | 99.6 %       | 99.6 %                 | 99.6 %                 | 695,511 / 696,988       | 283,653 / 284,236       |
+| 2025-26 | 12,058     | 99.8 %     | 99.5 %       | 99.5 %       | 93.3 %       | 99.6 %       | 99.5 %                 | 99.5 %                 | 708,038 / 709,510       | 286,440 / 287,020       |
+| 2026-27 | 1,880      | 99.9 %     | 98.6 %       | 99.6 %       | 93.5 %       | 99.6 %       | 99.6 %                 | 99.7 %                 | 112,389 / 112,532       | 45,306 / 45,360         |
+
+Shots by whom they are credited to: an ESPN athlete through `ncaa_player_ids`, or D28's negative key (kept and counted).
+
+| Season  | Shots   | ESPN athlete | D28's key | No player | No team |
+| ------- | ------- | ------------ | --------- | --------- | ------- |
+| 2021-22 | 630,038 | 98.6 %       | 8,978     | 0         | 0       |
+| 2022-23 | 673,225 | 98.9 %       | 7,373     | 0         | 0       |
+| 2023-24 | 688,992 | 98.9 %       | 7,604     | 0         | 0       |
+| 2024-25 | 695,639 | 99.2 %       | 5,515     | 0         | 0       |
+| 2025-26 | 708,038 | 99.4 %       | 4,560     | 0         | 0       |
+| 2026-27 | 112,389 | 99.3 %       | 834       | 0         | 0       |
+
+ESPN's shots beside stats.ncaa.org's (`shot_espn`), its made free throws left out of the attempts. Located: a field goal ESPN gives coordinates other than a basket's own point.
+
+| Season  | Team-games both have | FGA equal | FGM equal | Free throws left out | Located |
+| ------- | -------------------- | --------- | --------- | -------------------- | ------- |
+| 2021-22 | 10,468               | 87.9 %    | 93.4 %    | 167,922              | 4.0 %   |
+| 2022-23 | 11,293               | 87.7 %    | 93.7 %    | 188,712              | 4.4 %   |
+| 2023-24 | 11,500               | 93.8 %    | 95.5 %    | 187,735              | 4.6 %   |
+| 2024-25 | 10,928               | 97.7 %    | 98.9 %    | 166,346              | 25.1 %  |
+| 2025-26 | 11,999               | 99.1 %    | 99.6 %    | 199,946              | 99.7 %  |
+| 2026-27 | 1,870                | 99.0 %    | 99.6 %    | 33,294               | 99.8 %  |
+
+#### The three-point line
+
+On stats.ncaa.org's located shots, which give each shot's value and its feet from the basket on a half-foot grid across (`x`) and 0.94 feet along (`y`): in the corners (`y` within 4.7 feet of the basket) the widest two and the nearest three across, above them the farthest two and the nearest three from the basket.
+
+| Season  | Corner: widest two (ft) | Corner: nearest three (ft) | Arc: farthest two (ft) | Arc: nearest three (ft) | Corner threes inside 21.65 ft |
+| ------- | ----------------------- | -------------------------- | ---------------------- | ----------------------- | ----------------------------- |
+| 2021-22 | 20.50                   | 21.00                      | 22.150                 | 22.260                  | 616 of 35,255 (1.7 %)         |
+| 2022-23 | 20.50                   | 21.00                      | 22.150                 | 22.260                  | 495 of 38,726 (1.3 %)         |
+| 2023-24 | 20.50                   | 21.00                      | 22.150                 | 22.260                  | 519 of 40,551 (1.3 %)         |
+| 2024-25 | 20.50                   | 21.00                      | 22.150                 | 22.260                  | 545 of 42,189 (1.3 %)         |
+| 2025-26 | 20.50                   | 21.00                      | 22.150                 | 22.260                  | 596 of 45,002 (1.3 %)         |
+| 2026-27 | 20.50                   | 21.00                      | 22.150                 | 22.260                  | 109 of 7,967 (1.4 %)          |
+
+#### Units on the floor against the box score
+
+stats.ncaa.org's lineup file, each row a team's stint with five players, summed per team-game (`unit_game`): its minutes against the game's (40 and five an overtime), its points for and against and field-goal attempts against ESPN's team box, its possessions against stats.ncaa.org's team box within 2. Share of seconds with fewer than five known players, and of player-seconds on D28's keys (players no row of `ncaa_player_ids` names).
+
+| Season  | Team-games | With units | Minutes exact (1 s) | Minutes within 1 | Points | Points against | FGA    | Possessions within 2 | Partial units | D28's keys | Lineup rows with no game |
+| ------- | ---------- | ---------- | ------------------- | ---------------- | ------ | -------------- | ------ | -------------------- | ------------- | ---------- | ------------------------ |
+| 2021-22 | 11,024     | 99.9 %     | 56.2 %              | 62.3 %           | 65.1 % | 63.7 %         | 58.7 % | 54.8 %               | 0.00 %        | 1.19 %     | 0 of 250,040 (0.0 %)     |
+| 2022-23 | 11,640     | 100.0 %    | 54.9 %              | 61.7 %           | 64.5 % | 62.9 %         | 57.7 % | 54.8 %               | 0.00 %        | 1.13 %     | 0 of 267,546 (0.0 %)     |
+| 2023-24 | 11,798     | 99.9 %     | 55.2 %              | 61.9 %           | 64.6 % | 63.7 %         | 58.1 % | 55.7 %               | 0.00 %        | 1.07 %     | 0 of 272,294 (0.0 %)     |
+| 2024-25 | 11,932     | 99.9 %     | 53.7 %              | 60.1 %           | 64.8 % | 63.5 %         | 58.4 % | 55.6 %               | 0.00 %        | 0.27 %     | 0 of 277,406 (0.0 %)     |
+| 2025-26 | 12,058     | 99.8 %     | 56.0 %              | 63.0 %           | 65.7 % | 64.3 %         | 59.1 % | 56.1 %               | 0.00 %        | 0.34 %     | 0 of 286,277 (0.0 %)     |
+| 2026-27 | 1,880      | 100.0 %    | 51.6 %              | 59.8 %           | 62.1 % | 61.3 %         | 54.7 % | 50.0 %               | 0.00 %        | 0.47 %     | 0 of 47,254 (0.0 %)      |
+
+A player's minutes on the floor (`player_on_court`) against their box-score minutes (ESPN's), over the player-games both have.
+
+| Season  | On-court lines | With a box line | Within 5 s | Within 1 minute | Minutes, on court / box |
+| ------- | -------------- | --------------- | ---------- | --------------- | ----------------------- |
+| 2021-22 | 111,414        | 98.6 %          | 6.2 %      | 40.5 %          | 0.9708                  |
+| 2022-23 | 117,133        | 98.7 %          | 5.9 %      | 39.6 %          | 0.9717                  |
+| 2023-24 | 118,024        | 98.8 %          | 5.9 %      | 39.8 %          | 0.9722                  |
+| 2024-25 | 120,707        | 99.8 %          | 7.0 %      | 41.4 %          | 0.9648                  |
+| 2025-26 | 121,465        | 99.5 %          | 6.7 %      | 41.0 %          | 0.9682                  |
+| 2026-27 | 20,362         | 99.3 %          | 6.2 %      | 41.1 %          | 0.9676                  |
+
+#### Stints against the game
+
+stats.ncaa.org's ten-player stints (`stint`) summed per game: their seconds against the game's within a second, and both sides' points against the final score.
+
+| Season  | Games | With stints | Seconds equal | Points equal the score | Stints with a side unplaced |
+| ------- | ----- | ----------- | ------------- | ---------------------- | --------------------------- |
+| 2021-22 | 5,512 | 99.9 %      | 0.0 %         | 99.7 %                 | 0                           |
+| 2022-23 | 5,820 | 99.9 %      | 0.0 %         | 99.9 %                 | 0                           |
+| 2023-24 | 5,899 | 99.9 %      | 0.0 %         | 99.9 %                 | 0                           |
+| 2024-25 | 5,965 | 99.8 %      | 0.0 %         | 99.8 %                 | 0                           |
+| 2025-26 | 6,029 | 99.7 %      | 0.0 %         | 99.7 %                 | 0                           |
+| 2026-27 | 940   | 100.0 %     | 0.0 %         | 99.9 %                 | 0                           |
+
+#### Possessions against the team box
+
+stats.ncaa.org's possessions (`possession`) counted per team-game against its team box's possessions (`ncaa_poss`, an estimate it publishes), and their points against ESPN's team points.
+
+| Season  | Team-games | With possessions | Within 2 of the box | Mean difference | Points equal | Season, file / box |
+| ------- | ---------- | ---------------- | ------------------- | --------------- | ------------ | ------------------ |
+| 2021-22 | 11,024     | 99.6 %           | 99.6 %              | 0.04            | 92.8 %       | 782,395 / 784,473  |
+| 2022-23 | 11,640     | 99.8 %           | 99.8 %              | 0.04            | 92.7 %       | 829,694 / 830,630  |
+| 2023-24 | 11,798     | 99.8 %           | 99.8 %              | 0.03            | 93.3 %       | 840,786 / 841,468  |
+| 2024-25 | 11,932     | 99.7 %           | 99.6 %              | 0.03            | 93.8 %       | 848,961 / 849,972  |
+| 2025-26 | 12,058     | 99.7 %           | 99.6 %              | 0.03            | 90.0 %       | 862,483 / 863,806  |
+| 2026-27 | 1,880      | 100.0 %          | 100.0 %             | 0.04            | 90.5 %       | 139,280 / 139,208  |
+
+#### The published models through the engine
+
+SportsDataverse's values (D44) as the engine answers them over every counted game of a season, each row a Division I team or a player with a box score, against the file's value (a player of two rows: their weighted mean). Stored times what it was fitted on and divided back, so equal to nine decimals.
+
+| Season  | Metric             | Rows  | Equal to the file        | Check |
+| ------- | ------------------ | ----- | ------------------------ | ----- |
+| 2021-22 | sdv_adj_em         | 356   | 356 of 356 (100.0 %)     | ok    |
+| 2021-22 | sdv_adj_o          | 356   | 356 of 356 (100.0 %)     | ok    |
+| 2021-22 | sdv_box_bpm        | 4,806 | 4,798 of 4,798 (100.0 %) | ok    |
+| 2021-22 | sdv_ncaa_rapm      | 4,806 | 4,607 of 4,607 (100.0 %) | ok    |
+| 2021-22 | sdv_ncaa_team_rapm | 4,806 | 4,023 of 4,023 (100.0 %) | ok    |
+| 2025-26 | sdv_adj_em         | 363   | 363 of 363 (100.0 %)     | ok    |
+| 2025-26 | sdv_adj_o          | 363   | 363 of 363 (100.0 %)     | ok    |
+| 2025-26 | sdv_box_bpm        | 4,694 | 4,692 of 4,692 (100.0 %) | ok    |
+| 2025-26 | sdv_ncaa_rapm      | 4,694 | 4,594 of 4,594 (100.0 %) | ok    |
+| 2025-26 | sdv_ncaa_team_rapm | 4,694 | 4,090 of 4,090 (100.0 %) | ok    |
+
+Division I players with a box-score line, and those with 300 minutes or more (BPM's own qualifier), with a value in each published file. A RAPM row no `ncaa_player_ids` row names keeps D28's negative key.
+
+| Season  | Players | 300 min + | BPM     | BPM, 300 min + | RAPM   | RAPM, 300 min + | RAPM within team, 300 min + | RAPM rows on D28's keys |
+| ------- | ------- | --------- | ------- | -------------- | ------ | --------------- | --------------------------- | ----------------------- |
+| 2021-22 | 4,806   | 2,899     | 99.8 %  | 100.0 %        | 95.9 % | 96.4 %          | 96.4 %                      | 55 of 4,666 (1.2 %)     |
+| 2022-23 | 4,713   | 2,982     | 99.8 %  | 100.0 %        | 96.5 % | 97.5 %          | 97.2 %                      | 57 of 4,606 (1.2 %)     |
+| 2023-24 | 4,696   | 3,008     | 99.9 %  | 100.0 %        | 96.0 % | 97.2 %          | 96.9 %                      | 45 of 4,557 (1.0 %)     |
+| 2024-25 | 4,738   | 2,989     | 99.9 %  | 100.0 %        | 97.2 % | 97.9 %          | 97.3 %                      | 19 of 4,623 (0.4 %)     |
+| 2025-26 | 4,694   | 3,012     | 100.0 % | 100.0 %        | 97.9 % | 98.6 %          | 98.0 %                      | 2 of 4,596 (0.0 %)      |
+| 2026-27 | 4,443   | 0         | 99.9 %  | – %            | 0.0 %  | – %             | – %                         | –                       |
+
+SportsDataverse's team ratings against an efficiency the tables give: each Division I team's points per 100 of stats.ncaa.org's possessions over its counted games. Its unadjusted ratings are over ESPN's box scores and its own possession estimate, so they are compared by correlation and mean difference, not equality.
+
+| Season  | Division I teams | Rated   | Same games | Raw O: r | Raw O − ORtg | Raw D: r | Raw D − DRtg | AdjEM against net rating: r |
+| ------- | ---------------- | ------- | ---------- | -------- | ------------ | -------- | ------------ | --------------------------- |
+| 2021-22 | 356              | 100.0 % | 100.0 %    | 0.997    | 1.13         | 0.993    | 1.24         | 0.812                       |
+| 2022-23 | 361              | 100.0 % | 98.6 %     | 0.997    | 1.13         | 0.993    | 1.24         | 0.827                       |
+| 2023-24 | 360              | 100.0 % | 99.7 %     | 0.997    | 1.01         | 0.994    | 1.11         | 0.822                       |
+| 2024-25 | 362              | 100.0 % | 28.7 %     | 0.986    | 0.87         | 0.963    | 1.03         | 0.834                       |
+| 2025-26 | 363              | 100.0 % | 100.0 %    | 0.982    | 0.75         | 0.965    | 0.88         | 0.832                       |
+| 2026-27 | 363              | 100.0 % | 100.0 %    | 0.996    | 1.04         | 0.996    | 1.26         | 0.751                       |
+
+#### Through the engine
+
+Every player row of the engine's board over every counted game (players of Division I teams, D40), its rim attempts and above-the-break threes made (`shot_player_game`) and its on-court minutes and plus-minus (`player_on_court`), against the tables summed directly.
+
+| Season  | Rows  | Shots equal             | On-court equal          |
+| ------- | ----- | ----------------------- | ----------------------- |
+| 2021-22 | 4,806 | 4,762 of 4,806 (99.1 %) | 4,762 of 4,806 (99.1 %) |
+| 2025-26 | 4,694 | 4,688 of 4,694 (99.9 %) | 4,688 of 4,694 (99.9 %) |
 
 ## Men's champions against the NCAA's record books
 

@@ -602,6 +602,23 @@ const IMPACT_COLUMNS = `
   .map((line) => line.trim().split(/\s+/))
   .filter((parts) => parts.length === 3)
 
+/**
+ * SportsDataverse's college models (`catalogue/collegeDepth.ts`): each stored times what it was fitted
+ * on, so it reads back over that.
+ */
+const COLLEGE_MODEL_COLUMNS = `
+  sdv_adj_o sdv_adj_o_w games; sdv_adj_d sdv_adj_d_w games; sdv_adj_em sdv_adj_em_w games
+  sdv_adj_tempo sdv_adj_tempo_w games; sdv_raw_o sdv_raw_o_w games; sdv_raw_d sdv_raw_d_w games
+  sdv_adj_em_blend sdv_adj_em_blend_w games; sdv_box_bpm sdv_box_bpm_w minutes
+  sdv_box_obpm sdv_box_obpm_w minutes; sdv_box_dbpm sdv_box_dbpm_w minutes
+  sdv_ncaa_rapm ncaa_rapm_w possessions; sdv_ncaa_orapm ncaa_orapm_w ncaa_rapm_off_poss
+  sdv_ncaa_drapm ncaa_drapm_w ncaa_rapm_def_poss; sdv_ncaa_team_rapm ncaa_trapm_w ncaa_trapm_poss
+  sdv_ncaa_team_orapm ncaa_trapm_off_w ncaa_trapm_poss
+  sdv_ncaa_team_drapm ncaa_trapm_def_w ncaa_trapm_poss`
+  .split(/[;\n]/)
+  .map((line) => line.trim().split(/\s+/))
+  .filter((parts) => parts.length === 3)
+
 /** Games out (`catalogue/availability.ts`): counts of games, summed as published. */
 const AVAILABILITY_COLUMNS = [
   ['games_out_injury', 'games_out_injury', '-'],
@@ -624,6 +641,7 @@ const PUBLISHED_ROW: Record<string, number> = {
           ...MATCHUP_COLUMNS,
           ...MATCHUP_PER_100,
           ...IMPACT_COLUMNS,
+          ...COLLEGE_MODEL_COLUMNS,
           ...AVAILABILITY_COLUMNS
         ]
           .flatMap(([, c, by]) => [c, by])
@@ -648,6 +666,7 @@ Object.assign(EXPECTED, {
       ...PLAY_TYPE_COLUMNS,
       ...MATCHUP_COLUMNS,
       ...IMPACT_COLUMNS,
+      ...COLLEGE_MODEL_COLUMNS,
       ...AVAILABILITY_COLUMNS
     ].map(([id, c, by]) => [
       id,
@@ -658,6 +677,11 @@ Object.assign(EXPECTED, {
     MATCHUP_PER_100.map(([id, c, by]) => [id, (100 * PUBLISHED_ROW[c]) / PUBLISHED_ROW[by]])
   ),
   nba_pace40: (40 * PUBLISHED_ROW.pace) / PUBLISHED_ROW.minutes / 48,
+  // The families no college source publishes (D44): listed, never read; their formula counts games.
+  team_net_rank: TEAM_ROW.games,
+  team_quadrant1: TEAM_ROW.games,
+  team_poll_rank: TEAM_ROW.games,
+  team_tournament_seed: TEAM_ROW.games,
   team_nba_pace40: (40 * PUBLISHED_ROW.pace) / PUBLISHED_ROW.minutes / 48,
   catch_shoot_efg_pct: efgOf('catch_shoot'),
   pull_up_efg_pct: efgOf('pull_up'),
@@ -1101,12 +1125,17 @@ describe('the metric catalogue', () => {
 
   it('says on every impact model’s column head and label that it is SportsDataverse’s', () => {
     const impact = CATALOGUE.filter((m) => m.family === 'impact')
-    expect(impact).toHaveLength(16)
+    // The NBA's and WNBA's sixteen, and the college leagues' BPM and two RAPM fits (T1302.6).
+    expect(impact).toHaveLength(25)
     for (const m of impact) {
       expect(m.short, m.id).toMatch(/ SDV$/)
       expect(m.label, m.id).toMatch(/\(SportsDataverse\)$/)
       expect(m.description, m.id).toContain('SportsDataverse’s own calculation')
-      expect(m.sources, m.id).toEqual(["SportsDataverse's impact models"])
+      // The college models name the SportsDataverse release they come from (D44).
+      expect(m.sources[0], m.id).toMatch(/^SportsDataverse's /)
+      if (!m.leagues?.ncaam || m.leagues.nba !== null) {
+        expect(m.sources, m.id).toEqual(["SportsDataverse's impact models"])
+      }
     }
     // DARKO is one regular season's state, so it answers for one season at a time.
     expect(impact.filter((m) => m.oneSeason).map((m) => m.id)).toEqual([

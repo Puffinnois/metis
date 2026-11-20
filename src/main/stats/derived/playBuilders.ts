@@ -1,5 +1,6 @@
 import type { League } from '@shared/leagues'
 import type { StatsDb } from '../db'
+import { COLLEGE_SHOT_KEY_BUILDER, COLLEGE_UNIT_BUILDERS, collegeEventsSql } from './collegePlays'
 import { eventsSql } from './events'
 import { PLAY_DETAIL_BUILDERS } from './playDetail'
 import { ON_COURT_BUILDERS } from './onCourt'
@@ -58,6 +59,22 @@ export const PLAY_BUILDERS: PlayBuilder[] = [
   // Plan T905: turnover and foul kinds, and-ones, assists by value, fouls drawn and the game flow.
   ...PLAY_DETAIL_BUILDERS
 ]
+
+/**
+ * The college leagues' builders (`PlaysRecipe.builders`): each shot's team and shooter (`shot_key`), the
+ * shot tables from stats.ncaa.org's shots,
+ * then the units, player on-court lines and the lineups tab from its lineup file. The play table, the
+ * splits and the play-derived counts read its play by play, and come with T1302.7.
+ */
+export const COLLEGE_PLAY_BUILDERS: PlayBuilder[] = [
+  COLLEGE_SHOT_KEY_BUILDER,
+  ...SHOT_BUILDERS,
+  ...COLLEGE_UNIT_BUILDERS
+]
+
+/** The builders a league's plays step runs, in order. */
+export const playBuildersOf = (league?: League): readonly PlayBuilder[] =>
+  league && playsRecipe(league).builders === 'college' ? COLLEGE_PLAY_BUILDERS : PLAY_BUILDERS
 
 /**
  * The NBA recipe's version. Each league's recipe keeps its own (`playsRecipe(league).version`): bump
@@ -134,7 +151,7 @@ export async function seasonsToBuild(
   ).map((r) => r.season)
   const pending = await pendingSeasons(db)
   let all = (await playsStale(db, league)) || pending.includes(ALL)
-  for (const b of PLAY_BUILDERS) {
+  for (const b of playBuildersOf(league)) {
     if (all) break
     all = !(await shaped(db, b))
   }
@@ -151,6 +168,8 @@ export async function seasonsToBuild(
 export async function buildPlays(db: StatsDb, league: League): Promise<number> {
   const have = await inspect(db)
   const { all, seasons } = await seasonsToBuild(db, league)
+  const builders = playBuildersOf(league)
+  const college = playsRecipe(league).builders === 'college'
   let rows = 0
   // A database built before Plan T907 holds ESPN's plays as a table: drop it first, and checkpoint,
   // so its blocks are free before the seasons are written into them. Then the view in its place.
@@ -162,8 +181,9 @@ export async function buildPlays(db: StatsDb, league: League): Promise<number> {
     await db.exec(`DROP TABLE ${PLAY_TABLES.espn}`)
     await checkpoint(db)
   }
-  await db.exec(espnPlaysViewSql(have, league))
-  for (const b of PLAY_BUILDERS) {
+  // The college leagues load no ESPN play by play (D42), and their own plays come with T1302.7.
+  if (!college) await db.exec(espnPlaysViewSql(have, league))
+  for (const b of builders) {
     if (!(await shaped(db, b))) {
       await db.exec(
         `CREATE OR REPLACE TABLE ${b.table} (${b.columns.map(([n, t]) => `${n} ${t}`).join(', ')})`
@@ -171,7 +191,7 @@ export async function buildPlays(db: StatsDb, league: League): Promise<number> {
     }
   }
   for (const season of seasons) {
-    for (const b of PLAY_BUILDERS) {
+    for (const b of builders) {
       rows += await db.transaction(async () => {
         await db.exec(`DELETE FROM ${b.table} WHERE season = ?`, [season])
         await db.exec(insertSql(b, have, season, league))
@@ -186,12 +206,16 @@ export async function buildPlays(db: StatsDb, league: League): Promise<number> {
   }
   if (all) {
     const kept = seasons.length > 0 ? seasons.join(', ') : 'NULL'
-    for (const b of PLAY_BUILDERS) {
+    for (const b of builders) {
       await db.exec(`DELETE FROM ${b.table} WHERE season IS NULL OR season NOT IN (${kept})`)
     }
   }
-  await db.exec(playsViewSql(league))
-  for (const sql of eventsSql(have, league)) await db.exec(sql)
+  if (college) {
+    for (const sql of collegeEventsSql(have, league)) await db.exec(sql)
+  } else {
+    await db.exec(playsViewSql(league))
+    for (const sql of eventsSql(have, league)) await db.exec(sql)
+  }
   await db.transaction(async () => {
     await db.exec(`DELETE FROM derived_state WHERE name LIKE '${PENDING}%'`)
     await db.exec('INSERT OR REPLACE INTO derived_state VALUES (?, ?)', [

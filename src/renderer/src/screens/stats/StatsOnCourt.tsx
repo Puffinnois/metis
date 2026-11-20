@@ -6,7 +6,8 @@ import { shortName } from '@/lib/stats/lineups'
 import {
   DEFAULT_MIN_POSSESSIONS,
   DEFAULT_UNIT_SORT,
-  DERIVED_NOTE,
+  derivedNote,
+  unitsNote,
   LINE_COLUMNS,
   MIN_POSSESSIONS,
   onCourtGap,
@@ -158,9 +159,9 @@ export function DerivedUnits({
       )}
       <Notes
         notes={[
-          DERIVED_NOTE,
+          derivedNote(),
           size === '5'
-            ? 'Every unit of five distinct players the lineups know, in every season from 1996-97.'
+            ? unitsNote()
             : 'A group counts whatever the rest of the floor was, so groups overlap: their minutes add up to more than the team’s.'
         ]}
       />
@@ -241,7 +242,7 @@ export function WithOrWithout({
               Open the teammate’s dashboard
             </button>
           )}
-          <Notes notes={[DERIVED_NOTE]} />
+          <Notes notes={[derivedNote()]} />
         </>
       )}
     </section>
@@ -310,7 +311,7 @@ export function TeamOnOff({
           </div>
           <Notes
             notes={[
-              DERIVED_NOTE,
+              derivedNote(),
               'Off the floor counts the rest of each player’s own games, not games they missed.',
               ...result.notes
             ]}

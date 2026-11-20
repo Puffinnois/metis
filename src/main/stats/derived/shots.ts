@@ -1,4 +1,4 @@
-import { threePointLineIn, threePointLineSql, type League } from '@shared/leagues'
+import { laneHalfWidthOf, threePointLineIn, threePointLineSql, type League } from '@shared/leagues'
 import {
   COURT,
   OFF_COURT,
@@ -7,7 +7,9 @@ import {
   SHOT_ZONE_GROUPS,
   SHOT_ZONES
 } from '@shared/stats/shots'
+import { collegeShotsSelect } from './collegePlays'
 import { nbaShotsSelect } from './events'
+import { playsRecipe } from './playsRecipe'
 import type { PlayBuilder } from './playBuilders'
 import { PLAY_TABLES } from './plays'
 import type { Have } from './sql'
@@ -140,9 +142,15 @@ export const lineOver = (league: League, season: string): LineSql => ({
  * `shotZone` in SQL, over a shot's `x`, `y` and `value`: the same rules, the same constants. The line
  * decides only a shot with no published value; it is the league's in that season (the NBA's, `COURT`'s,
  * by default). The corner is the zone within 14 feet of the baseline in every league and era, where
- * the stats sites draw it.
+ * the stats sites draw it. The paint is the league's lane (`laneHalfWidthOf`), the NBA's by default.
  */
-export function zoneSql(x = 'x', y = 'y', value = 'value', line: LineSql = NBA_LINE): string {
+export function zoneSql(
+  x = 'x',
+  y = 'y',
+  value = 'value',
+  line: LineSql = NBA_LINE,
+  lane: number = COURT.laneHalfWidth
+): string {
   const r = `sqrt(${x} * ${x} + ${y} * ${y})`
   const three = `CASE WHEN ${value} IS NULL
       THEN (abs(${x}) >= ${line.corner} AND ${y} <= ${COURT.cornerTopY}) OR ${r} >= ${line.arc}
@@ -156,7 +164,7 @@ export function zoneSql(x = 'x', y = 'y', value = 'value', line: LineSql = NBA_L
                               THEN CASE WHEN ${x} < 0 THEN 'c3l' ELSE 'c3r' END
                               ELSE 'atb3' END
       WHEN ${r} <= ${COURT.restrictedRadius} THEN 'ra'
-      WHEN abs(${x}) <= ${COURT.laneHalfWidth} AND ${y} <= ${COURT.laneTopY} THEN 'paint'
+      WHEN abs(${x}) <= ${lane} AND ${y} <= ${COURT.laneTopY} THEN 'paint'
       ELSE 'mid' END`
 }
 
@@ -184,7 +192,11 @@ export function typeSql(subtype = 'subtype'): string {
  */
 const expected = (sum: string): string => `round(${EXPECTED_SCALE} * ${sum})::INTEGER`
 
-function sums(prefix = ''): string[] {
+function sums(prefix = '', assists = true): string[] {
+  // A league whose shots name no assist, and whose plays are not built to find one, has none to count:
+  // its assisted makes read NULL, never 0 (`PlaysRecipe.assists`).
+  const assisted = (where: string): string =>
+    assists ? `count(*) FILTER (WHERE ${where})::INTEGER` : 'NULL::INTEGER'
   return [
     ...BUCKETS.flatMap(({ key, dim, of }) => {
       const where = `c.${dim} IN (${of.map(sqlText).join(', ')})`
@@ -192,7 +204,7 @@ function sums(prefix = ''): string[] {
         `count(*) FILTER (WHERE ${where})::INTEGER AS ${prefix}${key}_fga`,
         `count(*) FILTER (WHERE ${where} AND c.made)::INTEGER AS ${prefix}${key}_fgm`,
         `coalesce(sum(c.value) FILTER (WHERE ${where} AND c.made), 0)::INTEGER AS ${prefix}${key}_pts`,
-        `count(*) FILTER (WHERE ${where} AND c.assisted)::INTEGER AS ${prefix}${key}_ast`,
+        `${assisted(`${where} AND c.assisted`)} AS ${prefix}${key}_ast`,
         `${expected(`sum(c.lg_${dim}_pct) FILTER (WHERE ${where})`)} AS ${prefix}${key}_xfgm`,
         `${expected(`sum(c.lg_${dim}_pps) FILTER (WHERE ${where})`)} AS ${prefix}${key}_xpts`
       ]
@@ -202,7 +214,7 @@ function sums(prefix = ''): string[] {
     `coalesce(sum(c.value) FILTER (WHERE c.made), 0)::INTEGER AS ${prefix}shots_pts`,
     `count(*) FILTER (WHERE c.value = 3)::INTEGER AS ${prefix}shots_fg3a`,
     `count(*) FILTER (WHERE c.value = 3 AND c.made)::INTEGER AS ${prefix}shots_fg3m`,
-    `count(*) FILTER (WHERE c.assisted)::INTEGER AS ${prefix}shots_ast`,
+    `${assisted('c.assisted')} AS ${prefix}shots_ast`,
     `coalesce(sum(c.feet), 0)::INTEGER AS ${prefix}dist_sum`,
     `count(c.feet)::INTEGER AS ${prefix}dist_n`,
     `${expected('sum(c.lg_zone_pps)')} AS ${prefix}shots_xpts`
@@ -237,10 +249,10 @@ function classifiedSql(have: Have, season: number, league?: League): string {
       SELECT game_id, season, game_type, game_date, team_id, opponent_id, player_id, period, clock,
              coalesce(made, false) AS made, value, distance, x, y,
              row_number() OVER () AS rid,
-             ${zoneSql('x', 'y', 'value', league ? lineIn(league, season) : NBA_LINE)} AS zone,
+             ${zoneSql('x', 'y', 'value', league ? lineIn(league, season) : NBA_LINE, laneHalfWidthOf(league))} AS zone,
              ${bandSql()} AS band, ${typeSql()} AS type,
              coalesce(distance, round(sqrt(x * x + y * y) / 10)) AS feet
-      FROM (${nbaShotsSelect(have, season, league)}) v),
+      FROM (${shotsSelect(have, season, league)}) v),
     mk AS (SELECT rid, ${key},
                   row_number() OVER (PARTITION BY ${key} ORDER BY x, y, rid) AS k
            FROM s WHERE made),
@@ -259,11 +271,20 @@ function classifiedSql(have: Have, season: number, league?: League): string {
       LEFT JOIN lg_type lt USING (type))`
 }
 
+/** The league's shots of a season: its own file's, or the college leagues' stats.ncaa.org's. */
+const shotsSelect = (have: Have, season: number, league?: League): string =>
+  playsRecipe(league).builders === 'college'
+    ? collegeShotsSelect(have, season)
+    : nbaShotsSelect(have, season, league)
+
+/** Whether the league's assisted makes can be counted (`PlaysRecipe.assists`). */
+const assistsIn = (league?: League): boolean => playsRecipe(league).assists !== false
+
 /** One season's player-games, as a SELECT of `SHOT_PLAYER_COLUMNS` in order. */
 export function playerGameSql(have: Have, season: number, league?: League): string {
   return `${classifiedSql(have, season, league)}
     SELECT c.game_id, any_value(c.season), any_value(c.game_type), any_value(c.game_date),
-           c.player_id, c.team_id, any_value(c.opponent_id), ${sums().join(', ')}
+           c.player_id, c.team_id, any_value(c.opponent_id), ${sums('', assistsIn(league)).join(', ')}
     FROM c WHERE c.player_id IS NOT NULL
     GROUP BY c.game_id, c.player_id, c.team_id`
 }
@@ -277,11 +298,11 @@ export function teamGameSql(have: Have, season: number, league?: League): string
   return `${classifiedSql(have, season, league)},
     own AS (SELECT c.game_id, c.team_id, any_value(c.opponent_id) AS opponent_id,
                    any_value(c.season) AS season, any_value(c.game_type) AS game_type,
-                   any_value(c.game_date) AS game_date, ${sums().join(', ')}
+                   any_value(c.game_date) AS game_date, ${sums('', assistsIn(league)).join(', ')}
             FROM c WHERE c.team_id IS NOT NULL GROUP BY c.game_id, c.team_id),
     opp AS (SELECT c.game_id, c.opponent_id AS team_id, any_value(c.team_id) AS opp_team,
                    any_value(c.season) AS season, any_value(c.game_type) AS game_type,
-                   any_value(c.game_date) AS game_date, ${sums('opp_').join(', ')}
+                   any_value(c.game_date) AS game_date, ${sums('opp_', assistsIn(league)).join(', ')}
             FROM c WHERE c.opponent_id IS NOT NULL GROUP BY c.game_id, c.opponent_id)
     SELECT coalesce(own.game_id, opp.game_id), coalesce(own.season, opp.season),
            coalesce(own.game_type, opp.game_type), coalesce(own.game_date, opp.game_date),

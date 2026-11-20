@@ -6,8 +6,10 @@ import {
   metricIn,
   MODEL_NO_SPLIT,
   notBuiltYet,
+  playTablesNotBuilt,
   ONE_SEASON_ONLY,
   PUBLISHED_TYPES_ONLY,
+  EVERY_GAME_ONLY,
   REGULAR_SEASON_ONLY,
   STATE_ONE_SEASON,
   TOKEN,
@@ -15,6 +17,7 @@ import {
 } from '@shared/stats/catalogue'
 import {
   builds,
+  buildsPlayTables,
   halvesNote,
   PER_MINUTE,
   seasonLabel,
@@ -401,6 +404,7 @@ function splitGap(
 ): string | null {
   // Splits are counted from the plays: a league whose refresh does not build them yet has none.
   if (!builds(league, 'plays')) return notBuiltYet(league, 'plays')
+  if (!buildsPlayTables(league)) return playTablesNotBuilt(league)
   if (!q.scope.seasons.some((s) => s >= SPLITS_FIRST_SEASON)) return splitsFrom(league)
   if (m.published) return NOT_FROM_PLAYS
   if (m.model) return MODEL_NO_SPLIT
@@ -446,6 +450,9 @@ function gapOf(
     return null
   }
   if (!gameTypes.some((t) => PUBLISHED_GAME_TYPES.includes(t))) return PUBLISHED_TYPES_ONLY
+  if (publishedTable(m.published)?.everyGame) {
+    if (!league.countedTypes.every((t) => gameTypes.includes(t))) return EVERY_GAME_ONLY
+  }
   if (m.oneSeason) {
     if (!gameTypes.includes('regular')) return REGULAR_SEASON_ONLY
     const bySeason = q.groupBy?.includes('season') ?? false

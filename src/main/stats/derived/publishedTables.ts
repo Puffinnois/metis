@@ -2,6 +2,7 @@ import { PLAY_TYPE_SIDES, PLAY_TYPES_FIRST_SEASON } from '@shared/stats/playType
 import { AVAILABILITY_FIRST_SEASON } from '@shared/stats/availability'
 import type { Entity, GameType } from '@shared/stats/types'
 import { AVAILABILITY_COUNTS, AVAILABILITY_TABLE, availabilitySql } from './availability'
+import { COLLEGE_PUBLISHED_TABLES } from './publishedCollege'
 import type { Have } from './sql'
 
 /**
@@ -52,6 +53,11 @@ export interface PublishedTable {
    * only, as every published table is.
    */
   addsRows?: true
+  /**
+   * Its values are every game of a season together, the postseason with them (the college leagues'
+   * SportsDataverse models): read only over every game the league counts, never a part of them.
+   */
+  everyGame?: true
 }
 
 /** What a table that adds rows holds about each row's player, beside its counts. */
@@ -640,5 +646,7 @@ export const PUBLISHED_TABLES: readonly PublishedTable[] = [
     sql: availabilitySql,
     // A player out of every game of a season or a playoff run has no line, and is still listed.
     addsRows: true
-  }
+  },
+  // The college leagues' SportsDataverse models (D44): empty in every other league's file.
+  ...COLLEGE_PUBLISHED_TABLES
 ]

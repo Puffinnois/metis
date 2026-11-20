@@ -1,0 +1,137 @@
+[
+  {
+    "size": [1500, 950]
+  },
+  {
+    "wait": 9000
+  },
+  {
+    "eval": "window.sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nwindow.until = async (fn, ms = 15000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await fn()) return true; await sleep(200) } return false };\nwindow.nav = async (name) => { const b = [...document.querySelectorAll('nav button')].find((x) => x.textContent.trim() === name); if (!b) return 'NO NAV ' + name; b.click(); await sleep(2500); return 'nav ' + name };\nwindow.chooseSelect = async (title, value) => { const el = [...document.querySelectorAll('select')].find((x) => x.title === title); if (!el) return 'NO SELECT ' + title; Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(el, String(value)); el.dispatchEvent(new Event('change', { bubbles: true })); await sleep(2500); return title + ' = ' + (el.selectedOptions[0]?.textContent ?? el.value) };\nwindow.press = async (text) => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === text); if (!b) return 'NO BUTTON ' + text; b.click(); await sleep(2500); return 'pressed ' + text };\nwindow.toggle = async (label) => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim().endsWith(label)); if (!b) return 'NO TOGGLE ' + label; b.click(); await sleep(2500); return label + ' ' + b.getAttribute('aria-pressed') };\nwindow.pressed = (label) => [...document.querySelectorAll('button')].find((x) => x.textContent.trim().endsWith(label))?.getAttribute('aria-pressed');\nwindow.rows = () => [...document.querySelectorAll('tbody tr')].filter((r) => r.querySelector('td'));\nwindow.cells = (r) => [...r.querySelectorAll('td')].map((c) => c.textContent.trim());\nwindow.has = (text) => document.body.innerText.includes(text);\nwindow.total = () => document.body.innerText.match(/[0-9,]+ of [0-9,]+ \\u00b7 sorted by/)?.[0] ?? 'NO TOTAL';\nwindow.trigger = () => document.querySelector('button[aria-label^=\"League: \"]');\nwindow.league = () => trigger()?.getAttribute('aria-label')?.replace('League: ', '') ?? null;\nwindow.statusLine = () => document.querySelector('[title=\"See what is loaded\"]')?.textContent.trim() ?? null;\nwindow.h1 = () => document.querySelector('main h1')?.textContent.trim() ?? null;\nwindow.switchTo = async (name) => { const t = trigger(); if (!t) return 'NO MENU'; t.focus(); t.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); await until(() => document.querySelectorAll('[role=menuitemradio]').length > 0, 3000); const item = [...document.querySelectorAll('[role=menuitemradio]')].find((x) => x.textContent.startsWith(name)); if (!item) return 'NO ITEM ' + name; item.click(); await until(() => league() === name, 5000); await sleep(3000); return league() };\nwindow.setInput = (input, value) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, value); input.dispatchEvent(new Event('input', { bubbles: true })); input.dispatchEvent(new Event('change', { bubbles: true })) };\nwindow.openPlayer = async (name) => { const input = document.querySelector('input[aria-label=\"Search players\"]'); if (!input) return 'NO SEARCH'; setInput(input, name); await until(() => [...document.querySelectorAll('aside button')].some((x) => x.textContent.includes(name))); const b = [...document.querySelectorAll('aside button')].find((x) => x.textContent.includes(name)); if (!b) return 'NOT LISTED ' + name; b.click(); await sleep(3500); return 'opened ' + name };\nwindow.check = (label, ok, got) => (ok ? 'OK ' : 'MISMATCH ') + label + ' got ' + JSON.stringify(got);\nwindow.tab = async (label) => { const t = [...document.querySelectorAll('[role=tab], button')].find((x) => x.textContent.trim() === label); if (!t) return 'NO TAB ' + label; t.click(); await sleep(3500); return 'tab ' + label };\nwindow.main = () => document.querySelector('main')?.innerText ?? '';\nwindow.openRow = async (pred) => { await until(() => rows().some((r) => pred(r.innerText)), 10000); const r = rows().find((x) => pred(x.innerText)); if (!r) return 'NO ROW'; (r.querySelector('button, a') ?? r).click(); await sleep(3500); return 'opened row' };\nwindow.openTeam = async (id) => chooseSelect('Team', id);\nwindow.openGame = async (season, day, pred) => { await chooseSelect('Season', season); await chooseSelect('Day', day); const b = [...document.querySelectorAll('[aria-label=\"The day’s games\"] button')].find((x) => pred(x.textContent)); if (!b) return 'NO GAME'; b.click(); await sleep(3500); return 'opened game' };\nwindow.flowLabels = () => [...document.querySelectorAll('section[aria-label=\"Game flow\"] svg text')].map((x) => x.textContent.trim()).filter((l) => /^(H[12]|Q[1-4]|[0-9]?OT)$/.test(l));\n'helpers ready'"
+  },
+  {
+    "eval": "\nwindow.sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nwindow.until = async (fn, ms = 20000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await fn()) return true; await sleep(150) } return false };\nwindow.nav = async (name) => { const b = [...document.querySelectorAll('nav button')].find((x) => x.textContent.trim() === name); if (!b) return 'NO NAV ' + name; b.click(); await sleep(2500); return 'nav ' + name };\nwindow.check = (label, ok, got) => (ok ? 'OK ' : 'MISMATCH ') + label + ' got ' + JSON.stringify(got);\nwindow.trigger = () => document.querySelector('button[aria-label^=\"League: \"]');\nwindow.league = () => trigger()?.getAttribute('aria-label')?.replace('League: ', '') ?? null;\nwindow.statusLine = () => document.querySelector('[title=\"See what is loaded\"]')?.textContent.trim() ?? null;\nwindow.h1 = () => document.querySelector('main h1')?.textContent.trim() ?? null;\nwindow.mainText = () => document.querySelector('main')?.innerText ?? '';\nwindow.settled = () => until(() => !/Loading|loading…/.test(mainText()) && mainText().length > 0, 20000);\nwindow.switchTo = async (name) => { const t = trigger(); if (!t) return 'NO MENU'; t.focus(); t.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); await until(() => document.querySelectorAll('[role=menuitemradio]').length > 0, 3000); const item = [...document.querySelectorAll('[role=menuitemradio]')].find((x) => x.textContent.startsWith(name)); if (!item) return 'NO ITEM ' + name; item.click(); await until(() => league() === name, 5000); await sleep(3000); await settled(); await sleep(1500); return league() };\nwindow.bad = (t) => /stats yet|could not be opened|unknown league|Something went wrong|Error:|has no .* recipe|No standings are published/.test(t);\nwindow.fingerprint = () => ({ h1: h1(), text: mainText().slice(0, 600) });\nwindow.collegeReads = (name, expect) => { const t = mainText(); const missing = expect.filter((x) => !t.includes(x)); return { ok: league() === name && !bad(t) && /\\d/.test(t) && missing.length === 0, missing, h1: h1(), text: t.slice(0, 300), status: statusLine() } };\nwindow.trip = async (screen, expect) => { await nav(screen); if (league() !== 'NBA') await switchTo('NBA'); await settled(); await sleep(2000); const nba = fingerprint(); const out = { screen }; for (const name of ['NCAA Men', 'NCAA Women']) { await switchTo(name); out[name] = collegeReads(name, expect[name] ?? []) } const w = await switchTo('WNBA'); out.wnba = { league: w, h1: h1(), ok: w === 'WNBA' && !bad(mainText()) }; const n = await switchTo('NBA'); await sleep(2000); const back = fingerprint(); const same = JSON.stringify(back) === JSON.stringify(nba); return check(screen + ': both NCAA leagues read their game and season tables with no error; the WNBA reads its data; the NBA comes back unchanged', out['NCAA Men'].ok && out['NCAA Women'].ok && out.wnba.ok && n === 'NBA' && same, same ? out : { ...out, nba, back }) };\n'helpers ready'"
+  },
+  {
+    "eval": "(async () => {\n  const d = await window.api.leagues.setDownloads({ nba: true, wnba: true, ncaam: true, ncaaw: true })\n  await sleep(3000)\n  const out = {}\n  for (const id of ['ncaam', 'ncaaw', 'nba', 'wnba']) { const s = await window.api.stats.status(id); out[id] = { noData: s.noData ?? null, paused: s.paused, busy: s.busy } }\n  return check('four leagues on and paused, the colleges with their tables', Object.values(out).every((s) => s.paused && !s.busy && s.noData === null), out)\n})()"
+  },
+  {
+    "eval": "(async () => {\n  await nav('Players')\n  await switchTo('NCAA Men')\n  await chooseSelect('Season', 2026)\n  const o = await openPlayer('AJ Dybantsa')\n  return check(\"AJ Dybantsa's 2025-26 dashboard opens on NCAA Men\", /opened/.test(o) && !bad(main()), { o, head: main().slice(0, 160) })\n})()"
+  },
+  {
+    "eval": "(async () => {\n  await tab('Shots')\n  await until(() => document.querySelector('section[data-shot-total]'), 15000)\n  const s = document.querySelector('section[data-shot-total]')\n  return check(\"the shot chart draws every stats.ncaa.org shot of the season, none without a location\", s && Number(s.dataset.shotTotal) > 200 && s.dataset.shotTotal === s.dataset.shotDrawn && !/no location/.test(main()), { total: s?.dataset.shotTotal, drawn: s?.dataset.shotDrawn })\n})()"
+  },
+  {
+    "shot": "t1302f-01-ncaam-shots"
+  },
+  {
+    "eval": "(async () => {\n  const c = await window.api.stats.shots('ncaam', { entity: 'player', id: (await window.api.stats.query('ncaam', { entity: 'player', metrics: ['pts'], transform: 'perGame', scope: { seasons: [2026], qualifiedOnly: true }, limit: 1 })).rows[0].id, seasons: [2026], scope: { gameTypes: ['regular', 'playoffs'] } })\n  const sum = c.zones.reduce((s, z) => s + z.fga, 0)\n  return check('its zones add up to the shots, no reason', c.reason === null && c.total > 0 && sum === c.total, { total: c.total, sum, reason: c.reason })\n})()"
+  },
+  {
+    "eval": "(async () => {\n  await tab('On/off')\n  await sleep(2500)\n  const t = main()\n  return check('the On/off tab reads stats.ncaa.org\\'s lineups and says what the file covers', /on the floor/i.test(t) && !bad(t) && !/Not built/.test(t) && has('covers about 97 % of minutes'), t.slice(-400))\n})()"
+  },
+  {
+    "shot": "t1302f-02-ncaam-onoff"
+  },
+  {
+    "eval": "(async () => {\n  const offered = [...document.querySelectorAll('[role=tab], button')].map((x) => x.textContent.trim())\n  const c = await window.api.stats.catalogue('ncaam')\n  const why = (f) => [...new Set(c.filter((x) => x.family === f && x.entity === 'player').map((x) => x.unavailable))]\n  const ok = !offered.includes('Tracking') && !offered.includes('Matchups') && why('tracking').length === 1 && /^Not published for college basketball: no release holds player tracking/.test(why('tracking')[0]) && /^Not published for college basketball: no release holds matchups/.test(why('matchups')[0] ?? '')\n  return check('no Tracking or Matchups tab is offered; their metrics give the reason (D44)', ok, { tracking: why('tracking'), matchups: why('matchups') })\n})()"
+  },
+  {
+    "eval": "(async () => {\n  await nav('Teams')\n  await chooseSelect('Season', 2026)\n  const o = await openTeam('252')\n  await tab('Lineups')\n  await sleep(3500)\n  const t = main()\n  const units = Number(t.match(/([0-9,]+) units/)?.[1]?.replace(/,/g, '') ?? 0)\n  return check('the team\\'s lineups read stats.ncaa.org\\'s five-player units, the lineup file coverage stated and no NBA note', units > 0 && !bad(t) && has('covers about 97 % of minutes') && !has('2,000 units'), { o, units, text: t.slice(-300) })\n})()"
+  },
+  {
+    "shot": "t1302f-03-ncaam-lineups"
+  },
+  {
+    "eval": "(async () => {\n  await tab('On/off')\n  await sleep(3500)\n  const t = main()\n  return check('the team\\'s On/off tab reads its units', !bad(t) && !/Not built/.test(t) && /[0-9]/.test(t), t.slice(0, 300))\n})()"
+  },
+  {
+    "shot": "t1302f-04-ncaam-team-onoff"
+  },
+  {
+    "eval": "(async () => {\n  const u = await window.api.stats.onCourtUnits('ncaam', '252', 2026, { gameTypes: ['regular', 'playoffs'] }, 5)\n  const w = await window.api.stats.withOrWithout('ncaam', (await window.api.stats.query('ncaam', { entity: 'player', metrics: ['min'], scope: { seasons: [2026], teams: ['252'] }, limit: 1 })).rows[0].id, null, 2026, { gameTypes: ['regular', 'playoffs'] })\n  return check('units of five and with-or-without read, no reason', u.units.length > 0 && u.reason === null && w.reason === null && w.teammates.length > 0, { units: u.units.length, teammates: w.teammates.length, reason: [u.reason, w.reason] })\n})()"
+  },
+  {
+    "eval": "(async () => {\n  await nav('Games')\n  await sleep(2000)\n  const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim().startsWith('Officials of'))\n  if (b) b.click()\n  const o = b ? b.textContent.trim() : 'NO OFFICIALS BUTTON'\n  await sleep(4000)\n  const t = main()\n  return check('the officials\\' season reads ESPN\\'s crews', !bad(t) && /games/i.test(t) && !/No officials/.test(t), { o, text: t.slice(0, 300) })\n})()"
+  },
+  {
+    "shot": "t1302f-05-ncaam-officials"
+  },
+  {
+    "eval": "(async () => {\n  const s = await window.api.stats.officialsSeason('ncaam', 2026, ['regular', 'playoffs'])\n  const games = await window.api.stats.games('ncaam', 2026)\n  const g = games.find((x) => x.homeScore !== null) ?? games[0]\n  const one = await window.api.stats.game('ncaam', g.id)\n  return check('every 2025-26 game\\'s crew is counted, and a game page names its officials', s.officials.length > 50 && s.coverage.withCrew > 0.9 * s.coverage.games && one.officials.length > 0, { officials: s.officials.length, coverage: s.coverage.withCrew + ' of ' + s.coverage.games, game: one.officials.map((o) => o.name) })\n})()"
+  },
+  {
+    "eval": "(async () => {\n  const q = (entity, metrics) => window.api.stats.query('ncaam', { entity, metrics, scope: { seasons: [2026] }, sort: { metric: metrics[0], dir: 'desc' }, limit: 3 })\n  const t = await q('team', ['sdv_adj_em', 'sdv_adj_o', 'sdv_adj_d'])\n  const p = await q('player', ['sdv_ncaa_rapm', 'sdv_box_bpm', 'sdv_ncaa_team_rapm'])\n  const c = await window.api.stats.catalogue('ncaam')\n  const why = (id) => c.find((x) => x.id === id)?.unavailable ?? null\n  const ok = t.rows.length === 3 && t.rows[0].values.sdv_adj_em.value > 20 && p.rows[0].values.sdv_ncaa_rapm.value > 5 && why('team_net_rank') !== null && why('team_poll_rank') !== null && why('sdv_adj_em') === null\n  return check('SportsDataverse\\'s ratings, RAPM and BPM read under its name; NET and the polls give their reason', ok, { teams: t.rows.map((r) => [r.name, r.values.sdv_adj_em.value?.toFixed(1)]), players: p.rows.map((r) => [r.name, r.values.sdv_ncaa_rapm.value?.toFixed(1)]), net: why('team_net_rank') })\n})()"
+  },
+  {
+    "eval": "(async () => {\n  await nav('Leaderboards')\n  await sleep(1500)\n  const f = await window.api.stats.gameFlow('ncaam', (await window.api.stats.games('ncaam', 2026))[0].id)\n  return check('the game flow reads its reason: the play by play comes in T1302.7', /play by play come in a later version/.test(f.reason ?? ''), f.reason)\n})()"
+  },
+  {
+    "eval": "(async () => {\n  await nav('Players')\n  await switchTo('NCAA Women')\n  await chooseSelect('Season', 2026)\n  const o = await openPlayer('Mikayla Blakes')\n  return check(\"Mikayla Blakes's 2025-26 dashboard opens on NCAA Women\", /opened/.test(o) && !bad(main()), { o, head: main().slice(0, 160) })\n})()"
+  },
+  {
+    "eval": "(async () => {\n  await tab('Shots')\n  await until(() => document.querySelector('section[data-shot-total]'), 15000)\n  const s = document.querySelector('section[data-shot-total]')\n  return check(\"the shot chart draws every stats.ncaa.org shot of the season, none without a location\", s && Number(s.dataset.shotTotal) > 200 && s.dataset.shotTotal === s.dataset.shotDrawn && !/no location/.test(main()), { total: s?.dataset.shotTotal, drawn: s?.dataset.shotDrawn })\n})()"
+  },
+  {
+    "shot": "t1302f-01-ncaaw-shots"
+  },
+  {
+    "eval": "(async () => {\n  const c = await window.api.stats.shots('ncaaw', { entity: 'player', id: (await window.api.stats.query('ncaaw', { entity: 'player', metrics: ['pts'], transform: 'perGame', scope: { seasons: [2026], qualifiedOnly: true }, limit: 1 })).rows[0].id, seasons: [2026], scope: { gameTypes: ['regular', 'playoffs'] } })\n  const sum = c.zones.reduce((s, z) => s + z.fga, 0)\n  return check('its zones add up to the shots, no reason', c.reason === null && c.total > 0 && sum === c.total, { total: c.total, sum, reason: c.reason })\n})()"
+  },
+  {
+    "eval": "(async () => {\n  await tab('On/off')\n  await sleep(2500)\n  const t = main()\n  return check('the On/off tab reads stats.ncaa.org\\'s lineups and says what the file covers', /on the floor/i.test(t) && !bad(t) && !/Not built/.test(t) && has('covers about 97 % of minutes'), t.slice(-400))\n})()"
+  },
+  {
+    "shot": "t1302f-02-ncaaw-onoff"
+  },
+  {
+    "eval": "(async () => {\n  const offered = [...document.querySelectorAll('[role=tab], button')].map((x) => x.textContent.trim())\n  const c = await window.api.stats.catalogue('ncaaw')\n  const why = (f) => [...new Set(c.filter((x) => x.family === f && x.entity === 'player').map((x) => x.unavailable))]\n  const ok = !offered.includes('Tracking') && !offered.includes('Matchups') && why('tracking').length === 1 && /^Not published for college basketball: no release holds player tracking/.test(why('tracking')[0]) && /^Not published for college basketball: no release holds matchups/.test(why('matchups')[0] ?? '')\n  return check('no Tracking or Matchups tab is offered; their metrics give the reason (D44)', ok, { tracking: why('tracking'), matchups: why('matchups') })\n})()"
+  },
+  {
+    "eval": "(async () => {\n  await nav('Teams')\n  await chooseSelect('Season', 2026)\n  const o = await openTeam('238')\n  await tab('Lineups')\n  await sleep(3500)\n  const t = main()\n  const units = Number(t.match(/([0-9,]+) units/)?.[1]?.replace(/,/g, '') ?? 0)\n  return check('the team\\'s lineups read stats.ncaa.org\\'s five-player units, the lineup file coverage stated and no NBA note', units > 0 && !bad(t) && has('covers about 97 % of minutes') && !has('2,000 units'), { o, units, text: t.slice(-300) })\n})()"
+  },
+  {
+    "shot": "t1302f-03-ncaaw-lineups"
+  },
+  {
+    "eval": "(async () => {\n  await tab('On/off')\n  await sleep(3500)\n  const t = main()\n  return check('the team\\'s On/off tab reads its units', !bad(t) && !/Not built/.test(t) && /[0-9]/.test(t), t.slice(0, 300))\n})()"
+  },
+  {
+    "shot": "t1302f-04-ncaaw-team-onoff"
+  },
+  {
+    "eval": "(async () => {\n  const u = await window.api.stats.onCourtUnits('ncaaw', '238', 2026, { gameTypes: ['regular', 'playoffs'] }, 5)\n  const w = await window.api.stats.withOrWithout('ncaaw', (await window.api.stats.query('ncaaw', { entity: 'player', metrics: ['min'], scope: { seasons: [2026], teams: ['238'] }, limit: 1 })).rows[0].id, null, 2026, { gameTypes: ['regular', 'playoffs'] })\n  return check('units of five and with-or-without read, no reason', u.units.length > 0 && u.reason === null && w.reason === null && w.teammates.length > 0, { units: u.units.length, teammates: w.teammates.length, reason: [u.reason, w.reason] })\n})()"
+  },
+  {
+    "eval": "(async () => {\n  await nav('Games')\n  await sleep(2000)\n  const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim().startsWith('Officials of'))\n  if (b) b.click()\n  const o = b ? b.textContent.trim() : 'NO OFFICIALS BUTTON'\n  await sleep(4000)\n  const t = main()\n  return check('the officials\\' season reads ESPN\\'s crews', !bad(t) && /games/i.test(t) && !/No officials/.test(t), { o, text: t.slice(0, 300) })\n})()"
+  },
+  {
+    "shot": "t1302f-05-ncaaw-officials"
+  },
+  {
+    "eval": "(async () => {\n  const s = await window.api.stats.officialsSeason('ncaaw', 2026, ['regular', 'playoffs'])\n  const games = await window.api.stats.games('ncaaw', 2026)\n  const g = games.find((x) => x.homeScore !== null) ?? games[0]\n  const one = await window.api.stats.game('ncaaw', g.id)\n  return check('every 2025-26 game\\'s crew is counted, and a game page names its officials', s.officials.length > 50 && s.coverage.withCrew > 0.9 * s.coverage.games && one.officials.length > 0, { officials: s.officials.length, coverage: s.coverage.withCrew + ' of ' + s.coverage.games, game: one.officials.map((o) => o.name) })\n})()"
+  },
+  {
+    "eval": "(async () => {\n  const q = (entity, metrics) => window.api.stats.query('ncaaw', { entity, metrics, scope: { seasons: [2026] }, sort: { metric: metrics[0], dir: 'desc' }, limit: 3 })\n  const t = await q('team', ['sdv_adj_em', 'sdv_adj_o', 'sdv_adj_d'])\n  const p = await q('player', ['sdv_ncaa_rapm', 'sdv_box_bpm', 'sdv_ncaa_team_rapm'])\n  const c = await window.api.stats.catalogue('ncaaw')\n  const why = (id) => c.find((x) => x.id === id)?.unavailable ?? null\n  const ok = t.rows.length === 3 && t.rows[0].values.sdv_adj_em.value > 20 && p.rows[0].values.sdv_ncaa_rapm.value > 5 && why('team_net_rank') !== null && why('team_poll_rank') !== null && why('sdv_adj_em') === null\n  return check('SportsDataverse\\'s ratings, RAPM and BPM read under its name; NET and the polls give their reason', ok, { teams: t.rows.map((r) => [r.name, r.values.sdv_adj_em.value?.toFixed(1)]), players: p.rows.map((r) => [r.name, r.values.sdv_ncaa_rapm.value?.toFixed(1)]), net: why('team_net_rank') })\n})()"
+  },
+  {
+    "eval": "(async () => {\n  await nav('Leaderboards')\n  await sleep(1500)\n  const f = await window.api.stats.gameFlow('ncaaw', (await window.api.stats.games('ncaaw', 2026))[0].id)\n  return check('the game flow reads its reason: the play by play comes in T1302.7', /play by play come in a later version/.test(f.reason ?? ''), f.reason)\n})()"
+  },
+  {
+    "eval": "trip('Players', {})"
+  },
+  {
+    "eval": "trip('Teams', {})"
+  },
+  {
+    "eval": "(async () => {\n  const n = await switchTo('WNBA')\n  const c = await window.api.stats.shots('wnba', { entity: 'team', id: '1611661320', seasons: [2005], scope: { gameTypes: ['regular'] } })\n  return check('the WNBA unchanged: Los Angeles 2005 shots, 2,042 attempts, 589 with no location', n === 'WNBA' && c.total === 2042 && c.unlocated === 589, { total: c.total, unlocated: c.unlocated })\n})()"
+  },
+  {
+    "eval": "(async () => {\n  const n = await switchTo('NBA')\n  await nav('Players')\n  await chooseSelect('Season', 2026)\n  await openPlayer('Nikola Jok')\n  await tab('Shots')\n  await until(() => document.querySelector('section[data-shot-total]'), 15000)\n  const s = document.querySelector('section[data-shot-total]')\n  return check(\"the NBA's shot chart as before\", n === 'NBA' && s && Number(s.dataset.shotTotal) > 300, { total: s?.dataset.shotTotal })\n})()"
+  },
+  {
+    "shot": "t1302f-06-nba-shots"
+  },
+  {
+    "eval": "(async () => {\n  const games = await window.api.stats.games('nba', 2025)\n  let one = null\n  for (const g of games.filter((x) => x.homeScore !== null).slice(-40)) { one = await window.api.stats.game('nba', g.id); if (one?.officials?.length) break }\n  const s = await window.api.stats.officialsSeason('nba', 2025, ['regular'])\n  return check(\"the NBA's officials as before\", (one?.officials.length ?? 0) > 0 && s.officials.length > 50, { game: one?.officials.map((o) => o.name), officials: s.officials.length })\n})()"
+  }
+]

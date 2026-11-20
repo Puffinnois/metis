@@ -74,10 +74,13 @@ const circle = (x: number, y: number, r: number): string =>
  * zone rule ends them (14 feet from the baseline), so a sliver above the arc's end reads as the
  * corner, as the rule counts it.
  */
-export function zonePaths(line: Line = NBA_LINE): Record<string, string> {
+export function zonePaths(
+  line: Line = NBA_LINE,
+  laneHalfWidth: number = COURT.laneHalfWidth
+): Record<string, string> {
   const { halfWidth: w, baselineY: base, halfCourtY: half, cornerTopY } = COURT
   const cornerX = line.corner
-  const lane = rect(-COURT.laneHalfWidth, base, COURT.laneHalfWidth, COURT.laneTopY)
+  const lane = rect(-laneHalfWidth, base, laneHalfWidth, COURT.laneTopY)
   const ra = circle(0, 0, COURT.restrictedRadius)
   return {
     ra,
@@ -112,15 +115,18 @@ export const ZONE_LABELS: Record<
   atb3: { x: 0, y: 300, anchor: 'middle' }
 }
 
-/** The court's lines, as SVG paths in the drawing's frame. */
-export function courtLines(line: Line = NBA_LINE): string[] {
+/** The court's lines, as SVG paths in the drawing's frame; the lane is the league's (12 feet in college). */
+export function courtLines(
+  line: Line = NBA_LINE,
+  laneHalfWidth: number = COURT.laneHalfWidth
+): string[] {
   const { halfWidth: w, baselineY: base, halfCourtY: half } = COURT
   const ft = COURT.freeThrowRadius
   const top = COURT.laneTopY
   const ra = COURT.restrictedRadius
   return [
     rect(-w, base, w, half),
-    rect(-COURT.laneHalfWidth, base, COURT.laneHalfWidth, top),
+    rect(-laneHalfWidth, base, laneHalfWidth, top),
     // The free-throw circle's top half, away from the basket.
     `M ${pt(-ft, top)} A ${ft} ${ft} 0 0 0 ${pt(ft, top)}`,
     `M ${pt(-ra, 0)} A ${ra} ${ra} 0 0 0 ${pt(ra, 0)}`,
