@@ -199,6 +199,39 @@ export interface LeagueModels {
   elo: EloConstants
   /** The game types Elo rates: games between two teams of the league, counted or not. */
   eloGameTypes: readonly GameType[]
+  /**
+   * The game types SRS and the adjusted ratings are solved on, each row tagged with its game's type:
+   * the regular season when not given (the NBA, the WNBA), every counted game in the college leagues,
+   * whose conference tournaments are in their regular season and whose postseason is rated as games
+   * between Division I teams (D45). A league whose `divisionIOnly` is set fits every model on games
+   * between two Division I teams of the season, with no forfeit (T1302.8).
+   */
+  solvedTypes?: readonly GameType[]
+  /**
+   * The box-score composites (PER, Win Shares, Oliver's ratings, BPM) computed over every counted game
+   * of a season together, against one league of Division I teams, stored under the regular season and
+   * read only over every counted game, as Sports Reference's college pages give them; when not set, the
+   * regular season and the playoffs apart, as Basketball-Reference does for the NBA.
+   */
+  everyGame?: true
+  /**
+   * Why the season forecast is not computed for the league, read by its metrics and the standings;
+   * when not set it is (`playoffs` holds the format).
+   */
+  forecastUnavailable?: string
+  /**
+   * Whether a team new to the league takes the rating of the one team gone that season (the NBA's
+   * Hornets, filed under a new id when they moved): not in a league whose teams join and leave as
+   * schools, never as one another (the college leagues' Division I list).
+   */
+  pairMoves?: false
+  /**
+   * Win Shares' constants (`models/winShares.ts`): the shares of the league's points per possession a
+   * player's offense and defense are measured against, and of its points per team-game a win costs.
+   * Basketball-Reference's 0.92, 1.08 and 0.32 when not given; Sports Reference's college pages use
+   * 0.875, 1.125 and 0.5 against the division's totals.
+   */
+  winShares?: { offense: number; defense: number; perWin: number }
   /** The spread of a game's margin around Elo's expected margin, in points (the season simulation). */
   marginSd: number
   /** The first season forecast: Elo's metrics start there. */
@@ -225,9 +258,15 @@ export interface LeagueModels {
    * games all went without it, a season played at one site that no source marks (the NBA's 2020
    * restart, the WNBA's 2020 season); `types` played at a neutral site by rule (the NBA Cup final in
    * Las Vegas; the WNBA's Commissioner's Cup final is hosted from 2022); `cupSemifinals`, the NBA Cup's
-   * semifinals read from ESPN's note.
+   * semifinals read from ESPN's note; `fromGame`, the `game` table's own `neutral` column alone (the
+   * college leagues', ESPN's mark carried by the identity recipe, T1302.4).
    */
-  neutral: { cities: readonly string[]; types: readonly GameType[]; cupSemifinals: boolean }
+  neutral: {
+    cities: readonly string[]
+    types: readonly GameType[]
+    cupSemifinals: boolean
+    fromGame?: true
+  }
   /** The playoff format by season, oldest first (`playoffEraIn`). */
   playoffs: readonly PlayoffEra[]
   /**
@@ -909,10 +948,85 @@ const WNBA: BuiltLeague = {
  * minutes and per-40 rates, one three-point line, the events as season types counted together (D45),
  * the NCAA's games rule (D43). What differs comes from each league's own fields below: the periods,
  * the releases, the events and the measured size. Its sources (T1302.3), its game, team and player
- * tables (T1302.4) and its game and season tables (T1302.5) are built; the published tables, the plays
- * and the models come with T1302.6 to T1302.8.
+ * tables (T1302.4), its game and season tables (T1302.5), the published tables (T1302.6), the plays
+ * (T1302.7) and the models (T1302.8) are built.
  */
 const NCAA_FIRST_SEASON = 2022
+
+/**
+ * The college leagues' types a model rates: every counted game (D45), never an exhibition.
+ */
+const collegeRated = (types: readonly GameType[]): readonly GameType[] =>
+  types.filter((t) => t !== 'preseason' && t !== 'all-star')
+
+/** Why the college leagues have no season forecast (D44). */
+export const COLLEGE_NO_FORECAST =
+  "Not computed for college basketball: the NCAA tournament's field is chosen by a committee and no release holds its seeds, so a season cannot be simulated to it. Each game's win probability from Elo is on the game page."
+
+/** Why Metis's BPM is not shown for the college leagues. */
+export const COLLEGE_NO_BPM =
+  "Not computed for the college leagues: Metis's BPM uses coefficients fitted on the NBA's seasons, which are not refitted on college basketball. SportsDataverse's box-score BPM is shown under its own name."
+
+/**
+ * The college shape's models (T1302.8): one shape for both leagues, each with the constants fitted on
+ * its own games between Division I teams (`scripts/fit-college-models.mjs`, `ncaa-agreement.md`,
+ * "Ratings and models"). Every rating is fitted on games between two Division I teams of the season,
+ * of every counted type, never a forfeit (`League.divisionIOnly`, `models/divisionI.ts`); the
+ * composites are computed over every counted game together against Division I's totals, as Sports
+ * Reference's college pages give them; no forecast and no BPM, each with its reason.
+ */
+interface CollegeFitted {
+  k: number
+  homeCourt: number
+  carry: number
+  newTeam: number
+  perPoint: number
+  marginSd: number
+  ridgePossessions: number
+  pythagoreanExponent: number
+}
+
+const collegeModels = (types: readonly GameType[], fitted: CollegeFitted): LeagueModels => ({
+  elo: {
+    // Every Division I team at 1500 in 2021-22, the first season loaded (D39): it settles the ratings,
+    // and Elo is read from 2022-23 (the burn-in, measured in `ncaa-agreement.md`).
+    start: 1500,
+    // Ratings move only between Division I teams, so the mean stays at the start but for the schools
+    // that join the division, each at `newTeam`, fitted.
+    mean: 1500,
+    newTeam: fitted.newTeam,
+    k: fitted.k,
+    homeCourt: fitted.homeCourt,
+    carry: fitted.carry,
+    perPoint: fitted.perPoint,
+    firstSeason: NCAA_FIRST_SEASON + 1
+  },
+  eloGameTypes: collegeRated(types),
+  solvedTypes: collegeRated(types),
+  everyGame: true,
+  // Sports Reference's college Win Shares ("Calculating Win Shares", college basketball, 2009-10 on):
+  // marginal offense above 0.875 and defense below 1.125 of the division's points per possession, a win
+  // at 0.5 of its points per game; the NBA's 0.92, 1.08 and 0.32 put the college leaders' Win Shares
+  // about a third above Sports Reference's (`ncaa-agreement.md`, "Ratings and models").
+  winShares: { offense: 0.875, defense: 1.125, perWin: 0.5 },
+  forecastUnavailable: COLLEGE_NO_FORECAST,
+  pairMoves: false,
+  marginSd: fitted.marginSd,
+  forecastFirstSeason: NCAA_FIRST_SEASON + 1,
+  ridgePossessions: fitted.ridgePossessions,
+  // Every season's halves agree on the teams' order (split-half r 0.87 to 0.95, both leagues).
+  adjustedThin: [],
+  pythagoreanExponent: fitted.pythagoreanExponent,
+  // The NCAA's limit on a Division I team's regular-season contests is about 31 with an exempted event;
+  // nothing reads it while VORP and the forecast are not shown.
+  seasonGames: [{ from: NCAA_FIRST_SEASON, games: 31 }],
+  vorpGames: 'season',
+  // ESPN's neutral-site mark, carried on the `game` table (T1302.4): early-season events, the
+  // conference and NCAA tournaments.
+  neutral: { cities: [], types: [], cupSemifinals: false, fromGame: true },
+  playoffs: [],
+  bpmUnavailable: COLLEGE_NO_BPM
+})
 
 /**
  * How the catalogue's words read on the college leagues' metrics: ESPN's box scores are the counts,
@@ -998,6 +1112,12 @@ const COLLEGE_WORDS: League['catalogueWords'] = [
   ["ESPN's play by play (the fouled player)", "stats.ncaa.org's play by play (the fouled player)"],
   [' Published by the NBA as PCT_FGA_2PT.', ''],
   ["It is not the NBA's published figure.", 'It is not a published figure.'],
+  // The composites over every counted game, against Division I's totals (T1302.8).
+  [
+    'from the published method, from 1993-94; it can differ from the publisher’s own figure.',
+    "by the published method over every game of a season, against Division I's totals; it can differ from Sports Reference's figure."
+  ],
+  ["not the NBA's or any publisher's figure", "not the NCAA's or any publisher's figure"],
   [
     "Whole games: the NBA's published share counts only the minutes they were on the floor.",
     'Whole games, not only the minutes they were on the floor.'
@@ -1017,9 +1137,11 @@ const college = (
     | 'noData'
     | 'notBuilt'
     | 'madePerGame'
-  >
+  >,
+  fitted: CollegeFitted
 ): League => ({
   ...league,
+  models: collegeModels(league.seasonTypes, fitted),
   gameMinutes: 40,
   perMinute: ['per36', 'per40'],
   overtimeMinutes: 5,
@@ -1063,8 +1185,8 @@ const college = (
   statsFile: `stats-${league.id}.duckdb`,
   // The game, team and player tables (T1302.4), the game and season tables (T1302.5), the published
   // tables and the shots, lineups and officials of the plays step (T1302.6), and the play by play's own
-  // tables (T1302.7); the models come with T1302.8.
-  builds: ['identity', 'derived', 'published', 'plays'],
+  // tables (T1302.7), and Metis's ratings and models (T1302.8).
+  builds: ['identity', 'derived', 'published', 'plays', 'models'],
   // The families no release publishes (D44, `ncaa-data-sources.md`, "Tables"), each with its reason.
   unpublished: {
     tracking: 'Not published for college basketball: no release holds player tracking.',
@@ -1108,7 +1230,6 @@ const college = (
   shotsFrom: NCAA_FIRST_SEASON,
   shotsLocatedFrom: NCAA_FIRST_SEASON,
   metricsByDefault: false,
-  models: null,
   catalogueWords: COLLEGE_WORDS
 })
 
@@ -1146,47 +1267,83 @@ const collegeMinimums = (threes: number): NonNullable<League['madePerGame']> => 
   }
 })
 
-const NCAAM: League = college({
-  id: 'ncaam',
-  name: 'NCAA Men',
-  fullName: "NCAA Division I Men's Basketball",
-  // Two 20-minute halves (D38).
-  periods: [{ from: NCAA_FIRST_SEASON, periods: 2, minutes: 20, name: 'half' }],
-  // The men's postseason events of D45's window: the NCAA tournament (as `playoffs`), the NIT, CBI
-  // (2021-22 to 2024-25), CIT (2023-24), The Basketball Classic (2021-22) and the College Basketball
-  // Crown (2024-25 on).
-  // Then the exhibitions stats.ncaa.org lists, before opening day (D45, added 2026-11-18).
-  seasonTypes: ['regular', 'playoffs', 'nit', 'cbi', 'cit', 'tbc', 'crown', 'preseason'],
-  releases: {
-    prefixes: ['espn_mens_college_basketball_', 'ncaa_mbb_', 'mbb_'],
-    registry: 'SOURCES_BY_LEAGUE.ncaam in src/main/stats/sources.ts',
-    reference: 'docs/reference/ncaa-data-sources.md'
-  },
-  size: collegeSize(803_921_971, 3_632_803_840),
-  noData: "No NCAA men's stats yet: turn NCAA Men on in the Data panel to download them.",
-  notBuilt: "No NCAA men's stats yet: the first load has not got that far.",
-  madePerGame: collegeMinimums(2.5)
-})
+/**
+ * The men's constants, fitted on 2021-22 to 2024-25 and scored on 2025-26 (`ncaa-agreement.md`,
+ * "Ratings and models"): Elo's K, home court, carry and a new Division I team's start from a grid on the
+ * Brier score of 2022-23 to 2024-25; its points per margin point and the margin's spread by least squares;
+ * the adjusted ratings' prior from each week's games predicted from the week before; the Pythagorean
+ * exponent by least squares on the winning percentage.
+ */
+const NCAAM_FITTED: CollegeFitted = {
+  k: 48,
+  homeCourt: 90,
+  carry: 0.75,
+  newTeam: 1350,
+  perPoint: 23.3,
+  marginSd: 12.1,
+  ridgePossessions: 200,
+  pythagoreanExponent: 8.6
+}
 
-const NCAAW: League = college({
-  id: 'ncaaw',
-  name: 'NCAA Women',
-  fullName: "NCAA Division I Women's Basketball",
-  // Four 10-minute quarters (D38), the women's game since 2015-16.
-  periods: [{ from: NCAA_FIRST_SEASON, periods: 4, minutes: 10, name: 'quarter' }],
-  // The women's postseason events of D45's window: the NCAA tournament (as `playoffs`), the WNIT, the
-  // WBI (2021-22, 2022-23) and the WBIT (2023-24 on).
-  seasonTypes: ['regular', 'playoffs', 'wnit', 'wbi', 'wbit', 'preseason'],
-  releases: {
-    prefixes: ['espn_womens_college_basketball_', 'ncaa_wbb_', 'wbb_'],
-    registry: 'SOURCES_BY_LEAGUE.ncaaw in src/main/stats/sources.ts',
-    reference: 'docs/reference/ncaa-data-sources.md'
+/** The women's constants, fitted the same way on their own games (`ncaa-agreement.md`). */
+const NCAAW_FITTED: CollegeFitted = {
+  k: 62,
+  homeCourt: 70,
+  carry: 0.85,
+  newTeam: 1200,
+  perPoint: 21.7,
+  marginSd: 13.2,
+  ridgePossessions: 100,
+  pythagoreanExponent: 6.6
+}
+
+const NCAAM: League = college(
+  {
+    id: 'ncaam',
+    name: 'NCAA Men',
+    fullName: "NCAA Division I Men's Basketball",
+    // Two 20-minute halves (D38).
+    periods: [{ from: NCAA_FIRST_SEASON, periods: 2, minutes: 20, name: 'half' }],
+    // The men's postseason events of D45's window: the NCAA tournament (as `playoffs`), the NIT, CBI
+    // (2021-22 to 2024-25), CIT (2023-24), The Basketball Classic (2021-22) and the College Basketball
+    // Crown (2024-25 on).
+    // Then the exhibitions stats.ncaa.org lists, before opening day (D45, added 2026-11-18).
+    seasonTypes: ['regular', 'playoffs', 'nit', 'cbi', 'cit', 'tbc', 'crown', 'preseason'],
+    releases: {
+      prefixes: ['espn_mens_college_basketball_', 'ncaa_mbb_', 'mbb_'],
+      registry: 'SOURCES_BY_LEAGUE.ncaam in src/main/stats/sources.ts',
+      reference: 'docs/reference/ncaa-data-sources.md'
+    },
+    size: collegeSize(803_921_971, 3_632_803_840),
+    noData: "No NCAA men's stats yet: turn NCAA Men on in the Data panel to download them.",
+    notBuilt: "No NCAA men's stats yet: the first load has not got that far.",
+    madePerGame: collegeMinimums(2.5)
   },
-  size: collegeSize(752_895_003, 3_407_097_856),
-  noData: "No NCAA women's stats yet: turn NCAA Women on in the Data panel to download them.",
-  notBuilt: "No NCAA women's stats yet: the first load has not got that far.",
-  madePerGame: collegeMinimums(2.0)
-})
+  NCAAM_FITTED
+)
+
+const NCAAW: League = college(
+  {
+    id: 'ncaaw',
+    name: 'NCAA Women',
+    fullName: "NCAA Division I Women's Basketball",
+    // Four 10-minute quarters (D38), the women's game since 2015-16.
+    periods: [{ from: NCAA_FIRST_SEASON, periods: 4, minutes: 10, name: 'quarter' }],
+    // The women's postseason events of D45's window: the NCAA tournament (as `playoffs`), the WNIT, the
+    // WBI (2021-22, 2022-23) and the WBIT (2023-24 on).
+    seasonTypes: ['regular', 'playoffs', 'wnit', 'wbi', 'wbit', 'preseason'],
+    releases: {
+      prefixes: ['espn_womens_college_basketball_', 'ncaa_wbb_', 'wbb_'],
+      registry: 'SOURCES_BY_LEAGUE.ncaaw in src/main/stats/sources.ts',
+      reference: 'docs/reference/ncaa-data-sources.md'
+    },
+    size: collegeSize(752_895_003, 3_407_097_856),
+    noData: "No NCAA women's stats yet: turn NCAA Women on in the Data panel to download them.",
+    notBuilt: "No NCAA women's stats yet: the first load has not got that far.",
+    madePerGame: collegeMinimums(2.0)
+  },
+  NCAAW_FITTED
+)
 
 /**
  * Every league by id. The NBA and the WNBA are typed with their recipes and models named, so code that

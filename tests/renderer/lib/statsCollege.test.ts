@@ -7,7 +7,7 @@ import { DERIVED_NOTE, derivedNote, unitsNote } from '@/lib/stats/onCourt'
 import { typeTag } from '@/lib/stats/player'
 import { leaderboardQualifier } from '@/lib/stats/qualifying'
 import { defaultScope, seasonTypes, typeLabel, type StatsScope } from '@/lib/stats/scope'
-import { strengthNote } from '@/lib/stats/standings'
+import { strengthNote, strengthQuery } from '@/lib/stats/standings'
 import { LEAGUES } from '@shared/leagues'
 import type { StatsGame, StatsSeason } from '@shared/stats/types'
 
@@ -27,9 +27,9 @@ const season = (types: StatsGame['type'][]): StatsSeason =>
     teams: []
   }) as StatsSeason
 
-const game = (type: StatsGame['type'], date: string): StatsGame => ({
+const game = (type: StatsGame['type'], date: string, season = 2026): StatsGame => ({
   id: date,
-  season: 2026,
+  season,
   type,
   date,
   played: true,
@@ -188,12 +188,27 @@ describe('the 75 % games rule on screen (D43)', () => {
   })
 })
 
-describe('no models yet', () => {
-  it('rates no college game and says the standings’ own columns are not computed yet', () => {
+describe('the models (T1302.8)', () => {
+  it('reads Elo from 2022-23 and says the standings’ columns rate Division I games alone', () => {
     setLeague('ncaam')
+    expect(eloView(game('regular', '2022-01-10', 2022), null)).toEqual({
+      rows: [],
+      note: 'Elo is read from 2022-23: every team starts at 1500 in 2021-22, so 2021-22 settles the ratings.'
+    })
+    // Not loaded yet: nothing to say.
     expect(eloView(game('regular', '2026-01-10'), null)).toBeNull()
+    // The standings' own columns cover every Division I team over every counted game; the NBA's stay
+    // its 30 teams' regular season.
+    expect(strengthQuery(2026, LEAGUES.ncaam)).toMatchObject({
+      limit: 500,
+      scope: { seasons: [2026], gameTypes: [...LEAGUES.ncaam.countedTypes] }
+    })
+    expect(strengthQuery(2026, LEAGUES.nba)).toMatchObject({
+      limit: 40,
+      scope: { seasons: [2026], gameTypes: ['regular'] }
+    })
     expect(strengthNote(LEAGUES.ncaam)).toBe(
-      "PYTH W, SRS, SOS and ELO are Metis's own, not computed for the NCAA Men yet."
+      'PYTH W, SRS, SOS and ELO are computed by Metis from the final scores: Pythagorean wins over every game with the exponent 8.6, SRS, the strength of schedule and Elo on games between Division I teams alone, after the last game. A game against a team outside Division I counts in the record, not in the ratings.'
     )
   })
 })

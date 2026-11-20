@@ -2,7 +2,7 @@ import { div, leagueOf, type Box, type TeamSeason } from './box'
 import { bpmForTeam, teamRatings } from './bpm'
 import { oliverDefense, oliverOffense } from './oliver'
 import { aPer, leagueMeanAPer, perLeague, perOf, uPer } from './per'
-import { winShares } from './winShares'
+import { BREF_WIN_SHARES, winShares, type WinSharesConstants } from './winShares'
 
 /**
  * The box-score composites of one season and game type (Plan T1005), from every player's line with
@@ -75,7 +75,9 @@ export function seasonComposites(
   lines: readonly CompositeLine[],
   teams: ReadonlyMap<number, TeamSeason>,
   schedule?: ReadonlyMap<number, number>,
-  vorpGames = 82
+  vorpGames = 82,
+  /** Win Shares' constants: Basketball-Reference's unless the league's registry names its own. */
+  wsConstants: WinSharesConstants = BREF_WIN_SHARES
 ): SeasonComposites {
   const league = leagueOf([...teams.values()])
   const perLg = perLeague(league)
@@ -97,7 +99,7 @@ export function seasonComposites(
       const p = line.box
       const off = oliverOffense(p, ts)
       const def = oliverDefense(p, ts)
-      const ws = winShares(p, off, def, ts, league)
+      const ws = winShares(p, off, def, ts, league, wsConstants)
       const a = aPer(uPer(p, ts, perLg), ts, league)
       const b = bpm[i]
 

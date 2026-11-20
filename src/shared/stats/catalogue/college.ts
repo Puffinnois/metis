@@ -1,4 +1,10 @@
-import { COLLEGE_LINEUP_COVERAGE, COLLEGE_PLAYS_COVERAGE, LEAGUES } from '../../leagues'
+import {
+  COLLEGE_LINEUP_COVERAGE,
+  COLLEGE_PLAYS_COVERAGE,
+  LEAGUES,
+  seasonLabel,
+  type League
+} from '../../leagues'
 import { NCAA_PLAYER_BOX, NCAA_TEAM_BOX } from '../ncaaSplits'
 import { SHOT_BANDS, SHOT_TYPES, SHOT_ZONE_GROUPS, SHOT_ZONES } from '../shots'
 import type { MetricCoverage, MetricDef, MetricFamily } from '../types'
@@ -207,8 +213,93 @@ const SAME_AS: Record<string, string> = {
   team_pace40: 'College pace is per 40 minutes already: see Pace.'
 }
 
-const PYTHAGOREAN =
-  "Not computed for the college leagues yet: the Pythagorean exponent is fitted on each league's own seasons with Metis's ratings and models, in a later version."
+/**
+ * Metis's ratings and models in a college league (T1302.8), from its registry entry's fitted values
+ * (`League.models`): every rating is fitted on games between two Division I teams, of every counted
+ * type, and says so; Elo reads from the season after the window's first, which settles it; the
+ * forecast and BPM read the registry's reasons; the adjusted ratings skip a season too even to rate.
+ */
+const ELO_TABLES = ['elo_game', 'elo_wins']
+const BPM_METRICS = ['bpm', 'obpm', 'dbpm', 'vorp', 'team_vorp', 'bpm_position', 'bpm_role']
+const DIVISION_I =
+  'Fitted on games between two Division I teams, the postseason included: a game against a team outside Division I counts in the record and the box score, not here.'
+
+/** The descriptions that name the NBA's rules, in a college league's words. */
+function modelWords(league: League): Record<string, MetricCoverage['words']> {
+  const m = league.models!
+  const x = m.pythagoreanExponent
+  return {
+    team_pyth_pct: {
+      description: `The winning percentage the points scored and allowed point to: points for to the power ${x}, over points for and against each to that power (the exponent fitted on the ${league.name}'s games between Division I teams; the NBA's is 14).`
+    },
+    team_srs: {
+      description: `Points a game better than an average Division I team on a neutral floor: the margin of victory plus the strength of schedule, as of the last game in scope. ${DIVISION_I}`
+    },
+    team_sos: {
+      description: `The average SRS of the Division I opponents played, one term per game, so SRS is the margin of victory plus it, as of the last game in scope. ${DIVISION_I}`
+    },
+    team_sos_left: {
+      description:
+        'The average SRS, as of the last game in scope, of the Division I opponents in the games on the schedule after it, one term per game. Blank once none are left.'
+    },
+    team_games_left: {
+      description:
+        'Games against Division I teams on the schedule after the last game in scope, as far as the schedule lists them.'
+    },
+    team_adj_ortg: {
+      description: `Points scored per 100 estimated possessions against an average Division I defense on a neutral floor: a regression on the season so far that adjusts for the defenses faced and home court. ${DIVISION_I}`
+    },
+    team_adj_drtg: {
+      description: `Points allowed per 100 estimated possessions against an average Division I offense on a neutral floor: a regression on the season so far that adjusts for the offenses faced and home court. ${DIVISION_I}`
+    },
+    team_adj_nrtg: {
+      description: `Adjusted offensive rating minus adjusted defensive rating: points per 100 possessions better than an average Division I team on a neutral floor. ${DIVISION_I}`
+    },
+    team_elo: {
+      description: `A rating carried from game to game, 1500 an average Division I team of ${seasonLabel(league, league.firstSeason)}: ${m.elo.homeCourt} points is the home court. FiveThirtyEight's Elo with its constants fitted on the ${league.name}'s own seasons (K ${m.elo.k}, ${Math.round(m.elo.carry * 100)} % of a rating's distance from the mean kept between seasons), as of the last game in scope. ${DIVISION_I}`
+    },
+    team_elo_exp_w: {
+      description: `The games against Division I teams Elo expected the team to win: its win probability before each game, added over the games in scope.`
+    },
+    team_elo_w_over: {
+      description:
+        'Wins against Division I teams less the games Elo expected the team to win in them.'
+    }
+  }
+}
+
+/** Why Elo's first season is not shown: it is the burn-in. */
+const eloBurnIn = (league: League): string =>
+  `Elo is read from ${seasonLabel(league, league.models!.elo.firstSeason)}: every team starts at ${league.models!.elo.start} in ${seasonLabel(league, league.firstSeason)}, the first season loaded, which settles the ratings.`
+
+function modelCoverage(def: MetricDef, league: League): MetricCoverage | null {
+  if (!def.model || !league.models) return null
+  const m = league.models
+  const words = modelWords(league)[def.id]
+  const withWords = (c: MetricCoverage): MetricCoverage => (words ? { ...c, words } : c)
+  if (def.model === 'team_forecast' && m.forecastUnavailable) {
+    return { firstSeason: FIRST, unavailable: m.forecastUnavailable }
+  }
+  if (BPM_METRICS.includes(def.id) && m.bpmUnavailable) {
+    return { firstSeason: FIRST, unavailable: m.bpmUnavailable }
+  }
+  if (ELO_TABLES.includes(def.model)) {
+    const burnIn = WINDOW.filter((s) => s < m.elo.firstSeason)
+    return withWords({
+      firstSeason: FIRST,
+      missingSeasons: burnIn,
+      missingReason: eloBurnIn(league)
+    })
+  }
+  if (def.model === 'adjusted_rating' && m.adjustedThin.length > 0) {
+    return withWords({
+      firstSeason: FIRST,
+      missingSeasons: [...m.adjustedThin],
+      missingReason: `Not shown for ${m.adjustedThin.map((s) => seasonLabel(league, s)).join(' and ')}: the teams' two halves of the season disagree on their order, so an adjusted rating would be noise.`
+    })
+  }
+  return withWords({ firstSeason: FIRST })
+}
 
 /** Components ESPN's college box scores do not have, and why. */
 const NOT_IN_BOX: readonly [readonly string[], string][] = [
@@ -301,9 +392,15 @@ const ASSIST_PARTS = new RegExp(
 )
 
 /** The metric's coverage in a college league, from the components it reads (`componentsOf`). */
-export function collegeCoverage(def: MetricDef, parts: readonly string[]): MetricCoverage {
+export function collegeCoverage(
+  def: MetricDef,
+  parts: readonly string[],
+  league: League
+): MetricCoverage {
   const same = SAME_AS[def.id]
   if (same) return { firstSeason: FIRST, unavailable: same }
+  const model = modelCoverage(def, league)
+  if (model) return model
   const family = NOT_PUBLISHED[def.family]
   if (family) return { firstSeason: FIRST, unavailable: family }
   if (def.published && !COLLEGE_PUBLISHED.has(def.published)) {
@@ -315,9 +412,9 @@ export function collegeCoverage(def: MetricDef, parts: readonly string[]): Metri
     if (parts.some((p) => ASSIST_PARTS.test(p)))
       return { firstSeason: FIRST, unavailable: NO_ASSISTS }
   }
-  // The exponent is the NBA's until the league's own is fitted with its models (T1302.8): shown as a
-  // value, it would be the NBA's rule on college scores.
-  if (def.pythagorean) return { firstSeason: FIRST, unavailable: PYTHAGOREAN }
+  // The league's own exponent, fitted with its models (T1302.8); the formula takes it in `metricIn`.
+  const words = league.models ? modelWords(league)[def.id] : undefined
+  if (words) return { firstSeason: FIRST, words }
   for (const [columns, reason] of NOT_IN_BOX) {
     if (parts.some((p) => columns.includes(p))) return { firstSeason: FIRST, unavailable: reason }
   }

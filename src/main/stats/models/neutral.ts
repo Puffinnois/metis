@@ -50,6 +50,11 @@ export function neutralSitesSql(
     seasons
       ? `${expr} BETWEEN ${Math.trunc(seasons.from) - pad} AND ${Math.trunc(seasons.to) + pad}`
       : 'true'
+  // The college leagues' game table carries ESPN's mark itself, for the games ESPN has (T1302.4); a
+  // game only stats.ncaa.org holds has no mark and keeps its home court.
+  if (rules.fromGame) {
+    return `SELECT game_id, coalesce(neutral, false) AS neutral FROM game WHERE ${within('season', 0)}`
+  }
   if (!have.tables.has(ESPN)) {
     return `SELECT game_id, ${byType} AS neutral FROM game WHERE ${within('season', 0)}`
   }

@@ -2,6 +2,7 @@ import { modelsOf } from '@shared/leagues'
 import type { GameType } from '@shared/stats/types'
 import type { ModelBuilder, ModelContext, ModelRows, ModelTable } from './build'
 import { runSeason, seasonStart, type EloGame } from './elo'
+import { divisionIGamesSql, eloTypesIn } from './divisionI'
 import { neutralSitesSql } from './neutral'
 
 /** Plan T1002: Elo, a team's rating before and after every game played. */
@@ -60,7 +61,8 @@ export const TEAM_ELO_TABLES: readonly ModelTable[] = [
     ],
     components: ['elo', 'elo_pre', 'win_prob'],
     gameTypes: ELO_GAME_TYPES,
-    typesReason: ELO_TYPES_REASON
+    typesReason: ELO_TYPES_REASON,
+    typesIn: eloTypesIn
   },
   {
     table: ELO_WINS_TABLE,
@@ -72,7 +74,8 @@ export const TEAM_ELO_TABLES: readonly ModelTable[] = [
     columns: [...keys, ['elo_exp_wins', 'DOUBLE']],
     components: ['elo_exp_wins'],
     gameTypes: ELO_GAME_TYPES,
-    typesReason: ELO_TYPES_REASON
+    typesReason: ELO_TYPES_REASON,
+    typesIn: eloTypesIn
   },
   {
     table: ELO_SCHEDULE_TABLE,
@@ -120,7 +123,7 @@ async function seasonGames(ctx: ModelContext): Promise<GameRow[]> {
      WHERE g.season = ? AND g.game_type IN (${types})
        AND g.home_team_id IS NOT NULL AND g.away_team_id IS NOT NULL
        AND ((g.played AND g.home_score IS NOT NULL AND g.away_score IS NOT NULL
-             AND g.home_score <> g.away_score) OR (NOT g.played AND g.season = ?))
+             AND g.home_score <> g.away_score) OR (NOT g.played AND g.season = ?))${divisionIGamesSql(ctx.league)}
      ORDER BY g.game_date, g.game_id`,
     [ctx.season, ctx.current]
   )
@@ -145,7 +148,13 @@ async function build(ctx: ModelContext): Promise<ModelRows> {
   const last = await finalRatings(ctx, ctx.season - 1)
   const start =
     last.size > 0
-      ? seasonStart(last, teams, constants.carry, constants.mean)
+      ? seasonStart(
+          last,
+          teams,
+          constants.carry,
+          constants.mean,
+          modelsOf(ctx.league).pairMoves ?? true
+        )
       : new Map(teams.map((t) => [t, constants.start]))
   const typeOf = new Map(rows.map((g) => [g.game_id, g.game_type]))
   const games: EloGame<number>[] = rows.map((g) => ({

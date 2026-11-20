@@ -42,8 +42,9 @@ export function StatsStandings({
   // The season forecast, for the season in progress only (`forecastQuery` says why): not one the
   // league has finished, though the data runs through it (the WNBA's in November).
   const inProgress = seasonInProgress(scope.season, data.status)
-  // A league with no models fitted (the college leagues until T1302.8) has no forecast to show.
-  const forecasts = currentLeague().models !== null
+  // A league with no models fitted, or no forecast (the college leagues, D44), has none to show.
+  const models = currentLeague().models
+  const forecasts = models !== null && models.forecastUnavailable === undefined
   const fq = useMemo(
     () => (inProgress && forecasts ? forecastQuery(scope.season) : null),
     [inProgress, forecasts, scope.season]
@@ -123,7 +124,9 @@ export function StatsStandings({
           <Notes
             notes={[
               ...standingsNotes(scope.season, rows),
-              ...(forecast ? [forecastNote(forecast.runs, scope.season)] : [])
+              ...(forecast ? [forecastNote(forecast.runs, scope.season)] : []),
+              // Why a season in progress has no forecast where the league has none.
+              ...(inProgress && models?.forecastUnavailable ? [models.forecastUnavailable] : [])
             ]}
           />
         </div>

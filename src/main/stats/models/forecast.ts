@@ -195,9 +195,12 @@ export interface ForecastRuns {
 }
 
 async function build(ctx: ModelContext, runCount: ForecastRuns): Promise<ModelRows> {
+  // A league with no forecast (the college leagues: the NCAA tournament's field is chosen by a
+  // committee, D44) has no rows; its metrics read the registry's reason.
   if (
     ctx.season < modelsOf(ctx.league).forecastFirstSeason ||
-    !ctx.have.tables.has(ELO_GAME_TABLE)
+    !ctx.have.tables.has(ELO_GAME_TABLE) ||
+    modelsOf(ctx.league).forecastUnavailable !== undefined
   ) {
     return { [FORECAST_TABLE]: [] }
   }

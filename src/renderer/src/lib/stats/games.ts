@@ -230,7 +230,16 @@ export function eloView(game: StatsGame, detail: StatsGameDetail | null): EloVie
     }
   }
   const elo = detail?.elo
-  if (!elo) return null
+  // The college leagues rate games between two Division I teams alone (T1302.8): a game against a
+  // team outside the division, or a forfeit, counts in the record and has no rating.
+  if (!elo) {
+    return league.divisionIOnly && detail
+      ? {
+          rows: [],
+          note: 'Elo rates games between two Division I teams alone: this game counts in the record, not in the ratings.'
+        }
+      : null
+  }
   const pct = (p: number): string => `${(100 * p).toFixed(0)}%`
   const rating = (x: number): string => fmtStat(x, { unit: 'number', decimals: 0 })
   const rows = [

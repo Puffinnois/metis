@@ -49,13 +49,20 @@ export const HEAD_METRICS: Readonly<Record<string, string>> = {
 /** The team strength columns, computed by Metis, after the published ones. */
 export const STRENGTH_METRICS = ['team_pyth_w', 'team_srs', 'team_sos', 'team_elo'] as const
 
-/** Each team's strength over the season's regular season: its final SRS, SOS and Elo. */
-export function strengthQuery(season: number): StatsQuery {
+/**
+ * Each team's strength over the season: its final SRS, SOS and Elo, over the regular season or, where
+ * the league's standings count every game (the college leagues, D45), over every counted game.
+ */
+export function strengthQuery(season: number, league: League = currentLeague()): StatsQuery {
   return {
     entity: 'team',
     metrics: [...STRENGTH_METRICS],
-    scope: { seasons: [season], gameTypes: ['regular'] },
-    limit: 40,
+    scope: {
+      seasons: [season],
+      gameTypes: league.defaultType === 'counted' ? [...league.countedTypes] : ['regular']
+    },
+    // Every team of the standings: a Division I season holds some 365 (T1302.8), a pro league 30.
+    limit: league.divisionIOnly ? 500 : 40,
     ranks: false
   }
 }
@@ -337,7 +344,9 @@ export const standingsTables = (
 export const strengthNote = (league: League = currentLeague()): string =>
   league.models === null
     ? `PYTH W, SRS, SOS and ELO are Metis's own, not computed for the ${league.name} yet.`
-    : `PYTH W, SRS, SOS and ELO are computed by Metis from the final scores: Pythagorean wins with the exponent ${league.models.pythagoreanExponent}, SRS and the strength of schedule solved on the regular season, Elo after the last regular-season game.`
+    : league.divisionIOnly
+      ? `PYTH W, SRS, SOS and ELO are computed by Metis from the final scores: Pythagorean wins over every game with the exponent ${league.models.pythagoreanExponent}, SRS, the strength of schedule and Elo on games between Division I teams alone, after the last game. A game against a team outside Division I counts in the record, not in the ratings.`
+      : `PYTH W, SRS, SOS and ELO are computed by Metis from the final scores: Pythagorean wins with the exponent ${league.models.pythagoreanExponent}, SRS and the strength of schedule solved on the regular season, Elo after the last regular-season game.`
 
 /**
  * What the table depends on, or why there is none. What is missing is read from the rows, so a league

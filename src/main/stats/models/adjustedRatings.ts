@@ -1,6 +1,7 @@
 import { modelsOf } from '@shared/leagues'
 import { adjustedByDay, type EfficiencyGame } from './adjusted'
 import type { ModelBuilder, ModelContext, ModelRows, ModelTable } from './build'
+import { divisionIGamesSql, solvedTypesIn, solvedTypesOf, typesSql } from './divisionI'
 import { neutralSitesSql } from './neutral'
 import { REGULAR_SEASON_SOLVED } from './teamStrength'
 
@@ -29,12 +30,15 @@ export const ADJUSTED_TABLES: readonly ModelTable[] = [
     ],
     components: ['adj_poss', 'adj_ortg', 'adj_drtg', 'adj_nrtg', 'adj_league', 'adj_home'],
     gameTypes: ['regular'],
-    typesReason: REGULAR_SEASON_SOLVED
+    typesReason: REGULAR_SEASON_SOLVED,
+    typesIn: solvedTypesIn
   }
 ]
 
 interface GameRow extends EfficiencyGame<number> {
   game_id: string
+  /** The college leagues' rows carry it; the NBA's are all regular-season games. */
+  game_type?: string
 }
 
 /**
@@ -48,6 +52,7 @@ async function games(ctx: ModelContext): Promise<GameRow[]> {
     { from: ctx.season, to: ctx.season },
     modelsOf(ctx.league).neutral
   )
+  if (ctx.league.models?.solvedTypes) return solvedGames(ctx, neutral)
   // The season's rows of team_game first: joined whole, the table costs ten times as much.
   return ctx.db.all<GameRow>(
     `WITH t AS (
@@ -68,17 +73,45 @@ async function games(ctx: ModelContext): Promise<GameRow[]> {
   )
 }
 
+/**
+ * The college leagues' games (T1302.8): every counted type the league solves on, between two Division I
+ * teams of the season, never a forfeit, each with its type.
+ */
+async function solvedGames(ctx: ModelContext, neutral: string): Promise<GameRow[]> {
+  const types = typesSql(solvedTypesOf(ctx.league))
+  return ctx.db.all<GameRow>(
+    `WITH t AS (
+       SELECT game_id, team_id, pts, poss_sym FROM team_game
+       WHERE season = $1 AND game_type IN (${types})
+     )
+     SELECT g.game_id, g.game_type, strftime(g.game_date, '%Y-%m-%d') AS date,
+            g.home_team_id AS home, g.away_team_id AS away, h.pts::DOUBLE AS "homePts",
+            a.pts::DOUBLE AS "awayPts", h.poss_sym::DOUBLE AS poss, coalesce(n.neutral, false) AS neutral
+     FROM game g
+     JOIN t h ON h.game_id = g.game_id AND h.team_id = g.home_team_id
+     JOIN t a ON a.game_id = g.game_id AND a.team_id = g.away_team_id
+     LEFT JOIN (${neutral}) n ON n.game_id = g.game_id
+     WHERE g.season = $1 AND g.game_type IN (${types}) AND g.played
+       AND h.pts IS NOT NULL AND a.pts IS NOT NULL AND h.poss_sym > 0
+       ${divisionIGamesSql(ctx.league)}
+     ORDER BY g.game_date, g.game_id`,
+    [ctx.season]
+  )
+}
+
 async function build(ctx: ModelContext): Promise<ModelRows> {
   const list = await games(ctx)
-  // A team plays once a day; the game of each team's day names its row.
+  // A team plays once a day; the game of each team's day names its row, and its type the row's.
   const gameOf = new Map<string, string>()
+  const typeOf = new Map<string, string>()
   for (const g of list) {
     gameOf.set(`${g.date}|${g.home}`, g.game_id)
     gameOf.set(`${g.date}|${g.away}`, g.game_id)
+    typeOf.set(g.game_id, g.game_type ?? 'regular')
   }
   const rows = adjustedByDay(list, modelsOf(ctx.league).ridgePossessions).map((r) => ({
     season: ctx.season,
-    game_type: 'regular',
+    game_type: typeOf.get(gameOf.get(`${r.date}|${r.team}`) ?? '') ?? 'regular',
     team_id: r.team,
     game_id: gameOf.get(`${r.date}|${r.team}`),
     game_date: r.date,

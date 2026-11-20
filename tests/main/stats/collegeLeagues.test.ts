@@ -69,17 +69,17 @@ afterEach(async () => {
 })
 
 describe('the college leagues before their data', () => {
-  it('have their identity and game recipes, no models, and the accessors refuse to read the rest', () => {
+  it('have every recipe and their models named', () => {
     for (const league of COLLEGE) {
       // The game, team and player tables (T1302.4), the game and season tables (T1302.5), the
-      // published tables and the plays step's shots and lineups (T1302.6); the models still read
-      // their reason.
-      expect(league.builds).toEqual(['identity', 'derived', 'published', 'plays'])
+      // published tables and the plays step's shots and lineups (T1302.6), the plays (T1302.7) and
+      // Metis's ratings and models (T1302.8).
+      expect(league.builds).toEqual(['identity', 'derived', 'published', 'plays', 'models'])
       for (const kind of ['identity', 'derived', 'published', 'plays'] as const) {
         expect(recipeOf(league, kind)).toBe('college')
       }
       expect(SOURCES_BY_LEAGUE[league.id].length).toBeGreaterThan(0)
-      expect(() => modelsOf(league)).toThrow(`the ${league.name} has no ratings or models yet`)
+      expect(modelsOf(league).elo.firstSeason).toBe(2023)
     }
     // The NBA's and the WNBA's are named, read without a check.
     expect(modelsOf(LEAGUES.nba).elo.k).toBe(20)
@@ -178,10 +178,11 @@ describe('the college leagues before their data', () => {
       expect(coverageReason(paint, [2020], league)).toBe('Loaded from 2021-22.')
       // ESPN's college box scores have no plus-minus: it says so.
       expect(metricIn(METRICS.get('plus_minus')!, league).unavailable).toMatch(/plus-minus/)
-      // Pythagorean wins would read the NBA's exponent until the league's own is fitted: a reason.
+      // Pythagorean wins read the league's own exponent, fitted with its models (T1302.8).
       for (const id of ['team_pyth_pct', 'team_pyth_w']) {
-        const def = METRICS.get(id)
-        if (def) expect(metricIn(def, league).unavailable).toMatch(/Pythagorean exponent/)
+        const def = metricIn(METRICS.get(id)!, league)
+        expect(def.unavailable).toBeUndefined()
+        expect(def.value).toContain(`pow({points_for}, ${league.models!.pythagoreanExponent})`)
       }
     }
     // The NBA's words are as they were.
