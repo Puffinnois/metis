@@ -495,7 +495,9 @@ for (const season of done) {
 // ---- 6. Through the engine against the tables.
 say('## Through the engine, against the tables', '')
 const eq = []
-for (const season of [done[1], TEST]) {
+const mismatches = []
+const totals = { teams: [0, 0], players: [0, 0], fallback: 0 }
+for (const season of done) {
   const { rows } = await engine('team', ['team_srs', 'team_elo', 'team_adj_nrtg'], season, {
     gameTypes: counted
   })
@@ -506,31 +508,93 @@ for (const season of [done[1], TEST]) {
   let same = 0
   for (const r of t) {
     const v = rows.get(String(r.team_id))
+    // Elo's first season is its burn-in: the engine gives its reason there, so it reads no value.
+    const elo =
+      season === done[0]
+        ? v?.team_elo === null
+        : Math.abs((v?.team_elo ?? NaN) - (r.elo ?? NaN)) < 1e-9
     if (
       v &&
       Math.abs(v.team_srs - r.srs) < 1e-9 &&
-      Math.abs((v.team_elo ?? NaN) - (r.elo ?? NaN)) < 1e-9 &&
+      elo &&
       Math.abs(v.team_adj_nrtg - r.adj_nrtg) < 1e-9
     )
       same++
   }
+  totals.teams[0] += t.length
+  totals.teams[1] += same
   const pt = await read(`SELECT player_id, sum(per_num) / sum(cmp_minutes) AS per, sum(ws) AS ws
     FROM player_composite WHERE season = ${season} AND team_id IS NOT NULL GROUP BY 1`)
   // Named 64 at a time (the engine's limit), so every player is read, not only a board's rows.
   const p = { rows: new Map() }
-  for (let i = 0; i < pt.length; i += 64) {
-    const ids = pt.slice(i, i + 64).map((r) => String(r.player_id))
+  // The engine names ids of up to 12 digits; D28's college fallback keys, −(10¹² + hash), have 13, so a
+  // player keyed so is read through their team's rows instead.
+  const nameable = (id) => /^-?[0-9]{1,12}$/.test(String(id))
+  const named = pt.filter((r) => nameable(r.player_id))
+  for (let i = 0; i < named.length; i += 64) {
+    const ids = named.slice(i, i + 64).map((r) => String(r.player_id))
     const part = await engine('player', ['per', 'ws'], season, { gameTypes: counted, players: ids })
     for (const [k, v] of part.rows) p.rows.set(k, v)
   }
+  const unnamed = pt.filter((r) => !nameable(r.player_id))
+  const teamsOf = unnamed.length
+    ? await read(`SELECT DISTINCT team_id FROM player_composite WHERE season = ${season}
+        AND player_id IN (${unnamed.map((r) => r.player_id).join(', ')})`)
+    : []
+  for (const { team_id } of teamsOf) {
+    const part = await engine('player', ['per', 'ws'], season, {
+      gameTypes: counted,
+      teams: [String(team_id)]
+    })
+    for (const [k, v] of part.rows) if (!nameable(k)) p.rows.set(k, v)
+  }
+  totals.fallback += unnamed.length
   let psame = 0
   for (const r of pt) {
     const v = p.rows.get(String(r.player_id))
     if (v && Math.abs(v.per - r.per) < 1e-9 && Math.abs(v.ws - r.ws) < 1e-9) psame++
+    else
+      mismatches.push({
+        season,
+        id: r.player_id,
+        table: { per: r.per, ws: r.ws },
+        engine: v ?? null
+      })
   }
+  totals.players[0] += pt.length
+  totals.players[1] += psame
   eq.push([label(season), `${same} of ${t.length}`, `${psame} of ${pt.length}`])
 }
+eq.push([
+  'Every season',
+  `${totals.teams[1]} of ${totals.teams[0]}`,
+  `${totals.players[1]} of ${totals.players[0]}`
+])
+say(
+  "Every team-season's SRS, Elo and adjusted net rating after its last game, and every player's PER and Win Shares over the season (each player named, 64 to a query), through the engine over every counted game against the tables (to 1e-9; Elo's burn-in season must read no value).",
+  ''
+)
 table(['Season', 'Teams: SRS, Elo and adjusted net equal', 'Players: PER and WS equal'], eq)
+if (totals.fallback > 0) {
+  say(
+    `${totals.fallback} of the players are keyed by D28's fallback (13 digits), which the engine does not take in \`scope.players\`: read through their team's rows instead.`,
+    ''
+  )
+}
+if (mismatches.length > 0) {
+  say('Players whose engine value differs from the table:', '')
+  table(
+    ['Season', 'Player id', 'PER, table', 'PER, engine', 'WS, table', 'WS, engine'],
+    mismatches.map((m) => [
+      label(m.season),
+      m.id,
+      f(m.table.per, 6),
+      f(m.engine?.per, 6),
+      f(m.table.ws, 6),
+      f(m.engine?.ws, 6)
+    ])
+  )
+}
 
 const stab = await read(`SELECT reliability, count(*) AS n FROM metric_stability
   WHERE season = (SELECT max(season) FROM metric_stability) GROUP BY 1 ORDER BY 2 DESC`)

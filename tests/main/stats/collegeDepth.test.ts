@@ -484,6 +484,25 @@ describe('the published models (D44)', () => {
     )
     expect(Number(bpm.n)).toBeGreaterThan(0)
     expect(Number(bpm.error)).toBeLessThan(1e-9)
+    // A player with a counted line has their rows under a type they have a line in (the regular season
+    // where they have one), since the engine joins a published row to the player's lines of its type
+    // (T1302.8). One whose only line is an exhibition is read by no counted scope.
+    for (const table of [
+      'pub_player_sdv_bpm',
+      'pub_player_ncaa_rapm',
+      'pub_player_ncaa_rapm_team'
+    ]) {
+      const stray = await one(
+        m,
+        `SELECT count(*)::INTEGER AS n FROM ${table} p
+         WHERE EXISTS (SELECT 1 FROM player_season s WHERE s.player_id = p.player_id
+                         AND s.season = p.season AND s.team_id IS NULL
+                         AND s.game_type <> 'preseason')
+           AND NOT EXISTS (SELECT 1 FROM player_season s WHERE s.player_id = p.player_id
+                             AND s.season = p.season AND s.team_id IS NULL AND s.game_type = p.game_type)`
+      )
+      expect(Number(stray.n), table).toBe(0)
+    }
   })
 })
 

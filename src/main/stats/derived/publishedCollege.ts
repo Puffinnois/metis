@@ -8,8 +8,9 @@ import { column, type Have } from './sql'
  * times what it was fitted on (games, minutes, possessions), so a season reads back as published and
  * seasons together are weighted, as the NBA's impact file is. They are every game of a season together
  * (the ratings' `games` count the postseason), so they are read only over every counted game
- * (`PublishedTable.everyGame`) and stored under the regular season, which every college team and
- * player with a game has.
+ * (`PublishedTable.everyGame`). A team's row is stored under the regular season, which every college
+ * team plays; a player's under a type they have a box-score line in (`storedType`), since the engine
+ * joins a published row to the player's lines of its type.
  *
  * The tables are built on every league's refresh, and from a file without the sources they are empty.
  */
@@ -26,6 +27,26 @@ const empty = (key: string, columns: readonly string[]): string =>
 /** A value times its weight, NULL when either is; a published NaN reads NULL. */
 const times = (value: string, weight: string): string =>
   `CASE WHEN isnan(${value}) THEN NULL ELSE ${value} * ${weight} END`
+
+/**
+ * The game type a player's row is stored under: the regular season where they have a line in it, else
+ * the first counted type they have one in. Eight men's players of 2021-22 to 2025-26 have no
+ * regular-season line (a walk-on whose one game of 2022-23 was an NCAA tournament game), and stored under
+ * the regular season their published values read nothing (T1302.8). The rows are read only over every
+ * counted game, so the type a row carries changes nothing else. The regular season without the season
+ * table.
+ */
+function storedType(have: Have, key: string, season: string): { join: string; type: string } {
+  if (!have.tables.has('player_season')) return { join: '', type: "'regular'" }
+  return {
+    join: `LEFT JOIN (
+        SELECT player_id, season,
+               CASE WHEN bool_or(game_type = 'regular') THEN 'regular' ELSE min(game_type) END AS game_type
+        FROM player_season WHERE team_id IS NULL AND game_type NOT IN ('preseason', 'all-star')
+        GROUP BY 1, 2) pt ON pt.player_id = ${key} AND pt.season = ${season}`,
+    type: "coalesce(pt.game_type, 'regular')"
+  }
+}
 
 /** The team ratings' values, each stored times the games it was fitted on. */
 export const SDV_RATING_VALUES = [
@@ -63,13 +84,14 @@ function bpmSql(have: Have): string {
   const table = 'pub_player_sdv_bpm'
   if (!have.tables.has(t)) return create(table, empty('player_id', BPM_COLUMNS))
   const c = (n: string, type = 'DOUBLE'): string => column(have, t, 's', n, type)
+  const stored = storedType(have, c('player_id', 'BIGINT'), c('season', 'INTEGER'))
   return create(
     table,
     `SELECT ${c('player_id', 'BIGINT')} AS player_id, ${c('season', 'INTEGER')} AS season,
-            'regular' AS game_type, NULL::DOUBLE AS games, ${c('min')} AS minutes,
+            ${stored.type} AS game_type, NULL::DOUBLE AS games, ${c('min')} AS minutes,
             NULL::DOUBLE AS possessions,
             ${['box_obpm', 'box_dbpm', 'box_bpm'].map((v) => `${times(c(v), c('min'))} AS sdv_${v}_w`).join(', ')}
-     FROM ${t} s WHERE ${c('player_id', 'BIGINT')} IS NOT NULL AND ${c('min')} > 0`
+     FROM ${t} s ${stored.join} WHERE ${c('player_id', 'BIGINT')} IS NOT NULL AND ${c('min')} > 0`
   )
 }
 
@@ -95,10 +117,11 @@ function rapmSql(have: Have): string {
   const c = (n: string, type = 'DOUBLE'): string => column(have, t, 's', n, type)
   const off = c('off_poss')
   const def = c('def_poss')
+  const stored = storedType(have, playerKey(have, t), c('season', 'INTEGER'))
   return create(
     table,
     `SELECT ${playerKey(have, t)} AS player_id, ${c('season', 'INTEGER')} AS season,
-            'regular' AS game_type, NULL::DOUBLE AS games, NULL::DOUBLE AS minutes,
+            ${stored.type} AS game_type, NULL::DOUBLE AS games, NULL::DOUBLE AS minutes,
             ${off} + ${def} AS possessions,
             ${times(c('orapm'), off)} AS ncaa_orapm_w, ${times(c('drapm'), def)} AS ncaa_drapm_w,
             ${times(c('rapm_net'), `(${off} + ${def})`)} AS ncaa_rapm_w,
@@ -106,6 +129,7 @@ function rapmSql(have: Have): string {
      FROM ${t} s
      LEFT JOIN ncaa_player_ids i ON i.season = ${c('season', 'INTEGER')}
        AND i.ncaa_player_id = ${c('player_id', 'VARCHAR')}
+     ${stored.join}
      WHERE ${c('player_id', 'VARCHAR')} IS NOT NULL AND ${off} + ${def} > 0
        AND coalesce(${c('estimand', 'VARCHAR')}, 'league') = 'league'`
   )
@@ -124,16 +148,18 @@ function teamRapmSql(have: Have): string {
   if (!have.tables.has(t)) return create(table, empty('player_id', TEAM_RAPM_COLUMNS))
   const c = (n: string, type = 'DOUBLE'): string => column(have, t, 's', n, type)
   const poss = c('team_off_poss')
+  const stored = storedType(have, playerKey(have, t), c('season', 'INTEGER'))
   return create(
     table,
     `SELECT ${playerKey(have, t)} AS player_id, ${c('season', 'INTEGER')} AS season,
-            'regular' AS game_type, NULL::DOUBLE AS games, NULL::DOUBLE AS minutes,
+            ${stored.type} AS game_type, NULL::DOUBLE AS games, NULL::DOUBLE AS minutes,
             ${poss} AS possessions,
             ${times(c('rapm_off'), poss)} AS ncaa_trapm_off_w, ${times(c('rapm_def'), poss)} AS ncaa_trapm_def_w,
             ${times(c('rapm_net'), poss)} AS ncaa_trapm_w, ${poss} AS ncaa_trapm_poss
      FROM ${t} s
      LEFT JOIN ncaa_player_ids i ON i.season = ${c('season', 'INTEGER')}
        AND i.ncaa_player_id = ${c('player_id', 'VARCHAR')}
+     ${stored.join}
      WHERE ${c('player_id', 'VARCHAR')} IS NOT NULL AND ${poss} > 0`
   )
 }

@@ -997,6 +997,8 @@ Measured on 2026-11-20. The constants are fitted by `scripts/fit-college-models.
 
 **Win Shares' constants.** With Basketball-Reference's NBA constants (0.92 and 1.08 of the league's points per possession, a win at 0.32 of its points per game), the men's leaders came out about a third above Sports Reference's (Keegan Murray 11.5 against 8.7 in 2021-22; 0 of 50 leaders within 0.3). Sports Reference's college method ("Calculating Win Shares", 2009-10 on) uses 0.875, 1.125 and 0.5 against the division's totals; with those in the registry (`LeagueModels.winShares`) the men's leaders agree on 49 of 50 Win Shares and 50 of 50 WS/40. PER needed no change: 50 of 50 men's leaders within 0.5 from the first run.
 
+**Players with no regular-season line.** The first comparison through the engine found one men's player of 2022-23 reading no PER: Austin Sacks (Baylor), whose one game that season was an NCAA tournament game (table PER −45.0 and WS −0.016 on 1 minute, engine NULL). A college row covering every counted game was stored under the regular season, and the engine joins a model or published season row to the player's box-score rows of its type, so a player with no regular-season line read nothing. Eight men's player-team-seasons have none (2021-22: 3, 2022-23: 1, 2024-25: 4), none of the women's, and every team plays a regular season; seven had composites and all eight SportsDataverse BPM or RAPM rows. Each player's row is now stored under a type they have a line in (the regular season where they have one), in the composites and in the published college tables (`COLLEGE_PUBLISHED` version 2); the rows are read only over every counted game, so nothing else reads differently. The comparison now runs every season of both leagues.
+
 ### NCAA Men: the constants, fitted
 
 Games between two Division I teams of the season, every counted type, no exhibition or forfeit; fitted on 2021-22 to 2024-25 and scored on 2025-26, by `scripts/fit-college-models.mjs` on `/home/yhabie/.cache/metis-dev/t1302g-ncaam/stats-ncaam.duckdb`.
@@ -1334,10 +1336,16 @@ Champion: Michigan Wolverines, ranked 1 by the adjusted net rating and 1 by Elo.
 
 #### Through the engine, against the tables
 
-| Season  | Teams: SRS, Elo and adjusted net equal | Players: PER and WS equal |
-| ------- | -------------------------------------- | ------------------------- |
-| 2022-23 | 363 of 363                             | 5093 of 5094              |
-| 2025-26 | 365 of 365                             | 5015 of 5015              |
+Every team-season's SRS, Elo and adjusted net rating after its last game, and every player's PER and Win Shares over the season (each player named, 64 to a query), through the engine over every counted game against the tables (to 1e-9; Elo's burn-in season must read no value).
+
+| Season       | Teams: SRS, Elo and adjusted net equal | Players: PER and WS equal |
+| ------------ | -------------------------------------- | ------------------------- |
+| 2021-22      | 358 of 358                             | 5075 of 5075              |
+| 2022-23      | 363 of 363                             | 5094 of 5094              |
+| 2023-24      | 362 of 362                             | 5058 of 5058              |
+| 2024-25      | 364 of 364                             | 5115 of 5115              |
+| 2025-26      | 365 of 365                             | 5015 of 5015              |
+| Every season | 1812 of 1812                           | 25357 of 25357            |
 
 #### Stability
 
@@ -1694,10 +1702,18 @@ Champion: UCLA Bruins, ranked 2 by the adjusted net rating and 1 by Elo.
 
 #### Through the engine, against the tables
 
-| Season  | Teams: SRS, Elo and adjusted net equal | Players: PER and WS equal |
-| ------- | -------------------------------------- | ------------------------- |
-| 2022-23 | 361 of 361                             | 4704 of 4704              |
-| 2025-26 | 363 of 363                             | 4692 of 4692              |
+Every team-season's SRS, Elo and adjusted net rating after its last game, and every player's PER and Win Shares over the season (each player named, 64 to a query), through the engine over every counted game against the tables (to 1e-9; Elo's burn-in season must read no value).
+
+| Season       | Teams: SRS, Elo and adjusted net equal | Players: PER and WS equal |
+| ------------ | -------------------------------------- | ------------------------- |
+| 2021-22      | 356 of 356                             | 4798 of 4798              |
+| 2022-23      | 361 of 361                             | 4704 of 4704              |
+| 2023-24      | 360 of 360                             | 4692 of 4692              |
+| 2024-25      | 362 of 362                             | 4737 of 4737              |
+| 2025-26      | 363 of 363                             | 4692 of 4692              |
+| Every season | 1802 of 1802                           | 23623 of 23623            |
+
+1 of the players are keyed by D28's fallback (13 digits), which the engine does not take in `scope.players`: read through their team's rows instead.
 
 #### Stability
 

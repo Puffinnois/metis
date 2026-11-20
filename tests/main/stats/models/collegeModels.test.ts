@@ -413,9 +413,15 @@ describe('the models step on the college fixtures', () => {
       expect(await n(`SELECT count(*) AS n FROM ${ELO_GAME_TABLE}`)).toBeGreaterThan(0)
       expect(await n('SELECT count(*) AS n FROM team_strength')).toBeGreaterThan(0)
       expect(await n('SELECT count(*) AS n FROM player_composite')).toBeGreaterThan(0)
-      // The composites over every counted game, stored under the regular season.
+      // The composites over every counted game: a team's stored under the regular season, a player's
+      // under a type they have a line in with that team (the regular season where they have one).
+      expect(await n("SELECT count(*) AS n FROM team_composite WHERE game_type <> 'regular'")).toBe(
+        0
+      )
       expect(
-        await n("SELECT count(*) AS n FROM player_composite WHERE game_type <> 'regular'")
+        await n(`SELECT count(*) AS n FROM player_composite c WHERE NOT EXISTS (
+          SELECT 1 FROM player_game g WHERE g.player_id = c.player_id AND g.team_id = c.team_id
+            AND g.season = c.season AND g.game_type = c.game_type)`)
       ).toBe(0)
       expect(await n('SELECT count(*) AS n FROM team_forecast')).toBe(0)
       // A game against a team outside Division I has no Elo row (the fixture holds some).
@@ -425,6 +431,46 @@ describe('the models step on the college fixtures', () => {
       expect(outside).toBeGreaterThan(0)
     }, 60_000)
   }
+
+  it('reads PER for a player whose only game of a season was an NCAA tournament game', async () => {
+    // As Austin Sacks's one game of 2022-23 for Baylor: a player of the fixture with a tournament line
+    // loses their other lines of that season, and the composites are computed again.
+    const db = await built(men)
+    const pick = await db.get<{ player_id: number; team_id: number; season: number }>(
+      `SELECT player_id, team_id, season FROM player_game WHERE game_type = 'playoffs' AND minutes > 0
+       ORDER BY season, player_id LIMIT 1`
+    )
+    expect(pick).not.toBeNull()
+    const { player_id: id, team_id: team, season } = pick!
+    await db.exec(
+      "DELETE FROM player_game WHERE player_id = ? AND season = ? AND game_type <> 'playoffs'",
+      [id, season]
+    )
+    await db.exec(
+      "DELETE FROM player_season WHERE player_id = ? AND season = ? AND game_type <> 'playoffs'",
+      [id, season]
+    )
+    await db.exec("DELETE FROM derived_state WHERE name = 'model:box_composites'")
+    await buildModels(db, 2027, men)
+    const row = await db.get<{ game_type: string }>(
+      'SELECT game_type FROM player_composite WHERE player_id = ? AND team_id = ? AND season = ?',
+      [id, team, season]
+    )
+    expect(row?.game_type).toBe('playoffs')
+    const r = await runQuery(
+      db,
+      {
+        entity: 'player',
+        metrics: ['per', 'ws'],
+        scope: { seasons: [season], players: [String(id)] },
+        ranks: false
+      },
+      { league: men, currentSeason: 2027 }
+    )
+    expect(r.rows).toHaveLength(1)
+    expect(r.rows[0].values.per?.value).not.toBeNull()
+    expect(r.rows[0].values.ws?.value).not.toBeNull()
+  }, 60_000)
 
   it('reads PER over every counted game, and gives the reason over part of them', async () => {
     const db = await built(men)

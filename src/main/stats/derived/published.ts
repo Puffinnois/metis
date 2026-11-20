@@ -66,7 +66,8 @@ export const WNBA_PUBLISHED: PublishedRecipe = {
  * published, so the lineups tab is the plays step's.
  */
 export const COLLEGE_PUBLISHED: PublishedRecipe = {
-  version: 1,
+  // 2: a player's rows under a type they have a line in, not always the regular season (T1302.8).
+  version: 2,
   sources: {},
   team: (id) => id,
   lineups: false

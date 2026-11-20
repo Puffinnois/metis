@@ -247,6 +247,28 @@ async function schedule(ctx: ModelContext, gameType: string): Promise<Map<number
 
 const finite = (x: number): number | null => (Number.isFinite(x) ? x : null)
 
+/**
+ * Where a league's composites cover every counted game together, the type each player's row with a team
+ * is stored under: the regular season where they have a line in it with that team, else the first
+ * counted type they have one in. The engine joins a season row to the player's box-score rows of its
+ * type, so a player whose only games of a season were postseason games (eight men's player-seasons of
+ * 2021-22 to 2025-26: a walk-on with one NCAA tournament game) read nothing under the regular season
+ * (T1302.8). The rows are read only over every counted game, so the type changes nothing else. Null for a
+ * league that computes each type apart.
+ */
+async function storedTypes(ctx: ModelContext): Promise<Map<string, string> | null> {
+  const together = togetherTypes(ctx)
+  if (!together) return null
+  const rows = await ctx.db.all<{ player_id: number; team_id: number; game_type: string }>(
+    `SELECT player_id, team_id,
+            CASE WHEN bool_or(game_type = 'regular') THEN 'regular' ELSE min(game_type) END AS game_type
+     FROM player_game WHERE season = ? AND ${typeIs('player_game', together)}
+     GROUP BY 1, 2`,
+    [ctx.season]
+  )
+  return new Map(rows.map((r) => [`${r.player_id}|${r.team_id}`, r.game_type]))
+}
+
 async function build(ctx: ModelContext): Promise<ModelRows> {
   const players: Record<string, unknown>[] = []
   const teams: Record<string, unknown>[] = []
@@ -262,10 +284,16 @@ async function build(ctx: ModelContext): Promise<ModelRows> {
       ctx.league.models?.winShares
     )
     const keys = { season: ctx.season, game_type: gameType }
+    const stored = await storedTypes(ctx)
     for (const p of result.players) {
       // The engine adds a traded player's teams itself, so only the rows per team are stored.
       if (p.teamId === null) continue
-      const row: Record<string, unknown> = { ...keys, team_id: p.teamId, player_id: p.playerId }
+      const row: Record<string, unknown> = {
+        ...keys,
+        ...(stored ? { game_type: stored.get(`${p.playerId}|${p.teamId}`) ?? gameType } : {}),
+        team_id: p.teamId,
+        player_id: p.playerId
+      }
       for (const c of COMPOSITE_SUMS) row[c] = finite(p[c])
       players.push(row)
     }
