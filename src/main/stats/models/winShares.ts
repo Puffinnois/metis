@@ -15,9 +15,27 @@ import type { OliverDefense, OliverOffense } from './oliver'
  * 14.2): marginal points over a baseline, divided by the points a win costs that season.
  */
 
+/**
+ * The method's three constants: the share of the league's points per possession a player's offense is
+ * measured above and its defense below, and the share of the league's points per team-game a marginal
+ * win costs. Basketball-Reference's for the NBA (and the WNBA); Sports Reference's college pages use
+ * 0.875, 1.125 and 0.5 against the division's totals ("Calculating Win Shares", college basketball),
+ * which the college leagues' registry entries carry (`LeagueModels.winShares`, T1302.8).
+ */
+export interface WinSharesConstants {
+  offense: number
+  defense: number
+  perWin: number
+}
+
+export const BREF_WIN_SHARES: WinSharesConstants = { offense: 0.92, defense: 1.08, perWin: 0.32 }
+
 /** Marginal points per win: `0.32 × league points per team-game × team pace / league pace`. */
-export const marginalPointsPerWin = (ts: TeamSeason, l: LeagueSeason): number =>
-  0.32 * div(l.totals.pts, l.teamGames) * div(teamPace(ts), leaguePace(l))
+export const marginalPointsPerWin = (
+  ts: TeamSeason,
+  l: LeagueSeason,
+  perWin: number = BREF_WIN_SHARES.perWin
+): number => perWin * div(l.totals.pts, l.teamGames) * div(teamPace(ts), leaguePace(l))
 
 export interface WinShares {
   ows: number
@@ -37,12 +55,14 @@ export function winShares(
   off: OliverOffense,
   def: OliverDefense,
   ts: TeamSeason,
-  l: LeagueSeason
+  l: LeagueSeason,
+  k: WinSharesConstants = BREF_WIN_SHARES
 ): WinShares {
   const ppp = leaguePpp(l)
-  const mppw = marginalPointsPerWin(ts, l)
-  const marginalOffense = off.pprod - 0.92 * ppp * off.totPoss
-  const marginalDefense = div(p.mp, ts.team.mp) * possessions(ts) * (1.08 * ppp - def.drtg / 100)
+  const mppw = marginalPointsPerWin(ts, l, k.perWin)
+  const marginalOffense = off.pprod - k.offense * ppp * off.totPoss
+  const marginalDefense =
+    div(p.mp, ts.team.mp) * possessions(ts) * (k.defense * ppp - def.drtg / 100)
   const ows = div(marginalOffense, mppw)
   const dws = div(marginalDefense, mppw)
   return { ows, dws, ws: ows + dws, mppw }

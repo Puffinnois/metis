@@ -7,7 +7,7 @@ import { DERIVED_NOTE, derivedNote, unitsNote } from '@/lib/stats/onCourt'
 import { typeTag } from '@/lib/stats/player'
 import { leaderboardQualifier } from '@/lib/stats/qualifying'
 import { defaultScope, seasonTypes, typeLabel, type StatsScope } from '@/lib/stats/scope'
-import { strengthNote } from '@/lib/stats/standings'
+import { strengthNote, strengthQuery } from '@/lib/stats/standings'
 import { LEAGUES } from '@shared/leagues'
 import type { StatsGame, StatsSeason } from '@shared/stats/types'
 
@@ -197,6 +197,16 @@ describe('the models (T1302.8)', () => {
     })
     // Not loaded yet: nothing to say.
     expect(eloView(game('regular', '2026-01-10'), null)).toBeNull()
+    // The standings' own columns cover every Division I team over every counted game; the NBA's stay
+    // its 30 teams' regular season.
+    expect(strengthQuery(2026, LEAGUES.ncaam)).toMatchObject({
+      limit: 500,
+      scope: { seasons: [2026], gameTypes: [...LEAGUES.ncaam.countedTypes] }
+    })
+    expect(strengthQuery(2026, LEAGUES.nba)).toMatchObject({
+      limit: 40,
+      scope: { seasons: [2026], gameTypes: ['regular'] }
+    })
     expect(strengthNote(LEAGUES.ncaam)).toBe(
       'PYTH W, SRS, SOS and ELO are computed by Metis from the final scores: Pythagorean wins over every game with the exponent 8.6, SRS, the strength of schedule and Elo on games between Division I teams alone, after the last game. A game against a team outside Division I counts in the record, not in the ratings.'
     )

@@ -65,7 +65,7 @@ async function engine(entity, metrics, season, extra = {}) {
     entity,
     metrics,
     scope: { seasons: [season], ...extra },
-    limit: 100000,
+    limit: 5000,
     ranks: false
   })
   return {
@@ -141,7 +141,7 @@ function srPage(season) {
   const rows = new Map()
   for (const tr of html.split('<tr')) {
     const slug = tr.match(
-      /href="\/cbb\/schools\/([a-z0-9-]+)\/(?:men|women)\/\d+\.html">([^<]*)<\/a>/
+      /href=["']\/cbb\/schools\/([a-z0-9-]+)\/(?:men|women)\/\d+\.html["']>([^<]*)<\/a>/
     )
     const srs = tr.match(/data-stat="srs" >(-?[0-9.]+)/)
     const sos = tr.match(/data-stat="sos" >(-?[0-9.]+)/)
@@ -177,15 +177,22 @@ for (const season of done) {
   }
   srsDiffs.push(...diffs)
   const abs = diffs.map((x) => Math.abs(x.d)).sort((a, b) => a - b)
+  // Sports Reference's Division I ratings do not average zero; Metis's are centred on the division.
+  // With each season's mean gap taken out, what is left is the ratings' own difference.
+  const offset = diffs.reduce((s, x) => s + x.d, 0) / diffs.length
+  const centred = diffs.map((x) => Math.abs(x.d - offset)).sort((a, b) => a - b)
+  const theirMean = diffs.reduce((s, x) => s + x.theirs, 0) / diffs.length
   srsRows.push([
     label(season),
     diffs.length,
     unmatched,
-    pct(abs.filter((x) => x <= 0.1).length, abs.length),
+    f(theirMean),
+    f(offset),
     pct(abs.filter((x) => x <= 0.5).length, abs.length),
-    pct(abs.filter((x) => x <= 1).length, abs.length),
-    f(abs[Math.floor(abs.length / 2)]),
-    f(abs.at(-1)),
+    pct(centred.filter((x) => x <= 0.1).length, centred.length),
+    pct(centred.filter((x) => x <= 0.5).length, centred.length),
+    f(centred[Math.floor(centred.length / 2)]),
+    f(centred.at(-1)),
     f(
       spearman(
         diffs.map((x) => x.ours),
@@ -200,20 +207,31 @@ table(
     'Season',
     'Teams',
     'Unmatched',
-    'Within 0.1',
-    'Within 0.5',
-    'Within 1',
-    'Median gap',
-    'Largest',
+    "SR's mean",
+    'Mean gap',
+    'Within 0.5 as published',
+    'Centred, within 0.1',
+    'Centred, within 0.5',
+    'Centred, median gap',
+    'Centred, largest',
     'Rank r'
   ],
   srsRows
 )
-const worst = [...srsDiffs].sort((a, b) => Math.abs(b.d) - Math.abs(a.d)).slice(0, 8)
-say('The largest gaps:', '')
+// The largest gaps once each season's mean gap is taken out.
+const offsets = new Map()
+for (const x of srsDiffs) {
+  const o = offsets.get(x.season) ?? { s: 0, n: 0 }
+  o.s += x.d
+  o.n++
+  offsets.set(x.season, o)
+}
+const left = (x) => x.d - offsets.get(x.season).s / offsets.get(x.season).n
+const worst = [...srsDiffs].sort((a, b) => Math.abs(left(b)) - Math.abs(left(a))).slice(0, 8)
+say("The largest gaps once each season's mean gap is taken out:", '')
 table(
-  ['Season', 'Team', 'Metis', 'Sports Reference', 'Gap'],
-  worst.map((x) => [label(x.season), name.get(x.id), f(x.ours), f(x.theirs), f(x.d)])
+  ['Season', 'Team', 'Metis', 'Sports Reference', 'Gap', 'Centred gap'],
+  worst.map((x) => [label(x.season), name.get(x.id), f(x.ours), f(x.theirs), f(x.d), f(left(x))])
 )
 
 // ---- 2. PER, WS and WS/40 of the leaders.
@@ -268,11 +286,9 @@ for (const season of done) {
     for (const l of list) {
       const cands = players.get(season).get(norm(l.player)) ?? []
       let pick = cands
-      if (cands.length > 1) {
-        const slug = displayToSlug.get(l.school)
-        pick = cands.filter((c) => c.teams.some((t) => slugOf.get(String(t)) === slug))
-        if (pick.length !== 1) pick = [...cands].sort((a, b) => b.mp - a.mp)
-      }
+      // Two players of one name (an Angel Reese at LSU, another at LSU Shreveport, outside Division I):
+      // a leader plays the most minutes of them.
+      if (cands.length > 1) pick = [...cands].sort((a, b) => b.mp - a.mp)
       ids.push(pick[0] ? String(pick[0].player_id) : null)
     }
     const wanted = ids.filter((x) => x !== null)
@@ -283,29 +299,39 @@ for (const season of done) {
       const ok = v !== null && Math.abs(v - l.value) <= TOL[stat] + 1e-9
       tallies[stat][0] += ok ? 1 : 0
       tallies[stat][1]++
-      if (stat === 'per' && i < 3)
+      // And within twice the tolerance, to show how near the misses are.
+      tallies[stat][2] =
+        (tallies[stat][2] ?? 0) +
+        (v !== null && Math.abs(v - l.value) <= 2 * TOL[stat] + 1e-9 ? 1 : 0)
+      const d = stat === 'ws_per_40' ? 3 : 1
+      if (i < 3)
         compRows.push([
           label(season),
+          stat === 'ws_per_40' ? 'WS/40' : stat.toUpperCase(),
           l.player,
           l.school,
-          f(l.value, 1),
-          f(v, 1),
+          f(l.value, d),
+          f(v, d),
           ok ? 'yes' : 'no'
         ])
     })
   }
 }
 table(
-  ['Stat', 'Leaders', 'Within tolerance'],
-  Object.entries(tallies).map(([k, [a, b]]) => [
+  ['Stat', 'Leaders', 'Within tolerance', 'Within twice it'],
+  Object.entries(tallies).map(([k, [a, b, c]]) => [
     k === 'ws_per_40' ? 'WS/40' : k.toUpperCase(),
     b,
-    `${a} (${pct(a, b)})`
+    `${a} (${pct(a, b)})`,
+    `${c} (${pct(c, b)})`
   ])
 )
 say(`${missing} leaders had no value from the engine (no match by name).`, '')
-say("Each season's top three in PER:", '')
-table(['Season', 'Player', 'School', 'Sports Reference', 'Metis', 'Within 0.5'], compRows)
+say("Each season's top three:", '')
+table(
+  ['Season', 'Stat', 'Player', 'School', 'Sports Reference', 'Metis', 'Within tolerance'],
+  compRows
+)
 
 // ---- 3. Elo out of sample.
 const TEST = done.at(-1)
@@ -488,9 +514,15 @@ for (const season of [done[1], TEST]) {
     )
       same++
   }
-  const p = await engine('player', ['per', 'ws'], season, { gameTypes: counted })
   const pt = await read(`SELECT player_id, sum(per_num) / sum(cmp_minutes) AS per, sum(ws) AS ws
     FROM player_composite WHERE season = ${season} AND team_id IS NOT NULL GROUP BY 1`)
+  // Named 64 at a time (the engine's limit), so every player is read, not only a board's rows.
+  const p = { rows: new Map() }
+  for (let i = 0; i < pt.length; i += 64) {
+    const ids = pt.slice(i, i + 64).map((r) => String(r.player_id))
+    const part = await engine('player', ['per', 'ws'], season, { gameTypes: counted, players: ids })
+    for (const [k, v] of part.rows) p.rows.set(k, v)
+  }
   let psame = 0
   for (const r of pt) {
     const v = p.rows.get(String(r.player_id))

@@ -258,7 +258,8 @@ async function build(ctx: ModelContext): Promise<ModelRows> {
       await playerLines(ctx, gameType),
       seasons,
       await schedule(ctx, gameType),
-      vorpGamesIn(ctx.league, ctx.season)
+      vorpGamesIn(ctx.league, ctx.season),
+      ctx.league.models?.winShares
     )
     const keys = { season: ctx.season, game_type: gameType }
     for (const p of result.players) {
@@ -279,6 +280,8 @@ async function build(ctx: ModelContext): Promise<ModelRows> {
 
 export const COMPOSITES_BUILDER: ModelBuilder = {
   name: 'box_composites',
+  // Not bumped for the college leagues' Win Shares constants (T1302.8): the NBA's and the WNBA's rows
+  // are unchanged, and a bump would recompute every model of theirs; no college file had composites.
   version: 2,
   tables: COMPOSITE_TABLES,
   build

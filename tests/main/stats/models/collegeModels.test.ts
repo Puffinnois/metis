@@ -10,7 +10,16 @@ import { ADJUSTED_RATINGS, ADJUSTED_TABLE } from '@main/stats/models/adjustedRat
 import { buildModels, type ModelContext, type ModelTable } from '@main/stats/models/build'
 import { COMPUTED_EVERY_GAME, NOT_RATED } from '@main/stats/models/divisionI'
 import { eloShift, regress, runSeason, seasonStart, winProbability } from '@main/stats/models/elo'
+import {
+  addBoxes,
+  possessions,
+  type Box,
+  type LeagueSeason,
+  type TeamSeason
+} from '@main/stats/models/box'
 import { neutralSitesSql } from '@main/stats/models/neutral'
+import type { OliverDefense, OliverOffense } from '@main/stats/models/oliver'
+import { marginalPointsPerWin, winShares } from '@main/stats/models/winShares'
 import { ELO_GAME_TABLE, TEAM_ELO, TEAM_ELO_TABLES } from '@main/stats/models/teamElo'
 import { TEAM_STRENGTH } from '@main/stats/models/teamStrength'
 import {
@@ -173,6 +182,55 @@ describe("the college leagues' constants", () => {
     expect(metricIn(def('per'), women).description).toContain(
       "over every game of a season, against Division I's totals"
     )
+  })
+
+  it('credits Win Shares by Sports Reference’s college constants, by hand', () => {
+    expect(modelsOf(men).winShares).toEqual({ offense: 0.875, defense: 1.125, perWin: 0.5 })
+    expect(modelsOf(women).winShares).toEqual(modelsOf(men).winShares)
+    expect(LEAGUES.nba.models.winShares).toBeUndefined()
+    const box = (o: Partial<Box>): Box => ({
+      mp: 0,
+      fgm: 0,
+      fga: 0,
+      fg3m: 0,
+      fg3a: 0,
+      ftm: 0,
+      fta: 0,
+      oreb: 0,
+      dreb: 0,
+      ast: 0,
+      stl: 0,
+      blk: 0,
+      tov: 0,
+      pf: 0,
+      pts: 0,
+      ...o
+    })
+    // A team and its opponents alike but for the score, 30 games, the league the two of them: each
+    // side's possessions 1800 + 0.4 × 600 − 1.07 × 300 / 1000 × 1000 + 400 = 2119, so the team's pace is
+    // the league's and the league scores 4200 / 60 = 70 a team-game, 4200 / 4238 a possession.
+    const side = { mp: 6000, fga: 1800, fgm: 800, fta: 600, oreb: 300, dreb: 700, tov: 400 }
+    const ts: TeamSeason = {
+      team: box({ ...side, pts: 2200 }),
+      opp: box({ ...side, pts: 2000 }),
+      games: 30
+    }
+    const l: LeagueSeason = { totals: addBoxes([ts.team, ts.opp]), teamGames: 60, poss: 4238 }
+    expect(possessions(ts)).toBeCloseTo(2119, 9)
+    const k = modelsOf(men).winShares!
+    // A win costs 0.5 × 70 = 35 points, against the NBA's 0.32 × 70 = 22.4.
+    expect(marginalPointsPerWin(ts, l, k.perWin)).toBeCloseTo(35, 9)
+    expect(marginalPointsPerWin(ts, l)).toBeCloseTo(22.4, 9)
+    const ppp = 4200 / 4238
+    const p = box({ mp: 1000 })
+    const off = { pprod: 400, totPoss: 350 } as OliverOffense
+    const def = { drtg: 95 } as OliverDefense
+    const ws = winShares(p, off, def, ts, l, k)
+    // Offense: (400 − 0.875 × ppp × 350) / 35; defense: 1000 / 6000 × 2119 × (1.125 × ppp − 0.95) / 35.
+    expect(ws.ows).toBeCloseTo((400 - 0.875 * ppp * 350) / 35, 9)
+    expect(ws.dws).toBeCloseTo(((1000 / 6000) * 2119 * (1.125 * ppp - 0.95)) / 35, 9)
+    expect(ws.ows).toBeCloseTo(2.757, 3)
+    expect(ws.dws).toBeCloseTo(1.664, 3)
   })
 
   it('gives the forecast and BPM their reasons, and Elo its burn-in', () => {

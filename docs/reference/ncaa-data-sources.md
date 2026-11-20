@@ -344,6 +344,36 @@ Built on 2026-11-19 on fresh copies of `t1302f-ncaam` and `t1302f-ncaaw` through
 
 **Time on the floor: the play by play against the lineup file.** Credited play by play (`unit_game`, `player_on_court` since the switch below), a team-game's minutes equal the game's on 99.8 to 100 % of team-games (the lineup file: 55 to 60 %, 95.5 to 97 % of minutes covered), its points while on the floor equal the box score's on 99.8 to 100 % (64.5 to 68 %), and a player's on-court minutes are within a minute of the box score's on 88 to 95 % of player-games (39 to 42.5 %), every finished season of both leagues. **Decided (the manager, 2026-11-19):** the on-court screens, units, with-or-without and lineups tab read the units credited play by play (`COLLEGE_ON_COURT_FROM`, `League.onCourtFrom` `'plays'`), since every season of both leagues holds the comparison up; the lineup file's units stay beside them under their own names (policy 5). The screens state the play by play's coverage (`COLLEGE_PLAYS_COVERAGE`): every minute of a game, points on the floor equal to the score on 99.8 to 100 % of team-games, a player's minutes within one of the box score's on 88 to 95 %. The lineup file's sentence (`COLLEGE_LINEUP_COVERAGE`, about 97 % of minutes) stays with that source: in "Lineups, stints and possessions" above and on the screens whenever the setting reads it. With stats.ncaa.org's releases left out (D41) both sources are empty and every on-court metric gives "Not included in this version." (tested for either setting).
 
+## Ratings and models, built (T1302.8)
+
+Built on 2026-11-20 on fresh copies of `t1302g-ncaam` and `t1302g-ncaaw` through the built worker's refresh (`scripts/load-report.mjs`, the app's 1 GB DuckDB limit): every model of every season computed from nothing in 3.3 minutes (men) and 3.2 (women), 2.78 and 2.10 GB peak memory (the process, Node with DuckDB), stability's measure of 1,515 metrics included. The files stay 4,530,909,184 and 4,202,967,040 bytes (4.53 and 4.20 GB): the model tables take about 15 MB (men, 61 blocks of 256 KiB) and 12 MB (women, 47) of the free blocks T1302.7 left, so D42's sizes and dates stand (6 GB during 2027-28). Kept as `~/.cache/metis-dev/t1302h-ncaam` and `t1302h-ncaaw`. The fits and checks are in [ncaa-agreement.md](ncaa-agreement.md), "Ratings and models (T1302.8)"; how the models differ by league in [stats-database.md](stats-database.md), "How each league's models differ".
+
+**What is rated.** Games between two Division I teams of the season (the groups file's list, `team.division_i`), of every counted type: the regular season with the conference tournaments, the NCAA tournament and the other postseason events (D45). Men 5,475 to 5,764 such games a season of 5,977 to 6,300 counted; women 5,204 to 5,624 of 5,534 to 6,030. A game against a team outside Division I (about 500 and 330 a season) counts in the record and the box-score totals and in no rating; exhibitions and forfeits (16 men's, 2021-22 and 2022-23, ESPN's 2-0) carry no score into a fit. Neutral sites are the `game` table's flag (ESPN's mark): 688 to 765 men's and 474 to 567 women's games a season.
+
+**The constants, each fitted on the league's own games** (fitted on 2021-22 to 2024-25, scored on 2025-26), men / women:
+
+| Constant                                 | Men               | Women           | How                                                                                                                                                                                     |
+| ---------------------------------------- | ----------------- | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pythagorean exponent                     | 8.6               | 6.6             | least squares on the winning percentage of team-seasons over Division I games; out of sample 0.058 and 0.062 of winning percentage against 14's 0.096 and 0.140                         |
+| Elo K                                    | 48                | 62              | grid of K 10 to 100, home court 0 to 200, the share kept 0.30 to 0.95, on the Brier score of 2022-23 to 2024-25                                                                         |
+| Elo home court                           | 90                | 70              | the same grid; the home side won 64.8 % and 61.1 % at home courts                                                                                                                       |
+| Elo share kept between seasons           | 0.75              | 0.85            | the same grid                                                                                                                                                                           |
+| A school new to Division I               | 1350              | 1200            | 1000 to 1500 by 50, the rest fitted; no school takes another's rating (`pairMoves: false`)                                                                                              |
+| Elo points per point of margin           | 23.3              | 21.7            | least squares of the margin on Elo's edge (the NBA's 28)                                                                                                                                |
+| Margin's spread around Elo's expectation | 12.1              | 13.2            | the residuals, 2022-23 to 2025-26 (no forecast reads it)                                                                                                                                |
+| Adjusted ratings' prior                  | 200               | 100 possessions | each week's games predicted from the fit as of the week before: 13.83 and 13.83 points per 100 of error, against 16.26 and 16.44 with none; a team-season holds about 2,120 possessions |
+| Win Shares                               | 0.875, 1.125, 0.5 | the same        | Sports Reference's college method, measured against its leaders (the NBA's 0.92, 1.08, 0.32 put them a third high)                                                                      |
+
+The men and women differ most in the spread: the women's ratings spread wider (Elo's end-of-season SD 300 against 203 in 2025-26, SRS 15.6 against 11.7), so a point of margin is worth less in Elo, more of a rating is kept, and the scores' exponent is lower. Elo beats the NBA's constants out of sample in both (Brier 0.1855 against 0.1908 men, 0.1600 against 0.1730 women).
+
+**Elo's burn-in.** Every Division I team starts at 1500 in 2021-22, the window's first season (D39); that season settles the ratings and reads "Elo is read from 2022-23: …". How many games a rating needs: a first-season rating predicts as well as one carried from the season before (the same point of 2022-23 to 2024-25) after about 15 games between Division I teams in both leagues; before that its log loss is 0.02 to 0.07 (men) and 0.05 to 0.12 (women) worse, and from 15 games on within 0.03 either way (the 30-games-and-more bucket, 193 and 89 postseason games, is noise). From random starts of 1300 to 1700, a team's final rating is within 16 (men) and 12 (women) points on average of the run from 1500 at the end of 2021-22, 5.5 and 5.1 at the end of 2022-23, under 3 from 2023-24. The window holds no season before 2021-22, so the whole first season is held back rather than its first 15 games.
+
+**No forecast** (D44): the NCAA tournament's field is chosen by a committee and its seeds are in no release; the forecast's metrics read that reason, and the standings say it under a season in progress. The narrower product is each game's win probability from Elo, on the game page, for games played and to come (`elo_schedule`: 9,288 men's team-rows of 2026-27 to come when built).
+
+**BPM** is not computed: Metis's coefficients are the NBA's; SportsDataverse's box-score BPM is shown under its own name.
+
+**With stats.ncaa.org's releases left out** (D41) every model builds from ESPN's tables (tested on the fixtures both ways): the models read the `game`, `team`, `team_game`, `team_season` and `player_game` tables, whose counts are ESPN's.
+
 ## Which files repeat others
 
 Measured on the downloaded files. A file is skipped only when proven to repeat others (D23).
@@ -645,12 +675,13 @@ So the games rule can be the NCAA's own: 75 % of the team's games. The category 
 
 The same for men and women.
 
-| Area                                    | Seasons                                            | Source                                        |
-| --------------------------------------- | -------------------------------------------------- | --------------------------------------------- |
-| Games, scores, records, conferences     | 2022–2027                                          | ESPN, stats.ncaa.org; groups                  |
-| Player and team box scores              | 2022–2027, two sources for every Division I game   | ESPN (counts), stats.ncaa.org (splits, check) |
-| Shots with location                     | 2022–2027 (stats.ncaa.org); ESPN located from 2026 | stats.ncaa.org                                |
-| Lineups, on-court, stints, possessions  | 2022–2027                                          | stats.ncaa.org                                |
-| Play by play                            | 2022–2027                                          | stats.ncaa.org; ESPN's not loaded (D42)       |
-| Team ratings, BPM, RAPM (published)     | 2022–2027; RAPM 2022–2026                          | SportsDataverse                               |
-| NET, polls, seeds, tracking, play types | Not available                                      |                                               |
+| Area                                                                         | Seasons                                            | Source                                                           |
+| ---------------------------------------------------------------------------- | -------------------------------------------------- | ---------------------------------------------------------------- |
+| Games, scores, records, conferences                                          | 2022–2027                                          | ESPN, stats.ncaa.org; groups                                     |
+| Player and team box scores                                                   | 2022–2027, two sources for every Division I game   | ESPN (counts), stats.ncaa.org (splits, check)                    |
+| Shots with location                                                          | 2022–2027 (stats.ncaa.org); ESPN located from 2026 | stats.ncaa.org                                                   |
+| Lineups, on-court, stints, possessions                                       | 2022–2027                                          | stats.ncaa.org                                                   |
+| Play by play                                                                 | 2022–2027                                          | stats.ncaa.org; ESPN's not loaded (D42)                          |
+| Team ratings, BPM, RAPM (published)                                          | 2022–2027; RAPM 2022–2026                          | SportsDataverse                                                  |
+| Metis's ratings (SRS, Elo from 2023, adjusted, Pythagorean), PER, Win Shares | 2022–2027; Elo from 2023                           | Computed from the scores and ESPN's box scores, Division I games |
+| NET, polls, seeds, tracking, play types                                      | Not available                                      |                                                                  |

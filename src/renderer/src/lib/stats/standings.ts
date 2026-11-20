@@ -61,7 +61,8 @@ export function strengthQuery(season: number, league: League = currentLeague()):
       seasons: [season],
       gameTypes: league.defaultType === 'counted' ? [...league.countedTypes] : ['regular']
     },
-    limit: 40,
+    // Every team of the standings: a Division I season holds some 365 (T1302.8), a pro league 30.
+    limit: league.divisionIOnly ? 500 : 40,
     ranks: false
   }
 }

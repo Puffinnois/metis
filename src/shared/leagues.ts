@@ -225,6 +225,13 @@ export interface LeagueModels {
    * schools, never as one another (the college leagues' Division I list).
    */
   pairMoves?: false
+  /**
+   * Win Shares' constants (`models/winShares.ts`): the shares of the league's points per possession a
+   * player's offense and defense are measured against, and of its points per team-game a win costs.
+   * Basketball-Reference's 0.92, 1.08 and 0.32 when not given; Sports Reference's college pages use
+   * 0.875, 1.125 and 0.5 against the division's totals.
+   */
+  winShares?: { offense: number; defense: number; perWin: number }
   /** The spread of a game's margin around Elo's expected margin, in points (the season simulation). */
   marginSd: number
   /** The first season forecast: Elo's metrics start there. */
@@ -997,6 +1004,11 @@ const collegeModels = (types: readonly GameType[], fitted: CollegeFitted): Leagu
   eloGameTypes: collegeRated(types),
   solvedTypes: collegeRated(types),
   everyGame: true,
+  // Sports Reference's college Win Shares ("Calculating Win Shares", college basketball, 2009-10 on):
+  // marginal offense above 0.875 and defense below 1.125 of the division's points per possession, a win
+  // at 0.5 of its points per game; the NBA's 0.92, 1.08 and 0.32 put the college leaders' Win Shares
+  // about a third above Sports Reference's (`ncaa-agreement.md`, "Ratings and models").
+  winShares: { offense: 0.875, defense: 1.125, perWin: 0.5 },
   forecastUnavailable: COLLEGE_NO_FORECAST,
   pairMoves: false,
   marginSd: fitted.marginSd,

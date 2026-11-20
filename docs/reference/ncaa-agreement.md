@@ -988,3 +988,731 @@ Stated differences: the app keeps its leader.
 
 - Field-goal percentage, 2023: Gracie Merkle of Bellarmine leads, 191 of 272 in 31 games; the book names Mya Berkman (196 of 282). The NCAA lists a school reclassifying to Division I at the bottom of its rankings and does not rank it ("These reclassifying schools will not be ranked but rather listed at the bottom of the weekly rankings", Statistics Policies and Guidelines, `ForSIDs_Policies.txt` lines 1054-1058); the data has no list of them, so the app ranks them.
 - Field-goal percentage, 2024: Jo Langbehn of St. Thomas leads, 169 of 254 in 31 games; the book names Raegan Beers (221 of 333). The NCAA lists a school reclassifying to Division I at the bottom of its rankings and does not rank it ("These reclassifying schools will not be ranked but rather listed at the bottom of the weekly rankings", Statistics Policies and Guidelines, `ForSIDs_Policies.txt` lines 1054-1058); the data has no list of them, so the app ranks them.
+
+## Ratings and models (T1302.8)
+
+Measured on 2026-11-20. The constants are fitted by `scripts/fit-college-models.mjs` on the T1302.7 files (`t1302g-*`, opened read-only), with the code that ships, on games between two Division I teams of every counted type (no exhibition, no forfeit), fitted on 2021-22 to 2024-25 and scored on 2025-26. The checks are `scripts/check-college-models.mjs` on the rebuilt copies (`t1302h-ncaam`, `t1302h-ncaaw`, the built worker's refresh), read through the built worker and its engine, against Sports Reference's school and leaders pages (read with a plain client, slowly, cached in `~/.cache/metis-dev/ncaa-probe`) and SportsDataverse's published team ratings. Tolerances were stated before the runs; where a run showed a tolerance was the wrong question (SRS's centring, Win Shares' constants), what changed is said below the table.
+
+**SRS's centring.** Sports Reference's college SRS counts only games between Division I teams, as Metis's does (its "SRS calculation details" page), but its Division I ratings do not average zero: −0.56 to −0.68 a season for the men, −0.84 to −0.90 for the women. Metis's are centred on the division, so as published they differ by about that much (within 0.5 on only 2 to 33 % of team-seasons, the stated tolerance missed); with each season's mean gap taken out, 95 to 100 % are within 0.5 and the median gap is 0.07 to 0.14, rank correlation 0.9996 to 0.9999. What is left is largest for a few teams Sports Reference has with no offset at all (Ivy League and NEC schools); it does not follow their games against teams outside Division I, and is not traced further.
+
+**Win Shares' constants.** With Basketball-Reference's NBA constants (0.92 and 1.08 of the league's points per possession, a win at 0.32 of its points per game), the men's leaders came out about a third above Sports Reference's (Keegan Murray 11.5 against 8.7 in 2021-22; 0 of 50 leaders within 0.3). Sports Reference's college method ("Calculating Win Shares", 2009-10 on) uses 0.875, 1.125 and 0.5 against the division's totals; with those in the registry (`LeagueModels.winShares`) the men's leaders agree on 49 of 50 Win Shares and 50 of 50 WS/40. PER needed no change: 50 of 50 men's leaders within 0.5 from the first run.
+
+### NCAA Men: the constants, fitted
+
+Games between two Division I teams of the season, every counted type, no exhibition or forfeit; fitted on 2021-22 to 2024-25 and scored on 2025-26, by `scripts/fit-college-models.mjs` on `/home/yhabie/.cache/metis-dev/t1302g-ncaam/stats-ncaam.duckdb`.
+
+| Season  | Games counted | Between Division I teams | Neutral site | Postseason |
+| ------- | ------------- | ------------------------ | ------------ | ---------- |
+| 2021-22 | 5977          | 5475                     | 688          | 130        |
+| 2022-23 | 6228          | 5715                     | 765          | 113        |
+| 2023-24 | 6243          | 5726                     | 741          | 120        |
+| 2024-25 | 6293          | 5764                     | 739          | 123        |
+| 2025-26 | 6300          | 5752                     | 700          | 105        |
+
+#### 1. Pythagorean exponent
+
+Points for to the x over points for and against each to the x, against the winning percentage of every team-season over its games against Division I teams (1447 to fit, 365 to score).
+
+| Exponent         | RMSE of W%, fitted seasons | RMSE of W%, 2025-26 | RMSE in wins, 2025-26 |
+| ---------------- | -------------------------- | ------------------- | --------------------- |
+| **8.6** (fitted) | 0.0597                     | 0.0583              | 1.84                  |
+| 10.25            | 0.0650                     | 0.0646              | 2.06                  |
+| 11.5             | 0.0736                     | 0.0737              | 2.36                  |
+| 14               | 0.0952                     | 0.0955              | 3.06                  |
+
+#### 2. Elo
+
+Every game between Division I teams, 28432 in all. Grid: K 10 to 100 by 2, home court 0 to 200 by 10, share kept 0.30 to 0.95 by 0.05 (13524 runs), then a new Division I team's start 1000 to 1500 by 50 (194 s); fitted on the Brier score of 2022-23 to 2024-25 (2021-22 is the burn-in), scored on 2025-26.
+
+| Values                | K   | Home | Kept | New team | Brier, fitted | Brier, 2025-26 | Log loss, 2025-26 |
+| --------------------- | --- | ---- | ---- | -------- | ------------- | -------------- | ----------------- |
+| Fitted                | 48  | 90   | 0.75 | 1350     | 0.1865        | 0.1855         | 0.5464            |
+| Registry              | 48  | 90   | 0.75 | 1350     | 0.1865        | 0.1855         | 0.5464            |
+| NBA's                 | 20  | 80   | 0.65 | 1300     | 0.1921        | 0.1908         | 0.5634            |
+| FiveThirtyEight's NBA | 20  | 100  | 0.75 | 1300     | 0.1917        | 0.1905         | 0.5612            |
+
+Baseline, the home side's win rate of 2022-23 to 2024-25 at a home court (64.8 %) and a coin at a neutral site: on 2025-26, Brier 0.2316, log loss 0.6559 against Elo's 0.1855 and 0.5464 (5752 games).
+
+The best values in hindsight on 2025-26 (a third of the grid): K 44, home 70, kept 0.8, Brier 0.1853.
+
+Elo points per point of margin (least squares of the margin on the edge, fitted seasons): 23.3 (the NBA's 28). The margins around that expected margin, 2022-23 to 2025-26 (22957 games): spread 12.06, mean 0.27.
+
+Calibration on 2025-26, out of sample, by tenths of the home side's probability:
+
+| Tenth    | Games | Given | Won  |
+| -------- | ----- | ----- | ---- |
+| 0–10 %   | 28    | 7.3   | 7.1  |
+| 10–20 %  | 141   | 15.9  | 12.8 |
+| 20–30 %  | 293   | 25.2  | 23.5 |
+| 30–40 %  | 454   | 35.5  | 37.2 |
+| 40–50 %  | 609   | 45.0  | 48.3 |
+| 50–60 %  | 801   | 55.1  | 55.9 |
+| 60–70 %  | 883   | 65.1  | 62.6 |
+| 70–80 %  | 998   | 75.1  | 73.3 |
+| 80–90 %  | 984   | 85.0  | 85.7 |
+| 90–100 % | 561   | 93.6  | 95.5 |
+
+Per season, the fitted values (every rated game):
+
+| Season  | Games | Brier  | Log loss | Baseline log loss |
+| ------- | ----- | ------ | -------- | ----------------- |
+| 2021-22 | 5475  | 0.1915 | 0.5653   | 0.6605            |
+| 2022-23 | 5715  | 0.1888 | 0.5563   | 0.6550            |
+| 2023-24 | 5726  | 0.1881 | 0.5549   | 0.6537            |
+| 2024-25 | 5764  | 0.1825 | 0.5404   | 0.6545            |
+| 2025-26 | 5752  | 0.1855 | 0.5464   | 0.6559            |
+
+Burn-in by games played: each game by the fewer games either team had played between Division I teams earlier in its season, 2021-22 (every team at 1500 on its first game) against the same point of 2022-23 to 2024-25 (ratings carried from the season before). The excess is 2021-22's log loss less the later seasons'; early-season games are lopsided home games against weak opponents in every season, so each is read against the same point of the later seasons, not against their whole:
+
+| Games before | Games, 2021-22 | Log loss, 2021-22 | Log loss, later | Excess  | Brier, 2021-22 | Brier, later |
+| ------------ | -------------- | ----------------- | --------------- | ------- | -------------- | ------------ |
+| 0–2          | 616            | 0.5511            | 0.4828          | 0.0683  | 0.1819         | 0.1581       |
+| 3–5          | 560            | 0.5815            | 0.5627          | 0.0188  | 0.1981         | 0.1919       |
+| 6–9          | 746            | 0.5553            | 0.5155          | 0.0398  | 0.1879         | 0.1724       |
+| 10–14        | 911            | 0.5812            | 0.5607          | 0.0205  | 0.1991         | 0.1910       |
+| 15–19        | 898            | 0.5674            | 0.5749          | -0.0075 | 0.1922         | 0.1960       |
+| 20–24        | 865            | 0.5630            | 0.5692          | -0.0062 | 0.1912         | 0.1938       |
+| 25–29        | 686            | 0.5386            | 0.5583          | -0.0197 | 0.1807         | 0.1901       |
+| 30+          | 193            | 0.6223            | 0.5720          | 0.0503  | 0.2178         | 0.1952       |
+
+From 20 random starts of 1300 to 1700 in 2021-22, a team's final rating against the run from 1500: 2021-22 mean 15.9, largest 75.7; 2022-23 mean 5.5, largest 32.2; 2023-24 mean 2.9, largest 13.9; 2024-25 mean 1.8, largest 7.7; 2025-26 mean 1.3, largest 5.0.
+
+Ratings spread at the end of each season (standard deviation over the teams):
+
+| Season  | Teams | SD    | Mean   |
+| ------- | ----- | ----- | ------ |
+| 2021-22 | 358   | 162.7 | 1500.0 |
+| 2022-23 | 363   | 181.5 | 1497.9 |
+| 2023-24 | 362   | 190.4 | 1499.3 |
+| 2024-25 | 364   | 200.7 | 1498.7 |
+| 2025-26 | 365   | 203.1 | 1498.6 |
+
+#### 3. Adjusted ratings
+
+Each week's games predicted from the fit as of the week before, every season (28432 games), RMSE in points per 100 weighted by possessions, over the season and over its second half. Pull: the mean absolute change of a team's final adjusted net rating from no prior. A team-season holds 2121 possessions at the median (the NBA's about 8,000, the WNBA's 2,700). 110 s.
+
+| Prior (possessions) | RMSE, every week | RMSE, second half | Pull on final net |
+| ------------------- | ---------------- | ----------------- | ----------------- |
+| 0.01                | 16.264           | 13.516            | 0.000             |
+| 50                  | 14.071           | 13.484            | 0.725             |
+| 100                 | 13.923           | 13.462            | 1.344             |
+| 200                 | 13.834           | 13.437            | 2.349             |
+| 400                 | 13.846           | 13.433            | 3.778             |
+| 800                 | 13.980           | 13.499            | 5.486             |
+| 1600                | 14.218           | 13.679            | 7.180             |
+
+Split-half reliability: the season's games alternately in two halves (by date), each fitted with no prior; the correlation of the two halves' net ratings over the teams.
+
+| Season  | Teams | Split-half r | SD of net rating |
+| ------- | ----- | ------------ | ---------------- |
+| 2021-22 | 358   | 0.872        | 13.17            |
+| 2022-23 | 363   | 0.872        | 12.57            |
+| 2023-24 | 362   | 0.916        | 13.61            |
+| 2024-25 | 364   | 0.915        | 14.70            |
+| 2025-26 | 365   | 0.915        | 15.36            |
+
+#### 4. SRS spread
+
+| Season  | Teams | SD of SRS |
+| ------- | ----- | --------- |
+| 2021-22 | 358   | 9.88      |
+| 2022-23 | 363   | 9.65      |
+| 2023-24 | 362   | 10.35     |
+| 2024-25 | 364   | 11.14     |
+| 2025-26 | 365   | 11.66     |
+
+Fitted: exponent 8.6; Elo K 48, home 90, kept 0.75, new team 1350, per point 23.3, margin spread 12.06.
+
+### NCAA Men: checked
+
+On `/home/yhabie/.cache/metis-dev/t1302h-ncaam`, by `scripts/check-college-models.mjs`, through the built worker and its engine.
+
+#### SRS against Sports Reference
+
+Metis's SRS after each team's last game (every counted game between Division I teams), read through the engine, against the SRS on Sports Reference's school pages, Division I teams matched by T1302.4's map. Tolerance stated before the run: within 0.5 a game on 95 % of team-seasons.
+
+| Season  | Teams | Unmatched | SR's mean | Mean gap | Within 0.5 as published | Centred, within 0.1 | Centred, within 0.5 | Centred, median gap | Centred, largest | Rank r |
+| ------- | ----- | --------- | --------- | -------- | ----------------------- | ------------------- | ------------------- | ------------------- | ---------------- | ------ |
+| 2021-22 | 358   | 0         | -0.64     | 0.64     | 14.5 %                  | 52.8 %              | 96.9 %              | 0.09                | 0.66             | 0.9996 |
+| 2022-23 | 363   | 0         | -0.56     | 0.56     | 32.5 %                  | 38.3 %              | 98.3 %              | 0.14                | 0.72             | 0.9997 |
+| 2023-24 | 362   | 0         | -0.60     | 0.60     | 18.0 %                  | 64.4 %              | 100.0 %             | 0.07                | 0.49             | 0.9998 |
+| 2024-25 | 364   | 0         | -0.66     | 0.65     | 14.3 %                  | 59.6 %              | 100.0 %             | 0.08                | 0.45             | 0.9998 |
+| 2025-26 | 365   | 0         | -0.68     | 0.67     | 8.2 %                   | 63.8 %              | 100.0 %             | 0.07                | 0.34             | 0.9999 |
+
+The largest gaps once each season's mean gap is taken out:
+
+| Season  | Team                          | Metis  | Sports Reference | Gap   | Centred gap |
+| ------- | ----------------------------- | ------ | ---------------- | ----- | ----------- |
+| 2022-23 | St. Francis Brooklyn Terriers | -16.65 | -16.49           | -0.16 | -0.72       |
+| 2022-23 | Long Island University Sharks | -24.58 | -24.46           | -0.12 | -0.68       |
+| 2021-22 | Pittsburgh Panthers           | 0.43   | 0.45             | -0.02 | -0.66       |
+| 2021-22 | Quinnipiac Bobcats            | -5.57  | -5.56            | -0.01 | -0.64       |
+| 2022-23 | Wagner Seahawks               | -11.89 | -11.81           | -0.08 | -0.64       |
+| 2022-23 | St. Francis (PA) Red Flash    | -13.46 | -13.41           | -0.05 | -0.61       |
+| 2021-22 | Fairfield Stags               | -3.84  | -3.88            | 0.04  | -0.60       |
+| 2021-22 | Monmouth Hawks                | -0.35  | -0.39            | 0.04  | -0.60       |
+
+#### PER, Win Shares and WS/40 against Sports Reference
+
+Each season's ten leaders on Sports Reference's leaders page, matched by name (and school where two share a name), against the engine's value over every counted game of the season. Tolerance stated before the run: PER within 0.5, Win Shares within 0.3, WS/40 within 0.01.
+
+| Stat  | Leaders | Within tolerance | Within twice it |
+| ----- | ------- | ---------------- | --------------- |
+| PER   | 50      | 50 (100.0 %)     | 50 (100.0 %)    |
+| WS    | 50      | 49 (98.0 %)      | 50 (100.0 %)    |
+| WS/40 | 50      | 50 (100.0 %)     | 50 (100.0 %)    |
+
+0 leaders had no value from the engine (no match by name).
+
+Each season's top three:
+
+| Season  | Stat  | Player               | School             | Sports Reference | Metis | Within tolerance |
+| ------- | ----- | -------------------- | ------------------ | ---------------- | ----- | ---------------- |
+| 2021-22 | PER   | Keegan Murray        | Iowa               | 37.8             | 37.5  | yes              |
+| 2021-22 | PER   | Oscar Tshiebwe       | Kentucky           | 35.0             | 34.9  | yes              |
+| 2021-22 | PER   | Norchad Omier        | Arkansas State     | 34.8             | 34.7  | yes              |
+| 2021-22 | WS    | Keegan Murray        | Iowa               | 8.7              | 8.5   | yes              |
+| 2021-22 | WS    | Oscar Tshiebwe       | Kentucky           | 8.0              | 7.9   | yes              |
+| 2021-22 | WS    | Malachi Smith        | Chattanooga        | 7.5              | 7.4   | yes              |
+| 2021-22 | WS/40 | Keegan Murray        | Iowa               | 0.311            | 0.306 | yes              |
+| 2021-22 | WS/40 | Oscar Tshiebwe       | Kentucky           | 0.297            | 0.293 | yes              |
+| 2021-22 | WS/40 | Tari Eason           | LSU                | 0.294            | 0.290 | yes              |
+| 2022-23 | PER   | Zach Edey            | Purdue             | 40.2             | 40.0  | yes              |
+| 2022-23 | PER   | Trayce Jackson-Davis | Indiana            | 34.2             | 33.9  | yes              |
+| 2022-23 | PER   | Dwight Wilson        | Ohio               | 31.8             | 31.5  | yes              |
+| 2022-23 | WS    | Zach Edey            | Purdue             | 8.8              | 8.6   | yes              |
+| 2022-23 | WS    | Tylor Perry          | North Texas        | 7.8              | 7.8   | yes              |
+| 2022-23 | WS    | Darius McGhee        | Liberty            | 7.4              | 7.2   | yes              |
+| 2022-23 | WS/40 | Zach Edey            | Purdue             | 0.325            | 0.320 | yes              |
+| 2022-23 | WS/40 | Marcus Sasser        | Houston            | 0.261            | 0.258 | yes              |
+| 2022-23 | WS/40 | Trayce Jackson-Davis | Indiana            | 0.261            | 0.256 | yes              |
+| 2023-24 | PER   | Zach Edey            | Purdue             | 39.3             | 39.1  | yes              |
+| 2023-24 | PER   | Donovan Clingan      | UConn              | 34.8             | 34.6  | yes              |
+| 2023-24 | PER   | Johni Broome         | Auburn             | 32.5             | 32.6  | yes              |
+| 2023-24 | WS    | Zach Edey            | Purdue             | 10.5             | 10.3  | yes              |
+| 2023-24 | WS    | Riley Minix          | Morehead State     | 8.2              | 8.1   | yes              |
+| 2023-24 | WS    | Cam Spencer          | UConn              | 7.9              | 7.9   | yes              |
+| 2023-24 | WS/40 | Zach Edey            | Purdue             | 0.336            | 0.330 | yes              |
+| 2023-24 | WS/40 | Donovan Clingan      | UConn              | 0.302            | 0.299 | yes              |
+| 2023-24 | WS/40 | Jonathan Mogbo       | San Francisco      | 0.283            | 0.280 | yes              |
+| 2024-25 | PER   | Oscar Cluff          | South Dakota State | 35.2             | 35.0  | yes              |
+| 2024-25 | PER   | JT Toppin            | Texas Tech         | 32.1             | 32.0  | yes              |
+| 2024-25 | PER   | Graham Ike           | Gonzaga            | 32.1             | 31.9  | yes              |
+| 2024-25 | WS    | Bennett Stirtz       | Drake              | 8.9              | 8.8   | yes              |
+| 2024-25 | WS    | Cooper Flagg         | Duke               | 8.4              | 8.3   | yes              |
+| 2024-25 | WS    | Aniwaniwa Tait-Jones | UC San Diego       | 7.8              | 7.7   | yes              |
+| 2024-25 | WS/40 | Aniwaniwa Tait-Jones | UC San Diego       | 0.300            | 0.295 | yes              |
+| 2024-25 | WS/40 | Cooper Flagg         | Duke               | 0.296            | 0.291 | yes              |
+| 2024-25 | WS/40 | Oscar Cluff          | South Dakota State | 0.289            | 0.284 | yes              |
+| 2025-26 | PER   | Logan Duncomb        | Winthrop           | 33.9             | 33.8  | yes              |
+| 2025-26 | PER   | Cameron Boozer       | Duke               | 33.7             | 33.4  | yes              |
+| 2025-26 | PER   | Dylan Faulkner       | Samford            | 31.4             | 31.2  | yes              |
+| 2025-26 | WS    | Cameron Boozer       | Duke               | 10.4             | 10.2  | yes              |
+| 2025-26 | WS    | Yaxel Lendeborg      | Michigan           | 7.9              | 7.9   | yes              |
+| 2025-26 | WS    | Keaton Wagler        | Illinois           | 7.2              | 7.2   | yes              |
+| 2025-26 | WS/40 | Cameron Boozer       | Duke               | 0.327            | 0.320 | yes              |
+| 2025-26 | WS/40 | Logan Duncomb        | Winthrop           | 0.279            | 0.274 | yes              |
+| 2025-26 | WS/40 | Allen Graves         | Santa Clara        | 0.266            | 0.264 | yes              |
+
+#### Elo, out of sample
+
+The constants were fitted on 2021-22 to 2024-25; 2025-26's 5752 games between Division I teams, read from the built `elo_game` table (a win is a rating that rose). Brier 0.1855 and log loss 0.5464, against the home side's rate of 2022-23 to 2024-25 at a home court (64.8 %) and a coin at a neutral site: 0.2316 and 0.6559. The postseason alone (105 games): log loss 0.5547.
+
+| Home side given | Games | Given | Won  |
+| --------------- | ----- | ----- | ---- |
+| 0–10 %          | 28    | 7.3   | 7.1  |
+| 10–20 %         | 141   | 15.9  | 12.8 |
+| 20–30 %         | 293   | 25.2  | 23.5 |
+| 30–40 %         | 454   | 35.5  | 37.2 |
+| 40–50 %         | 609   | 45.0  | 48.3 |
+| 50–60 %         | 801   | 55.1  | 55.9 |
+| 60–70 %         | 883   | 65.1  | 62.6 |
+| 70–80 %         | 998   | 75.1  | 73.3 |
+| 80–90 %         | 984   | 85.0  | 85.7 |
+| 90–100 %        | 561   | 93.6  | 95.5 |
+
+#### Against SportsDataverse's published ratings
+
+Spearman's rank correlation over Division I teams, per season, of Metis's adjusted net rating and SRS after the last game with SportsDataverse's adjusted efficiency margin (its `*_ratings` file, published for every game of the season), each read through the engine. A check, not a correction: the two sit side by side under their own names.
+
+| Season  | Teams | Adjusted net | SRS   | Elo   | Elo reason                                                                                                          |
+| ------- | ----- | ------------ | ----- | ----- | ------------------------------------------------------------------------------------------------------------------- |
+| 2021-22 | 358   | 0.992        | 0.996 | –     | Elo is read from 2022-23: every team starts at 1500 in 2021-22, the first season loaded, which settles the ratings. |
+| 2022-23 | 363   | 0.987        | 0.996 | 0.929 |                                                                                                                     |
+| 2023-24 | 362   | 0.991        | 0.997 | 0.933 |                                                                                                                     |
+| 2024-25 | 364   | 0.991        | 0.996 | 0.935 |                                                                                                                     |
+| 2025-26 | 365   | 0.992        | 0.997 | 0.928 |                                                                                                                     |
+
+#### Top ten, beside the NCAA tournament
+
+Each season's ten best Division I teams by the adjusted net rating and by Elo after their last game (every counted game, the postseason included, so the ratings have seen the tournament), with how far each went in the NCAA tournament (`game_type` playoffs: First Four, Round of 64, 32, Sweet 16, Elite Eight, Final Four, final). Elo's first season is its burn-in and reads its reason.
+
+##### 2021-22
+
+| Rank | Adjusted net           |      | NCAA tournament | Elo       |     | NCAA tournament |
+| ---- | ---------------------- | ---- | --------------- | --------- | --- | --------------- |
+| 1    | Gonzaga Bulldogs       | 29.8 | Sweet 16        | (burn-in) |     |                 |
+| 2    | Houston Cougars        | 28.1 | Elite Eight     | (burn-in) |     |                 |
+| 3    | Arizona Wildcats       | 25.9 | Sweet 16        | (burn-in) |     |                 |
+| 4    | Kansas Jayhawks        | 25.2 | Champion        | (burn-in) |     |                 |
+| 5    | Baylor Bears           | 24.9 | Round of 32     | (burn-in) |     |                 |
+| 6    | Kentucky Wildcats      | 24.2 | Round of 64     | (burn-in) |     |                 |
+| 7    | Texas Tech Red Raiders | 23.7 | Sweet 16        | (burn-in) |     |                 |
+| 8    | Tennessee Volunteers   | 23.6 | Round of 32     | (burn-in) |     |                 |
+| 9    | Duke Blue Devils       | 23.2 | Final Four      | (burn-in) |     |                 |
+| 10   | Villanova Wildcats     | 23.1 | Final Four      | (burn-in) |     |                 |
+
+Champion: Kansas Jayhawks, ranked 4 by the adjusted net rating and – by Elo.
+
+##### 2022-23
+
+| Rank | Adjusted net         |      | NCAA tournament | Elo                    |      | NCAA tournament |
+| ---- | -------------------- | ---- | --------------- | ---------------------- | ---- | --------------- |
+| 1    | Houston Cougars      | 28.5 | Sweet 16        | UConn Huskies          | 2032 | Champion        |
+| 2    | UConn Huskies        | 26.7 | Champion        | UCLA Bruins            | 1930 | Sweet 16        |
+| 3    | Alabama Crimson Tide | 26.4 | Sweet 16        | Alabama Crimson Tide   | 1928 | Sweet 16        |
+| 4    | UCLA Bruins          | 25.3 | Sweet 16        | Texas Longhorns        | 1917 | Elite Eight     |
+| 5    | Tennessee Volunteers | 24.6 | Sweet 16        | Houston Cougars        | 1914 | Sweet 16        |
+| 6    | Texas Longhorns      | 22.4 | Elite Eight     | San Diego State Aztecs | 1911 | Final           |
+| 7    | Gonzaga Bulldogs     | 21.2 | Elite Eight     | Gonzaga Bulldogs       | 1907 | Elite Eight     |
+| 8    | Purdue Boilermakers  | 20.9 | Round of 64     | Florida Atlantic Owls  | 1895 | Final Four      |
+| 9    | Kansas Jayhawks      | 20.5 | Round of 32     | Miami Hurricanes       | 1887 | Final Four      |
+| 10   | Saint Mary's Gaels   | 20.2 | Round of 32     | Memphis Tigers         | 1862 | Round of 64     |
+
+Champion: UConn Huskies, ranked 2 by the adjusted net rating and 1 by Elo.
+
+##### 2023-24
+
+| Rank | Adjusted net             |      | NCAA tournament | Elo                      |      | NCAA tournament |
+| ---- | ------------------------ | ---- | --------------- | ------------------------ | ---- | --------------- |
+| 1    | UConn Huskies            | 32.4 | Champion        | UConn Huskies            | 2119 | Champion        |
+| 2    | Houston Cougars          | 31.8 | Sweet 16        | Purdue Boilermakers      | 2001 | Final           |
+| 3    | Purdue Boilermakers      | 28.9 | Final           | Iowa State Cyclones      | 1960 | Sweet 16        |
+| 4    | Arizona Wildcats         | 27.2 | Sweet 16        | Houston Cougars          | 1945 | Sweet 16        |
+| 5    | Iowa State Cyclones      | 26.0 | Sweet 16        | Auburn Tigers            | 1921 | Round of 64     |
+| 6    | Auburn Tigers            | 25.9 | Round of 64     | Illinois Fighting Illini | 1904 | Elite Eight     |
+| 7    | Tennessee Volunteers     | 25.0 | Elite Eight     | Gonzaga Bulldogs         | 1899 | Sweet 16        |
+| 8    | Duke Blue Devils         | 24.0 | Elite Eight     | Duke Blue Devils         | 1886 | Elite Eight     |
+| 9    | North Carolina Tar Heels | 23.7 | Sweet 16        | North Carolina Tar Heels | 1879 | Sweet 16        |
+| 10   | Alabama Crimson Tide     | 22.6 | Final Four      | Tennessee Volunteers     | 1872 | Elite Eight     |
+
+Champion: UConn Huskies, ranked 1 by the adjusted net rating and 1 by Elo.
+
+##### 2024-25
+
+| Rank | Adjusted net           |      | NCAA tournament | Elo                     |      | NCAA tournament |
+| ---- | ---------------------- | ---- | --------------- | ----------------------- | ---- | --------------- |
+| 1    | Duke Blue Devils       | 37.7 | Final Four      | Florida Gators          | 2110 | Champion        |
+| 2    | Houston Cougars        | 34.5 | Final           | Houston Cougars         | 2099 | Final           |
+| 3    | Auburn Tigers          | 33.1 | Final Four      | Duke Blue Devils        | 2085 | Final Four      |
+| 4    | Florida Gators         | 32.3 | Champion        | Auburn Tigers           | 2007 | Final Four      |
+| 5    | Tennessee Volunteers   | 28.0 | Elite Eight     | Michigan State Spartans | 1969 | Elite Eight     |
+| 6    | Alabama Crimson Tide   | 28.0 | Elite Eight     | Alabama Crimson Tide    | 1964 | Elite Eight     |
+| 7    | Gonzaga Bulldogs       | 27.5 | Round of 32     | Tennessee Volunteers    | 1942 | Elite Eight     |
+| 8    | Texas Tech Red Raiders | 26.1 | Elite Eight     | St. John's Red Storm    | 1938 | Round of 32     |
+| 9    | Maryland Terrapins     | 25.8 | Sweet 16        | Gonzaga Bulldogs        | 1935 | Round of 32     |
+| 10   | Arizona Wildcats       | 24.9 | Sweet 16        | Maryland Terrapins      | 1918 | Sweet 16        |
+
+Champion: Florida Gators, ranked 4 by the adjusted net rating and 1 by Elo.
+
+##### 2025-26
+
+| Rank | Adjusted net             |      | NCAA tournament | Elo                      |      | NCAA tournament |
+| ---- | ------------------------ | ---- | --------------- | ------------------------ | ---- | --------------- |
+| 1    | Michigan Wolverines      | 37.7 | Champion        | Michigan Wolverines      | 2185 | Champion        |
+| 2    | Duke Blue Devils         | 36.5 | Elite Eight     | Duke Blue Devils         | 2124 | Elite Eight     |
+| 3    | Arizona Wildcats         | 33.9 | Final Four      | Arizona Wildcats         | 2103 | Final Four      |
+| 4    | Florida Gators           | 31.7 | Round of 32     | Florida Gators           | 1991 | Round of 32     |
+| 5    | Illinois Fighting Illini | 31.2 | Final Four      | UConn Huskies            | 1989 | Final           |
+| 6    | Houston Cougars          | 30.9 | Sweet 16        | Houston Cougars          | 1986 | Sweet 16        |
+| 7    | Iowa State Cyclones      | 30.6 | Sweet 16        | Illinois Fighting Illini | 1979 | Final Four      |
+| 8    | Purdue Boilermakers      | 28.5 | Elite Eight     | St. John's Red Storm     | 1978 | Sweet 16        |
+| 9    | Gonzaga Bulldogs         | 28.1 | Round of 32     | Purdue Boilermakers      | 1974 | Elite Eight     |
+| 10   | UConn Huskies            | 27.0 | Final           | Arkansas Razorbacks      | 1927 | Sweet 16        |
+
+Champion: Michigan Wolverines, ranked 1 by the adjusted net rating and 1 by Elo.
+
+#### Through the engine, against the tables
+
+| Season  | Teams: SRS, Elo and adjusted net equal | Players: PER and WS equal |
+| ------- | -------------------------------------- | ------------------------- |
+| 2022-23 | 363 of 363                             | 5093 of 5094              |
+| 2025-26 | 365 of 365                             | 5015 of 5015              |
+
+#### Stability
+
+Measured through 2025-26 on the league's own seasons, players across transfers one player (ESPN's athlete id). Labels: not measured 741, medium 431, low 208, high 135; the most pairs a metric had: 6650.
+
+| Metric        | Year to year | Pairs | Split half | Label  |
+| ------------- | ------------ | ----- | ---------- | ------ |
+| fg3_pct       | 0.080        | 104   | 0.380      | low    |
+| per           | 0.616        | 6497  | –          | high   |
+| pts           | 0.555        | 6650  | 0.963      | medium |
+| team_adj_nrtg | 0.783        | 1445  | –          | high   |
+| team_elo      | 0.715        | 1087  | –          | high   |
+| team_srs      | 0.855        | 1445  | –          | high   |
+| ts_pct        | 0.474        | 2640  | 0.604      | medium |
+| usg_pct       | 0.616        | 6497  | 0.953      | high   |
+| ws            | 0.550        | 6497  | –          | medium |
+
+Player-season pairs across a transfer (a player whose next season was for another team): 6432, each one player's pair.
+
+### NCAA Women: the constants, fitted
+
+Games between two Division I teams of the season, every counted type, no exhibition or forfeit; fitted on 2021-22 to 2024-25 and scored on 2025-26, by `scripts/fit-college-models.mjs` on `/home/yhabie/.cache/metis-dev/t1302g-ncaaw/stats-ncaaw.duckdb`.
+
+| Season  | Games counted | Between Division I teams | Neutral site | Postseason |
+| ------- | ------------- | ------------------------ | ------------ | ---------- |
+| 2021-22 | 5534          | 5204                     | 505          | 142        |
+| 2022-23 | 5828          | 5516                     | 557          | 142        |
+| 2023-24 | 5909          | 5560                     | 553          | 145        |
+| 2024-25 | 5968          | 5588                     | 474          | 145        |
+| 2025-26 | 6030          | 5624                     | 567          | 145        |
+
+#### 1. Pythagorean exponent
+
+Points for to the x over points for and against each to the x, against the winning percentage of every team-season over its games against Division I teams (1439 to fit, 363 to score).
+
+| Exponent         | RMSE of W%, fitted seasons | RMSE of W%, 2025-26 | RMSE in wins, 2025-26 |
+| ---------------- | -------------------------- | ------------------- | --------------------- |
+| **6.6** (fitted) | 0.0615                     | 0.0617              | 1.92                  |
+| 10.25            | 0.0920                     | 0.0971              | 3.05                  |
+| 11.5             | 0.1068                     | 0.1124              | 3.53                  |
+| 14               | 0.1341                     | 0.1401              | 4.39                  |
+
+#### 2. Elo
+
+Every game between Division I teams, 27492 in all. Grid: K 10 to 100 by 2, home court 0 to 200 by 10, share kept 0.30 to 0.95 by 0.05 (13524 runs), then a new Division I team's start 1000 to 1500 by 50 (191 s); fitted on the Brier score of 2022-23 to 2024-25 (2021-22 is the burn-in), scored on 2025-26.
+
+| Values                | K   | Home | Kept | New team | Brier, fitted | Brier, 2025-26 | Log loss, 2025-26 |
+| --------------------- | --- | ---- | ---- | -------- | ------------- | -------------- | ----------------- |
+| Fitted                | 62  | 70   | 0.85 | 1200     | 0.1623        | 0.1600         | 0.4785            |
+| Registry              | 60  | 70   | 0.85 | 1200     | 0.1623        | 0.1600         | 0.4787            |
+| NBA's                 | 20  | 80   | 0.65 | 1300     | 0.1753        | 0.1730         | 0.5200            |
+| FiveThirtyEight's NBA | 20  | 100  | 0.75 | 1300     | 0.1754        | 0.1737         | 0.5186            |
+
+Baseline, the home side's win rate of 2022-23 to 2024-25 at a home court (61.1 %) and a coin at a neutral site: on 2025-26, Brier 0.2413, log loss 0.6757 against Elo's 0.1600 and 0.4785 (5624 games).
+
+The best values in hindsight on 2025-26 (a third of the grid): K 66, home 50, kept 0.7, Brier 0.1595.
+
+Elo points per point of margin (least squares of the margin on the edge, fitted seasons): 21.7 (the NBA's 28). The margins around that expected margin, 2022-23 to 2025-26 (22288 games): spread 13.20, mean 0.21.
+
+Calibration on 2025-26, out of sample, by tenths of the home side's probability:
+
+| Tenth    | Games | Given | Won  |
+| -------- | ----- | ----- | ---- |
+| 0–10 %   | 274   | 6.0   | 4.7  |
+| 10–20 %  | 375   | 15.0  | 14.4 |
+| 20–30 %  | 420   | 25.0  | 28.3 |
+| 30–40 %  | 426   | 34.9  | 37.1 |
+| 40–50 %  | 486   | 45.3  | 46.1 |
+| 50–60 %  | 544   | 55.2  | 49.3 |
+| 60–70 %  | 555   | 65.0  | 60.5 |
+| 70–80 %  | 677   | 75.2  | 72.2 |
+| 80–90 %  | 796   | 85.0  | 85.9 |
+| 90–100 % | 1071  | 95.2  | 96.7 |
+
+Per season, the fitted values (every rated game):
+
+| Season  | Games | Brier  | Log loss | Baseline log loss |
+| ------- | ----- | ------ | -------- | ----------------- |
+| 2021-22 | 5204  | 0.1767 | 0.5283   | 0.6768            |
+| 2022-23 | 5516  | 0.1667 | 0.5009   | 0.6696            |
+| 2023-24 | 5560  | 0.1629 | 0.4891   | 0.6723            |
+| 2024-25 | 5588  | 0.1572 | 0.4722   | 0.6696            |
+| 2025-26 | 5624  | 0.1600 | 0.4785   | 0.6757            |
+
+Burn-in by games played: each game by the fewer games either team had played between Division I teams earlier in its season, 2021-22 (every team at 1500 on its first game) against the same point of 2022-23 to 2024-25 (ratings carried from the season before). The excess is 2021-22's log loss less the later seasons'; early-season games are lopsided home games against weak opponents in every season, so each is read against the same point of the later seasons, not against their whole:
+
+| Games before | Games, 2021-22 | Log loss, 2021-22 | Log loss, later | Excess  | Brier, 2021-22 | Brier, later |
+| ------------ | -------------- | ----------------- | --------------- | ------- | -------------- | ------------ |
+| 0–2          | 599            | 0.5808            | 0.4559          | 0.1249  | 0.1965         | 0.1508       |
+| 3–5          | 584            | 0.5501            | 0.4727          | 0.0774  | 0.1850         | 0.1562       |
+| 6–9          | 756            | 0.5274            | 0.4501          | 0.0774  | 0.1759         | 0.1477       |
+| 10–14        | 895            | 0.5386            | 0.4861          | 0.0526  | 0.1810         | 0.1617       |
+| 15–19        | 885            | 0.5008            | 0.5031          | -0.0023 | 0.1658         | 0.1681       |
+| 20–24        | 852            | 0.4898            | 0.5110          | -0.0213 | 0.1621         | 0.1720       |
+| 25–29        | 544            | 0.5339            | 0.5047          | 0.0293  | 0.1793         | 0.1686       |
+| 30+          | 89             | 0.5455            | 0.5336          | 0.0120  | 0.1853         | 0.1804       |
+
+From 20 random starts of 1300 to 1700 in 2021-22, a team's final rating against the run from 1500: 2021-22 mean 11.9, largest 65.1; 2022-23 mean 5.0, largest 28.2; 2023-24 mean 3.2, largest 17.5; 2024-25 mean 2.5, largest 11.5; 2025-26 mean 2.0, largest 8.5.
+
+Ratings spread at the end of each season (standard deviation over the teams):
+
+| Season  | Teams | SD    | Mean   |
+| ------- | ----- | ----- | ------ |
+| 2021-22 | 356   | 218.4 | 1500.0 |
+| 2022-23 | 361   | 260.0 | 1495.8 |
+| 2023-24 | 360   | 281.8 | 1497.9 |
+| 2024-25 | 362   | 297.9 | 1496.6 |
+| 2025-26 | 363   | 303.6 | 1496.3 |
+
+#### 3. Adjusted ratings
+
+Each week's games predicted from the fit as of the week before, every season (27492 games), RMSE in points per 100 weighted by possessions, over the season and over its second half. Pull: the mean absolute change of a team's final adjusted net rating from no prior. A team-season holds 2125 possessions at the median (the NBA's about 8,000, the WNBA's 2,700). 103 s.
+
+| Prior (possessions) | RMSE, every week | RMSE, second half | Pull on final net |
+| ------------------- | ---------------- | ----------------- | ----------------- |
+| 0.01                | 16.439           | 13.357            | 0.000             |
+| 50                  | 13.900           | 13.329            | 0.964             |
+| 100                 | 13.827           | 13.315            | 1.780             |
+| 200                 | 13.866           | 13.319            | 3.112             |
+| 400                 | 14.080           | 13.391            | 5.040             |
+| 800                 | 14.491           | 13.615            | 7.411             |
+| 1600                | 15.044           | 14.047            | 9.834             |
+
+Split-half reliability: the season's games alternately in two halves (by date), each fitted with no prior; the correlation of the two halves' net ratings over the teams.
+
+| Season  | Teams | Split-half r | SD of net rating |
+| ------- | ----- | ------------ | ---------------- |
+| 2021-22 | 356   | 0.933        | 18.38            |
+| 2022-23 | 361   | 0.941        | 19.37            |
+| 2023-24 | 360   | 0.949        | 19.68            |
+| 2024-25 | 362   | 0.950        | 20.48            |
+| 2025-26 | 363   | 0.953        | 20.74            |
+
+#### 4. SRS spread
+
+| Season  | Teams | SD of SRS |
+| ------- | ----- | --------- |
+| 2021-22 | 356   | 13.62     |
+| 2022-23 | 361   | 14.48     |
+| 2023-24 | 360   | 14.68     |
+| 2024-25 | 362   | 15.35     |
+| 2025-26 | 363   | 15.61     |
+
+Fitted: exponent 6.6; Elo K 62, home 70, kept 0.85, new team 1200, per point 21.7, margin spread 13.20.
+
+### NCAA Women: checked
+
+On `/home/yhabie/.cache/metis-dev/t1302h-ncaaw`, by `scripts/check-college-models.mjs`, through the built worker and its engine.
+
+#### SRS against Sports Reference
+
+Metis's SRS after each team's last game (every counted game between Division I teams), read through the engine, against the SRS on Sports Reference's school pages, Division I teams matched by T1302.4's map. Tolerance stated before the run: within 0.5 a game on 95 % of team-seasons.
+
+| Season  | Teams | Unmatched | SR's mean | Mean gap | Within 0.5 as published | Centred, within 0.1 | Centred, within 0.5 | Centred, median gap | Centred, largest | Rank r |
+| ------- | ----- | --------- | --------- | -------- | ----------------------- | ------------------- | ------------------- | ------------------- | ---------------- | ------ |
+| 2021-22 | 356   | 0         | -0.88     | 0.89     | 3.1 %                   | 53.4 %              | 95.2 %              | 0.09                | 0.90             | 0.9998 |
+| 2022-23 | 361   | 0         | -0.87     | 0.87     | 4.4 %                   | 52.1 %              | 98.1 %              | 0.09                | 0.81             | 0.9998 |
+| 2023-24 | 360   | 0         | -0.84     | 0.82     | 5.0 %                   | 39.2 %              | 95.0 %              | 0.13                | 0.74             | 0.9997 |
+| 2024-25 | 362   | 0         | -0.89     | 0.90     | 3.6 %                   | 54.7 %              | 98.1 %              | 0.09                | 0.72             | 0.9998 |
+| 2025-26 | 363   | 0         | -0.90     | 0.89     | 2.2 %                   | 47.9 %              | 98.1 %              | 0.11                | 0.99             | 0.9998 |
+
+The largest gaps once each season's mean gap is taken out:
+
+| Season  | Team                          | Metis  | Sports Reference | Gap   | Centred gap |
+| ------- | ----------------------------- | ------ | ---------------- | ----- | ----------- |
+| 2025-26 | Pennsylvania Quakers          | 2.83   | 2.93             | -0.10 | -0.99       |
+| 2025-26 | Dartmouth Big Green           | -17.83 | -17.73           | -0.10 | -0.99       |
+| 2021-22 | Denver Pioneers               | -9.37  | -9.35            | -0.02 | -0.90       |
+| 2021-22 | Western Illinois Leathernecks | -6.46  | -6.45            | -0.01 | -0.89       |
+| 2025-26 | Brown Bears                   | 0.68   | 0.67             | 0.01  | -0.88       |
+| 2022-23 | Furman Paladins               | -14.77 | -14.84           | 0.07  | -0.81       |
+| 2021-22 | Oral Roberts Golden Eagles    | -2.60  | -2.69            | 0.09  | -0.80       |
+| 2025-26 | Cornell Big Red               | -13.49 | -13.58           | 0.09  | -0.80       |
+
+#### PER, Win Shares and WS/40 against Sports Reference
+
+Each season's ten leaders on Sports Reference's leaders page, matched by name (and school where two share a name), against the engine's value over every counted game of the season. Tolerance stated before the run: PER within 0.5, Win Shares within 0.3, WS/40 within 0.01.
+
+| Stat  | Leaders | Within tolerance | Within twice it |
+| ----- | ------- | ---------------- | --------------- |
+| PER   | 50      | 42 (84.0 %)      | 48 (96.0 %)     |
+| WS    | 50      | 44 (88.0 %)      | 50 (100.0 %)    |
+| WS/40 | 50      | 39 (78.0 %)      | 48 (96.0 %)     |
+
+0 leaders had no value from the engine (no match by name).
+
+Each season's top three:
+
+| Season  | Stat  | Player         | School             | Sports Reference | Metis | Within tolerance |
+| ------- | ----- | -------------- | ------------------ | ---------------- | ----- | ---------------- |
+| 2021-22 | PER   | Macee Williams | IU Indianapolis    | 44.1             | 44.5  | yes              |
+| 2021-22 | PER   | Aliyah Boston  | South Carolina     | 43.1             | 45.8  | no               |
+| 2021-22 | PER   | Aneesah Morrow | DePaul             | 40.2             | 40.6  | yes              |
+| 2021-22 | WS    | Aliyah Boston  | South Carolina     | 11.6             | 11.6  | yes              |
+| 2021-22 | WS    | NaLyssa Smith  | Baylor             | 9.3              | 9.2   | yes              |
+| 2021-22 | WS    | Caitlin Clark  | Iowa               | 9.1              | 8.8   | yes              |
+| 2021-22 | WS/40 | Aliyah Boston  | South Carolina     | 0.441            | 0.455 | no               |
+| 2021-22 | WS/40 | Macee Williams | IU Indianapolis    | 0.413            | 0.411 | yes              |
+| 2021-22 | WS/40 | Hannah Sjerven | South Dakota       | 0.358            | 0.346 | no               |
+| 2022-23 | PER   | Maddy Siegrist | Villanova          | 45.4             | 45.1  | yes              |
+| 2022-23 | PER   | Angel Reese    | LSU                | 44.4             | 44.3  | yes              |
+| 2022-23 | PER   | Caitlin Clark  | Iowa               | 40.5             | 40.1  | yes              |
+| 2022-23 | WS    | Maddy Siegrist | Villanova          | 13.3             | 13.1  | yes              |
+| 2022-23 | WS    | Angel Reese    | LSU                | 13.2             | 13.1  | yes              |
+| 2022-23 | WS    | Caitlin Clark  | Iowa               | 12.0             | 11.8  | yes              |
+| 2022-23 | WS/40 | Angel Reese    | LSU                | 0.435            | 0.433 | yes              |
+| 2022-23 | WS/40 | Maddy Siegrist | Villanova          | 0.405            | 0.397 | yes              |
+| 2022-23 | WS/40 | Aliyah Boston  | South Carolina     | 0.380            | 0.380 | yes              |
+| 2023-24 | PER   | Cameron Brink  | Stanford           | 45.7             | 45.9  | yes              |
+| 2023-24 | PER   | Yvonne Ejim    | Gonzaga            | 43.5             | 43.2  | yes              |
+| 2023-24 | PER   | Caitlin Clark  | Iowa               | 42.9             | 42.4  | yes              |
+| 2023-24 | WS    | Caitlin Clark  | Iowa               | 13.3             | 13.1  | yes              |
+| 2023-24 | WS    | Paige Bueckers | UConn              | 12.1             | 12.0  | yes              |
+| 2023-24 | WS    | Hannah Hidalgo | Notre Dame         | 10.0             | 9.8   | yes              |
+| 2023-24 | WS/40 | Cameron Brink  | Stanford           | 0.416            | 0.411 | yes              |
+| 2023-24 | WS/40 | Caitlin Clark  | Iowa               | 0.393            | 0.384 | yes              |
+| 2023-24 | WS/40 | Yvonne Ejim    | Gonzaga            | 0.392            | 0.390 | yes              |
+| 2024-25 | PER   | Sarah Strong   | UConn              | 41.3             | 41.0  | yes              |
+| 2024-25 | PER   | Lauren Betts   | UCLA               | 41.2             | 40.9  | yes              |
+| 2024-25 | PER   | Paige Bueckers | UConn              | 40.5             | 40.3  | yes              |
+| 2024-25 | WS    | Paige Bueckers | UConn              | 12.4             | 12.1  | no               |
+| 2024-25 | WS    | Sarah Strong   | UConn              | 12.3             | 12.0  | yes              |
+| 2024-25 | WS    | Sedona Prince  | TCU                | 9.7              | 9.7   | yes              |
+| 2024-25 | WS/40 | Paige Bueckers | UConn              | 0.430            | 0.421 | yes              |
+| 2024-25 | WS/40 | Sarah Strong   | UConn              | 0.429            | 0.419 | yes              |
+| 2024-25 | WS/40 | Harmoni Turner | Harvard            | 0.377            | 0.371 | yes              |
+| 2025-26 | PER   | Brooklyn Meyer | South Dakota State | 45.7             | 45.0  | no               |
+| 2025-26 | PER   | Avery Koenen   | North Dakota State | 45.6             | 45.6  | yes              |
+| 2025-26 | PER   | Sarah Strong   | UConn              | 44.3             | 44.0  | yes              |
+| 2025-26 | WS    | Sarah Strong   | UConn              | 12.4             | 12.2  | yes              |
+| 2025-26 | WS    | Hannah Hidalgo | Notre Dame         | 11.4             | 11.1  | no               |
+| 2025-26 | WS    | Madison Booker | Texas              | 10.9             | 10.7  | yes              |
+| 2025-26 | WS/40 | Sarah Strong   | UConn              | 0.476            | 0.466 | yes              |
+| 2025-26 | WS/40 | Avery Koenen   | North Dakota State | 0.440            | 0.431 | yes              |
+| 2025-26 | WS/40 | Brooklyn Meyer | South Dakota State | 0.411            | 0.401 | yes              |
+
+#### Elo, out of sample
+
+The constants were fitted on 2021-22 to 2024-25; 2025-26's 5624 games between Division I teams, read from the built `elo_game` table (a win is a rating that rose). Brier 0.1600 and log loss 0.4785, against the home side's rate of 2022-23 to 2024-25 at a home court (61.1 %) and a coin at a neutral site: 0.2413 and 0.6757. The postseason alone (145 games): log loss 0.5063.
+
+| Home side given | Games | Given | Won  |
+| --------------- | ----- | ----- | ---- |
+| 0–10 %          | 274   | 6.0   | 4.7  |
+| 10–20 %         | 375   | 15.0  | 14.4 |
+| 20–30 %         | 420   | 25.0  | 28.3 |
+| 30–40 %         | 426   | 34.9  | 37.1 |
+| 40–50 %         | 486   | 45.3  | 46.1 |
+| 50–60 %         | 544   | 55.2  | 49.3 |
+| 60–70 %         | 555   | 65.0  | 60.5 |
+| 70–80 %         | 677   | 75.2  | 72.2 |
+| 80–90 %         | 796   | 85.0  | 85.9 |
+| 90–100 %        | 1071  | 95.2  | 96.7 |
+
+#### Against SportsDataverse's published ratings
+
+Spearman's rank correlation over Division I teams, per season, of Metis's adjusted net rating and SRS after the last game with SportsDataverse's adjusted efficiency margin (its `*_ratings` file, published for every game of the season), each read through the engine. A check, not a correction: the two sit side by side under their own names.
+
+| Season  | Teams | Adjusted net | SRS   | Elo   | Elo reason                                                                                                          |
+| ------- | ----- | ------------ | ----- | ----- | ------------------------------------------------------------------------------------------------------------------- |
+| 2021-22 | 356   | 0.996        | 0.998 | –     | Elo is read from 2022-23: every team starts at 1500 in 2021-22, the first season loaded, which settles the ratings. |
+| 2022-23 | 361   | 0.997        | 0.998 | 0.934 |                                                                                                                     |
+| 2023-24 | 360   | 0.997        | 0.998 | 0.953 |                                                                                                                     |
+| 2024-25 | 362   | 0.997        | 0.997 | 0.961 |                                                                                                                     |
+| 2025-26 | 363   | 0.998        | 0.998 | 0.964 |                                                                                                                     |
+
+#### Top ten, beside the NCAA tournament
+
+Each season's ten best Division I teams by the adjusted net rating and by Elo after their last game (every counted game, the postseason included, so the ratings have seen the tournament), with how far each went in the NCAA tournament (`game_type` playoffs: First Four, Round of 64, 32, Sweet 16, Elite Eight, Final Four, final). Elo's first season is its burn-in and reads its reason.
+
+##### 2021-22
+
+| Rank | Adjusted net             |      | NCAA tournament | Elo       |     | NCAA tournament |
+| ---- | ------------------------ | ---- | --------------- | --------- | --- | --------------- |
+| 1    | South Carolina Gamecocks | 49.9 | Champion        | (burn-in) |     |                 |
+| 2    | NC State Wolfpack        | 44.5 | Elite Eight     | (burn-in) |     |                 |
+| 3    | Stanford Cardinal        | 43.5 | Final Four      | (burn-in) |     |                 |
+| 4    | UConn Huskies            | 42.3 | Final           | (burn-in) |     |                 |
+| 5    | Louisville Cardinals     | 38.9 | Final Four      | (burn-in) |     |                 |
+| 6    | North Carolina Tar Heels | 36.9 | Sweet 16        | (burn-in) |     |                 |
+| 7    | Texas Longhorns          | 36.2 | Elite Eight     | (burn-in) |     |                 |
+| 8    | Baylor Bears             | 35.8 | Round of 32     | (burn-in) |     |                 |
+| 9    | Iowa State Cyclones      | 32.2 | Sweet 16        | (burn-in) |     |                 |
+| 10   | Virginia Tech Hokies     | 32.0 | Round of 64     | (burn-in) |     |                 |
+
+Champion: South Carolina Gamecocks, ranked 1 by the adjusted net rating and – by Elo.
+
+##### 2022-23
+
+| Rank | Adjusted net              |      | NCAA tournament | Elo                       |      | NCAA tournament |
+| ---- | ------------------------- | ---- | --------------- | ------------------------- | ---- | --------------- |
+| 1    | South Carolina Gamecocks  | 58.0 | Final Four      | South Carolina Gamecocks  | 2317 | Final Four      |
+| 2    | LSU Tigers                | 44.0 | Champion        | LSU Tigers                | 2230 | Champion        |
+| 3    | UConn Huskies             | 43.1 | Sweet 16        | Virginia Tech Hokies      | 2160 | Final Four      |
+| 4    | Stanford Cardinal         | 43.0 | Round of 32     | Iowa Hawkeyes             | 2155 | Final           |
+| 5    | Indiana Hoosiers          | 40.9 | Round of 32     | Maryland Terrapins        | 2094 | Elite Eight     |
+| 6    | Iowa Hawkeyes             | 39.5 | Final           | Louisville Cardinals      | 2077 | Elite Eight     |
+| 7    | Virginia Tech Hokies      | 37.2 | Final Four      | Indiana Hoosiers          | 2076 | Round of 32     |
+| 8    | Utah Utes                 | 36.9 | Sweet 16        | UConn Huskies             | 2070 | Sweet 16        |
+| 9    | Notre Dame Fighting Irish | 36.1 | Sweet 16        | Tennessee Lady Volunteers | 2049 | Sweet 16        |
+| 10   | Texas Longhorns           | 36.0 | Round of 32     | Stanford Cardinal         | 2038 | Round of 32     |
+
+Champion: LSU Tigers, ranked 2 by the adjusted net rating and 2 by Elo.
+
+##### 2023-24
+
+| Rank | Adjusted net              |      | NCAA tournament | Elo                       |      | NCAA tournament |
+| ---- | ------------------------- | ---- | --------------- | ------------------------- | ---- | --------------- |
+| 1    | South Carolina Gamecocks  | 56.6 | Champion        | South Carolina Gamecocks  | 2435 | Champion        |
+| 2    | UConn Huskies             | 48.2 | Final Four      | UConn Huskies             | 2227 | Final Four      |
+| 3    | Texas Longhorns           | 45.7 | Elite Eight     | Iowa Hawkeyes             | 2227 | Final           |
+| 4    | Iowa Hawkeyes             | 44.7 | Final           | LSU Tigers                | 2200 | Elite Eight     |
+| 5    | Stanford Cardinal         | 42.9 | Sweet 16        | Texas Longhorns           | 2165 | Elite Eight     |
+| 6    | UCLA Bruins               | 41.6 | Sweet 16        | Notre Dame Fighting Irish | 2159 | Sweet 16        |
+| 7    | LSU Tigers                | 40.4 | Elite Eight     | NC State Wolfpack         | 2141 | Final Four      |
+| 8    | Notre Dame Fighting Irish | 39.5 | Sweet 16        | USC Trojans               | 2127 | Elite Eight     |
+| 9    | Ohio State Buckeyes       | 37.7 | Round of 32     | UCLA Bruins               | 2072 | Sweet 16        |
+| 10   | USC Trojans               | 37.2 | Elite Eight     | Gonzaga Bulldogs          | 2056 | Sweet 16        |
+
+Champion: South Carolina Gamecocks, ranked 1 by the adjusted net rating and 1 by Elo.
+
+##### 2024-25
+
+| Rank | Adjusted net              |      | NCAA tournament | Elo                       |      | NCAA tournament |
+| ---- | ------------------------- | ---- | --------------- | ------------------------- | ---- | --------------- |
+| 1    | UConn Huskies             | 60.6 | Champion        | UConn Huskies             | 2519 | Champion        |
+| 2    | South Carolina Gamecocks  | 55.4 | Final           | South Carolina Gamecocks  | 2367 | Final           |
+| 3    | Texas Longhorns           | 51.3 | Final Four      | Texas Longhorns           | 2281 | Final Four      |
+| 4    | USC Trojans               | 48.0 | Elite Eight     | UCLA Bruins               | 2268 | Final Four      |
+| 5    | Notre Dame Fighting Irish | 47.7 | Sweet 16        | USC Trojans               | 2260 | Elite Eight     |
+| 6    | UCLA Bruins               | 47.7 | Final Four      | Duke Blue Devils          | 2221 | Elite Eight     |
+| 7    | Duke Blue Devils          | 44.3 | Elite Eight     | TCU Horned Frogs          | 2177 | Elite Eight     |
+| 8    | LSU Tigers                | 41.9 | Elite Eight     | LSU Tigers                | 2173 | Elite Eight     |
+| 9    | TCU Horned Frogs          | 41.8 | Elite Eight     | NC State Wolfpack         | 2166 | Sweet 16        |
+| 10   | Kansas State Wildcats     | 41.8 | Sweet 16        | Notre Dame Fighting Irish | 2160 | Sweet 16        |
+
+Champion: UConn Huskies, ranked 1 by the adjusted net rating and 1 by Elo.
+
+##### 2025-26
+
+| Rank | Adjusted net             |      | NCAA tournament | Elo                        |      | NCAA tournament |
+| ---- | ------------------------ | ---- | --------------- | -------------------------- | ---- | --------------- |
+| 1    | UConn Huskies            | 64.5 | Final Four      | UCLA Bruins                | 2546 | Champion        |
+| 2    | UCLA Bruins              | 63.3 | Champion        | UConn Huskies              | 2445 | Final Four      |
+| 3    | South Carolina Gamecocks | 60.4 | Final           | Texas Longhorns            | 2394 | Final Four      |
+| 4    | Texas Longhorns          | 59.5 | Final Four      | South Carolina Gamecocks   | 2390 | Final           |
+| 5    | LSU Tigers               | 56.6 | Sweet 16        | LSU Tigers                 | 2256 | Sweet 16        |
+| 6    | Michigan Wolverines      | 46.7 | Elite Eight     | Duke Blue Devils           | 2188 | Elite Eight     |
+| 7    | Duke Blue Devils         | 42.5 | Elite Eight     | Michigan Wolverines        | 2168 | Elite Eight     |
+| 8    | Vanderbilt Commodores    | 41.9 | Sweet 16        | TCU Horned Frogs           | 2144 | Elite Eight     |
+| 9    | Louisville Cardinals     | 40.0 | Sweet 16        | Notre Dame Fighting Irish  | 2132 | Elite Eight     |
+| 10   | Kentucky Wildcats        | 39.5 | Sweet 16        | West Virginia Mountaineers | 2124 | Round of 32     |
+
+Champion: UCLA Bruins, ranked 2 by the adjusted net rating and 1 by Elo.
+
+#### Through the engine, against the tables
+
+| Season  | Teams: SRS, Elo and adjusted net equal | Players: PER and WS equal |
+| ------- | -------------------------------------- | ------------------------- |
+| 2022-23 | 361 of 361                             | 4704 of 4704              |
+| 2025-26 | 363 of 363                             | 4692 of 4692              |
+
+#### Stability
+
+Measured through 2025-26 on the league's own seasons, players across transfers one player (ESPN's athlete id). Labels: not measured 742, high 319, medium 293, low 161; the most pairs a metric had: 6974.
+
+| Metric        | Year to year | Pairs | Split half | Label  |
+| ------------- | ------------ | ----- | ---------- | ------ |
+| fg3_pct       | 0.430        | 218   | 0.502      | medium |
+| per           | 0.745        | 6566  | –          | high   |
+| pts           | 0.674        | 6974  | 0.963      | high   |
+| team_adj_nrtg | 0.863        | 1437  | –          | high   |
+| team_elo      | 0.823        | 1081  | –          | high   |
+| team_srs      | 0.888        | 1437  | –          | high   |
+| ts_pct        | 0.631        | 2813  | 0.680      | high   |
+| usg_pct       | 0.694        | 6566  | 0.956      | high   |
+| ws            | 0.693        | 6566  | –          | high   |
+
+Player-season pairs across a transfer (a player whose next season was for another team): 4571, each one player's pair.
