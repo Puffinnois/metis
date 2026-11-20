@@ -1184,12 +1184,14 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
   // pair, as it had no rank.
   const onePass = !!c.league.manyRows && q.ranks !== false
   const keys = ['id', ...dims.map((d) => `g_${d}`)]
-  const pairs = `PARTITION BY ${['m', ...group].join(', ')}`
+  // A player's position as a number for the sort (the same groups, NULL one of them): sorting the
+  // pairs on a text column cost a tenth of the query.
+  const pairs = `PARTITION BY ${['m', ...group.map((g) => (g === 'position' ? 'pos' : g))].join(', ')}`
   const rankCtes = onePass
     ? [
         `ranklong AS (
       SELECT * FROM (
-        SELECT ${[...keys, ...(q.entity === 'player' ? ['position'] : [])].join(', ')},
+        SELECT ${[...keys, ...(q.entity === 'player' ? ['dense_rank() OVER (ORDER BY position) AS pos'] : [])].join(', ')},
                unnest(range(${c.metrics.length})) AS m,
                unnest([${c.metrics.map((m, i) => `${m.direction === 'lower' ? '-' : ''}(${val(i)})::DOUBLE`).join(', ')}]) AS x,
                unnest([${c.metrics.map((_, i) => `(${okOf(i)})`).join(', ')}]) AS ok
@@ -1270,8 +1272,18 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
     : 'coalesce(tm.name, x.id::VARCHAR)'
   const limited = !ctx.internal?.unlimited
   // Many rows (`manyRows`): the rows listed are picked on their key and the sort's columns alone, and
-  // only those rows' columns are read back. Counting and sorting 90,000 rows of a by-opponent board
-  // with every column took about 200 ms. The rows, their order and the total are the same.
+  // only those rows' columns are read back, only the ones `runQuery` shapes. Counting and sorting
+  // 90,000 rows of a by-opponent board with every column took about 200 ms, and carrying every
+  // intermediate column of 5,000 rows to JavaScript about as long. The rows, their order and the
+  // total are the same.
+  const shown = [
+    'id',
+    ...dims.map((d) => `g_${d}`),
+    'position',
+    ...(adding ? ['no_line'] : []),
+    'games',
+    ...c.metrics.flatMap((_, i) => [`t${i}`, `v${i}`, `s${i}`, `q${i}`, `p${i}`, `r${i}`])
+  ]
   const sql =
     c.league.manyRows && limited
       ? `${head},
@@ -1285,7 +1297,7 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
       ${q.scope.qualifiedOnly && c.gaps[sort] === null ? `WHERE q${sort}` : ''}
       ORDER BY o_first DESC, o_sort ${dir.toUpperCase()} NULLS LAST, name
       LIMIT ${q.limit ?? DEFAULT_LIMIT})
-    SELECT x.*, l.name, l.team_code, l.total
+    SELECT ${shown.map((col) => `x.${col}`).join(', ')}, l.name, l.team_code, l.total
     FROM listed l JOIN shaped x ON ${keys.map((k) => `x.${k} IS NOT DISTINCT FROM l.${k}`).join(' AND ')}
     ORDER BY l.o_first DESC, l.o_sort ${dir.toUpperCase()} NULLS LAST, l.name`
       : `${head}

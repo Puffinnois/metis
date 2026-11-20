@@ -1249,10 +1249,10 @@ const college = (
 })
 
 /**
- * The size of a first load as T1302.3 measured it on 2026-11-18 (ncaa-data-sources.md, "The first
- * load, measured"): the files of 2021-22 on without ESPN's play by play, and the stats file of their
- * source tables, built tables to come. A load asks D22's 6 GB free, as the NBA's, and counts as done
- * past 3 GB.
+ * The size of a first load: the files of 2021-22 on without ESPN's play by play as T1302.3 measured
+ * them on 2026-11-18 (ncaa-data-sources.md, "The first load, measured"), and the stats file with
+ * every table built as T1302.9's first load through the app left it on 2026-11-20. A load asks D22's
+ * 6 GB free, as the NBA's, and counts as done past 3 GB.
  */
 const collegeSize = (downloadBytes: number, fileBytes: number): League['size'] => ({
   downloadBytes,
@@ -1329,7 +1329,7 @@ const NCAAM: League = college(
       registry: 'SOURCES_BY_LEAGUE.ncaam in src/main/stats/sources.ts',
       reference: 'docs/reference/ncaa-data-sources.md'
     },
-    size: collegeSize(803_921_971, 3_632_803_840),
+    size: collegeSize(803_921_971, 4_408_225_792),
     noData: "No NCAA men's stats yet: turn NCAA Men on in the Data panel to download them.",
     notBuilt: "No NCAA men's stats yet: the first load has not got that far.",
     madePerGame: collegeMinimums(2.5)
@@ -1352,7 +1352,7 @@ const NCAAW: League = college(
       registry: 'SOURCES_BY_LEAGUE.ncaaw in src/main/stats/sources.ts',
       reference: 'docs/reference/ncaa-data-sources.md'
     },
-    size: collegeSize(752_895_003, 3_407_097_856),
+    size: collegeSize(752_895_003, 4_177_276_928),
     noData: "No NCAA women's stats yet: turn NCAA Women on in the Data panel to download them.",
     notBuilt: "No NCAA women's stats yet: the first load has not got that far.",
     madePerGame: collegeMinimums(2.0)

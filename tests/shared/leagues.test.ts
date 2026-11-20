@@ -276,10 +276,12 @@ describe('the college leagues (D38)', () => {
       expect(league.noData).toMatch(/^No NCAA (men|women)'s stats yet: turn NCAA (Men|Women) on/)
       expect(league.size.roomBytes).toBe(6 * 1024 ** 3)
     }
-    // The first loads of T1302.3: 767 and 718 MiB downloaded, 3.38 and 3.17 GiB on disk.
+    // The downloads of T1302.3's first loads (767 and 718 MiB) and the files with every table built
+    // of T1302.9's (4.11 and 3.89 GiB).
     expect(men.size.downloadBytes).toBe(803_921_971)
     expect(women.size.downloadBytes).toBe(752_895_003)
-    expect(men.size.fileBytes).toBe(3_632_803_840)
+    expect(men.size.fileBytes).toBe(4_408_225_792)
+    expect(women.size.fileBytes).toBe(4_177_276_928)
     expect(men.size.fileBytes).toBeGreaterThan(women.size.fileBytes)
   })
 })

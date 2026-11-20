@@ -5,7 +5,7 @@ import { setLeague } from '@/lib/stats/league'
 import { lineupGap, lineupNotes } from '@/lib/stats/lineups'
 import { DERIVED_NOTE, derivedNote, unitsNote } from '@/lib/stats/onCourt'
 import { typeTag } from '@/lib/stats/player'
-import { leaderboardQualifier } from '@/lib/stats/qualifying'
+import { leaderboardQualifier, leaderRuleWords } from '@/lib/stats/qualifying'
 import { defaultScope, seasonTypes, typeLabel, type StatsScope } from '@/lib/stats/scope'
 import { strengthNote, strengthQuery } from '@/lib/stats/standings'
 import { LEAGUES } from '@shared/leagues'
@@ -17,6 +17,25 @@ import type { StatsGame, StatsSeason } from '@shared/stats/types'
  * the NBA and the WNBA as they were.
  */
 afterEach(() => setLeague('nba'))
+
+describe('words a college screen must not take from the NBA (T1302.9)', () => {
+  it('names the shot chart file and the leader stats’ rule by league', () => {
+    expect(LEAGUES.nba.shotsFile).toBeUndefined()
+    expect(LEAGUES.wnba.shotsFile).toBeUndefined()
+    expect(LEAGUES.ncaam.shotsFile).toBe('stats.ncaa.org’s shot file')
+    expect(LEAGUES.ncaaw.shotsFile).toBe('stats.ncaa.org’s shot file')
+    expect(leaderRuleWords(LEAGUES.nba).note).toBe(
+      'the NBA’s leader stats need only their own minimum'
+    )
+    expect(leaderRuleWords(LEAGUES.wnba).clause).toBe(
+      'or the NBA’s own minimum alone for its leader stats'
+    )
+    for (const league of [LEAGUES.ncaam, LEAGUES.ncaaw]) {
+      const words = leaderRuleWords(league)
+      expect(`${words.note} ${words.clause}`).not.toContain('NBA')
+    }
+  })
+})
 
 const season = (types: StatsGame['type'][]): StatsSeason =>
   ({

@@ -279,6 +279,24 @@ The engine's leader is the champion in 53 of 55 men's and 58 of 60 women's categ
 
 The everyday boards are inside the 500 ms budget; four are over it (bold), as the NBA's slowest was at 561 ms (T1301.8). The Division I filter and the own-team 75 % rule are not the cause: with both switched off the men's 40 columns take 1,186 ms, by opponent 856 and every season by season 764 (the own-team rule costs about 10 ms since its season-grain path reads `player_season` and `team_season`). They go to T1302.9 (the manager's decision of 2026-11-19).
 
+**Inside the budget (T1302.9, 2026-11-20).** The four were slow for two reasons the query plans showed, neither the college rules. Each board ranked every column with two window functions (a percentile and a rank), and each window sorted every row with all its columns: 80 sorts of 5,000 wide rows took about 880 of the 40-column board's 900 ms, and by opponent sorted 92,902 rows twenty times. And the college game and season tables stored their counts as 128-bit integers, what DuckDB's `sum()` gives, which a board reads some 40 times slower than a BIGINT (`sum(pts)` over `player_season`'s 126,460 rows: 43 ms against 1 ms for a DOUBLE column). The changes, all for the college leagues alone (`League.manyRows`, the college recipe's `narrowCounts`), so the NBA's and the WNBA's SQL is byte for byte as it was (`nbaSqlUnchanged.test.ts`):
+
+- every column of a board ranked in one pass: the rows unpivoted into (column, value) pairs, one sort for `percent_rank()` and `cume_dist()` on the same order (the best-first rank is the pairs above the value plus one), the position sorted as a number, and the ranks pivoted back by the row's key;
+- the rows a board lists picked on their key and the sort's columns before their other columns are read, and only the columns the result is shaped from carried back;
+- the game and season tables rewritten at the end of a college build with their counts as BIGINT, in the same row order (`narrowCounts`, 22 and 27 seconds on T1302.8's files, the files' size unchanged);
+- `StatsDb.all` converting DuckDB's big integers in place rather than rebuilding each row (35 to 70 ms on a 5,000-row board, 2 to 8 after; every league, the same values).
+
+| Query (2025-26)                          | Men before | Men after | Women before | Women after |
+| ---------------------------------------- | ---------- | --------- | ------------ | ----------- |
+| 40 columns                               | 973        | 219       | 1,080        | 235         |
+| By opponent                              | 953        | 437       | 932          | 426         |
+| Every season by season: all players      | 639        | 222       | 640          | 216         |
+| Compare: a season of players, 23 rows    | 468        | 125       | 541          | 132         |
+| Compare: three players over every season | 392        | –         | 378          | –           |
+| The slowest read of the script (worst)   | 1,432      | 454       | 1,121        | 440         |
+
+Medians in milliseconds, `scripts/engine-speed.mjs` on 2025-26; before on a copy of T1302.8's `t1302h-*` files with `main`'s code, after on copies of T1302.9's clean first loads (`gate-ncaam-full`, `gate-ncaaw-full`). **The results are unchanged**, checked on every query shape a screen asks (every metric each league has under four scopes, 46 boards of 11 or 40 columns under 23 scopes and transforms: 3,224 a league), run through `main`'s engine on `main`'s tables and through this one on the narrowed tables. Single-threaded, where DuckDB's order is fixed, the rows, values, ranks, percentiles and order are identical on every shape but the eight z-score and vs-league boards, whose league mean is summed in another order: at most 5.4 × 10⁻¹³ apart. On two threads, as the app runs, `main` itself gives different last digits and different orders of tied rows from one run to the next on 22 of the shapes that differed (sums of decimals and `mode()` ties in whatever order the threads meet them).
+
 ## The depth, built (T1302.6)
 
 Built on 2026-11-19 on fresh copies of `t1302e-ncaam` and `t1302e-ncaaw` through the built worker's refresh (`scripts/load-report.mjs`), which ran the two new steps and loaded nothing (no file had changed): 0.7 minutes for each league, 2.10 GB (men) and 1.92 GB (women) peak. The files grew from 3.63 to 3.80 GB (men, +166 MB) and from 3.41 to 3.56 GB (women, +155 MB), inside D22's 6 GB (see "Does the load fit D22?"). Kept as `~/.cache/metis-dev/t1302f-ncaam` and `t1302f-ncaaw`. The checks are in [ncaa-agreement.md](ncaa-agreement.md), "The depth (T1302.6)".
