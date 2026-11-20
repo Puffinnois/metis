@@ -64,7 +64,7 @@ afterAll(async () => {
 const FILE = `(SELECT p.rowid AS r, p.*, g.game_id FROM src_ncaa_pbp p JOIN game g ON g.ncaa_game_id = p.contest_id)`
 
 describe('the play table', () => {
-  it('holds every row of the file, numbered in the file’s order within its game', async () => {
+  it('holds every row of the file, numbered in the play order within its game', async () => {
     for (const db of [m, w]) {
       const r = await one(
         db,
@@ -79,7 +79,7 @@ describe('the play table', () => {
       // The n-th row of a game in the file is its play number n.
       const order = await one(
         db,
-        `WITH f AS (SELECT game_id, row_number() OVER (PARTITION BY game_id ORDER BY r) AS seq,
+        `WITH f AS (SELECT game_id, row_number() OVER (PARTITION BY game_id ORDER BY period, game_seconds, r) AS seq,
                            event_type FROM ${FILE})
          SELECT count(*) FILTER (WHERE p.action IS DISTINCT FROM coalesce(f.event_type, ''))::INTEGER AS off
          FROM play_nba p JOIN f USING (game_id, seq)`

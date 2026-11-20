@@ -13,9 +13,12 @@ import { column, type Have } from './sql'
  * the splits' players' time and the play-credited units read. Both are built a season at a time by the
  * plays step (`COLLEGE_PLAY_BUILDERS`). How the feed is read, measured on every season of both leagues:
  *
- * - **Order:** the file has no play number. Its rows are in the play order within a game (the game
- *   clock runs backwards between consecutive rows in 11 of the men's 6,297 games of 2025-26), and the
- *   load keeps the file's order, so a play's `seq` is its row's place in its game (DuckDB's `rowid`).
+ * - **Order:** the file has no play number. Its rows are in the play order within a game, and the load
+ *   keeps that order within each of DuckDB's row groups but not between them (the stats file is written
+ *   with `preserve_insertion_order` off), so a game that spans two row groups can come back in two parts
+ *   the wrong way round (22 of the men's 6,297 games of 2025-26 are not contiguous, 11 of them out of
+ *   order). A play's `seq` is its place in its game by period, then the file's seconds since the tip-off
+ *   (`game_seconds`), then the row (DuckDB's `rowid`), which keeps the file's order within a second.
  * - **Games and sides:** `contest_id` is `game.ncaa_game_id`. stats.ncaa.org's home and away are its
  *   own, and a neutral game may list them the other way from ESPN's: its home team is placed by its
  *   stats.ncaa.org id, then its ESPN id, then its name (`teamNamesSql`), then as the side its away team
@@ -82,9 +85,13 @@ const list = (xs: readonly string[]): string =>
 /**
  * The season's rows of the play by play, each placed in its game with its `seq`, its team and the
  * team with the ball as the game's sides, and every person it names resolved once (`nb_who`). Shared
- * by both builders, so a play's `seq` is the same in both tables.
+ * by both builders, so a play's `seq` is the same in both tables: the ten's builder reads the ten
+ * (`ten`), the play table's the event's columns, so neither carries the other's.
+ *
+ * The rows are read again where they are used (`NOT MATERIALIZED`) rather than held: a season is three
+ * million rows, and DuckDB keeps a CTE read twice in memory, past the app's 1 GB on 2021-22's men's.
  */
-function rowsCtes(have: Have, season: number): string {
+function rowsCtes(have: Have, season: number, ten: boolean): string {
   const t = COLLEGE_PLAYS.pbp
   const s = Number(season)
   const c = (name: string, type = 'VARCHAR'): string => column(have, t, 'p', name, type)
@@ -93,19 +100,34 @@ function rowsCtes(have: Have, season: number): string {
     `CASE WHEN ${ncaa}.team_id IN (g.home_team_id, g.away_team_id) THEN ${ncaa}.team_id
           WHEN ${espn}.team_id IN (g.home_team_id, g.away_team_id) THEN ${espn}.team_id
           ELSE ${nameSide(`${names}.ids`)} END`
+  const person = (team: string, id: string, name: string): string =>
+    `{'team': ${team}, 'id': ${id}, 'name': ${name}}`
+  const people = ten
+    ? TEN.map((n) => person(n.startsWith('home') ? 'fh' : 'fa', `f_${n}_id`, `f_${n}`))
+    : [person('team_id', 'player_1_id', 'player_1'), person('team_id', 'player_2_id', 'player_2')]
   return `nb_g AS (
       SELECT game_id, ncaa_game_id, season, game_type, game_date, home_team_id, away_team_id
       FROM game WHERE season = ${s} AND ncaa_game_id IS NOT NULL
     ),
     nb_tn AS (${teamNamesSql(String(s))}),
-    nb_src AS (
+    nb_src AS NOT MATERIALIZED (
       SELECT p.rowid AS r, ${c('contest_id')} AS contest_id, ${c('home')} AS fh_name, ${c('away')} AS fa_name,
-             ${c('period', 'INTEGER')} AS period, ${c('clock')} AS clock_text,
-             ${c('home_score', 'INTEGER')} AS fh_score, ${c('away_score', 'INTEGER')} AS fa_score,
+             ${c('period', 'INTEGER')} AS period, ${c('game_seconds', 'INTEGER')} AS game_seconds,
              ${c('event_team')} AS event_team, ${c('poss_team')} AS poss_team,
-             ${c('poss_num', 'INTEGER')} AS poss_num,
+             ${c('home_ncaa_team_id', 'BIGINT')} AS fh_ncaa, ${c('home_espn_team_id', 'BIGINT')} AS fh_espn,
+             ${c('away_ncaa_team_id', 'BIGINT')} AS fa_ncaa, ${c('away_espn_team_id', 'BIGINT')} AS fa_espn,
+             ${
+               ten
+                 ? TEN.map((n) => `${c(n)} AS f_${n}, ${c(`${n}_player_id`)} AS f_${n}_id`).join(
+                     ',\n             '
+                   )
+                 : `${c('clock')} AS clock_text, ${c('poss_num', 'INTEGER')} AS poss_num,
+             ${c('home_score', 'INTEGER')} AS fh_score, ${c('away_score', 'INTEGER')} AS fa_score,
              coalesce(${c('event_type')}, '') AS event_type, ${c('event_result')} AS event_result,
-             coalesce(${c('event_description')}, '') AS description,
+             -- What the plays read of the description: an older row's result and value, a free throw's number.
+             nullif(regexp_extract(${c('event_description')}, ' (made|missed) ', 1), '') AS desc_result,
+             nullif(regexp_extract(${c('event_description')}, '([23])PTR', 1), '') AS ptr,
+             nullif(regexp_extract(${c('event_description')}, '(\\d+of\\d+)', 1), '') AS ft_of,
              ${c('shot_value', 'INTEGER')} AS shot_value,
              ${c('player_1')} AS player_1, ${c('player_1_id')} AS player_1_id,
              ${c('player_2')} AS player_2, ${c('player_2_id')} AS player_2_id,
@@ -114,10 +136,8 @@ function rowsCtes(have: Have, season: number): string {
              coalesce(${c('is_shooting_foul', 'BOOLEAN')}, false) AS shooting_foul,
              coalesce(${c('is_looseball_foul', 'BOOLEAN')}, false) AS looseball_foul,
              coalesce(${c('is_flagrant', 'BOOLEAN')}, false) AS flagrant,
-             ${c('timeout_type')} AS timeout_type,
-             ${c('home_ncaa_team_id', 'BIGINT')} AS fh_ncaa, ${c('home_espn_team_id', 'BIGINT')} AS fh_espn,
-             ${c('away_ncaa_team_id', 'BIGINT')} AS fa_ncaa, ${c('away_espn_team_id', 'BIGINT')} AS fa_espn,
-             ${TEN.map((n) => `${c(n)} AS f_${n}, ${c(`${n}_player_id`)} AS f_${n}_id`).join(',\n             ')}
+             ${c('timeout_type')} AS timeout_type`
+             }
       FROM ${t} p
       WHERE ${own}
     ),
@@ -141,20 +161,22 @@ function rowsCtes(have: Have, season: number): string {
       SELECT *, CASE WHEN fh = gh THEN ga ELSE gh END AS fa
       FROM (SELECT *, coalesce(h0, CASE a0 WHEN gh THEN ga WHEN ga THEN gh END, gh) AS fh FROM nb_side)
     ),
-    nb_rows AS (
-      SELECT x.*, d.game_id, d.game_type, d.game_date, d.gh AS home_team_id, d.ga AS away_team_id,
+    -- The play order on the narrow columns alone, so the sort holds a few bytes a row, not the whole row.
+    nb_seq AS (
+      SELECT r, row_number() OVER (PARTITION BY contest_id ORDER BY period, game_seconds, r)::INTEGER AS seq
+      FROM nb_src
+    ),
+    nb_rows AS NOT MATERIALIZED (
+      SELECT x.*, q.seq, d.game_id, d.game_type, d.game_date, d.gh AS home_team_id, d.ga AS away_team_id,
              d.fh, d.fa, d.fh <> d.gh AS flipped,
-             row_number() OVER (PARTITION BY x.contest_id ORDER BY x.r)::INTEGER AS seq,
              CASE x.event_team WHEN x.fh_name THEN d.fh WHEN x.fa_name THEN d.fa END AS team_id,
              CASE x.poss_team WHEN x.fh_name THEN d.fh WHEN x.fa_name THEN d.fa END AS poss_team_id
-      FROM nb_src x JOIN nb_placed d USING (contest_id)
+      FROM nb_src x JOIN nb_seq q USING (r) JOIN nb_placed d USING (contest_id)
     ),
     nb_people AS (
-      SELECT DISTINCT team, id, name FROM (
-        SELECT team_id AS team, player_1_id AS id, player_1 AS name FROM nb_rows
-        UNION ALL SELECT team_id, player_2_id, player_2 FROM nb_rows
-        ${TEN.map((n) => `UNION ALL SELECT ${n.startsWith('home') ? 'fh' : 'fa'}, f_${n}_id, f_${n} FROM nb_rows`).join('\n        ')}
-      ) WHERE name IS NOT NULL AND upper(name) <> 'TEAM'
+      SELECT DISTINCT u.team, u.id, u.name
+      FROM (SELECT unnest([${people.join(', ')}]) AS u FROM nb_rows)
+      WHERE u.name IS NOT NULL AND upper(u.name) <> 'TEAM'
     ),
     nb_who AS (
       SELECT k.team, k.id, k.name,
@@ -188,7 +210,7 @@ export function collegePlayLineupSql(have: Have, season: number): string {
   if (!ready(have)) return none(PLAY_LINEUP_COLUMNS)
   const slot = (side: 'home' | 'away', i: number): string =>
     `${side === 'home' ? 'h' : 'a'}${i}.player_id`
-  return `WITH ${rowsCtes(have, season)}
+  return `WITH ${rowsCtes(have, season, true)}
     SELECT ${Number(season)} AS season, r.game_id, r.seq, r.poss_team_id,
            ${SLOTS.map((i) => `CASE WHEN r.flipped THEN ${slot('away', i)} ELSE ${slot('home', i)} END AS home_${i}`).join(', ')},
            ${SLOTS.map((i) => `CASE WHEN r.flipped THEN ${slot('home', i)} ELSE ${slot('away', i)} END AS away_${i}`).join(', ')}
@@ -207,9 +229,11 @@ export function collegePlaysSql(have: Have, season: number): string {
   if (!ready(have)) return none(PLAY_COLUMNS)
   const shots = list(NCAA_SHOT_TYPES)
   const techs = list(NCAA_TECHNICAL_CLASSES)
-  return `WITH ${rowsCtes(have, season)},
+  return `WITH ${rowsCtes(have, season, false)},
     nb_read AS (
-      SELECT r.*, w1.player_id AS actor_id, w2.player_id AS second_id,
+      SELECT r.* EXCLUDE (fh_name, fa_name, fh_ncaa, fh_espn, fa_ncaa, fa_espn, event_team, poss_team,
+                          player_1, player_1_id, player_2, player_2_id),
+             w1.player_id AS actor_id, w2.player_id AS second_id,
              -- A type with the player's name or "null" before it, read without it.
              regexp_replace(r.event_type, '^(null|[A-Z][^ ,]*,[^ ]*) ', '') AS et,
              TRY_CAST(split_part(r.clock_text, ':', 1) AS DOUBLE) * 60
@@ -221,9 +245,8 @@ export function collegePlaysSql(have: Have, season: number): string {
     nb_typed AS (
       SELECT *,
              coalesce(nullif(event_result, ''), nullif(regexp_extract(et, '^(made|missed) ', 1), ''),
-                      nullif(regexp_extract(description, ' (made|missed) ', 1), '')) AS res,
-             regexp_replace(et, '^(made|missed) ', '') AS etype,
-             nullif(regexp_extract(description, '([23])PTR', 1), '') AS ptr
+                      desc_result) AS res,
+             regexp_replace(et, '^(made|missed) ', '') AS etype
       FROM nb_read
     ),
     nb_kind AS (
@@ -298,7 +321,7 @@ export function collegePlaysSql(have: Have, season: number): string {
                       WHEN shooting_foul THEN 'shooting' WHEN looseball_foul THEN 'looseball'
                       ELSE foul_class END,
                  CASE WHEN flagrant THEN 'flagrant' END)
-               WHEN 'free_throw' THEN nullif(regexp_extract(description, '(\\d+of\\d+)', 1), '')
+               WHEN 'free_throw' THEN ft_of
                WHEN 'timeout' THEN timeout_type
              END AS subtype
       FROM nb_joined

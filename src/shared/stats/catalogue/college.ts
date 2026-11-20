@@ -330,8 +330,8 @@ export function collegeCoverage(def: MetricDef, parts: readonly string[]): Metri
   for (const [columns, from] of LATER) {
     if (parts.some((p) => columns.includes(p))) firstSeason = Math.max(firstSeason, from)
   }
-  // Policy 4: the lineup file's missing time is stated wherever an on-court number is read.
-  if (def.family === 'on_court') {
+  // Policy 4: the lineup file's missing time is stated wherever an on-court number is read from it.
+  if (def.family === 'on_court' && LEAGUES.ncaam.onCourtFrom === 'lineups') {
     return { firstSeason, seasonNotes: [{ seasons: WINDOW, note: COLLEGE_LINEUP_COVERAGE }] }
   }
   return { firstSeason }

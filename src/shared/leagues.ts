@@ -927,15 +927,38 @@ const NCAA_FIRST_SEASON = 2022
 export const COLLEGE_LINEUP_COVERAGE =
   "stats.ncaa.org's lineup file covers about 97 % of minutes and is short by a minute or more in about four team-games of ten, so on-court totals run under the box score."
 
+/**
+ * Where both college leagues' on-court screens read who was on the floor (`League.onCourtFrom`): the one
+ * setting the switch is. The lineup file until the manager decides on T1302.7's comparison; `'plays'`
+ * reads the ten stats.ncaa.org's play by play names at each play, the lineup file kept beside it. The
+ * screens' note and the catalogue's words follow it.
+ */
+export const COLLEGE_ON_COURT_FROM: 'lineups' | 'plays' = 'lineups'
+
+/** What the on-court screens and the lineups tab say of the college leagues' source. */
+const COLLEGE_ON_COURT_NOTE =
+  COLLEGE_ON_COURT_FROM === 'lineups'
+    ? `Who was on the floor, and the counts while they were, are stats.ncaa.org's lineup file (SportsDataverse's release). ${COLLEGE_LINEUP_COVERAGE} Derived, not official.`
+    : "Who was on the floor is the ten stats.ncaa.org's play by play names at each play, and the counts while they were are its plays (SportsDataverse's release). Derived, not official."
+
 const COLLEGE_WORDS: League['catalogueWords'] = [
-  [
-    "SportsDataverse's lineups and possessions, from the NBA's play by play",
-    "stats.ncaa.org's lineup file (SportsDataverse's release)"
-  ],
-  [
-    'Derived from the play by play, not official.',
-    `Derived from stats.ncaa.org's lineup file, not official: it covers about 97 % of minutes and is short by a minute or more in about four team-games of ten, so on-court totals run under the box score.`
-  ],
+  ...((COLLEGE_ON_COURT_FROM === 'lineups'
+    ? [
+        [
+          "SportsDataverse's lineups and possessions, from the NBA's play by play",
+          "stats.ncaa.org's lineup file (SportsDataverse's release)"
+        ],
+        [
+          'Derived from the play by play, not official.',
+          `Derived from stats.ncaa.org's lineup file, not official: it covers about 97 % of minutes and is short by a minute or more in about four team-games of ten, so on-court totals run under the box score.`
+        ]
+      ]
+    : [
+        [
+          "SportsDataverse's lineups and possessions, from the NBA's play by play",
+          "stats.ncaa.org's play by play (SportsDataverse's release)"
+        ]
+      ]) as League['catalogueWords']),
   ["The NBA's box scores from 1996-97", "ESPN's box scores"],
   ["ESPN's box scores before them", "stats.ncaa.org's for the games ESPN has none of"],
   ["The NBA's box scores", "ESPN's box scores"],
@@ -1053,11 +1076,11 @@ const college = (
   // stats.ncaa.org's located shots, lineups, stints and possessions, ESPN's shots and officials (D40).
   plays: 'college',
   // Who was on the floor: stats.ncaa.org's lineup file, the play-credited units beside it (T1302.7).
-  onCourtFrom: 'lineups',
+  onCourtFrom: COLLEGE_ON_COURT_FROM,
   // The college lane is 12 feet wide, for men and women alike (the NBA's is 16).
   laneHalfWidth: 60,
   // Who was on the floor, from stats.ncaa.org's lineup file, and how much of the game it covers.
-  onCourtNote: `Who was on the floor, and the counts while they were, are stats.ncaa.org's lineup file (SportsDataverse's release). ${COLLEGE_LINEUP_COVERAGE} Derived, not official.`,
+  onCourtNote: COLLEGE_ON_COURT_NOTE,
   // The rule for both across D39's seasons (D38): "22 feet, 1¾ inches on the perimeter and 21 feet, 7⅞
   // inches in the corners" (the women's playing rules, `w_basketball_RB_PlayingRules.txt` line
   // 427-428; the men's rules history, line 1299-1300), FIBA's 6.75 and 6.6 metres. The court is drawn
