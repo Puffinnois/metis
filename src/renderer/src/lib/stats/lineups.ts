@@ -174,7 +174,10 @@ export function lineupNotes(
   const own = currentLeague().onCourtNote
   if (own) {
     notes.push(own)
-    if (mode === 'per100') notes.push('Per 100 divides by the possessions the lineup file counts.')
+    if (mode === 'per100') {
+      const source = currentLeague().onCourtFrom === 'plays' ? 'play by play' : 'lineup file'
+      notes.push(`Per 100 divides by the possessions the ${source} counts.`)
+    }
     return notes
   }
   if (scope.seasonType === 'regular') {

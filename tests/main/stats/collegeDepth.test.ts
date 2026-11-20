@@ -19,7 +19,13 @@ import { LEFT_OUT_REASON, leftOutGap } from '@main/stats/leftOut'
 import { readOfficialsSeason } from '@main/stats/officialsReads'
 import { readShotChart } from '@main/stats/shotReads'
 import { NCAA_STATS_RELEASES } from '@main/stats/sources'
-import { COLLEGE_LINEUP_COVERAGE, LEAGUES, threePointLineIn, type League } from '@shared/leagues'
+import {
+  COLLEGE_LINEUP_COVERAGE,
+  COLLEGE_PLAYS_COVERAGE,
+  LEAGUES,
+  threePointLineIn,
+  type League
+} from '@shared/leagues'
 import { EVERY_GAME_ONLY, METRICS, metricIn, playTablesNotBuilt } from '@shared/stats/catalogue'
 import { LINEUP_STORED } from '@shared/stats/lineups'
 import { openTestDb } from '../../fixtures/stats'
@@ -87,11 +93,11 @@ describe('the recipes', () => {
       'play_nba',
       'split_team',
       'split_player',
-      // The lineup file's units under the names the screens read, the plays' beside them.
+      // The lineup file's units beside the play-credited ones, which the screens read.
+      'unit_game_lineups',
       'unit_game',
-      'unit_game_plays',
+      'player_on_court_lineups',
       'player_on_court',
-      'player_on_court_plays',
       'pub_lineups',
       'play_player_game',
       'play_team_game'
@@ -108,9 +114,10 @@ describe('the recipes', () => {
     for (const db of [m, w]) {
       const r = await one(
         db,
-        `SELECT (SELECT count(*) FROM play_nba)::INTEGER = (SELECT count(*) FROM play_lineup)::INTEGER AS same,
+        `SELECT (SELECT count(*) FROM duckdb_tables() WHERE table_name = 'play_lineup')::INTEGER = 0 AS same,
                 (SELECT count(*) FROM play_nba)::INTEGER > 0 AS plays`
       )
+      // The ten on the floor are an intermediate, not kept (`collegePlaysPbp.test.ts`).
       expect(r).toEqual({ same: true, plays: true })
     }
   })
@@ -287,7 +294,7 @@ describe('units on the floor', () => {
         `SELECT g.ncaa_game_id AS contest_id, round(sum(u.secs), 6) AS secs,
                 sum(u.pts)::INTEGER AS pts, sum(u.opp_pts)::INTEGER AS opp_pts,
                 sum(u.fg3a)::INTEGER AS fg3a, sum(u.tov)::INTEGER AS tov
-         FROM unit_game u JOIN game g USING (game_id)
+         FROM unit_game_lineups u JOIN game g USING (game_id)
          GROUP BY g.ncaa_game_id, u.team_id ORDER BY 1`
       )
       expect(units.length).toBe(file.length)
@@ -303,7 +310,7 @@ describe('units on the floor', () => {
         db,
         `SELECT count(*)::INTEGER AS slots, count(*) FILTER (WHERE p > 0)::INTEGER AS espn,
                 count(*) FILTER (WHERE p < 0)::INTEGER AS fallback
-         FROM (SELECT unnest([p1, p2, p3, p4, p5]) AS p FROM unit_game) WHERE p IS NOT NULL`
+         FROM (SELECT unnest([p1, p2, p3, p4, p5]) AS p FROM unit_game_lineups) WHERE p IS NOT NULL`
       )
       // The fixtures hold the hard cases (Karaban, schools outside Division I): most, not all.
       expect(Number(r.espn) / Number(r.slots)).toBeGreaterThan(0.9)
@@ -326,9 +333,9 @@ describe('units on the floor', () => {
                                    AND o.on_pts + o.off_pts = t.pts
                                    AND o.on_opp_pts + o.off_opp_pts = t.opp_pts)::INTEGER AS whole,
                 count(*) FILTER (WHERE abs(o.minutes * 60 - o.on_secs) < 1e-6)::INTEGER AS minutes
-         FROM player_on_court o
+         FROM player_on_court_lineups o
          JOIN (SELECT game_id, team_id, sum(secs) AS secs, sum(pts) AS pts, sum(opp_pts) AS opp_pts
-               FROM unit_game GROUP BY 1, 2) t USING (game_id, team_id)`
+               FROM unit_game_lineups GROUP BY 1, 2) t USING (game_id, team_id)`
       )
       expect(Number(r.n)).toBeGreaterThan(0)
       expect(r.whole).toBe(r.n)
@@ -506,12 +513,13 @@ describe('reasons', () => {
     }
   })
 
-  it('state on every on-court metric what the lineup file covers (policy 4)', async () => {
+  it('state on every on-court metric what the play by play the screens read covers (policy 4)', async () => {
     for (const league of [men, women]) {
       const onc = metricIn(METRICS.get('onc_min')!, league)
-      expect(onc.description).toMatch(/covers about 97 % of minutes/)
-      expect(onc.sources).toEqual(["stats.ncaa.org's lineup file (SportsDataverse's release)"])
-      expect(onc.seasonNotes?.[0].note).toBe(COLLEGE_LINEUP_COVERAGE)
+      expect(onc.description).toMatch(/every minute of a game is covered/)
+      expect(onc.description).not.toMatch(/97 %/)
+      expect(onc.sources).toEqual(["stats.ncaa.org's play by play (SportsDataverse's release)"])
+      expect(onc.seasonNotes?.[0].note).toBe(COLLEGE_PLAYS_COVERAGE)
       expect(onc.seasonNotes?.[0].seasons).toContain(2022)
     }
     const r = await runQuery(
@@ -519,7 +527,9 @@ describe('reasons', () => {
       { entity: 'player', metrics: ['onc_min'], scope: { seasons: [2026] } },
       { league: men, currentSeason: 2027 }
     )
-    expect(r.notes.some((n) => n.includes(COLLEGE_LINEUP_COVERAGE))).toBe(true)
+    expect(r.notes.some((n) => n.includes(COLLEGE_PLAYS_COVERAGE))).toBe(true)
+    // The lineup file's own coverage stays with that source, said where it is read.
+    expect(COLLEGE_LINEUP_COVERAGE).toMatch(/covers about 97 % of minutes/)
     // The NBA's on-court metrics read as before.
     const nba = metricIn(METRICS.get('onc_min')!, LEAGUES.nba)
     expect(nba.seasonNotes).toBeUndefined()

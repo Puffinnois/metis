@@ -49,6 +49,13 @@ export interface PlayBuilder {
    * of one game skips the row groups of the others.
    */
   order?: string
+  /**
+   * Read only by the builders after it while the step runs, not by any screen (the college leagues' ten
+   * on the floor, `play_lineup`): made empty at the start of a build, filled for the seasons it rebuilds
+   * and dropped at the end, so it costs no space in the file, and its absence is never a reason to
+   * rebuild every season.
+   */
+  intermediate?: true
 }
 
 /** A season's INSERT for a builder, in its order when it has one. */
@@ -122,17 +129,20 @@ function collegePlayBuilders(league: League): PlayBuilder[] {
   ]
 }
 
-/** The college leagues' builders with the on-court screens on the lineup file, as both read today. */
+/** The college leagues' builders, the on-court screens on the source their entries name. */
 export const COLLEGE_PLAY_BUILDERS: readonly PlayBuilder[] = collegePlayBuilders(leagueOf('ncaam'))
-const COLLEGE_ON_PLAYS: readonly PlayBuilder[] = collegePlayBuilders({
+/** The same with the other source read, for a league entry that names it (and the tests). */
+const COLLEGE_OTHER: readonly PlayBuilder[] = collegePlayBuilders({
   ...leagueOf('ncaam'),
-  onCourtFrom: 'plays'
+  onCourtFrom: leagueOf('ncaam').onCourtFrom === 'plays' ? 'lineups' : 'plays'
 })
 
 /** The builders a league's plays step runs, in order. */
 export const playBuildersOf = (league?: League): readonly PlayBuilder[] => {
   if (!league || playsRecipe(league).builders !== 'college') return PLAY_BUILDERS
-  return league.onCourtFrom === 'plays' ? COLLEGE_ON_PLAYS : COLLEGE_PLAY_BUILDERS
+  return (league.onCourtFrom ?? 'lineups') === (leagueOf('ncaam').onCourtFrom ?? 'lineups')
+    ? COLLEGE_PLAY_BUILDERS
+    : COLLEGE_OTHER
 }
 
 /**
@@ -212,7 +222,7 @@ export async function seasonsToBuild(
   let all = (await playsStale(db, league)) || pending.includes(ALL)
   for (const b of playBuildersOf(league)) {
     if (all) break
-    all = !(await shaped(db, b))
+    if (!b.intermediate) all = !(await shaped(db, b))
   }
   return { all, seasons: all ? played : played.filter((s) => pending.includes(s)) }
 }
@@ -251,7 +261,7 @@ export async function buildPlays(db: StatsDb, league: League): Promise<number> {
     }
   }
   for (const b of builders) {
-    if (!(await shaped(db, b))) {
+    if (b.intermediate || !(await shaped(db, b))) {
       await db.exec(
         `CREATE OR REPLACE TABLE ${b.table} (${b.columns.map(([n, t]) => `${n} ${t}`).join(', ')})`
       )
@@ -274,8 +284,12 @@ export async function buildPlays(db: StatsDb, league: League): Promise<number> {
   if (all) {
     const kept = seasons.length > 0 ? seasons.join(', ') : 'NULL'
     for (const b of builders) {
+      if (b.intermediate) continue
       await db.exec(`DELETE FROM ${b.table} WHERE season IS NULL OR season NOT IN (${kept})`)
     }
+  }
+  for (const b of builders) {
+    if (b.intermediate) await db.exec(`DROP TABLE IF EXISTS ${b.table}`)
   }
   if (college) {
     await db.exec(playsViewSql(league))

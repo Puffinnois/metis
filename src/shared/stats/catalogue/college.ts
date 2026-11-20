@@ -1,4 +1,4 @@
-import { COLLEGE_LINEUP_COVERAGE, LEAGUES } from '../../leagues'
+import { COLLEGE_LINEUP_COVERAGE, COLLEGE_PLAYS_COVERAGE, LEAGUES } from '../../leagues'
 import { NCAA_PLAYER_BOX, NCAA_TEAM_BOX } from '../ncaaSplits'
 import { SHOT_BANDS, SHOT_TYPES, SHOT_ZONE_GROUPS, SHOT_ZONES } from '../shots'
 import type { MetricCoverage, MetricDef, MetricFamily } from '../types'
@@ -330,9 +330,11 @@ export function collegeCoverage(def: MetricDef, parts: readonly string[]): Metri
   for (const [columns, from] of LATER) {
     if (parts.some((p) => columns.includes(p))) firstSeason = Math.max(firstSeason, from)
   }
-  // Policy 4: the lineup file's missing time is stated wherever an on-court number is read from it.
-  if (def.family === 'on_court' && LEAGUES.ncaam.onCourtFrom === 'lineups') {
-    return { firstSeason, seasonNotes: [{ seasons: WINDOW, note: COLLEGE_LINEUP_COVERAGE }] }
+  // Policy 4: what the source the on-court numbers read covers is stated wherever one is read.
+  if (def.family === 'on_court') {
+    const note =
+      LEAGUES.ncaam.onCourtFrom === 'plays' ? COLLEGE_PLAYS_COVERAGE : COLLEGE_LINEUP_COVERAGE
+    return { firstSeason, seasonNotes: [{ seasons: WINDOW, note }] }
   }
   return { firstSeason }
 }

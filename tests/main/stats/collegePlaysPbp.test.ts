@@ -3,8 +3,9 @@ import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { sqlString, type StatsDb } from '@main/stats/db'
 import { buildDerived } from '@main/stats/derived/build'
-import { onCourtTables, PLAY_LINEUP } from '@main/stats/derived/collegePbp'
-import { buildPlays, playBuildersOf } from '@main/stats/derived/playBuilders'
+import { collegePlayLineupSql, onCourtTables, PLAY_LINEUP } from '@main/stats/derived/collegePbp'
+import { buildPlays, markPlaySeason, playBuildersOf } from '@main/stats/derived/playBuilders'
+import { inspect } from '@main/stats/derived/sql'
 import { buildPublished } from '@main/stats/derived/published'
 import { buildIdentity } from '@main/stats/identity'
 import { LEFT_OUT_REASON, leftOutGap } from '@main/stats/leftOut'
@@ -60,22 +61,40 @@ afterAll(async () => {
   await w.close()
 })
 
+/**
+ * The ten on the floor at each play, worked out again as the plays step does (`play_lineup` is an
+ * intermediate, dropped once the step has built), into a temporary table `ten`.
+ */
+async function ten(db: StatsDb): Promise<void> {
+  const have = await inspect(db)
+  const seasons = await db.all<{ season: number }>('SELECT DISTINCT season FROM play_nba')
+  await db.exec(
+    `CREATE OR REPLACE TEMP TABLE ten AS ${seasons
+      .map((s) => `SELECT * FROM (${collegePlayLineupSql(have, Number(s.season))})`)
+      .join(' UNION ALL ')}`
+  )
+}
+
 /** The file's rows of the games the fixtures hold, in file order, each with its game. */
 const FILE = `(SELECT p.rowid AS r, p.*, g.game_id FROM src_ncaa_pbp p JOIN game g ON g.ncaa_game_id = p.contest_id)`
 
 describe('the play table', () => {
   it('holds every row of the file, numbered in the play order within its game', async () => {
     for (const db of [m, w]) {
+      await ten(db)
       const r = await one(
         db,
         `SELECT (SELECT count(*) FROM ${FILE})::INTEGER AS file,
                 (SELECT count(*) FROM play_nba)::INTEGER AS plays,
-                (SELECT count(*) FROM ${PLAY_LINEUP})::INTEGER AS ten,
+                (SELECT count(*) FROM ten)::INTEGER AS ten,
+                (SELECT count(*) FROM duckdb_tables() WHERE table_name = '${PLAY_LINEUP}')::INTEGER AS kept,
                 (SELECT count(*) FROM (SELECT game_id FROM play_nba GROUP BY 1
                                        HAVING min(seq) <> 1 OR max(seq) <> count(*)))::INTEGER AS gaps`
       )
       expect(n(r.file)).toBeGreaterThan(5000)
       expect([r.plays, r.ten, r.gaps]).toEqual([r.file, r.file, 0])
+      // The ten are an intermediate: read while the step builds, not kept in the file.
+      expect(r.kept).toBe(0)
       // The n-th row of a game in the file is its play number n.
       const order = await one(
         db,
@@ -194,13 +213,15 @@ describe('the play table', () => {
     })
     const s = await one(swapped, last)
     expect(s.exact).toBe(s.games)
-    const homeFive = async (db: StatsDb): Promise<number[]> =>
-      (
+    const homeFive = async (db: StatsDb): Promise<number[]> => {
+      await ten(db)
+      return (
         await db.all<{ p: number }>(
-          `SELECT DISTINCT home_1 AS p FROM ${PLAY_LINEUP} l JOIN game g USING (game_id)
+          `SELECT DISTINCT home_1 AS p FROM ten l JOIN game g USING (game_id)
            WHERE g.ncaa_game_id = ${a} AND home_1 IS NOT NULL ORDER BY 1`
         )
       ).map((x) => Number(x.p))
+    }
     expect(await homeFive(swapped)).toEqual(await homeFive(m))
     await swapped.close()
   }, 120_000)
@@ -256,17 +277,21 @@ describe('the splits', () => {
 })
 
 describe('the units credited play by play', () => {
-  it('cover the whole game and every point, beside the lineup file’s under their own name', async () => {
+  it('cover the whole game and every point, the lineup file’s beside them under their own name', async () => {
     for (const [db, league] of [
       [m, men],
       [w, women]
     ] as const) {
+      // The screens read the play by play (the manager's decision at T1302.7).
+      expect(league.onCourtFrom).toBe('plays')
       const plays = onCourtTables(league, 'plays')
-      expect(plays).toEqual({ units: 'unit_game_plays', players: 'player_on_court_plays' })
+      expect(plays).toEqual({ units: 'unit_game', players: 'player_on_court' })
       expect(onCourtTables(league, 'lineups')).toEqual({
-        units: 'unit_game',
-        players: 'player_on_court'
+        units: 'unit_game_lineups',
+        players: 'player_on_court_lineups'
       })
+      const lineups = await one(db, 'SELECT count(*)::INTEGER AS n FROM unit_game_lineups')
+      expect(n(lineups.n)).toBeGreaterThan(0)
       const r = await one(
         db,
         `WITH u AS (SELECT game_id, team_id, sum(secs) AS secs, sum(pts) AS pts FROM ${plays.units} GROUP BY 1, 2),
@@ -283,31 +308,55 @@ describe('the units credited play by play', () => {
   })
 
   it('switch what the on-court screens read by one setting, keeping the other beside it', async () => {
-    const onPlays: League = { ...men, onCourtFrom: 'plays' }
-    expect(onCourtTables(onPlays, 'plays')).toEqual({
+    const onLineups: League = { ...men, onCourtFrom: 'lineups' }
+    expect(onCourtTables(onLineups, 'lineups')).toEqual({
       units: 'unit_game',
       players: 'player_on_court'
     })
-    expect(playBuildersOf(onPlays).map((b) => b.table)).toContain('unit_game_lineups')
-    // Rebuilt under the switch, `unit_game` holds the play-credited units, the lineup file's sit
+    expect(playBuildersOf(onLineups).map((b) => b.table)).toContain('unit_game_plays')
+    // Rebuilt under the switch, `unit_game` holds the lineup file's units, the play-credited ones sit
     // beside them, and the old side table is dropped.
-    const before = await one(m, 'SELECT sum(secs)::DOUBLE AS secs FROM unit_game_plays')
-    const lineups = await one(m, 'SELECT sum(secs)::DOUBLE AS secs FROM unit_game')
-    await m.exec("DELETE FROM derived_state WHERE name = 'plays'")
-    await buildPlays(m, onPlays)
+    const plays = await one(m, 'SELECT sum(secs)::DOUBLE AS secs FROM unit_game')
+    const lineups = await one(m, 'SELECT sum(secs)::DOUBLE AS secs FROM unit_game_lineups')
+    await buildPlays(m, onLineups)
     const after = await one(
       m,
-      `SELECT (SELECT sum(secs) FROM unit_game)::DOUBLE AS plays,
-              (SELECT sum(secs) FROM unit_game_lineups)::DOUBLE AS lineups,
-              (SELECT count(*) FROM duckdb_tables() WHERE table_name = 'unit_game_plays')::INTEGER AS old`
+      `SELECT (SELECT sum(secs) FROM unit_game)::DOUBLE AS lineups,
+              (SELECT sum(secs) FROM unit_game_plays)::DOUBLE AS plays,
+              (SELECT count(*) FROM duckdb_tables() WHERE table_name = 'unit_game_lineups')::INTEGER AS old`
     )
-    expect(after).toEqual({ plays: before.secs, lineups: lineups.secs, old: 0 })
-    // And back.
-    await m.exec("DELETE FROM derived_state WHERE name = 'plays'")
+    expect(after).toEqual({ lineups: lineups.secs, plays: plays.secs, old: 0 })
+    // And back, by the setting alone: the missing name rebuilds every season.
     await buildPlays(m, men)
-    expect((await one(m, 'SELECT sum(secs)::DOUBLE AS secs FROM unit_game')).secs).toBe(
-      lineups.secs
+    expect((await one(m, 'SELECT sum(secs)::DOUBLE AS secs FROM unit_game')).secs).toBe(plays.secs)
+  }, 120_000)
+
+  it('refresh one season to the same tables as a full build, the ten rebuilt for it alone', async () => {
+    const tables = playBuildersOf(men)
+      .filter((b) => !b.intermediate)
+      .map((b) => b.table)
+    // Every table's rows of every season, as one order-free sum per table.
+    const sums = async (): Promise<Record<string, string>> => {
+      const out: Record<string, string> = {}
+      for (const t of tables) {
+        const r = await one(
+          m,
+          `SELECT count(*)::VARCHAR || ':' || coalesce(sum(hash(x))::VARCHAR, '') AS h FROM ${t} x`
+        )
+        out[t] = String(r.h)
+      }
+      return out
+    }
+    const full = await sums()
+    const season = Number((await one(m, 'SELECT max(season) AS s FROM play_nba')).s)
+    await markPlaySeason(m, season)
+    await buildPlays(m, men)
+    expect(await sums()).toEqual(full)
+    const kept = await one(
+      m,
+      `SELECT count(*)::INTEGER AS n FROM duckdb_tables() WHERE table_name = '${PLAY_LINEUP}'`
     )
+    expect(kept.n).toBe(0)
   }, 120_000)
 })
 
@@ -383,15 +432,26 @@ describe('without stats.ncaa.org’s releases (D41)', () => {
         `SELECT (SELECT count(*) FROM play_nba)::INTEGER AS plays,
                 (SELECT count(*) FROM split_player)::INTEGER AS splits,
                 (SELECT count(*) FROM play_player_game)::INTEGER AS detail,
-                (SELECT count(*) FROM unit_game_plays)::INTEGER AS units`
+                (SELECT count(*) FROM unit_game)::INTEGER AS units,
+                (SELECT count(*) FROM unit_game_lineups)::INTEGER AS lineups`
       )
-      expect(r).toEqual({ plays: 0, splits: 0, detail: 0, units: 0 })
+      expect(r).toEqual({ plays: 0, splits: 0, detail: 0, units: 0, lineups: 0 })
       const gap = (id: string, split = false): string | null =>
         leftOutGap(metricIn(METRICS.get(id)!, league), split, NCAA_STATS_RELEASES, league)
       for (const id of ['pbp_ast2', 'pbp_fd', 'team_pbp_lead_changes']) {
         if (METRICS.has(id)) expect(gap(id), id).toBe(LEFT_OUT_REASON)
       }
       expect(gap('pts', true)).toBe(LEFT_OUT_REASON)
+      // Both on-court sources read stats.ncaa.org's files, so either one gives the reason.
+      for (const from of ['plays', 'lineups'] as const) {
+        const l: League = { ...league, onCourtFrom: from }
+        for (const id of ['onc_min', 'onc_pm']) {
+          if (!METRICS.has(id)) continue
+          expect(leftOutGap(metricIn(METRICS.get(id)!, l), false, NCAA_STATS_RELEASES, l), id).toBe(
+            LEFT_OUT_REASON
+          )
+        }
+      }
       expect(gap('pts')).toBeNull()
       await db.close()
     }

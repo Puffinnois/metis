@@ -125,22 +125,23 @@ describe('season types in the college leagues (D45)', () => {
     )
   })
 
-  it('says on screen what the lineup file covers, in place of the NBA’s notes (T1302.6, policy 4)', () => {
+  it('says on screen what the source the screens read covers, in place of the NBA’s notes (policy 4)', () => {
     const scope: StatsScope = { season: 2026, seasonType: 'regular', range: { kind: 'season' } }
     for (const id of ['ncaam', 'ncaaw'] as const) {
       setLeague(id)
       const note = LEAGUES[id].onCourtNote ?? ''
-      expect(note).toMatch(
-        /covers about 97 % of minutes and is short by a minute or more in about four team-games of ten/
-      )
+      // The play by play since T1302.7 (`COLLEGE_ON_COURT_FROM`), with its measured coverage.
+      expect(note).toMatch(/stats\.ncaa\.org's play by play/)
+      expect(note).toMatch(/every minute of a game is covered/)
+      expect(note).not.toMatch(/97 %/)
       expect(derivedNote()).toBe(note)
       expect(unitsNote()).toBe(
-        'Every unit of five distinct players the lineup file knows, from 2021-22.'
+        'Every unit of five distinct players the play by play names on the floor, from 2021-22.'
       )
       expect(lineupNotes(scope, null, 'raw')).toEqual([note])
       expect(lineupNotes(scope, null, 'per100')).toEqual([
         note,
-        'Per 100 divides by the possessions the lineup file counts.'
+        'Per 100 divides by the possessions the play by play counts.'
       ])
     }
     // The NBA's and the WNBA's notes as they were.

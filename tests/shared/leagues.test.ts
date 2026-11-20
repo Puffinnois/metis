@@ -249,7 +249,7 @@ describe('the college leagues (D38)', () => {
       // (T1302.7), the on-court screens on the lineup file until the manager decides; the lane is the
       // college's 12 feet.
       expect(buildsPlayTables(league)).toBe(true)
-      expect(league.onCourtFrom).toBe('lineups')
+      expect(league.onCourtFrom).toBe('plays')
       expect(laneHalfWidthOf(league)).toBe(60)
       // The families no source publishes, each with its reason (D44).
       expect(Object.keys(league.unpublished).sort()).toEqual(

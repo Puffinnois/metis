@@ -928,18 +928,27 @@ export const COLLEGE_LINEUP_COVERAGE =
   "stats.ncaa.org's lineup file covers about 97 % of minutes and is short by a minute or more in about four team-games of ten, so on-court totals run under the box score."
 
 /**
+ * What the on-court numbers credited play by play cover (T1302.7, measured on 2021-22 to 2025-26 of both
+ * leagues): every minute of every game, points on the floor equal to the score on 99.8 to 100 % of
+ * team-games, a player's on-court minutes within one of the box score's on 88 to 95 % of player-games.
+ */
+export const COLLEGE_PLAYS_COVERAGE =
+  "Credited play by play from the ten players stats.ncaa.org's play by play names at each play: every minute of a game is covered, points on the floor equal the score on 99.8 to 100 % of team-games, and a player's on-court minutes are within one of the box score's on 88 to 95 % of player-games."
+
+/**
  * Where both college leagues' on-court screens read who was on the floor (`League.onCourtFrom`): the one
- * setting the switch is. The lineup file until the manager decides on T1302.7's comparison; `'plays'`
- * reads the ten stats.ncaa.org's play by play names at each play, the lineup file kept beside it. The
+ * setting the switch is. The play by play, the manager's decision on T1302.7's comparison (players'
+ * on-court minutes within one of the box score's on 88 to 95 % of player-games against the lineup file's
+ * 39 to 42.5 %); the lineup file's units are kept beside them under their own name (policy 5). The
  * screens' note and the catalogue's words follow it.
  */
-export const COLLEGE_ON_COURT_FROM: 'lineups' | 'plays' = 'lineups'
+export const COLLEGE_ON_COURT_FROM = 'plays' as 'lineups' | 'plays'
 
 /** What the on-court screens and the lineups tab say of the college leagues' source. */
 const COLLEGE_ON_COURT_NOTE =
   COLLEGE_ON_COURT_FROM === 'lineups'
     ? `Who was on the floor, and the counts while they were, are stats.ncaa.org's lineup file (SportsDataverse's release). ${COLLEGE_LINEUP_COVERAGE} Derived, not official.`
-    : "Who was on the floor is the ten stats.ncaa.org's play by play names at each play, and the counts while they were are its plays (SportsDataverse's release). Derived, not official."
+    : `Who was on the floor, and the counts while they were, are stats.ncaa.org's play by play (SportsDataverse's release). ${COLLEGE_PLAYS_COVERAGE} Derived, not official.`
 
 const COLLEGE_WORDS: League['catalogueWords'] = [
   ...((COLLEGE_ON_COURT_FROM === 'lineups'
@@ -957,6 +966,10 @@ const COLLEGE_WORDS: League['catalogueWords'] = [
         [
           "SportsDataverse's lineups and possessions, from the NBA's play by play",
           "stats.ncaa.org's play by play (SportsDataverse's release)"
+        ],
+        [
+          'Derived from the play by play, not official.',
+          `Derived from stats.ncaa.org's play by play, not official. ${COLLEGE_PLAYS_COVERAGE}`
         ]
       ]) as League['catalogueWords']),
   ["The NBA's box scores from 1996-97", "ESPN's box scores"],
