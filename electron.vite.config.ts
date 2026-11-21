@@ -14,7 +14,9 @@ export default defineConfig({
         // The stats database runs in a worker thread, bundled beside the main entry.
         input: {
           index: resolve('src/main/index.ts'),
-          statsWorker: resolve('src/main/stats/worker.ts')
+          statsWorker: resolve('src/main/stats/worker.ts'),
+          // The links file has a worker of its own (D47).
+          linksWorker: resolve('src/main/stats/links/worker.ts')
         }
       }
     }

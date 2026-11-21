@@ -1,5 +1,5 @@
 import type { StatsFamily } from '@shared/stats/types'
-import { LOAD_TIERS, RELEASE_LABELS, seasonsOf, type SourceFile } from './sources'
+import { LOAD_TIERS, pairedLabel, RELEASE_LABELS, seasonsOf, type PairedSource, type SourceFile } from './sources'
 import { stepLogName } from './steps'
 
 export interface HeldFile {
@@ -74,4 +74,43 @@ export function summariseFamilies(
   return [...families.values()].sort(
     (a, b) => LOAD_TIERS.indexOf(a.tier) - LOAD_TIERS.indexOf(b.tier)
   )
+}
+
+/**
+ * The files a league brings of its paired league (D48), as families of the league's Data panel: named
+ * for the other league, with its seasons, and failed with the links step's error while that stands.
+ * `current` is the paired league's current season.
+ */
+export function summarisePairedFamilies(
+  sources: readonly PairedSource[],
+  current: number,
+  held: Map<string, HeldFile>,
+  attempts: Map<string, FileAttempt>,
+  linksError: string | null = null
+): StatsFamily[] {
+  return sources.map((source) => {
+    const [family] = summariseFamilies([source], current, held, attempts)
+    family.label = pairedLabel(source)
+    family.seasonsOf = source.of
+    if (linksError !== null && family.lastError === null) {
+      family.lastError = linksError
+      family.state = 'failed'
+    }
+    return family
+  })
+}
+
+/**
+ * A league's families with its paired ones placed last in their tier, so the Data panel lists them
+ * under the league that brings them, in the tier they load with.
+ */
+export function withPairedFamilies(own: StatsFamily[], paired: StatsFamily[]): StatsFamily[] {
+  const rank = (f: StatsFamily): number => LOAD_TIERS.indexOf(f.tier)
+  const out = [...own]
+  for (const family of paired) {
+    let at = 0
+    for (let i = 0; i < out.length; i++) if (rank(out[i]) <= rank(family)) at = i + 1
+    out.splice(at, 0, family)
+  }
+  return out
 }

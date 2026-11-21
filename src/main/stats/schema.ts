@@ -41,6 +41,9 @@ const BOOTSTRAP = [
   'CREATE TABLE IF NOT EXISTS stats_settings (key VARCHAR PRIMARY KEY, value VARCHAR)'
 ]
 
+/** The bookkeeping tables alone, for the links file, which keeps its paired files' state as a league does. */
+export const bookkeepingBootstrap = (): readonly string[] => BOOTSTRAP
+
 export const INTERRUPTED_MESSAGE = 'The app closed during this step'
 
 /**

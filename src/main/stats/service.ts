@@ -70,6 +70,8 @@ import { offlineStats } from './offline'
 import { bootstrapStatsDb } from './schema'
 import { LEFT_OUT_RELEASES, SOURCES_BY_LEAGUE } from './sources'
 import { refreshStats, STATS_DERIVED_STEP } from './sync'
+import type { LinkLinesFiles, LinkSideFiles } from './links/protocol'
+import { writeLinkedLines, writeLinkSide } from './links/side'
 
 /** The table the status line reads the latest game from. */
 const LATEST_GAMES_TABLE = 'src_espn_team_box'
@@ -167,6 +169,10 @@ export interface StatsService {
   assists(request: StatsAssistRequest): Promise<StatsAssistNetwork>
   /** One game's scoring in order and its flow. */
   gameFlow(game: string): Promise<StatsGameFlow>
+  /** The league's side of its pair, as Parquet in `dir`, for the links worker; null when none. */
+  linkSide(dir: string, tag: string): Promise<LinkSideFiles | null>
+  /** Metis's own season lines of the linked players named, as Parquet in `dir`. */
+  linkLines(ids: number[], dir: string, tag: string): Promise<LinkLinesFiles | null>
   /**
    * Stops a refresh now: aborts its downloads, interrupts its statement and starts no other step. A
    * process must not exit while DuckDB runs a statement (Electron aborts), so closing cancels first.
@@ -481,6 +487,9 @@ export async function openStatsService(
     shots: (request) => read((reader) => readShotChart(reader, request, league)),
     assists: (request) => read((reader) => readAssistNetwork(reader, request, league)),
     gameFlow: (game) => read((reader) => readGameFlow(reader, game, league)),
+    linkSide: (dir, tag) => read((reader) => writeLinkSide(reader, league, dir, tag)),
+    linkLines: (ids, dir, tag) =>
+      read((reader) => writeLinkedLines(reader, league, ids, dir, tag)),
     /** Write, read, a Parquet round trip, `read_json` and an ICU time zone, through the real file. */
     async selfTest() {
       await db.exec('CREATE OR REPLACE TABLE self_test AS SELECT range AS x FROM range(1000)')

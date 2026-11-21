@@ -40,6 +40,7 @@ import type {
   StatsSyncResult,
   StatsWorkerInit
 } from './protocol'
+import type { LinkLinesFiles, LinkSideFiles } from './links/protocol'
 
 /** The main process's handle on the stats worker. */
 export interface StatsClient {
@@ -79,6 +80,10 @@ export interface StatsClient {
   shots(request: StatsShotRequest): Promise<StatsShotChart>
   assists(request: StatsAssistRequest): Promise<StatsAssistNetwork>
   gameFlow(game: string): Promise<StatsGameFlow>
+  /** The league's side of its pair, written as Parquet for the links worker; null when it has none. */
+  linkSide(dir: string, tag: string): Promise<LinkSideFiles | null>
+  /** Metis's own season lines of the linked players named, written as Parquet. */
+  linkLines(ids: number[], dir: string, tag: string): Promise<LinkLinesFiles | null>
   /** Closes the database and ends the worker (after `CLOSE_TIMEOUT_MS` at most). */
   close(): Promise<void>
 }
@@ -178,6 +183,10 @@ export function startStatsWorker(
     shots: (shot) => request<StatsShotChart>((id) => ({ id, kind: 'shots', request: shot })),
     assists: (a) => request<StatsAssistNetwork>((id) => ({ id, kind: 'assists', request: a })),
     gameFlow: (game) => request<StatsGameFlow>((id) => ({ id, kind: 'gameFlow', game })),
+    linkSide: (dir, tag) =>
+      request<LinkSideFiles | null>((id) => ({ id, kind: 'linkSide', dir, tag })),
+    linkLines: (ids, dir, tag) =>
+      request<LinkLinesFiles | null>((id) => ({ id, kind: 'linkLines', ids, dir, tag })),
     async close() {
       if (!dead) {
         let timer: NodeJS.Timeout | undefined

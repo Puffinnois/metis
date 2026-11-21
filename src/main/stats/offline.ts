@@ -10,7 +10,10 @@ import { LEFT_OUT_RELEASES, SOURCES_BY_LEAGUE } from './sources'
  * What a screen reads: a league's worker less what starts, checks or stops it. A league with no worker
  * has no officials' season to give, which the screen reads as none.
  */
-export type StatsReads = Omit<StatsClient, 'refresh' | 'selfTest' | 'close' | 'officialsSeason'> & {
+export type StatsReads = Omit<
+  StatsClient,
+  'refresh' | 'selfTest' | 'close' | 'officialsSeason' | 'linkSide' | 'linkLines'
+> & {
   officialsSeason(season: number, gameTypes: GameType[]): Promise<StatsOfficialsSeason | null>
 }
 

@@ -842,6 +842,83 @@ export interface StatsFamily {
   fetchedAt: string | null
   /** The latest error still standing; a file that has since loaded clears it. */
   lastError: string | null
+  /**
+   * The league whose seasons the files hold, when not the panel's own: the paired league's files a
+   * league brings (D48). Absent: the panel's league.
+   */
+  seasonsOf?: LeagueId
+}
+
+/** How a player's college and professional careers were linked (D46). */
+export type StatsLinkMethod = 'id' | 'name+birth' | 'name+college'
+
+/** A professional draft line, as the league's draft table gives it. */
+export interface StatsDraftLine {
+  league: LeagueId
+  /** The draft's year: the class of 2024 was drafted after the 2023-24 college season. */
+  draftYear: number
+  round: number | null
+  roundPick: number | null
+  overallPick: number | null
+  team: string | null
+  /** The school or club the league names. */
+  organization: string | null
+  organizationType: string | null
+}
+
+/** One season of the other career: Metis's own line of a season type, or ESPN's season totals. */
+export interface StatsOtherSeason {
+  season: number
+  /** Metis's own lines: the season type. ESPN's totals: null, the source's label says what they count. */
+  gameType: GameType | null
+  /** The teams of the season, in the order played where Metis knows it. */
+  teams: string[]
+  games: number | null
+  starts: number | null
+  minutes: number | null
+  pts: number | null
+  reb: number | null
+  oreb: number | null
+  ast: number | null
+  stl: number | null
+  blk: number | null
+  tov: number | null
+  pf: number | null
+  fgm: number | null
+  fga: number | null
+  fg3m: number | null
+  fg3a: number | null
+  ftm: number | null
+  fta: number | null
+}
+
+/**
+ * A player's career in the other league of their pair (T1304): the link and its method, the draft
+ * line, the season rows with their source named, or the reason there is none.
+ */
+export interface StatsOtherCareer {
+  /** The other league of the pair; null when the league is in no pair. */
+  league: LeagueId | null
+  link: {
+    method: StatsLinkMethod
+    /** The player's id in the other league; null where only ESPN's lines name them. */
+    playerId: string | null
+    espnId: number | null
+    name: string
+  } | null
+  draft: StatsDraftLine | null
+  /**
+   * Where the rows come from: Metis's own lines, kept in the links file, or ESPN's season totals of the
+   * paired download, which count the regular season in a professional league and every game in a
+   * college one (`player-links.md`).
+   */
+  source: { kind: 'metis' | 'espn'; label: string } | null
+  seasons: StatsOtherSeason[]
+  /** Why there is no other career; null when there is a link. */
+  reason: {
+    kind: 'no-pair' | 'no-link' | 'drafted-abroad' | 'college-before-window'
+    text: string
+  } | null
 }
 
 /** What the Data panel shows. */
