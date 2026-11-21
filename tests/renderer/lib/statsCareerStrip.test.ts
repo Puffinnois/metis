@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import {
   careerStrip,
   otherLines,
@@ -10,13 +10,16 @@ import {
   type StripInput,
   type StripLine
 } from '@/lib/stats/careerStrip'
+import { setLeague } from '@/lib/stats/league'
+import { seasonScope } from '@/lib/stats/scope'
 import { LEAGUES } from '@shared/leagues'
 import type {
   StatsDraftLine,
   StatsOtherCareer,
   StatsOtherSeason,
   StatsResult,
-  StatsRow
+  StatsRow,
+  StatsSeason
 } from '@shared/stats/types'
 
 const season = (s: Partial<StatsOtherSeason> & { season: number }): StatsOtherSeason => ({
@@ -432,5 +435,73 @@ describe('the pick', () => {
       '33rd overall'
     )
     expect(pickWords({ ...FLAGG_DRAFT, round: null, roundPick: null, overallPick: null })).toBe('')
+  })
+})
+
+describe('the season a strip row opens on', () => {
+  afterEach(() => setLeague('nba'))
+  const held = (season: number, types: StatsSeason['types']): StatsSeason => ({
+    season,
+    firstDate: '2024-11-04',
+    lastDate: '2025-04-07',
+    types,
+    teams: []
+  })
+  const tournament = [
+    { type: 'regular' as const, games: 5000 },
+    { type: 'playoffs' as const, games: 67 }
+  ]
+
+  it('opens a college season on every game, what its strip rows count', () => {
+    setLeague('ncaam')
+    expect(seasonScope(held(2025, tournament))).toEqual({
+      season: 2025,
+      seasonType: 'counted',
+      range: { kind: 'season' }
+    })
+    // A season with only its regular season so far has nothing more to count.
+    expect(seasonScope(held(2027, [tournament[0]])).seasonType).toBe('regular')
+  })
+
+  it('opens a professional season on its regular season, the playoffs held or not', () => {
+    setLeague('wnba')
+    expect(seasonScope(held(2025, tournament)).seasonType).toBe('regular')
+  })
+})
+
+describe('a traded player’s season', () => {
+  it('shows the last team, as the career table does, and every team on hover', () => {
+    const view = careerStrip(
+      input({
+        league: LEAGUES.ncaam,
+        own: [line(2023, 'Indiana Hoosiers', 32, 13.5)],
+        career: career({
+          league: 'nba',
+          link: {
+            method: 'name+birth',
+            playerId: '1641720',
+            espnId: 4433626,
+            name: 'Jalen Hood-Schifino'
+          },
+          source: { kind: 'metis', label: "Metis's own season lines" },
+          seasons: [
+            season({
+              season: 2025,
+              gameType: 'regular',
+              teams: ['Los Angeles Lakers', 'Philadelphia 76ers'],
+              games: 15,
+              pts: 106
+            })
+          ]
+        }),
+        playerName: 'Jalen Hood-Schifino'
+      })
+    )
+    if (view.kind !== 'strip') throw new Error(view.kind)
+    const traded = view.rows.find((r) => r.season === '2024-25')
+    expect(traded?.team).toBe('Philadelphia 76ers')
+    expect(traded?.title).toBe(
+      'Open Jalen Hood-Schifino’s NBA page, 2024-25 (Los Angeles Lakers, Philadelphia 76ers)'
+    )
   })
 })

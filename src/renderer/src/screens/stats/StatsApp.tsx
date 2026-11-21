@@ -17,7 +17,7 @@ import {
   type LeaderboardOpen
 } from '@/lib/stats/leaderboard'
 import { defaultPlayer, railQuery, type PlayerTab } from '@/lib/stats/player'
-import { defaultScope, seasonOf, type StatsScope } from '@/lib/stats/scope'
+import { defaultScope, seasonOf, seasonScope, type StatsScope } from '@/lib/stats/scope'
 import { NAV_ITEMS, type StatsScreen } from '@/lib/stats/screens'
 import {
   createSessionStore,
@@ -43,7 +43,7 @@ import { StatsPlayer } from '@/screens/stats/StatsPlayer'
 import { StatsStandings } from '@/screens/stats/StatsStandings'
 import { StatsTeam } from '@/screens/stats/StatsTeam'
 import type { LeaderboardBoard, StatsStatus, StatsView } from '@shared/stats/types'
-import type { League } from '@shared/leagues'
+import type { League, LeagueId } from '@shared/leagues'
 import type { UpdateState } from '@shared/types'
 
 /**
@@ -67,6 +67,8 @@ interface StatsAppProps {
   onBack?: () => void
   /** The focus is open: the shell is built again for each league and must not open it twice. */
   onFocused?: () => void
+  /** A page of any league, switching to it first: a career strip's row of the other league. */
+  onOpenPage?: (location: NavLocation) => void
 }
 
 /**
@@ -97,7 +99,8 @@ export function StatsApp({
   onLocation,
   canGoBack = false,
   onBack,
-  onFocused
+  onFocused,
+  onOpenPage
 }: StatsAppProps): React.JSX.Element {
   // The shell is built for one league (App keys it by the league on screen), so all of this is that
   // league's, and comes back as it was left when the league does (`lib/stats/session.ts`).
@@ -126,18 +129,33 @@ export function StatsApp({
   const [compare, setCompare] = useState<CompareState>(kept.compare)
   const [trends, setTrends] = useState<TrendsState>(kept.trends)
   const [lastShown, setLastShown] = useState<ExploreSubject | null>(kept.lastShown)
+  // A season asked for with a page opened from another (a strip's row): applied once the league's
+  // seasons are read, so the type it falls back to is that season's own.
+  const [askedSeason, setAskedSeason] = useState<number | null>(null)
   if (focus && focus.nonce !== focused && focus.location.league === league) {
     setFocused(focus.nonce)
     setScreen(focus.location.screen)
     if (focus.location.player) setPlayer(focus.location.player.id)
     if (focus.location.team) setTeam(focus.location.team)
     if (focus.location.game) setGames({ date: null, game: focus.location.game })
+    if (focus.location.season !== undefined) setAskedSeason(focus.location.season)
   }
   useEffect(() => {
     if (focus && focus.nonce === focused) onFocused?.()
   }, [focus, focused, onFocused])
   const [chosen, setChosen] = useState<StatsScope | null>(kept.chosen)
   const scope = chosen ?? defaultScope(data.seasons, data.status)
+  if (askedSeason !== null && data.seasons.length > 0) {
+    setAskedSeason(null)
+    const asked = seasonOf(data.seasons, askedSeason)
+    if (asked) setChosen(seasonScope(asked))
+  }
+  // The Data panel, opened on one league's section (a strip's "Download … for the full profile").
+  const [dataLeague, setDataLeague] = useState<LeagueId | null>(null)
+  const openData = (other: LeagueId): void => {
+    setDataLeague(other)
+    setScreen('data')
+  }
   const [open, setOpen] = useState<LeaderboardOpen | null>(kept.open)
   const [views, setViews] = useState<StatsView[]>([])
   const [viewsError, setViewsError] = useState<string | null>(null)
@@ -316,7 +334,7 @@ export function StatsApp({
             </div>
           ) : screen === 'data' ? (
             // Every league's data, where a league is turned on: it opens whatever the league holds.
-            <StatsData />
+            <StatsData focus={dataLeague} onFocused={() => setDataLeague(null)} />
           ) : noData !== null ? (
             empty
           ) : !ready ? (
@@ -345,6 +363,8 @@ export function StatsApp({
                 onOpenLeaderboard={() => setScreen('players')}
                 onCompare={openCompare}
                 onTrend={(metric) => openTrends({ entity: 'player', id: shownPlayer }, metric)}
+                onOpenData={openData}
+                onOpenPage={onOpenPage}
               />
             ) : (
               <div className="py-20 text-center text-[13px] text-fg-3">

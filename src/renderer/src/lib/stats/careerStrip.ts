@@ -173,6 +173,7 @@ export interface StripRow {
   /** A season of the league on screen: what this page is about. */
   own: boolean
   season: string
+  /** The last team of the season, as the page's career table shows it; every team in `title`. */
   team: string
   /** A season's games; the draft's pick, spilling over the empty cells. */
   games: string
@@ -256,15 +257,16 @@ function seasonRow(
     leagueName: league.name,
     own,
     season,
-    team: line.teams.join(', '),
+    team: line.teams.at(-1) ?? '',
     games: line.games === null ? '—' : String(line.games),
     cells: STRIP_METRICS.map((id) =>
       fmtStat(line.values[id], byId.get(id) ?? FALLBACK[id], 'perGame')
     ),
     open,
-    title: open
-      ? `Open ${playerName}’s ${league.name} page, ${season}`
-      : `${league.name} ${season}${line.teams.length ? `, ${line.teams.join(', ')}` : ''}`
+    // Every team of a traded season, where the row shows only the last.
+    title: `${open ? `Open ${playerName}’s ${league.name} page, ${season}` : `${league.name} ${season}`}${
+      line.teams.length > 1 ? ` (${line.teams.join(', ')})` : ''
+    }`
   }
 }
 

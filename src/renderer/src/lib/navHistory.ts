@@ -14,6 +14,11 @@ export interface NavLocation {
   player: { id: string; position: string | null } | null
   /** The game open on Games. */
   game?: string | null
+  /**
+   * The season to show it in, where it is opened from another page: a strip row of the other league
+   * opens that player in the row's season. Back never sets it, so a scope stays as it was left.
+   */
+  season?: number
 }
 
 /** Pages kept; the oldest go first. */

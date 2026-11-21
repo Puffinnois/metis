@@ -45,15 +45,22 @@ export default function App(): React.JSX.Element {
     [open]
   )
 
+  // A page of any league: the league switches first, so its player, team or game is that league's
+  // (D35). Back uses it, and so does a career strip's row of the other league (T1304.3).
+  const openPage = useCallback(
+    (to: NavLocation) => {
+      if (to.league !== currentLeague().id) setLeague(to.league)
+      open(to)
+    },
+    [open]
+  )
+
   const history = useBackStack()
   const { back } = history
-  // Back to a page of the other league switches to it: its player, team or game is that league's.
   const goBack = useCallback(() => {
     const to = back()
-    if (!to) return
-    if (to.league !== currentLeague().id) setLeague(to.league)
-    open(to)
-  }, [back, open])
+    if (to) openPage(to)
+  }, [back, openPage])
 
   useEffect(() => {
     const onGesture = (e: KeyboardEvent | MouseEvent): void => {
@@ -90,6 +97,7 @@ export default function App(): React.JSX.Element {
           onLocation={history.report}
           canGoBack={history.canGoBack}
           onBack={goBack}
+          onOpenPage={openPage}
         />
       </SessionContext.Provider>
       <UpdateDialog

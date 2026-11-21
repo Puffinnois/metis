@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '@/lib/api'
 import { errorMessage } from '@/lib/format'
 import { useLeague } from '@/lib/stats/league'
-import type { LeagueId } from '@shared/leagues'
+import { pairedLeague, type LeagueId } from '@shared/leagues'
 import type { LineupGroup } from '@shared/stats/lineups'
 import type {
   StatsAssistRequest,
@@ -16,6 +16,7 @@ import type {
   StatsLineups,
   StatsMatchups,
   StatsMatchupScope,
+  StatsOtherCareer,
   StatsGameMatchups,
   StatsOfficialCareer,
   StatsOnCourtScope,
@@ -354,3 +355,41 @@ export const useCoaches = (
 /** A player's bio, draft and combines. */
 export const useProfile = (player: string, version: string | null): ReadState<StatsProfile> =>
   useRead(`${version}|${player}`, (league) => api.stats.profile(league, player))
+
+/**
+ * A player's career in the other league of their pair (T1304.3), read from the links file. Read again
+ * when either league of the pair changes: a download finishing, its links built after it, a league
+ * deleted. The last answer for the same player stays while the next is read, so the strip does not
+ * blink; another player's never stands in. Nothing to read for a league in no pair.
+ */
+export function useOtherCareer(player: string): ReadState<StatsOtherCareer> {
+  const league = useLeague().id
+  const other = pairedLeague(league)
+  const [changes, setChanges] = useState(0)
+  useEffect(() => {
+    if (!other) return
+    return api.stats.onChanged(
+      (changed) => (changed === league || changed === other) && setChanges((n) => n + 1)
+    )
+  }, [league, other])
+  const key = other ? `${league}|${player}` : null
+  const [done, setDone] = useState<{
+    key: string
+    value: StatsOtherCareer | null
+    error: string | null
+  } | null>(null)
+  useEffect(() => {
+    if (key === null) return
+    let cancelled = false
+    api.stats
+      .otherCareer(league, player)
+      .then((value) => !cancelled && setDone({ key, value, error: null }))
+      .catch((err) => !cancelled && setDone({ key, value: null, error: errorMessage(err) }))
+    return () => {
+      cancelled = true
+    }
+  }, [key, league, player, changes])
+  return done !== null && done.key === key
+    ? { value: done.value, error: done.error, loading: false }
+    : { value: null, error: null, loading: key !== null }
+}

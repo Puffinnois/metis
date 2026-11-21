@@ -1,4 +1,5 @@
 import { AssistNetwork } from '@/components/stats/AssistNetwork'
+import { CareerStrip } from '@/components/stats/CareerStrip'
 import { MetricHead } from '@/components/stats/MetricCard'
 import { ShotChart } from '@/components/stats/ShotChart'
 import { useScreenState } from '@/lib/stats/session'
@@ -100,6 +101,8 @@ import {
 import { cn } from '@/lib/utils'
 import { WithOrWithout } from './StatsOnCourt'
 import type { BoardMode, StatsMatchupPair, StatsPlayerInfo, StatsRow } from '@shared/stats/types'
+import type { LeagueId } from '@shared/leagues'
+import type { NavLocation } from '@/lib/navHistory'
 
 /** The dashboard is about one player: never another player's answers while their own load. */
 const FRESH = { keepLast: false }
@@ -114,6 +117,9 @@ interface TabProps {
   mode: BoardMode
   onOpenGame: (game: string) => void
   onOpenPlayer: (player: string) => void
+  /** The career strip's ways out: the Data panel on the other league, and that league's page. */
+  onOpenData?: (league: LeagueId) => void
+  onOpenPage?: (location: NavLocation) => void
 }
 
 /** Rail, header, and one set of tabs for every position. */
@@ -129,7 +135,9 @@ export function StatsPlayer({
   onOpenGame,
   onOpenLeaderboard,
   onCompare,
-  onTrend
+  onTrend,
+  onOpenData,
+  onOpenPage
 }: {
   data: StatsData
   scope: StatsScope
@@ -145,6 +153,8 @@ export function StatsPlayer({
   onCompare?: (subjects: ExploreSubject[]) => void
   /** This dashboard's player or team over their seasons in Trends, on a metric or the one shown. */
   onTrend?: (metric?: string) => void
+  onOpenData?: (league: LeagueId) => void
+  onOpenPage?: (location: NavLocation) => void
 }): React.JSX.Element {
   const {
     value: info,
@@ -262,6 +272,8 @@ export function StatsPlayer({
               mode={mode}
               onOpenGame={onOpenGame}
               onOpenPlayer={onPlayer}
+              onOpenData={onOpenData}
+              onOpenPage={onOpenPage}
             />
           </div>
         )}
@@ -621,7 +633,9 @@ function Overview({
   position,
   info,
   mode,
-  played
+  played,
+  onOpenData,
+  onOpenPage
 }: TabProps & { played: boolean }): React.JSX.Element {
   const q = useMemo(
     () => (played ? positionQuery(OVERVIEW_SECTION.metrics, position, scope, mode) : null),
@@ -695,7 +709,16 @@ function Overview({
           <Notes notes={result?.notes ?? []} />
         </>
       )}
-      <Career data={data} scope={scope} player={player} mode={mode} />
+      {/* The strip comes after the career table, once that is in, so neither moves the other. */}
+      <Career data={data} scope={scope} player={player} mode={mode}>
+        <CareerStrip
+          data={data}
+          player={player}
+          playerName={info?.name ?? 'This player'}
+          onOpenData={onOpenData}
+          onOpenPage={onOpenPage}
+        />
+      </Career>
     </div>
   )
 }
@@ -705,8 +728,12 @@ function Career({
   data,
   scope,
   player,
-  mode
-}: Pick<TabProps, 'data' | 'scope' | 'player' | 'mode'>): React.JSX.Element {
+  mode,
+  children
+}: Pick<TabProps, 'data' | 'scope' | 'player' | 'mode'> & {
+  /** Shown under the table once it is in: the career strip. */
+  children?: React.ReactNode
+}): React.JSX.Element {
   const seasons = useMemo(() => data.seasons.map((s) => s.season), [data.seasons])
   const queries = useMemo(
     () =>
@@ -757,34 +784,37 @@ function Career({
         )))
   ]
   return (
-    <section className="flex flex-col gap-2.5">
-      <SectionHead
-        title="Career by season"
-        note={`${typeLabel(scope.seasonType)} · their last team that season`}
-      />
-      {rows.length === 0 && (
-        <p className="m-0 text-[12.5px] text-fg-3">
-          No games in {typeLabel(scope.seasonType).toLowerCase()} in any season.
-        </p>
-      )}
-      <div className={cn('overflow-x-auto', rows.length === 0 && 'hidden')}>
-        <MiniTable
-          label="Career by season"
-          columns={`minmax(72px,1fr) 44px 40px ${head.map(() => 'minmax(52px,1fr)').join(' ')}`}
-          minWidth={1010}
-          head={['Season', 'Team', 'G', ...head]}
-          left={[1]}
-          rows={[
-            ...rows.map((r) => ({
-              key: r.key,
-              cells: cells(r),
-              ...(r.out ? { spill: true, title: r.outTitle } : {})
-            })),
-            ...(total ? [{ key: total.key, cells: cells(total), strong: true }] : [])
-          ]}
+    <>
+      <section className="flex flex-col gap-2.5">
+        <SectionHead
+          title="Career by season"
+          note={`${typeLabel(scope.seasonType)} · their last team that season`}
         />
-      </div>
-    </section>
+        {rows.length === 0 && (
+          <p className="m-0 text-[12.5px] text-fg-3">
+            No games in {typeLabel(scope.seasonType).toLowerCase()} in any season.
+          </p>
+        )}
+        <div className={cn('overflow-x-auto', rows.length === 0 && 'hidden')}>
+          <MiniTable
+            label="Career by season"
+            columns={`minmax(72px,1fr) 44px 40px ${head.map(() => 'minmax(52px,1fr)').join(' ')}`}
+            minWidth={1010}
+            head={['Season', 'Team', 'G', ...head]}
+            left={[1]}
+            rows={[
+              ...rows.map((r) => ({
+                key: r.key,
+                cells: cells(r),
+                ...(r.out ? { spill: true, title: r.outTitle } : {})
+              })),
+              ...(total ? [{ key: total.key, cells: cells(total), strong: true }] : [])
+            ]}
+          />
+        </div>
+      </section>
+      {children}
+    </>
   )
 }
 

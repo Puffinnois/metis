@@ -161,6 +161,20 @@ export function defaultScope(seasons: StatsSeason[], status: StatsStatus | null)
   return { season: latest, seasonType: every ? 'counted' : 'regular', range: { kind: 'season' } }
 }
 
+/**
+ * A season opened from another page (a career strip's row, T1304.3): whole, on the league's default
+ * type where the season has it, as `defaultScope` does for the latest season, else its regular season.
+ * A college season opens on every game, which is what the strip's college rows count.
+ */
+export function seasonScope(season: StatsSeason): StatsScope {
+  const every = currentLeague().defaultType === 'counted' && seasonTypes(season).includes('counted')
+  return {
+    season: season.season,
+    seasonType: every ? 'counted' : 'regular',
+    range: { kind: 'season' }
+  }
+}
+
 export const seasonOf = (seasons: StatsSeason[], season: number): StatsSeason | undefined =>
   seasons.find((s) => s.season === season)
 
