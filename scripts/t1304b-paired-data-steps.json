@@ -1,0 +1,56 @@
+[
+  {
+    "size": [1500, 950]
+  },
+  {
+    "wait": 9000
+  },
+  {
+    "eval": "window.sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nwindow.until = async (fn, ms = 20000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await fn()) return true; await sleep(250) } return false };\nwindow.nav = async (name) => { const b = [...document.querySelectorAll('nav button')].find((x) => x.textContent.trim() === name); if (!b) return 'NO NAV ' + name; b.click(); await sleep(2500); return 'nav ' + name };\nwindow.trigger = () => document.querySelector('button[aria-label^=\"League: \"]');\nwindow.league = () => trigger()?.getAttribute('aria-label')?.replace('League: ', '') ?? null;\nwindow.switchTo = async (name) => { const t = trigger(); if (!t) return 'NO MENU'; t.focus(); t.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); await until(() => document.querySelectorAll('[role=menuitemradio]').length > 0, 3000); const item = [...document.querySelectorAll('[role=menuitemradio]')].find((x) => x.textContent.startsWith(name)); if (!item) return 'NO ITEM ' + name; item.click(); await until(() => league() === name, 5000); await sleep(3000); return league() };\nwindow.openData = async () => { const b = [...document.querySelectorAll('nav button')].find((x) => x.title === 'See what is loaded'); if (!b) return 'NO STATUS'; b.click(); await until(() => document.querySelectorAll('section[aria-label] tbody tr').length > 20); await sleep(3000); return 'data open' };\nwindow.section = (name) => document.querySelector('section[aria-label=\"' + name + '\"]');\nwindow.familyRows = (name) => [...(section(name)?.querySelectorAll('tbody tr') ?? [])].map((r) => [...r.querySelectorAll('td')].map((c) => c.textContent.trim()));\nwindow.tierOf = (name, label) => { const s = section(name); if (!s) return null; let tier = null; for (const el of s.querySelectorAll('h3, h4, tbody tr, [class*=uppercase]')) { if (el.tagName !== 'TR' && el.textContent.trim().length < 40) tier = el.textContent.trim(); if (el.tagName === 'TR' && el.textContent.includes(label)) return tier } return null };\n'helpers ready'"
+  },
+  {
+    "eval": "(async () => { const leagueNow = league(); await nav('Players'); await sleep(1500); return 'league ' + leagueNow + ' / ' + document.querySelector('main h1')?.textContent })()"
+  },
+  {
+    "shot": "t1304b-01-nba-players"
+  },
+  {
+    "eval": "(async () => { const o = await openData(); const out = {}; for (const n of ['NBA', 'WNBA', 'NCAA Men', 'NCAA Women']) { const rows = familyRows(n); out[n] = { rows: rows.length, paired: rows.filter((r) => r[0].includes('for linked careers')), lastCore: tierOf(n, 'for linked careers') } } return JSON.stringify({ o, ...out }) })()"
+  },
+  {
+    "shot": "t1304b-02-data-top"
+  },
+  {
+    "eval": "(async () => { section('NBA')?.scrollIntoView(); await sleep(800); return 'NBA section' })()"
+  },
+  {
+    "shot": "t1304b-03-data-nba"
+  },
+  {
+    "eval": "(async () => { section('NCAA Men')?.scrollIntoView(); await sleep(800); return 'NCAA Men section' })()"
+  },
+  {
+    "shot": "t1304b-04-data-ncaam"
+  },
+  {
+    "eval": "(async () => { section('NCAA Women')?.scrollIntoView(); await sleep(800); return 'NCAA Women section' })()"
+  },
+  {
+    "shot": "t1304b-05-data-ncaaw"
+  },
+  {
+    "eval": "(async () => { const t0 = performance.now(); const a = await window.api.stats.otherCareer('nba', '1631094'); const t1 = performance.now(); const b = await window.api.stats.otherCareer('ncaam', '4432573'); const t2 = performance.now(); const c = await window.api.stats.otherCareer('nba', '1641705'); const t3 = performance.now(); return JSON.stringify({ banchero_nba: { ms: Math.round(t1 - t0), link: a.link, source: a.source, seasons: a.seasons.map((s) => [s.season, s.gameType, s.teams.join('/'), s.games, s.pts]), draft: a.draft }, banchero_ncaam: { ms: Math.round(t2 - t1), link: b.link, source: b.source, seasons: b.seasons.length }, wembanyama: { ms: Math.round(t3 - t2), reason: c.reason, draft: c.draft } }) })()"
+  },
+  {
+    "eval": "(async () => { const w = await switchTo('NCAA Men'); await nav('Players'); await sleep(2000); return 'league ' + w + ' / ' + document.querySelector('main h1')?.textContent })()"
+  },
+  {
+    "shot": "t1304b-06-ncaam-players"
+  },
+  {
+    "eval": "(async () => { await sleep(45000); const s = await Promise.all(['nba', 'wnba', 'ncaam', 'ncaaw'].map((l) => window.api.stats.status(l))); return JSON.stringify(s.map((x) => [x.available, x.busy, x.paused, x.updatedAt])) })()"
+  },
+  {
+    "eval": "(async () => { const w = await switchTo('NBA'); return 'back to ' + w })()"
+  }
+]
