@@ -21,18 +21,24 @@ window.rowsOf = (el) => [...(el?.querySelectorAll('[role=row]') ?? [])].map((r) 
 window.strip = () => { const s = stripEl(); if (!s) return null; return { head: s.querySelector('h2')?.parentElement?.textContent.trim(), rows: rowsOf(s.querySelector('[role=table]')), text: s.querySelector('p')?.textContent ?? null, notes: [...s.querySelectorAll(':scope > div')].filter((d) => d.className.includes('gap-1')).flatMap((d) => [...d.children].map((x) => x.textContent)), button: s.querySelector(':scope > button')?.textContent ?? null, opens: [...s.querySelectorAll('button[role=row]')].map((b) => b.title) } };
 window.career = () => rowsOf(careerTable());
 window.heading = () => document.querySelector('main h1')?.textContent ?? null;
-window.openPlayer = async (leagueName, season, name, rank = 'pts') => { const w = await switchTo(leagueName); await nav('Players'); await setSelect('Season', season); await setSelect('Rank by', rank); if (!(await searchRail(name))) return { w, error: 'NOT IN RAIL ' + name }; const t0 = performance.now(); railRow(name).click(); const last = name.split(' ').slice(-1)[0]; await until(() => (heading() ?? '').includes(last) && careerTable(), 20000); const careerMs = Math.round(performance.now() - t0); await until(() => stripEl(), 3000); const stripMs = stripEl() ? Math.round(performance.now() - t0) : null; await sleep(600); return { league: w, heading: heading(), careerMs, stripMs, strip: strip(), career: career() } };
+window.openPlayer = async (leagueName, season, name, rank = 'pts', team = null) => { const w = await switchTo(leagueName); await nav('Players'); await setSelect('Season', season); await setSelect('Rank by', rank); const teamSel = document.querySelector('select[title=Team]'); const teamOpt = team ? [...(teamSel?.options ?? [])].find((o) => o.textContent === team) : null; await setSelect('Team', teamOpt ? teamOpt.value : ''); if (!(await searchRail(name))) return { w, error: 'NOT IN RAIL ' + name }; const t0 = performance.now(); railRow(name).click(); const last = name.split(' ').slice(-1)[0]; await until(() => (heading() ?? '').includes(last), 20000); const before = box(); const hintFirst = hintEl() !== null; await until(() => (heading() ?? '').includes(last) && careerTable(), 20000); const careerMs = Math.round(performance.now() - t0); await until(() => stripEl(), 3000); const stripMs = stripEl() ? Math.round(performance.now() - t0) : null; await sleep(600); const after = box(); return { league: w, heading: heading(), careerMs, stripMs, hint: hintEl()?.textContent ?? null, header: { hintFirst, before, after, same: JSON.stringify(before) === JSON.stringify(after) }, strip: strip(), career: career() } };
 window.showStrip = async () => { const s = stripEl() ?? careerTable(); s?.scrollIntoView({ block: 'end' }); await sleep(500); return s ? 'shown' : 'nothing' };
 window.openRow = async (prefix) => { const b = [...(stripEl()?.querySelectorAll('button[role=row]') ?? [])].find((x) => x.textContent.startsWith(prefix)); if (!b) return 'NO ROW ' + prefix; const t0 = performance.now(); b.click(); await until(() => careerTable() && stripEl() && league() !== null, 20000); await sleep(1500); return { ms: Math.round(performance.now() - t0), league: league(), heading: heading(), season: document.querySelector('select[title=Season]')?.value, type: document.querySelector('select[title="Season type"]')?.value, strip: strip(), career: career() } };
 window.back = async () => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', altKey: true, bubbles: true })); await sleep(3000); await until(() => careerTable(), 15000); return { league: league(), heading: heading(), strip: strip() ? 'strip' : null } };
+window.box = () => { const h = document.querySelector('main h1'); const r = (e) => e ? [Math.round(e.getBoundingClientRect().top), Math.round(e.getBoundingClientRect().height)] : null; return { line: r(h?.previousElementSibling), h1: r(h), facts: r(h?.nextElementSibling), tabs: r(document.querySelector('main [role=tablist]')) } };
+window.hintEl = () => [...(document.querySelector('main h1')?.previousElementSibling?.querySelectorAll('button') ?? [])].find((b) => b.textContent.endsWith('↓')) ?? null;
+window.reasons = () => [...document.querySelectorAll('[data-metric] > span.col-span-2')].filter((s) => s.textContent.trim()).map((s) => ({ metric: s.parentElement.dataset.metric, text: s.textContent.slice(0, 48), cut: s.scrollWidth > s.clientWidth + 1, lines: Math.round(s.getBoundingClientRect().height / 15), row: Math.round(s.parentElement.getBoundingClientRect().height) }));
+window.showReasons = async () => { const r = document.querySelector('[data-metric=bpm]') ?? document.querySelector('[data-metric] > span.col-span-2')?.parentElement; r?.scrollIntoView({ block: 'center' }); await sleep(500); return r ? r.dataset.metric : 'none' };
 window.theme = (dark) => { document.documentElement.classList.toggle('dark', dark); return dark ? 'dark' : 'light' };
 'helpers ready'`
 
 const ev = (js) => ({ eval: js })
 const shot = (name) => ({ shot: name })
-const open = (league, season, name, rank = 'pts') =>
+// The NCAA rail fetches its first 1,000 rows, the qualified first: a player below the sample (Jayden
+// Quaintance on every game) is reached through their team.
+const open = (league, season, name, rank = 'pts', team = null) =>
   ev(
-    `(async () => JSON.stringify(await openPlayer(${JSON.stringify(league)}, ${season}, ${JSON.stringify(name)}, ${JSON.stringify(rank)})))()`
+    `(async () => JSON.stringify(await openPlayer(${JSON.stringify(league)}, ${season}, ${JSON.stringify(name)}, ${JSON.stringify(rank)}, ${JSON.stringify(team)})))()`
   )
 const show = ev('showStrip()')
 // A college page on every game, what the strip's college rows count, for the numbers check.
@@ -40,6 +46,19 @@ const everyGame = ev(
   `(async () => { await setSelect('Season type', 'counted'); await until(() => careerTable(), 15000); await sleep(800); return JSON.stringify({ type: document.querySelector('select[title="Season type"]')?.value, career: career(), strip: strip()?.rows }) })()`
 )
 
+const top = ev(
+  `(async () => { document.querySelector('main .overflow-auto')?.scrollTo(0, 0); for (const e of document.querySelectorAll('main *')) if (e.scrollTop) e.scrollTop = 0; await sleep(400); return 'top' })()`
+)
+// The header hint, from another tab: the Overview opens on the strip, which takes the focus.
+const useHint = ev(
+  `(async () => { const tab = [...document.querySelectorAll('[role=tab]')].find((t) => t.textContent === 'Scoring'); tab?.click(); await sleep(1500); const h = hintEl(); if (!h) return 'NO HINT'; const text = h.textContent; h.click(); await until(() => stripEl() && document.activeElement === stripEl(), 8000); await sleep(1200); const r = stripEl()?.getBoundingClientRect(); return JSON.stringify({ text, tab: document.querySelector('[role=tab][aria-selected=true]')?.textContent, focused: document.activeElement === stripEl(), stripTop: r ? Math.round(r.top) : null }) })()`
+)
+const reasonRows = (name) => [
+  ev(
+    '(async () => { const m = await showReasons(); return JSON.stringify({ shown: m, reasons: reasons() }) })()'
+  ),
+  shot(name)
+]
 const all = [
   { size: [1500, 950] },
   { wait: 9000 },
@@ -49,12 +68,17 @@ const all = [
     `(async () => { for (const l of ['nba', 'wnba', 'ncaam', 'ncaaw']) await window.api.stats.pause(l); await sleep(3000); return 'paused' })()`
   ),
   // A draftee with no professional game: the draft line on the college page.
-  open('NCAA Men', 2025, 'Jayden Quaintance', 'blk'),
+  open('NCAA Men', 2025, 'Jayden Quaintance', 'blk', 'ASU'),
   everyGame,
+  top,
+  shot('p1-11a-ncaam-quaintance-header'),
   show,
   shot('p1-11-ncaam-quaintance'),
   // Both leagues of both pairs downloaded.
   open('NBA', 2027, 'Cooper Flagg'),
+  top,
+  shot('p1-00-nba-flagg-header'),
+  ...reasonRows('p1-20-nba-flagg-reasons'),
   show,
   shot('p1-01-nba-flagg-light'),
   ev('theme(true)'),
@@ -81,13 +105,26 @@ const all = [
   ),
   show,
   shot('p1-04-ncaam-flagg'),
+  ...reasonRows('p1-21-ncaam-flagg-reasons'),
+  ev('theme(true)'),
+  { wait: 400 },
+  shot('p1-22-ncaam-flagg-reasons-dark'),
+  ev('theme(false)'),
   ev('(async () => JSON.stringify(await back()))()'),
   shot('p1-05-back-nba-flagg'),
+  useHint,
+  shot('p1-23-nba-flagg-hint-used'),
   // The WNBA with NCAA Women.
   open('WNBA', 2026, 'Paige Bueckers'),
+  ...reasonRows('p1-24-wnba-bueckers-reasons'),
   show,
   shot('p1-06-wnba-bueckers'),
   ev(`(async () => JSON.stringify(await openRow('NCAA Women')))()`),
+  ...reasonRows('p1-25-ncaaw-bueckers-reasons'),
+  ev('theme(true)'),
+  { wait: 400 },
+  shot('p1-26-ncaaw-bueckers-reasons-dark'),
+  ev('theme(false)'),
   show,
   shot('p1-07-ncaaw-bueckers'),
   ev('theme(true)'),
@@ -113,6 +150,8 @@ const all = [
   shot('p1-14-wnba-wilson'),
   // No link, no reason: nothing at all.
   open('NBA', 2027, 'LeBron James'),
+  top,
+  shot('p1-14b-nba-lebron-header'),
   show,
   shot('p1-15-nba-lebron'),
   open('NCAA Women', 2025, 'JuJu Watkins'),
@@ -142,6 +181,11 @@ const pro = [
   { size: [1500, 950] },
   { wait: 9000 },
   ev(HELPERS),
+  // A pause is kept in each league's file: a profile a drive left paused would never refresh, and so
+  // never build its links.
+  ev(
+    `(async () => { for (const l of ['nba', 'wnba']) await window.api.stats.resume(l); return 'resumed' })()`
+  ),
   linked('nba', '1642843'),
   linked('wnba', '1642784'),
   pause(['nba', 'wnba']),
@@ -192,7 +236,7 @@ const college = [
   linked('ncaam', '5041939'),
   linked('ncaaw', '4433730'),
   pause(['ncaam', 'ncaaw']),
-  open('NCAA Men', 2025, 'Jayden Quaintance', 'blk'),
+  open('NCAA Men', 2025, 'Jayden Quaintance', 'blk', 'ASU'),
   everyGame,
   show,
   shot('p3-03-ncaam-quaintance-espn'),

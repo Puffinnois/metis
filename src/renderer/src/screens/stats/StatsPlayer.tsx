@@ -633,6 +633,22 @@ function Header({
               </span>
             )}
             {tag && <StatusChip tag={tag} />}
+            {/* The way to the career strip, once the read finds a link: last on the line, with no
+                width of its own (basis 0), so it never wraps the line or moves what is on it; it takes
+                the room left and is cut, whole on hover, where there is too little. */}
+            {hint && (
+              <span className="flex min-w-0 flex-[1_1_0] items-center gap-2">
+                <span className="text-fg-3">·</span>
+                <button
+                  type="button"
+                  title={`${hint.text}. ${hint.title}`}
+                  onClick={onHint}
+                  className="min-w-0 cursor-pointer truncate text-left underline decoration-line underline-offset-[3px] hover:text-cobalt"
+                >
+                  {hint.text} ↓
+                </button>
+              </span>
+            )}
           </div>
           <h1 className="m-0 flex flex-col gap-0.5">
             {first && (
@@ -644,20 +660,6 @@ function Header({
           </h1>
           <span className="text-[12px] leading-[1.35] text-fg-3">
             {playerFacts(info).join(' · ')}
-            {/* Added at the end of the line once the read finds a link, so nothing before it moves. */}
-            {hint && (
-              <>
-                {' · '}
-                <button
-                  type="button"
-                  title={hint.title}
-                  onClick={onHint}
-                  className="cursor-pointer whitespace-nowrap text-fg-2 underline decoration-line underline-offset-[3px] hover:text-cobalt"
-                >
-                  {hint.text} ↓
-                </button>
-              </>
-            )}
           </span>
         </div>
       </div>
