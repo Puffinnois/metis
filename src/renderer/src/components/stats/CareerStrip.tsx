@@ -37,20 +37,23 @@ export function CareerStrip({
   const career = useOtherCareer(player)
   const downloads = useLeagueDownloads()
   const seasons = useMemo(() => data.seasons.map((s) => s.season), [data.seasons])
+  // The page's own seasons are asked for only once the read finds a link: most players have none,
+  // and their page then costs one read of the links file and no query of the league's own.
+  const linked = Boolean(career.value?.link)
   const q = useMemo(
-    () => (seasons.length ? stripQuery(player, seasons, league) : null),
-    [player, seasons, league]
+    () => (linked && seasons.length ? stripQuery(player, seasons, league) : null),
+    [linked, player, seasons, league]
   )
   const own = useStatsQuery(q, data.version, { keepLast: false })
   const view = useMemo(() => {
-    if (!career.value || !own.result || !downloads) return null
+    if (!career.value || !downloads || (linked && !own.result)) return null
     const other = career.value.league
     const download = other ? downloadOf(downloads, other) : undefined
     return careerStrip({
       league,
       playerName,
       own: ownLines(
-        own.result,
+        linked ? own.result : null,
         (season, code) =>
           seasonOf(data.seasons, season)?.teams.find((t) => t.code === code)?.name ?? null
       ),
@@ -59,7 +62,7 @@ export function CareerStrip({
       otherOn: download?.on ?? false,
       byId: data.byId
     })
-  }, [career.value, own.result, downloads, league, playerName, data.seasons, data.byId])
+  }, [career.value, linked, own.result, downloads, league, playerName, data.seasons, data.byId])
 
   // A read that fails leaves the page as it was: the strip is extra, never in the way.
   if (!view || view.kind === 'none') return null
