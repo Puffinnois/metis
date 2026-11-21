@@ -136,7 +136,10 @@ export function espnPlayersSql(table: string): string {
       min(season)::INTEGER AS first_season, max(season)::INTEGER AS last_season,
       list_sort(list_distinct(list(team_id::BIGINT) FILTER (WHERE team_id IS NOT NULL))) AS teams,
       list_sort(list_distinct(list(team_display_name) FILTER (WHERE team_display_name IS NOT NULL))) AS team_names
-    FROM ${sqlIdent(table)} WHERE athlete_id IS NOT NULL GROUP BY athlete_id`
+    FROM ${sqlIdent(table)}
+    -- one row a player-season: the file has a row a stat, 43 a player-season (2.4 million a college window)
+    WHERE athlete_id IS NOT NULL AND category = 'averages' AND stat_name = 'gamesPlayed'
+    GROUP BY athlete_id`
 }
 
 /** What the links worker holds of a pair, by table; a missing table reads as no rows. */
@@ -229,7 +232,9 @@ export function matchSql(pair: LeaguePair, t: PairTables): string {
   draft_only AS (
     SELECT d.pro_id, NULL::BIGINT AS espn, d.name, NULL::VARCHAR AS dob, NULL::BIGINT AS espn_college_id,
       NULL::INTEGER AS first_season, d.label AS draft_label, d.organization,
-      d.n IN (SELECT n FROM espn_raw WHERE espn NOT IN (SELECT espn FROM tie_once)) AS may_have_played
+      -- a nameless ESPN row (there is one) must not make every comparison unknown
+      coalesce(d.n IN (SELECT n FROM espn_raw WHERE n IS NOT NULL
+        AND espn NOT IN (SELECT espn FROM tie_once)), false) AS may_have_played
     FROM draft_raw d WHERE d.pro_id NOT IN (SELECT pro_id FROM tie_once)
   ),
   espn_pro AS (

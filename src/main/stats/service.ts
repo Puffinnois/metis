@@ -488,8 +488,7 @@ export async function openStatsService(
     assists: (request) => read((reader) => readAssistNetwork(reader, request, league)),
     gameFlow: (game) => read((reader) => readGameFlow(reader, game, league)),
     linkSide: (dir, tag) => read((reader) => writeLinkSide(reader, league, dir, tag)),
-    linkLines: (ids, dir, tag) =>
-      read((reader) => writeLinkedLines(reader, league, ids, dir, tag)),
+    linkLines: (ids, dir, tag) => read((reader) => writeLinkedLines(reader, league, ids, dir, tag)),
     /** Write, read, a Parquet round trip, `read_json` and an ICU time zone, through the real file. */
     async selfTest() {
       await db.exec('CREATE OR REPLACE TABLE self_test AS SELECT range AS x FROM range(1000)')

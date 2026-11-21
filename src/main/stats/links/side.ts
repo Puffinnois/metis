@@ -60,7 +60,8 @@ export async function writeLinkedLines(
 ): Promise<LinkLinesFiles | null> {
   if (!(await hasTable(db, 'player_season')) || !(await hasTable(db, 'team'))) return null
   // Ids are integers from the links file, so they are written into the statement as numbers.
-  const list = ids.length === 0 ? 'NULL' : ids.map((id) => String(Math.trunc(Number(id)))).join(', ')
+  const list =
+    ids.length === 0 ? 'NULL' : ids.map((id) => String(Math.trunc(Number(id)))).join(', ')
   const seasons = join(dir, `${league.id}-${tag}-seasons.parquet`)
   const teams = join(dir, `${league.id}-${tag}-teams.parquet`)
   await copy(

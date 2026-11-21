@@ -126,7 +126,13 @@ async function ncaamFile(): Promise<StatsDb> {
   await db.exec('CREATE TABLE team (team_id INTEGER, season INTEGER, name VARCHAR)')
   for (const c of NCAAM_PLAYERS) {
     await insertRows(db, 'player_season', [
-      { player_id: c.col_id, season: c.last_season, game_type: 'regular', team_id: null, games: 30 },
+      {
+        player_id: c.col_id,
+        season: c.last_season,
+        game_type: 'regular',
+        team_id: null,
+        games: 30
+      },
       {
         player_id: c.col_id,
         season: c.last_season,
@@ -238,7 +244,9 @@ describe('the links service', () => {
     const steps = await s.refreshPaired('nba', {})
     // NCAA Men's season stats from 2021-22 to the current season, 2026-27.
     expect(asked).toHaveLength(6)
-    expect(asked[0]).toContain('espn_mens_college_basketball_player_season_stats/player_season_stats_')
+    expect(asked[0]).toContain(
+      'espn_mens_college_basketball_player_season_stats/player_season_stats_'
+    )
     expect(steps.every((step) => step.status === 'ok')).toBe(true)
     const families = await s.pairedFamilies('nba')
     expect(families).toMatchObject([

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { StatsDb } from '@main/stats/db'
-import { readOtherCareer, ESPN_COLLEGE_LABEL, ESPN_PRO_LABEL, METIS_LABEL } from '@main/stats/links/read'
+import {
+  readOtherCareer,
+  ESPN_COLLEGE_LABEL,
+  ESPN_PRO_LABEL,
+  METIS_LABEL
+} from '@main/stats/links/read'
 import { matchSql } from '@main/stats/links/sql'
 import { pairTables } from '@main/stats/links/tables'
 import { LEAGUE_PAIRS, pairOf } from '@shared/leagues'
@@ -112,6 +117,22 @@ describe("D46's matcher", () => {
     })
   })
 
+  it('still links a draftee who has not played when an ESPN row of the other league has no name', async () => {
+    const db = await openLinksDb()
+    await fillSides(db)
+    // ESPN's WNBA season stats as NCAA Women brings them, with a nameless row (measured: one, 2026).
+    await db.exec(
+      `CREATE TABLE paired_wnba_espn_player_season AS ${espnSeasonStatsSql([
+        [201, 'Caitlin Clark', 2024, 5, 'Indiana Fever', 40, 769, 228, 337]
+      ])} UNION ALL SELECT 2026, 5349415, NULL, 5, 'Indiana Fever', 'averages', 'gamesPlayed', '1', 1`
+    )
+    await build(db)
+    expect((await links(db)).find((l) => l.pro_id === 8002)).toMatchObject({
+      college_id: 202,
+      method: 'name+college'
+    })
+  })
+
   it('gives the same rows whatever order the sides are in', async () => {
     const a = await links(await built(false))
     const b = await links(await built(true))
@@ -140,7 +161,9 @@ describe("D46's matcher", () => {
            `(${d.pro_id}, '${d.name}', ${d.label}, ${d.round}, ${d.round_pick}, ${d.overall_pick}, ${i},
              '', '${d.team}', ${d.organization ? `'${d.organization}'` : 'NULL'},
              ${d.organization_type ? `'${d.organization_type}'` : 'NULL'})`
-       ).join(', ')}) AS t(person_id, player_name, season, round_number, round_pick, overall_pick, team_id,
+       ).join(
+         ', '
+       )}) AS t(person_id, player_name, season, round_number, round_pick, overall_pick, team_id,
          team_city, team_name, organization, organization_type)`
     )
     const pair = pairOf('ncaam')!
@@ -162,7 +185,9 @@ describe("D46's matcher", () => {
     expect(all.find((l) => l.college_id === 5105797)).toBeUndefined()
     const career = await readOtherCareer(db, 'ncaam', '101')
     expect(career.source).toEqual({ kind: 'espn', label: ESPN_PRO_LABEL })
-    expect(career.seasons).toMatchObject([{ season: 2023, games: 72, pts: 1450, teams: ['Orlando Magic'] }])
+    expect(career.seasons).toMatchObject([
+      { season: 2023, games: 72, pts: 1450, teams: ['Orlando Magic'] }
+    ])
     expect(career.draft).toMatchObject({ draftYear: 2022, overallPick: 1, team: 'Orlando Magic' })
   })
 })
@@ -175,7 +200,9 @@ describe('the other career read', () => {
       (101, 2022, 'regular', 150, DATE '2022-03-05', 33, 33, 1100.5, 580, 260, 70, 100),
       (101, 2022, 'playoffs', NULL, DATE '2022-04-02', 6, 6, 190.0, 100, 50, 10, 20)
     ) AS t(player_id, season, game_type, team_id, last_date, games, starts, minutes, pts, reb, oreb, ast)`)
-    await db.exec(`CREATE TABLE kept_ncaam_team AS SELECT 150 AS team_id, 2022 AS season, 'Duke Blue Devils' AS name`)
+    await db.exec(
+      `CREATE TABLE kept_ncaam_team AS SELECT 150 AS team_id, 2022 AS season, 'Duke Blue Devils' AS name`
+    )
     const career = await readOtherCareer(db, 'nba', '9001')
     expect(career.league).toBe('ncaam')
     expect(career.link).toMatchObject({ method: 'id', playerId: '101', name: 'Paolo Banchero' })
@@ -204,7 +231,11 @@ describe('the other career read', () => {
   it('gives the draft line of a draftee who has not played, read from the college side', async () => {
     const career = await readOtherCareer(await built(), 'ncaam', '105')
     expect(career.link).toMatchObject({ method: 'name+college', playerId: '9004', espnId: null })
-    expect(career.draft).toMatchObject({ draftYear: 2025, overallPick: 15, organization: 'Georgetown' })
+    expect(career.draft).toMatchObject({
+      draftYear: 2025,
+      overallPick: 15,
+      organization: 'Georgetown'
+    })
     expect(career.seasons).toEqual([])
     expect(career.source).toBeNull()
   })

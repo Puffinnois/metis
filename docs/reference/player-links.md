@@ -269,12 +269,12 @@ The NBA's play-in is not in ESPN's line, nor are the WNBA's playoffs or Commissi
 
 **Per stat**, against the season types that match (professional: regular season, completed seasons; college: every counted game):
 
-| League     | Lines | Games | Starts | Points | Rebounds | Off. reb. | Assists | Steals | Blocks | Turnovers | Fouls | FGM | FGA | 3PM | FTM | FTA | Minutes a game within 0.05 |
-| ---------- | ----- | ----- | ------ | ------ | -------- | --------- | ------- | ------ | ------ | --------- | ----- | --- | --- | --- | --- | --- | -------------------------- |
+| League     | Lines | Games | Starts | Points | Rebounds | Off. reb. | Assists | Steals | Blocks | Turnovers | Fouls | FGM | FGA | 3PM | FTM | FTA | Minutes a game within 0.05   |
+| ---------- | ----- | ----- | ------ | ------ | -------- | --------- | ------- | ------ | ------ | --------- | ----- | --- | --- | --- | --- | --- | ---------------------------- |
 | NBA        | 651   | 651   | 651    | 651    | 649      | 651       | 651     | 651    | 651    | 649       | 651   | 651 | 650 | 651 | 651 | 651 | 656 of 829 (796 within 0.15) |
 | WNBA       | 271   | 271   | 271    | 271    | 271      | 271       | 271     | 270    | 271    | 269       | 271   | 271 | 271 | 271 | 271 | 271 | 176 of 271 (253 within 0.15) |
 | NCAA Men   | 834   | 834   | 816    | 833    | 833      | 833       | 831     | 833    | 832    | 833       | 833   | 833 | 833 | 833 | 833 | 833 | 794 of 834 (832 within 0.15) |
-| NCAA Women | 405   | 405   | 388    | 404    | 404      | 404       | 404     | 404    | 404    | 404       | 404   | 404 | 404 | 404 | 404 | 404 | 382 of 405                  |
+| NCAA Women | 405   | 405   | 388    | 404    | 404      | 404       | 404     | 404    | 404    | 404       | 404   | 404 | 404 | 404 | 404 | 404 | 382 of 405                   |
 
 The differences are one count: a rebound, a turnover or an attempt (Chet Holmgren's 614 rebounds in 2025-26 against Metis's 615; Jabari Smith Jr.'s 975 attempts against 974), and starts, where ESPN counts one or two more than its own box scores mark (Devin Carter, 33 against 31 in 2023-24; Ta'Niya Latson 29 against 27). Minutes a game differ by rounding: ESPN's average is of whole minutes, Metis's of seconds, up to half a minute apart (a WNBA player's 4.3 against 4.5 in four games). No player's line is missing on either side.
 

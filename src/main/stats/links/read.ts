@@ -169,7 +169,10 @@ async function proReason(
   const draft = await draftLine(db, pair, t, player, null)
   if (draft) {
     if (draft.organizationType === 'Other Team/Club') {
-      return { kind: 'drafted-abroad', text: `Drafted from ${draft.organization ?? 'a club'}, not a college.` }
+      return {
+        kind: 'drafted-abroad',
+        text: `Drafted from ${draft.organization ?? 'a club'}, not a college.`
+      }
     }
     if (draft.organizationType === 'College/University' && draft.draftYear < pair.collegeFrom) {
       return { kind: 'college-before-window', text: before }

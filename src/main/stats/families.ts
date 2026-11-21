@@ -1,5 +1,12 @@
 import type { StatsFamily } from '@shared/stats/types'
-import { LOAD_TIERS, pairedLabel, RELEASE_LABELS, seasonsOf, type PairedSource, type SourceFile } from './sources'
+import {
+  LOAD_TIERS,
+  pairedLabel,
+  RELEASE_LABELS,
+  seasonsOf,
+  type PairedSource,
+  type SourceFile
+} from './sources'
 import { stepLogName } from './steps'
 
 export interface HeldFile {
