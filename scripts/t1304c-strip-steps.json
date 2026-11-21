@@ -114,7 +114,7 @@
     "shot": "p1-05-back-nba-flagg"
   },
   {
-    "eval": "(async () => { const tab = [...document.querySelectorAll('[role=tab]')].find((t) => t.textContent === 'Scoring'); tab?.click(); await sleep(1500); const h = hintEl(); if (!h) return 'NO HINT'; const text = h.textContent; h.click(); await until(() => stripEl() && document.activeElement === stripEl(), 8000); await sleep(1200); const r = stripEl()?.getBoundingClientRect(); return JSON.stringify({ text, tab: document.querySelector('[role=tab][aria-selected=true]')?.textContent, focused: document.activeElement === stripEl(), stripTop: r ? Math.round(r.top) : null }) })()"
+    "eval": "(async () => { const tab = [...document.querySelectorAll('[role=tab]')].find((t) => t.textContent === 'Scoring'); tab?.click(); await sleep(1500); const h = hintEl(); if (!h) return 'NO HINT'; const text = h.textContent; h.click(); await until(() => stripEl() && document.activeElement === stripEl(), 8000); await sleep(1200); const r = stripEl()?.getBoundingClientRect(); return JSON.stringify({ text, tab: document.querySelector('[role=tab][aria-selected=true]')?.textContent, focused: document.activeElement === stripEl(), stripTop: r ? Math.round(r.top) : null, navTop: Math.round(document.querySelector('nav')?.getBoundingClientRect().top ?? -1), pageScrolled: [document.documentElement.scrollTop, document.body.scrollTop, document.getElementById('root')?.scrollTop ?? 0] }) })()"
   },
   {
     "shot": "p1-23-nba-flagg-hint-used"

@@ -60,7 +60,7 @@
     "shot": "p2-04-wnba-bueckers-espn"
   },
   {
-    "eval": "(async () => { const b = stripEl()?.querySelector(':scope > button'); if (!b) return 'NO OFFER'; const text = b.textContent; b.click(); await until(() => document.activeElement?.textContent?.startsWith('Turn the'), 15000); await sleep(800); const s = document.querySelector('section[aria-label=\"NCAA Women\"]'); const r = s?.getBoundingClientRect(); return JSON.stringify({ offer: text, focused: document.activeElement?.textContent, sectionTop: r ? Math.round(r.top) : null }) })()"
+    "eval": "(async () => { const b = stripEl()?.querySelector(':scope > button'); if (!b) return 'NO OFFER'; const text = b.textContent; b.click(); await until(() => document.activeElement?.textContent?.startsWith('Turn the'), 15000); await sleep(800); const s = document.querySelector('section[aria-label=\"NCAA Women\"]'); const r = s?.getBoundingClientRect(); return JSON.stringify({ offer: text, focused: document.activeElement?.textContent, sectionTop: r ? Math.round(r.top) : null, navTop: Math.round(document.querySelector('nav')?.getBoundingClientRect().top ?? -1) }) })()"
   },
   {
     "shot": "offer-ncaa-women"
@@ -72,7 +72,7 @@
     "eval": "showStrip()"
   },
   {
-    "eval": "(async () => { const b = stripEl()?.querySelector(':scope > button'); if (!b) return 'NO OFFER'; const text = b.textContent; b.click(); await until(() => document.activeElement?.textContent?.startsWith('Turn the'), 15000); await sleep(800); const s = document.querySelector('section[aria-label=\"NCAA Men\"]'); const r = s?.getBoundingClientRect(); return JSON.stringify({ offer: text, focused: document.activeElement?.textContent, sectionTop: r ? Math.round(r.top) : null }) })()"
+    "eval": "(async () => { const b = stripEl()?.querySelector(':scope > button'); if (!b) return 'NO OFFER'; const text = b.textContent; b.click(); await until(() => document.activeElement?.textContent?.startsWith('Turn the'), 15000); await sleep(800); const s = document.querySelector('section[aria-label=\"NCAA Men\"]'); const r = s?.getBoundingClientRect(); return JSON.stringify({ offer: text, focused: document.activeElement?.textContent, sectionTop: r ? Math.round(r.top) : null, navTop: Math.round(document.querySelector('nav')?.getBoundingClientRect().top ?? -1) }) })()"
   },
   {
     "shot": "offer-ncaa-men"
