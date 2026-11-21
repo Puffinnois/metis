@@ -89,7 +89,7 @@ export async function markDerivedStale(db: StatsDb): Promise<void> {
 export async function buildDerived(db: StatsDb, league: League = NBA): Promise<number> {
   const recipe = derivedRecipe(league)
   const lines = await buildGameTables(db, await inspect(db), recipe, league)
-  await buildSeasonTables(db)
+  await buildSeasonTables(db, !!recipe.totalOrder)
   if (recipe.narrowCounts) await narrowCounts(db)
   await db.exec('INSERT OR REPLACE INTO derived_state VALUES (?, ?)', ['derived', recipe.version])
   return lines

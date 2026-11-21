@@ -159,7 +159,8 @@ export const COLLEGE_OFFICIALS_VIEW = 'official_espn'
 export const COLLEGE_PLAYS: PlaysRecipe = {
   // 3: each shot's team and shooter resolved once a season (`shot_key`), a team named by its name
   // where it has no id. 4: the play by play's own tables (T1302.7), the play-credited units beside.
-  version: 4,
+  // 5: every pick by a total order, so the same files always give the same rows (T1302.9).
+  version: 5,
   pbp: 'src_ncaa_pbp',
   shots: 'src_ncaa_shots',
   possessions: 'src_ncaa_possessions',

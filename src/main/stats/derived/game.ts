@@ -69,6 +69,11 @@ export interface DerivedRecipe {
    * build SQL are as they were.
    */
   narrowCounts?: boolean
+  /**
+   * Whether the shared season build breaks its ties by value (`buildSeasonTables`), so the same files
+   * always give the same rows. Unset for the NBA and the WNBA, whose build SQL is as it was.
+   */
+  totalOrder?: boolean
 }
 
 /** Every box-score count, as `player_game`, `team_game` and the season tables name them. */
@@ -241,7 +246,12 @@ const POSITION_GROUP = `CREATE OR REPLACE TEMP MACRO position_group(p) AS ${posi
  * did play, so counting them would give a real player empty games. `from` leaves out seasons whose
  * lines the league's ESPN files hold as zeros (the WNBA's 2002).
  */
-export function espnLines(have: Have, from?: number): string {
+/**
+ * ESPN's player lines. `total` breaks a tie between two lines of one player in one game on the whole
+ * row, so the same rows always give the same line (the college recipe, T1302.9); unset, the SQL is
+ * the NBA's and the WNBA's as it was.
+ */
+export function espnLines(have: Have, from?: number, total = false): string {
   const t = 'src_espn_player_box'
   const counts = BOX_COUNTS.map((c) => `${column(have, t, 'b', ESPN_NAMES[c])} AS ${c}`)
   return `CREATE OR REPLACE TEMP TABLE espn_lines AS
@@ -257,7 +267,7 @@ export function espnLines(have: Have, from?: number): string {
     JOIN player_ids i ON i.espn_athlete_id = b.athlete_id
     WHERE b.season = b.file_season AND b.points IS NOT NULL AND b.minutes IS NOT NULL
       AND NOT coalesce(b.did_not_play, false)${from === undefined ? '' : ` AND b.season >= ${from}`}
-    QUALIFY row_number() OVER (PARTITION BY g.game_id, i.player_id ORDER BY b.minutes DESC NULLS LAST) = 1`
+    QUALIFY row_number() OVER (PARTITION BY g.game_id, i.player_id ORDER BY b.minutes DESC NULLS LAST${total ? ', b::VARCHAR' : ''}) = 1`
 }
 
 /**

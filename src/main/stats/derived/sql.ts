@@ -9,6 +9,21 @@ export interface Have {
   columns: Map<string, Set<string>>
 }
 
+/**
+ * The most common non-NULL value of a group, the smallest on a tie, as SQL. DuckDB's `mode()` keeps
+ * whichever tied value it meets first, so two builds of the same rows could differ (T1302.9).
+ */
+export const modeSql = (x: string): string =>
+  `(list_sort(list_transform(map_entries(histogram(${x})), e -> {'n': -e.value, 'k': e.key}))[1]).k`
+
+/**
+ * Of several `ncaa_player_ids` rows for one stats.ncaa.org player or name, the player: an ESPN athlete
+ * before D28's negative key, then the row with more lines, then the larger id, so the same rows always
+ * give the same player (T1302.9). `p` is the table's alias with its dot; `of` the column taken.
+ */
+export const bestPlayerSql = (p = '', of = 'player_id'): string =>
+  `arg_max(${p}${of}, (${p}player_id > 0, ${p}lines, ${p}player_id${of === 'player_id' ? '' : `, ${p}${of}`}))`
+
 /** The tables and their columns. */
 export async function inspect(db: StatsDb): Promise<Have> {
   const rows = await db.all<{ table_name: string; column_name: string }>(

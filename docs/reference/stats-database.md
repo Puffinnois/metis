@@ -278,6 +278,10 @@ Built by `src/main/stats/derived/playBuilders.ts` from the SQL in `plays.ts` and
 - **Halves before 2006:** a split's `halves` pieces (`src/shared/stats/splits.ts`) in a season of two periods; no quarter reads then, the 4th quarter's rules read the second half.
 - **ESPN's fouls** under its WNBA spellings, mapped (`espnFoulNames`), so fouls drawn count from 2006 to 2017.
 
+### The same files give the same rows (Plan T1302.9)
+
+Every pick in the college recipes (`identityCollege.ts`, `gameCollege.ts`, `collegePlays.ts`, `collegePbp.ts`) is by a total order, never by the order DuckDB meets the rows: `min()` in place of `any_value()`; each `arg_max` and `arg_min` keyed on its value as well, last; `DISTINCT ON` and `row_number()` ordered last on the whole row's text; the most common value by `modeSql` (`histogram()`, the smallest on a tie) in place of `mode()`; a stats.ncaa.org name spelled two ways under one id read in the spelling on more lines, then the first in order; and of several `ncaa_player_ids` rows for one player or name, an ESPN athlete before D28's key, then more lines, then the larger id (`bestPlayerSql`). stats.ncaa.org's play by play is loaded in its file's order (`SourceFile.ordered`), since a play's place among those of the same second is its row's. Found by T1302.9's refresh with every etag cleared, which moved five players' spellings and the stats.ncaa.org columns of 101 player-games of sealed seasons. Checked by `tests/main/stats/collegeDeterminism.test.ts` (each league's fixtures built twice, the second time with every source table in another order, every table compared) and on both clean loads (two refreshes with every etag cleared, every table of the sealed seasons equal, decimal sums within 10⁻¹²). The NBA's and WNBA's recipes are unchanged.
+
 ### The college leagues' recipe (Plan T1302.6)
 
 `COLLEGE_PLAYS` in `derived/playsRecipe.ts`, one for the men and the women (D38), from the traps in [ncaa-data-sources.md](ncaa-data-sources.md) ("The depth, built"); a real refresh builds every season in about 30 seconds. Its checks per season are in [ncaa-agreement.md](ncaa-agreement.md), "The depth (T1302.6)".

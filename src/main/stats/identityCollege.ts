@@ -1,6 +1,7 @@
 import { regulationPeriodsSql, type League } from '@shared/leagues'
 import type { StatsDb } from './db'
 import type { IdentityRecipe } from './identity'
+import { modeSql } from './derived/sql'
 import { hasTables } from './identityShared'
 
 /**
@@ -32,8 +33,11 @@ import { hasTables } from './identityShared'
  * bio ESPN and stats.ncaa.org publish.
  */
 
-/** Bump when these tables change, so the next refresh builds them with nothing downloaded. */
-const VERSION = 1
+/**
+ * Bump when these tables change, so the next refresh builds them with nothing downloaded. 2: every
+ * pick by a total order, so the same files always give the same rows (T1302.9).
+ */
+const VERSION = 2
 
 /** ESPN's schedule, its player box scores and the groups file: the keys (D40) and conferences. */
 const NEEDS = ['src_espn_schedule', 'src_espn_player_box', 'src_team_groups']
@@ -96,7 +100,7 @@ const espnGamesSql = (league: League): string => `CREATE OR REPLACE TEMP TABLE c
     FROM rows_
     WHERE completed
        OR (status_type_name = 'STATUS_SCHEDULED' AND season = (SELECT max(season) FROM rows_))
-    ORDER BY game_id, completed DESC, season DESC
+    ORDER BY game_id, completed DESC, season DESC, rows_::VARCHAR
   )
   -- A type the league does not have (another league's event: none in the window) reads as the
   -- regular season rather than a type its screens do not offer.
@@ -126,11 +130,11 @@ const ncaaGamesSql = (have: boolean, xwalkGame: boolean, xwalkTeams: boolean): s
     ? `CREATE OR REPLACE TEMP TABLE college_ncaa AS
   WITH box AS (
     SELECT contest_id,
-           TRY_CAST(nullif(any_value(espn_game_id)::VARCHAR, '') AS BIGINT) AS own_espn,
-           TRY_CAST(any_value(home_espn_team_id) AS INTEGER) AS home_espn,
-           TRY_CAST(any_value(away_espn_team_id) AS INTEGER) AS away_espn,
-           TRY_CAST(any_value(home_ncaa_team_id) AS BIGINT) AS home_ncaa,
-           TRY_CAST(any_value(away_ncaa_team_id) AS BIGINT) AS away_ncaa,
+           TRY_CAST(nullif(min(espn_game_id)::VARCHAR, '') AS BIGINT) AS own_espn,
+           TRY_CAST(min(home_espn_team_id) AS INTEGER) AS home_espn,
+           TRY_CAST(min(away_espn_team_id) AS INTEGER) AS away_espn,
+           TRY_CAST(min(home_ncaa_team_id) AS BIGINT) AS home_ncaa,
+           TRY_CAST(min(away_ncaa_team_id) AS BIGINT) AS away_ncaa,
            max(mins) AS minutes
     FROM src_ncaa_team_box GROUP BY 1
   ), xg AS (
@@ -138,8 +142,8 @@ const ncaaGamesSql = (have: boolean, xwalkGame: boolean, xwalkTeams: boolean): s
       xwalkGame
         ? `SELECT ncaa_contest_id AS contest_id,
                   arg_max(TRY_CAST(espn_game_id AS BIGINT), (coalesce(match_confidence, 0), -TRY_CAST(espn_game_id AS BIGINT))) AS espn,
-                  arg_max(home_espn_team_id, (coalesce(match_confidence, 0), -TRY_CAST(espn_game_id AS BIGINT))) AS home_espn,
-                  arg_max(away_espn_team_id, (coalesce(match_confidence, 0), -TRY_CAST(espn_game_id AS BIGINT))) AS away_espn
+                  arg_max(home_espn_team_id, (coalesce(match_confidence, 0), -TRY_CAST(espn_game_id AS BIGINT), home_espn_team_id)) AS home_espn,
+                  arg_max(away_espn_team_id, (coalesce(match_confidence, 0), -TRY_CAST(espn_game_id AS BIGINT), away_espn_team_id)) AS away_espn
            FROM src_xwalk_game
            WHERE nullif(ncaa_contest_id, '') IS NOT NULL AND TRY_CAST(espn_game_id AS BIGINT) IS NOT NULL
            GROUP BY 1`
@@ -158,7 +162,7 @@ const ncaaGamesSql = (have: boolean, xwalkGame: boolean, xwalkTeams: boolean): s
          b.own_espn, x.espn AS xwalk_espn,
          coalesce(b.home_espn, x.home_espn, th.espn, ${OUTSIDE_KEY('s.home')}) AS home_id,
          coalesce(b.away_espn, x.away_espn, ta.espn, ${OUTSIDE_KEY('s.away')}) AS away_id
-  FROM (SELECT DISTINCT ON (contest_id) * FROM src_ncaa_schedule ORDER BY contest_id, file_season DESC) s
+  FROM (SELECT DISTINCT ON (contest_id) * FROM src_ncaa_schedule ORDER BY contest_id, file_season DESC, src_ncaa_schedule::VARCHAR) s
   LEFT JOIN box b USING (contest_id)
   LEFT JOIN xg x USING (contest_id)
   LEFT JOIN xt th ON th.season = s.season AND th.ncaa_team_id = b.home_ncaa
@@ -293,34 +297,34 @@ const teamSql = (
     SELECT season, away_id, CASE WHEN away_id < 0 THEN away_name END, NULL, game_date FROM college_filled
   ), named AS (
     SELECT season, team_id,
-           arg_max(name, game_date) FILTER (WHERE nullif(name, '') IS NOT NULL) AS name,
-           arg_max(code, game_date) FILTER (WHERE nullif(code, '') IS NOT NULL) AS code
+           arg_max(name, (game_date, name)) FILTER (WHERE nullif(name, '') IS NOT NULL) AS name,
+           arg_max(code, (game_date, code)) FILTER (WHERE nullif(code, '') IS NOT NULL) AS code
     FROM sides WHERE team_id IS NOT NULL GROUP BY 1, 2
   ), d1 AS (
-    SELECT season, TRY_CAST(team_id AS INTEGER) AS team_id, any_value(team_name) AS name,
-           any_value(conference_id) AS conference_id, any_value(division_id) AS division_id
+    SELECT season, TRY_CAST(team_id AS INTEGER) AS team_id, min(team_name) AS name,
+           min(conference_id) AS conference_id, min(division_id) AS division_id
     FROM src_team_groups WHERE TRY_CAST(team_id AS INTEGER) IS NOT NULL GROUP BY 1, 2
   ), teams AS (
     SELECT season, team_id FROM named UNION SELECT season, team_id FROM d1
   ), groups AS (
     ${
       // The groups' seasons file names each conference and division of a season.
-      `SELECT season, group_id, any_value(short_name) AS short_name FROM src_group_seasons GROUP BY 1, 2`
+      `SELECT season, group_id, min(short_name) AS short_name FROM src_group_seasons GROUP BY 1, 2`
     }
   ), ncaa AS (
     ${
       xwalkTeams
         ? `SELECT season, TRY_CAST(espn_team_id AS INTEGER) AS team_id, min(ncaa_team_id) AS ncaa_team_id,
                   min(ncaa_org_id) AS ncaa_org_id,
-                  any_value(espn_display_name) AS name, any_value(espn_abbreviation) AS code
+                  min(espn_display_name) AS name, min(espn_abbreviation) AS code
            FROM src_xwalk_ncaa_teams WHERE TRY_CAST(espn_team_id AS INTEGER) IS NOT NULL GROUP BY 1, 2`
         : 'SELECT NULL::INTEGER AS season, NULL::INTEGER AS team_id, NULL::BIGINT AS ncaa_team_id, NULL::BIGINT AS ncaa_org_id, NULL::VARCHAR AS name, NULL::VARCHAR AS code WHERE false'
     }
   ), xwalk AS (
     ${
       xwalkTeam
-        ? `SELECT season, espn_team_id AS team_id, any_value(espn_display_name) AS name,
-                  any_value(espn_abbreviation) AS code
+        ? `SELECT season, espn_team_id AS team_id, min(espn_display_name) AS name,
+                  min(espn_abbreviation) AS code
            FROM src_xwalk_team WHERE espn_team_id IS NOT NULL GROUP BY 1, 2`
         : 'SELECT NULL::INTEGER AS season, NULL::INTEGER AS team_id, NULL::VARCHAR AS name, NULL::VARCHAR AS code WHERE false'
     }
@@ -372,8 +376,8 @@ const gameSql = (league: League): string => {
     SELECT f.*,
            CASE WHEN (f.home_id < 0 OR f.away_id < 0) AND f.game_date < o.day THEN 'preseason'
                 WHEN f.game_date >= p.first THEN coalesce(
-             (SELECT any_value(e.game_type) FROM event_teams e WHERE e.season = f.season AND e.team_id = f.home_id),
-             (SELECT any_value(e.game_type) FROM event_teams e WHERE e.season = f.season AND e.team_id = f.away_id),
+             (SELECT min(e.game_type) FROM event_teams e WHERE e.season = f.season AND e.team_id = f.home_id),
+             (SELECT min(e.game_type) FROM event_teams e WHERE e.season = f.season AND e.team_id = f.away_id),
              'regular') ELSE 'regular' END AS game_type
     FROM college_filled f LEFT JOIN postseason p USING (season) LEFT JOIN opening o USING (season)
   )
@@ -444,12 +448,15 @@ const ncaaPlayerIdsSql = (have: boolean, xwalkPlayer: boolean): string =>
     SELECT *, coalesce('id:' || ncaa_player_id, 'name:' || coalesce(team_id::VARCHAR, ncaa_team) || ':' || player) AS who
     FROM lines
   ), players AS (
-    SELECT season, who, any_value(ncaa_player_id) AS ncaa_player_id, arg_max(team_id, contest_id) AS team_id,
-           arg_max(ncaa_team, contest_id) AS ncaa_team, any_value(player) AS player,
-           coalesce(arg_max(clean_name, contest_id) FILTER (WHERE clean_name IS NOT NULL),
+    SELECT season, who, min(ncaa_player_id) AS ncaa_player_id, arg_max(team_id, (contest_id, team_id)) AS team_id,
+           arg_max(ncaa_team, (contest_id, ncaa_team)) AS ncaa_team,
+           -- A stats.ncaa.org id can carry its name spelled two ways (JOSEPH.COLLINS and
+           -- COLLINS.JOSEPH): the spelling on more lines, then the first in order (T1302.9).
+           ${modeSql('player')} AS player,
+           coalesce(arg_max(clean_name, (contest_id, clean_name)) FILTER (WHERE clean_name IS NOT NULL),
                     -- A line with no id prints the name alone, as \`MAXIMO.ORTEGA\`.
                     array_to_string(list_transform(
-                      string_split(lower(trim(replace(any_value(player), '.', ' '))), ' '),
+                      string_split(lower(trim(replace(${modeSql('player')}, '.', ' '))), ' '),
                       w -> upper(w[1]) || w[2:]), ' ')) AS name,
            count(*) AS lines
     FROM keyed GROUP BY 1, 2
@@ -494,7 +501,7 @@ const ncaaPlayerIdsSql = (have: boolean, xwalkPlayer: boolean): string =>
     SELECT DISTINCT season, team_id, name_key(athlete_display_name) AS k, TRY_CAST(athlete_id AS BIGINT) AS espn_athlete_id
     FROM src_espn_player_box WHERE athlete_id IS NOT NULL
   ), unique_espn AS (
-    SELECT season, team_id, k, any_value(espn_athlete_id) AS espn_athlete_id FROM espn_names
+    SELECT season, team_id, k, min(espn_athlete_id) AS espn_athlete_id FROM espn_names
     GROUP BY 1, 2, 3 HAVING count(DISTINCT espn_athlete_id) = 1
   ), by_name AS (
     SELECT n.season, n.who, u.espn_athlete_id
@@ -530,21 +537,21 @@ const playerSql = (
 ): string => `CREATE OR REPLACE TABLE player AS
   WITH espn AS (
     SELECT TRY_CAST(athlete_id AS BIGINT) AS player_id,
-           arg_max(athlete_display_name, game_date) FILTER (WHERE nullif(athlete_display_name, '') IS NOT NULL) AS name,
+           arg_max(athlete_display_name, (game_date, athlete_display_name)) FILTER (WHERE nullif(athlete_display_name, '') IS NOT NULL) AS name,
            min(season) AS first_season, max(season) AS last_season
     FROM src_espn_player_box WHERE TRY_CAST(athlete_id AS BIGINT) IS NOT NULL GROUP BY 1
   ), ncaa AS (
-    SELECT player_id, arg_max(name, season) AS name, min(season) AS first_season, max(season) AS last_season,
+    SELECT player_id, arg_max(name, (season, name)) AS name, min(season) AS first_season, max(season) AS last_season,
            bool_and(method = 'ncaa only') AS ncaa_only
     FROM ncaa_player_ids GROUP BY 1
   ), core AS (
     ${
       core
         ? `SELECT TRY_CAST(athlete_id AS BIGINT) AS player_id,
-                  arg_max(position_abbreviation, season) FILTER (WHERE nullif(trim(position_abbreviation), '') IS NOT NULL) AS position,
-                  arg_max(display_height, season) FILTER (WHERE nullif(trim(display_height), '') IS NOT NULL) AS height,
-                  arg_max(display_weight, season) FILTER (WHERE nullif(trim(display_weight), '') IS NOT NULL) AS weight,
-                  arg_max(date_of_birth, season) FILTER (WHERE nullif(trim(date_of_birth), '') IS NOT NULL) AS birth_date
+                  arg_max(position_abbreviation, (season, position_abbreviation)) FILTER (WHERE nullif(trim(position_abbreviation), '') IS NOT NULL) AS position,
+                  arg_max(display_height, (season, display_height)) FILTER (WHERE nullif(trim(display_height), '') IS NOT NULL) AS height,
+                  arg_max(display_weight, (season, display_weight)) FILTER (WHERE nullif(trim(display_weight), '') IS NOT NULL) AS weight,
+                  arg_max(date_of_birth, (season, date_of_birth)) FILTER (WHERE nullif(trim(date_of_birth), '') IS NOT NULL) AS birth_date
            FROM src_espn_player_core GROUP BY 1`
         : 'SELECT NULL::BIGINT AS player_id, NULL::VARCHAR AS position, NULL::VARCHAR AS height, NULL::VARCHAR AS weight, NULL::VARCHAR AS birth_date WHERE false'
     }
@@ -552,10 +559,10 @@ const playerSql = (
     ${
       rosters
         ? `SELECT TRY_CAST(athlete_id AS BIGINT) AS player_id,
-                  arg_max(position_abbreviation, season) FILTER (WHERE nullif(trim(position_abbreviation), '') IS NOT NULL) AS position,
-                  arg_max(height, season) FILTER (WHERE nullif(trim(height), '') IS NOT NULL) AS height,
-                  arg_max(weight, season) FILTER (WHERE nullif(trim(weight), '') IS NOT NULL) AS weight,
-                  arg_max(date_of_birth, season) FILTER (WHERE nullif(trim(date_of_birth), '') IS NOT NULL) AS birth_date
+                  arg_max(position_abbreviation, (season, position_abbreviation)) FILTER (WHERE nullif(trim(position_abbreviation), '') IS NOT NULL) AS position,
+                  arg_max(height, (season, height)) FILTER (WHERE nullif(trim(height), '') IS NOT NULL) AS height,
+                  arg_max(weight, (season, weight)) FILTER (WHERE nullif(trim(weight), '') IS NOT NULL) AS weight,
+                  arg_max(date_of_birth, (season, date_of_birth)) FILTER (WHERE nullif(trim(date_of_birth), '') IS NOT NULL) AS birth_date
            FROM src_espn_rosters GROUP BY 1`
         : 'SELECT NULL::BIGINT AS player_id, NULL::VARCHAR AS position, NULL::VARCHAR AS height, NULL::VARCHAR AS weight, NULL::VARCHAR AS birth_date WHERE false'
     }
@@ -563,9 +570,9 @@ const playerSql = (
     ${
       ncaaRosters
         ? `SELECT i.player_id,
-                  arg_max(r.class, r.season) FILTER (WHERE nullif(trim(r.class), '') IS NOT NULL) AS class,
-                  arg_max(r.hometown, r.season) FILTER (WHERE nullif(trim(r.hometown), '') IS NOT NULL) AS hometown,
-                  arg_max(r.high_school, r.season) FILTER (WHERE nullif(trim(r.high_school), '') IS NOT NULL) AS high_school
+                  arg_max(r.class, (r.season, r.class)) FILTER (WHERE nullif(trim(r.class), '') IS NOT NULL) AS class,
+                  arg_max(r.hometown, (r.season, r.hometown)) FILTER (WHERE nullif(trim(r.hometown), '') IS NOT NULL) AS hometown,
+                  arg_max(r.high_school, (r.season, r.high_school)) FILTER (WHERE nullif(trim(r.high_school), '') IS NOT NULL) AS high_school
            FROM ncaa_player_ids i
            JOIN src_ncaa_team_rosters r ON r.season = i.season AND r.player_id::VARCHAR = i.ncaa_player_id
            GROUP BY 1`
