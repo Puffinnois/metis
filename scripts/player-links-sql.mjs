@@ -4,21 +4,21 @@
 // college file with a professional one. Nothing is written to the files: the stats worker is
 // not used, because it bootstraps tables when it opens a file.
 //
-// usage: node scripts/player-links-sql.mjs <file of statements> [--json]
+// usage: node scripts/player-links-sql.mjs <file of statements>... [--json]
 // The files: METIS_PRO=<folder with stats-nba.duckdb and stats-wnba.duckdb>,
 // METIS_NCAAM=<folder with stats-ncaam.duckdb>, METIS_NCAAW=<folder with stats-ncaaw.duckdb>.
 // They default to the clean loads of Stage 13 under ~/.cache/metis-dev.
 // Attached as `nba`, `wnba`, `ncaam`, `ncaaw`. A file that is missing is skipped.
 // Statements are separated by a line holding only `;`.
 import { existsSync, readFileSync } from 'node:fs'
-import { homedir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { DuckDBInstance } from '@duckdb/node-api'
 
 const args = process.argv.slice(2)
 const json = args.includes('--json')
-const sqlFile = args.find((a) => !a.startsWith('--'))
-if (!sqlFile) {
+const sqlFiles = args.filter((a) => !a.startsWith('--'))
+if (sqlFiles.length === 0) {
   console.error('usage: node scripts/player-links-sql.mjs <file of statements> [--json]')
   process.exit(2)
 }
@@ -43,7 +43,12 @@ for (const [name, path] of Object.entries(files)) {
 }
 
 const show = (v) => (typeof v === 'bigint' ? Number(v) : v)
-const statements = readFileSync(resolve(sqlFile), 'utf8')
+// Several files run in one session, in order, so a later file reads the temp tables an earlier one made.
+const statements = sqlFiles
+  .map((f) => readFileSync(resolve(f), 'utf8'))
+  .join('\n;\n')
+  // ${SCRATCH} is a folder for measuring what a file would weigh (METIS_SCRATCH, or the system's temp folder).
+  .replaceAll('${SCRATCH}', process.env.METIS_SCRATCH ?? tmpdir())
   .split(/^;\s*$/m)
   .map((s) => s.trim())
   .filter(Boolean)
@@ -55,11 +60,14 @@ for (const sql of statements) {
     const reader = await con.runAndReadAll(sql)
     const cols = reader.columnNames()
     const rows = reader.getRowsJS().map((r) => r.map(show))
-    if (json) for (const r of rows) console.log(JSON.stringify(Object.fromEntries(cols.map((c, i) => [c, r[i]]))))
+    if (json)
+      for (const r of rows)
+        console.log(JSON.stringify(Object.fromEntries(cols.map((c, i) => [c, r[i]]))))
     else {
       const cells = [cols, ...rows.map((r) => r.map((v) => (v === null ? '∅' : String(v))))]
       const widths = cols.map((_, i) => Math.min(40, Math.max(...cells.map((r) => r[i].length))))
-      for (const r of cells) console.log(r.map((v, i) => v.slice(0, 40).padEnd(widths[i])).join(' | '))
+      for (const r of cells)
+        console.log(r.map((v, i) => v.slice(0, 40).padEnd(widths[i])).join(' | '))
     }
     console.log(`(${rows.length} rows, ${Date.now() - at} ms)`)
   } catch (err) {
