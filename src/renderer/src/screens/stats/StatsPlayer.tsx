@@ -94,13 +94,22 @@ import {
   usePlayerInfo,
   useProfile,
   useSeasonGames,
+  useOtherCareer,
   useStatsQueries,
   useStatsQuery,
+  type ReadState,
   type StatsData
 } from '@/lib/stats/useStats'
+import { stripHint, type StripHint } from '@/lib/stats/careerStrip'
 import { cn } from '@/lib/utils'
 import { WithOrWithout } from './StatsOnCourt'
-import type { BoardMode, StatsMatchupPair, StatsPlayerInfo, StatsRow } from '@shared/stats/types'
+import type {
+  BoardMode,
+  StatsMatchupPair,
+  StatsOtherCareer,
+  StatsPlayerInfo,
+  StatsRow
+} from '@shared/stats/types'
 import type { LeagueId } from '@shared/leagues'
 import type { NavLocation } from '@/lib/navHistory'
 
@@ -120,6 +129,9 @@ interface TabProps {
   /** The career strip's ways out: the Data panel on the other league, and that league's page. */
   onOpenData?: (league: LeagueId) => void
   onOpenPage?: (location: NavLocation) => void
+  /** The page's read of the other career, and the header hint's ask to show the strip. */
+  career: ReadState<StatsOtherCareer>
+  seekStrip: number
 }
 
 /** Rail, header, and one set of tabs for every position. */
@@ -180,6 +192,15 @@ export function StatsPlayer({
   const self = useStatsQuery(sq, data.version, FRESH)
   const row = self.result?.rows.find((r) => r.id === player) ?? null
   const position = row?.position ?? info?.position ?? null
+  // The other career, read once the page's own header is in, so the page never waits on it; the
+  // header's hint and the strip share it.
+  const career = useOtherCareer(info && self.result ? player : null)
+  const hint = stripHint(career.value)
+  const [seekStrip, setSeekStrip] = useState(0)
+  const showStrip = (): void => {
+    onTab('overview')
+    setSeekStrip((n) => n + 1)
+  }
   useNoteContext('player', {
     label: info?.name ?? player,
     data: { id: player, name: info?.name ?? null, position, tab }
@@ -224,6 +245,8 @@ export function StatsPlayer({
               row={row}
               onOpenTeam={onOpenTeam}
               onCompare={onCompare && (() => onCompare([{ entity: 'player', id: player }]))}
+              hint={hint}
+              onHint={showStrip}
             />
             <TabRow label="Player dashboard" tabs={tabs} value={tab} onChange={onTab}>
               <div className="mb-2 flex shrink-0 items-center gap-4">
@@ -274,6 +297,8 @@ export function StatsPlayer({
               onOpenPlayer={onPlayer}
               onOpenData={onOpenData}
               onOpenPage={onOpenPage}
+              career={career}
+              seekStrip={seekStrip}
             />
           </div>
         )}
@@ -544,7 +569,9 @@ function Header({
   info,
   row,
   onOpenTeam,
-  onCompare
+  onCompare,
+  hint,
+  onHint
 }: {
   data: StatsData
   scope: StatsScope
@@ -553,6 +580,9 @@ function Header({
   row: StatsRow | null
   onOpenTeam: (team: string) => void
   onCompare?: () => void
+  /** The way to the career strip, at the end of the facts line; null for a player with no link. */
+  hint: StripHint | null
+  onHint: () => void
 }): React.JSX.Element {
   const { first, last } = splitName(info.name)
   const code = row?.team ?? info.team?.code ?? null
@@ -614,6 +644,20 @@ function Header({
           </h1>
           <span className="text-[12px] leading-[1.35] text-fg-3">
             {playerFacts(info).join(' · ')}
+            {/* Added at the end of the line once the read finds a link, so nothing before it moves. */}
+            {hint && (
+              <>
+                {' · '}
+                <button
+                  type="button"
+                  title={hint.title}
+                  onClick={onHint}
+                  className="cursor-pointer whitespace-nowrap text-fg-2 underline decoration-line underline-offset-[3px] hover:text-cobalt"
+                >
+                  {hint.text} ↓
+                </button>
+              </>
+            )}
           </span>
         </div>
       </div>
@@ -635,7 +679,9 @@ function Overview({
   mode,
   played,
   onOpenData,
-  onOpenPage
+  onOpenPage,
+  career,
+  seekStrip
 }: TabProps & { played: boolean }): React.JSX.Element {
   const q = useMemo(
     () => (played ? positionQuery(OVERVIEW_SECTION.metrics, position, scope, mode) : null),
@@ -715,6 +761,8 @@ function Overview({
           data={data}
           player={player}
           playerName={info?.name ?? 'This player'}
+          career={career}
+          seek={seekStrip}
           onOpenData={onOpenData}
           onOpenPage={onOpenPage}
         />

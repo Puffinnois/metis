@@ -362,7 +362,7 @@ export const useProfile = (player: string, version: string | null): ReadState<St
  * deleted. The last answer for the same player stays while the next is read, so the strip does not
  * blink; another player's never stands in. Nothing to read for a league in no pair.
  */
-export function useOtherCareer(player: string): ReadState<StatsOtherCareer> {
+export function useOtherCareer(player: string | null): ReadState<StatsOtherCareer> {
   const league = useLeague().id
   const other = pairedLeague(league)
   const [changes, setChanges] = useState(0)
@@ -372,14 +372,14 @@ export function useOtherCareer(player: string): ReadState<StatsOtherCareer> {
       (changed) => (changed === league || changed === other) && setChanges((n) => n + 1)
     )
   }, [league, other])
-  const key = other ? `${league}|${player}` : null
+  const key = other && player !== null ? `${league}|${player}` : null
   const [done, setDone] = useState<{
     key: string
     value: StatsOtherCareer | null
     error: string | null
   } | null>(null)
   useEffect(() => {
-    if (key === null) return
+    if (key === null || player === null) return
     let cancelled = false
     api.stats
       .otherCareer(league, player)

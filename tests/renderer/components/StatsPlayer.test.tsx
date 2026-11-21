@@ -274,6 +274,23 @@ describe('the career strip (T1304.3)', () => {
     expect(await screen.findByText('Career by season')).toBeTruthy()
     await waitFor(() => expect(api.stats.otherCareer).toHaveBeenCalledWith('nba', '1'))
     expect(screen.queryByText('College and pro career')).toBeNull()
+    // Nor a hint in the header.
+    expect(screen.queryByRole('button', { name: /↓$/ })).toBeNull()
+  })
+
+  it('carries a hint at the end of the header, which opens the Overview on the strip', async () => {
+    vi.mocked(api.stats.otherCareer).mockResolvedValue(LINKED)
+    await openDashboard()
+    const hint = await screen.findByRole('button', {
+      name: 'NCAA Men: Duke Blue Devils, 2024-25 ↓'
+    })
+    fireEvent.click(screen.getByRole('tab', { name: 'Scoring' }))
+    fireEvent.click(hint)
+    expect(screen.getByRole('tab', { name: 'Overview' }).getAttribute('aria-selected')).toBe('true')
+    const strip = await screen.findByRole('region', { name: 'College and pro career' })
+    await waitFor(() => expect(document.activeElement).toBe(strip))
+    // One read of the links file serves the hint and the strip.
+    expect(vi.mocked(api.stats.otherCareer).mock.calls.length).toBe(1)
   })
 
   it('reads one career under the career table, the source once, and one way to the rest', async () => {

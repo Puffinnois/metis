@@ -1,13 +1,14 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { MiniTable, Notes, SectionHead } from '@/components/stats/parts'
 import type { NavLocation } from '@/lib/navHistory'
 import { careerStrip, ownLines, stripQuery, type StripRow } from '@/lib/stats/careerStrip'
 import { downloadOf, leagueHolds, useLeagueDownloads } from '@/lib/stats/downloads'
 import { useLeague } from '@/lib/stats/league'
 import { seasonOf } from '@/lib/stats/scope'
-import { useOtherCareer, useStatsQuery, type StatsData } from '@/lib/stats/useStats'
+import { useStatsQuery, type ReadState, type StatsData } from '@/lib/stats/useStats'
 import { cn } from '@/lib/utils'
 import { leagueOf, type LeagueId } from '@shared/leagues'
+import type { StatsOtherCareer } from '@shared/stats/types'
 
 const HEAD = ['League', 'Season', 'Team', 'G', 'MIN', 'PTS', 'REB', 'AST', 'STL', 'BLK']
 const PCT_HEAD = ['FG%', '3P%', 'FT%']
@@ -22,19 +23,24 @@ export function CareerStrip({
   data,
   player,
   playerName,
+  career,
+  seek = 0,
   onOpenData,
   onOpenPage
 }: {
   data: StatsData
   player: string
   playerName: string
+  /** The page's one read of the links file, shared with the header's hint. */
+  career: ReadState<StatsOtherCareer>
+  /** Raised by the header's hint: the strip scrolls into view and takes the focus. */
+  seek?: number
   /** The Data panel, opened on the other league's section. */
   onOpenData?: (league: LeagueId) => void
   /** A page of the other league: that player's, in the row's season. */
   onOpenPage?: (location: NavLocation) => void
 }): React.JSX.Element | null {
   const league = useLeague()
-  const career = useOtherCareer(player)
   const downloads = useLeagueDownloads()
   const seasons = useMemo(() => data.seasons.map((s) => s.season), [data.seasons])
   // The page's own seasons are asked for only once the read finds a link: most players have none,
@@ -64,11 +70,27 @@ export function CareerStrip({
     })
   }, [career.value, linked, own.result, downloads, league, playerName, data.seasons, data.byId])
 
+  // The hint asked for the strip: scrolled to once it is drawn, and only once per ask.
+  const section = useRef<HTMLElement>(null)
+  const sought = useRef(0)
+  const drawn = view !== null && view.kind !== 'none'
+  useEffect(() => {
+    if (!drawn || seek === 0 || seek === sought.current) return
+    sought.current = seek
+    section.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+    section.current?.focus({ preventScroll: true })
+  }, [drawn, seek])
+
   // A read that fails leaves the page as it was: the strip is extra, never in the way.
   if (!view || view.kind === 'none') return null
   if (view.kind === 'reason') {
     return (
-      <section aria-label={view.title} className="flex flex-col gap-2.5">
+      <section
+        ref={section}
+        tabIndex={-1}
+        aria-label={view.title}
+        className="flex scroll-mt-4 flex-col gap-2.5 outline-none"
+      >
         <SectionHead title={view.title} />
         <p className="m-0 text-[12.5px] text-fg-3">{view.text}</p>
       </section>
@@ -76,7 +98,12 @@ export function CareerStrip({
   }
   const action = view.action
   return (
-    <section aria-label={view.title} className="flex flex-col gap-2.5">
+    <section
+      ref={section}
+      tabIndex={-1}
+      aria-label={view.title}
+      className="flex scroll-mt-4 flex-col gap-2.5 outline-none"
+    >
       <SectionHead title={view.title} note={view.note} />
       <div className="overflow-x-auto">
         <MiniTable

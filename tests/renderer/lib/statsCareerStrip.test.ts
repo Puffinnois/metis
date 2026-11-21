@@ -6,6 +6,7 @@ import {
   pickWords,
   reasonText,
   stripGameTypes,
+  stripHint,
   stripQuery,
   teamCell,
   type StripInput,
@@ -549,5 +550,52 @@ describe('the team cell', () => {
     const row = view.rows.find((r) => r.league === 'wnba' && r.kind === 'season')
     expect(row?.team).toBe('2 teams')
     expect(row?.title).toBe('WNBA 2025 (Dallas Wings, Minnesota Lynx)')
+  })
+})
+
+describe('the header hint', () => {
+  it('names the last college team and season on a professional page', () => {
+    expect(stripHint(FLAGG_FROM_NBA)).toEqual({
+      text: 'NCAA Men: Duke Blue Devils, 2024-25',
+      title: 'NCAA Men career: see it under the career by season'
+    })
+  })
+
+  it('names the last professional team on a college page, or the draft before a game', () => {
+    const fromCollege = career({
+      league: 'nba',
+      link: { method: 'id', playerId: '1642843', espnId: 5041939, name: 'Cooper Flagg' },
+      draft: FLAGG_DRAFT,
+      source: { kind: 'metis', label: "Metis's own season lines" },
+      seasons: [
+        season({ season: 2026, gameType: 'regular', teams: ['Dallas Mavericks'], games: 70 }),
+        season({ season: 2027, gameType: 'regular', teams: ['Dallas Mavericks'], games: 13 })
+      ]
+    })
+    expect(stripHint(fromCollege)?.text).toBe('NBA: Dallas Mavericks')
+    // Jayden Quaintance: picked 20th in 2026, no NBA game yet.
+    const unplayed = career({
+      league: 'nba',
+      link: {
+        method: 'name+college',
+        playerId: '1643519',
+        espnId: null,
+        name: 'Jayden Quaintance'
+      },
+      draft: { ...FLAGG_DRAFT, draftYear: 2026, roundPick: 20, overallPick: 20 }
+    })
+    expect(stripHint(unplayed)?.text).toBe('NBA: Drafted 2026, 20th')
+  })
+
+  it('says nothing for a player with no link, a reason line included', () => {
+    expect(stripHint(null)).toBeNull()
+    expect(stripHint(career({ reason: { kind: 'no-link', text: 'x' } }))).toBeNull()
+    expect(
+      stripHint(career({ draft: FLAGG_DRAFT, reason: { kind: 'drafted-abroad', text: 'x' } }))
+    ).toBeNull()
+    // A link with nothing of the other career to name.
+    expect(
+      stripHint(career({ link: { method: 'id', playerId: '1', espnId: 1, name: 'X' } }))
+    ).toBeNull()
   })
 })

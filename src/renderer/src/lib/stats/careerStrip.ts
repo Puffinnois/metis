@@ -386,3 +386,41 @@ export function careerStrip({
     action
   }
 }
+
+/** The header's way to the strip: one short link at the end of the facts line. */
+export interface StripHint {
+  /** "NCAA Men: Duke Blue Devils, 2024-25", "NBA: Dallas Mavericks", "NBA: Drafted 2026, 20th". */
+  text: string
+  /** Its hover and accessible name. */
+  title: string
+}
+
+/**
+ * The hint the header carries once the read finds a link (item 1 of the T1304.3 review): on a
+ * professional page the last college team and season, on a college page the last professional team,
+ * or the draft where they have not played. Named by its league, since the facts line already ends
+ * with the school. Nothing without a link, or with nothing of the other career to name.
+ */
+export function stripHint(career: StatsOtherCareer | null): StripHint | null {
+  if (!career?.link || career.league === null) return null
+  const other = LEAGUES[career.league]
+  const lines = otherLines(career.seasons, other)
+  const last = lines.at(-1)
+  const title = `${other.name} career: see it under the career by season`
+  if (last) {
+    const team = teamCell(last)
+    const pair = pairOf(career.league)
+    const college = pair?.college === career.league
+    // A college season names its year, a professional team is enough: it is where they play now.
+    const text = college
+      ? `${team ? `${team}, ` : ''}${other.seasonLabel(last.season)}`
+      : team || other.seasonLabel(last.season)
+    return { text: `${other.name}: ${text}`, title }
+  }
+  const d = career.draft
+  if (d && d.league === career.league) {
+    const pick = d.overallPick !== null ? `, ${ordinal(d.overallPick)}` : ''
+    return { text: `${other.name}: Drafted ${d.draftYear}${pick}`, title }
+  }
+  return null
+}
