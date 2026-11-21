@@ -462,8 +462,8 @@ describe('the season a strip row opens on', () => {
       seasonType: 'counted',
       range: { kind: 'season' }
     })
-    // A season with only its regular season so far has nothing more to count.
-    expect(seasonScope(held(2027, [tournament[0]])).seasonType).toBe('regular')
+    // A season with only its regular season so far opens on every game too (D45).
+    expect(seasonScope(held(2027, [tournament[0]])).seasonType).toBe('counted')
   })
 
   it('opens a professional season on its regular season, the playoffs held or not', () => {

@@ -137,22 +137,25 @@ export function typeLabel(type: SeasonType): string {
 
 /**
  * The types a season has box scores for. Preseason games have none anywhere, so they never appear,
- * and "Regular season and after" only when there is an after.
+ * and "Regular season and after" only when there is an after. A league whose default is every game
+ * (the colleges, D45) always offers it, even while a season has one type so far: the default then reads
+ * the same games in every season, and the current season's numbers are its regular season's.
  */
 export function seasonTypes(season: StatsSeason | undefined): SeasonType[] {
   if (!season) return ['regular']
   const has = new Set(season.types.map((t) => t.type))
   const held = counted().filter((t) => has.has(t))
+  const every = held.length > 1 || (held.length > 0 && currentLeague().defaultType === 'counted')
   return [
     ...(held as SeasonType[]),
-    ...(held.length > 1 ? (['counted'] as const) : []),
+    ...(every ? (['counted'] as const) : []),
     ...(has.has('all-star') ? (['all-star'] as const) : [])
   ]
 }
 
 /**
  * The latest season with box scores, whole, on the league's default type (`League.defaultType`): its
- * regular season, or every game in the college leagues (D45) where the season has more than one type.
+ * regular season, or every game in the college leagues (D45), November's included.
  */
 export function defaultScope(seasons: StatsSeason[], status: StatsStatus | null): StatsScope {
   const latest = seasons[0]?.season ?? status?.through?.season ?? new Date().getUTCFullYear()
@@ -160,6 +163,10 @@ export function defaultScope(seasons: StatsSeason[], status: StatsStatus | null)
     currentLeague().defaultType === 'counted' && seasonTypes(seasons[0]).includes('counted')
   return { season: latest, seasonType: every ? 'counted' : 'regular', range: { kind: 'season' } }
 }
+
+/** The type a league's default scope reads: every game in the colleges, else the regular season. */
+export const defaultType = (): SeasonType =>
+  currentLeague().defaultType === 'counted' ? 'counted' : 'regular'
 
 /**
  * A season opened from another page (a career strip's row, T1304.3): whole, on the league's default

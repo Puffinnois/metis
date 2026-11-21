@@ -27,6 +27,7 @@ import { dashboardModes, sectionMetrics, sectionViews } from '@/lib/stats/dashbo
 import type { ExploreSubject } from '@/lib/stats/explore'
 import { fmtStat } from '@/lib/stats/format'
 import {
+  defaultType,
   moveToSeason,
   rangeLabel,
   seasonOf,
@@ -162,7 +163,8 @@ export function StatsTeam({
         name={name}
         onTeam={onTeam}
         games={games}
-        place={scope.seasonType === 'regular' ? teamPlace(standings, team) : null}
+        // The place reads the standings, which count the league's default games: every game in college.
+        place={scope.seasonType === defaultType() ? teamPlace(standings, team) : null}
         onOpenGame={onOpenGame}
         onCompare={onCompare && (() => onCompare([{ entity: 'team', id: team }]))}
       />
