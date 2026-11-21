@@ -87,6 +87,37 @@ The user chooses (D35), and the choice is one row per league in `metis.db`: `lea
 
 Each league has its own file in the data folder, `<userData>/stats-<league>.duckdb` (`statsFilePath`). Before DuckDB opens anything, a worker whose league has a `formerStatsFile` runs `adoptFormerStatsFile` (`src/main/stats/files.ts`): when `stats.duckdb` exists and `stats-nba.duckdb` does not, it renames `stats.duckdb.wal` (when there is one) and then `stats.duckdb`, and logs `stats: renamed stats.duckdb to stats-nba.duckdb`. Nothing is downloaded and nothing rebuilt: the file is the same file. When both exist, the old one is left untouched and the fact is logged. A failed rename stops that league's worker rather than open an empty file, which would start a full download. The installer's data folder (`%APPDATA%\Metis`, kept on uninstall and by updates, D32) is the same `userData`, so the packaged app renames on its first start as the development profile does; neither `electron-builder.yml` nor `build/installer.nsh` names the stats file. `--stats-self-test` opens the NBA's file in a throwaway folder. The scripts open `stats-<league>.duckdb` in the folder they are given, the NBA's unless an argument says `--league=<id>` (`scripts/lib/stats-worker.mjs`).
 
+### The links file and its worker (D47, Plan T1304.2)
+
+The links between a player's college and professional careers (D46) and the paired leagues' season lines (D48) live in one more file in the data folder, `links.duckdb` (`LINKS_FILE`).
+
+- **The name.** It is not `stats-*.duckdb`, which is one league's file, so the per-league size, deletion and adoption of `League.statsFile` never touch it.
+- **One worker per file (CLAUDE.md rule 3).** The links file has a worker of its own, `out/main/linksWorker.js` (`src/main/stats/links/`). Only a league's worker opens that league's file, and only the links worker opens `links.duckdb`; nothing attaches one worker's file in another. Its writes run in turn, and each read gets its own connection.
+- **When it starts.** Only when there is something to do (`links/control.ts`): a league of a pair has refreshed, or a read asks for such a league (its Data panel, a player's other career).
+- **The pairs** are in the league registry, `LEAGUE_PAIRS` in `src/shared/leagues.ts`. Each pair names its college and professional league, how far the professional season labels run ahead (the NBA's draft and seasons by one), the first season of each side's lines, and the tables its paired files read. Code reads the pairs and never names a league.
+
+**The step after a league's refresh**, in the main process, one league at a time:
+
+1. **The paired files** (`PAIRED_SOURCES_BY_LEAGUE` in `sources.ts`): ESPN's player season stats of the other league from its first linkable season, and, for a college league, the professional draft table. They go through the same plan, etags, sealing and `source_state` as a league's files (`refreshStats` with `paired: true`, which builds nothing from them), into tables `paired_<league>_<table>` in the links file. Every column is kept as published.
+2. **The league's side.** Its worker writes its side as Parquet into the links worker's hand-over folder (`stats-tmp/links/handover`, named by league and refresh) on a read connection (`links/side.ts`). A professional side is its players with ESPN ids, birth dates and colleges, plus its draft lines; a college side is its players with their ESPN teams.
+3. **Metis's own lines.** For each league of the pair whose file is there, its worker writes the `player_season` rows of the linked players, every column, with their `team` rows. They are kept as `kept_<league>_season` and `kept_<league>_team`, which is what a league removed later still shows.
+
+**How the links are built.** The links worker loads each hand-over in one transaction, together with the pair's links (`player_link`, built from scratch by `matchSql` in `links/sql.ts`, D46's matcher ported from the research's queries). A failed or interrupted hand-over therefore leaves the side and the links as they were. The hand-over files are removed once loaded, and on start-up the worker empties its temp folder, so a file a crash left behind is never read.
+
+Each side is kept until that league hands over again, so a league's deletion keeps what it last gave. Where a side has never been handed over, its paired files stand in for it: ESPN's season stats give the ids, names, teams and seasons, and the draft gives the draftees. With one league alone, the links by the id and by name and college are made; name and birth date needs both files.
+
+**When the step fails**, the league's refresh is not failed (it has already ended): the error is logged, recorded as `links:<league>` in the links file's `sync_log`, and shown on the paired files in that league's Data panel until the next refresh tries again.
+
+**The read.** `stats.otherCareer(league, player)` (IPC `stats:other-career`) returns:
+
+- the other league;
+- the link and its method;
+- the draft line;
+- the season rows with their source named: Metis's own lines where they are kept, otherwise ESPN's totals of the paired download, labelled "regular season" for a professional league and "every game" for a college one;
+- or the reason there is none: no link, drafted from abroad, or college before the window.
+
+Measured in `player-links.md`, "The link as built".
+
 ### Shared names in each league's file (Plan T1302.9)
 
 Some names were the NBA's before there were other leagues, and every league's file keeps them, so the builders, the engine and the screens read one name everywhere. Renaming them would mean migrating every installed NBA and WNBA file for no change on screen, so they stay (the manager's decision at T1302.9). What each holds:

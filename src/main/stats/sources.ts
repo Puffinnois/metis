@@ -4,7 +4,7 @@
  * `scripts/inventory-sources.mjs` lists the releases at development time, and a test compares that
  * list with this one.
  */
-import type { LeagueId } from '@shared/leagues'
+import { LEAGUES, pairOf, type LeagueId } from '@shared/leagues'
 
 export const RELEASES_URL =
   'https://github.com/sportsdataverse/sportsdataverse-data/releases/download'
@@ -830,6 +830,58 @@ export const SOURCES_BY_LEAGUE: Readonly<Record<LeagueId, readonly SourceFile[]>
   wnba: WNBA_SOURCES,
   ncaam: NCAAM_SOURCES,
   ncaaw: NCAAW_SOURCES
+}
+
+/**
+ * The files a league's download brings of its paired league (D48), loaded into the links file
+ * (`LINKS_FILE`) by the links worker, never into the league's own: ESPN's player season stats of the
+ * other league from its first linkable season, and for a college league the professional draft table,
+ * which names the draftees who have not played (the manager's decision of 2026-11-21, D48's addition).
+ * Each is the paired league's own source with a table and id of its own, `paired_<league>_<table>`, so
+ * the two directions of a pair never share rows. Listed in the Data panel under the league that brings
+ * them, with the paired league's seasons.
+ */
+export interface PairedSource extends SourceFile {
+  /** The league whose files these are, whose seasons they hold. */
+  of: LeagueId
+  /** The table's kind, for the links worker. */
+  kind: 'season-stats' | 'draft'
+}
+
+function pairedSources(league: LeagueId): PairedSource[] {
+  const pair = pairOf(league)
+  if (!pair) return []
+  const other = pair.college === league ? pair.pro : pair.college
+  const own = SOURCES_BY_LEAGUE[other]
+  const take = (table: string, kind: PairedSource['kind'], firstSeason: number): PairedSource => {
+    const source = own.find((s) => s.table === table)
+    if (!source) throw new Error(`the ${other} registry has no ${table}`)
+    const name = `paired_${other}_${table.slice('src_'.length)}`
+    return { ...source, id: name, table: name, firstSeason, keys: false, of: other, kind }
+  }
+  const lines = take(
+    pair.seasonStatsTable,
+    'season-stats',
+    other === pair.pro ? pair.proFrom : pair.collegeFrom
+  )
+  // The draft of the class of the college window's first season on, labelled as the league labels it.
+  return other === pair.pro
+    ? [lines, take(pair.proDraftTable, 'draft', pair.collegeFrom + pair.proLabelAhead)]
+    : [lines]
+}
+
+/** What each league's download brings of its paired league. */
+export const PAIRED_SOURCES_BY_LEAGUE: Readonly<Record<LeagueId, readonly PairedSource[]>> = {
+  nba: pairedSources('nba'),
+  wnba: pairedSources('wnba'),
+  ncaam: pairedSources('ncaam'),
+  ncaaw: pairedSources('ncaaw')
+}
+
+/** "NCAA Men player season stats (ESPN), for linked careers": the Data panel's name of a paired file. */
+export function pairedLabel(source: PairedSource): string {
+  const what = RELEASE_LABELS[source.release] ?? source.release
+  return `${LEAGUES[source.of].name} ${what.charAt(0).toLowerCase()}${what.slice(1)}, for linked careers`
 }
 
 /**

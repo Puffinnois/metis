@@ -35,7 +35,14 @@ function FamilyRow({ family, league }: { family: StatsFamily; league: League }):
     <tr className="border-t border-line align-top">
       <td className="py-1.5 pr-4 text-fg">{family.label}</td>
       <td className="py-1.5 pr-4 text-fg-2">
-        {family.filesLoaded > 0 ? seasonRange(family.firstSeason, family.lastSeason, league) : '–'}
+        {family.filesLoaded > 0
+          ? seasonRange(
+              family.firstSeason,
+              family.lastSeason,
+              // A paired league's files are labelled by that league's seasons (D48).
+              family.seasonsOf ? leagueOf(family.seasonsOf) : league
+            )
+          : '–'}
       </td>
       <td className="py-1.5 pr-4 text-right text-fg-2 tabular-nums">
         {fmtCount(family.filesLoaded)} of {fmtCount(family.filesExpected)}

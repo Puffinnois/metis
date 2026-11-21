@@ -121,6 +121,12 @@ export interface StatsSyncDeps {
   onProgress?: (progress: StatsProgress | null) => void
   /** True once the worker is closing: no step starts after it, and the running one is `interrupted`. */
   cancelled?: () => boolean
+  /**
+   * The links file's paired files (D48): the same plan, etags and sealing, but nothing is built from
+   * them here and no league's build state is kept, since the file holds none. `league` is the paired
+   * league, whose seasons the files are.
+   */
+  paired?: boolean
 }
 
 /**
@@ -569,6 +575,8 @@ export async function refreshStats(
       break
     }
     log.push(entry)
+    deps.onProgress?.({ done: i + 1, total: due.length })
+    if (deps.paired) continue
     if (step.source.tier === 'core' && entry.status === 'ok' && entry.rowsWritten > 0) {
       if (!coreWrote) {
         await markIdentityStale(db)
@@ -608,11 +616,10 @@ export async function refreshStats(
       await markIdentityStale(db)
       identityLate = true
     }
-    deps.onProgress?.({ done: i + 1, total: due.length })
   }
   deps.onProgress?.(null)
   if (fatal !== undefined) return { steps: log, fatal }
-  if (!deps.cancelled?.()) {
+  if (!deps.cancelled?.() && !deps.paired) {
     try {
       // Again at the end when a late file of the identity recipe came in after they were built.
       if (!built || identityLate) await runBuilds()

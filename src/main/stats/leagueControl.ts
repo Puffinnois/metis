@@ -2,9 +2,12 @@ import { rmSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Db } from '@main/db/connection'
 import { LEAGUES, leagueOf, type LeagueId } from '@shared/leagues'
-import type { LeagueDownload, LeagueDownloads } from '@shared/stats/types'
+import type { LeagueDownload, LeagueDownloads, StatsOtherCareer } from '@shared/stats/types'
 import type { StatsClient } from './client'
+import { withPairedFamilies } from './families'
 import { statsFilePath } from './files'
+import { createLinksControl, linksTempDir, type LinksControl } from './links/control'
+import type { LinksClient } from './links/protocol'
 import { leagueDownloads, setLeagueDownloads } from './leagueDownloads'
 import { offlineStats, type StatsReads } from './offline'
 
@@ -17,6 +20,8 @@ export interface LeagueControlDeps {
   onChanged: (league: LeagueId) => void
   free?: (path: string) => number | null
   log?: (message: string, err?: unknown) => void
+  /** Starts the links worker (D47); absent, leagues are not linked (tests of other behaviour). */
+  startLinks?: () => LinksClient
 }
 
 /**
@@ -40,6 +45,10 @@ export interface LeagueControl {
   setDownloads(choice: Partial<Record<LeagueId, boolean>>): Promise<LeagueDownloads>
   /** Closes a league's worker and deletes its file; refused for a league that is on. */
   deleteFile(league: LeagueId): Promise<LeagueDownloads>
+  /** A player's career in the other league of the pair, from the links file (T1304.2). */
+  otherCareer(league: LeagueId, player: string): Promise<StatsOtherCareer>
+  /** The links worker's control, for scripts and tests; null when leagues are not linked. */
+  links: LinksControl | null
   close(): Promise<unknown>
 }
 
@@ -76,11 +85,32 @@ export function createLeagueControl(deps: LeagueControlDeps): LeagueControl {
     await client.close().catch((err) => log(`closing the ${league} stats worker failed`, err))
   }
 
+  const links: LinksControl | null = deps.startLinks
+    ? createLinksControl({
+        tempDir: linksTempDir(deps.dataDir),
+        start: deps.startLinks,
+        client: (league) => clients.get(league) ?? null,
+        log
+      })
+    : null
+
+  // The links step follows the league's refresh and never fails it (D47): it logs its own errors.
+  const linkAfter = async (league: LeagueId, client: StatsClient): Promise<void> => {
+    if (!links) return
+    const status = await client.status().catch(() => null)
+    if (!status?.available || status.paused || status.noRoom) return
+    const done = await links.afterRefresh(league)
+    if (done) deps.onChanged(league)
+  }
+
   const refresh = (league: LeagueId): void => {
     if (!stateOf(league).on) return
     const client = clients.get(league) ?? startWorker(league)
     client?.refresh().then(
-      () => deps.onChanged(league),
+      () => {
+        deps.onChanged(league)
+        void linkAfter(league, client)
+      },
       (err) => log(`the ${league} stats refresh failed`, err)
     )
   }
@@ -90,8 +120,24 @@ export function createLeagueControl(deps: LeagueControlDeps): LeagueControl {
     reads(id) {
       const league = leagueOf(id)
       const client = clients.get(league.id)
-      if (client) return client
-      return offlineStats(league, failed.has(league.id) ? null : league.noData)
+      const reads: StatsReads =
+        client ?? offlineStats(league, failed.has(league.id) ? null : league.noData)
+      if (!links) return reads
+      // The Data panel lists the paired files under the league that brings them (D48); asking for
+      // them starts the links worker only for a league that has a worker.
+      return {
+        ...reads,
+        data: async () => {
+          const report = await reads.data()
+          const paired = await links
+            .pairedFamilies(league.id, client !== undefined)
+            .catch((err) => {
+              log(`could not read the ${league.name}'s paired files`, err)
+              return []
+            })
+          return { ...report, families: withPairedFamilies(report.families, paired) }
+        }
+      }
     },
     downloads,
     open() {
@@ -134,6 +180,15 @@ export function createLeagueControl(deps: LeagueControlDeps): LeagueControl {
       deps.onChanged(league)
       return downloads()
     },
-    close: () => Promise.allSettled([...clients.keys()].map((league) => stopWorker(league)))
+    otherCareer(league, player) {
+      if (!links) return Promise.reject(new Error('players are not linked in this build'))
+      return links.otherCareer(leagueOf(league).id, player)
+    },
+    links,
+    close: () =>
+      Promise.allSettled([
+        ...[...clients.keys()].map((league) => stopWorker(league)),
+        links?.close()
+      ])
   }
 }

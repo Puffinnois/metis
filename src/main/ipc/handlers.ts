@@ -31,6 +31,7 @@ import type {
   StatsOfficialsSeason,
   GameType,
   StatsProfile,
+  StatsOtherCareer,
   StatsAvailability,
   StatsCoach,
   StatsPlayerInfo,
@@ -194,6 +195,12 @@ export function registerIpcHandlers(ctx: AppContext): void {
   )
   ipcMain.handle(IPC.statsProfile, (_e, league: LeagueId, player: string): Promise<StatsProfile> =>
     readsFor(ctx, league).profile(player)
+  )
+  // The links file answers it, through its own worker (D47), never a league's.
+  ipcMain.handle(
+    IPC.statsOtherCareer,
+    (_e, league: LeagueId, player: string): Promise<StatsOtherCareer> =>
+      ctx.leagues.otherCareer(leagueOf(league).id, player)
   )
   // Saved views are kept per league in `metis.db` (D35).
   ipcMain.handle(IPC.statsViews, (_e, league: LeagueId): StatsView[] =>

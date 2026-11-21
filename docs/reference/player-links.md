@@ -252,12 +252,121 @@ All of these hold to D35: one league is shown; the other appears as a linked pan
 - **"One small summary file per league for every linked player" (the manager's).** Metis publishes nothing and has no server, so such a file would have to be built locally. It can be built only when both leagues are present, which is when it is least needed. The releases already publish the small per-league summary: ESPN's player season stats, keyed by the same id. Recommended in its place: fetch that file for the other league when the user asks, and keep a local summary built from the files when both are present, so a league deleted later still shows its linked careers.
 - **One number that argues for the design's care:** a college page will rarely have a professional side (1 to 5 % of Division I players a season), and a professional page often will (379 of the NBA's players today). The college-to-professional direction is where the "not downloaded" choice will be met most.
 
+## ESPN's season stats against Metis's own lines
+
+Measured on 2026-11-21 for T1304.2, on the same four files, for every player whose ESPN id is in both leagues of a pair (the id links), in the seasons the paired download brings: the NBA from 2022-23, the WNBA from 2022, the colleges from 2021-22. ESPN's file is long, one row a stat (`category`, `stat_name`, `value`, with makes and attempts as text, `412-911`), and gives one line a player-season, every team together. Metis's line is `player_season` with `team_id` NULL, summed over the season types named. Exact equality per stat; minutes per game within 0.05.
+
+**Postseason.** ESPN's professional season stats are the regular season alone, and its college season stats count every game, the tournaments included:
+
+| League     | Lines | Games equal: regular season | Games equal: regular and play-in | Games equal: every counted type |
+| ---------- | ----- | --------------------------- | -------------------------------- | ------------------------------- |
+| NBA        | 868   | 829                         | 759                              | 612                             |
+| WNBA       | 271   | 271                         | 271                              | 169                             |
+| NCAA Men   | 834   | 264                         | 264                              | 834                             |
+| NCAA Women | 405   | 53                          | 53                               | 405                             |
+
+The NBA's play-in is not in ESPN's line, nor are the WNBA's playoffs or Commissioner's Cup final. The 39 NBA lines that differ on games are all of 2026-27, the season being played: ESPN's file was a day ahead of the box scores loaded (Ace Bailey 15 games against 14, and so on). A college line is the NCAA's count, as D45's default scope is.
+
+**Per stat**, against the season types that match (professional: regular season, completed seasons; college: every counted game):
+
+| League     | Lines | Games | Starts | Points | Rebounds | Off. reb. | Assists | Steals | Blocks | Turnovers | Fouls | FGM | FGA | 3PM | FTM | FTA | Minutes a game within 0.05   |
+| ---------- | ----- | ----- | ------ | ------ | -------- | --------- | ------- | ------ | ------ | --------- | ----- | --- | --- | --- | --- | --- | ---------------------------- |
+| NBA        | 651   | 651   | 651    | 651    | 649      | 651       | 651     | 651    | 651    | 649       | 651   | 651 | 650 | 651 | 651 | 651 | 656 of 829 (796 within 0.15) |
+| WNBA       | 271   | 271   | 271    | 271    | 271      | 271       | 271     | 270    | 271    | 269       | 271   | 271 | 271 | 271 | 271 | 271 | 176 of 271 (253 within 0.15) |
+| NCAA Men   | 834   | 834   | 816    | 833    | 833      | 833       | 831     | 833    | 832    | 833       | 833   | 833 | 833 | 833 | 833 | 833 | 794 of 834 (832 within 0.15) |
+| NCAA Women | 405   | 405   | 388    | 404    | 404      | 404       | 404     | 404    | 404    | 404       | 404   | 404 | 404 | 404 | 404 | 404 | 382 of 405                   |
+
+The differences are one count: a rebound, a turnover or an attempt (Chet Holmgren's 614 rebounds in 2025-26 against Metis's 615; Jabari Smith Jr.'s 975 attempts against 974), and starts, where ESPN counts one or two more than its own box scores mark (Devin Carter, 33 against 31 in 2023-24; Ta'Niya Latson 29 against 27). Minutes a game differ by rounding: ESPN's average is of whole minutes, Metis's of seconds, up to half a minute apart (a WNBA player's 4.3 against 4.5 in four games). No player's line is missing on either side.
+
+**What it means for the screen:** a professional career read from ESPN's file is the regular season, and must say so; Metis's own lines carry the playoffs as separate season types. A college career from ESPN's file matches Metis's counted games. A user comparing the two would see the same points, rebounds and assists in 99.7 to 100 % of lines, a start or a tenth of a minute apart elsewhere. The current season's ESPN line can be a game ahead of Metis's own until the next refresh.
+
+## The link as built (T1304.2)
+
+Measured on 2026-11-21 with `scripts/check-links.mjs` on `~/.cache/metis-dev/t1304b-all`, copies of the four clean loads, starting from an empty links file. The script drives the built workers the way the app's main process runs the step. Each league's step fetches the paired files that league brings, hands over its side, then hands over Metis's own lines of the linked players, from each league of the pair whose file is there. Results are in `~/.cache/metis-dev/t1304b-out/links-*.json`.
+
+**The research's links, reproduced exactly.** The app's links equal those of the research's matcher (`12-export-nba.sql`, `22-export-wnba.sql`), pair for pair and method for method: **388 of 388 NBA and 190 of 190 WNBA**, none missing and none added. The app matches every professional player in the files, not only the research's classes, and makes no other link.
+
+| Pair             | By the id | By name and birth date | By name and class (and college) | Links |
+| ---------------- | --------- | ---------------------- | ------------------------------- | ----- |
+| NBA, NCAA Men    | 377       | 2                      | 9                               | 388   |
+| WNBA, NCAA Women | 144       | 0                      | 46                              | 190   |
+
+**Rates per draft class**, college draftees of 2022 to 2026:
+
+- **NBA: 232 of 233.** 44, 46, 43, 46 and 53 of 44, 46, 43, 46 and 54. Trey Kaufman-Renn is the one left unlinked. The split by method is the research's: Hood-Schifino by name and birth date in 2023, Sorber by name and college in 2025, eight by name and college in 2026.
+- **WNBA: 164 of 169.** 34, 32, 29, 33 and 36 linked. Brittany Davis and Kaitlyn Davis each have two candidates; Claessens, Kane and Sivka have college rows only after their draft. By the id, then by name, a class: 24 and 10, 22 and 10, 17 and 12, 27 and 6, 28 and 8.
+
+**Two shared ids the app leaves unlinked, rightly.** The research found 379 NBA players sharing an id with the men's file. Two of them, Jamorko Pickett and Moses Brown, are not linked: their only college rows come after their professional careers began, and D46 never links those. Both rows are ESPN's errors:
+
+- Moses Brown, in the NBA since 2019-20, is credited with 21 minutes and 6 points for Northern Illinois against Washington on 2021-11-08.
+- Jamorko Pickett, in the NBA since 2021-22, has a Memphis game on 2024-02-07 with no minutes.
+
+The research counted both as right because the person is the same, but a profile would have shown a college season they did not play. Both are outside the research's classes, so its 388 is unchanged.
+
+**The same links whichever order.** A fingerprint of `player_link` (an md5 of its rows in order) is the same, `1dfd6c93…` for 578 rows, after each of these:
+
+- the clean build;
+- the NBA's step alone, with its paired files asked for again (`unchanged` by etag);
+- the NBA then NCAA Men, and NCAA Men then the NBA;
+- the WNBA then NCAA Women, and the reverse;
+- the NBA's step after NCAA Men's file is deleted.
+
+The fixture test builds the sides in two row orders (`matcher.test.ts`), and the service test hands them over in both orders (`service.test.ts`).
+
+**After a league is deleted.** With NCAA Men's file gone, the NBA's step still reads NCAA Men's kept side and lines, so the links are unchanged. Paolo Banchero's NBA page still reads his Duke seasons from Metis's own lines kept in the links file: 2 rows on his NBA page, 11 on the college side.
+
+**With only the NBA.** A profile holding only the NBA's file, with no links file before, fetches NCAA Men's season stats in its first step (6 files, 6.97 MB in 5.2 s) and makes **385 links**, every one of them the research's: 376 by the id and 9 by name and college. The three it lacks need the men's file:
+
+- Shaedon Sharpe has no line in ESPN's college season stats, since he never played for Kentucky.
+- Jalen Hood-Schifino and Bobi Klintman link by a college birth date, which ESPN's season stats do not carry.
+
+Banchero's college career then reads as ESPN's totals, "every game".
+
+**With only NCAA Women.** A profile holding only NCAA Women's file fetches the WNBA's season stats and draft (10 files, 0.24 MB in 1.3 s) and makes **189 links**, each to the research's college player:
+
+- 142 by the id. 38 of these are to a professional player named only by ESPN's lines, who has no WNBA player id until the WNBA is downloaded.
+- 47 by name.
+
+Deja Kelly is the one link missing, and Janiah Barker is linked by name and college instead of by the id. Both played in 2026, but neither is in ESPN's 2026 WNBA season stats file. Caitlin Clark's WNBA career reads as ESPN's totals, "regular season", with her draft line.
+
+**The paired files**, against the research's estimates:
+
+| Brought by | Files                                                 | Bytes   | Rows      | Research (MB) | First fetch |
+| ---------- | ----------------------------------------------------- | ------- | --------- | ------------- | ----------- |
+| NBA        | NCAA Men's season stats, 2021-22 to 2026-27           | 6.97 MB | 2,402,074 | about 6.9     | 5.2–5.8 s   |
+| NCAA Men   | the NBA's season stats, 2022-23 to 2026-27; its draft | 0.55 MB | 117,593   | about 0.51    | 1.6–1.8 s   |
+| WNBA       | NCAA Women's season stats, 2021-22 to 2026-27         | 4.88 MB | 1,863,336 | about 4.8     | 4.7–5.0 s   |
+| NCAA Women | the WNBA's season stats, 2022 to 2026; its draft      | 0.24 MB | 38,653    | about 0.21    | 1.1–1.5 s   |
+
+The drafts are 39 KB (NBA, 5 files) and 32 KB (WNBA, 5 files). The college season stats are kept as published, one row a stat, and take up most of the links file: **82 MB** with all four leagues, 52 MB with the NBA alone, 5.5 MB with NCAA Women alone.
+
+**What a refresh pays.** With its paired files already fetched, a league's links step after its refresh takes:
+
+| League     | Links step | Of which                                                                                                                                                |
+| ---------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| NBA        | 2.1–2.4 s  | 0.4 s asking for the paired files, 0.05 s its side, 0.3 s hand-over and links, 1.4 s writing its own linked lines (a scan of the NBA's `player_season`) |
+| NCAA Men   | 2.0–3.8 s  |                                                                                                                                                         |
+| WNBA       | 1.1 s      |                                                                                                                                                         |
+| NCAA Women | 1.0 s      |                                                                                                                                                         |
+
+On an installed app with only the NBA, the first refresh adds 6.9 s, of which 5.2 s is the download, and builds nothing in the NBA's file. In the app itself (the drive of `scripts/t1304b-paired-data-steps.json`), the WNBA's links step ran 0.4 s after its refresh ended.
+
+**Memory.** The links worker's DuckDB, from `duckdb_memory()` sampled every 100 ms:
+
+- 0.8 MB when it opens;
+- 321 MB at its peak, while it loads a college league's season stats for the first time (its limit is 512 MB);
+- 108–112 MB at the peak of a later refresh;
+- 66–115 MB still held after the steps: DuckDB's buffers, released as its limit asks.
+
+The first build ran out of memory at 512 MB, because the matcher read ESPN's college file a row a stat. It now reads one row a player-season.
+
+**The read.** A player's other career takes 15 to 36 ms the first time and 15 to 30 ms after (`check-links.mjs`), and 36 ms through the app's IPC from the renderer (the drive). It is served by the links worker on its own connection, so it never waits behind a league's refresh.
+
 ## What could not be measured
 
 - Whether the 2026-27 college rows of players drafted from abroad (Nnaji, Niang, Ngoy, Claessens, Kane, Sivka, Ran) are those players: no birth date or ESPN id on the professional side.
 - Whether ESPN will give the 2026 class's unplayed draftees the same athlete id they had in college: the evidence is the 222 who played, and the 2 who got a second id.
 - The colleges of Nadia Fingall, Holly Winterburn, Peyton Williams and Kyra Lambert: no row of the name or id in the women's file.
-- Whether ESPN's season stats count postseason games, and how they agree with Metis's own season lines: not compared.
 - Download times on the owner's connection; the times above are from this machine.
 - PRISM's contents (named, not opened).
 
@@ -274,6 +383,11 @@ node scripts/player-links-sql.mjs scripts/player-links/20-match-wnba.sql scripts
 node scripts/player-links-sql.mjs scripts/player-links/10-match-nba.sql scripts/player-links/50-reverse.sql
 METIS_SCRATCH=/some/folder node scripts/player-links-sql.mjs scripts/player-links/41-local-summary.sql
 node scripts/player-links-range.mjs --layout
+# T1304.2: the research's links, then the app's on a profile, compared (build first)
+METIS_SCRATCH=/some/folder node scripts/player-links-sql.mjs scripts/player-links/10-match-nba.sql scripts/player-links/12-export-nba.sql
+METIS_SCRATCH=/some/folder node scripts/player-links-sql.mjs scripts/player-links/20-match-wnba.sql scripts/player-links/22-export-wnba.sql
+node scripts/check-links.mjs <profile> --out=<dir> --compare=/some/folder --reads=nba:1631094,ncaam:4432573
+node scripts/links-sql.mjs <profile> <file of statements>
 ```
 
 The files are attached read-only; nothing is written to them. `player-links-range.mjs` makes about 270 HTTP requests to GitHub's release downloads, 3 seconds apart between cases.
