@@ -29,7 +29,7 @@ import {
   tabsOf
 } from '@/lib/stats/leaderboard'
 import { rangeLabel, scopeLabel, seasonOf, type StatsScope } from '@/lib/stats/scope'
-import { MOMENTS } from '@/lib/stats/splits'
+import { momentsIn } from '@/lib/stats/splits'
 import { useStatsQuery, type StatsData } from '@/lib/stats/useStats'
 import { cn } from '@/lib/utils'
 import { seasonLabel } from '@/lib/stats/league'
@@ -251,7 +251,7 @@ export function StatsLeaderboard({
         <StatsSelect
           title="Moments of the game"
           value={board.split ?? ''}
-          options={MOMENTS}
+          options={momentsIn()}
           onChange={(split) => update({ split: split || null })}
           className="w-[170px]"
         />

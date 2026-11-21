@@ -1,4 +1,4 @@
-import { seasonLabel } from '@/lib/stats/league'
+import { currentLeague, seasonLabel } from '@/lib/stats/league'
 import type {
   BoardMode,
   GameSide,
@@ -330,14 +330,18 @@ export const TEAM_SECTIONS: Record<
   ]
 }
 
-/** Every team, for ranks: the engine ranks them among themselves. */
+/**
+ * Every team, for ranks: the engine ranks them among themselves. The page reads its team's row, so
+ * every team must be listed: a Division I season has some 365 (T1302.9 found 325 of them reading
+ * blank at 40, as the standings did at T1302.8).
+ */
 export function teamPoolQuery(metrics: string[], scope: StatsScope, mode: BoardMode): StatsQuery {
   return {
     entity: 'team',
     metrics,
     scope: queryScope(scope, 'team'),
     transform: mode,
-    limit: 40
+    limit: currentLeague().divisionIOnly ? 500 : 40
   }
 }
 

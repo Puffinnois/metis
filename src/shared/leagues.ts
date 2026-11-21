@@ -390,6 +390,14 @@ export interface League {
    * and its players are never ranked. A query that names its players or teams still reads them.
    */
   divisionIOnly?: boolean
+  /**
+   * A league of thousands of rows a season: a college season has about 5,000 players, ten times the
+   * NBA's. The engine then ranks every column of a board in one pass rather than two window functions
+   * a column, and picks the rows a board lists before reading their columns back (T1302.9: 40 columns
+   * took about a second, a board by opponent 950 ms). The values are the same. Unset, the SQL is the
+   * NBA's and the WNBA's as it was.
+   */
+  manyRows?: boolean
   /** A regular season's shape, for qualifying rows grouped by opponent or month. */
   seasonShape: SeasonShape
   /** The league's stats file in the data folder (D36). */
@@ -487,6 +495,16 @@ export interface League {
   standingsFrom: number
   /** The first season of its shot chart file. */
   shotsFrom: number
+  /**
+   * The league plays no All-Star Game (the college leagues): the splits leave out before and after
+   * the break, which would only ever read empty. Unset, a season without one says so (the NBA's 1999).
+   */
+  noAllStarGame?: boolean
+  /**
+   * The shot chart file in screen words, where it is not "the NBA’s shot chart file" (the NBA's and
+   * the WNBA's screens as they were): the college leagues' is stats.ncaa.org's (T1302.6).
+   */
+  shotsFile?: string
   /**
    * The first season every shot has a location: before it, shots with none sit at (0, 0) and zones,
    * distances and charts read only those placed.
@@ -1089,6 +1107,8 @@ const COLLEGE_WORDS: League['catalogueWords'] = [
   ["The NBA's box scores from 1996-97", "ESPN's box scores"],
   ["ESPN's box scores before them", "stats.ncaa.org's for the games ESPN has none of"],
   ["The NBA's box scores", "ESPN's box scores"],
+  ["The NBA's shot chart file", "stats.ncaa.org's shot file"],
+  ["The NBA's play by play", "stats.ncaa.org's play by play"],
   [
     "ESPN's flag is the only source before 2017-18, and it is missing for some games, mostly in 2001-02, 2004-05 and 2005-06.",
     "ESPN's flag, so none for a game whose box score is stats.ncaa.org's."
@@ -1177,6 +1197,8 @@ const college = (
   // Nothing before 2021-22 is loaded (D39); Division I teams alone are ranked (D40).
   loadedWindow: true,
   divisionIOnly: true,
+  manyRows: true,
+  noAllStarGame: true,
   standingsWords: 'Every game, the postseason with it, as ESPN publishes it',
   // Measured on ESPN's team box scores of 2021-22 to 2025-26, teams with 20 games or more: about 33
   // games a season (30 to 33 for the women) against 22.6 to 24.3 opponents (21.5 to 23.6), about 1.4
@@ -1228,16 +1250,17 @@ const college = (
   lineupsFrom: NCAA_FIRST_SEASON,
   standingsFrom: NCAA_FIRST_SEASON,
   shotsFrom: NCAA_FIRST_SEASON,
+  shotsFile: 'stats.ncaa.org’s shot file',
   shotsLocatedFrom: NCAA_FIRST_SEASON,
   metricsByDefault: false,
   catalogueWords: COLLEGE_WORDS
 })
 
 /**
- * The size of a first load as T1302.3 measured it on 2026-11-18 (ncaa-data-sources.md, "The first
- * load, measured"): the files of 2021-22 on without ESPN's play by play, and the stats file of their
- * source tables, built tables to come. A load asks D22's 6 GB free, as the NBA's, and counts as done
- * past 3 GB.
+ * The size of a first load: the files of 2021-22 on without ESPN's play by play as T1302.3 measured
+ * them on 2026-11-18 (ncaa-data-sources.md, "The first load, measured"), and the stats file with
+ * every table built as T1302.9's first load through the app left it on 2026-11-20. A load asks D22's
+ * 6 GB free, as the NBA's, and counts as done past 3 GB.
  */
 const collegeSize = (downloadBytes: number, fileBytes: number): League['size'] => ({
   downloadBytes,
@@ -1314,7 +1337,7 @@ const NCAAM: League = college(
       registry: 'SOURCES_BY_LEAGUE.ncaam in src/main/stats/sources.ts',
       reference: 'docs/reference/ncaa-data-sources.md'
     },
-    size: collegeSize(803_921_971, 3_632_803_840),
+    size: collegeSize(803_921_971, 4_408_225_792),
     noData: "No NCAA men's stats yet: turn NCAA Men on in the Data panel to download them.",
     notBuilt: "No NCAA men's stats yet: the first load has not got that far.",
     madePerGame: collegeMinimums(2.5)
@@ -1337,7 +1360,7 @@ const NCAAW: League = college(
       registry: 'SOURCES_BY_LEAGUE.ncaaw in src/main/stats/sources.ts',
       reference: 'docs/reference/ncaa-data-sources.md'
     },
-    size: collegeSize(752_895_003, 3_407_097_856),
+    size: collegeSize(752_895_003, 4_177_276_928),
     noData: "No NCAA women's stats yet: turn NCAA Women on in the Data panel to download them.",
     notBuilt: "No NCAA women's stats yet: the first load has not got that far.",
     madePerGame: collegeMinimums(2.0)

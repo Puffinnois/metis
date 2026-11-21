@@ -1084,13 +1084,23 @@ export function splitDefs(season: StatsSeason | undefined): SplitDef[] {
     { key: 'loss', group: 'Result', label: 'Losses', patch: { result: 'loss' } },
     { key: 'starter', group: 'Role', label: 'Started', patch: { starter: true } },
     { key: 'bench', group: 'Role', label: 'Off the bench', patch: { starter: false } },
-    {
-      key: 'before',
-      group: 'All-Star break',
-      label: 'Before',
-      patch: { allStarBreak: 'before' }
-    },
-    { key: 'after', group: 'All-Star break', label: 'After', patch: { allStarBreak: 'after' } },
+    // A league with no All-Star Game (the college leagues) has no break to split at (T1302.9).
+    ...(currentLeague().noAllStarGame
+      ? []
+      : [
+          {
+            key: 'before',
+            group: 'All-Star break',
+            label: 'Before',
+            patch: { allStarBreak: 'before' as const }
+          },
+          {
+            key: 'after',
+            group: 'All-Star break',
+            label: 'After',
+            patch: { allStarBreak: 'after' as const }
+          }
+        ]),
     { key: 'rest0', group: 'Rest', label: 'Back-to-back', patch: { restDays: [0, 0] } },
     { key: 'rest1', group: 'Rest', label: '1 day off', patch: { restDays: [1, 1] } },
     { key: 'rest2', group: 'Rest', label: '2 days off or more', patch: { restDays: [2, 400] } },

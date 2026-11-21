@@ -1,5 +1,6 @@
 import type { StatsDb } from '../db'
 import { EXTRA_PLAYER_SUMS, EXTRA_TEAM_SUMS, PLAYER_SUMS, TEAM_SUMS } from './game'
+import { modeSql } from './sql'
 
 const sums = (columns: readonly string[]): string =>
   columns.map((c) => `sum(${c}) AS ${c}`).join(', ')
@@ -10,11 +11,12 @@ const sums = (columns: readonly string[]): string =>
  * no team, never both, so the two cannot be added together.
  */
 const playerSeason = (
-  columns: readonly string[]
+  columns: readonly string[],
+  total: boolean
 ): string => `CREATE OR REPLACE TABLE player_season AS
   SELECT player_id, season, game_type, team_id,
-         arg_max(team_id, game_date) AS last_team_id, max(game_date) AS last_date,
-         mode(position) AS position, ${sums(columns)}
+         arg_max(team_id, ${total ? '(game_date, team_id)' : 'game_date'}) AS last_team_id, max(game_date) AS last_date,
+         ${total ? modeSql('position') : 'mode(position)'} AS position, ${sums(columns)}
   FROM player_game
   GROUP BY GROUPING SETS ((player_id, season, game_type, team_id), (player_id, season, game_type))`
 
@@ -37,9 +39,16 @@ async function columnsOf(db: StatsDb, table: string): Promise<Set<string>> {
  * tables hold them (the college leagues' stats.ncaa.org splits), so the NBA's and the WNBA's are as
  * they were.
  */
-export async function buildSeasonTables(db: StatsDb): Promise<void> {
+/**
+ * `total` (the college recipe's `totalOrder`) breaks the season's ties by value: a player listed for
+ * two teams on their last date (13 in the women's file) keeps the same one on every build (T1302.9).
+ * Unset, the SQL is the NBA's and the WNBA's as it was.
+ */
+export async function buildSeasonTables(db: StatsDb, total = false): Promise<void> {
   const player = await columnsOf(db, 'player_game')
   const team = await columnsOf(db, 'team_game')
-  await db.exec(playerSeason([...PLAYER_SUMS, ...EXTRA_PLAYER_SUMS.filter((c) => player.has(c))]))
+  await db.exec(
+    playerSeason([...PLAYER_SUMS, ...EXTRA_PLAYER_SUMS.filter((c) => player.has(c))], total)
+  )
   await db.exec(teamSeason([...TEAM_SUMS, ...EXTRA_TEAM_SUMS.filter((c) => team.has(c))]))
 }

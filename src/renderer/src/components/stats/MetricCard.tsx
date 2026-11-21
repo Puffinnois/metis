@@ -33,7 +33,8 @@ const sampleWords = (info: MetricInfo): string => {
     return `${share} of the team's games to qualify, the league's own rule`
   if (info.qualifyBy === 'games')
     return `${min} games of ${base} to qualify, the NBA's minimum${note}`
-  const nba = info.qualifyBy ? `, the NBA's minimum${note}` : ''
+  // In a league with its own games rule (the college leagues), a minimum of the NBA's says so too.
+  const nba = info.qualifyBy || share ? `, the NBA's minimum${note}` : ''
   return `${min} ${info.qualifyLabel} over ${base} games to qualify${nba}`
 }
 

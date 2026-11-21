@@ -70,7 +70,12 @@ export function inLeague(text: string, league: League = current): string {
     shotsLocatedFrom > shotsFrom
       ? `${league.seasonLabel(shotsFrom)} on, located from ${league.seasonLabel(shotsLocatedFrom)}`
       : `${league.seasonLabel(shotsFrom)} on`
-  return text.replaceAll('{league}', league.name).replaceAll('{shotsFrom}', shots)
+  // The shot file's own name where the league's is not "the league's shot chart file" (the college
+  // leagues read stats.ncaa.org's, T1302.9).
+  const named = league.shotsFile
+    ? text.replaceAll('the {league}’s shot chart file', league.shotsFile)
+    : text
+  return named.replaceAll('{league}', league.name).replaceAll('{shotsFrom}', shots)
 }
 
 /** "Per 36", "Per 48": the league's per-minute modes, in order. */

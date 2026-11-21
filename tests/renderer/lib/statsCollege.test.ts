@@ -5,7 +5,12 @@ import { setLeague } from '@/lib/stats/league'
 import { lineupGap, lineupNotes } from '@/lib/stats/lineups'
 import { DERIVED_NOTE, derivedNote, unitsNote } from '@/lib/stats/onCourt'
 import { typeTag } from '@/lib/stats/player'
-import { leaderboardQualifier } from '@/lib/stats/qualifying'
+import { leaderboardQualifier, leaderRuleWords } from '@/lib/stats/qualifying'
+import { inLeague } from '@/lib/stats/league'
+import { splitDefs } from '@/lib/stats/player'
+import { teamPoolQuery } from '@/lib/stats/team'
+import { MOMENTS, momentsIn } from '@/lib/stats/splits'
+import { METRICS, metricIn } from '@shared/stats/catalogue'
 import { defaultScope, seasonTypes, typeLabel, type StatsScope } from '@/lib/stats/scope'
 import { strengthNote, strengthQuery } from '@/lib/stats/standings'
 import { LEAGUES } from '@shared/leagues'
@@ -17,6 +22,65 @@ import type { StatsGame, StatsSeason } from '@shared/stats/types'
  * the NBA and the WNBA as they were.
  */
 afterEach(() => setLeague('nba'))
+
+describe('words a college screen must not take from the NBA (T1302.9)', () => {
+  it('names the shot chart file and the leader stats’ rule by league', () => {
+    expect(LEAGUES.nba.shotsFile).toBeUndefined()
+    expect(LEAGUES.wnba.shotsFile).toBeUndefined()
+    expect(LEAGUES.ncaam.shotsFile).toBe('stats.ncaa.org’s shot file')
+    expect(LEAGUES.ncaaw.shotsFile).toBe('stats.ncaa.org’s shot file')
+    expect(leaderRuleWords(LEAGUES.nba).note).toBe(
+      'the NBA’s leader stats need only their own minimum'
+    )
+    expect(leaderRuleWords(LEAGUES.wnba).clause).toBe(
+      'or the NBA’s own minimum alone for its leader stats'
+    )
+    for (const league of [LEAGUES.ncaam, LEAGUES.ncaaw]) {
+      const words = leaderRuleWords(league)
+      expect(`${words.note} ${words.clause}`).not.toContain('NBA')
+    }
+  })
+
+  it('names stats.ncaa.org’s shot file in section notes and the catalogue', () => {
+    const note = 'From the {league}’s shot chart file, {shotsFrom}'
+    expect(inLeague(note, LEAGUES.ncaam)).toBe('From stats.ncaa.org’s shot file, 2021-22 on')
+    expect(inLeague(note, LEAGUES.wnba)).toBe(
+      'From the WNBA’s shot chart file, 1997 on, located from 2011'
+    )
+    const zone = [...METRICS.values()].find((m) => m.sources?.includes("The NBA's shot chart file"))
+    expect(zone).toBeDefined()
+    expect(metricIn(zone!, LEAGUES.ncaaw).sources).toEqual(["stats.ncaa.org's shot file"])
+    expect(metricIn(zone!, LEAGUES.nba).sources).toEqual(["The NBA's shot chart file"])
+  })
+
+  it('offers the men no quarter among the Moments, and names the play by play’s source', () => {
+    setLeague('ncaam')
+    const men = momentsIn().map((m) => m.label)
+    expect(men.some((l) => /quarter/.test(l))).toBe(false)
+    expect(men).toContain('2nd half')
+    setLeague('ncaaw')
+    expect(momentsIn()).toEqual(MOMENTS)
+    setLeague('nba')
+    expect(momentsIn()).toEqual(MOMENTS)
+    const play = [...METRICS.values()].find((m) => m.sources?.includes("The NBA's play by play"))
+    expect(metricIn(play!, LEAGUES.ncaam).sources).toEqual(["stats.ncaa.org's play by play"])
+  })
+
+  it('leaves out the All-Star break, which the colleges never have', () => {
+    setLeague('ncaam')
+    expect(splitDefs(undefined).some((d) => d.group === 'All-Star break')).toBe(false)
+    setLeague('nba')
+    expect(splitDefs(undefined).filter((d) => d.group === 'All-Star break')).toHaveLength(2)
+  })
+
+  it('asks for every Division I team on a team page', () => {
+    const scope: StatsScope = { season: 2026, seasonType: 'regular', range: { kind: 'season' } }
+    setLeague('ncaaw')
+    expect(teamPoolQuery(['team_ortg'], scope, 'perGame').limit).toBe(500)
+    setLeague('nba')
+    expect(teamPoolQuery(['team_ortg'], scope, 'perGame').limit).toBe(40)
+  })
+})
 
 const season = (types: StatsGame['type'][]): StatsSeason =>
   ({

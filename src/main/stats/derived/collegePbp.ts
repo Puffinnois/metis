@@ -4,7 +4,7 @@ import { PLAYER_ON_COURT, UNIT_GAME, unitTailSql } from './onCourt'
 import type { PlayBuilder } from './playBuilders'
 import { finalColumns, flag, PLAY_COLUMNS, PLAY_TABLES } from './plays'
 import { COLLEGE_PLAYS } from './playsRecipe'
-import { column, type Have } from './sql'
+import { bestPlayerSql, column, type Have } from './sql'
 
 /**
  * The college leagues' play table from stats.ncaa.org's play by play (D40, D42; `ncaa-data-sources.md`,
@@ -142,11 +142,11 @@ function rowsCtes(have: Have, season: number, ten: boolean): string {
       WHERE ${own}
     ),
     nb_side AS (
-      SELECT s.contest_id, any_value(g.game_id) AS game_id, any_value(g.game_type) AS game_type,
-             any_value(g.game_date) AS game_date,
-             any_value(g.home_team_id) AS gh, any_value(g.away_team_id) AS ga,
-             any_value(${placed('hn', 'he', 'tnh')}) AS h0,
-             any_value(${placed('an', 'ae', 'tna')}) AS a0
+      SELECT s.contest_id, min(g.game_id) AS game_id, min(g.game_type) AS game_type,
+             min(g.game_date) AS game_date,
+             min(g.home_team_id) AS gh, min(g.away_team_id) AS ga,
+             min(${placed('hn', 'he', 'tnh')}) AS h0,
+             min(${placed('an', 'ae', 'tna')}) AS a0
       FROM (SELECT DISTINCT contest_id, fh_name, fa_name, fh_ncaa, fh_espn, fa_ncaa, fa_espn FROM nb_src) s
       JOIN nb_g g ON g.ncaa_game_id = s.contest_id
       LEFT JOIN team hn ON hn.season = g.season AND hn.ncaa_team_id = s.fh_ncaa
@@ -183,9 +183,9 @@ function rowsCtes(have: Have, season: number, ten: boolean): string {
              coalesce(i.player_id, -TRY_CAST(k.id AS BIGINT), n.player_id,
                       ${fallbackKey(String(s), 'k.team', 'k.name')}) AS player_id
       FROM nb_people k
-      LEFT JOIN (SELECT ncaa_player_id, any_value(player_id) AS player_id FROM ncaa_player_ids
+      LEFT JOIN (SELECT ncaa_player_id, ${bestPlayerSql()} AS player_id FROM ncaa_player_ids
                  WHERE season = ${s} AND ncaa_player_id IS NOT NULL GROUP BY 1) i ON i.ncaa_player_id = k.id
-      LEFT JOIN (SELECT team_id, player, arg_max(player_id, lines) AS player_id FROM ncaa_player_ids
+      LEFT JOIN (SELECT team_id, player, arg_max(player_id, (lines, player_id)) AS player_id FROM ncaa_player_ids
                  WHERE season = ${s} AND player IS NOT NULL GROUP BY 1, 2) n
         ON n.team_id = k.team AND n.player = k.name
     )`
@@ -305,9 +305,9 @@ export function collegePlaysSql(have: Have, season: number): string {
              CASE WHEN k.flipped <> coalesce(o.swap, false) THEN k.fh_score ELSE k.fa_score END AS a_score
       FROM nb_kind k
       LEFT JOIN nb_orient o ON o.game_id = k.game_id
-      LEFT JOIN (SELECT game_id, seq, arg_min(steal_id, gap) AS steal_id FROM nb_steal WHERE pick = 1 GROUP BY 1, 2) st
+      LEFT JOIN (SELECT game_id, seq, arg_min(steal_id, (gap, steal_id)) AS steal_id FROM nb_steal WHERE pick = 1 GROUP BY 1, 2) st
         ON st.game_id = k.game_id AND st.seq = k.seq
-      LEFT JOIN (SELECT game_id, seq, arg_min(block_id, gap) AS block_id FROM nb_block WHERE pick = 1 GROUP BY 1, 2) bl
+      LEFT JOIN (SELECT game_id, seq, arg_min(block_id, (gap, block_id)) AS block_id FROM nb_block WHERE pick = 1 GROUP BY 1, 2) bl
         ON bl.game_id = k.game_id AND bl.seq = k.seq
     ),
     scored AS (
@@ -380,7 +380,7 @@ export function collegeStintsCte(season: number, league: League): string {
       SELECT game_id, period, rn, hi, lo, away_team_id, unnest(a) FROM split_on
     ) WHERE player_id IS NOT NULL
   ), split_stints AS (
-    SELECT game_id, period, team_id, player_id, arg_min(hi, rn) AS hi, arg_max(lo, rn) AS lo
+    SELECT game_id, period, team_id, player_id, arg_min(hi, (rn, hi)) AS hi, arg_max(lo, (rn, lo)) AS lo
     FROM (SELECT *, rn - row_number() OVER (PARTITION BY game_id, period, team_id, player_id ORDER BY rn) AS island
           FROM split_on_each)
     GROUP BY game_id, period, team_id, player_id, island
@@ -401,8 +401,8 @@ export const collegeSegmentsCte = (season: number, league: League): string => `s
     QUALIFY clock > coalesce(lead(clock) OVER w, 0)
     UNION ALL
     SELECT * FROM (
-      SELECT game_id, period, any_value(home_team_id), any_value(away_team_id), arg_min(mh_before, seq),
-             any_value(${periodLengthSql(league, String(Number(season)), 'period')}) AS hi, max(clock) AS lo
+      SELECT game_id, period, min(home_team_id), min(away_team_id), arg_min(mh_before, (seq, mh_before)),
+             min(${periodLengthSql(league, String(Number(season)), 'period')}) AS hi, max(clock) AS lo
       FROM split_plays GROUP BY game_id, period
     ) WHERE hi > lo
   )`
@@ -415,9 +415,9 @@ export const collegeSegmentsCte = (season: number, league: League): string => `s
  */
 export const collegePossessionsCte = (season: number): string => `split_poss_src AS (
     SELECT *, team_id = home_team_id AS home FROM (
-      SELECT n.game_id, n.possession, arg_max(l.poss_team_id, n.seq) AS team_id,
-             any_value(g.home_team_id) AS home_team_id, min(n.seq) AS start_seq,
-             arg_min(n.period, n.seq) AS period, arg_min(n.clock, n.seq) AS start_clock, true AS counted
+      SELECT n.game_id, n.possession, arg_max(l.poss_team_id, (n.seq, l.poss_team_id)) AS team_id,
+             min(g.home_team_id) AS home_team_id, min(n.seq) AS start_seq,
+             arg_min(n.period, (n.seq, n.period)) AS period, arg_min(n.clock, (n.seq, n.clock)) AS start_clock, true AS counted
       FROM ${PLAY_TABLES.nba} n
       JOIN ${PLAY_LINEUP} l ON l.season = n.season AND l.game_id = n.game_id AND l.seq = n.seq
       JOIN game g ON g.game_id = n.game_id
@@ -456,7 +456,7 @@ export function collegePlayUnitsSql(_have: Have, season: number, league: League)
   ]
   return `WITH g AS (SELECT game_id, home_team_id, away_team_id FROM game WHERE season = ${s}),
     ends AS (
-      SELECT n.game_id, max(n.seq) AS seq, arg_max(l.poss_team_id, n.seq) AS poss_off
+      SELECT n.game_id, max(n.seq) AS seq, arg_max(l.poss_team_id, (n.seq, l.poss_team_id)) AS poss_off
       FROM ${PLAY_TABLES.nba} n
       JOIN ${PLAY_LINEUP} l ON l.season = n.season AND l.game_id = n.game_id AND l.seq = n.seq
       WHERE n.season = ${s} AND n.possession IS NOT NULL
@@ -483,10 +483,10 @@ export function collegePlayUnitsSql(_have: Have, season: number, league: League)
       FROM played
       UNION ALL
       SELECT season, game_type, game_id, game_date, max(seq) + 1, period, 'period', NULL, NULL,
-             any_value(home_team_id), any_value(away_team_id), NULL,
+             min(home_team_id), min(away_team_id), NULL,
              ${counts.map(() => '0').join(', ')},
-             ${elapsedSql(league, String(s), 'period', '0')}, any_value(p0),
-             arg_max(h, seq), arg_max(a, seq)
+             ${elapsedSql(league, String(s), 'period', '0')}, min(p0),
+             arg_max(h, (seq, h)), arg_max(a, (seq, a))
       FROM played GROUP BY season, game_type, game_id, game_date, period
     ),
     ${unitTailSql()}`

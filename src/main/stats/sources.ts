@@ -44,6 +44,13 @@ export interface SourceFile {
   fromSeason?: number
   /** `season` is published as text, `2025-26`, and read as its final year, `2026` (`seasonSql`). */
   seasonSpan?: boolean
+  /**
+   * Its rows are inserted in the file's order, so `rowid` follows it: stats.ncaa.org's play by play
+   * has no play number, and a play's place among those of the same second is its row's (T1302.7).
+   * Loaded in parallel, the rows of two of the file's row groups could swap from one load to the next
+   * (T1302.9). Absent: any order.
+   */
+  ordered?: boolean
 }
 
 type Options = Partial<
@@ -738,7 +745,7 @@ function collegeSources({ espn, ncaa, short, rostersFrom }: College): SourceFile
     n('possessions', 'events', 'possession'),
     n('lineups', 'events', 'lineup-stint'),
     n('matchup_stints', 'events', 'stint'),
-    n('pbp', 'plays', 'play'),
+    { ...n('pbp', 'plays', 'play'), ordered: true },
 
     source(
       'src_ratings',

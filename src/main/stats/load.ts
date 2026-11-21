@@ -108,14 +108,21 @@ export async function replaceRows(
   db: StatsDb,
   table: string,
   scope: RowScope,
-  select: string
+  select: string,
+  ordered = false
 ): Promise<Replaced> {
   const widened = await evolveTable(db, table, await describe(db, select))
   const where = scopeSql(scope)
-  await db.transaction(async () => {
-    await db.exec(`DELETE FROM ${sqlIdent(table)}${where}`)
-    await db.exec(`INSERT INTO ${sqlIdent(table)} BY NAME ${select}`)
-  })
+  // An ordered source keeps the file's order in `rowid` (`SourceFile.ordered`).
+  if (ordered) await db.exec('SET preserve_insertion_order = true')
+  try {
+    await db.transaction(async () => {
+      await db.exec(`DELETE FROM ${sqlIdent(table)}${where}`)
+      await db.exec(`INSERT INTO ${sqlIdent(table)} BY NAME ${select}`)
+    })
+  } finally {
+    if (ordered) await db.exec('SET preserve_insertion_order = false')
+  }
   const counted = await db.get<{ n: number }>(
     `SELECT count(*) AS n FROM ${sqlIdent(table)}${where}`
   )
@@ -173,6 +180,6 @@ export async function loadSourceFile(
     ? { fileSeason: null }
     : { fileSeason: season, sourceFile: source.shared ? source.stem : undefined }
   const select = standardSelect(from, columns, standard)
-  const main = await replaceRows(db, source.table, scope, select)
+  const main = await replaceRows(db, source.table, scope, select, source.ordered)
   return { rows: main.rows, notes: [...notes, ...main.widened.map((w) => `widened ${w}`)] }
 }

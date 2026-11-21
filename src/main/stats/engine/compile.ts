@@ -1154,6 +1154,14 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
   const over = (i: number, order: string): string =>
     `OVER (PARTITION BY ${[...group, `(${okOf(i)})`].join(', ')} ORDER BY ${val(i)} ${order})`
   const among = group.length > 0 ? `PARTITION BY ${group.join(', ')}` : ''
+  // The league mean and spread, for the transforms that need them.
+  const meansOf = (i: number): string[] =>
+    c.transform === 'zScore' || c.transform === 'vsLeague'
+      ? [
+          `avg(v${i}) FILTER (WHERE ${okOf(i)}) OVER (${among}) AS m${i}`,
+          `stddev_samp(v${i}) FILTER (WHERE ${okOf(i)}) OVER (${among}) AS d${i}`
+        ]
+      : []
   const ranked = c.metrics.flatMap((m, i) => {
     const ok = okOf(i)
     const up = m.direction === 'lower' ? 'DESC' : 'ASC'
@@ -1164,15 +1172,49 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
         ? `CASE WHEN ${ok} THEN 100 * percent_rank() ${over(i, up)} END AS p${i}`
         : `NULL::DOUBLE AS p${i}`,
       ranks ? `CASE WHEN ${ok} THEN rank() ${over(i, best)} END AS r${i}` : `NULL::BIGINT AS r${i}`,
-      // The league mean and spread, for the transforms that need them.
-      ...(c.transform === 'zScore' || c.transform === 'vsLeague'
-        ? [
-            `avg(v${i}) FILTER (WHERE ${ok}) OVER (${among}) AS m${i}`,
-            `stddev_samp(v${i}) FILTER (WHERE ${ok}) OVER (${among}) AS d${i}`
-          ]
-        : [])
+      ...meansOf(i)
     ]
   })
+  // A league of thousands of rows a season (`manyRows`) ranks every column in one pass: each row's
+  // columns unpivoted into (column, value) pairs, one sort of those narrow rows, and the ranks pivoted
+  // back by the row's key. The windows above sort every row with all its columns, twice a column. The
+  // values are the same: a lower-is-better column is ordered on its value negated; the percentile is
+  // `percent_rank()` on the same order; the best-first rank is one more than the rows above the value
+  // (`cume_dist()` times the rows is the rows at or below it); a row that does not qualify has no
+  // pair, as it had no rank.
+  const onePass = !!c.league.manyRows && q.ranks !== false
+  const keys = ['id', ...dims.map((d) => `g_${d}`)]
+  // A player's position as a number for the sort (the same groups, NULL one of them): sorting the
+  // pairs on a text column cost a tenth of the query.
+  const pairs = `PARTITION BY ${['m', ...group.map((g) => (g === 'position' ? 'pos' : g))].join(', ')}`
+  const rankCtes = onePass
+    ? [
+        `ranklong AS (
+      SELECT * FROM (
+        SELECT ${[...keys, ...(q.entity === 'player' ? ['dense_rank() OVER (ORDER BY position) AS pos'] : [])].join(', ')},
+               unnest(range(${c.metrics.length})) AS m,
+               unnest([${c.metrics.map((m, i) => `${m.direction === 'lower' ? '-' : ''}(${val(i)})::DOUBLE`).join(', ')}]) AS x,
+               unnest([${c.metrics.map((_, i) => `(${okOf(i)})`).join(', ')}]) AS ok
+        FROM flagged) WHERE ok)`,
+        `rankwide AS (
+      SELECT ${keys.join(', ')},
+             ${c.metrics.map((_, i) => `max(p) FILTER (WHERE m = ${i}) AS p${i}, max(r) FILTER (WHERE m = ${i}) AS r${i}`).join(', ')}
+      FROM (SELECT ${keys.join(', ')}, m, 100 * pr AS p, n - round(cd * n)::BIGINT + 1 AS r
+            FROM (SELECT *, percent_rank() OVER (${pairs} ORDER BY x ASC) AS pr,
+                         cume_dist() OVER (${pairs} ORDER BY x ASC) AS cd,
+                         count(*) OVER (${pairs}) AS n
+                  FROM ranklong))
+      GROUP BY ${keys.join(', ')})`,
+        `rankjoined AS (
+      SELECT f.*, ${c.metrics.map((_, i) => `rk.p${i}, rk.r${i}`).join(', ')}
+      FROM flagged f LEFT JOIN rankwide rk
+        ON ${keys.map((k) => `rk.${k} IS NOT DISTINCT FROM f.${k}`).join(' AND ')})`
+      ]
+    : []
+  const means = c.metrics.flatMap((_, i) => meansOf(i))
+  const rankedCte = onePass
+    ? `ranked AS (SELECT *${means.length > 0 ? `, ${means.join(', ')}` : ''} FROM rankjoined)`
+    : `ranked AS (SELECT *, ${ranked.join(', ')} FROM flagged)`
   const shaped = c.metrics.map((_, i) => {
     switch (c.transform) {
       case 'percentile':
@@ -1221,18 +1263,52 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
   const sortAdds =
     adding && !!c.metrics[sort].published && c.adds.includes(c.metrics[sort].published)
   const first = shrunk[sort] || sortAdds ? `(s${sort} > 0 AND t${sort} IS NOT NULL)` : `q${sort}`
-  const sql = `WITH ${ctes.join(',\n')},
-    flagged AS (SELECT a.*, ${[...flags, ...pulled].join(', ')} FROM ${rowsFrom} a),
-    ranked AS (SELECT *, ${ranked.join(', ')} FROM flagged),
-    shaped AS (SELECT *, ${shaped.join(', ')} FROM ranked)
-    SELECT x.*, ${player ? `coalesce(pl.name, ${adding ? 'x.added_name, ' : ''}x.id::VARCHAR)` : 'coalesce(tm.name, x.id::VARCHAR)'} AS name,
+  const head = `WITH ${ctes.join(',\n')},
+    flagged AS (SELECT a.*, ${[...flags, ...pulled].join(', ')} FROM ${rowsFrom} a),${rankCtes.map((r) => `\n    ${r},`).join('')}
+    ${rankedCte},
+    shaped AS (SELECT *, ${shaped.join(', ')} FROM ranked)`
+  const nameSql = player
+    ? `coalesce(pl.name, ${adding ? 'x.added_name, ' : ''}x.id::VARCHAR)`
+    : 'coalesce(tm.name, x.id::VARCHAR)'
+  const limited = !ctx.internal?.unlimited
+  // Many rows (`manyRows`): the rows listed are picked on their key and the sort's columns alone, and
+  // only those rows' columns are read back, only the ones `runQuery` shapes. Counting and sorting
+  // 90,000 rows of a by-opponent board with every column took about 200 ms, and carrying every
+  // intermediate column of 5,000 rows to JavaScript about as long. The rows, their order and the
+  // total are the same.
+  const shown = [
+    'id',
+    ...dims.map((d) => `g_${d}`),
+    'position',
+    ...(adding ? ['no_line'] : []),
+    'games',
+    ...c.metrics.flatMap((_, i) => [`t${i}`, `v${i}`, `s${i}`, `q${i}`, `p${i}`, `r${i}`])
+  ]
+  const sql =
+    c.league.manyRows && limited
+      ? `${head},
+    listed AS (
+      SELECT ${keys.map((k) => `x.${k}`).join(', ')}, ${nameSql} AS name,
+             tm.code AS team_code, count(*) OVER () AS total,
+             ${first} AS o_first, t${sort} AS o_sort
+      FROM shaped x
+      ${player ? 'LEFT JOIN player pl ON pl.player_id = x.id' : ''}
+      LEFT JOIN team tm ON tm.team_id = x.team_id AND tm.season = x.last_season
+      ${q.scope.qualifiedOnly && c.gaps[sort] === null ? `WHERE q${sort}` : ''}
+      ORDER BY o_first DESC, o_sort ${dir.toUpperCase()} NULLS LAST, name
+      LIMIT ${q.limit ?? DEFAULT_LIMIT})
+    SELECT ${shown.map((col) => `x.${col}`).join(', ')}, l.name, l.team_code, l.total
+    FROM listed l JOIN shaped x ON ${keys.map((k) => `x.${k} IS NOT DISTINCT FROM l.${k}`).join(' AND ')}
+    ORDER BY l.o_first DESC, l.o_sort ${dir.toUpperCase()} NULLS LAST, l.name`
+      : `${head}
+    SELECT x.*, ${nameSql} AS name,
            tm.code AS team_code, count(*) OVER () AS total
     FROM shaped x
     ${player ? 'LEFT JOIN player pl ON pl.player_id = x.id' : ''}
     LEFT JOIN team tm ON tm.team_id = x.team_id AND tm.season = x.last_season
     ${q.scope.qualifiedOnly && c.gaps[sort] === null ? `WHERE q${sort}` : ''}
     ORDER BY ${first} DESC, t${sort} ${dir.toUpperCase()} NULLS LAST, name
-    ${ctx.internal?.unlimited ? '' : `LIMIT ${q.limit ?? DEFAULT_LIMIT}`}`
+    ${limited ? `LIMIT ${q.limit ?? DEFAULT_LIMIT}` : ''}`
 
   const bySeason =
     c.groupBy.includes('season') && !c.groupBy.includes('game') && q.scope.lastN === undefined

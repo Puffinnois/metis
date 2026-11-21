@@ -52,9 +52,11 @@ export class StatsDb {
 
   async all<T extends object = Row>(sql: string, params?: Params): Promise<T[]> {
     const reader = await this.conn.runAndReadAll(sql, params)
-    return reader
-      .getRowObjectsJS()
-      .map((row) => Object.fromEntries(Object.entries(row).map(([k, v]) => [k, plain(v)])) as T)
+    // In place: rebuilding each row with `Object.fromEntries` took 35 to 70 ms on a college board of
+    // 5,000 rows and 67 columns, converting in place 2 to 8 (T1302.9). The values are the same.
+    const rows = reader.getRowObjectsJS() as Record<string, unknown>[]
+    for (const row of rows) for (const k in row) row[k] = plain(row[k])
+    return rows as T[]
   }
 
   async get<T extends object = Row>(sql: string, params?: Params): Promise<T | null> {

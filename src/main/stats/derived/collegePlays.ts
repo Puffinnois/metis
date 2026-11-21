@@ -18,7 +18,7 @@ import {
 } from './onCourt'
 import type { PlayBuilder } from './playBuilders'
 import { COLLEGE_OFFICIALS_VIEW, COLLEGE_PLAYS } from './playsRecipe'
-import { column, type Have } from './sql'
+import { bestPlayerSql, column, type Have } from './sql'
 
 /**
  * The college leagues' tables from stats.ncaa.org's event files (D40, `ncaa-data-sources.md`), keyed
@@ -82,7 +82,7 @@ export const nameSide = (ids: string): string => `CASE
 const playersByNameSql = (
   season: string,
   key: string
-): string => `SELECT team_id, k, arg_max(player_id, lines) AS player_id
+): string => `SELECT team_id, k, arg_max(player_id, (lines, player_id)) AS player_id
     FROM (SELECT team_id, ${key} AS k, player_id, lines FROM ncaa_player_ids WHERE season = ${season})
     WHERE k IS NOT NULL AND k <> '' GROUP BY 1, 2`
 
@@ -136,8 +136,8 @@ export function collegeShotKeysSql(have: Have, season: number): string {
              coalesce(${c('team_id', 'VARCHAR')}, '') AS team_name,
              coalesce(${c('shooter_id', 'VARCHAR')}, '') AS shooter,
              coalesce(${c('shooter_player_id', 'VARCHAR')}, '') AS ncaa_player,
-             any_value(g.home_team_id) AS gh, any_value(g.away_team_id) AS ga,
-             any_value(${mapped}) AS mapped
+             min(g.home_team_id) AS gh, min(g.away_team_id) AS ga,
+             min(${mapped}) AS mapped
       FROM ${t} s JOIN game g ON g.ncaa_game_id = ${c('contest_id', 'VARCHAR')} AND g.season = ${s}
       LEFT JOIN team tm ON tm.season = g.season AND tm.ncaa_team_id = ${c('ncaa_team_id')}
       LEFT JOIN team te ON te.season = g.season AND te.espn_team_id = ${c('espn_team_id', 'INTEGER')}
@@ -152,7 +152,7 @@ export function collegeShotKeysSql(have: Have, season: number): string {
       FROM k WINDOW w AS (PARTITION BY contest_id)
     ),
     pn AS (
-      SELECT team_id, k, arg_max(player_id, lines) AS player_id
+      SELECT team_id, k, arg_max(player_id, (lines, player_id)) AS player_id
       FROM (SELECT team_id, player_id, lines, ${shooterCodeSql('player')} AS k
             FROM ncaa_player_ids WHERE season = ${s})
       WHERE k <> '' GROUP BY 1, 2
@@ -163,7 +163,7 @@ export function collegeShotKeysSql(have: Have, season: number): string {
                 WHEN x.shooter <> ''
                 THEN coalesce(pn.player_id, ${fallbackKey('x.season', 'x.team_id', 'x.shooter')}) END
     FROM sided x
-    LEFT JOIN (SELECT ncaa_player_id, any_value(player_id) AS player_id FROM ncaa_player_ids
+    LEFT JOIN (SELECT ncaa_player_id, ${bestPlayerSql()} AS player_id FROM ncaa_player_ids
                WHERE season = ${s} AND ncaa_player_id IS NOT NULL GROUP BY 1) pi
       ON pi.ncaa_player_id = x.ncaa_player
     LEFT JOIN pn ON pn.team_id = x.team_id
@@ -425,7 +425,7 @@ function stintsSql(have: Have): string {
   const c = (name: string, type = 'BIGINT'): string => column(have, t, 's', name, type)
   const who = (side: 'home' | 'away', i: number): string => {
     const team = side === 'home' ? 'x.h_team' : 'x.a_team'
-    return `(SELECT coalesce(arg_max(p.player_id, p.lines), ${fallbackKey('x.season', team, `x.${side}_${i}`)})
+    return `(SELECT coalesce(arg_max(p.player_id, (p.lines, p.player_id)), ${fallbackKey('x.season', team, `x.${side}_${i}`)})
              FROM ncaa_player_ids p WHERE p.season = x.season AND p.team_id = ${team} AND p.player = x.${side}_${i})`
   }
   return `CREATE OR REPLACE VIEW ${STINTS_VIEW} AS
@@ -471,14 +471,14 @@ function possessionsSql(have: Have): string {
   }
   const c = (name: string, type = 'BIGINT'): string => column(have, t, 's', name, type)
   const team = (ncaa: string): string =>
-    `(SELECT any_value(t.team_id) FROM team t WHERE t.season = g.season AND t.ncaa_team_id = TRY_CAST(${ncaa} AS BIGINT))`
+    `(SELECT min(t.team_id) FROM team t WHERE t.season = g.season AND t.ncaa_team_id = TRY_CAST(${ncaa} AS BIGINT))`
   // By the file's player id; else by its play-by-play name within the team (`AJ.DYBANTSA`); else D28's.
   const who = (side: 'home' | 'away', i: number): string => {
     const team = side === 'home' ? 'x.h' : 'x.a'
-    return `coalesce((SELECT any_value(p.player_id) FROM ncaa_player_ids p
+    return `coalesce((SELECT ${bestPlayerSql('p.')} FROM ncaa_player_ids p
                WHERE p.season = g.season AND p.ncaa_player_id = s.${side}_${i}_player_id),
               -TRY_CAST(s.${side}_${i}_player_id AS BIGINT),
-              (SELECT arg_max(p.player_id, p.lines) FROM ncaa_player_ids p
+              (SELECT arg_max(p.player_id, (p.lines, p.player_id)) FROM ncaa_player_ids p
                WHERE p.season = g.season AND p.team_id = ${team} AND p.player = s.${side}_${i}),
               CASE WHEN s.${side}_${i} IS NOT NULL THEN ${fallbackKey('g.season', team, `s.${side}_${i}`)} END)`
   }

@@ -1,0 +1,305 @@
+[
+  {
+    "size": [1500, 950]
+  },
+  {
+    "wait": 8000
+  },
+  {
+    "eval": "window.sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nwindow.until = async (fn, ms = 15000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await fn()) return true; await sleep(200) } return false };\nwindow.nav = async (name) => { const b = [...document.querySelectorAll('nav button')].find((x) => x.textContent.trim() === name); if (!b) return 'NO NAV ' + name; b.click(); await sleep(2500); return 'nav ' + name };\nwindow.chooseSelect = async (title, value) => { const el = [...document.querySelectorAll('select')].find((x) => x.title === title); if (!el) return 'NO SELECT ' + title; Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(el, String(value)); el.dispatchEvent(new Event('change', { bubbles: true })); await sleep(2500); return title + ' = ' + (el.selectedOptions[0]?.textContent ?? el.value) };\nwindow.press = async (text) => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === text); if (!b) return 'NO BUTTON ' + text; b.click(); await sleep(2500); return 'pressed ' + text };\nwindow.toggle = async (label) => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim().endsWith(label)); if (!b) return 'NO TOGGLE ' + label; b.click(); await sleep(2500); return label + ' ' + b.getAttribute('aria-pressed') };\nwindow.pressed = (label) => [...document.querySelectorAll('button')].find((x) => x.textContent.trim().endsWith(label))?.getAttribute('aria-pressed');\nwindow.rows = () => [...document.querySelectorAll('tbody tr')].filter((r) => r.querySelector('td'));\nwindow.cells = (r) => [...r.querySelectorAll('td')].map((c) => c.textContent.trim());\nwindow.has = (text) => document.body.innerText.includes(text);\nwindow.total = () => document.body.innerText.match(/[0-9,]+ of [0-9,]+ \\u00b7 sorted by/)?.[0] ?? 'NO TOTAL';\nwindow.trigger = () => document.querySelector('button[aria-label^=\"League: \"]');\nwindow.league = () => trigger()?.getAttribute('aria-label')?.replace('League: ', '') ?? null;\nwindow.statusLine = () => document.querySelector('[title=\"See what is loaded\"]')?.textContent.trim() ?? null;\nwindow.h1 = () => document.querySelector('main h1')?.textContent.trim() ?? null;\nwindow.switchTo = async (name) => { const t = trigger(); if (!t) return 'NO MENU'; t.focus(); t.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); await until(() => document.querySelectorAll('[role=menuitemradio]').length > 0, 3000); const item = [...document.querySelectorAll('[role=menuitemradio]')].find((x) => x.textContent.startsWith(name)); if (!item) return 'NO ITEM ' + name; item.click(); await until(() => league() === name, 5000); await sleep(3000); return league() };\nwindow.setInput = (input, value) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, value); input.dispatchEvent(new Event('input', { bubbles: true })); input.dispatchEvent(new Event('change', { bubbles: true })) };\nwindow.openPlayer = async (name) => { const input = document.querySelector('input[aria-label=\"Search players\"]'); if (!input) return 'NO SEARCH'; setInput(input, name); await until(() => [...document.querySelectorAll('aside button')].some((x) => x.textContent.includes(name))); const b = [...document.querySelectorAll('aside button')].find((x) => x.textContent.includes(name)); if (!b) return 'NOT LISTED ' + name; b.click(); await sleep(3500); return 'opened ' + name };\nwindow.check = (label, ok, got) => (ok ? 'OK ' : 'MISMATCH ') + label + ' got ' + JSON.stringify(got);\nwindow.tab = async (label) => { const t = [...document.querySelectorAll('[role=tab], button')].find((x) => x.textContent.trim() === label); if (!t) return 'NO TAB ' + label; t.click(); await sleep(3500); return 'tab ' + label };\nwindow.main = () => document.querySelector('main')?.innerText ?? '';\nwindow.openRow = async (pred) => { await until(() => rows().some((r) => pred(r.innerText)), 10000); const r = rows().find((x) => pred(x.innerText)); if (!r) return 'NO ROW'; (r.querySelector('button, a') ?? r).click(); await sleep(3500); return 'opened row' };\nwindow.openTeam = async (id) => chooseSelect('Team', id);\nwindow.openGame = async (season, day, pred) => { await chooseSelect('Season', season); await chooseSelect('Day', day); const b = [...document.querySelectorAll('[aria-label=\"The day’s games\"] button')].find((x) => pred(x.textContent)); if (!b) return 'NO GAME'; b.click(); await sleep(3500); return 'opened game' };\nwindow.flowLabels = () => [...document.querySelectorAll('section[aria-label=\"Game flow\"] svg text')].map((x) => x.textContent.trim()).filter((l) => /^(H[12]|Q[1-4]|[0-9]?OT)$/.test(l));\n'helpers ready'"
+  },
+  {
+    "eval": "window.heads = () => [...document.querySelectorAll('thead th,[role=columnheader]')].map((t) => t.textContent.trim()).filter(Boolean);\nwindow.tab = async (label) => { const t = [...document.querySelectorAll('[role=tab]')].find((x) => x.textContent.trim() === label) ?? [...document.querySelectorAll('main button')].find((x) => x.textContent.trim() === label); if (!t) return 'NO TAB ' + label; t.click(); await sleep(3500); return 'tab ' + label };\nwindow.tabNames = () => [...document.querySelectorAll('[role=tab]')].map((t) => t.textContent.trim());\nwindow.clickText = async (text) => { const b = [...document.querySelectorAll('main button,main [role=tab],main a')].find((x) => x.textContent.trim() === text); if (!b) return 'NO ' + text; b.click(); await sleep(2500); return 'clicked ' + text };\nwindow.rowOf = (name) => { const r = [...document.querySelectorAll('tr,[role=row]')].find((x) => x.textContent.includes(name)); return r ? [...r.querySelectorAll('[role=cell],td')].map((c) => c.textContent.trim()) : null };\nwindow.text = () => main().replace(/\\s+/g, ' ');\nwindow.dark = (on) => { document.documentElement.classList.toggle('dark', on); return 'dark ' + on };\nwindow.noNba = () => (text().match(/[^.]{0,60}(?<!W)NBA[^.]{0,60}/g) ?? []).filter((x) => !/NBA's minimum|NBA's leader stats|NBA Elo|values fitted for the NBA|the NBA's is 14/.test(x));\n'helpers 3'"
+  },
+  {
+    "eval": "window.noNba = () => (text().match(/[^.]{0,70}(?<!W)NBA[^.]{0,70}/g) ?? []).filter((x) => !/NBA's minimum|NBA’s minimum|the NBA's|NBA Elo/.test(x) && !/NBA's player tracking.*Not published for college/.test(x));\nwindow.nbaAll = () => text().match(/[^.]{0,70}(?<!W)NBA[^.]{0,70}/g) ?? [];\nwindow.errs = () => [...document.querySelectorAll('.text-bad')].map((e) => e.textContent.trim()).filter((t) => /could not|failed|error|refused|went wrong/i.test(t)).slice(0, 5);\nwindow.reads = () => !/could not be opened|Something went wrong|Error invoking/.test(text()) && errs().length === 0;\nwindow.leagueWords = () => (text().match(league() === 'NCAA Men' ? /[^.]{0,50}\\b(per 48|Per 48|All-Star|4th quarter|playoff odds|Playoff odds|play-in)\\b[^.]{0,50}/g : /[^.]{0,50}\\b(per 48|Per 48|All-Star|playoff odds|Playoff odds|play-in)\\b[^.]{0,50}/g) ?? []);\n'helpers t1302i'"
+  },
+  {
+    "eval": "(async () => { const t0 = Date.now(); const idle = await until(async () => { const s = await Promise.all(['nba', 'wnba', 'ncaam', 'ncaaw'].map((l) => window.api.stats.status(l))); return s.every((x) => !x.busy) }, 40 * 60000); const s = await Promise.all(['nba', 'wnba', 'ncaam', 'ncaaw'].map((l) => window.api.stats.status(l))); return check('four leagues finish the launch refresh, each with its tables', idle && s.every((x) => x.available && !x.noData), { seconds: Math.round((Date.now() - t0) / 1000), s: s.map((x) => [x.through?.date, x.builtAt, x.noData]) }) })()"
+  },
+  {
+    "eval": "(async () => { const w = await switchTo('NCAA Men'); await nav('Leaderboards'); await chooseSelect('Season', 2026); await sleep(1500)\n  const t = text()\n  return check('NCAA Men home 2025-26 reads: leaders, the 75 % rule, no NBA words', w === 'NCAA Men' && reads() && /75 %/.test(t) && noNba().length === 0 && leagueWords().length === 0, { w, noNba: noNba(), words: leagueWords(), head: t.slice(0, 300) }) })()"
+  },
+  {
+    "shot": "t1302i-ncaam-01-home"
+  },
+  {
+    "eval": "(async () => { await press('All →'); await sleep(2000)\n  const fam = [...document.querySelectorAll('select')].find((x) => x.title === 'Metric family')\n  const families = fam ? [...fam.options].map((o) => o.textContent) : []\n  const modes = [...document.querySelectorAll('main button')].map((b) => b.textContent.trim()).filter((t) => /^(Totals|Per \\w+)$/.test(t))\n  return check('NCAA Men player board: per 40 (per 36 beside it, as in the WNBA), never per 48; no Tracking, Hustle, Play types or Matchups family; no NBA words', reads() && modes.includes('Per 40') && !modes.some((m) => /48/.test(m)) && !families.some((f) => /Tracking|Hustle|Play types|Matchups/.test(f)) && noNba().length === 0, { modes, families, noNba: noNba(), total: total() }) })()"
+  },
+  {
+    "shot": "t1302i-ncaam-02-board"
+  },
+  {
+    "eval": "(async () => { const out = {}; if (fam = [...document.querySelectorAll('select')].find((x) => x.title === 'Metric family')) { for (const o of [...fam.options]) { await chooseSelect('Metric family', o.value); out[o.textContent] = { ok: reads(), nba: noNba().length, words: leagueWords().length, total: total() } } } var fam; const bad = Object.entries(out).filter(([, v]) => !v.ok || v.nba || v.words)\n  return check('NCAA Men every metric family on the board reads, no NBA words', bad.length === 0 && Object.keys(out).length > 5, { families: Object.keys(out).length, bad }) })()"
+  },
+  {
+    "eval": "(async () => { await nav('Teams'); await chooseSelect('Season', 2026); await clickText('Team leaderboards →'); await sleep(2500)\n  return check('NCAA Men team board reads, the Division I teams', reads() && /of 3[5-6][0-9]/.test(text()) && noNba().length === 0, { total: total(), noNba: noNba() }) })()"
+  },
+  {
+    "shot": "t1302i-ncaam-03-team-board"
+  },
+  {
+    "eval": "(async () => { await nav('Players'); await chooseSelect('Season', 2026); const o = await openPlayer(\"AJ Dybantsa\"); await tab('Overview')\n  const tabs = tabNames()\n  return check('AJ Dybantsa’s dashboard: no Tracking, Play types or Matchups tab, 25.3 points a game in the regular season (raw: 859 in 34)', o.startsWith('opened') && reads() && !tabs.some((t) => /Tracking|Play types|Matchups/.test(t)) && noNba().length === 0 && /25\\.3/.test(text()), { o, tabs, noNba: noNba(), pts: text().match(/Points[^A-Z]{0,30}/)?.[0] }) })()"
+  },
+  {
+    "shot": "t1302i-ncaam-04-player"
+  },
+  {
+    "eval": "(async () => { const g = await tab('Scoring'); return check('NCAA Men player Scoring tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords(), from: text().match(/From [^;]{0,60}/)?.[0] }) })()"
+  },
+  {
+    "eval": "(async () => { const g = await tab('Shooting'); return check('NCAA Men player Shooting tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords(), from: text().match(/From [^;]{0,60}/)?.[0] }) })()"
+  },
+  {
+    "eval": "(async () => { const g = await tab('Play by play'); return check('NCAA Men player Play by play tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords(), from: text().match(/From [^;]{0,60}/)?.[0] }) })()"
+  },
+  {
+    "eval": "(async () => { const g = await tab('Playmaking'); return check('NCAA Men player Playmaking tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords(), from: text().match(/From [^;]{0,60}/)?.[0] }) })()"
+  },
+  {
+    "eval": "(async () => { const g = await tab('Rebounding'); return check('NCAA Men player Rebounding tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords(), from: text().match(/From [^;]{0,60}/)?.[0] }) })()"
+  },
+  {
+    "eval": "(async () => { const g = await tab('Defense'); return check('NCAA Men player Defense tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords(), from: text().match(/From [^;]{0,60}/)?.[0] }) })()"
+  },
+  {
+    "eval": "(async () => { const g = await tab('Game log'); return check('NCAA Men player Game log tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords(), from: text().match(/From [^;]{0,60}/)?.[0] }) })()"
+  },
+  {
+    "eval": "(async () => { const g = await tab('Splits'); return check('NCAA Men player Splits tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords(), from: text().match(/From [^;]{0,60}/)?.[0] }) })()"
+  },
+  {
+    "eval": "(async () => { const g = await tab('On/off'); return check('NCAA Men player On/off tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords(), from: text().match(/From [^;]{0,60}/)?.[0] }) })()"
+  },
+  {
+    "eval": "(async () => { const g = await tab('Shots'); return check('NCAA Men player Shots tab reads, no NBA words or rules (stats.ncaa.org’s shot file)', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0 && text().includes('From stats.ncaa.org’s shot file'), { g, noNba: noNba(), words: leagueWords(), from: text().match(/From [^;]{0,60}/)?.[0] }) })()"
+  },
+  {
+    "eval": "(async () => { const g = await tab('Profile'); return check('NCAA Men player Profile tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords(), from: text().match(/From [^;]{0,60}/)?.[0] }) })()"
+  },
+  {
+    "shot": "t1302i-ncaam-05-player-shots"
+  },
+  {
+    "eval": "(async () => { await nav('Teams'); await chooseSelect('Season', 2026); await openTeam('252'); await tab('Overview')\n  return check('NCAA Men BYU 2025-26 team page reads, its ratings filled', reads() && text().includes(\"BYU Cougars\") && !/Win percentage[^0-9]{0,6}—/.test(text()) && noNba().length === 0, { noNba: noNba(), head: text().slice(0, 200) }) })()"
+  },
+  {
+    "shot": "t1302i-ncaam-06-team"
+  },
+  {
+    "eval": "(async () => { const g = await tab('Offense'); return check('NCAA Men team Offense tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords() }) })()"
+  },
+  {
+    "eval": "(async () => { const g = await tab('Defense'); return check('NCAA Men team Defense tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords() }) })()"
+  },
+  {
+    "eval": "(async () => { const g = await tab('Play by play'); return check('NCAA Men team Play by play tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords() }) })()"
+  },
+  {
+    "eval": "(async () => { const g = await tab('Players'); return check('NCAA Men team Players tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords() }) })()"
+  },
+  {
+    "eval": "(async () => { const g = await tab('Splits'); return check('NCAA Men team Splits tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords() }) })()"
+  },
+  {
+    "eval": "(async () => { const g = await tab('Schedule'); return check('NCAA Men team Schedule tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords() }) })()"
+  },
+  {
+    "eval": "(async () => { const g = await tab('On/off'); return check('NCAA Men team On/off tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords() }) })()"
+  },
+  {
+    "eval": "(async () => { const g = await tab('Shots'); return check('NCAA Men team Shots tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords() }) })()"
+  },
+  {
+    "eval": "(async () => { const g = await tab('Lineups'); return check('NCAA Men team Lineups tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords() }) })()"
+  },
+  {
+    "eval": "(async () => { await nav('Standings'); await chooseSelect('Season', 2026); await sleep(2000); const r = rowOf(\"Michigan\")\n  return check('NCAA Men standings 2025-26 read, Michigan listed, no forecast and no NBA words', reads() && r !== null && noNba().length === 0 && !/PLAYOFF%|TITLE%/.test(text()), { r, noNba: noNba() }) })()"
+  },
+  {
+    "shot": "t1302i-ncaam-07-standings"
+  },
+  {
+    "eval": "(async () => { await nav('Games'); const o = await openGame(2026, '2026-04-06', (x) => x.includes('MICH')); const t = text()\n  return check('NCAA Men the 2026 title game reads (69-63), with its box score and flow', o === 'opened game' && reads() && t.includes('69') && t.includes('63') && noNba().length === 0, { o, noNba: noNba(), head: t.slice(0, 240) }) })()"
+  },
+  {
+    "shot": "t1302i-ncaam-08-game"
+  },
+  {
+    "eval": "(async () => { const o = await clickText('Officials of 2025-26'); await sleep(3000); return check('NCAA Men officials of 2025-26 read', reads() && noNba().length === 0, { o, line: text().slice(0, 200) }) })()"
+  },
+  {
+    "eval": "(async () => { await nav('Explore'); await clickText('Chart'); await chooseSelect('Season', 2026); await sleep(2000)\n  const presets = [...document.querySelectorAll('main button')].map((b) => b.textContent.trim()).filter((t) => / vs /.test(t))\n  return check('NCAA Men Explore Chart: no tracking preset, the league’s own rule, no NBA words', reads() && !presets.some((p) => /Drives/.test(p)) && noNba().length === 0 && !/NBA’s leader stats|NBA’s own minimum/.test(text()), { presets, noNba: noNba(), note: text().match(/Qualified[^.]*\\./)?.[0] }) })()"
+  },
+  {
+    "shot": "t1302i-ncaam-09-chart"
+  },
+  {
+    "eval": "(async () => { await clickText('Compare'); await sleep(2500); return check('NCAA Men Compare reads', reads() && noNba().length === 0, { noNba: noNba(), head: text().slice(0, 160) }) })()"
+  },
+  {
+    "eval": "(async () => { await clickText('Trends'); await sleep(3000); return check('NCAA Men Trends reads its seasons from 2021-22', reads() && /2021-22|2022-23/.test(text()) && noNba().length === 0, { noNba: noNba(), head: text().slice(0, 160) }) })()"
+  },
+  {
+    "eval": "(async () => { await nav('Glossary'); const i = document.querySelector('input[aria-label=\"Search metrics\"]'); setInput(i, 'drives'); await sleep(2000)\n  const t = text()\n  return check('NCAA Men Glossary: tracking metrics give the college reason in Since', reads() && /Since Not (published|available|included)[^.]{0,40}(college|NCAA|this version)/i.test(t), t.match(/Since [^S]{0,100}/)?.[0]) })()"
+  },
+  {
+    "eval": "(async () => { const i = document.querySelector('input[aria-label=\"Search metrics\"]'); setInput(i, 'Points'); await sleep(2000); const t = text()\n  return check('NCAA Men Glossary: points read from 2021-22, the window stated', reads() && /2021-22/.test(t) && noNba().length === 0, { since: t.match(/Since [^S]{0,60}/)?.[0], noNba: noNba() }) })()"
+  },
+  {
+    "shot": "t1302i-ncaam-10-glossary"
+  },
+  {
+    "eval": "(async () => { await nav('Leaderboards'); await press('All →'); await sleep(1500); document.querySelector('[title=\"Saved views\"]').click(); await sleep(800); const i = document.querySelector('input[aria-label=\"View name\"]'); setInput(i, 'T1302.9 NCAA Men'); await sleep(300); i.closest('form').requestSubmit(); await sleep(1500)\n  const mine = (await window.api.stats.views('ncaam')).map((v) => v.name); const nba = (await window.api.stats.views('nba')).map((v) => v.name)\n  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await sleep(400)\n  return check('NCAA Men a saved view is kept for this league alone', mine.includes('T1302.9 NCAA Men') && !nba.includes('T1302.9 NCAA Men'), { mine, nba }) })()"
+  },
+  {
+    "eval": "(async () => { const input = document.querySelector('main input[aria-label=\"Search\"]'); if (!input) return 'NO SEARCH'; setInput(input, \"Dybantsa\"); await sleep(2500); const t = text()\n  const ok = t.includes(\"AJ Dybantsa\"); setInput(input, ''); await sleep(1000)\n  return check('NCAA Men the board’s search finds AJ Dybantsa', ok, t.slice(0, 200)) })()"
+  },
+  {
+    "eval": "(async () => { const w = await switchTo('NCAA Women'); await nav('Leaderboards'); await chooseSelect('Season', 2026); await sleep(1500)\n  const t = text()\n  return check('NCAA Women home 2025-26 reads: leaders, the 75 % rule, no NBA words', w === 'NCAA Women' && reads() && /75 %/.test(t) && noNba().length === 0 && leagueWords().length === 0, { w, noNba: noNba(), words: leagueWords(), head: t.slice(0, 300) }) })()"
+  },
+  {
+    "shot": "t1302i-ncaaw-01-home"
+  },
+  {
+    "eval": "(async () => { await press('All →'); await sleep(2000)\n  const fam = [...document.querySelectorAll('select')].find((x) => x.title === 'Metric family')\n  const families = fam ? [...fam.options].map((o) => o.textContent) : []\n  const modes = [...document.querySelectorAll('main button')].map((b) => b.textContent.trim()).filter((t) => /^(Totals|Per \\w+)$/.test(t))\n  return check('NCAA Women player board: per 40 (per 36 beside it, as in the WNBA), never per 48; no Tracking, Hustle, Play types or Matchups family; no NBA words', reads() && modes.includes('Per 40') && !modes.some((m) => /48/.test(m)) && !families.some((f) => /Tracking|Hustle|Play types|Matchups/.test(f)) && noNba().length === 0, { modes, families, noNba: noNba(), total: total() }) })()"
+  },
+  {
+    "shot": "t1302i-ncaaw-02-board"
+  },
+  {
+    "eval": "(async () => { const out = {}; if (fam = [...document.querySelectorAll('select')].find((x) => x.title === 'Metric family')) { for (const o of [...fam.options]) { await chooseSelect('Metric family', o.value); out[o.textContent] = { ok: reads(), nba: noNba().length, words: leagueWords().length, total: total() } } } var fam; const bad = Object.entries(out).filter(([, v]) => !v.ok || v.nba || v.words)\n  return check('NCAA Women every metric family on the board reads, no NBA words', bad.length === 0 && Object.keys(out).length > 5, { families: Object.keys(out).length, bad }) })()"
+  },
+  {
+    "eval": "(async () => { await nav('Teams'); await chooseSelect('Season', 2026); await clickText('Team leaderboards →'); await sleep(2500)\n  return check('NCAA Women team board reads, the Division I teams', reads() && /of 3[5-6][0-9]/.test(text()) && noNba().length === 0, { total: total(), noNba: noNba() }) })()"
+  },
+  {
+    "shot": "t1302i-ncaaw-03-team-board"
+  },
+  {
+    "eval": "(async () => { await nav('Players'); await chooseSelect('Season', 2026); const o = await openPlayer(\"Hannah Hidalgo\"); await tab('Overview')\n  const tabs = tabNames()\n  return check('Hannah Hidalgo’s dashboard: no Tracking, Play types or Matchups tab', o.startsWith('opened') && reads() && !tabs.some((t) => /Tracking|Play types|Matchups/.test(t)) && noNba().length === 0, { o, tabs, noNba: noNba(), pts: text().match(/Points[^A-Z]{0,30}/)?.[0] }) })()"
+  },
+  {
+    "shot": "t1302i-ncaaw-04-player"
+  },
+  {
+    "eval": "(async () => { const g = await tab('Scoring'); return check('NCAA Women player Scoring tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords(), from: text().match(/From [^;]{0,60}/)?.[0] }) })()"
+  },
+  {
+    "eval": "(async () => { const g = await tab('Shooting'); return check('NCAA Women player Shooting tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords(), from: text().match(/From [^;]{0,60}/)?.[0] }) })()"
+  },
+  {
+    "eval": "(async () => { const g = await tab('Play by play'); return check('NCAA Women player Play by play tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords(), from: text().match(/From [^;]{0,60}/)?.[0] }) })()"
+  },
+  {
+    "eval": "(async () => { const g = await tab('Playmaking'); return check('NCAA Women player Playmaking tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords(), from: text().match(/From [^;]{0,60}/)?.[0] }) })()"
+  },
+  {
+    "eval": "(async () => { const g = await tab('Rebounding'); return check('NCAA Women player Rebounding tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords(), from: text().match(/From [^;]{0,60}/)?.[0] }) })()"
+  },
+  {
+    "eval": "(async () => { const g = await tab('Defense'); return check('NCAA Women player Defense tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords(), from: text().match(/From [^;]{0,60}/)?.[0] }) })()"
+  },
+  {
+    "eval": "(async () => { const g = await tab('Game log'); return check('NCAA Women player Game log tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords(), from: text().match(/From [^;]{0,60}/)?.[0] }) })()"
+  },
+  {
+    "eval": "(async () => { const g = await tab('Splits'); return check('NCAA Women player Splits tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords(), from: text().match(/From [^;]{0,60}/)?.[0] }) })()"
+  },
+  {
+    "eval": "(async () => { const g = await tab('On/off'); return check('NCAA Women player On/off tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords(), from: text().match(/From [^;]{0,60}/)?.[0] }) })()"
+  },
+  {
+    "eval": "(async () => { const g = await tab('Shots'); return check('NCAA Women player Shots tab reads, no NBA words or rules (stats.ncaa.org’s shot file)', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0 && text().includes('From stats.ncaa.org’s shot file'), { g, noNba: noNba(), words: leagueWords(), from: text().match(/From [^;]{0,60}/)?.[0] }) })()"
+  },
+  {
+    "eval": "(async () => { const g = await tab('Profile'); return check('NCAA Women player Profile tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords(), from: text().match(/From [^;]{0,60}/)?.[0] }) })()"
+  },
+  {
+    "shot": "t1302i-ncaaw-05-player-shots"
+  },
+  {
+    "eval": "(async () => { await nav('Teams'); await chooseSelect('Season', 2026); await openTeam('87'); await tab('Overview')\n  return check('NCAA Women Notre Dame 2025-26 team page reads, its ratings filled', reads() && text().includes(\"Notre Dame Fighting Irish\") && !/Win percentage[^0-9]{0,6}—/.test(text()) && noNba().length === 0, { noNba: noNba(), head: text().slice(0, 200) }) })()"
+  },
+  {
+    "shot": "t1302i-ncaaw-06-team"
+  },
+  {
+    "eval": "(async () => { const g = await tab('Offense'); return check('NCAA Women team Offense tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords() }) })()"
+  },
+  {
+    "eval": "(async () => { const g = await tab('Defense'); return check('NCAA Women team Defense tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords() }) })()"
+  },
+  {
+    "eval": "(async () => { const g = await tab('Play by play'); return check('NCAA Women team Play by play tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords() }) })()"
+  },
+  {
+    "eval": "(async () => { const g = await tab('Players'); return check('NCAA Women team Players tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords() }) })()"
+  },
+  {
+    "eval": "(async () => { const g = await tab('Splits'); return check('NCAA Women team Splits tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords() }) })()"
+  },
+  {
+    "eval": "(async () => { const g = await tab('Schedule'); return check('NCAA Women team Schedule tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords() }) })()"
+  },
+  {
+    "eval": "(async () => { const g = await tab('On/off'); return check('NCAA Women team On/off tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords() }) })()"
+  },
+  {
+    "eval": "(async () => { const g = await tab('Shots'); return check('NCAA Women team Shots tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords() }) })()"
+  },
+  {
+    "eval": "(async () => { const g = await tab('Lineups'); return check('NCAA Women team Lineups tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords() }) })()"
+  },
+  {
+    "eval": "(async () => { await nav('Standings'); await chooseSelect('Season', 2026); await sleep(2000); const r = rowOf(\"UCLA\")\n  return check('NCAA Women standings 2025-26 read, UCLA listed, no forecast and no NBA words', reads() && r !== null && noNba().length === 0 && !/PLAYOFF%|TITLE%/.test(text()), { r, noNba: noNba() }) })()"
+  },
+  {
+    "shot": "t1302i-ncaaw-07-standings"
+  },
+  {
+    "eval": "(async () => { await nav('Games'); const o = await openGame(2026, '2026-04-05', (x) => x.includes('UCLA')); const t = text()\n  return check('NCAA Women the 2026 title game reads (79-51), with its box score and flow', o === 'opened game' && reads() && t.includes('79') && t.includes('51') && noNba().length === 0, { o, noNba: noNba(), head: t.slice(0, 240) }) })()"
+  },
+  {
+    "shot": "t1302i-ncaaw-08-game"
+  },
+  {
+    "eval": "(async () => { const o = await clickText('Officials of 2025-26'); await sleep(3000); return check('NCAA Women officials of 2025-26 read', reads() && noNba().length === 0, { o, line: text().slice(0, 200) }) })()"
+  },
+  {
+    "eval": "(async () => { await nav('Explore'); await clickText('Chart'); await chooseSelect('Season', 2026); await sleep(2000)\n  const presets = [...document.querySelectorAll('main button')].map((b) => b.textContent.trim()).filter((t) => / vs /.test(t))\n  return check('NCAA Women Explore Chart: no tracking preset, the league’s own rule, no NBA words', reads() && !presets.some((p) => /Drives/.test(p)) && noNba().length === 0 && !/NBA’s leader stats|NBA’s own minimum/.test(text()), { presets, noNba: noNba(), note: text().match(/Qualified[^.]*\\./)?.[0] }) })()"
+  },
+  {
+    "shot": "t1302i-ncaaw-09-chart"
+  },
+  {
+    "eval": "(async () => { await clickText('Compare'); await sleep(2500); return check('NCAA Women Compare reads', reads() && noNba().length === 0, { noNba: noNba(), head: text().slice(0, 160) }) })()"
+  },
+  {
+    "eval": "(async () => { await clickText('Trends'); await sleep(3000); return check('NCAA Women Trends reads its seasons from 2021-22', reads() && /2021-22|2022-23/.test(text()) && noNba().length === 0, { noNba: noNba(), head: text().slice(0, 160) }) })()"
+  },
+  {
+    "eval": "(async () => { await nav('Glossary'); const i = document.querySelector('input[aria-label=\"Search metrics\"]'); setInput(i, 'drives'); await sleep(2000)\n  const t = text()\n  return check('NCAA Women Glossary: tracking metrics give the college reason in Since', reads() && /Since Not (published|available|included)[^.]{0,40}(college|NCAA|this version)/i.test(t), t.match(/Since [^S]{0,100}/)?.[0]) })()"
+  },
+  {
+    "eval": "(async () => { const i = document.querySelector('input[aria-label=\"Search metrics\"]'); setInput(i, 'Points'); await sleep(2000); const t = text()\n  return check('NCAA Women Glossary: points read from 2021-22, the window stated', reads() && /2021-22/.test(t) && noNba().length === 0, { since: t.match(/Since [^S]{0,60}/)?.[0], noNba: noNba() }) })()"
+  },
+  {
+    "shot": "t1302i-ncaaw-10-glossary"
+  },
+  {
+    "eval": "(async () => { await nav('Leaderboards'); await press('All →'); await sleep(1500); document.querySelector('[title=\"Saved views\"]').click(); await sleep(800); const i = document.querySelector('input[aria-label=\"View name\"]'); setInput(i, 'T1302.9 NCAA Women'); await sleep(300); i.closest('form').requestSubmit(); await sleep(1500)\n  const mine = (await window.api.stats.views('ncaaw')).map((v) => v.name); const nba = (await window.api.stats.views('nba')).map((v) => v.name)\n  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await sleep(400)\n  return check('NCAA Women a saved view is kept for this league alone', mine.includes('T1302.9 NCAA Women') && !nba.includes('T1302.9 NCAA Women'), { mine, nba }) })()"
+  },
+  {
+    "eval": "(async () => { const input = document.querySelector('main input[aria-label=\"Search\"]'); if (!input) return 'NO SEARCH'; setInput(input, \"Hidalgo\"); await sleep(2500); const t = text()\n  const ok = t.includes(\"Hannah Hidalgo\"); setInput(input, ''); await sleep(1000)\n  return check('NCAA Women the board’s search finds Hannah Hidalgo', ok, t.slice(0, 200)) })()"
+  },
+  {
+    "eval": "(async () => { document.querySelector('[title=\"See what is loaded\"]').click(); await until(() => section('NCAA Women'), 20000); await sleep(1500); const t = Object.fromEntries(['NBA', 'WNBA', 'NCAA Men', 'NCAA Women'].map((l) => [l, section(l)?.innerText ?? ''])); const lines = Object.fromEntries(Object.entries(t).map(([k, v]) => [k, v.split('\\n').filter(Boolean).slice(0, 2)])); const out = ['NCAA Men', 'NCAA Women'].map((l) => (t[l].match(/Not in this version/g) ?? []).length)\n  return check('the Data panel lists four leagues on; the colleges list ESPN’s play by play as not in this version, with its reason', Object.values(t).every((v) => /On ·/.test(v)) && out.every((n) => n >= 1), { lines, notInVersion: out }) })()"
+  },
+  {
+    "shot": "t1302i-11-data"
+  },
+  {
+    "eval": "'ERRORS ON SCREEN ' + JSON.stringify([...document.querySelectorAll('.text-bad')].map((e) => e.textContent).slice(0, 5))"
+  }
+]

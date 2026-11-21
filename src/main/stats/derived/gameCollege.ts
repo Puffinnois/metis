@@ -1,7 +1,7 @@
 import type { League } from '@shared/leagues'
 import { BOX_COUNTS, espnLines, type DerivedRecipe } from './game'
 import { isNcaaWhole, NCAA_PLAYER_COLUMNS, NCAA_PLAYER_SUMS, NCAA_TEAM_OWN } from './ncaaSplits'
-import { column, type Have } from './sql'
+import { bestPlayerSql, column, modeSql, type Have } from './sql'
 
 /**
  * NCAA Division I's recipe for `player_game` and `team_game`, one for the men and the women (D38),
@@ -29,7 +29,9 @@ import { column, type Have } from './sql'
  */
 
 /** Bump when these tables change, so the next refresh builds them with nothing downloaded. */
-const VERSION = 1
+// 2: the tables' 128-bit counts narrowed to BIGINT (`narrowCounts`, T1302.9). 3: every pick by a
+// total order, so the same files always give the same rows (T1302.9).
+const VERSION = 3
 
 const NCAA_BOX = 'src_ncaa_player_box'
 const NCAA_TEAM_BOX = 'src_ncaa_team_box'
@@ -126,10 +128,12 @@ function ncaaLines(have: Have): string {
     .join(' + ')
   return `CREATE OR REPLACE TEMP TABLE ncaa_lines AS
     WITH by_id AS (
-      SELECT season, ncaa_player_id, any_value(player_id) AS player_id, any_value(team_id) AS team_id
+      SELECT season, ncaa_player_id, ${bestPlayerSql()} AS player_id,
+             ${bestPlayerSql('', 'team_id')} AS team_id
       FROM ncaa_player_ids WHERE ncaa_player_id IS NOT NULL GROUP BY 1, 2
     ), by_name AS (
-      SELECT season, ncaa_team, player, any_value(player_id) AS player_id, any_value(team_id) AS team_id
+      SELECT season, ncaa_team, player, ${bestPlayerSql()} AS player_id,
+             ${bestPlayerSql('', 'team_id')} AS team_id
       FROM ncaa_player_ids WHERE ncaa_player_id IS NULL GROUP BY 1, 2, 3
     ), box AS (
       SELECT b.*, nullif(trim(b.player_id::VARCHAR), '') AS pid,
@@ -165,7 +169,7 @@ const LINES = `CREATE OR REPLACE TEMP TABLE lines AS
     FROM ncaa_lines l
     ANTI JOIN espn_sides e ON e.game_id = l.game_id AND e.team_id = l.team_id
     WHERE l.appeared AND l.player_id IS NOT NULL AND l.team_id IS NOT NULL
-    QUALIFY row_number() OVER (PARTITION BY l.game_id, l.player_id ORDER BY l.ncaa_seconds DESC NULLS LAST) = 1
+    QUALIFY row_number() OVER (PARTITION BY l.game_id, l.player_id ORDER BY l.ncaa_seconds DESC NULLS LAST, l::VARCHAR) = 1
   ), together AS (
     SELECT * FROM espn UNION ALL BY NAME SELECT * FROM ncaa
   ), splits AS (
@@ -186,7 +190,7 @@ const LINES = `CREATE OR REPLACE TEMP TABLE lines AS
  */
 function positions(have: Have): string {
   const espn = have.columns.get('src_espn_player_box')?.has('athlete_position_abbreviation')
-    ? `SELECT i.player_id, b.season, mode(position_group(b.athlete_position_abbreviation)) AS position
+    ? `SELECT i.player_id, b.season, ${modeSql('position_group(b.athlete_position_abbreviation)')} AS position
        FROM src_espn_player_box b JOIN player_ids i ON i.espn_athlete_id = b.athlete_id
        WHERE b.season = b.file_season AND b.points IS NOT NULL GROUP BY 1, 2`
     : 'SELECT NULL::BIGINT AS player_id, NULL::INTEGER AS season, NULL::VARCHAR AS position'
@@ -231,12 +235,12 @@ function teamBox(have: Have, league: League): string {
     : `SELECT NULL::VARCHAR AS game_id, NULL::INTEGER AS team_id, NULL::INTEGER AS seconds,
               NULL::VARCHAR AS source, ${BOX_COUNTS.map((c) => `NULL::INTEGER AS ${c}`).join(', ')} WHERE false`
   return `WITH line_sources AS (
-      SELECT game_id, team_id, mode(source) AS source FROM lines GROUP BY 1, 2
+      SELECT game_id, team_id, ${modeSql('source')} AS source FROM lines GROUP BY 1, 2
     ), espn_box AS (
-      SELECT * FROM (${espn}) QUALIFY row_number() OVER (PARTITION BY game_id, team_id) = 1
+      SELECT * FROM (${espn}) e QUALIFY row_number() OVER (PARTITION BY game_id, team_id ORDER BY e::VARCHAR) = 1
     ), ncaa_box AS (
-      SELECT * FROM (${ncaa}) WHERE team_id IS NOT NULL
-      QUALIFY row_number() OVER (PARTITION BY game_id, team_id) = 1
+      SELECT * FROM (${ncaa}) n WHERE team_id IS NOT NULL
+      QUALIFY row_number() OVER (PARTITION BY game_id, team_id ORDER BY n::VARCHAR) = 1
     )
     SELECT e.* FROM espn_box e LEFT JOIN line_sources s USING (game_id, team_id)
     WHERE coalesce(s.source, 'espn') = 'espn'
@@ -254,7 +258,7 @@ function teamBox(have: Have, league: League): string {
 function teamSplits(have: Have): string {
   const possessions = have.tables.has(NCAA_TEAM_BOX)
     ? `SELECT g.game_id, ${sideOf('TRY_CAST(n.team_espn_team_id AS INTEGER)', null, 'n')} AS team_id,
-              any_value(n.o_poss) AS ncaa_poss
+              min(n.o_poss) AS ncaa_poss
        FROM ${NCAA_TEAM_BOX} n
        JOIN game g ON g.ncaa_game_id = n.contest_id AND g.played AND g.forfeit_winner_id IS NULL
        GROUP BY 1, 2`
@@ -272,7 +276,7 @@ function teamSplits(have: Have): string {
 export const COLLEGE_DERIVED: DerivedRecipe = {
   version: VERSION,
   needs: ['game', 'team', 'player_ids', 'src_espn_player_box'],
-  lines: (have) => [espnLines(have), ncaaLines(have), LINES, positions(have)],
+  lines: (have) => [espnLines(have, undefined, true), ncaaLines(have), LINES, positions(have)],
   temps: ['espn_lines', 'ncaa_lines'],
   teamBox,
   teamBoxKey: 'game_id',
@@ -290,5 +294,7 @@ export const COLLEGE_DERIVED: DerivedRecipe = {
     player: NCAA_PLAYER_SUMS,
     team: NCAA_TEAM_OWN,
     teamSql: teamSplits
-  }
+  },
+  narrowCounts: true,
+  totalOrder: true
 }
