@@ -1,9 +1,10 @@
 import { AssistNetwork } from '@/components/stats/AssistNetwork'
+import { CareerStrip } from '@/components/stats/CareerStrip'
 import { MetricHead } from '@/components/stats/MetricCard'
 import { ShotChart } from '@/components/stats/ShotChart'
 import { useScreenState } from '@/lib/stats/session'
 import { shotRequest } from '@/lib/stats/shotChart'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Segmented } from '@/components/stats/controls'
 import { GameChart } from '@/components/stats/GameChart'
 import {
@@ -93,13 +94,24 @@ import {
   usePlayerInfo,
   useProfile,
   useSeasonGames,
+  useOtherCareer,
   useStatsQueries,
   useStatsQuery,
+  type ReadState,
   type StatsData
 } from '@/lib/stats/useStats'
+import { stripHint, type StripHint } from '@/lib/stats/careerStrip'
 import { cn } from '@/lib/utils'
 import { WithOrWithout } from './StatsOnCourt'
-import type { BoardMode, StatsMatchupPair, StatsPlayerInfo, StatsRow } from '@shared/stats/types'
+import type {
+  BoardMode,
+  StatsMatchupPair,
+  StatsOtherCareer,
+  StatsPlayerInfo,
+  StatsRow
+} from '@shared/stats/types'
+import type { LeagueId } from '@shared/leagues'
+import type { NavLocation } from '@/lib/navHistory'
 
 /** The dashboard is about one player: never another player's answers while their own load. */
 const FRESH = { keepLast: false }
@@ -114,6 +126,14 @@ interface TabProps {
   mode: BoardMode
   onOpenGame: (game: string) => void
   onOpenPlayer: (player: string) => void
+  /** The career strip's ways out: the Data panel on the other league, and that league's page. */
+  onOpenData?: (league: LeagueId) => void
+  onOpenPage?: (location: NavLocation) => void
+  /** The page's read of the other career, and the header hint's ask to show the strip. */
+  career: ReadState<StatsOtherCareer>
+  seekStrip: number
+  /** The page's own reads are done (the career table is in): the other career may be read. */
+  onSettled: () => void
 }
 
 /** Rail, header, and one set of tabs for every position. */
@@ -129,7 +149,9 @@ export function StatsPlayer({
   onOpenGame,
   onOpenLeaderboard,
   onCompare,
-  onTrend
+  onTrend,
+  onOpenData,
+  onOpenPage
 }: {
   data: StatsData
   scope: StatsScope
@@ -145,6 +167,8 @@ export function StatsPlayer({
   onCompare?: (subjects: ExploreSubject[]) => void
   /** This dashboard's player or team over their seasons in Trends, on a metric or the one shown. */
   onTrend?: (metric?: string) => void
+  onOpenData?: (league: LeagueId) => void
+  onOpenPage?: (location: NavLocation) => void
 }): React.JSX.Element {
   const {
     value: info,
@@ -170,6 +194,24 @@ export function StatsPlayer({
   const self = useStatsQuery(sq, data.version, FRESH)
   const row = self.result?.rows.find((r) => r.id === player) ?? null
   const position = row?.position ?? info?.position ?? null
+  // The other career, read once the page's own reads are done: the career table in (the Overview),
+  // or a moment after the header on another tab. Asked any sooner, the links file's read ran beside
+  // the career query and could slow it. The header's hint and the strip share the one read.
+  const [settledFor, setSettledFor] = useState<string | null>(null)
+  const headerIn = info !== null && self.result !== null
+  useEffect(() => {
+    if (!headerIn) return
+    const timer = setTimeout(() => setSettledFor(player), 1200)
+    return () => clearTimeout(timer)
+  }, [headerIn, player])
+  const settle = useMemo(() => () => setSettledFor(player), [player])
+  const career = useOtherCareer(settledFor === player ? player : null)
+  const hint = stripHint(career.value)
+  const [seekStrip, setSeekStrip] = useState(0)
+  const showStrip = (): void => {
+    onTab('overview')
+    setSeekStrip((n) => n + 1)
+  }
   useNoteContext('player', {
     label: info?.name ?? player,
     data: { id: player, name: info?.name ?? null, position, tab }
@@ -214,6 +256,8 @@ export function StatsPlayer({
               row={row}
               onOpenTeam={onOpenTeam}
               onCompare={onCompare && (() => onCompare([{ entity: 'player', id: player }]))}
+              hint={hint}
+              onHint={showStrip}
             />
             <TabRow label="Player dashboard" tabs={tabs} value={tab} onChange={onTab}>
               <div className="mb-2 flex shrink-0 items-center gap-4">
@@ -262,6 +306,11 @@ export function StatsPlayer({
               mode={mode}
               onOpenGame={onOpenGame}
               onOpenPlayer={onPlayer}
+              onOpenData={onOpenData}
+              onOpenPage={onOpenPage}
+              career={career}
+              seekStrip={seekStrip}
+              onSettled={settle}
             />
           </div>
         )}
@@ -532,7 +581,9 @@ function Header({
   info,
   row,
   onOpenTeam,
-  onCompare
+  onCompare,
+  hint,
+  onHint
 }: {
   data: StatsData
   scope: StatsScope
@@ -541,6 +592,9 @@ function Header({
   row: StatsRow | null
   onOpenTeam: (team: string) => void
   onCompare?: () => void
+  /** The way to the career strip, at the end of the facts line; null for a player with no link. */
+  hint: StripHint | null
+  onHint: () => void
 }): React.JSX.Element {
   const { first, last } = splitName(info.name)
   const code = row?.team ?? info.team?.code ?? null
@@ -591,6 +645,22 @@ function Header({
               </span>
             )}
             {tag && <StatusChip tag={tag} />}
+            {/* The way to the career strip, once the read finds a link: last on the line, with no
+                width of its own (basis 0), so it never wraps the line or moves what is on it; it takes
+                the room left and is cut, whole on hover, where there is too little. */}
+            {hint && (
+              <span className="flex min-w-0 flex-[1_1_0] items-center gap-2">
+                <span className="text-fg-3">·</span>
+                <button
+                  type="button"
+                  title={`${hint.text}. ${hint.title}`}
+                  onClick={onHint}
+                  className="min-w-0 cursor-pointer truncate text-left underline decoration-line underline-offset-[3px] hover:text-cobalt"
+                >
+                  {hint.text} ↓
+                </button>
+              </span>
+            )}
           </div>
           <h1 className="m-0 flex flex-col gap-0.5">
             {first && (
@@ -621,7 +691,12 @@ function Overview({
   position,
   info,
   mode,
-  played
+  played,
+  onOpenData,
+  onOpenPage,
+  career,
+  seekStrip,
+  onSettled
 }: TabProps & { played: boolean }): React.JSX.Element {
   const q = useMemo(
     () => (played ? positionQuery(OVERVIEW_SECTION.metrics, position, scope, mode) : null),
@@ -695,7 +770,18 @@ function Overview({
           <Notes notes={result?.notes ?? []} />
         </>
       )}
-      <Career data={data} scope={scope} player={player} mode={mode} />
+      {/* The strip comes after the career table, once that is in, so neither moves the other. */}
+      <Career data={data} scope={scope} player={player} mode={mode} onReady={onSettled}>
+        <CareerStrip
+          data={data}
+          player={player}
+          playerName={info?.name ?? 'This player'}
+          career={career}
+          seek={seekStrip}
+          onOpenData={onOpenData}
+          onOpenPage={onOpenPage}
+        />
+      </Career>
     </div>
   )
 }
@@ -705,8 +791,15 @@ function Career({
   data,
   scope,
   player,
-  mode
-}: Pick<TabProps, 'data' | 'scope' | 'player' | 'mode'>): React.JSX.Element {
+  mode,
+  children,
+  onReady
+}: Pick<TabProps, 'data' | 'scope' | 'player' | 'mode'> & {
+  /** Shown under the table once it is in: the career strip. */
+  children?: React.ReactNode
+  /** Told once the table's answers are in. */
+  onReady?: () => void
+}): React.JSX.Element {
   const seasons = useMemo(() => data.seasons.map((s) => s.season), [data.seasons])
   const queries = useMemo(
     () =>
@@ -719,6 +812,10 @@ function Career({
     [player, seasons, scope, mode]
   )
   const { results, error } = useStatsQueries(queries, data.version)
+  const ready = results !== null
+  useEffect(() => {
+    if (ready) onReady?.()
+  }, [ready, onReady])
   if (!results) return <Loading error={error} />
   const rows = careerRows(results.get('seasons') ?? null, data.byId, mode)
   const played = rows.find((r) => !r.gap)?.key
@@ -757,34 +854,37 @@ function Career({
         )))
   ]
   return (
-    <section className="flex flex-col gap-2.5">
-      <SectionHead
-        title="Career by season"
-        note={`${typeLabel(scope.seasonType)} · their last team that season`}
-      />
-      {rows.length === 0 && (
-        <p className="m-0 text-[12.5px] text-fg-3">
-          No games in {typeLabel(scope.seasonType).toLowerCase()} in any season.
-        </p>
-      )}
-      <div className={cn('overflow-x-auto', rows.length === 0 && 'hidden')}>
-        <MiniTable
-          label="Career by season"
-          columns={`minmax(72px,1fr) 44px 40px ${head.map(() => 'minmax(52px,1fr)').join(' ')}`}
-          minWidth={1010}
-          head={['Season', 'Team', 'G', ...head]}
-          left={[1]}
-          rows={[
-            ...rows.map((r) => ({
-              key: r.key,
-              cells: cells(r),
-              ...(r.out ? { spill: true, title: r.outTitle } : {})
-            })),
-            ...(total ? [{ key: total.key, cells: cells(total), strong: true }] : [])
-          ]}
+    <>
+      <section className="flex flex-col gap-2.5">
+        <SectionHead
+          title="Career by season"
+          note={`${typeLabel(scope.seasonType)} · their last team that season`}
         />
-      </div>
-    </section>
+        {rows.length === 0 && (
+          <p className="m-0 text-[12.5px] text-fg-3">
+            No games in {typeLabel(scope.seasonType).toLowerCase()} in any season.
+          </p>
+        )}
+        <div className={cn('overflow-x-auto', rows.length === 0 && 'hidden')}>
+          <MiniTable
+            label="Career by season"
+            columns={`minmax(72px,1fr) 44px 40px ${head.map(() => 'minmax(52px,1fr)').join(' ')}`}
+            minWidth={1010}
+            head={['Season', 'Team', 'G', ...head]}
+            left={[1]}
+            rows={[
+              ...rows.map((r) => ({
+                key: r.key,
+                cells: cells(r),
+                ...(r.out ? { spill: true, title: r.outTitle } : {})
+              })),
+              ...(total ? [{ key: total.key, cells: cells(total), strong: true }] : [])
+            ]}
+          />
+        </div>
+      </section>
+      {children}
+    </>
   )
 }
 

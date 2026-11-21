@@ -1,0 +1,248 @@
+[
+  {
+    "size": [1500, 950]
+  },
+  {
+    "wait": 9000
+  },
+  {
+    "eval": "\nwindow.sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nwindow.until = async (fn, ms = 20000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await fn()) return true; await sleep(10) } return false };\nwindow.nav = async (name) => { const b = [...document.querySelectorAll('nav button')].find((x) => x.textContent.trim() === name); if (!b) return 'NO NAV ' + name; b.click(); await sleep(1500); return 'nav ' + name };\nwindow.trigger = () => document.querySelector('button[aria-label^=\"League: \"]');\nwindow.league = () => trigger()?.getAttribute('aria-label')?.replace('League: ', '') ?? null;\nwindow.switchTo = async (name) => { if (league() === name) return name; const t = trigger(); if (!t) return 'NO MENU'; t.focus(); t.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); await until(() => document.querySelectorAll('[role=menuitemradio]').length > 0, 3000); const item = [...document.querySelectorAll('[role=menuitemradio]')].find((x) => x.textContent.startsWith(name)); if (!item) return 'NO ITEM ' + name; item.click(); await until(() => league() === name, 5000); await sleep(2500); return league() };\nwindow.setSelect = async (title, value) => { const el = [...document.querySelectorAll('select')].find((x) => x.title === title); if (!el) return 'NO ' + title; Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(el, String(value)); el.dispatchEvent(new Event('change', { bubbles: true })); await sleep(1500); return el.value };\nwindow.railRow = (name) => [...document.querySelectorAll('aside[aria-label=Players] button')].find((b) => b.querySelector('span span')?.textContent.trim() === name);\nwindow.searchRail = async (name) => { const input = document.querySelector('input[aria-label=\"Search players\"]'); for (const text of [name, name.split(' ').slice(-1)[0]]) { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, text); input.dispatchEvent(new Event('input', { bubbles: true })); if (await until(() => railRow(name), 10000)) return true } return false };\nwindow.careerTable = () => document.querySelector('[role=table][aria-label=\"Career by season\"]');\nwindow.stripEl = () => document.querySelector('section[aria-label=\"College and pro career\"]');\nwindow.rowsOf = (el) => [...(el?.querySelectorAll('[role=row]') ?? [])].map((r) => [...r.children].map((c) => c.textContent.trim()).join(' | '));\nwindow.strip = () => { const s = stripEl(); if (!s) return null; return { head: s.querySelector('h2')?.parentElement?.textContent.trim(), rows: rowsOf(s.querySelector('[role=table]')), text: s.querySelector('p')?.textContent ?? null, notes: [...s.querySelectorAll(':scope > div')].filter((d) => d.className.includes('gap-1')).flatMap((d) => [...d.children].map((x) => x.textContent)), button: s.querySelector(':scope > button')?.textContent ?? null, opens: [...s.querySelectorAll('button[role=row]')].map((b) => b.title) } };\nwindow.career = () => rowsOf(careerTable());\nwindow.heading = () => document.querySelector('main h1')?.textContent ?? null;\nwindow.openPlayer = async (leagueName, season, name, rank = 'pts', team = null) => { const w = await switchTo(leagueName); await nav('Players'); await setSelect('Season', season); await setSelect('Rank by', rank); const teamSel = document.querySelector('select[title=Team]'); const teamOpt = team ? [...(teamSel?.options ?? [])].find((o) => o.textContent === team) : null; await setSelect('Team', teamOpt ? teamOpt.value : ''); if (!(await searchRail(name))) return { w, error: 'NOT IN RAIL ' + name }; const t0 = performance.now(); railRow(name).click(); const last = name.split(' ').slice(-1)[0]; await until(() => (heading() ?? '').includes(last), 20000); const before = box(); const hintFirst = hintEl() !== null; await until(() => (heading() ?? '').includes(last) && careerTable(), 20000); const careerMs = Math.round(performance.now() - t0); await until(() => stripEl(), 3000); const stripMs = stripEl() ? Math.round(performance.now() - t0) : null; await sleep(600); const after = box(); return { league: w, heading: heading(), careerMs, stripMs, hint: hintEl()?.textContent ?? null, header: { hintFirst, before, after, same: JSON.stringify(before) === JSON.stringify(after) }, strip: strip(), career: career() } };\nwindow.showStrip = async () => { const s = stripEl() ?? careerTable(); s?.scrollIntoView({ block: 'end' }); await sleep(500); return s ? 'shown' : 'nothing' };\nwindow.openRow = async (prefix) => { const b = [...(stripEl()?.querySelectorAll('button[role=row]') ?? [])].find((x) => x.textContent.startsWith(prefix)); if (!b) return 'NO ROW ' + prefix; const t0 = performance.now(); b.click(); await until(() => careerTable() && stripEl() && league() !== null, 20000); await sleep(1500); return { ms: Math.round(performance.now() - t0), league: league(), heading: heading(), season: document.querySelector('select[title=Season]')?.value, type: document.querySelector('select[title=\"Season type\"]')?.value, strip: strip(), career: career() } };\nwindow.back = async () => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', altKey: true, bubbles: true })); await sleep(3000); await until(() => careerTable(), 15000); return { league: league(), heading: heading(), strip: strip() ? 'strip' : null } };\nwindow.box = () => { const h = document.querySelector('main h1'); const r = (e) => e ? [Math.round(e.getBoundingClientRect().top), Math.round(e.getBoundingClientRect().height)] : null; return { line: r(h?.previousElementSibling), h1: r(h), facts: r(h?.nextElementSibling), tabs: r(document.querySelector('main [role=tablist]')) } };\nwindow.hintEl = () => [...(document.querySelector('main h1')?.previousElementSibling?.querySelectorAll('button') ?? [])].find((b) => b.textContent.endsWith('↓')) ?? null;\nwindow.reasons = () => [...document.querySelectorAll('[data-metric] > span.col-span-2')].filter((s) => s.textContent.trim()).map((s) => ({ metric: s.parentElement.dataset.metric, text: s.textContent.slice(0, 48), cut: s.scrollWidth > s.clientWidth + 1, lines: Math.round(s.getBoundingClientRect().height / 15), row: Math.round(s.parentElement.getBoundingClientRect().height) }));\nwindow.showReasons = async () => { const r = document.querySelector('[data-metric=bpm]') ?? document.querySelector('[data-metric] > span.col-span-2')?.parentElement; r?.scrollIntoView({ block: 'center' }); await sleep(500); return r ? r.dataset.metric : 'none' };\nwindow.theme = (dark) => { document.documentElement.classList.toggle('dark', dark); return dark ? 'dark' : 'light' };\n'helpers ready'"
+  },
+  {
+    "eval": "(async () => { for (const l of ['nba', 'wnba', 'ncaam', 'ncaaw']) await window.api.stats.pause(l); await sleep(3000); return 'paused' })()"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await openPlayer(\"NCAA Men\", 2025, \"Jayden Quaintance\", \"blk\", \"ASU\")))()"
+  },
+  {
+    "eval": "(async () => { await setSelect('Season type', 'counted'); await until(() => careerTable(), 15000); await sleep(800); return JSON.stringify({ type: document.querySelector('select[title=\"Season type\"]')?.value, career: career(), strip: strip()?.rows }) })()"
+  },
+  {
+    "eval": "(async () => { document.querySelector('main .overflow-auto')?.scrollTo(0, 0); for (const e of document.querySelectorAll('main *')) if (e.scrollTop) e.scrollTop = 0; await sleep(400); return 'top' })()"
+  },
+  {
+    "shot": "p1-11a-ncaam-quaintance-header"
+  },
+  {
+    "eval": "showStrip()"
+  },
+  {
+    "shot": "p1-11-ncaam-quaintance"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await openPlayer(\"NBA\", 2027, \"Cooper Flagg\", \"pts\", null)))()"
+  },
+  {
+    "eval": "(async () => { document.querySelector('main .overflow-auto')?.scrollTo(0, 0); for (const e of document.querySelectorAll('main *')) if (e.scrollTop) e.scrollTop = 0; await sleep(400); return 'top' })()"
+  },
+  {
+    "shot": "p1-00-nba-flagg-header"
+  },
+  {
+    "eval": "(async () => { const m = await showReasons(); return JSON.stringify({ shown: m, reasons: reasons() }) })()"
+  },
+  {
+    "shot": "p1-20-nba-flagg-reasons"
+  },
+  {
+    "eval": "showStrip()"
+  },
+  {
+    "shot": "p1-01-nba-flagg-light"
+  },
+  {
+    "eval": "theme(true)"
+  },
+  {
+    "wait": 400
+  },
+  {
+    "shot": "p1-02-nba-flagg-dark"
+  },
+  {
+    "eval": "theme(false)"
+  },
+  {
+    "eval": "(async () => { const f = [...document.querySelectorAll('main button, main [tabindex=\"0\"], main select, main input')].filter((e) => !e.disabled); const i = f.findIndex((e) => stripEl()?.contains(e)); return JSON.stringify(f.slice(Math.max(0, i - 2), i + 4).map((e) => (e.getAttribute('role') ?? e.tagName) + ': ' + (e.title || e.textContent.trim()).slice(0, 70))) })()"
+  },
+  {
+    "eval": "(async () => { const b = stripEl()?.querySelector('button[role=row]'); b?.focus(); await sleep(300); return document.activeElement?.title ?? 'none' })()"
+  },
+  {
+    "shot": "p1-03-nba-flagg-focus"
+  },
+  {
+    "eval": "(() => { const s = stripEl(); const out = ['section: ' + s?.getAttribute('aria-label')]; const walk = (n) => { for (const c of n.children) { const role = c.getAttribute('role'); if (c.tagName === 'H2') out.push('heading: ' + c.textContent.trim()); else if (role === 'table') out.push('table: ' + c.getAttribute('aria-label') + ', ' + c.querySelectorAll('[role=row]').length + ' rows'); else if (role === 'row') { out.push('row: ' + [...c.children].map((x) => x.textContent.trim()).filter(Boolean).join(', ')); continue } else if (c.tagName === 'BUTTON' && !role) out.push('button: ' + c.textContent.trim()); else if (!c.children.length && c.textContent.trim()) out.push('text: ' + c.textContent.trim()); walk(c) } }; if (s) walk(s); return JSON.stringify(out) })()"
+  },
+  {
+    "key": ["Enter", "Enter", 13, 0, "\r"]
+  },
+  {
+    "wait": 4000
+  },
+  {
+    "eval": "(async () => { await until(() => careerTable() && stripEl(), 15000); await sleep(800); return JSON.stringify({ league: league(), heading: heading(), season: document.querySelector('select[title=Season]')?.value, type: document.querySelector('select[title=\"Season type\"]')?.value, strip: strip(), career: career() }) })()"
+  },
+  {
+    "eval": "showStrip()"
+  },
+  {
+    "shot": "p1-04-ncaam-flagg"
+  },
+  {
+    "eval": "(async () => { const m = await showReasons(); return JSON.stringify({ shown: m, reasons: reasons() }) })()"
+  },
+  {
+    "shot": "p1-21-ncaam-flagg-reasons"
+  },
+  {
+    "eval": "theme(true)"
+  },
+  {
+    "wait": 400
+  },
+  {
+    "shot": "p1-22-ncaam-flagg-reasons-dark"
+  },
+  {
+    "eval": "theme(false)"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await back()))()"
+  },
+  {
+    "shot": "p1-05-back-nba-flagg"
+  },
+  {
+    "eval": "(async () => { const tab = [...document.querySelectorAll('[role=tab]')].find((t) => t.textContent === 'Scoring'); tab?.click(); await sleep(1500); const h = hintEl(); if (!h) return 'NO HINT'; const text = h.textContent; h.click(); await until(() => stripEl() && document.activeElement === stripEl(), 8000); await sleep(1200); const r = stripEl()?.getBoundingClientRect(); return JSON.stringify({ text, tab: document.querySelector('[role=tab][aria-selected=true]')?.textContent, focused: document.activeElement === stripEl(), stripTop: r ? Math.round(r.top) : null, navTop: Math.round(document.querySelector('nav')?.getBoundingClientRect().top ?? -1), pageScrolled: [document.documentElement.scrollTop, document.body.scrollTop, document.getElementById('root')?.scrollTop ?? 0] }) })()"
+  },
+  {
+    "shot": "p1-23-nba-flagg-hint-used"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await openPlayer(\"WNBA\", 2026, \"Paige Bueckers\", \"pts\", null)))()"
+  },
+  {
+    "eval": "(async () => { const m = await showReasons(); return JSON.stringify({ shown: m, reasons: reasons() }) })()"
+  },
+  {
+    "shot": "p1-24-wnba-bueckers-reasons"
+  },
+  {
+    "eval": "showStrip()"
+  },
+  {
+    "shot": "p1-06-wnba-bueckers"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await openRow('NCAA Women')))()"
+  },
+  {
+    "eval": "(async () => { const m = await showReasons(); return JSON.stringify({ shown: m, reasons: reasons() }) })()"
+  },
+  {
+    "shot": "p1-25-ncaaw-bueckers-reasons"
+  },
+  {
+    "eval": "theme(true)"
+  },
+  {
+    "wait": 400
+  },
+  {
+    "shot": "p1-26-ncaaw-bueckers-reasons-dark"
+  },
+  {
+    "eval": "theme(false)"
+  },
+  {
+    "eval": "showStrip()"
+  },
+  {
+    "shot": "p1-07-ncaaw-bueckers"
+  },
+  {
+    "eval": "theme(true)"
+  },
+  {
+    "wait": 400
+  },
+  {
+    "shot": "p1-08-ncaaw-bueckers-dark"
+  },
+  {
+    "eval": "theme(false)"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await openPlayer(\"NBA\", 2025, \"Jalen Hood-Schifino\", \"pts\", null)))()"
+  },
+  {
+    "eval": "showStrip()"
+  },
+  {
+    "shot": "p1-09-nba-hood-schifino"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await openRow('NCAA Men')))()"
+  },
+  {
+    "eval": "showStrip()"
+  },
+  {
+    "shot": "p1-10-ncaam-hood-schifino"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await openPlayer(\"NBA\", 2027, \"Alex Sarr\", \"pts\", null)))()"
+  },
+  {
+    "eval": "showStrip()"
+  },
+  {
+    "shot": "p1-12-nba-sarr"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await openPlayer(\"NBA\", 2027, \"Cade Cunningham\", \"pts\", null)))()"
+  },
+  {
+    "eval": "showStrip()"
+  },
+  {
+    "shot": "p1-13-nba-cunningham"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await openPlayer(\"WNBA\", 2026, \"A'ja Wilson\", \"pts\", null)))()"
+  },
+  {
+    "eval": "showStrip()"
+  },
+  {
+    "shot": "p1-14-wnba-wilson"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await openPlayer(\"NBA\", 2027, \"LeBron James\", \"pts\", null)))()"
+  },
+  {
+    "eval": "(async () => { document.querySelector('main .overflow-auto')?.scrollTo(0, 0); for (const e of document.querySelectorAll('main *')) if (e.scrollTop) e.scrollTop = 0; await sleep(400); return 'top' })()"
+  },
+  {
+    "shot": "p1-14b-nba-lebron-header"
+  },
+  {
+    "eval": "showStrip()"
+  },
+  {
+    "shot": "p1-15-nba-lebron"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await openPlayer(\"NCAA Women\", 2025, \"JuJu Watkins\", \"pts\", null)))()"
+  },
+  {
+    "eval": "showStrip()"
+  },
+  {
+    "shot": "p1-16-ncaaw-watkins"
+  },
+  {
+    "eval": "(async () => { await switchTo('NBA'); return 'NBA' })()"
+  }
+]

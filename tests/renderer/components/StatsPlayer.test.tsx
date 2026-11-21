@@ -6,7 +6,13 @@ import { StatsApp } from '@/screens/stats/StatsApp'
 import { LEAGUES } from '@shared/leagues'
 
 const seasonLabel = (season: number): string => LEAGUES.nba.seasonLabel(season)
-import type { StatsGame, StatsQuery, StatsResult, StatsSeason } from '@shared/stats/types'
+import type {
+  StatsGame,
+  StatsOtherCareer,
+  StatsQuery,
+  StatsResult,
+  StatsSeason
+} from '@shared/stats/types'
 import { catalogueFixture } from '../../fixtures/catalogue'
 
 vi.mock('@/lib/api', () => ({
@@ -42,7 +48,8 @@ vi.mock('@/lib/api', () => ({
       ),
       gameMatchups: vi.fn(() => Promise.resolve({ pairs: [], reason: null })),
       officialsSeason: vi.fn(() => Promise.resolve(null)),
-      officialCareer: vi.fn(() => Promise.resolve(null))
+      officialCareer: vi.fn(() => Promise.resolve(null)),
+      otherCareer: vi.fn()
     },
     dev: { mode: vi.fn().mockResolvedValue(false), onModeChanged: vi.fn(() => () => {}) }
   }
@@ -160,6 +167,59 @@ function answer(q: StatsQuery): StatsResult {
   }
 }
 
+/** The links file's answer for a player with no link and nothing known about why. */
+const NO_LINK: StatsOtherCareer = {
+  league: 'ncaam',
+  link: null,
+  draft: null,
+  source: null,
+  seasons: [],
+  reason: { kind: 'no-link', text: 'No linked NCAA Men career.' }
+}
+
+/** Dončić as if he had a Duke season: ESPN's totals, the NCAA Men not downloaded. */
+const LINKED: StatsOtherCareer = {
+  league: 'ncaam',
+  link: { method: 'id', playerId: '5041939', espnId: 5041939, name: 'Luka Dončić' },
+  draft: {
+    league: 'nba',
+    draftYear: 2025,
+    round: 1,
+    roundPick: 1,
+    overallPick: 1,
+    team: 'Dallas Mavericks',
+    organization: 'Duke',
+    organizationType: 'College/University'
+  },
+  source: { kind: 'espn', label: "ESPN's season totals, every game" },
+  seasons: [
+    {
+      season: 2025,
+      gameType: null,
+      teams: ['Duke Blue Devils'],
+      teamsInOrder: true,
+      games: 37,
+      starts: 37,
+      minutes: 1134,
+      pts: 709,
+      reb: 278,
+      oreb: 60,
+      ast: 155,
+      stl: 52,
+      blk: 52,
+      tov: 78,
+      pf: 60,
+      fgm: 239,
+      fga: 497,
+      fg3m: 50,
+      fg3a: 130,
+      ftm: 181,
+      fta: 215
+    }
+  ],
+  reason: null
+}
+
 const lastQuery = (): StatsQuery => {
   const calls = vi.mocked(api.stats.query).mock.calls
   return calls[calls.length - 1][1]
@@ -186,6 +246,7 @@ beforeEach(() => {
   vi.mocked(api.stats.query).mockImplementation((_league, q) => Promise.resolve(answer(q)))
   vi.mocked(api.stats.game).mockResolvedValue(null)
   vi.mocked(api.stats.games).mockResolvedValue(GAMES)
+  vi.mocked(api.stats.otherCareer).mockResolvedValue(NO_LINK)
   vi.mocked(api.stats.player).mockImplementation((_league, id) =>
     Promise.resolve({
       id,
@@ -205,6 +266,61 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   vi.clearAllMocks()
+})
+
+describe('the career strip (T1304.3)', () => {
+  it('shows nothing at all for a player with no link and no reason', async () => {
+    await openDashboard()
+    expect(await screen.findByText('Career by season')).toBeTruthy()
+    await waitFor(() => expect(api.stats.otherCareer).toHaveBeenCalledWith('nba', '1'))
+    expect(screen.queryByText('College and pro career')).toBeNull()
+    // Nor a hint in the header.
+    expect(screen.queryByRole('button', { name: /↓$/ })).toBeNull()
+  })
+
+  it('carries a hint at the end of the header, which opens the Overview on the strip', async () => {
+    vi.mocked(api.stats.otherCareer).mockResolvedValue(LINKED)
+    await openDashboard()
+    const hint = await screen.findByRole('button', {
+      name: 'NCAA Men: Duke Blue Devils, 2024-25 ↓'
+    })
+    fireEvent.click(screen.getByRole('tab', { name: 'Scoring' }))
+    fireEvent.click(hint)
+    expect(screen.getByRole('tab', { name: 'Overview' }).getAttribute('aria-selected')).toBe('true')
+    const strip = await screen.findByRole('region', { name: 'College and pro career' })
+    await waitFor(() => expect(document.activeElement).toBe(strip))
+    // One read of the links file serves the hint and the strip.
+    expect(vi.mocked(api.stats.otherCareer).mock.calls.length).toBe(1)
+  })
+
+  it('reads one career under the career table, the source once, and one way to the rest', async () => {
+    vi.mocked(api.stats.otherCareer).mockResolvedValue(LINKED)
+    await openDashboard()
+    const strip = within(await screen.findByRole('table', { name: 'College and pro career' }))
+    const rows = strip.getAllByRole('row').map((r) => r.textContent)
+    expect(rows[1]).toMatch(/^NCAA Men2024-25Duke Blue Devils3730\.619\.2/)
+    expect(rows[2]).toBe('NBA2025Dallas MavericksDrafted: Round 1, pick 1 (1st overall)')
+    expect(rows[3]).toMatch(/^NBA, this page2025-26Boston/)
+    expect(screen.getByText('NCAA Men seasons from ESPN’s totals, every game.')).toBeTruthy()
+    // Not downloaded: the rows open nothing, and the one offer is the league, not the player.
+    expect(strip.queryAllByRole('row').filter((r) => r.tagName === 'BUTTON')).toHaveLength(0)
+    expect(
+      screen.getByRole('button', { name: 'Download NCAA Men for the full profile →' })
+    ).toBeTruthy()
+  })
+
+  it('gives one line where the data knows why there is no link', async () => {
+    vi.mocked(api.stats.otherCareer).mockResolvedValue({
+      ...NO_LINK,
+      draft: { ...LINKED.draft!, draftYear: 2024, organization: 'Perth Wildcats (Australia)' },
+      reason: { kind: 'drafted-abroad', text: 'Drafted from a club.' }
+    })
+    await openDashboard()
+    expect(
+      await screen.findByText('Drafted in 2024 from Perth Wildcats (Australia), not a college.')
+    ).toBeTruthy()
+    expect(screen.queryByRole('table', { name: 'College and pro career' })).toBeNull()
+  })
 })
 
 describe('the player dashboard', () => {

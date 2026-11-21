@@ -85,7 +85,13 @@ function Line({ line }: { line: StatLine }): React.JSX.Element {
           </span>
         </>
       ) : (
-        <span className="col-span-2 px-[13px] text-[11.5px] text-fg-3">
+        // One line in the row's own height, the rest on hover: a long reason (the college leagues'
+        // BPM, VORP and plus-minus) wrapped here and ran over the rows below. The label's card says it
+        // whole too, for the keyboard.
+        <span
+          title={line.missing ?? undefined}
+          className="col-span-2 min-w-0 truncate px-[13px] text-[11.5px] text-fg-3"
+        >
           {line.missing ?? (line.value !== '—' ? 'Below the qualifying sample' : '')}
         </span>
       )}

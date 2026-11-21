@@ -132,16 +132,18 @@ for (const s of JSON.parse(readFileSync(stepsFile, 'utf8'))) {
         await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: at[0] + dx, y: at[1] })
   }
   if (s.type) await send('Input.insertText', { text: s.type })
-  // {key:["KeyN", "N", 78, modifiers]} modifiers: alt 1, ctrl 2, meta 4, shift 8
+  // {key:["KeyN", "N", 78, modifiers, text]} modifiers: alt 1, ctrl 2, meta 4, shift 8. With text
+  // ("\r" for Enter) the key types it, which is what activates a focused button.
   if (s.key) {
-    const [code, key, vk, modifiers] = s.key
-    for (const type of ['rawKeyDown', 'keyUp'])
+    const [code, key, vk, modifiers, text] = s.key
+    for (const type of [text ? 'keyDown' : 'rawKeyDown', 'keyUp'])
       await send('Input.dispatchKeyEvent', {
         type,
         code,
         key,
         windowsVirtualKeyCode: vk,
-        modifiers
+        modifiers,
+        ...(text && type === 'keyDown' ? { text } : {})
       })
   }
   // {drag:[x1,y1,x2,y2]}

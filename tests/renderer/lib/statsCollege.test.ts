@@ -11,7 +11,13 @@ import { splitDefs } from '@/lib/stats/player'
 import { teamPoolQuery } from '@/lib/stats/team'
 import { MOMENTS, momentsIn } from '@/lib/stats/splits'
 import { METRICS, metricIn } from '@shared/stats/catalogue'
-import { defaultScope, seasonTypes, typeLabel, type StatsScope } from '@/lib/stats/scope'
+import {
+  defaultScope,
+  queryScope,
+  seasonTypes,
+  typeLabel,
+  type StatsScope
+} from '@/lib/stats/scope'
 import { strengthNote, strengthQuery } from '@/lib/stats/standings'
 import { LEAGUES } from '@shared/leagues'
 import type { StatsGame, StatsSeason } from '@shared/stats/types'
@@ -160,10 +166,25 @@ describe('season types in the college leagues (D45)', () => {
     const seasons = [season(['regular', 'playoffs', 'nit'])]
     setLeague('ncaam')
     expect(defaultScope(seasons, null).seasonType).toBe('counted')
-    // A season with only its regular season so far has no "every game" to offer.
-    expect(defaultScope([season(['regular'])], null).seasonType).toBe('regular')
+    // November: a season with only its regular season so far still opens on every game (D45), so the
+    // career by season counts every game of the past seasons, as the strip and the leaderboards do.
+    expect(defaultScope([season(['regular'])], null).seasonType).toBe('counted')
+    expect(seasonTypes(season(['regular']))).toEqual(['regular', 'counted'])
+    expect(typeLabel('counted')).toBe('Every game')
+    // Its numbers are the regular season's: every counted type, of which only that one has games.
+    expect(queryScope(defaultScope([season(['regular'])], null), 'player').gameTypes).toEqual([
+      ...LEAGUES.ncaam.countedTypes
+    ])
+    setLeague('ncaaw')
+    expect(defaultScope([season(['regular'])], null).seasonType).toBe('counted')
+    // The NBA and the WNBA stay as they were: no "after" to offer until there is one.
     setLeague('nba')
     expect(defaultScope(seasons, null).seasonType).toBe('regular')
+    expect(defaultScope([season(['regular'])], null).seasonType).toBe('regular')
+    expect(seasonTypes(season(['regular']))).toEqual(['regular'])
+    setLeague('wnba')
+    expect(seasonTypes(season(['regular']))).toEqual(['regular'])
+    expect(defaultScope([season(['regular'])], null).seasonType).toBe('regular')
   })
 
   it('opens a college day on the latest game of any event', () => {

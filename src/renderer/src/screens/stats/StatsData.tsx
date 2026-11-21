@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -20,7 +20,7 @@ import {
   STATE_LABELS,
   totals
 } from '@/lib/stats/data'
-import { cn } from '@/lib/utils'
+import { cn, scrollToTop } from '@/lib/utils'
 import { LEAGUES, leagueOf, type League, type LeagueId } from '@shared/leagues'
 import type {
   LeagueDownload,
@@ -73,6 +73,9 @@ interface LeagueSectionProps {
   read: LeagueRead
   onTurn: (on: boolean) => void
   onDelete: () => void
+  /** Opened on this league (a career strip's offer): scrolled to, its on/off button focused. */
+  focused?: boolean
+  onFocused?: () => void
 }
 
 /** One league: whether it downloads, what it is doing, its disk, and its releases by tier. */
@@ -81,13 +84,23 @@ function LeagueSection({
   download,
   read,
   onTurn,
-  onDelete
+  onDelete,
+  focused = false,
+  onFocused
 }: LeagueSectionProps): React.JSX.Element {
   const { report, status, error } = read
   const { filesLoaded, filesExpected } = totals(report?.families ?? [])
   const paused = status?.paused ?? false
+  const section = useRef<HTMLElement>(null)
+  const turn = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    if (!focused) return
+    if (section.current) scrollToTop(section.current, 0, false)
+    turn.current?.focus({ preventScroll: true })
+    onFocused?.()
+  }, [focused, onFocused])
   return (
-    <section aria-label={league.name} className="mt-6 border-t border-line pt-4">
+    <section ref={section} aria-label={league.name} className="mt-6 border-t border-line pt-4">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
         <h2 className="text-[14px] font-semibold">{league.name}</h2>
         <p className="text-[12.5px] text-fg-3">
@@ -111,7 +124,7 @@ function LeagueSection({
               Delete its data
             </Button>
           )}
-          <Button variant="outline" size="xs" onClick={() => onTurn(!download.on)}>
+          <Button ref={turn} variant="outline" size="xs" onClick={() => onTurn(!download.on)}>
             {download.on ? `Turn the ${league.name} off` : `Turn the ${league.name} on`}
           </Button>
         </div>
@@ -166,7 +179,14 @@ const EMPTY: LeagueRead = { report: null, status: null, error: null }
  * it is, a way to pause a load or turn a league off, deleting a league's file as its own confirmed
  * action, and where the data comes from: the credit the dataset's licence asks for.
  */
-export function StatsData(): React.JSX.Element {
+export function StatsData({
+  focus = null,
+  onFocused
+}: {
+  /** The league to open on: its section scrolled to once every section has its size. */
+  focus?: LeagueId | null
+  onFocused?: () => void
+} = {}): React.JSX.Element {
   const [downloads, setDownloads] = useState<LeagueDownloads | null>(null)
   const [reads, setReads] = useState<Partial<Record<LeagueId, LeagueRead>>>({})
   const [error, setError] = useState<string | null>(null)
@@ -206,6 +226,8 @@ export function StatsData(): React.JSX.Element {
   if (error) return <div className="py-20 text-center text-[13px] text-bad">{error}</div>
   if (!downloads) return <div className="py-20" />
 
+  // The sections above grow as their reads come in, so the one asked for is scrolled to after.
+  const sized = downloads.leagues.every((d) => reads[d.league] !== undefined)
   const used = downloads.leagues.reduce((sum, d) => sum + d.fileBytes, 0)
   const doomed = deleting ? downloads.leagues.find((d) => d.league === deleting) : undefined
   return (
@@ -227,6 +249,8 @@ export function StatsData(): React.JSX.Element {
             settle(download.league, api.leagues.setDownloads({ [download.league]: on }))
           }
           onDelete={() => setDeleting(download.league)}
+          focused={sized && focus === download.league}
+          onFocused={onFocused}
         />
       ))}
       <Dialog open={doomed !== undefined} onOpenChange={(open) => !open && setDeleting(null)}>
