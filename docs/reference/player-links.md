@@ -252,12 +252,39 @@ All of these hold to D35: one league is shown; the other appears as a linked pan
 - **"One small summary file per league for every linked player" (the manager's).** Metis publishes nothing and has no server, so such a file would have to be built locally. It can be built only when both leagues are present, which is when it is least needed. The releases already publish the small per-league summary: ESPN's player season stats, keyed by the same id. Recommended in its place: fetch that file for the other league when the user asks, and keep a local summary built from the files when both are present, so a league deleted later still shows its linked careers.
 - **One number that argues for the design's care:** a college page will rarely have a professional side (1 to 5 % of Division I players a season), and a professional page often will (379 of the NBA's players today). The college-to-professional direction is where the "not downloaded" choice will be met most.
 
+## ESPN's season stats against Metis's own lines
+
+Measured on 2026-11-21 for T1304.2, on the same four files, for every player whose ESPN id is in both leagues of a pair (the id links), in the seasons the paired download brings: the NBA from 2022-23, the WNBA from 2022, the colleges from 2021-22. ESPN's file is long, one row a stat (`category`, `stat_name`, `value`, with makes and attempts as text, `412-911`), and gives one line a player-season, every team together. Metis's line is `player_season` with `team_id` NULL, summed over the season types named. Exact equality per stat; minutes per game within 0.05.
+
+**Postseason.** ESPN's professional season stats are the regular season alone, and its college season stats count every game, the tournaments included:
+
+| League     | Lines | Games equal: regular season | Games equal: regular and play-in | Games equal: every counted type |
+| ---------- | ----- | --------------------------- | -------------------------------- | ------------------------------- |
+| NBA        | 868   | 829                         | 759                              | 612                             |
+| WNBA       | 271   | 271                         | 271                              | 169                             |
+| NCAA Men   | 834   | 264                         | 264                              | 834                             |
+| NCAA Women | 405   | 53                          | 53                               | 405                             |
+
+The NBA's play-in is not in ESPN's line, nor are the WNBA's playoffs or Commissioner's Cup final. The 39 NBA lines that differ on games are all of 2026-27, the season being played: ESPN's file was a day ahead of the box scores loaded (Ace Bailey 15 games against 14, and so on). A college line is the NCAA's count, as D45's default scope is.
+
+**Per stat**, against the season types that match (professional: regular season, completed seasons; college: every counted game):
+
+| League     | Lines | Games | Starts | Points | Rebounds | Off. reb. | Assists | Steals | Blocks | Turnovers | Fouls | FGM | FGA | 3PM | FTM | FTA | Minutes a game within 0.05 |
+| ---------- | ----- | ----- | ------ | ------ | -------- | --------- | ------- | ------ | ------ | --------- | ----- | --- | --- | --- | --- | --- | -------------------------- |
+| NBA        | 651   | 651   | 651    | 651    | 649      | 651       | 651     | 651    | 651    | 649       | 651   | 651 | 650 | 651 | 651 | 651 | 656 of 829 (796 within 0.15) |
+| WNBA       | 271   | 271   | 271    | 271    | 271      | 271       | 271     | 270    | 271    | 269       | 271   | 271 | 271 | 271 | 271 | 271 | 176 of 271 (253 within 0.15) |
+| NCAA Men   | 834   | 834   | 816    | 833    | 833      | 833       | 831     | 833    | 832    | 833       | 833   | 833 | 833 | 833 | 833 | 833 | 794 of 834 (832 within 0.15) |
+| NCAA Women | 405   | 405   | 388    | 404    | 404      | 404       | 404     | 404    | 404    | 404       | 404   | 404 | 404 | 404 | 404 | 404 | 382 of 405                  |
+
+The differences are one count: a rebound, a turnover or an attempt (Chet Holmgren's 614 rebounds in 2025-26 against Metis's 615; Jabari Smith Jr.'s 975 attempts against 974), and starts, where ESPN counts one or two more than its own box scores mark (Devin Carter, 33 against 31 in 2023-24; Ta'Niya Latson 29 against 27). Minutes a game differ by rounding: ESPN's average is of whole minutes, Metis's of seconds, up to half a minute apart (a WNBA player's 4.3 against 4.5 in four games). No player's line is missing on either side.
+
+**What it means for the screen:** a professional career read from ESPN's file is the regular season, and must say so; Metis's own lines carry the playoffs as separate season types. A college career from ESPN's file matches Metis's counted games. A user comparing the two would see the same points, rebounds and assists in 99.7 to 100 % of lines, a start or a tenth of a minute apart elsewhere. The current season's ESPN line can be a game ahead of Metis's own until the next refresh.
+
 ## What could not be measured
 
 - Whether the 2026-27 college rows of players drafted from abroad (Nnaji, Niang, Ngoy, Claessens, Kane, Sivka, Ran) are those players: no birth date or ESPN id on the professional side.
 - Whether ESPN will give the 2026 class's unplayed draftees the same athlete id they had in college: the evidence is the 222 who played, and the 2 who got a second id.
 - The colleges of Nadia Fingall, Holly Winterburn, Peyton Williams and Kyra Lambert: no row of the name or id in the women's file.
-- Whether ESPN's season stats count postseason games, and how they agree with Metis's own season lines: not compared.
 - Download times on the owner's connection; the times above are from this machine.
 - PRISM's contents (named, not opened).
 
