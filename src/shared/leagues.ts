@@ -1612,3 +1612,68 @@ export function periodLengthSql(league: League, seasonSql: string, period: strin
       `CASE WHEN ${period} <= ${e.periods} THEN ${e.minutes * 60}.0 ELSE ${league.overtimeMinutes * 60}.0 END`
   )
 }
+
+/**
+ * A college league and the professional league its players go to, whose careers are linked (D46): the
+ * NBA with NCAA Men, the WNBA with NCAA Women. Code reads the pairs from here and never names a league.
+ */
+export interface LeaguePair {
+  college: LeagueId
+  pro: LeagueId
+  /**
+   * How far the professional league's season labels run ahead of the college season just before: the
+   * NBA's 2025 (2024-25) follows the college 2024 (2023-24), so 1; the WNBA's 2024 follows the college
+   * 2024, so 0. The professional draft table is labelled the same way: the NBA's draft of June 2024 is
+   * `season` 2025, the WNBA's of April 2024 is 2024 (`player-links.md`, "Two traps").
+   */
+  proLabelAhead: 0 | 1
+  /**
+   * The first season of each side's lines a linked player can have: the college window's first (D39),
+   * and the professional season after it. The paired download brings these seasons on (D48).
+   */
+  collegeFrom: number
+  proFrom: number
+  /** The tables each side's paired download reads from the releases: ESPN's season stats, the draft. */
+  seasonStatsTable: string
+  proDraftTable: string
+}
+
+export const LEAGUE_PAIRS: readonly LeaguePair[] = [
+  {
+    college: 'ncaam',
+    pro: 'nba',
+    proLabelAhead: 1,
+    collegeFrom: 2022,
+    proFrom: 2023,
+    seasonStatsTable: 'src_espn_player_season',
+    proDraftTable: 'src_nba_draft'
+  },
+  {
+    college: 'ncaaw',
+    pro: 'wnba',
+    proLabelAhead: 0,
+    collegeFrom: 2022,
+    proFrom: 2022,
+    seasonStatsTable: 'src_espn_player_season',
+    proDraftTable: 'src_wnba_draft'
+  }
+]
+
+/** The pair a league is in, null for one in none. */
+export function pairOf(league: LeagueId): LeaguePair | null {
+  return LEAGUE_PAIRS.find((p) => p.college === league || p.pro === league) ?? null
+}
+
+/** The other league of a league's pair, null for one in none. */
+export function pairedLeague(league: LeagueId): LeagueId | null {
+  const pair = pairOf(league)
+  if (!pair) return null
+  return pair.college === league ? pair.pro : pair.college
+}
+
+/**
+ * The links file in the data folder beside the leagues' stats files (D47): the links and the paired
+ * season lines of every pair, opened only by the links worker. Not named `stats-*.duckdb`, which is one
+ * league's file: the per-league size, deletion and adoption of `statsFile` never touch it.
+ */
+export const LINKS_FILE = 'links.duckdb'

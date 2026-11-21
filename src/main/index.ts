@@ -15,6 +15,8 @@ import { registerIpcHandlers, type AppContext } from '@main/ipc/handlers'
 import { createChangeNotifier } from '@main/stats/changes'
 import { startStatsWorker } from '@main/stats/client'
 import { createLeagueControl } from '@main/stats/leagueControl'
+import { startLinksWorker } from '@main/stats/links/client'
+import { linksTempDir } from '@main/stats/links/control'
 import { installAutoUpdater } from '@main/updater'
 import { IPC } from '@shared/ipc'
 import { DEFAULT_LEAGUE, LEAGUES, type LeagueId } from '@shared/leagues'
@@ -162,7 +164,9 @@ app.whenReady().then(async () => {
       startStatsWorker({ league, dataDir, tempDir: join(dataDir, 'stats-tmp', league) }, () =>
         statsChanged(league)
       ),
-    onChanged: statsChanged
+    onChanged: statsChanged,
+    // The links file's own worker (D47), started when a league of a pair has refreshed or is read.
+    startLinks: () => startLinksWorker({ dataDir, tempDir: linksTempDir(dataDir) })
   })
   leagues.open()
   const closeStats = (): Promise<unknown> => leagues.close()

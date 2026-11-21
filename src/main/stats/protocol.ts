@@ -119,6 +119,10 @@ export type StatsRequest =
   | { id: number; kind: 'shots'; request: StatsShotRequest }
   | { id: number; kind: 'assists'; request: StatsAssistRequest }
   | { id: number; kind: 'gameFlow'; game: string }
+  /** The league's side of its pair, as Parquet in `dir` for the links worker (D47). */
+  | { id: number; kind: 'linkSide'; dir: string; tag: string }
+  /** Metis's own season lines of the linked players named, as Parquet in `dir`. */
+  | { id: number; kind: 'linkLines'; ids: number[]; dir: string; tag: string }
 
 /**
  * The kinds that run at once, each on its own connection, instead of in turn. A pause cannot wait
@@ -149,7 +153,9 @@ export const AT_ONCE_REQUESTS: ReadonlySet<StatsRequest['kind']> = new Set([
   'coaches',
   'shots',
   'assists',
-  'gameFlow'
+  'gameFlow',
+  'linkSide',
+  'linkLines'
 ])
 
 export type StatsReply =

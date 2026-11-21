@@ -23,6 +23,7 @@ import type {
   StatsOfficialsSeason,
   GameType,
   StatsProfile,
+  StatsOtherCareer,
   StatsAvailability,
   StatsCoach,
   StatsPlayerInfo,
@@ -159,6 +160,11 @@ export interface Api {
     ): Promise<StatsLineups>
     /** A player's bio, draft and combines; what the data does not hold reads as null or empty. */
     profile(league: LeagueId, player: string): Promise<StatsProfile>
+    /**
+     * A player's career in the other league of the pair (T1304.2): the link and its method, the draft
+     * line, the seasons with their source named, or the reason there is none. From the links file.
+     */
+    otherCareer(league: LeagueId, player: string): Promise<StatsOtherCareer>
     /** Players' status on the latest official injury report; those it does not list are left out. */
     availability(league: LeagueId, players: string[]): Promise<StatsAvailability[]>
     /** A team's head and assistant coaches for a season; empty when the file has none. */
@@ -223,6 +229,7 @@ export const IPC = {
   statsWithOrWithout: 'stats:with-or-without',
   statsLineups: 'stats:lineups',
   statsProfile: 'stats:profile',
+  statsOtherCareer: 'stats:other-career',
   statsAvailability: 'stats:availability',
   statsCoaches: 'stats:coaches',
   statsShots: 'stats:shots',

@@ -76,6 +76,10 @@ async function handle(request: StatsRequest): Promise<unknown> {
       return service.assists(request.request)
     case 'gameFlow':
       return service.gameFlow(request.game)
+    case 'linkSide':
+      return service.linkSide(request.dir, request.tag)
+    case 'linkLines':
+      return service.linkLines(request.ids, request.dir, request.tag)
     case 'close':
       await service.close()
       service = null
