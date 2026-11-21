@@ -11,7 +11,7 @@ import { leagueOf, type LeagueId } from '@shared/leagues'
 
 const HEAD = ['League', 'Season', 'Team', 'G', 'MIN', 'PTS', 'REB', 'AST', 'STL', 'BLK']
 const PCT_HEAD = ['FG%', '3P%', 'FT%']
-const COLUMNS = `76px 64px minmax(150px,1.6fr) 36px repeat(6, minmax(44px,1fr)) repeat(3, minmax(54px,1fr))`
+const COLUMNS = `104px 64px minmax(150px,1.6fr) 36px repeat(6, minmax(44px,1fr)) repeat(3, minmax(54px,1fr))`
 
 /**
  * A player's college and professional careers as one (T1304.3), under their career by season. It
