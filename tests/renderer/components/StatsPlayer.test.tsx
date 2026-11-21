@@ -197,6 +197,7 @@ const LINKED: StatsOtherCareer = {
       season: 2025,
       gameType: null,
       teams: ['Duke Blue Devils'],
+      teamsInOrder: true,
       games: 37,
       starts: 37,
       minutes: 1134,

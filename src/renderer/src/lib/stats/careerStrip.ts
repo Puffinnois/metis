@@ -79,6 +79,8 @@ export function stripQuery(player: string, seasons: number[], league: League): S
 export interface StripLine {
   season: number
   teams: string[]
+  /** Whether the last of `teams` is the team the season ended with (`StatsOtherSeason.teamsInOrder`). */
+  teamsInOrder: boolean
   games: number | null
   values: Record<StripMetric, number | null>
 }
@@ -97,6 +99,7 @@ export function ownLines(
       return {
         season,
         teams: r.team ? [teamName(season, r.team) ?? r.team] : [],
+        teamsInOrder: true,
         games: r.games,
         values
       }
@@ -133,6 +136,7 @@ export function otherLines(seasons: StatsOtherSeason[], league: League): StripLi
       return {
         season,
         teams,
+        teamsInOrder: rows.every((r) => r.teamsInOrder),
         games,
         values: {
           min: per('minutes'),
@@ -159,6 +163,15 @@ export function pickWords(d: StatsDraftLine): string {
   if (parts.length === 0) return d.overallPick !== null ? `${ordinal(d.overallPick)} overall` : ''
   const overall = d.overallPick !== null ? ` (${ordinal(d.overallPick)} overall)` : ''
   return `${parts.join(', ')}${overall}`
+}
+
+/**
+ * The team cell: the season's last team, as the page's career table shows it; "2 teams" where the
+ * source names several without saying which came last (the names on hover). Never one picked.
+ */
+export function teamCell(line: Pick<StripLine, 'teams' | 'teamsInOrder'>): string {
+  if (line.teams.length > 1 && !line.teamsInOrder) return `${line.teams.length} teams`
+  return line.teams.at(-1) ?? ''
 }
 
 /** A page of the other league to open: that player's, in the season of the row. */
@@ -257,7 +270,7 @@ function seasonRow(
     leagueName: league.name,
     own,
     season,
-    team: line.teams.at(-1) ?? '',
+    team: teamCell(line),
     games: line.games === null ? '—' : String(line.games),
     cells: STRIP_METRICS.map((id) =>
       fmtStat(line.values[id], byId.get(id) ?? FALLBACK[id], 'perGame')

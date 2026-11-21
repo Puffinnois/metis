@@ -80,6 +80,7 @@ async function keptSeasons(
     season: Number(r.season),
     gameType: r.game_type as GameType,
     teams: ((r.team_names as (string | null)[]) ?? []).filter((t): t is string => t !== null),
+    teamsInOrder: true,
     games: num(r.games),
     starts: num(r.starts),
     minutes: num(r.minutes),
@@ -117,7 +118,8 @@ async function espnSeasons(
   const avg = (stat: string): string =>
     `max(value) FILTER (WHERE category = 'averages' AND stat_name = '${stat}')`
   const rows = await db.all<Record<string, unknown>>(
-    `SELECT season, (list(team_display_name ORDER BY team_display_name) FILTER (WHERE team_display_name IS NOT NULL))[1] AS team,
+    // Every team the file names for the season, never one picked: it gives no order between them.
+    `SELECT season, list_sort(list_distinct(list(team_display_name))) AS teams,
        ${avg('gamesPlayed')} AS games, ${avg('gamesStarted')} AS starts, ${avg('avgMinutes')} AS mpg,
        ${total('points')} AS pts, ${total('totalRebounds')} AS reb, ${total('offensiveRebounds')} AS oreb,
        ${total('assists')} AS ast, ${total('steals')} AS stl, ${total('blocks')} AS blk,
@@ -131,10 +133,16 @@ async function espnSeasons(
   return rows.map((r) => {
     const games = num(r.games)
     const mpg = num(r.mpg)
+    const teams = ((r.teams as (string | null)[] | null) ?? []).filter(
+      (t): t is string => t !== null
+    )
     return {
       season: Number(r.season),
       gameType: null,
-      teams: r.team ? [String(r.team)] : [],
+      teams,
+      // One team is the season's last (the file names the team a player ended with); several have
+      // no order the file gives.
+      teamsInOrder: teams.length <= 1,
       games,
       starts: num(r.starts),
       // ESPN publishes minutes a game, rounded to a tenth; the total is that times the games.

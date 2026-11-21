@@ -208,8 +208,15 @@ describe('the other career read', () => {
     expect(career.link).toMatchObject({ method: 'id', playerId: '101', name: 'Paolo Banchero' })
     expect(career.source).toEqual({ kind: 'metis', label: METIS_LABEL })
     expect(career.seasons).toMatchObject([
-      { season: 2022, gameType: 'playoffs', games: 6, teams: [] },
-      { season: 2022, gameType: 'regular', games: 33, pts: 580, teams: ['Duke Blue Devils'] }
+      { season: 2022, gameType: 'playoffs', games: 6, teams: [], teamsInOrder: true },
+      {
+        season: 2022,
+        gameType: 'regular',
+        games: 33,
+        pts: 580,
+        teams: ['Duke Blue Devils'],
+        teamsInOrder: true
+      }
     ])
     expect(career.draft).toMatchObject({ draftYear: 2022, overallPick: 1, organization: 'Duke' })
   })
@@ -225,6 +232,37 @@ describe('the other career read', () => {
     expect(career.source).toEqual({ kind: 'espn', label: ESPN_COLLEGE_LABEL })
     expect(career.seasons).toMatchObject([
       { season: 2022, gameType: null, games: 39, pts: 672, fgm: 100, fga: 200, minutes: 1170 }
+    ])
+  })
+
+  it("never picks one of several teams ESPN's totals name for a season, and keeps a single one", async () => {
+    const db = await built()
+    await db.exec(
+      `CREATE TABLE paired_ncaam_espn_player_season AS ${espnSeasonStatsSql([
+        [101, 'Paolo Banchero', 2021, 150, 'Duke Blue Devils', 30, 500, 200, 90],
+        [101, 'Paolo Banchero', 2022, 160, 'Kentucky Wildcats', 20, 300, 100, 50],
+        [101, 'Paolo Banchero', 2022, 150, 'Duke Blue Devils', 19, 372, 204, 75]
+      ])}`
+    )
+    const career = await readOtherCareer(db, 'nba', '9001')
+    expect(career.seasons.map((s) => [s.season, s.teams, s.teamsInOrder])).toEqual([
+      [2021, ['Duke Blue Devils'], true],
+      // Two names and no order between them in the file: both, sorted, and said to be unordered.
+      [2022, ['Duke Blue Devils', 'Kentucky Wildcats'], false]
+    ])
+  })
+
+  it("reads no team where ESPN's totals name none", async () => {
+    const db = await built()
+    await db.exec(
+      `CREATE TABLE paired_ncaam_espn_player_season AS ${espnSeasonStatsSql([
+        [101, 'Paolo Banchero', 2022, 150, 'Duke Blue Devils', 39, 672, 304, 125]
+      ])}`
+    )
+    await db.exec(`UPDATE paired_ncaam_espn_player_season SET team_display_name = NULL`)
+    const career = await readOtherCareer(db, 'nba', '9001')
+    expect(career.seasons).toMatchObject([
+      { season: 2022, teams: [], teamsInOrder: true, games: 39 }
     ])
   })
 

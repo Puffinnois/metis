@@ -871,8 +871,15 @@ export interface StatsOtherSeason {
   season: number
   /** Metis's own lines: the season type. ESPN's totals: null, the source's label says what they count. */
   gameType: GameType | null
-  /** The teams of the season, in the order played where Metis knows it. */
+  /** The teams of the season: in the order played where `teamsInOrder`, else sorted by name. */
   teams: string[]
+  /**
+   * Whether `teams` is in the order played, its last the team the season ended with. Metis's own lines
+   * always are. ESPN's totals name one team a player-season, the last (every traded linked season
+   * checked, 68 of 68, `player-links.md`); should they name several, the file does not say in what
+   * order, and this is false. They can also name none (traded WNBA seasons of 2025 and 2026).
+   */
+  teamsInOrder: boolean
   games: number | null
   starts: number | null
   minutes: number | null

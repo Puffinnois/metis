@@ -7,6 +7,7 @@ import {
   reasonText,
   stripGameTypes,
   stripQuery,
+  teamCell,
   type StripInput,
   type StripLine
 } from '@/lib/stats/careerStrip'
@@ -25,6 +26,7 @@ import type {
 const season = (s: Partial<StatsOtherSeason> & { season: number }): StatsOtherSeason => ({
   gameType: null,
   teams: [],
+  teamsInOrder: true,
   games: null,
   starts: null,
   minutes: null,
@@ -119,6 +121,7 @@ const FLAGG_FROM_NBA = career({
 const line = (s: number, team: string, games: number, pts: number): StripLine => ({
   season: s,
   teams: [team],
+  teamsInOrder: true,
   games,
   values: {
     min: 33.5,
@@ -503,5 +506,48 @@ describe('a traded player’s season', () => {
     expect(traded?.title).toBe(
       'Open Jalen Hood-Schifino’s NBA page, 2024-25 (Los Angeles Lakers, Philadelphia 76ers)'
     )
+  })
+})
+
+describe('the team cell', () => {
+  it('names the last team where the order is known, and never picks one where it is not', () => {
+    expect(
+      teamCell({ teams: ['Los Angeles Lakers', 'Philadelphia 76ers'], teamsInOrder: true })
+    ).toBe('Philadelphia 76ers')
+    expect(teamCell({ teams: ['Dallas Wings', 'Minnesota Lynx'], teamsInOrder: false })).toBe(
+      '2 teams'
+    )
+    expect(teamCell({ teams: ['Dallas Wings'], teamsInOrder: true })).toBe('Dallas Wings')
+    expect(teamCell({ teams: [], teamsInOrder: true })).toBe('')
+  })
+
+  it('says how many teams an ESPN season names, with the names on hover', () => {
+    const espn = season({
+      season: 2025,
+      teams: ['Dallas Wings', 'Minnesota Lynx'],
+      teamsInOrder: false,
+      games: 30,
+      pts: 300
+    })
+    expect(otherLines([espn], LEAGUES.wnba)[0].teamsInOrder).toBe(false)
+    const view = careerStrip(
+      input({
+        league: LEAGUES.ncaaw,
+        own: [line(2024, 'Maryland Terrapins', 30, 12)],
+        career: career({
+          league: 'wnba',
+          link: { method: 'id', playerId: '1', espnId: 2, name: 'Diamond Miller' },
+          source: { kind: 'espn', label: "ESPN's season totals, regular season" },
+          seasons: [espn]
+        }),
+        playerName: 'Diamond Miller',
+        otherHolds: 'off',
+        otherOn: false
+      })
+    )
+    if (view.kind !== 'strip') throw new Error(view.kind)
+    const row = view.rows.find((r) => r.league === 'wnba' && r.kind === 'season')
+    expect(row?.team).toBe('2 teams')
+    expect(row?.title).toBe('WNBA 2025 (Dallas Wings, Minnesota Lynx)')
   })
 })
