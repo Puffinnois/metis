@@ -119,6 +119,12 @@ function cells(r: StripRow): React.ReactNode[] {
   ) : (
     <span key="l" className="font-sans text-[12.5px] font-medium whitespace-nowrap">
       {r.leagueName}
+      {/* A row that opens the other league's page says so, as the app's text links do. */}
+      {r.open && (
+        <span aria-hidden="true" className="ml-1 text-fg-3">
+          →
+        </span>
+      )}
     </span>
   )
   if (r.kind === 'draft') {
