@@ -7,7 +7,7 @@ const out = process.argv[2]
 
 const HELPERS = `
 window.sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-window.until = async (fn, ms = 20000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await fn()) return true; await sleep(100) } return false };
+window.until = async (fn, ms = 20000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await fn()) return true; await sleep(10) } return false };
 window.nav = async (name) => { const b = [...document.querySelectorAll('nav button')].find((x) => x.textContent.trim() === name); if (!b) return 'NO NAV ' + name; b.click(); await sleep(1500); return 'nav ' + name };
 window.trigger = () => document.querySelector('button[aria-label^="League: "]');
 window.league = () => trigger()?.getAttribute('aria-label')?.replace('League: ', '') ?? null;

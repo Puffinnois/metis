@@ -4,7 +4,7 @@ import { MetricHead } from '@/components/stats/MetricCard'
 import { ShotChart } from '@/components/stats/ShotChart'
 import { useScreenState } from '@/lib/stats/session'
 import { shotRequest } from '@/lib/stats/shotChart'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Segmented } from '@/components/stats/controls'
 import { GameChart } from '@/components/stats/GameChart'
 import {
@@ -132,6 +132,8 @@ interface TabProps {
   /** The page's read of the other career, and the header hint's ask to show the strip. */
   career: ReadState<StatsOtherCareer>
   seekStrip: number
+  /** The page's own reads are done (the career table is in): the other career may be read. */
+  onSettled: () => void
 }
 
 /** Rail, header, and one set of tabs for every position. */
@@ -192,9 +194,18 @@ export function StatsPlayer({
   const self = useStatsQuery(sq, data.version, FRESH)
   const row = self.result?.rows.find((r) => r.id === player) ?? null
   const position = row?.position ?? info?.position ?? null
-  // The other career, read once the page's own header is in, so the page never waits on it; the
-  // header's hint and the strip share it.
-  const career = useOtherCareer(info && self.result ? player : null)
+  // The other career, read once the page's own reads are done: the career table in (the Overview),
+  // or a moment after the header on another tab. Asked any sooner, the links file's read ran beside
+  // the career query and could slow it. The header's hint and the strip share the one read.
+  const [settledFor, setSettledFor] = useState<string | null>(null)
+  const headerIn = info !== null && self.result !== null
+  useEffect(() => {
+    if (!headerIn) return
+    const timer = setTimeout(() => setSettledFor(player), 1200)
+    return () => clearTimeout(timer)
+  }, [headerIn, player])
+  const settle = useMemo(() => () => setSettledFor(player), [player])
+  const career = useOtherCareer(settledFor === player ? player : null)
   const hint = stripHint(career.value)
   const [seekStrip, setSeekStrip] = useState(0)
   const showStrip = (): void => {
@@ -299,6 +310,7 @@ export function StatsPlayer({
               onOpenPage={onOpenPage}
               career={career}
               seekStrip={seekStrip}
+              onSettled={settle}
             />
           </div>
         )}
@@ -683,7 +695,8 @@ function Overview({
   onOpenData,
   onOpenPage,
   career,
-  seekStrip
+  seekStrip,
+  onSettled
 }: TabProps & { played: boolean }): React.JSX.Element {
   const q = useMemo(
     () => (played ? positionQuery(OVERVIEW_SECTION.metrics, position, scope, mode) : null),
@@ -758,7 +771,7 @@ function Overview({
         </>
       )}
       {/* The strip comes after the career table, once that is in, so neither moves the other. */}
-      <Career data={data} scope={scope} player={player} mode={mode}>
+      <Career data={data} scope={scope} player={player} mode={mode} onReady={onSettled}>
         <CareerStrip
           data={data}
           player={player}
@@ -779,10 +792,13 @@ function Career({
   scope,
   player,
   mode,
-  children
+  children,
+  onReady
 }: Pick<TabProps, 'data' | 'scope' | 'player' | 'mode'> & {
   /** Shown under the table once it is in: the career strip. */
   children?: React.ReactNode
+  /** Told once the table's answers are in. */
+  onReady?: () => void
 }): React.JSX.Element {
   const seasons = useMemo(() => data.seasons.map((s) => s.season), [data.seasons])
   const queries = useMemo(
@@ -796,6 +812,10 @@ function Career({
     [player, seasons, scope, mode]
   )
   const { results, error } = useStatsQueries(queries, data.version)
+  const ready = results !== null
+  useEffect(() => {
+    if (ready) onReady?.()
+  }, [ready, onReady])
   if (!results) return <Loading error={error} />
   const rows = careerRows(results.get('seasons') ?? null, data.byId, mode)
   const played = rows.find((r) => !r.gap)?.key
