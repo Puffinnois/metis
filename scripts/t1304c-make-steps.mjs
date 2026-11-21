@@ -51,7 +51,7 @@ const top = ev(
 )
 // The header hint, from another tab: the Overview opens on the strip, which takes the focus.
 const useHint = ev(
-  `(async () => { const tab = [...document.querySelectorAll('[role=tab]')].find((t) => t.textContent === 'Scoring'); tab?.click(); await sleep(1500); const h = hintEl(); if (!h) return 'NO HINT'; const text = h.textContent; h.click(); await until(() => stripEl() && document.activeElement === stripEl(), 8000); await sleep(1200); const r = stripEl()?.getBoundingClientRect(); return JSON.stringify({ text, tab: document.querySelector('[role=tab][aria-selected=true]')?.textContent, focused: document.activeElement === stripEl(), stripTop: r ? Math.round(r.top) : null }) })()`
+  `(async () => { const tab = [...document.querySelectorAll('[role=tab]')].find((t) => t.textContent === 'Scoring'); tab?.click(); await sleep(1500); const h = hintEl(); if (!h) return 'NO HINT'; const text = h.textContent; h.click(); await until(() => stripEl() && document.activeElement === stripEl(), 8000); await sleep(1200); const r = stripEl()?.getBoundingClientRect(); return JSON.stringify({ text, tab: document.querySelector('[role=tab][aria-selected=true]')?.textContent, focused: document.activeElement === stripEl(), stripTop: r ? Math.round(r.top) : null, navTop: Math.round(document.querySelector('nav')?.getBoundingClientRect().top ?? -1), pageScrolled: [document.documentElement.scrollTop, document.body.scrollTop, document.getElementById('root')?.scrollTop ?? 0] }) })()`
 )
 const reasonRows = (name) => [
   ev(
@@ -171,7 +171,7 @@ const pause = (leagues) =>
   )
 const offer = (name) => [
   ev(
-    `(async () => { const b = stripEl()?.querySelector(':scope > button'); if (!b) return 'NO OFFER'; const text = b.textContent; b.click(); await until(() => document.activeElement?.textContent?.startsWith('Turn the'), 15000); await sleep(800); const s = document.querySelector('section[aria-label="${name}"]'); const r = s?.getBoundingClientRect(); return JSON.stringify({ offer: text, focused: document.activeElement?.textContent, sectionTop: r ? Math.round(r.top) : null }) })()`
+    `(async () => { const b = stripEl()?.querySelector(':scope > button'); if (!b) return 'NO OFFER'; const text = b.textContent; b.click(); await until(() => document.activeElement?.textContent?.startsWith('Turn the'), 15000); await sleep(800); const s = document.querySelector('section[aria-label="${name}"]'); const r = s?.getBoundingClientRect(); return JSON.stringify({ offer: text, focused: document.activeElement?.textContent, sectionTop: r ? Math.round(r.top) : null, navTop: Math.round(document.querySelector('nav')?.getBoundingClientRect().top ?? -1) }) })()`
   ),
   shot('offer-' + name.replace(/ /g, '-').toLowerCase())
 ]

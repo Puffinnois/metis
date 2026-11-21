@@ -6,7 +6,7 @@ import { downloadOf, leagueHolds, useLeagueDownloads } from '@/lib/stats/downloa
 import { useLeague } from '@/lib/stats/league'
 import { seasonOf } from '@/lib/stats/scope'
 import { useStatsQuery, type ReadState, type StatsData } from '@/lib/stats/useStats'
-import { cn } from '@/lib/utils'
+import { cn, scrollToTop } from '@/lib/utils'
 import { leagueOf, type LeagueId } from '@shared/leagues'
 import type { StatsOtherCareer } from '@shared/stats/types'
 
@@ -77,7 +77,7 @@ export function CareerStrip({
   useEffect(() => {
     if (!drawn || seek === 0 || seek === sought.current) return
     sought.current = seek
-    section.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+    if (section.current) scrollToTop(section.current)
     section.current?.focus({ preventScroll: true })
   }, [drawn, seek])
 

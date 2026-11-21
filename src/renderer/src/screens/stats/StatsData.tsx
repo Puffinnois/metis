@@ -20,7 +20,7 @@ import {
   STATE_LABELS,
   totals
 } from '@/lib/stats/data'
-import { cn } from '@/lib/utils'
+import { cn, scrollToTop } from '@/lib/utils'
 import { LEAGUES, leagueOf, type League, type LeagueId } from '@shared/leagues'
 import type {
   LeagueDownload,
@@ -95,7 +95,7 @@ function LeagueSection({
   const turn = useRef<HTMLButtonElement>(null)
   useEffect(() => {
     if (!focused) return
-    section.current?.scrollIntoView({ block: 'start' })
+    if (section.current) scrollToTop(section.current, 0, false)
     turn.current?.focus({ preventScroll: true })
     onFocused?.()
   }, [focused, onFocused])
