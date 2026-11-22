@@ -7,6 +7,7 @@ import {
   readLineups,
   readMatchups,
   readPlayer,
+  readPlayerIndex,
   readStandings
 } from '@main/stats/reads'
 import { openTestDb } from '../../fixtures/stats'
@@ -203,6 +204,33 @@ describe('a player', () => {
       birthDate: 'JAN 2, 1999',
       school: null
     })
+  })
+
+  it('lists everyone with a game for the search, their last season and team (T1304.5)', async () => {
+    await addPlayer()
+    await db.exec(`INSERT INTO player VALUES (2, 'Bo Earlier'), (3, 'Al Staronly'), (4, NULL)`)
+    await db.exec(`INSERT INTO player_season VALUES
+      (2, 2025, 'regular', NULL, ${BOS}, DATE '2025-03-01', 'C'),
+      (2, 2025, 'playoffs', NULL, ${OKC}, DATE '2025-05-01', 'C'),
+      (3, 2026, 'all-star', NULL, 91, DATE '2026-02-15', NULL),
+      (4, 2026, 'regular', NULL, ${BOS}, DATE '2026-01-01', NULL)`)
+    // Newest season first; a traded player's last team; a game in the playoffs counts; nobody with
+    // only an All-Star game or no name, and nobody with no game (Old Timer).
+    await expect(readPlayerIndex(db)).resolves.toEqual([
+      { id: '1', name: 'Ana Traded', lastSeason: 2026, team: 'OKC' },
+      { id: '2', name: 'Bo Earlier', lastSeason: 2025, team: null }
+    ])
+    await db.exec(`INSERT INTO team VALUES (2025, ${OKC}, 'OKC', 'Oklahoma City Thunder')`)
+    await expect(readPlayerIndex(db)).resolves.toContainEqual({
+      id: '2',
+      name: 'Bo Earlier',
+      lastSeason: 2025,
+      team: 'OKC'
+    })
+  })
+
+  it('lists nobody before the tables are built', async () => {
+    await expect(readPlayerIndex(db)).resolves.toEqual([])
   })
 
   it('knows a player only ESPN knows, and nobody for an id nobody has', async () => {

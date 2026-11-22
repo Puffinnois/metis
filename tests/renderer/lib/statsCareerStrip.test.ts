@@ -10,6 +10,8 @@ import {
   stripQuery,
   teamCell,
   type StripInput,
+  type StripRow,
+  type StripView,
   type StripLine
 } from '@/lib/stats/careerStrip'
 import { setLeague } from '@/lib/stats/league'
@@ -303,6 +305,78 @@ describe('the strip', () => {
       'Each NCAA Men row opens their NCAA Men page.'
     ])
     expect(view.action).toBeNull()
+  })
+
+  it('opens the draft in the Profile tab of the professional league where it is downloaded', () => {
+    const profile = (id: string): unknown => ({
+      league: 'nba',
+      screen: 'player',
+      team: null,
+      player: { id, position: null },
+      playerTab: 'profile'
+    })
+    const draftOf = (view: StripView): StripRow => {
+      if (view.kind !== 'strip') throw new Error(view.kind)
+      const row = view.rows.find((r) => r.kind === 'draft')
+      if (!row) throw new Error('no draft row')
+      return row
+    }
+    // The NBA page: the player's own Profile, whether or not NCAA Men is downloaded.
+    for (const otherHolds of ['ready', 'off'] as const) {
+      const row = draftOf(careerStrip(input({ player: '1642843', otherHolds, otherOn: false })))
+      expect(row.open).toEqual(profile('1642843'))
+      expect(row.title).toBe(
+        'NBA draft 2025, Dallas Mavericks, Round 1, pick 1 (1st overall): open Cooper Flagg’s NBA profile'
+      )
+    }
+    // The college page: the NBA Profile where the NBA is built and the player has a page there.
+    const fromCollege = (otherHolds: 'ready' | 'off' | 'notBuilt'): StripRow =>
+      draftOf(
+        careerStrip(
+          input({
+            league: LEAGUES.ncaam,
+            player: '4432573',
+            own: otherLines(FLAGG_DUKE, LEAGUES.ncaam),
+            career: career({
+              league: 'nba',
+              link: { method: 'id', playerId: '1642843', espnId: 5041939, name: 'Cooper Flagg' },
+              draft: FLAGG_DRAFT,
+              source: { kind: 'metis', label: "Metis's own season lines" },
+              seasons: [
+                season({ season: 2026, gameType: 'regular', teams: ['DAL'], games: 70, pts: 1473 })
+              ]
+            }),
+            otherHolds,
+            otherOn: true
+          })
+        )
+      )
+    expect(fromCollege('ready').open).toEqual(profile('1642843'))
+    // A draftee with no NBA game has no NBA page: the row stays text (Richie Saunders, 2026).
+    const unplayed = careerStrip(
+      input({
+        league: LEAGUES.ncaam,
+        player: '5105559',
+        own: otherLines(FLAGG_DUKE, LEAGUES.ncaam),
+        career: career({
+          league: 'nba',
+          link: { method: 'name+college', playerId: '1643600', espnId: null, name: 'R S' },
+          draft: FLAGG_DRAFT,
+          source: null,
+          seasons: []
+        }),
+        otherHolds: 'ready',
+        otherOn: true
+      })
+    )
+    expect(draftOf(unplayed).open).toBeNull()
+    // Not downloaded, or still loading: plain text, as the season rows are.
+    for (const holds of ['off', 'notBuilt'] as const) {
+      expect(fromCollege(holds).open).toBeNull()
+      expect(fromCollege(holds).title).toBe(
+        'NBA draft 2025, Dallas Mavericks, Round 1, pick 1 (1st overall)'
+      )
+    }
   })
 
   it('keeps Metis’s lines of a league since deleted, without opening it', () => {

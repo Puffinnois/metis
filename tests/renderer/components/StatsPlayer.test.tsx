@@ -51,7 +51,8 @@ vi.mock('@/lib/api', () => ({
       officialsSeason: vi.fn(() => Promise.resolve(null)),
       officialCareer: vi.fn(() => Promise.resolve(null)),
       otherCareer: vi.fn(),
-      otherPlayers: vi.fn(() => Promise.resolve([]))
+      otherPlayers: vi.fn(() => Promise.resolve([])),
+      playerIndex: vi.fn(() => Promise.resolve([]))
     },
     dev: { mode: vi.fn().mockResolvedValue(false), onModeChanged: vi.fn(() => () => {}) }
   }
@@ -467,6 +468,7 @@ describe('the same player across leagues (T1304.4)', () => {
   }
 
   afterEach(() => {
+    vi.mocked(api.stats.onChanged).mockImplementation(() => () => {})
     // A switch as before moves the whole app to the other league; the next test starts on the NBA.
     setLeague('nba')
     vi.mocked(api.leagues.downloads).mockResolvedValue({
@@ -559,5 +561,245 @@ describe('the same player across leagues (T1304.4)', () => {
     // Read once, when the search was first used.
     expect(api.stats.otherPlayers).toHaveBeenCalledTimes(1)
     expect(api.stats.otherPlayers).toHaveBeenCalledWith('nba')
+  })
+
+  it('opens the draft row in the player’s Profile tab', async () => {
+    vi.mocked(api.stats.otherCareer).mockResolvedValue(LINKED)
+    const onOpenPage = vi.fn()
+    await openWith(onOpenPage)
+    const strip = within(await screen.findByRole('table', { name: 'College and pro career' }))
+    const titled = (start: string): HTMLElement | undefined =>
+      strip.getAllByRole('row').find((r) => r.getAttribute('title')?.startsWith(start))
+    const draft = titled('NBA draft 2025')
+    expect(draft?.tagName).toBe('BUTTON')
+    expect(draft?.getAttribute('title')).toMatch(/: open Luka Dončić’s NBA profile$/)
+    fireEvent.click(draft!)
+    expect(onOpenPage).toHaveBeenCalledWith({
+      league: 'nba',
+      screen: 'player',
+      team: null,
+      player: { id: '1', position: null },
+      playerTab: 'profile'
+    })
+    // The college season, with NCAA Men not downloaded, still opens nothing.
+    expect(titled('NCAA Men 2024-25')?.tagName).toBe('DIV')
+  })
+
+  it('says the paired league is loading until its tables are built, then opens it (T1304.5)', async () => {
+    vi.mocked(api.leagues.downloads).mockResolvedValue(BOTH)
+    let ncaamBuilt = false
+    vi.mocked(api.stats.status).mockImplementation((league) =>
+      Promise.resolve(league === 'ncaam' && !ncaamBuilt ? { ...BUILT, builtAt: null } : BUILT)
+    )
+    const listeners: ((league: 'nba' | 'ncaam') => void)[] = []
+    vi.mocked(api.stats.onChanged).mockImplementation((fn) => {
+      listeners.push(fn as (league: 'nba' | 'ncaam') => void)
+      return () => {}
+    })
+    vi.mocked(api.stats.otherCareer).mockResolvedValue(LINKED)
+    const onOpenPage = vi.fn()
+    await openWith(onOpenPage)
+    const table = await screen.findByRole('table', { name: 'College and pro career' })
+    // Turned on, no tables yet: the source said, the rows open nothing, and no offer to download.
+    expect(await screen.findByText('NCAA Men is loading. Its own lines follow.')).toBeTruthy()
+    const rowOf = (start: string): HTMLElement | undefined =>
+      within(table)
+        .getAllByRole('row')
+        .find((r) => r.getAttribute('title')?.startsWith(start))
+    expect(rowOf('NCAA Men 2024-25')?.tagName).toBe('DIV')
+    expect(screen.queryByRole('button', { name: /^Download NCAA Men/ })).toBeNull()
+    // The menu switches as before, and its note says why.
+    fireEvent.keyDown(screen.getByRole('button', { name: 'League: NBA' }), { key: 'Enter' })
+    const item = await screen.findByRole('menuitemradio', { name: /^NCAA Men/ })
+    expect(item.textContent).toContain('No tables yet')
+    expect(item.textContent).not.toContain('Dončić')
+    fireEvent.keyDown(item, { key: 'Escape' })
+    // Built: the league's lines read from Metis, and its rows open its page.
+    ncaamBuilt = true
+    vi.mocked(api.stats.otherCareer).mockResolvedValue(LINKED_HERE)
+    listeners.forEach((fn) => fn('ncaam'))
+    await waitFor(() =>
+      expect(screen.queryByText('NCAA Men is loading. Its own lines follow.')).toBeNull()
+    )
+    await waitFor(() => expect(rowOf('Open Luka Dončić’s NCAA Men page')?.tagName).toBe('BUTTON'))
+    expect(screen.getByRole('table', { name: 'College and pro career' })).toBe(table)
+  })
+
+  it('changes the menu’s second line in place when the link arrives with the menu open', async () => {
+    vi.mocked(api.leagues.downloads).mockResolvedValue(BOTH)
+    let arrive: (career: StatsOtherCareer) => void = () => {}
+    vi.mocked(api.stats.otherCareer).mockReturnValue(
+      new Promise<StatsOtherCareer>((resolve) => {
+        arrive = resolve
+      })
+    )
+    await openWith(vi.fn())
+    fireEvent.keyDown(screen.getByRole('button', { name: 'League: NBA' }), { key: 'Enter' })
+    const item = await screen.findByRole('menuitemradio', { name: /^NCAA Men/ })
+    const lines = (): string[] =>
+      [...item.querySelectorAll('span.flex-col > span')].map((s) => s.textContent ?? '')
+    expect(lines()).toEqual(['NCAA Men', LEAGUES.ncaam.fullName])
+    const classes = item.className
+    arrive(LINKED_HERE)
+    await waitFor(() => expect(lines()).toEqual(['NCAA Men', 'Luka Dončić’s page']))
+    // The same item, not a new one, with the same box: its height is set by its class (h-9) and
+    // the second line keeps its one-line truncation.
+    expect(screen.getByRole('menuitemradio', { name: /^NCAA Men/ })).toBe(item)
+    expect(item.className).toBe(classes)
+    expect(item.className).toContain('h-9')
+    expect(item.querySelector('span.flex-col > span:last-child')?.className).toContain('truncate')
+  })
+})
+
+describe('the search beyond the ranked rows (T1304.5)', () => {
+  const INDEX = [
+    { id: '1', name: 'Luka Dončić', lastSeason: 2026, team: 'BOS' },
+    { id: '2', name: 'Jayson Tatum', lastSeason: 2026, team: 'BOS' },
+    { id: '8', name: 'Jay Tatum Jr', lastSeason: 2026, team: 'LAL' },
+    { id: '7', name: 'Old Tatum', lastSeason: 1995, team: 'BOS' }
+  ]
+  const BOTH = {
+    decided: true,
+    freeBytes: null,
+    leagues: (['nba', 'ncaam'] as const).map((league) => ({
+      league,
+      on: true,
+      hasFile: true,
+      fileBytes: 1,
+      hasData: true,
+      roomNeeded: 0
+    }))
+  }
+
+  beforeEach(() => {
+    vi.mocked(api.stats.otherPlayers).mockResolvedValue([])
+    // The index's players have pages: their names are the index's.
+    vi.mocked(api.stats.player).mockImplementation((_league, id) =>
+      Promise.resolve({
+        id,
+        name: INDEX.find((p) => p.id === id)?.name ?? 'Nobody',
+        position: 'G',
+        team: { id: '10', code: 'BOS' },
+        seasons: [2026],
+        number: null,
+        height: null,
+        weight: null,
+        birthDate: null,
+        school: null
+      })
+    )
+  })
+
+  afterEach(() => {
+    setLeague('nba')
+    vi.mocked(api.leagues.downloads).mockResolvedValue({
+      decided: true,
+      leagues: [],
+      freeBytes: null
+    })
+    vi.mocked(api.stats.otherPlayers).mockResolvedValue([])
+  })
+
+  async function search(text: string, onOpenPage = vi.fn()): Promise<HTMLElement> {
+    vi.mocked(api.stats.playerIndex).mockResolvedValue(INDEX)
+    render(
+      <StatsApp
+        update={{ status: 'idle' }}
+        version="0.1.0"
+        onOpenUpdate={() => {}}
+        onToggleTheme={() => {}}
+        onOpenPage={onOpenPage}
+      />
+    )
+    fireEvent.click(await screen.findByRole('button', { name: 'Players' }))
+    await screen.findByRole('heading', { level: 1, name: /Dončić/ })
+    const rail = screen.getByRole('complementary', { name: 'Players' })
+    const input = within(rail).getByRole('textbox', { name: 'Search players' })
+    fireEvent.focus(input)
+    fireEvent.change(input, { target: { value: text } })
+    return rail
+  }
+
+  it('lists every player of the league by that name, the unranked below the ranked', async () => {
+    const onOpenPage = vi.fn()
+    const rail = await search('tatum', onOpenPage)
+    const group = await within(rail).findByRole('group', { name: 'Not ranked here' })
+    const names = within(rail)
+      .getAllByRole('button')
+      .map((b) => b.textContent ?? '')
+      .filter((t) => t.includes('Tatum'))
+    expect(names[0]).toMatch(/Jayson Tatum/)
+    expect(names.slice(1)).toEqual(['Jay Tatum JrLAL · 2025-26', 'Old TatumBOS · 1994-95'])
+    // Another season's player opens their page in that season.
+    fireEvent.click(within(group).getByRole('button', { name: 'Open Old Tatum’s page, 1994-95' }))
+    expect(onOpenPage).toHaveBeenCalledWith({
+      league: 'nba',
+      screen: 'player',
+      team: null,
+      player: { id: '7', position: null },
+      season: 1995
+    })
+    // One in the season on screen is a move within the rail.
+    fireEvent.click(within(group).getByRole('button', { name: /Jay Tatum Jr/ }))
+    await waitFor(() => expect(api.stats.player).toHaveBeenCalledWith('nba', '8'))
+    expect(onOpenPage).toHaveBeenCalledTimes(1)
+    // Read once, when the search was first used.
+    expect(api.stats.playerIndex).toHaveBeenCalledTimes(1)
+  })
+
+  it('finds a player the ranked rows do not hold, and says nobody only when nobody is found', async () => {
+    const rail = await search('old t')
+    expect(await within(rail).findByRole('button', { name: /Old Tatum/ })).toBeTruthy()
+    expect(within(rail).queryByText('No player by that name.')).toBeNull()
+    fireEvent.change(within(rail).getByRole('textbox', { name: 'Search players' }), {
+      target: { value: 'zzz' }
+    })
+    expect(await within(rail).findByText('No player by that name.')).toBeTruthy()
+  })
+
+  it('reaches the unranked and the other league’s rows with the keys, and Enter opens them', async () => {
+    vi.mocked(api.leagues.downloads).mockResolvedValue(BOTH)
+    vi.mocked(api.stats.otherPlayers).mockResolvedValue([
+      { league: 'ncaam', playerId: '106', name: 'Luka Tatum', lastSeason: 2024, team: null }
+    ])
+    const onOpenPage = vi.fn()
+    const rail = await search('tatum', onOpenPage)
+    await within(rail).findByRole('group', { name: 'NCAA Men · No NBA games' })
+    await within(rail).findByRole('group', { name: 'Not ranked here' })
+    const resting = (): string | null =>
+      rail.querySelector('[data-cursor="true"]')?.getAttribute('aria-label') ?? null
+    // From the search box, ↓ selects the first ranked row, as a step in the rail does.
+    const input = within(rail).getByRole('textbox', { name: 'Search players' })
+    fireEvent.keyDown(input, { key: 'ArrowDown' })
+    await screen.findByRole('heading', { level: 1, name: /Tatum/ })
+    expect(resting()).toBeNull()
+    // J is a letter in the box, a step in the rail.
+    fireEvent.keyDown(input, { key: 'j' })
+    expect(resting()).toBeNull()
+    fireEvent.keyDown(rail, { key: 'j' })
+    expect(resting()).toBe('Open Jay Tatum Jr’s page, 2025-26')
+    fireEvent.keyDown(rail, { key: 'ArrowDown' })
+    expect(resting()).toBe('Open Old Tatum’s page, 1994-95')
+    fireEvent.keyDown(rail, { key: 'ArrowDown' })
+    expect(resting()).toBe('Open Luka Tatum’s NCAA Men page, 2023-24')
+    // The last row holds.
+    fireEvent.keyDown(rail, { key: 'ArrowDown' })
+    expect(resting()).toBe('Open Luka Tatum’s NCAA Men page, 2023-24')
+    // A step rests on a row and opens nothing; Enter opens it.
+    expect(onOpenPage).not.toHaveBeenCalled()
+    fireEvent.keyDown(rail, { key: 'Enter' })
+    expect(onOpenPage).toHaveBeenCalledWith(
+      expect.objectContaining({ league: 'ncaam', player: { id: '106', position: null } })
+    )
+    // Back up with K: the unranked row, then Enter from the search box opens it too.
+    fireEvent.keyDown(rail, { key: 'k' })
+    fireEvent.keyDown(rail, { key: 'k' })
+    expect(resting()).toBe('Open Jay Tatum Jr’s page, 2025-26')
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await screen.findByRole('heading', { level: 1, name: /Jr/ })
+    // Up past the unranked rows selects the ranked row again.
+    fireEvent.keyDown(rail, { key: 'k' })
+    await screen.findByRole('heading', { level: 1, name: /Jayson/ })
+    expect(resting()).toBeNull()
   })
 })

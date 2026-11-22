@@ -371,12 +371,68 @@ Two reads of the links file serve the screens, each answered by the links worker
 - **The league switch** reads nothing new: a player's page already holds `otherCareer` for the strip. With a link, the paired league built, and at least one season there, the league menu's item for that league opens the player's page there, on the Overview, in their latest season in that league (`lib/stats/leagueSwitch.ts`). A draftee with no game on the other side has no page there, so the menu switches as before for them.
 - **The search** reads `otherPlayers(league)`: the links of the league's pair whose id in the league on screen is not among the players that league last handed over (`side_<league>_players`), with their id, name, last season and team in the other league (from ESPN's lines of that league, else the college file's own players). Nothing is listed while the league has handed over no players, since nobody can then be said to lack a page in it. Every link starts from a college player, so a college league's list is always empty; a professional league's is its draftees who never played. On the four-league profile of T1304.2 that is **2 of 388 NBA links** (Lajae Jones, Richie Saunders, both linked by name and college, drafted in 2026) and **46 of 190 WNBA links** (every one linked by name and class, with no WNBA row: Abbey Hsu among them). The list is read once when the search is first used and filtered in the renderer as one types.
 
+## Every state, on a clean profile (T1304.5)
+
+Driven on 2026-11-21 with `scripts/drive.mjs` on the built app, steps from `scripts/t1304e-make-steps.mjs`; results in `~/.cache/metis-dev/t1304e-shots/` (each run's `drive.txt` and `app.log`). Each pair started from a clean profile: a new folder holding one league's file copied from a clean load, no `metis.db` (the app decides that league on, the others off) and no links file.
+
+**NBA with NCAA Men** (`t1304e-nba-steps.json`, then `t1304e-nba-removed-steps.json`):
+
+- **The NBA alone.** The launch's refresh of the NBA ended at 02:56:57.5Z; its links step began 0.3 s later and fetched NCAA Men's season stats (six files, 2.4 million rows, 5.5 s), then made **386 links: 377 by the id, 9 by name and college** (T1304.2 counted 385 with the NBA alone; this NBA file has had one more refresh; the difference was not looked into). The step took 7.6 s. Cooper Flagg's page showed his Duke season from ESPN's totals, the draft row (opening his NBA Profile, the draft in it), the offer "Download NCAA Men for the full profile", and the menu's NCAA Men "No stats yet". "Saunders" listed Richie Saunders under NCAA Men, "not downloaded".
+- **NCAA Men turned on, nothing loaded.** The strip's offer opened the Data panel with its on/off button focused; turned on, the section read "Loading · 0 of 196 files · nothing on disk", and its file appeared within a second. Back on Flagg's page: "NCAA Men is loading. Its own lines follow." where the offer was, the Duke row still text, the menu's NCAA Men "No tables yet" and switching as before, Saunders "loading". This state did not exist before this task: a league turned on read as ready at once, and the strip's rows opened its pages before it had any (`leagueHolds` now reads the league's own status).
+- **Loaded, tables not built.** The same, while the files came in (77 MB at 14 of 186 files, 256 MB at 73).
+- **Arriving while the page is open.** NCAA Men was downloaded for real here, not copied as planned: the drive's turn-off went to a button that is not the Data panel's, so the download ran on, and the copy was not used. Every box of the page was sampled every 50 ms from the turn-on to the end. NCAA Men's first tables were built at 03:01:27.30Z; the strip's Duke row became a link 0.13 s later. Its refresh ended at 03:19:39.6Z, after 22 minutes; the links step began 0.2 s later and made **389 links: 378 by the id, 2 by name and birth date, 9 by name and college** in 2.0 s, and the strip read "NCAA Men seasons from Metis, every game." at 03:19:43.6Z. **Nothing on the page moved**: the header (332, 74, 1116 × 117.7), the name, the facts line, the tabs, the career table and the strip's top kept their boxes to the tenth of a pixel throughout, and the page did not scroll. The strip's own height went from 240.2 to 234.2 px when its loading line gave way to "Each NCAA Men row opens their NCAA Men page.", at its bottom edge, with nothing under it.
+- **Both.** The menu's NCAA Men item read "Cooper Flagg’s page" and opened his NCAA Men page in 2024-25; its draft row opened his NBA Profile; "Flagg" in NCAA Men 2025-26 found him under "Not ranked here", marked as the page on screen, and "Jayden Quaintance" found him by his full name.
+- **NCAA Men removed** (turned off and deleted in the Data panel, `t1304e-nba-removed-steps.json`). Flagg's NBA page kept his Duke row, now text, under "NCAA Men seasons from Metis, every game." with the offer back; the menu's NCAA Men read "No stats yet"; Saunders read "not downloaded" again.
+
+**WNBA with NCAA Women** (`t1304e-wnba-steps.json`), NCAA Women downloaded from nothing, the task's one real download:
+
+- **The WNBA alone.** Its links step fetched NCAA Women's season stats (six files, 1.86 million rows, 3.3 s) and made **189 links: 144 by the id, 45 by name and college** (T1304.2's count with NCAA Women's side missing) in 4.1 s. Paige Bueckers's page showed her UConn seasons from ESPN's totals, her draft row opening her WNBA Profile, the offer; "Hsu" listed Abbey Hsu "not downloaded"; "Sue Bird" found her under "Not ranked here" (2022).
+- **NCAA Women turned on from the strip's offer**: "Loading: 1 of 185 files · 103 KB on disk" in the Data panel, then on her page "NCAA Women is loading. Its own lines follow.", the menu's "No tables yet", Hsu "loading". Loaded with no tables at 172 MB (48 of 185 files) and 378 MB (125). The drive's step went Back from the rail to the page before hers; her page was opened again over DevTools at 03:23:47.9Z, still loading, and stayed open from there (the steps file now opens it again itself).
+- **Arriving while the page is open.** NCAA Women's first tables were built at 03:24:42.87Z, three minutes after the turn-on; the strip's three NCAA Women rows became links 0.08 s later. Its refresh ended at 03:42:27.9Z, 20.7 minutes after the turn-on; the links step began 0.2 s later, refetched the WNBA's season stats and draft (10 files, 1.0 s) and made **190 links: 144 by the id, 46 by name and college**, T1304.2's count, in 1.9 s, and the strip read "NCAA Women seasons from Metis, every game." at 03:42:30.6Z. **Nothing on the page moved** from her page's opening to the end, 19 minutes: header, name, facts line, tabs, career table and the strip's top kept their boxes, and the page did not scroll; the strip's height went from 308.2 to 302.2 px at its bottom edge when its loading line gave way to the note.
+- **Both.** The menu's NCAA Women item read "Paige Bueckers’s page" and opened her 2024-25 page; its draft row opened her WNBA Profile; "Bueckers" in NCAA Women 2025-26 found her under "Not ranked here", marked as the page on screen.
+- **The WNBA removed.** Her NCAA Women page kept her WNBA rows, text now, under "WNBA seasons from Metis, regular season." with "Download WNBA for the full profile"; the menu's WNBA read "No stats yet".
+
+Every run's log holds no error (WSL's GPU line aside): the two pair runs, the removal run, the two search runs and the four timing runs.
+
+**Links by pair and method, on these clean profiles:**
+
+| Profile holding         | By the id | By name and birth date | By name and class (and college) | Links |
+| ----------------------- | --------- | ---------------------- | ------------------------------- | ----- |
+| The NBA alone           | 377       | 0                      | 9                               | 386   |
+| The NBA and NCAA Men    | 378       | 2                      | 9                               | 389   |
+| The WNBA alone          | 144       | 0                      | 45                              | 189   |
+| The WNBA and NCAA Women | 144       | 0                      | 46                              | 190   |
+
+**The links step inside the app, after each league's refresh** (from the links file's `sync_log` and the league's own):
+
+| After the refresh of              | Step began after the refresh ended    | Step took | Of which, the paired files                    |
+| --------------------------------- | ------------------------------------- | --------- | --------------------------------------------- |
+| The NBA (launch, NCAA Men off)    | 0.3 s                                 | 7.6 s     | NCAA Men's season stats, first fetch, 5.5 s   |
+| NCAA Men (its first load)         | 0.2 s                                 | 2.0 s     | the NBA's season stats and draft, 1.2 s       |
+| The WNBA (launch, NCAA Women off) | not read (its file was deleted later) | 4.1 s     | NCAA Women's season stats, first fetch, 3.3 s |
+| NCAA Women (its first load)       | 0.2 s                                 | 1.9 s     | the WNBA's season stats and draft, 1.0 s      |
+
+**Read times through the app's IPC** (the removal run, both leagues there, 20 reads each, median after the first): a player's other career 25.7 ms on the NBA side (40 first) and 23.2 ms on the college side (27 first); the player index 43.7 ms for the NBA's 3,094 players and 214 ms for NCAA Men's 33,438.
+
+**The search's response** (`t1304e-timing-steps.json` on `t1304e-all`, a paused copy of the four-league profile, `main` and this branch alternating, two runs each, 50 searches a name, from setting the text to the rail's count changing, polled every 10 ms):
+
+| Search                         | `main` (two runs) | This branch (two runs) | This branch: "Not ranked here" in (first search; then) |
+| ------------------------------ | ----------------- | ---------------------- | ------------------------------------------------------ |
+| "tatum", NBA 2026-27           | 6.3, 15.5 ms      | 11.3, 10.8 ms          | no unranked match                                      |
+| "hsu", WNBA 2026               | 7.6, 7.4 ms       | 7.7, 5.4 ms            | no unranked match                                      |
+| "quaintance", NCAA Men 2025-26 | 40.3, 44.5 ms     | 45.7, 37.0 ms          | 1,043 and 1,006 ms; then 45.5 and 37.0 ms              |
+| "bueckers", NCAA Women 2025-26 | 35.5, 46.1 ms     | 29.3, 35.0 ms          | 1,087 and 929 ms; then 29.1 and 33.5 ms                |
+
+The ranked rows answer as fast as before: each branch median is inside the spread of `main`'s two runs. The unranked rows come with them once the league's index is read; the first search in a college league waits about a second for it (the read, 214 ms, then 2.5 MB across the IPC and each name's search key worked out). The timing step types without clicking the box first; a click in the box starts the read, so in use most of that second has passed before two letters are typed. On `main`, "quaintance" and "bueckers" find nobody.
+
 ## What could not be measured
 
 - Whether the 2026-27 college rows of players drafted from abroad (Nnaji, Niang, Ngoy, Claessens, Kane, Sivka, Ran) are those players: no birth date or ESPN id on the professional side.
 - Whether ESPN will give the 2026 class's unplayed draftees the same athlete id they had in college: the evidence is the 222 who played, and the 2 who got a second id.
 - The colleges of Nadia Fingall, Holly Winterburn, Peyton Williams and Kyra Lambert: no row of the name or id in the women's file.
 - Download times on the owner's connection; the times above are from this machine.
+- A copied NCAA Men file arriving while a page is open (T1304.5 planned it; NCAA Men was downloaded for real instead, which covers the same arrival).
+- The WNBA's own refresh end at its launch, so the gap before its links step (its file was deleted in the run).
 - PRISM's contents (named, not opened).
 
 ## Rerunning
@@ -397,6 +453,9 @@ METIS_SCRATCH=/some/folder node scripts/player-links-sql.mjs scripts/player-link
 METIS_SCRATCH=/some/folder node scripts/player-links-sql.mjs scripts/player-links/20-match-wnba.sql scripts/player-links/22-export-wnba.sql
 node scripts/check-links.mjs <profile> --out=<dir> --compare=/some/folder --reads=nba:1631094,ncaam:4432573
 node scripts/links-sql.mjs <profile> <file of statements>
+# T1304.5: every state, driven on the built app (clean profiles hold one league's file to start)
+node scripts/t1304e-make-steps.mjs scripts
+ELECTRON_DISABLE_SANDBOX=1 node scripts/drive.mjs <profile> scripts/t1304e-nba-steps.json <shots>
 ```
 
 The files are attached read-only; nothing is written to them. `player-links-range.mjs` makes about 270 HTTP requests to GitHub's release downloads, 3 seconds apart between cases.

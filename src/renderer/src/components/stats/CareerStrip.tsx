@@ -57,6 +57,7 @@ export function CareerStrip({
     const download = other ? downloadOf(downloads, other) : undefined
     return careerStrip({
       league,
+      player,
       playerName,
       own: ownLines(
         linked ? own.result : null,
@@ -68,7 +69,17 @@ export function CareerStrip({
       otherOn: download?.on ?? false,
       byId: data.byId
     })
-  }, [career.value, linked, own.result, downloads, league, playerName, data.seasons, data.byId])
+  }, [
+    career.value,
+    linked,
+    own.result,
+    downloads,
+    league,
+    player,
+    playerName,
+    data.seasons,
+    data.byId
+  ])
 
   // The hint asked for the strip: scrolled to once it is drawn, and only once per ask.
   const section = useRef<HTMLElement>(null)
@@ -112,13 +123,18 @@ export function CareerStrip({
           minWidth={900}
           head={[...HEAD, ...PCT_HEAD]}
           left={[1, 2]}
-          rows={view.rows.map((r) => ({
-            key: r.key,
-            title: r.title,
-            spill: r.kind === 'draft',
-            onOpen: r.open && onOpenPage ? () => r.open && onOpenPage(r.open) : undefined,
-            cells: cells(r)
-          }))}
+          rows={view.rows.map((row) => {
+            // A row opens only where the page can open it: no arrow on one that does nothing.
+            const open = onOpenPage ? row.open : null
+            const r = { ...row, open }
+            return {
+              key: r.key,
+              title: r.title,
+              spill: r.kind === 'draft',
+              onOpen: open && onOpenPage ? () => onOpenPage(open) : undefined,
+              cells: cells(r)
+            }
+          })}
         />
       </div>
       <Notes notes={view.notes} />

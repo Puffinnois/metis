@@ -12,6 +12,7 @@ import type {
   PositionGroup,
   StatsBio,
   StatsCombine,
+  StatsIndexedPlayer,
   StatsPlayerInfo,
   StatsProfile,
   StatsStanding
@@ -110,6 +111,47 @@ export async function readPlayer(db: StatsDb, id: string): Promise<StatsPlayerIn
     birthDate: roster?.birth_date ?? null,
     school: roster?.school ?? null
   }
+}
+
+/**
+ * Everyone with a page in the league, for the player search (T1304.5): each player with a game in any
+ * season, their last season and their last team that season, as `readPlayer` counts them (no All-Star
+ * or preseason game). The rail's own rows are the scope's top rows by a metric; this is what lets a
+ * search reach the rest, read once and filtered as one types. A new read, so the queries the screens
+ * already run are unchanged. Nothing before the tables are built.
+ */
+export async function readPlayerIndex(db: StatsDb): Promise<StatsIndexedPlayer[]> {
+  const have = await inspect(db)
+  if (!have.tables.has('player') || !have.tables.has('player_season')) return []
+  const team = have.tables.has('team')
+  const rows = await db.all<{
+    id: string
+    name: string
+    season: number
+    code: string | null
+  }>(
+    `WITH s AS (
+       SELECT player_id, season, arg_max(last_team_id, last_date) AS team_id
+       FROM player_season
+       WHERE team_id IS NULL AND game_type NOT IN ('all-star', 'preseason')
+       GROUP BY 1, 2
+     ), l AS (
+       SELECT player_id, max(season) AS season, arg_max(team_id, season) AS team_id
+       FROM s GROUP BY 1
+     )
+     SELECT CAST(p.player_id AS VARCHAR) AS id, p.name, l.season,
+            ${team ? 't.code' : 'CAST(NULL AS VARCHAR)'} AS code
+     FROM l JOIN player p ON p.player_id = l.player_id
+     ${team ? 'LEFT JOIN team t ON t.team_id = l.team_id AND t.season = l.season' : ''}
+     WHERE p.name IS NOT NULL
+     ORDER BY l.season DESC, p.name, p.player_id`
+  )
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    lastSeason: Number(r.season),
+    team: r.code ?? null
+  }))
 }
 
 /**

@@ -24,6 +24,7 @@ import type {
   StatsProfile,
   StatsAvailability,
   StatsCoach,
+  StatsIndexedPlayer,
   StatsPlayerInfo,
   StatsQuery,
   StatsResult,
@@ -54,6 +55,7 @@ export interface StatsClient {
   catalogue(): Promise<MetricInfo[]>
   seasons(): Promise<StatsSeason[]>
   player(id: string): Promise<StatsPlayerInfo | null>
+  playerIndex(): Promise<StatsIndexedPlayer[]>
   games(season: number): Promise<StatsGame[]>
   game(id: string): Promise<StatsGameDetail | null>
   standings(season: number): Promise<StatsStanding[]>
@@ -146,6 +148,7 @@ export function startStatsWorker(
     catalogue: () => request<MetricInfo[]>((id) => ({ id, kind: 'catalogue' })),
     seasons: () => request<StatsSeason[]>((id) => ({ id, kind: 'seasons' })),
     player: (player) => request<StatsPlayerInfo | null>((id) => ({ id, kind: 'player', player })),
+    playerIndex: () => request<StatsIndexedPlayer[]>((id) => ({ id, kind: 'playerIndex' })),
     games: (season) => request<StatsGame[]>((id) => ({ id, kind: 'games', season })),
     game: (game) => request<StatsGameDetail | null>((id) => ({ id, kind: 'game', game })),
     standings: (season) => request<StatsStanding[]>((id) => ({ id, kind: 'standings', season })),

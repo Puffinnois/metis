@@ -114,6 +114,78 @@ describe('the back stack', () => {
   })
 })
 
+describe('Back after a move to another season or league (T1304.5)', () => {
+  const scope = (season: number, seasonType: 'regular' | 'playoffs' = 'regular') =>
+    ({ season, seasonType, range: { kind: 'season' } }) as const
+  const at = (l: NavLocation, season: number): NavLocation => ({ ...l, scope: scope(season) })
+
+  it('takes a change of scope alone as no move', () => {
+    const { result } = renderHook(() => useBackStack())
+    act(() => result.current.report(at(statsPlayer('1', null), 2027)))
+    act(() => result.current.report(at(statsPlayer('1', null), 2016)))
+    expect(result.current.canGoBack).toBe(false)
+  })
+
+  it('returns to the page as it was left, its scope included, after such a move', () => {
+    const { result } = renderHook(() => useBackStack())
+    act(() => result.current.report(at(statsPlayer('1', null), 2027)))
+    // The search opens Kobe Bryant in 2015-16: the page left keeps 2026-27.
+    act(() => result.current.leave())
+    act(() => result.current.report(at(statsPlayer('977', null), 2027)))
+    act(() => result.current.report(at(statsPlayer('977', null), 2016)))
+    let to: NavLocation | null = null
+    act(() => {
+      to = result.current.back()
+    })
+    expect(to).toEqual(at(statsPlayer('1', null), 2027))
+  })
+
+  it('keeps its season type and range too', () => {
+    const { result } = renderHook(() => useBackStack())
+    const left: NavLocation = {
+      ...statsPlayer('1', null),
+      scope: {
+        season: 2026,
+        seasonType: 'playoffs',
+        range: { kind: 'last', n: 10, of: 'appearances' }
+      }
+    }
+    act(() => result.current.report(left))
+    act(() => result.current.leave())
+    act(() => result.current.report({ ...statsPlayer('5', null), league: 'ncaam' }))
+    expect(result.current.back()).toEqual(left)
+  })
+
+  it('leaves the scope as it is after any other move, as it always has', () => {
+    const { result } = renderHook(() => useBackStack())
+    act(() => result.current.report(at(statsPlayer('1', null), 2027)))
+    act(() => result.current.report(at(statsPlayer('2', null), 2027)))
+    let to: NavLocation | null = null
+    act(() => {
+      to = result.current.back()
+    })
+    expect(to).toEqual(statsPlayer('1', null))
+  })
+
+  it('keeps the scope only for the page the move left', () => {
+    const { result } = renderHook(() => useBackStack())
+    act(() => result.current.report(at(statsPlayer('1', null), 2027)))
+    act(() => result.current.leave())
+    act(() => result.current.report(at(statsPlayer('2', null), 2016)))
+    act(() => result.current.report(at(statsPlayer('3', null), 2016)))
+    let to: NavLocation | null = null
+    act(() => {
+      to = result.current.back()
+    })
+    expect(to).toEqual(statsPlayer('2', null))
+    act(() => result.current.report(at(statsPlayer('2', null), 2016)))
+    act(() => {
+      to = result.current.back()
+    })
+    expect(to).toEqual(at(statsPlayer('1', null), 2027))
+  })
+})
+
 describe('the back gestures', () => {
   it('are Alt+← and the mouse back button, not Alt+← while typing', () => {
     expect(isBackGesture(new KeyboardEvent('keydown', { key: 'ArrowLeft', altKey: true }))).toBe(

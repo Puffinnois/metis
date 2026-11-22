@@ -4,11 +4,20 @@ import { StatsSelect } from '@/components/stats/controls'
 import type { Heat } from '@/lib/stats/format'
 import type { OtherRow } from '@/lib/stats/otherPlayers'
 import { RAIL_POSITIONS, railMetrics, type RailPosition, type RailRow } from '@/lib/stats/player'
-import { cn } from '@/lib/utils'
+import {
+  hiddenNote,
+  MORE_HEADING,
+  railCount,
+  type MoreRow,
+  type MoreRows
+} from '@/lib/stats/playerSearch'
+import { cn, scrollToNearest } from '@/lib/utils'
 import type { MetricInfo, StatsTeam } from '@shared/stats/types'
 
 /** Rows the rail shows at first, and each "Show more" adds. */
 const PAGE = 25
+
+const NO_MORE: MoreRows = { rows: [], hidden: 0 }
 
 const CHIP: Record<Heat, string> = {
   h3: 'bg-good-s text-good font-semibold',
@@ -20,13 +29,18 @@ const CHIP: Record<Heat, string> = {
   l3: 'bg-bad-s text-bad font-semibold'
 }
 
+/** The row the keys rest on, short of opening it: the hover's shade, with the selection's edge. */
+const CURSOR = 'bg-hover shadow-[inset_2px_0_0_var(--cobalt)]'
+
 const POSITION_LABELS: Record<RailPosition, string> = { ALL: 'All', G: 'G', F: 'F', C: 'C' }
 
 /**
  * The list beside a player: a position, a search, a team, a rank-by metric, those who qualify best
- * first with the value in a shaded chip. ↑ / ↓ (or J / K) move the selection. A search also finds the
- * paired league's linked players who have no page in this league, below the league's own rows under
- * their league's name, never ranked among them (T1304.4).
+ * first with the value in a shaded chip. ↑ / ↓ (or J / K) move the selection. A search also finds every
+ * other player with a page in the league, below the ranked rows and unranked (T1304.5), then the
+ * paired league's linked players who have no page in this league, under their league's name, never
+ * ranked among them (T1304.4). The keys reach those rows too: they rest on one and Enter opens it,
+ * since opening one changes the season or the league, where a ranked row changes only the player.
  */
 export function PlayerRail({
   position,
@@ -43,6 +57,7 @@ export function PlayerRail({
   byId,
   selected,
   onSelect,
+  more,
   elsewhere
 }: {
   position: RailPosition
@@ -61,6 +76,13 @@ export function PlayerRail({
   byId: ReadonlyMap<string, MetricInfo>
   selected: string | null
   onSelect: (id: string) => void
+  /** The league's players a search finds that the ranked rows do not hold, and opening one. */
+  more?: {
+    rows: (search: string, listed: ReadonlySet<string>) => MoreRows
+    /** The search is used: the league's player index is read then, not with the page. */
+    onWant: () => void
+    onOpen: (row: MoreRow) => void
+  }
   /** The paired league's rows a search finds, and what choosing one does. */
   elsewhere?: {
     heading: string
@@ -73,6 +95,7 @@ export function PlayerRail({
   const [search, setSearch] = useState('')
   const [limit, setLimit] = useState(PAGE)
   const shownRows = rows(search)
+  const found = more ? more.rows(search, new Set(shownRows.map((r) => r.id))) : NO_MORE
   const otherRows = elsewhere ? elsewhere.rows(search) : []
   // The selected player is listed, however far down they rank.
   const shown = Math.max(limit, shownRows.findIndex((r) => r.id === selected) + 1)
@@ -82,23 +105,54 @@ export function PlayerRail({
     if (listed) selectedRef.current?.scrollIntoView?.({ block: 'nearest' })
   }, [selected, listed])
 
+  // Every row the keys reach, in the order shown: the ranked rows (a step selects the player, as it
+  // always has), then the unranked and the other league's (a step rests on the row, Enter opens it).
+  const steps: { key: string; ranked?: string; open?: () => void }[] = [
+    ...shownRows.map((r) => ({ key: `r:${r.id}`, ranked: r.id })),
+    ...found.rows.map((r) => ({ key: `m:${r.id}`, open: () => more?.onOpen(r) })),
+    ...otherRows.map((r) => ({ key: `o:${r.key}`, open: () => elsewhere?.onOpen(r) }))
+  ]
+  // The row the keys rest on, other than a ranked one; forgotten once the rows change under it.
+  const [cursor, setCursor] = useState<string | null>(null)
+  const resting = cursor !== null && steps.some((s) => s.key === cursor) ? cursor : null
+  const cursorRef = useRef<HTMLButtonElement | null>(null)
+  useEffect(() => {
+    if (resting && cursorRef.current) scrollToNearest(cursorRef.current)
+  }, [resting])
+
   const move = (d: number): void => {
-    if (!shownRows.length) return
-    const i = shownRows.findIndex((r) => r.id === selected)
-    const next = shownRows[Math.max(0, Math.min(shownRows.length - 1, i + d))]
-    if (next) onSelect(next.id)
+    if (!steps.length) return
+    const at = resting
+      ? steps.findIndex((s) => s.key === resting)
+      : steps.findIndex((s) => s.ranked === selected)
+    const next = steps[at === -1 ? 0 : Math.max(0, Math.min(steps.length - 1, at + d))]
+    if (next.ranked === undefined) setCursor(next.key)
+    else {
+      setCursor(null)
+      if (next.ranked !== selected) onSelect(next.ranked)
+    }
   }
   const onKey = (e: React.KeyboardEvent): void => {
     const tag = (e.target as HTMLElement).tagName
-    if (tag === 'INPUT' || tag === 'SELECT') return
-    if (e.key === 'ArrowDown' || e.key === 'j') {
+    if (tag === 'SELECT') return
+    // In the search box the arrows and Enter still serve the list; J and K are letters there.
+    const typing = tag === 'INPUT'
+    if (e.key === 'ArrowDown' || (!typing && e.key === 'j')) {
       e.preventDefault()
       move(1)
-    } else if (e.key === 'ArrowUp' || e.key === 'k') {
+    } else if (e.key === 'ArrowUp' || (!typing && e.key === 'k')) {
       e.preventDefault()
       move(-1)
+    } else if (e.key === 'Enter' && resting && (typing || e.target === e.currentTarget)) {
+      e.preventDefault()
+      steps.find((s) => s.key === resting)?.open?.()
     }
   }
+  const restRef =
+    (key: string) =>
+    (el: HTMLButtonElement | null): void => {
+      if (el && key === resting) cursorRef.current = el
+    }
   const code = teams.find((t) => t.id === team)?.code
   return (
     <aside
@@ -138,10 +192,15 @@ export function PlayerRail({
           <Search className="size-[13px] shrink-0" />
           <input
             value={search}
-            onFocus={() => elsewhere?.onWant()}
+            onFocus={() => {
+              more?.onWant()
+              elsewhere?.onWant()
+            }}
             onChange={(e) => {
               setSearch(e.target.value)
               setLimit(PAGE)
+              setCursor(null)
+              more?.onWant()
               elsewhere?.onWant()
             }}
             placeholder="Player"
@@ -172,12 +231,13 @@ export function PlayerRail({
           />
         </div>
       </div>
-      <div className="flex shrink-0 justify-between border-b border-line-2 px-3.5 py-2 font-mono text-[11px] leading-none text-fg-3">
-        <span>
-          {shownRows.length} PLAYERS · {code ? `${code} · ` : ''}
-          {range.toUpperCase()}
+      <div className="flex shrink-0 justify-between gap-3 border-b border-line-2 px-3.5 py-2 font-mono text-[11px] leading-none text-fg-3">
+        {/* One line that never wraps: it counts what is listed, the rows found beyond the ranked
+            ones included, so it never reads 0 over a list. */}
+        <span className="min-w-0 truncate whitespace-nowrap">
+          {railCount(shownRows.length, found.rows.length + otherRows.length, code, range)}
         </span>
-        <span>{byId.get(metric)?.short ?? ''}</span>
+        <span className="shrink-0">{byId.get(metric)?.short ?? ''}</span>
       </div>
       <div className="min-h-0 flex-1 overflow-auto [scrollbar-width:thin]">
         {error && <div className="px-3.5 py-6 text-[12.5px] text-bad">{error}</div>}
@@ -229,13 +289,56 @@ export function PlayerRail({
             </button>
           </div>
         )}
-        {!loading && !error && shownRows.length === 0 && otherRows.length === 0 && (
-          <div className="px-3.5 py-10 text-center text-[12.5px] text-fg-3">
-            {search
-              ? 'No player by that name.'
-              : code
-                ? `No qualified ${code} player in this range.`
-                : 'No qualified player in this range.'}
+        {!loading &&
+          !error &&
+          shownRows.length === 0 &&
+          found.rows.length === 0 &&
+          otherRows.length === 0 && (
+            <div className="px-3.5 py-10 text-center text-[12.5px] text-fg-3">
+              {search
+                ? 'No player by that name.'
+                : code
+                  ? `No qualified ${code} player in this range.`
+                  : 'No qualified player in this range.'}
+            </div>
+          )}
+        {more && found.rows.length > 0 && (
+          <div role="group" aria-label={MORE_HEADING}>
+            <div className="border-b border-line-2 px-3.5 pt-3 pb-2 font-mono text-[11px] leading-none text-fg-3">
+              {MORE_HEADING.toUpperCase()}
+            </div>
+            {found.rows.map((r) => {
+              const key = `m:${r.id}`
+              return (
+                <button
+                  key={key}
+                  ref={restRef(key)}
+                  type="button"
+                  title={r.title}
+                  aria-label={r.title}
+                  aria-current={r.id === selected ? 'true' : undefined}
+                  data-cursor={key === resting ? 'true' : undefined}
+                  onClick={() => more.onOpen(r)}
+                  className={cn(
+                    'grid h-10 w-full cursor-pointer grid-cols-[24px_minmax(0,1fr)] items-center gap-x-2 border-b border-line-2 pr-3.5 pl-3 text-left',
+                    r.id === selected ? 'bg-sel' : key === resting ? CURSOR : 'hover:bg-hover'
+                  )}
+                >
+                  <span aria-hidden="true" />
+                  <span className="flex min-w-0 flex-col gap-[3px]">
+                    <span className="truncate text-[13px] leading-[1.1] font-medium">{r.name}</span>
+                    <span className="truncate font-mono text-[11px] leading-none text-fg-3">
+                      {r.detail}
+                    </span>
+                  </span>
+                </button>
+              )
+            })}
+            {found.hidden > 0 && (
+              <div className="border-b border-line-2 px-3.5 py-2.5 text-[11.5px] leading-none text-fg-3">
+                {hiddenNote(found.hidden)}
+              </div>
+            )}
           </div>
         )}
         {elsewhere && otherRows.length > 0 && (
@@ -246,11 +349,16 @@ export function PlayerRail({
             {otherRows.map((r) => (
               <button
                 key={r.key}
+                ref={restRef(`o:${r.key}`)}
                 type="button"
                 title={r.title}
                 aria-label={r.title}
+                data-cursor={`o:${r.key}` === resting ? 'true' : undefined}
                 onClick={() => elsewhere.onOpen(r)}
-                className="grid h-10 w-full cursor-pointer grid-cols-[24px_minmax(0,1fr)] items-center gap-x-2 border-b border-line-2 pr-3.5 pl-3 text-left hover:bg-hover"
+                className={cn(
+                  'grid h-10 w-full cursor-pointer grid-cols-[24px_minmax(0,1fr)] items-center gap-x-2 border-b border-line-2 pr-3.5 pl-3 text-left',
+                  `o:${r.key}` === resting ? CURSOR : 'hover:bg-hover'
+                )}
               >
                 <span aria-hidden="true" />
                 <span className="flex min-w-0 flex-col gap-[3px]">

@@ -45,6 +45,21 @@ describe('what a league holds', () => {
     ).toBe('ready')
   })
 
+  it('has no tables yet while a league turned on downloads or builds them (T1304.5)', () => {
+    // Turned on with nothing loaded yet, then loaded with its tables still to build.
+    const ncaam = (over: Partial<LeagueDownload>): LeagueDownload =>
+      download({ league: 'ncaam', on: true, hasData: true, ...over })
+    expect(leagueHolds(LEAGUES.ncaam, ncaam({ built: false }))).toBe('notBuilt')
+    expect(leagueHolds(LEAGUES.ncaam, ncaam({ hasFile: true, built: false }))).toBe('notBuilt')
+    expect(leagueHolds(LEAGUES.ncaam, ncaam({ hasFile: true, built: true }))).toBe('ready')
+    // A file kept from before, its league off: built, so its pages open.
+    expect(leagueHolds(LEAGUES.ncaam, ncaam({ on: false, hasFile: true, built: true }))).toBe(
+      'ready'
+    )
+    // Off with nothing: off, whatever its status said.
+    expect(leagueHolds(LEAGUES.ncaam, download({ league: 'ncaam', built: false }))).toBe('off')
+  })
+
   it('gives the menu its note', () => {
     expect(menuNote('off')).toBe('No stats yet')
     expect(menuNote('notBuilt')).toBe('No tables yet')

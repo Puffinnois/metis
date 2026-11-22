@@ -56,11 +56,20 @@ export default function App(): React.JSX.Element {
   )
 
   const history = useBackStack()
-  const { back } = history
+  const { back, leave } = history
   const goBack = useCallback(() => {
     const to = back()
     if (to) openPage(to)
   }, [back, openPage])
+  // A page opened from another: the strip's rows, the league menu's move, the search's rows. One in
+  // another season or league leaves the page on screen as it was, its scope kept for Back (T1304.5).
+  const openMove = useCallback(
+    (to: NavLocation) => {
+      if (to.season !== undefined || to.league !== currentLeague().id) leave()
+      openPage(to)
+    },
+    [leave, openPage]
+  )
 
   useEffect(() => {
     const onGesture = (e: KeyboardEvent | MouseEvent): void => {
@@ -97,7 +106,7 @@ export default function App(): React.JSX.Element {
           onLocation={history.report}
           canGoBack={history.canGoBack}
           onBack={goBack}
-          onOpenPage={openPage}
+          onOpenPage={openMove}
         />
       </SessionContext.Provider>
       <UpdateDialog

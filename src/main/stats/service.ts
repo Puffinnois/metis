@@ -12,6 +12,7 @@ import type {
   StatsDataReport,
   StatsGame,
   StatsGameDetail,
+  StatsIndexedPlayer,
   StatsPlayerInfo,
   StatsQuery,
   StatsResult,
@@ -60,6 +61,7 @@ import {
   readLineups,
   readMatchups,
   readPlayer,
+  readPlayerIndex,
   readProfile,
   readStandings
 } from './reads'
@@ -127,6 +129,8 @@ export interface StatsService {
   seasons(): Promise<StatsSeason[]>
   /** Who a player is, for the dashboard; null for an id nobody has. */
   player(id: string): Promise<StatsPlayerInfo | null>
+  /** Everyone with a page in the league, their last season and team, for the player search. */
+  playerIndex(): Promise<StatsIndexedPlayer[]>
   /** Every game on a season's schedule, played or not, by date. */
   games(season: number): Promise<StatsGame[]>
   game(id: string): Promise<StatsGameDetail | null>
@@ -461,6 +465,7 @@ export async function openStatsService(
         return [...bySeason.values()].sort((a, b) => b.season - a.season)
       }),
     player: (id) => read((reader) => readPlayer(reader, id)),
+    playerIndex: () => read((reader) => readPlayerIndex(reader)),
     games: (season) => read((reader) => readGames(reader, season, league)),
     game: (id) => read((reader) => readGame(reader, id, league)),
     standings: (season) => read((reader) => readStandings(reader, season)),
@@ -575,6 +580,7 @@ export async function openStatsService(
     query: none.query,
     seasons: none.seasons,
     player: none.player,
+    playerIndex: none.playerIndex,
     games: none.games,
     game: none.game,
     standings: none.standings,
