@@ -1,5 +1,5 @@
 import type { LeagueId } from '@shared/leagues'
-import type { StatsFamily, StatsOtherCareer } from '@shared/stats/types'
+import type { StatsFamily, StatsOtherCareer, StatsOtherPlayer } from '@shared/stats/types'
 import type { RefreshOptions, StatsLogEntry } from '../protocol'
 
 /** A league's side of its pair, handed over as Parquet by the league's worker (`side.ts`). */
@@ -48,6 +48,7 @@ export type LinksRequest =
   | { id: number; kind: 'linkedIds'; league: LeagueId }
   | { id: number; kind: 'counts'; league: LeagueId }
   | { id: number; kind: 'otherCareer'; league: LeagueId; player: string }
+  | { id: number; kind: 'otherPlayers'; league: LeagueId }
   | { id: number; kind: 'pairedFamilies'; league: LeagueId }
   | { id: number; kind: 'read'; sql: string }
   | { id: number; kind: 'ping' }
@@ -56,6 +57,7 @@ export const LINKS_AT_ONCE: ReadonlySet<LinksRequest['kind']> = new Set([
   'linkedIds',
   'counts',
   'otherCareer',
+  'otherPlayers',
   'pairedFamilies',
   'read',
   'ping'
@@ -76,6 +78,8 @@ export interface LinksClient {
   linkedIds(league: LeagueId): Promise<number[]>
   counts(league: LeagueId): Promise<Record<string, number>>
   otherCareer(league: LeagueId, player: string): Promise<StatsOtherCareer>
+  /** The paired league's linked players with no page in this league, for its search (T1304.4). */
+  otherPlayers(league: LeagueId): Promise<StatsOtherPlayer[]>
   pairedFamilies(league: LeagueId): Promise<StatsFamily[]>
   read(sql: string): Promise<Record<string, unknown>[]>
   ping(): Promise<void>

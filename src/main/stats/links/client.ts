@@ -54,6 +54,7 @@ export function startLinksWorker(
     linkedIds: (league) => request('linkedIds', { league }),
     counts: (league) => request('counts', { league }),
     otherCareer: (league, player) => request('otherCareer', { league, player }),
+    otherPlayers: (league) => request('otherPlayers', { league }),
     pairedFamilies: (league) => request('pairedFamilies', { league }),
     read: (sql) => request('read', { sql }),
     ping: () => request('ping', {}),

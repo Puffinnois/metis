@@ -32,6 +32,7 @@ import type {
   GameType,
   StatsProfile,
   StatsOtherCareer,
+  StatsOtherPlayer,
   StatsAvailability,
   StatsCoach,
   StatsPlayerInfo,
@@ -201,6 +202,9 @@ export function registerIpcHandlers(ctx: AppContext): void {
     IPC.statsOtherCareer,
     (_e, league: LeagueId, player: string): Promise<StatsOtherCareer> =>
       ctx.leagues.otherCareer(leagueOf(league).id, player)
+  )
+  ipcMain.handle(IPC.statsOtherPlayers, (_e, league: LeagueId): Promise<StatsOtherPlayer[]> =>
+    ctx.leagues.otherPlayers(leagueOf(league).id)
   )
   // Saved views are kept per league in `metis.db` (D35).
   ipcMain.handle(IPC.statsViews, (_e, league: LeagueId): StatsView[] =>

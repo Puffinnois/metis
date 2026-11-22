@@ -928,6 +928,22 @@ export interface StatsOtherCareer {
   } | null
 }
 
+/**
+ * A linked player of the paired league who has no page in the league on screen (T1304.4): a draftee
+ * who never played in the professional league, found by its player search and shown as the other
+ * league's, never ranked among the league's own.
+ */
+export interface StatsOtherPlayer {
+  /** Their league: the other of the pair. */
+  league: LeagueId
+  /** Their id in that league; null where only ESPN's lines name them. */
+  playerId: string | null
+  name: string
+  /** Their last season in that league and its team, where a source names them. */
+  lastSeason: number | null
+  team: string | null
+}
+
 /** What the Data panel shows. */
 export interface StatsDataReport {
   families: StatsFamily[]

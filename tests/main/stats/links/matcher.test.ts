@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { StatsDb } from '@main/stats/db'
 import {
   readOtherCareer,
+  readOtherPlayers,
   ESPN_COLLEGE_LABEL,
   ESPN_PRO_LABEL,
   METIS_LABEL
@@ -290,5 +291,46 @@ describe('the other career read', () => {
       kind: 'no-link',
       text: 'No linked NBA career.'
     })
+  })
+})
+
+describe('the paired league’s players with no page in the league on screen (T1304.4)', () => {
+  it('names their last season and team from ESPN’s lines where the college league is not downloaded', async () => {
+    const db = await openLinksDb()
+    const { insertRows, NBA_PLAYERS, NBA_DRAFT } = await import('../../../fixtures/links')
+    await insertRows(db, 'side_nba_players', NBA_PLAYERS)
+    await insertRows(db, 'side_nba_draft', NBA_DRAFT)
+    // The college lines the NBA brings: a transfer's two seasons, the team the last one ended with.
+    await db.exec(
+      `CREATE TABLE paired_ncaam_espn_player_season AS ${espnSeasonStatsSql([
+        [101, 'Paolo Banchero', 2022, 150, 'Duke Blue Devils', 39, 672, 304, 125],
+        [105, 'Thomas Sorber', 2024, 77, 'Other Owls', 20, 200, 100, 20],
+        [105, 'Thomas Sorber', 2025, 46, 'Georgetown Hoyas', 25, 360, 200, 60]
+      ])}`
+    )
+    const pair = pairOf('nba')!
+    await db.exec(`INSERT INTO player_link BY NAME ${matchSql(pair, await pairTables(db, pair))}`)
+    // Banchero has an NBA page: the search lists him as the NBA's own, never here.
+    expect(await readOtherPlayers(db, 'nba')).toEqual([
+      {
+        league: 'ncaam',
+        playerId: '105',
+        name: 'Thomas Sorber',
+        lastSeason: 2025,
+        team: 'Georgetown Hoyas'
+      }
+    ])
+  })
+
+  it('lists the draftees of both pairs who never played, and no one for a college league', async () => {
+    const db = await built()
+    const nba = await readOtherPlayers(db, 'nba')
+    expect(nba.map((p) => p.name)).toEqual(['Thomas Sorber'])
+    // Linked by name and class (the draft names no school), with no WNBA row.
+    expect(await readOtherPlayers(db, 'wnba')).toMatchObject([
+      { league: 'ncaaw', name: 'Monika Czinano' }
+    ])
+    expect(await readOtherPlayers(db, 'ncaam')).toEqual([])
+    expect(await readOtherPlayers(db, 'ncaaw')).toEqual([])
   })
 })
