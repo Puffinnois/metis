@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Search } from 'lucide-react'
 import { StatsSelect } from '@/components/stats/controls'
 import type { Heat } from '@/lib/stats/format'
+import type { OtherRow } from '@/lib/stats/otherPlayers'
 import { RAIL_POSITIONS, railMetrics, type RailPosition, type RailRow } from '@/lib/stats/player'
 import { cn } from '@/lib/utils'
 import type { MetricInfo, StatsTeam } from '@shared/stats/types'
@@ -23,7 +24,9 @@ const POSITION_LABELS: Record<RailPosition, string> = { ALL: 'All', G: 'G', F: '
 
 /**
  * The list beside a player: a position, a search, a team, a rank-by metric, those who qualify best
- * first with the value in a shaded chip. ↑ / ↓ (or J / K) move the selection.
+ * first with the value in a shaded chip. ↑ / ↓ (or J / K) move the selection. A search also finds the
+ * paired league's linked players who have no page in this league, below the league's own rows under
+ * their league's name, never ranked among them (T1304.4).
  */
 export function PlayerRail({
   position,
@@ -39,7 +42,8 @@ export function PlayerRail({
   range,
   byId,
   selected,
-  onSelect
+  onSelect,
+  elsewhere
 }: {
   position: RailPosition
   onPosition: (position: RailPosition) => void
@@ -57,10 +61,19 @@ export function PlayerRail({
   byId: ReadonlyMap<string, MetricInfo>
   selected: string | null
   onSelect: (id: string) => void
+  /** The paired league's rows a search finds, and what choosing one does. */
+  elsewhere?: {
+    heading: string
+    rows: (search: string) => OtherRow[]
+    /** The search is used: its rows of the other league are read then, not with the page. */
+    onWant: () => void
+    onOpen: (row: OtherRow) => void
+  }
 }): React.JSX.Element {
   const [search, setSearch] = useState('')
   const [limit, setLimit] = useState(PAGE)
   const shownRows = rows(search)
+  const otherRows = elsewhere ? elsewhere.rows(search) : []
   // The selected player is listed, however far down they rank.
   const shown = Math.max(limit, shownRows.findIndex((r) => r.id === selected) + 1)
   const listed = shownRows.some((r) => r.id === selected)
@@ -125,9 +138,11 @@ export function PlayerRail({
           <Search className="size-[13px] shrink-0" />
           <input
             value={search}
+            onFocus={() => elsewhere?.onWant()}
             onChange={(e) => {
               setSearch(e.target.value)
               setLimit(PAGE)
+              elsewhere?.onWant()
             }}
             placeholder="Player"
             aria-label="Search players"
@@ -214,13 +229,39 @@ export function PlayerRail({
             </button>
           </div>
         )}
-        {!loading && !error && shownRows.length === 0 && (
+        {!loading && !error && shownRows.length === 0 && otherRows.length === 0 && (
           <div className="px-3.5 py-10 text-center text-[12.5px] text-fg-3">
             {search
               ? 'No player by that name.'
               : code
                 ? `No qualified ${code} player in this range.`
                 : 'No qualified player in this range.'}
+          </div>
+        )}
+        {elsewhere && otherRows.length > 0 && (
+          <div role="group" aria-label={elsewhere.heading}>
+            <div className="border-b border-line-2 px-3.5 pt-3 pb-2 font-mono text-[11px] leading-none text-fg-3">
+              {elsewhere.heading.toUpperCase()}
+            </div>
+            {otherRows.map((r) => (
+              <button
+                key={r.key}
+                type="button"
+                title={r.title}
+                aria-label={r.title}
+                onClick={() => elsewhere.onOpen(r)}
+                className="grid h-10 w-full cursor-pointer grid-cols-[24px_minmax(0,1fr)] items-center gap-x-2 border-b border-line-2 pr-3.5 pl-3 text-left hover:bg-hover"
+              >
+                <span aria-hidden="true" />
+                <span className="flex min-w-0 flex-col gap-[3px]">
+                  <span className="truncate text-[13px] leading-[1.1] font-medium">{r.name}</span>
+                  <span className="flex min-w-0 items-center gap-[5px] font-mono text-[11px] leading-none text-fg-3">
+                    <span className="shrink-0 font-semibold text-fg-2">{r.leagueName}</span>
+                    <span className="truncate">{r.detail}</span>
+                  </span>
+                </span>
+              </button>
+            ))}
           </div>
         )}
       </div>

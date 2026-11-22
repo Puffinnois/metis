@@ -139,6 +139,7 @@ export function StatsApp({
     if (focus.location.team) setTeam(focus.location.team)
     if (focus.location.game) setGames({ date: null, game: focus.location.game })
     if (focus.location.season !== undefined) setAskedSeason(focus.location.season)
+    if (focus.location.playerTab) setPlayerTab(focus.location.playerTab)
   }
   useEffect(() => {
     if (focus && focus.nonce === focused) onFocused?.()
@@ -326,6 +327,7 @@ export function StatsApp({
           version={version}
           onOpenUpdate={onOpenUpdate}
           onToggleTheme={onToggleTheme}
+          onOpenPage={onOpenPage}
         />
         <main className="flex min-h-0 flex-1 flex-col overflow-auto">
           {unavailable || error ? (
