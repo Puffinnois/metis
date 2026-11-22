@@ -454,15 +454,17 @@ export async function refreshStats(
   // Built as soon as the core tier is in, so the app can use them long before the load ends. New
   // core files rebuild everything; otherwise only a table a new version made stale, and the game and
   // season tables after a rebuilt identity, since they join through its links (an ESPN id).
+  // A new version of the identity or game tables' recipe rebuilds every season of the game tables
+  // with no file changed, so no season is marked for the models: every season is, or the models
+  // would keep what the earlier recipe's tables gave them (the Stage 13 gate's NCAA Women fix).
   const runBuilds = async (): Promise<void> => {
     built = true
     let identityBuilt = false
-    if (
-      runs('identity') &&
-      (coreWrote || (await identityStale(db, league))) &&
-      (await canBuildIdentity(db, league))
-    ) {
+    let recipeChanged = false
+    const identityDue = runs('identity') && (await identityStale(db, league))
+    if (runs('identity') && (coreWrote || identityDue) && (await canBuildIdentity(db, league))) {
       identityBuilt = true
+      recipeChanged = identityDue
       log.push(
         await runLogged(deps, STATS_IDENTITY_STEP, async () => ({
           rows: await buildIdentity(db, league),
@@ -471,16 +473,14 @@ export async function refreshStats(
       )
     }
     if (!runs('derived')) return
-    if (
-      (coreWrote || identityBuilt || (await derivedStale(db, league))) &&
-      (await canDerive(db, league))
-    ) {
-      log.push(
-        await runLogged(deps, STATS_DERIVED_STEP, async () => ({
-          rows: await buildDerived(db, league),
-          message: null
-        }))
-      )
+    const derivedDue = await derivedStale(db, league)
+    if ((coreWrote || identityBuilt || derivedDue) && (await canDerive(db, league))) {
+      const entry = await runLogged(deps, STATS_DERIVED_STEP, async () => ({
+        rows: await buildDerived(db, league),
+        message: null
+      }))
+      log.push(entry)
+      if ((recipeChanged || derivedDue) && entry.status === 'ok') await markModelSeason(db, 0)
     }
   }
 
