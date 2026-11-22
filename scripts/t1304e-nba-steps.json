@@ -111,7 +111,7 @@
     "shot": "a-09-ncaam-loaded-not-built"
   },
   {
-    "eval": "(async () => JSON.stringify(await (async () => { await nav('Data'); await sleep(2000); return { line: dataLine('NCAA Men') } })()))()"
+    "eval": "(async () => JSON.stringify(await (async () => { document.querySelector('nav button[title=\"See what is loaded\"]').click(); await sleep(2000); return { line: dataLine('NCAA Men') } })()))()"
   },
   {
     "shot": "a-10-ncaam-downloading-data"
@@ -120,7 +120,7 @@
     "eval": "(async () => JSON.stringify(await (async () => { untrack(); return { moves: boxMoves(), changes: changes() } })()))()"
   },
   {
-    "eval": "(async () => JSON.stringify(await (async () => { await nav('Data'); await until(() => dataSection(\"NCAA Men\"), 10000); await sleep(1500); const t = dataButton(\"NCAA Men\", 'Turn the'); if (t?.textContent.endsWith('off')) { t.click(); await until(() => dataButton(\"NCAA Men\", 'Delete its data'), 15000) } await sleep(1500); const d = dataButton(\"NCAA Men\", 'Delete its data'); if (!d) return 'NO DELETE'; d.click(); await until(() => [...document.querySelectorAll('[role=dialog] button')].some((b) => b.textContent === 'Delete'), 5000); [...document.querySelectorAll('[role=dialog] button')].find((b) => b.textContent === 'Delete').click(); await until(async () => !(await dl(\"ncaam\")).hasFile, 60000); await sleep(3000); return { line: dataLine(\"NCAA Men\"), dl: await dl(\"ncaam\") } })()))()"
+    "eval": "(async () => JSON.stringify(await (async () => { document.querySelector('nav button[title=\"See what is loaded\"]').click(); await until(() => dataSection(\"NCAA Men\"), 10000); await sleep(1500); const t = dataButton(\"NCAA Men\", 'Turn the'); if (t?.textContent.endsWith('off')) { t.click(); await until(() => dataButton(\"NCAA Men\", 'Delete its data'), 15000) } await sleep(1500); const d = dataButton(\"NCAA Men\", 'Delete its data'); if (!d) return 'NO DELETE'; d.click(); await until(() => [...document.querySelectorAll('[role=dialog] button')].some((b) => b.textContent === 'Delete'), 5000); [...document.querySelectorAll('[role=dialog] button')].find((b) => b.textContent === 'Delete').click(); await until(async () => !(await dl(\"ncaam\")).hasFile, 60000); await sleep(3000); return { line: dataLine(\"NCAA Men\"), dl: await dl(\"ncaam\") } })()))()"
   },
   {
     "eval": "(async () => JSON.stringify(await (async () => { return openPlayer(\"NBA\", 2027, \"Cooper Flagg\") })()))()"
@@ -207,7 +207,7 @@
     "eval": "(async () => JSON.stringify(await (async () => { await switchTo('NBA'); return state() })()))()"
   },
   {
-    "eval": "(async () => JSON.stringify(await (async () => { await nav('Data'); await until(() => dataSection(\"NCAA Men\"), 10000); await sleep(1500); const t = dataButton(\"NCAA Men\", 'Turn the'); if (t?.textContent.endsWith('off')) { t.click(); await until(() => dataButton(\"NCAA Men\", 'Delete its data'), 15000) } await sleep(1500); const d = dataButton(\"NCAA Men\", 'Delete its data'); if (!d) return 'NO DELETE'; d.click(); await until(() => [...document.querySelectorAll('[role=dialog] button')].some((b) => b.textContent === 'Delete'), 5000); [...document.querySelectorAll('[role=dialog] button')].find((b) => b.textContent === 'Delete').click(); await until(async () => !(await dl(\"ncaam\")).hasFile, 60000); await sleep(3000); return { line: dataLine(\"NCAA Men\"), dl: await dl(\"ncaam\") } })()))()"
+    "eval": "(async () => JSON.stringify(await (async () => { document.querySelector('nav button[title=\"See what is loaded\"]').click(); await until(() => dataSection(\"NCAA Men\"), 10000); await sleep(1500); const t = dataButton(\"NCAA Men\", 'Turn the'); if (t?.textContent.endsWith('off')) { t.click(); await until(() => dataButton(\"NCAA Men\", 'Delete its data'), 15000) } await sleep(1500); const d = dataButton(\"NCAA Men\", 'Delete its data'); if (!d) return 'NO DELETE'; d.click(); await until(() => [...document.querySelectorAll('[role=dialog] button')].some((b) => b.textContent === 'Delete'), 5000); [...document.querySelectorAll('[role=dialog] button')].find((b) => b.textContent === 'Delete').click(); await until(async () => !(await dl(\"ncaam\")).hasFile, 60000); await sleep(3000); return { line: dataLine(\"NCAA Men\"), dl: await dl(\"ncaam\") } })()))()"
   },
   {
     "eval": "(async () => JSON.stringify(await (async () => { return openPlayer(\"NBA\", 2027, \"Cooper Flagg\") })()))()"

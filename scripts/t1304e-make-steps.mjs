@@ -226,7 +226,7 @@ const turnOnFromStrip = (name) =>
 // Off and deleted from the Data panel, as a user would.
 const removeLeague = (name, id) =>
   run(
-    `await nav('Data'); await until(() => dataSection(${JSON.stringify(name)}), 10000); await sleep(1500); const t = dataButton(${JSON.stringify(name)}, 'Turn the'); if (t?.textContent.endsWith('off')) { t.click(); await until(() => dataButton(${JSON.stringify(name)}, 'Delete its data'), 15000) } await sleep(1500); const d = dataButton(${JSON.stringify(name)}, 'Delete its data'); if (!d) return 'NO DELETE'; d.click(); await until(() => [...document.querySelectorAll('[role=dialog] button')].some((b) => b.textContent === 'Delete'), 5000); [...document.querySelectorAll('[role=dialog] button')].find((b) => b.textContent === 'Delete').click(); await until(async () => !(await dl(${JSON.stringify(id)})).hasFile, 60000); await sleep(3000); return { line: dataLine(${JSON.stringify(name)}), dl: await dl(${JSON.stringify(id)}) }`
+    `document.querySelector('nav button[title="See what is loaded"]').click(); await until(() => dataSection(${JSON.stringify(name)}), 10000); await sleep(1500); const t = dataButton(${JSON.stringify(name)}, 'Turn the'); if (t?.textContent.endsWith('off')) { t.click(); await until(() => dataButton(${JSON.stringify(name)}, 'Delete its data'), 15000) } await sleep(1500); const d = dataButton(${JSON.stringify(name)}, 'Delete its data'); if (!d) return 'NO DELETE'; d.click(); await until(() => [...document.querySelectorAll('[role=dialog] button')].some((b) => b.textContent === 'Delete'), 5000); [...document.querySelectorAll('[role=dialog] button')].find((b) => b.textContent === 'Delete').click(); await until(async () => !(await dl(${JSON.stringify(id)})).hasFile, 60000); await sleep(3000); return { line: dataLine(${JSON.stringify(name)}), dl: await dl(${JSON.stringify(id)}) }`
   )
 const snap = (other) =>
   run(
@@ -272,7 +272,9 @@ const nba = [
   open('NBA', 2027, 'Cooper Flagg'),
   run('await linkIn(); return { state: state(), boxes: boxes(), menu: await menu() }'),
   shot('a-09-ncaam-loaded-not-built'),
-  run(`await nav('Data'); await sleep(2000); return { line: dataLine('NCAA Men') }`),
+  run(
+    `document.querySelector('nav button[title="See what is loaded"]').click(); await sleep(2000); return { line: dataLine('NCAA Men') }`
+  ),
   shot('a-10-ncaam-downloading-data'),
   run('untrack(); return { moves: boxMoves(), changes: changes() }'),
   // Off and deleted: back to ESPN's totals and the offer.
@@ -353,7 +355,12 @@ const wnba = [
   // The rail's loading rows, then straight back to the page, which stays open from here on.
   run(`await nav('Players'); typeIn('hsu'); await sleep(1500); return found()`),
   shot('b-07-ncaaw-loading-rail'),
-  run(`typeIn(''); await sleep(500); const s = await goBack(); await linkIn(); return state()`),
+  // Back from the rail would go to the page before Bueckers's (the search is not a page): open hers
+  // again. In the run of 2026-11-21 this step was Back, and her page was opened over DevTools
+  // at 03:23:48Z, at 125 of 185 files with no tables built, before anything arrived.
+  clear,
+  open('WNBA', 2026, 'Paige Bueckers'),
+  run('await linkIn(); return { state: state(), boxes: boxes() }'),
   run(
     `await until(async () => (await dl('ncaaw')).hasFile && (await dl('ncaaw')).mb > 50, 1800000); return { dl: await dl('ncaaw'), state: state(), boxes: boxes() }`
   ),
@@ -390,9 +397,36 @@ const wnba = [
   idle('ncaaw', 600000)
 ]
 
+// The NBA profile once both are in: NCAA Men removed from the Data panel, its lines kept in the
+// links file still read on Flagg's page, from Metis.
+const nbaRemoved = [
+  { size: [1500, 950] },
+  { wait: 9000 },
+  ev(HELPERS),
+  idle('nba', 1800000),
+  idle('ncaam', 1800000),
+  // Read times through the app's IPC, 20 each: a player's other career, and each league's index.
+  run(
+    `const med = (xs) => xs.sort((a, b) => a - b)[Math.floor(xs.length / 2)]; const time = async (f) => { const ms = []; for (let i = 0; i < 20; i++) { const t0 = performance.now(); await f(); ms.push(Math.round((performance.now() - t0) * 10) / 10) } return { first: ms[0], median: med(ms.slice(1)) } }; const rows = { nba: (await window.api.stats.playerIndex('nba')).length, ncaam: (await window.api.stats.playerIndex('ncaam')).length }; return { otherCareerNba: await time(() => window.api.stats.otherCareer('nba', '1642843')), otherCareerNcaam: await time(() => window.api.stats.otherCareer('ncaam', '5041939')), indexNba: await time(() => window.api.stats.playerIndex('nba')), indexNcaam: await time(() => window.api.stats.playerIndex('ncaam')), rows }`
+  ),
+  open('NBA', 2027, 'Cooper Flagg'),
+  run('await linkIn(); return { state: state(), boxes: boxes(), menu: await menu() }'),
+  removeLeague('NCAA Men', 'ncaam'),
+  open('NBA', 2027, 'Cooper Flagg'),
+  run(
+    'await linkIn(); await sleep(1500); return { state: state(), boxes: boxes(), menu: await menu() }'
+  ),
+  shot('a-17-ncaam-removed-flagg'),
+  ...menuShot('a-18-ncaam-removed-menu'),
+  run(`await nav('Players'); typeIn('saunders'); await sleep(1500); return found()`),
+  clear,
+  idle('nba', 600000)
+]
+
 const write = (name, steps) => writeFileSync(join(out, name), JSON.stringify(steps, null, 2) + '\n')
 write('t1304e-search-steps.json', searchSteps)
 write('t1304e-timing-steps.json', timing)
 write('t1304e-nba-steps.json', nba)
 write('t1304e-wnba-steps.json', wnba)
+write('t1304e-nba-removed-steps.json', nbaRemoved)
 console.log('written', searchSteps.length, timing.length, nba.length, wnba.length, 'steps')

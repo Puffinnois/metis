@@ -87,7 +87,13 @@
     "shot": "b-07-ncaaw-loading-rail"
   },
   {
-    "eval": "(async () => JSON.stringify(await (async () => { typeIn(''); await sleep(500); const s = await goBack(); await linkIn(); return state() })()))()"
+    "eval": "(async () => JSON.stringify(await (async () => { typeIn(''); await sleep(800); return 'cleared' })()))()"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { return openPlayer(\"WNBA\", 2026, \"Paige Bueckers\") })()))()"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { await linkIn(); return { state: state(), boxes: boxes() } })()))()"
   },
   {
     "eval": "(async () => JSON.stringify(await (async () => { await until(async () => (await dl('ncaaw')).hasFile && (await dl('ncaaw')).mb > 50, 1800000); return { dl: await dl('ncaaw'), state: state(), boxes: boxes() } })()))()"
@@ -162,7 +168,7 @@
     "eval": "(async () => JSON.stringify(await (async () => { typeIn(''); await sleep(800); return 'cleared' })()))()"
   },
   {
-    "eval": "(async () => JSON.stringify(await (async () => { await nav('Data'); await until(() => dataSection(\"WNBA\"), 10000); await sleep(1500); const t = dataButton(\"WNBA\", 'Turn the'); if (t?.textContent.endsWith('off')) { t.click(); await until(() => dataButton(\"WNBA\", 'Delete its data'), 15000) } await sleep(1500); const d = dataButton(\"WNBA\", 'Delete its data'); if (!d) return 'NO DELETE'; d.click(); await until(() => [...document.querySelectorAll('[role=dialog] button')].some((b) => b.textContent === 'Delete'), 5000); [...document.querySelectorAll('[role=dialog] button')].find((b) => b.textContent === 'Delete').click(); await until(async () => !(await dl(\"wnba\")).hasFile, 60000); await sleep(3000); return { line: dataLine(\"WNBA\"), dl: await dl(\"wnba\") } })()))()"
+    "eval": "(async () => JSON.stringify(await (async () => { document.querySelector('nav button[title=\"See what is loaded\"]').click(); await until(() => dataSection(\"WNBA\"), 10000); await sleep(1500); const t = dataButton(\"WNBA\", 'Turn the'); if (t?.textContent.endsWith('off')) { t.click(); await until(() => dataButton(\"WNBA\", 'Delete its data'), 15000) } await sleep(1500); const d = dataButton(\"WNBA\", 'Delete its data'); if (!d) return 'NO DELETE'; d.click(); await until(() => [...document.querySelectorAll('[role=dialog] button')].some((b) => b.textContent === 'Delete'), 5000); [...document.querySelectorAll('[role=dialog] button')].find((b) => b.textContent === 'Delete').click(); await until(async () => !(await dl(\"wnba\")).hasFile, 60000); await sleep(3000); return { line: dataLine(\"WNBA\"), dl: await dl(\"wnba\") } })()))()"
   },
   {
     "eval": "(async () => JSON.stringify(await (async () => { return openPlayer(\"NCAA Women\", 2025, \"Paige Bueckers\") })()))()"
