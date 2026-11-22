@@ -8,11 +8,11 @@
 //   --stop-after  closes the worker after that many steps, as a quit does
 //   --force       checks recent seasons even if tried within the day
 //   --memory      DuckDB's memory limit, to measure another setting than the app's (--memory=1GB)
-import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { mkdirSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Worker } from 'node:worker_threads'
-import ts from 'typescript'
+import { loadSourceRegistry } from './lib/source-registry.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const args = process.argv.slice(2)
@@ -27,13 +27,7 @@ if (!folder || !reportFile) {
 }
 mkdirSync(folder, { recursive: true })
 
-// The registry has no imports, so it can be read here without bundling.
-const registry = ts.transpileModule(readFileSync(join(ROOT, 'src/main/stats/sources.ts'), 'utf8'), {
-  compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 }
-}).outputText
-const { SOURCES_BY_LEAGUE, LOAD_TIERS } = await import(
-  `data:text/javascript,${encodeURIComponent(registry)}`
-)
+const { SOURCES_BY_LEAGUE, LOAD_TIERS } = await loadSourceRegistry()
 const tierOf = new Map(SOURCES_BY_LEAGUE[league].map((s) => [s.id, s.tier]))
 
 const dbPath = join(folder, `stats-${league}.duckdb`)
