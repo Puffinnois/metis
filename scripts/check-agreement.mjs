@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 // Checks a loaded stats database against itself and against the real history of the league, season
 // by season, and writes the result as a report. Every comparison is exact unless its table says
-// otherwise. Exits 1 if a finished season has the wrong number of regular-season games or teams.
+// otherwise. Exits 1 if a finished season has the wrong number of regular-season games or teams, or
+// a game table repeats a key (`lib/agreement-keys.mjs`, every league).
 //
 // usage: node scripts/check-agreement.mjs <folder holding stats-<league>.duckdb> <out.md>
 // --league=<id> anywhere picks the league (default nba).
 import { writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { checkKeys } from './lib/agreement-keys.mjs'
 import { leagueArg, openStatsWorker, positional } from './lib/stats-worker.mjs'
 
 const [folder, mdFile] = positional().map((p) => resolve(p))
@@ -21,7 +23,8 @@ if (leagueArg() !== 'nba') {
   const { runAgreement } = await import(`./lib/agreement-${leagueArg()}.mjs`)
   const worker = openStatsWorker(folder)
   const out = []
-  const wrong = await runAgreement(worker.read, out, worker.query)
+  const wrong =
+    (await runAgreement(worker.read, out, worker.query)) + (await checkKeys(worker.read, out))
   await worker.close()
   writeFileSync(mdFile, `${out.join('\n')}\n`)
   console.log(`${mdFile}: ${wrong} wrong`)
@@ -2230,7 +2233,9 @@ out.push(
   )
 )
 
+wrong += await checkKeys(read, out)
+
 await close()
 writeFileSync(mdFile, `${out.join('\n')}\n`)
-console.log(`${games.length} seasons, ${wrong} problems with games or teams`)
+console.log(`${games.length} seasons, ${wrong} problems with games, teams or keys`)
 process.exit(wrong > 0 ? 1 : 0)
