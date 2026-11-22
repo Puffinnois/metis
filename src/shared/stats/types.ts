@@ -495,6 +495,18 @@ export interface StatsCoach {
   role: 'head' | 'assistant'
 }
 
+/**
+ * A player with a page in the league, for the player search (T1304.5): everyone with a game in any
+ * season, with the last season they played and their last team that season.
+ */
+export interface StatsIndexedPlayer {
+  id: string
+  name: string
+  lastSeason: number
+  /** The team's code, as the rail writes it; null where the season's team table lacks it. */
+  team: string | null
+}
+
 /** Who a player is, for the dashboard's header. The roster fields are null before 1996-97. */
 export interface StatsPlayerInfo {
   id: string
@@ -1105,6 +1117,12 @@ export interface LeagueDownload {
   hasData: boolean
   /** The free space its first load still needs; 0 once loaded. */
   roomNeeded: number
+  /**
+   * Its tables are built, from the league's own status (`builtAt`): filled in by the renderer, which
+   * reads it beside this (`useLeagueDownloads`); undefined where it was not read. A league turned on
+   * is downloading until then, and its pages have nothing to show (T1304.5).
+   */
+  built?: boolean
 }
 
 /** Which leagues download, for the first run and the Data panel. */

@@ -191,7 +191,8 @@ export interface StripRow {
   /** A season's games; the draft's pick, spilling over the empty cells. */
   games: string
   cells: string[]
-  open: StripTarget | null
+  /** A season row: the other league's page in its season. The draft row: the Profile tab. */
+  open: NavLocation | null
   /** The row's hover and accessible name. */
   title: string
 }
@@ -243,6 +244,8 @@ export function reasonText(career: StatsOtherCareer): string | null {
 export interface StripInput {
   /** The league on screen. */
   league: League
+  /** The player on screen, by their id in that league: the draft row of a professional page opens it. */
+  player?: string
   playerName: string
   /** The league on screen's own lines (`ownLines`). */
   own: StripLine[]
@@ -286,6 +289,7 @@ function seasonRow(
 /** The strip from the page's own lines and the read: its rows in time order, notes and action. */
 export function careerStrip({
   league,
+  player,
   playerName,
   own,
   career,
@@ -324,6 +328,23 @@ export function careerStrip({
     )
   )
   const d = career.draft
+  // The draft row opens the draft where the app shows it: the Profile tab of the player's page in the
+  // professional league, this page's where it is that league, the other's where that is downloaded
+  // and they have a page there. Elsewhere it stays plain text.
+  const proId = pro.id === league.id ? (player ?? null) : navigable ? otherId : null
+  const draftOpen: NavLocation | null =
+    proId !== null
+      ? {
+          league: pro.id,
+          screen: 'player',
+          team: null,
+          player: { id: proId, position: null },
+          playerTab: 'profile'
+        }
+      : null
+  const draftWords = d
+    ? `${pro.name} draft ${d.draftYear}${d.team ? `, ${d.team}` : ''}${pickWords(d) ? `, ${pickWords(d)}` : ''}`
+    : ''
   const draft: StripRow[] = d
     ? [
         {
@@ -337,8 +358,8 @@ export function careerStrip({
           team: d.team ?? '',
           games: `Drafted: ${pickWords(d)}`.replace(/: $/, ''),
           cells: [],
-          open: null,
-          title: `${pro.name} draft ${d.draftYear}${d.team ? `, ${d.team}` : ''}${pickWords(d) ? `, ${pickWords(d)}` : ''}`
+          open: draftOpen,
+          title: draftOpen ? `${draftWords}: open ${playerName}’s ${pro.name} profile` : draftWords
         }
       ]
     : []

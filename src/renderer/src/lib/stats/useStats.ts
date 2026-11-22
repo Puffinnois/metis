@@ -28,6 +28,7 @@ import type {
   StatsProfile,
   StatsAvailability,
   StatsCoach,
+  StatsIndexedPlayer,
   StatsPlayerInfo,
   StatsQuery,
   StatsResult,
@@ -356,6 +357,40 @@ export const useCoaches = (
 /** A player's bio, draft and combines. */
 export const useProfile = (player: string, version: string | null): ReadState<StatsProfile> =>
   useRead(`${version}|${player}`, (league) => api.stats.profile(league, player))
+
+/**
+ * Everyone with a page in the league on screen, for its player search (T1304.5): read once `wanted`
+ * (the search is used), and again when the tables are built again. The last list stays while the next
+ * is read, so the rows a search found do not blink at a refresh; another league's never stands in.
+ */
+export function usePlayerIndex(
+  wanted: boolean,
+  version: string | null
+): ReadState<StatsIndexedPlayer[]> {
+  const league = useLeague().id
+  const key = wanted && version ? `${league}|${version}` : null
+  const [done, setDone] = useState<{
+    league: LeagueId
+    key: string
+    value: StatsIndexedPlayer[] | null
+    error: string | null
+  } | null>(null)
+  useEffect(() => {
+    if (key === null) return
+    let cancelled = false
+    api.stats
+      .playerIndex(league)
+      .then((value) => !cancelled && setDone({ league, key, value, error: null }))
+      .catch((err) => !cancelled && setDone({ league, key, value: null, error: errorMessage(err) }))
+    return () => {
+      cancelled = true
+    }
+  }, [key, league])
+  if (done === null || done.league !== league) {
+    return { value: null, error: null, loading: key !== null }
+  }
+  return { value: done.value, error: done.error, loading: done.key !== key && key !== null }
+}
 
 /**
  * The paired league's linked players with no page in the league on screen, for its player search

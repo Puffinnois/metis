@@ -27,6 +27,7 @@ import type {
   StatsOtherPlayer,
   StatsAvailability,
   StatsCoach,
+  StatsIndexedPlayer,
   StatsPlayerInfo,
   StatsQuery,
   StatsResult,
@@ -106,6 +107,8 @@ export interface Api {
     seasons(league: LeagueId): Promise<StatsSeason[]>
     /** Who a player is; null for an id nobody has. */
     player(league: LeagueId, id: string): Promise<StatsPlayerInfo | null>
+    /** Everyone with a page in the league, their last season and team: the player search's list. */
+    playerIndex(league: LeagueId): Promise<StatsIndexedPlayer[]>
     /** Every game on a season's schedule, by date; empty until the tables are built. */
     games(league: LeagueId, season: number): Promise<StatsGame[]>
     game(league: LeagueId, id: string): Promise<StatsGameDetail | null>
@@ -224,6 +227,7 @@ export const IPC = {
   statsCatalogue: 'stats:catalogue',
   statsSeasons: 'stats:seasons',
   statsPlayer: 'stats:player',
+  statsPlayerIndex: 'stats:player-index',
   statsGames: 'stats:games',
   statsGame: 'stats:game',
   statsStandings: 'stats:standings',

@@ -199,7 +199,8 @@ describe('the league menu', () => {
     const nba = screen.getByRole('menuitemradio', { name: /^NBA/ })
     const wnba = screen.getByRole('menuitemradio', { name: /^WNBA/ })
     expect(nba.getAttribute('aria-checked')).toBe('true')
-    expect(nba.textContent).not.toMatch(/No stats yet|No tables yet/)
+    // The NBA is on with nothing built yet (its status has no build): it says so (T1304.5).
+    expect(nba.textContent).toMatch(/No tables yet$/)
     expect(wnba.textContent).toMatch(/No stats yet$/)
     fireEvent.click(wnba)
 

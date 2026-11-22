@@ -90,6 +90,7 @@ import { currentLeague, seasonLabel, useLeague } from '@/lib/stats/league'
 import { downloadOf, leagueHolds, useLeagueDownloads } from '@/lib/stats/downloads'
 import { offerSwitch, playerSwitch, withdrawSwitch } from '@/lib/stats/leagueSwitch'
 import { otherHeading, otherRows, type OtherRow } from '@/lib/stats/otherPlayers'
+import { moreRows, moreTarget, playerIndex, type MoreRow } from '@/lib/stats/playerSearch'
 import { rowQualifier } from '@/lib/stats/qualifying'
 import {
   useAvailability,
@@ -99,6 +100,7 @@ import {
   useSeasonGames,
   useOtherCareer,
   useOtherPlayers,
+  usePlayerIndex,
   useStatsQueries,
   useStatsQuery,
   type ReadState,
@@ -247,6 +249,27 @@ export function StatsPlayer({
         : undefined,
     [other, leagueId, others.value, otherHolds, otherOn, onOpenPage, onOpenData]
   )
+  // The search's rows of this league beyond the ranked ones: everyone with a page here, read once the
+  // search is first used (T1304.5).
+  const [wantIndex, setWantIndex] = useState(false)
+  const indexRead = usePlayerIndex(wantIndex, data.version)
+  const index = useMemo(
+    () => (indexRead.value ? playerIndex(indexRead.value) : null),
+    [indexRead.value]
+  )
+  const more = useMemo(
+    () => ({
+      rows: (search: string, listed: ReadonlySet<string>) =>
+        moreRows(index, search, listed, leagueOf(leagueId)),
+      onWant: () => setWantIndex(true),
+      onOpen: (row: MoreRow) => {
+        const to = moreTarget(row, leagueOf(leagueId), scope.season)
+        if (to && onOpenPage) onOpenPage(to)
+        else onPlayer(row.id)
+      }
+    }),
+    [index, leagueId, scope.season, onOpenPage, onPlayer]
+  )
   const [seekStrip, setSeekStrip] = useState(0)
   const showStrip = (): void => {
     onTab('overview')
@@ -276,6 +299,7 @@ export function StatsPlayer({
         byId={data.byId}
         selected={player}
         onSelect={onPlayer}
+        more={more}
         elsewhere={elsewhere}
       />
       <div className="min-w-0 flex-1 overflow-auto [scrollbar-width:thin]">

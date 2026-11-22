@@ -15,6 +15,19 @@ export function scrollParent(el: HTMLElement): HTMLElement | null {
 }
 
 /**
+ * Scrolls an element's own box just enough to show it whole, and moves nothing else: the keys' step to
+ * a row below the fold. `scrollIntoView` could move the window's hidden-overflow ancestors too.
+ */
+export function scrollToNearest(el: HTMLElement): void {
+  const box = scrollParent(el)
+  if (!box) return
+  const r = el.getBoundingClientRect()
+  const b = box.getBoundingClientRect()
+  if (r.top < b.top) box.scrollTop -= b.top - r.top
+  else if (r.bottom > b.bottom) box.scrollTop += r.bottom - b.bottom
+}
+
+/**
  * Brings an element to the top of its own scroll box, as far as that box can scroll, and moves nothing
  * else. `scrollIntoView` would also scroll the window's hidden-overflow ancestors when the box cannot go
  * far enough (an element near its end), shifting the whole app up under the nav.

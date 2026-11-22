@@ -82,6 +82,7 @@ export type StatsRequest =
   | { id: number; kind: 'catalogue' }
   | { id: number; kind: 'seasons' }
   | { id: number; kind: 'player'; player: string }
+  | { id: number; kind: 'playerIndex' }
   | { id: number; kind: 'games'; season: number }
   | { id: number; kind: 'game'; game: string }
   | { id: number; kind: 'standings'; season: number }
@@ -138,6 +139,7 @@ export const AT_ONCE_REQUESTS: ReadonlySet<StatsRequest['kind']> = new Set([
   'catalogue',
   'seasons',
   'player',
+  'playerIndex',
   'games',
   'game',
   'standings',

@@ -72,6 +72,7 @@ export function offlineStats(league: League, reason: string | null = league.noDa
     catalogue: () => Promise.resolve(noData ? catalogueInfo(league) : []),
     seasons: () => Promise.resolve([]),
     player: () => Promise.resolve(null),
+    playerIndex: () => Promise.resolve([]),
     games: () => Promise.resolve([]),
     game: () => Promise.resolve(null),
     standings: () => Promise.resolve([]),

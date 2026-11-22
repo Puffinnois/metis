@@ -35,6 +35,7 @@ import type {
   StatsOtherPlayer,
   StatsAvailability,
   StatsCoach,
+  StatsIndexedPlayer,
   StatsPlayerInfo,
   StatsQuery,
   StatsResult,
@@ -88,6 +89,9 @@ export function registerIpcHandlers(ctx: AppContext): void {
     IPC.statsPlayer,
     (_e, league: LeagueId, id: string): Promise<StatsPlayerInfo | null> =>
       readsFor(ctx, league).player(id)
+  )
+  ipcMain.handle(IPC.statsPlayerIndex, (_e, league: LeagueId): Promise<StatsIndexedPlayer[]> =>
+    readsFor(ctx, league).playerIndex()
   )
   ipcMain.handle(IPC.statsGames, (_e, league: LeagueId, season: number): Promise<StatsGame[]> =>
     readsFor(ctx, league).games(season)

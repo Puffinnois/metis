@@ -44,6 +44,8 @@ async function handle(request: StatsRequest): Promise<unknown> {
       return service.seasons()
     case 'player':
       return service.player(request.player)
+    case 'playerIndex':
+      return service.playerIndex()
     case 'games':
       return service.games(request.season)
     case 'game':
