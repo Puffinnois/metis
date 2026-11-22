@@ -86,6 +86,8 @@ describe('the college leagues before their data', () => {
     expect(recipeOf(LEAGUES.wnba, 'identity')).toBe('wnba')
   })
 
+  // The tests that open DuckDB run both leagues in turn; on a loaded Windows runner one crossed the
+  // default 5 s timeout (T1304.5), so they get 30 s, as the other college tests that open files do.
   it('answer every screen’s read with their reason while off, reaching no accessor', async () => {
     for (const league of COLLEGE) {
       const reads = offlineStats(league)
@@ -105,7 +107,7 @@ describe('the college leagues before their data', () => {
       ])
       expect(families.every((f) => f.state === 'left-out' || f.state === 'waiting')).toBe(true)
     }
-  })
+  }, 30_000)
 
   it('read their catalogue and every metric’s words with no models', () => {
     for (const league of COLLEGE) {
@@ -164,7 +166,7 @@ describe('the college leagues before their data', () => {
       await service.close()
       service = null
     }
-  })
+  }, 30_000)
 
   it('read every metric outside the window as loaded from 2021-22 (D39)', () => {
     for (const league of COLLEGE) {
@@ -231,5 +233,5 @@ describe('the college leagues before their data', () => {
       const derived = result.steps.find((s) => s.source === STATS_DERIVED_STEP)
       expect(derived?.status).not.toBe('error')
     }
-  })
+  }, 30_000)
 })
