@@ -18,6 +18,8 @@ jobs:
           cache: npm
 
       - run: npm ci
+      # The runner's cores and memory, so a slow run can be told from a slow change.
+      - run: nproc && free -m
       - run: npm run lint
       - run: npm run typecheck
       - run: npx prettier --check .

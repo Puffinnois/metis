@@ -9,6 +9,7 @@ import {
 } from '@main/stats/models/forecast'
 import { openTestDb } from '../../../fixtures/stats'
 import { LEAGUES } from '@shared/leagues'
+import { slow } from '../../../fixtures/timeouts'
 
 /**
  * A league of thirty (ids 1 to 30; 1 to 15 in the East, divisions of five) playing each other once,
@@ -128,7 +129,7 @@ describe('snapshotDays', () => {
 })
 
 // Each case writes a thirty-team season row by row and runs the simulation: slower than most tests.
-describe('the season forecast builder', { timeout: 30_000 }, () => {
+describe('the season forecast builder', { timeout: slow(30_000) }, () => {
   it('forecasts a past season twenty times, each snapshot adding up across the league', async () => {
     await addSeason(2026)
     const rows = await run(2026, 2027)

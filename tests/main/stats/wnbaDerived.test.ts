@@ -12,6 +12,7 @@ import {
 import { buildIdentity } from '@main/stats/identity'
 import { LEAGUES } from '@shared/leagues'
 import { openTestDb } from '../../fixtures/stats'
+import { slow } from '../../fixtures/timeouts'
 
 /**
  * The WNBA's game and season tables on fixtures cut from the real load of 2026-11-17: the identity
@@ -67,7 +68,7 @@ beforeAll(async () => {
   await loadFixtures(db)
   await buildIdentity(db, wnba)
   await buildDerived(db, wnba)
-}, 30_000)
+}, slow(30_000))
 
 type Row = Record<string, unknown>
 const one = async (sql: string, params: unknown[] = []): Promise<Row> =>

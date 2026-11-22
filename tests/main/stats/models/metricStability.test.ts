@@ -32,6 +32,7 @@ import {
 } from '../../../fixtures/stability'
 import { openTestDb } from '../../../fixtures/stats'
 import { LEAGUES } from '@shared/leagues'
+import { slow } from '../../../fixtures/timeouts'
 
 let db: StatsDb
 
@@ -124,7 +125,7 @@ describe('the stability measure, through the engine (Plan T1006)', () => {
   it(
     'writes one row per metric through the models step, and keeps it on a daily refresh',
     {
-      timeout: 120_000
+      timeout: slow(120_000)
     },
     async () => {
       // 2026-27 under way: one game played.

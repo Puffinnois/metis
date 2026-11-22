@@ -18,6 +18,7 @@ import {
 import { metricIn } from '@shared/stats/catalogue'
 import type { StatsQuery } from '@shared/stats/types'
 import { openTestDb, tempDir } from '../../fixtures/stats'
+import { slow } from '../../fixtures/timeouts'
 
 /**
  * The college leagues before their later built tables: their sources load (T1302.3), their game, team
@@ -88,26 +89,30 @@ describe('the college leagues before their data', () => {
 
   // The tests that open DuckDB run both leagues in turn; on a loaded Windows runner one crossed the
   // default 5 s timeout (T1304.5), so they get 30 s, as the other college tests that open files do.
-  it('answer every screen’s read with their reason while off, reaching no accessor', async () => {
-    for (const league of COLLEGE) {
-      const reads = offlineStats(league)
-      await readEverything(reads)
-      expect((await reads.status()).noData).toBe(league.noData)
-      const result = await reads.query({
-        entity: 'player',
-        metrics: ['pts'],
-        scope: { seasons: [2026] }
-      })
-      expect(result.notes).toEqual([league.noData])
-      // Every release waits, but ESPN's play by play, which this build leaves out (D42).
-      const families = (await reads.data()).families
-      expect(families).toHaveLength(29)
-      expect(families.filter((f) => f.state === 'left-out').map((f) => f.label)).toEqual([
-        'Play by play (ESPN)'
-      ])
-      expect(families.every((f) => f.state === 'left-out' || f.state === 'waiting')).toBe(true)
-    }
-  }, 30_000)
+  it(
+    'answer every screen’s read with their reason while off, reaching no accessor',
+    async () => {
+      for (const league of COLLEGE) {
+        const reads = offlineStats(league)
+        await readEverything(reads)
+        expect((await reads.status()).noData).toBe(league.noData)
+        const result = await reads.query({
+          entity: 'player',
+          metrics: ['pts'],
+          scope: { seasons: [2026] }
+        })
+        expect(result.notes).toEqual([league.noData])
+        // Every release waits, but ESPN's play by play, which this build leaves out (D42).
+        const families = (await reads.data()).families
+        expect(families).toHaveLength(29)
+        expect(families.filter((f) => f.state === 'left-out').map((f) => f.label)).toEqual([
+          'Play by play (ESPN)'
+        ])
+        expect(families.every((f) => f.state === 'left-out' || f.state === 'waiting')).toBe(true)
+      }
+    },
+    slow(30_000)
+  )
 
   it('read their catalogue and every metric’s words with no models', () => {
     for (const league of COLLEGE) {
@@ -125,48 +130,52 @@ describe('the college leagues before their data', () => {
     }
   })
 
-  it('answer every read once turned on, the file empty, those of tables not built with the reason', async () => {
-    for (const league of COLLEGE) {
-      const dir = tempDir()
-      mkdirSync(join(dir, 'tmp'))
-      service = await openStatsService({
-        league: league.id,
-        dataDir: dir,
-        tempDir: join(dir, 'tmp')
-      })
-      const s = service
-      // Before the first load builds the season tables, a query says so, as the NBA's does.
-      await expect(
-        s.query({ entity: 'player', metrics: ['pts'], scope: { seasons: [2026] } })
-      ).rejects.toThrow(league.notBuilt)
-      await readEverything(s, false)
-      expect(await s.games(2026)).toEqual([])
-      // The shots (T1302.6) and the play by play's own tables (T1302.7) are built, so an empty file
-      // reads none and gives no reason; no source publishes matchups (D44).
-      const shots = await s.shots({
-        entity: 'player',
-        id: '1',
-        seasons: [2026],
-        scope: { gameTypes: ['regular'] }
-      })
-      expect(shots.reason).toBeNull()
-      expect(shots.total).toBe(0)
-      expect((await s.gameFlow('1')).reason).not.toBe(playTablesNotBuilt(league))
-      expect(
-        (
-          await s.assists({
-            entity: 'team',
-            id: '1',
-            seasons: [2026],
-            scope: { gameTypes: ['regular'] }
-          } as never)
-        ).reason
-      ).not.toBe(playTablesNotBuilt(league))
-      expect((await s.gameMatchups('1')).reason).toBe(league.unpublished.matchups)
-      await service.close()
-      service = null
-    }
-  }, 30_000)
+  it(
+    'answer every read once turned on, the file empty, those of tables not built with the reason',
+    async () => {
+      for (const league of COLLEGE) {
+        const dir = tempDir()
+        mkdirSync(join(dir, 'tmp'))
+        service = await openStatsService({
+          league: league.id,
+          dataDir: dir,
+          tempDir: join(dir, 'tmp')
+        })
+        const s = service
+        // Before the first load builds the season tables, a query says so, as the NBA's does.
+        await expect(
+          s.query({ entity: 'player', metrics: ['pts'], scope: { seasons: [2026] } })
+        ).rejects.toThrow(league.notBuilt)
+        await readEverything(s, false)
+        expect(await s.games(2026)).toEqual([])
+        // The shots (T1302.6) and the play by play's own tables (T1302.7) are built, so an empty file
+        // reads none and gives no reason; no source publishes matchups (D44).
+        const shots = await s.shots({
+          entity: 'player',
+          id: '1',
+          seasons: [2026],
+          scope: { gameTypes: ['regular'] }
+        })
+        expect(shots.reason).toBeNull()
+        expect(shots.total).toBe(0)
+        expect((await s.gameFlow('1')).reason).not.toBe(playTablesNotBuilt(league))
+        expect(
+          (
+            await s.assists({
+              entity: 'team',
+              id: '1',
+              seasons: [2026],
+              scope: { gameTypes: ['regular'] }
+            } as never)
+          ).reason
+        ).not.toBe(playTablesNotBuilt(league))
+        expect((await s.gameMatchups('1')).reason).toBe(league.unpublished.matchups)
+        await service.close()
+        service = null
+      }
+    },
+    slow(30_000)
+  )
 
   it('read every metric outside the window as loaded from 2021-22 (D39)', () => {
     for (const league of COLLEGE) {
@@ -215,23 +224,27 @@ describe('the college leagues before their data', () => {
     }
   })
 
-  it('refresh with nothing to download and no step to build, with no error', async () => {
-    for (const league of COLLEGE) {
-      const db = await openTestDb()
-      const result = await refreshStats(
-        {
-          db,
-          league,
-          downloads: { fetchFile: async () => ({ kind: 'missing' }), removeFile: async () => {} },
-          now: () => NOW
-        },
-        {},
-        SOURCES_BY_LEAGUE[league.id]
-      )
-      expect(result.steps.filter((s) => s.status === 'error')).toEqual([])
-      // Its game tables are not in its entry: the step says they are skipped, with the reason.
-      const derived = result.steps.find((s) => s.source === STATS_DERIVED_STEP)
-      expect(derived?.status).not.toBe('error')
-    }
-  }, 30_000)
+  it(
+    'refresh with nothing to download and no step to build, with no error',
+    async () => {
+      for (const league of COLLEGE) {
+        const db = await openTestDb()
+        const result = await refreshStats(
+          {
+            db,
+            league,
+            downloads: { fetchFile: async () => ({ kind: 'missing' }), removeFile: async () => {} },
+            now: () => NOW
+          },
+          {},
+          SOURCES_BY_LEAGUE[league.id]
+        )
+        expect(result.steps.filter((s) => s.status === 'error')).toEqual([])
+        // Its game tables are not in its entry: the step says they are skipped, with the reason.
+        const derived = result.steps.find((s) => s.source === STATS_DERIVED_STEP)
+        expect(derived?.status).not.toBe('error')
+      }
+    },
+    slow(30_000)
+  )
 })

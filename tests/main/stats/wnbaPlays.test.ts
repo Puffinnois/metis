@@ -14,6 +14,7 @@ import { readShotChart } from '@main/stats/shotReads'
 import { LEAGUES, threePointLineIn, threePointLineSql } from '@shared/leagues'
 import { splitAnswersIn, splitById, splitPiecesIn } from '@shared/stats/splits'
 import { openTestDb } from '../../fixtures/stats'
+import { slow } from '../../fixtures/timeouts'
 
 /**
  * The WNBA's published tables, plays, shots, splits and on-court tables on fixtures cut from the real
@@ -95,7 +96,7 @@ beforeAll(async () => {
   await buildDerived(db, wnba)
   await buildPublished(db, wnba)
   await buildPlays(db, wnba)
-}, 60_000)
+}, slow(60_000))
 
 type Row = Record<string, unknown>
 const one = async (sql: string, params: unknown[] = []): Promise<Row> =>

@@ -16,6 +16,7 @@ import { BOS, emptySources, LAL, MIA } from '../../../fixtures/boxScores'
 import { addLeague } from '../../../fixtures/models'
 import { openTestDb } from '../../../fixtures/stats'
 import { LEAGUES } from '@shared/leagues'
+import { slow } from '../../../fixtures/timeouts'
 
 let db: StatsDb
 
@@ -111,7 +112,7 @@ describe('the Elo builder', () => {
   it(
     'rates the games still to come with the latest ratings, in the season in progress only',
     {
-      timeout: 30_000
+      timeout: slow(30_000)
     },
     async () => {
       await buildModels(db, 2026, LEAGUES.nba)

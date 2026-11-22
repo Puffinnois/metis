@@ -1,5 +1,6 @@
 import { resolve } from 'path'
 import { defineConfig } from 'vitest/config'
+import { slow } from './tests/fixtures/timeouts'
 
 export default defineConfig({
   resolve: {
@@ -15,6 +16,11 @@ export default defineConfig({
     // Node by default; a component test opts into jsdom with `// @vitest-environment jsdom`.
     environment: 'node',
     include: ['tests/**/*.test.{ts,tsx}'],
+    // Every time limit is scaled in CI, where a shared runner can be several times slower
+    // (`tests/fixtures/timeouts.ts` says what was measured).
+    testTimeout: slow(5_000),
+    hookTimeout: slow(10_000),
+    setupFiles: ['tests/fixtures/setup.ts'],
     // One worker per core rather than per thread: at vitest's default (threads - 1) the DuckDB and
     // jsdom files starve each other and cross the 5 s test timeout, a different few each run.
     maxWorkers: '50%',

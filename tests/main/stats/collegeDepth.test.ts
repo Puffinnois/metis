@@ -29,6 +29,7 @@ import {
 import { EVERY_GAME_ONLY, METRICS, metricIn, playTablesNotBuilt } from '@shared/stats/catalogue'
 import { LINEUP_STORED } from '@shared/stats/lineups'
 import { openTestDb } from '../../fixtures/stats'
+import { slow } from '../../fixtures/timeouts'
 
 /**
  * The college leagues' depth (Plan T1302.6, D40, D41, D44): stats.ncaa.org's shots, lineups, stints and
@@ -72,7 +73,7 @@ let w: StatsDb
 beforeAll(async () => {
   m = await built(men)
   w = await built(women)
-}, 120_000)
+}, slow(120_000))
 
 describe('the recipes', () => {
   it('are one for both leagues: the college plays and published recipes', () => {
@@ -560,28 +561,32 @@ describe('reasons', () => {
     expect(metricIn(detail, men).unavailable).not.toBe(playTablesNotBuilt(men))
   })
 
-  it('build every table with stats.ncaa.org’s releases left out (D41), and say why', async () => {
-    for (const league of [men, women]) {
-      const db = await built(league, 'src_ncaa_')
-      const r = await one(
-        db,
-        `SELECT (SELECT count(*) FROM shot_team_game)::INTEGER AS shots,
+  it(
+    'build every table with stats.ncaa.org’s releases left out (D41), and say why',
+    async () => {
+      for (const league of [men, women]) {
+        const db = await built(league, 'src_ncaa_')
+        const r = await one(
+          db,
+          `SELECT (SELECT count(*) FROM shot_team_game)::INTEGER AS shots,
                 (SELECT count(*) FROM unit_game)::INTEGER AS units,
                 (SELECT count(*) FROM pub_player_ncaa_rapm)::INTEGER AS rapm,
                 (SELECT count(*) FROM pub_team_sdv_ratings)::INTEGER AS ratings,
                 (SELECT count(*) FROM pub_player_sdv_bpm)::INTEGER AS bpm`
-      )
-      expect([r.shots, r.units, r.rapm]).toEqual([0, 0, 0])
-      // ESPN's and SportsDataverse's own tables stay.
-      expect(Number(r.ratings)).toBeGreaterThan(0)
-      expect(Number(r.bpm)).toBeGreaterThan(0)
-      const gap = (id: string): string | null =>
-        leftOutGap(metricIn(METRICS.get(id)!, league), false, NCAA_STATS_RELEASES, league)
-      for (const id of ['sdv_ncaa_rapm', 'sdv_ncaa_team_rapm', 'shot_ra_fga', 'onc_min']) {
-        expect(gap(id), id).toBe(LEFT_OUT_REASON)
+        )
+        expect([r.shots, r.units, r.rapm]).toEqual([0, 0, 0])
+        // ESPN's and SportsDataverse's own tables stay.
+        expect(Number(r.ratings)).toBeGreaterThan(0)
+        expect(Number(r.bpm)).toBeGreaterThan(0)
+        const gap = (id: string): string | null =>
+          leftOutGap(metricIn(METRICS.get(id)!, league), false, NCAA_STATS_RELEASES, league)
+        for (const id of ['sdv_ncaa_rapm', 'sdv_ncaa_team_rapm', 'shot_ra_fga', 'onc_min']) {
+          expect(gap(id), id).toBe(LEFT_OUT_REASON)
+        }
+        for (const id of ['sdv_adj_em', 'sdv_box_bpm', 'pts']) expect(gap(id), id).toBeNull()
+        await db.close()
       }
-      for (const id of ['sdv_adj_em', 'sdv_box_bpm', 'pts']) expect(gap(id), id).toBeNull()
-      await db.close()
-    }
-  }, 120_000)
+    },
+    slow(120_000)
+  )
 })
