@@ -196,10 +196,13 @@ export function createLeagueControl(deps: LeagueControlDeps): LeagueControl {
       return links.otherPlayers(leagueOf(league).id)
     },
     links,
-    close: () =>
-      Promise.allSettled([
+    close: () => {
+      // Before any worker closes, so a links step it interrupts is not taken for a failure.
+      links?.closing()
+      return Promise.allSettled([
         ...[...clients.keys()].map((league) => stopWorker(league)),
         links?.close()
       ])
+    }
   }
 }

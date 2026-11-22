@@ -38,6 +38,11 @@ export interface LinksControl {
   pairedFamilies(league: LeagueId, start: boolean): Promise<StatsFamily[]>
   /** The running worker, for scripts; null when it has not started. */
   running(): LinksClient | null
+  /**
+   * The app is closing: called before any worker closes. A step the close interrupts is expected, so
+   * it is logged as a plain line and not recorded as failed; the next launch's refresh runs it again.
+   */
+  closing(): void
   close(): Promise<void>
 }
 
@@ -49,6 +54,7 @@ export function createLinksControl(deps: LinksControlDeps): LinksControl {
   let ready: Promise<LinksClient> | null = null
   let chain: Promise<unknown> = Promise.resolve()
   let count = 0
+  let shuttingDown = false
 
   // The worker empties its temp folder when it opens, so nothing is handed over before it answers.
   const ensure = (): Promise<LinksClient> => {
@@ -86,6 +92,14 @@ export function createLinksControl(deps: LinksControlDeps): LinksControl {
       }
       return { league, steps, links: await client.counts(league) }
     } catch (err) {
+      // Closing the app stops its workers mid-step: the links file keeps what it had (one transaction
+      // a hand-over), and the next launch's refresh runs the step again.
+      if (shuttingDown) {
+        log(
+          `the ${LEAGUES[league].name}'s links step stopped as the app closed; the next launch runs it`
+        )
+        return null
+      }
       const message = err instanceof Error ? err.message : String(err)
       log(`the ${LEAGUES[league].name}'s links step failed; the next refresh tries again`, err)
       await client.failed(league, message).catch(() => undefined)
@@ -122,7 +136,11 @@ export function createLinksControl(deps: LinksControlDeps): LinksControl {
       return (await ensure()).pairedFamilies(league)
     },
     running: () => links,
+    closing() {
+      shuttingDown = true
+    },
     async close() {
+      shuttingDown = true
       const client = ready ? await ready.catch(() => null) : null
       ready = null
       links = null
