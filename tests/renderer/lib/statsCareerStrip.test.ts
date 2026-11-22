@@ -352,6 +352,24 @@ describe('the strip', () => {
         )
       )
     expect(fromCollege('ready').open).toEqual(profile('1642843'))
+    // A draftee with no NBA game has no NBA page: the row stays text (Richie Saunders, 2026).
+    const unplayed = careerStrip(
+      input({
+        league: LEAGUES.ncaam,
+        player: '5105559',
+        own: otherLines(FLAGG_DUKE, LEAGUES.ncaam),
+        career: career({
+          league: 'nba',
+          link: { method: 'name+college', playerId: '1643600', espnId: null, name: 'R S' },
+          draft: FLAGG_DRAFT,
+          source: null,
+          seasons: []
+        }),
+        otherHolds: 'ready',
+        otherOn: true
+      })
+    )
+    expect(draftOf(unplayed).open).toBeNull()
     // Not downloaded, or still loading: plain text, as the season rows are.
     for (const holds of ['off', 'notBuilt'] as const) {
       expect(fromCollege(holds).open).toBeNull()

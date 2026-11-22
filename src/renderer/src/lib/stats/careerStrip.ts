@@ -330,8 +330,10 @@ export function careerStrip({
   const d = career.draft
   // The draft row opens the draft where the app shows it: the Profile tab of the player's page in the
   // professional league, this page's where it is that league, the other's where that is downloaded
-  // and they have a page there. Elsewhere it stays plain text.
-  const proId = pro.id === league.id ? (player ?? null) : navigable ? otherId : null
+  // and they have a page there: a game in it (a draftee who has not played has no page to open).
+  // Elsewhere it stays plain text.
+  const proId =
+    pro.id === league.id ? (player ?? null) : navigable && theirs.length > 0 ? otherId : null
   const draftOpen: NavLocation | null =
     proId !== null
       ? {
