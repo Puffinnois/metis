@@ -16,6 +16,7 @@ vi.mock('@/lib/api', () => ({
   api: {
     // An existing profile: the first run's question has its answer.
     leagues: {
+      onScreen: vi.fn(async () => undefined),
       downloads: vi.fn().mockResolvedValue({ decided: true, leagues: [], freeBytes: null })
     },
     stats: {

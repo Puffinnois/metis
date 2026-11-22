@@ -46,7 +46,8 @@ const api: Api = {
   leagues: {
     downloads: () => ipcRenderer.invoke(IPC.leagueDownloads),
     setDownloads: (choice) => ipcRenderer.invoke(IPC.leagueSetDownloads, choice),
-    deleteFile: (league) => ipcRenderer.invoke(IPC.leagueDeleteFile, league)
+    deleteFile: (league) => ipcRenderer.invoke(IPC.leagueDeleteFile, league),
+    onScreen: (league) => ipcRenderer.invoke(IPC.leagueOnScreen, league)
   },
   stats: {
     status: (league) => ipcRenderer.invoke(IPC.statsStatus, league),

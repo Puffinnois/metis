@@ -7,6 +7,7 @@ import { migrate } from '@main/db/migrate'
 import { getLeagueSetting } from '@main/db/repos/settings'
 import type { StatsClient } from '@main/stats/client'
 import { createLeagueControl, type LeagueControl } from '@main/stats/leagueControl'
+import type { LinksClient } from '@main/stats/links/protocol'
 import { DOWNLOAD_KEY, leagueDownloads, setLeagueDownloads } from '@main/stats/leagueDownloads'
 import type { LeagueId } from '@shared/leagues'
 import type { LeagueDownload, LeagueDownloads } from '@shared/stats/types'
@@ -105,6 +106,7 @@ function fakeClient(league: LeagueId, calls: string[]): StatsClient {
       calls.push(`refresh ${league}`)
       return { steps: [] }
     }),
+    status: vi.fn(async () => ({ available: true, builtAt: 'b', paused: false, noRoom: null })),
     close: vi.fn(async () => {
       calls.push(`close ${league}`)
     })
@@ -139,39 +141,51 @@ function control(
   return { leagues, calls, changed, db, dataDir }
 }
 
+// A worker opens a tick after it is asked for (`workerPool.ts`).
+const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 0))
+
 describe('the league control', () => {
   it('starts nothing on a clean profile until the first run is answered', async () => {
     const { leagues, calls } = control()
     leagues.open()
+    await flush()
     expect(calls).toEqual([])
     expect(leagues.client('nba')).toBeNull()
     expect((await leagues.reads('wnba').status()).noData).toMatch(/WNBA/)
     await leagues.setDownloads({ nba: true, wnba: true })
-    expect(calls).toEqual(['start nba', 'refresh nba', 'start wnba', 'refresh wnba'])
+    await flush()
+    expect(calls).toEqual(['start nba', 'start wnba', 'refresh nba', 'refresh wnba'])
   })
 
-  it('opens an existing profile’s NBA and downloads nothing for the WNBA', () => {
+  it('opens an existing profile’s NBA and downloads nothing for the WNBA', async () => {
     const { leagues, calls } = control(['stats-nba.duckdb'])
     leagues.open()
+    await flush()
     expect(calls).toEqual(['start nba', 'refresh nba'])
     leagues.refreshAll()
+    await flush()
     expect(calls.filter((c) => c.includes('wnba'))).toEqual([])
   })
 
   it('turns a league off: its refresh stops, and its file stays readable', async () => {
     const { leagues, calls, changed } = control(['stats-nba.duckdb'])
     leagues.open()
+    await flush()
     calls.length = 0
     await leagues.setDownloads({ wnba: true })
+    await flush()
     expect(calls).toEqual(['start wnba', 'refresh wnba'])
     // The WNBA's first load writes its file.
     writeFileSync(join(dir!, 'stats-wnba.duckdb'), 'x')
     calls.length = 0
     await leagues.setDownloads({ wnba: false })
-    // Closed, which interrupts a running refresh, then opened again to read.
-    expect(calls).toEqual(['close wnba', 'start wnba'])
+    // Closed, which interrupts a running refresh; the file stays readable, opened again on a read.
+    expect(calls).toEqual(['close wnba'])
     leagues.refreshAll()
-    expect(calls).toEqual(['close wnba', 'start wnba', 'refresh nba'])
+    await flush()
+    expect(calls).toEqual(['close wnba', 'refresh nba'])
+    await leagues.reads('wnba').status()
+    expect(calls).toEqual(['close wnba', 'refresh nba', 'start wnba'])
     // Told once for each change, besides each refresh's own notice when it ends.
     expect(changed.filter((l) => l === 'wnba').length).toBeGreaterThanOrEqual(2)
   })
@@ -179,6 +193,7 @@ describe('the league control', () => {
   it('deletes a league’s file only once it is off', async () => {
     const { leagues, dataDir, calls } = control(['stats-nba.duckdb', 'stats-wnba.duckdb'])
     leagues.open()
+    await flush()
     await expect(leagues.deleteFile('wnba')).rejects.toThrow('Turn the WNBA off first.')
     await leagues.setDownloads({ wnba: false })
     const after = await leagues.deleteFile('wnba')
@@ -196,8 +211,136 @@ describe('the league control', () => {
   it('says the stats are off for a league whose worker did not start', async () => {
     const { leagues } = control(['stats-nba.duckdb'], ['nba'])
     leagues.open()
+    await flush()
     const status = await leagues.reads('nba').status()
     expect(status.available).toBe(false)
     expect(status.noData).toBeUndefined()
+  })
+})
+
+/**
+ * The league workers through the pool (D22's addition of 2026-11-22): a refresh of a league not on
+ * screen opens its worker and the paired league's for the links step, both close once idle, and a
+ * closed league's status answers without opening it.
+ */
+describe('the league workers, opened for what needs them and closed when idle', () => {
+  function lifecycle(): {
+    leagues: LeagueControl
+    calls: string[]
+    tick: (ms: number) => Promise<void>
+  } {
+    const { db, dataDir } = profile(['stats-nba.duckdb', 'stats-ncaam.duckdb'])
+    setLeagueDownloads(db, { nba: true, ncaam: true })
+    const calls: string[] = []
+    let now = 0
+    let next = 1
+    const timers = new Map<number, { at: number; fn: () => void }>()
+    const tick = async (ms: number): Promise<void> => {
+      now += ms
+      for (const [id, t] of [...timers]) {
+        if (t.at <= now) {
+          timers.delete(id)
+          t.fn()
+        }
+      }
+      for (let i = 0; i < 5; i++) await new Promise((r) => setTimeout(r, 0))
+    }
+    const worker = (league: LeagueId): StatsClient =>
+      ({
+        refresh: async () => {
+          calls.push(`refresh ${league}`)
+          return { steps: [{ rowsWritten: 3 }] }
+        },
+        status: async () => ({
+          available: true,
+          builtAt: `${league} built`,
+          paused: false,
+          noRoom: null
+        }),
+        linkSide: async () => {
+          calls.push(`linkSide ${league}`)
+          return null
+        },
+        linkLines: async () => {
+          calls.push(`linkLines ${league}`)
+          return null
+        },
+        catalogue: async () => [],
+        close: async () => void calls.push(`close ${league}`)
+      }) as unknown as StatsClient
+    const links = {
+      ping: async () => undefined,
+      refreshPaired: async () => [],
+      ingestSide: async () => undefined,
+      ingestLines: async () => undefined,
+      linkedIds: async () => [1],
+      counts: async () => ({}),
+      failed: async () => undefined,
+      close: async () => void calls.push('close links')
+    } as unknown as LinksClient
+    const leagues = createLeagueControl({
+      db,
+      dataDir,
+      start: (league) => {
+        calls.push(`start ${league}`)
+        return worker(league)
+      },
+      startLinks: () => {
+        calls.push('start links')
+        return links
+      },
+      onChanged: () => {},
+      free,
+      log: () => {},
+      idleMs: 60_000,
+      setTimer: (fn, ms) => {
+        const id = next++
+        timers.set(id, { at: now + ms, fn })
+        return id
+      },
+      clearTimer: (t) => void timers.delete(t as number)
+    })
+    return { leagues, calls, tick }
+  }
+
+  it('opens a league not on screen for its refresh and the paired league for the links step, then closes them', async () => {
+    const { leagues, calls, tick } = lifecycle()
+    leagues.onScreen('wnba')
+    leagues.refresh('nba')
+    await tick(0)
+    expect(calls).toEqual([
+      'start nba',
+      'refresh nba',
+      'start links',
+      'linkSide nba',
+      'start ncaam',
+      'linkLines ncaam',
+      'linkLines nba'
+    ])
+    await tick(60_000)
+    expect(calls.slice(-3).sort()).toEqual(['close links', 'close nba', 'close ncaam'])
+    expect(leagues.client('nba')).toBeNull()
+    // Its status, kept as it closed, answers without opening it.
+    calls.length = 0
+    expect((await leagues.reads('nba').status()).builtAt).toBe('nba built')
+    expect(calls).toEqual([])
+    // Any other read opens it again.
+    await leagues.reads('nba').catalogue()
+    expect(calls).toEqual(['start nba'])
+  })
+
+  it('keeps the league on screen open until a refresh writes rows, then reopens it on the next read', async () => {
+    const { leagues, calls, tick } = lifecycle()
+    leagues.onScreen('ncaam')
+    await leagues.reads('ncaam').status()
+    await tick(120_000)
+    expect(leagues.client('ncaam')).not.toBeNull()
+    leagues.refresh('ncaam')
+    await tick(0)
+    await tick(60_000)
+    expect(calls).toContain('close ncaam')
+    expect(leagues.client('ncaam')).toBeNull()
+    await leagues.reads('ncaam').catalogue()
+    expect(calls.at(-1)).toBe('start ncaam')
   })
 })

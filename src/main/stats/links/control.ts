@@ -12,11 +12,18 @@ export interface LinksControlDeps {
   tempDir: string
   /** Starts the links worker; throws when it cannot. */
   start: () => LinksClient
-  /** A league's worker, when it has one. */
-  client: (league: LeagueId) => StatsClient | null
+  /** A league's worker, opened for the step if it has a file; null when it has none. */
+  client: (league: LeagueId) => StatsClient | null | Promise<StatsClient | null>
   log?: (message: string, err?: unknown) => void
   /** Names each hand-over; tests pass their own. */
   now?: () => number
+  /**
+   * How long the links worker stays open with no step or read before it closes, giving its memory
+   * back (D22's addition of 2026-11-22); absent, it stays open. Tests pass their own timers.
+   */
+  idleMs?: number
+  setTimer?: (fn: () => void, ms: number) => unknown
+  clearTimer?: (timer: unknown) => void
 }
 
 /**
@@ -55,10 +62,49 @@ export function createLinksControl(deps: LinksControlDeps): LinksControl {
   let chain: Promise<unknown> = Promise.resolve()
   let count = 0
   let shuttingDown = false
+  // Steps and reads in flight; the worker closes once none has run for `idleMs`.
+  let active = 0
+  let timer: unknown
+  let closingIdle: Promise<void> | null = null
+  const setTimer = deps.setTimer ?? ((fn, ms) => setTimeout(fn, ms))
+  const clearTimer = deps.clearTimer ?? ((t) => clearTimeout(t as ReturnType<typeof setTimeout>))
+
+  const closeIdle = async (): Promise<void> => {
+    timer = undefined
+    if (active > 0 || shuttingDown || !ready) return
+    const client = await ready.catch(() => null)
+    if (active > 0 || shuttingDown) return
+    ready = null
+    links = null
+    // One worker opens the links file at a time: the next open waits for this close (rule 3).
+    closingIdle = (client?.close() ?? Promise.resolve()).catch((err) =>
+      log('closing the links worker failed', err)
+    )
+    await closingIdle
+    closingIdle = null
+  }
+  const scheduleIdle = (): void => {
+    if (timer !== undefined) clearTimer(timer)
+    timer = undefined
+    if (deps.idleMs === undefined || active > 0 || shuttingDown || !ready) return
+    timer = setTimer(() => void closeIdle(), deps.idleMs)
+  }
+  const busy = async <T>(fn: () => Promise<T>): Promise<T> => {
+    active++
+    if (timer !== undefined) clearTimer(timer)
+    timer = undefined
+    try {
+      return await fn()
+    } finally {
+      active--
+      scheduleIdle()
+    }
+  }
 
   // The worker empties its temp folder when it opens, so nothing is handed over before it answers.
   const ensure = (): Promise<LinksClient> => {
     ready ??= (async () => {
+      if (closingIdle) await closingIdle
       const client = deps.start()
       try {
         await client.ping()
@@ -74,7 +120,7 @@ export function createLinksControl(deps: LinksControlDeps): LinksControl {
 
   const step = async (league: LeagueId): Promise<LinksStepResult | null> => {
     const pair = pairOf(league)
-    const own = deps.client(league)
+    const own = await deps.client(league)
     if (!pair || !own) return null
     const client = await ensure()
     const dir = handoverDir(deps.tempDir)
@@ -84,7 +130,7 @@ export function createLinksControl(deps: LinksControlDeps): LinksControl {
       const side = await own.linkSide(dir, tag)
       if (side) await client.ingestSide(side)
       for (const each of [pair.college, pair.pro]) {
-        const worker = deps.client(each)
+        const worker = await deps.client(each)
         if (!worker) continue
         const ids = await client.linkedIds(each)
         const lines = await worker.linkLines(ids, dir, `${tag}-lines`)
@@ -109,18 +155,18 @@ export function createLinksControl(deps: LinksControlDeps): LinksControl {
 
   return {
     afterRefresh(league) {
-      const run = chain.then(() => step(league))
+      const run = chain.then(() => busy(() => step(league)))
       chain = run.catch(() => undefined)
       return run.catch((err) => {
         log(`the links worker could not start`, err)
         return null
       })
     },
-    async otherCareer(league, player) {
-      return (await ensure()).otherCareer(league, player)
+    otherCareer(league, player) {
+      return busy(async () => (await ensure()).otherCareer(league, player))
     },
-    async otherPlayers(league) {
-      return (await ensure()).otherPlayers(league)
+    otherPlayers(league) {
+      return busy(async () => (await ensure()).otherPlayers(league))
     },
     async pairedFamilies(league, start) {
       const other = pairedLeague(league)
@@ -133,7 +179,7 @@ export function createLinksControl(deps: LinksControlDeps): LinksControl {
           new Map()
         )
       }
-      return (await ensure()).pairedFamilies(league)
+      return busy(async () => (await ensure()).pairedFamilies(league))
     },
     running: () => links,
     closing() {
@@ -141,6 +187,9 @@ export function createLinksControl(deps: LinksControlDeps): LinksControl {
     },
     async close() {
       shuttingDown = true
+      if (timer !== undefined) clearTimer(timer)
+      timer = undefined
+      if (closingIdle) await closingIdle
       const client = ready ? await ready.catch(() => null) : null
       ready = null
       links = null

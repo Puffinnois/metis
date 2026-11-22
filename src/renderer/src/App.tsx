@@ -20,6 +20,11 @@ export default function App(): React.JSX.Element {
   const [, toggleTheme] = useTheme()
   // The shell is built for the league on screen, and again for each league switched to (D35).
   const league = useLeague()
+  // The main process keeps the league on screen's stats worker open and closes the others once idle
+  // (D22's addition of 2026-11-22).
+  useEffect(() => {
+    void api.leagues.onScreen(league.id).catch(() => undefined)
+  }, [league.id])
   // Each league's session, kept here above the shell for when the league is back on screen.
   const [sessions] = useState(createSessionStore)
   const [focus, setFocus] = useState<StatsFocus | null>(null)
