@@ -403,6 +403,8 @@ Every run's log holds no error (WSL's GPU line aside): the two pair runs, the re
 | The WNBA alone          | 144       | 0                      | 45                              | 189   |
 | The WNBA and NCAA Women | 144       | 0                      | 46                              | 190   |
 
+At the Stage 13 gate (2026-11-22), one clean profile loaded the four leagues through the app in turn (the NBA, the WNBA, NCAA Men, NCAA Women) and its links step gave the same four rows, in that order: 386, 189, 389 and 190, each step 0.1 to 0.4 s after its league's refresh ended (Plan, Stage 13 gate).
+
 **The links step inside the app, after each league's refresh** (from the links file's `sync_log` and the league's own):
 
 | After the refresh of              | Step began after the refresh ended    | Step took | Of which, the paired files                    |

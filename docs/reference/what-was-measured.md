@@ -4,7 +4,7 @@ The headline numbers, each with its date and where it came from. The detail is i
 
 ## The first load
 
-A first load downloads every file the dataset publishes, builds the tables and computes the models. The latest full measurement is the Stage 10 gate, 2026-11-14, on the built app through the real window, from a clean profile (Plan, Stage 10).
+A first load downloads every file the dataset publishes, builds the tables and computes the models. The latest full measurement of the NBA alone is the Stage 10 gate, 2026-11-14, on the built app through the real window, from a clean profile (Plan, Stage 10); of all four leagues, the Stage 13 gate, 2026-11-22 (below).
 
 | What                    | Measured                                                                                                                                  | Where                                              |
 | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
@@ -35,6 +35,22 @@ A first load of each league on one clean folder, one after the other, through th
 | Build steps   | game tables 13.4 s, published 14.0 s, plays 425 s, models 199 s                     | identity and game tables twice (the late identity rebuild, 0.3 and 7.3 s in all), published 1.9 s, plays 93 s, models 47 s |
 
 The WNBA's late identity rebuild (T1301.7: its overtimes before 2002 read from the play by play, a later tier) ran on this first load as it did in a refresh: every one of the 1,022 regular-season and playoff games of 1997 to 2001 has its overtimes, 63 of them in overtime.
+
+### Four leagues, from nothing, through the window (Stage 13 gate)
+
+The built app on a clean profile (`~/.cache/metis-dev/gate13b`, kept), 2026-11-22, driven through its own window (`scripts/stage13-first-load-steps.json`): the first-run question answered with the NBA alone, then the WNBA, NCAA Men and NCAA Women each turned on in the Data panel once the one before had finished. NCAA Women's load was stopped with 67 of 185 files in (the app killed) and finished after a relaunch (`stage13-resume-steps.json`). Memory is summed over the app's processes, sampled every 10 seconds; with each league loaded, its stats worker stays open in the main process.
+
+| What                    | NBA                                                               | WNBA                                                                               | NCAA Men                                                   | NCAA Women                                                 |
+| ----------------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ---------------------------------------------------------- | ---------------------------------------------------------- |
+| Files                   | 3,027 of 3,027, none failed                                       | 1,492 of 1,492, none failed                                                        | 184 of 184, none failed                                    | 183 of 183, none failed                                    |
+| Download (as published) | 1,661 MB                                                          | 308 MB                                                                             | 805 MB                                                     | 754 MB                                                     |
+| Time                    | 25.6 minutes                                                      | 6.1 minutes                                                                        | 17.5 minutes                                               | 0.6 minutes, then 16.2 after the relaunch (118 left)       |
+| Database file           | 5.33 GB (5,329,661,952 bytes)                                     | 851 MB (851,193,856 bytes)                                                         | 4.31 GB (4,307,824,640 bytes)                              | 4.08 GB (4,080,807,936 bytes)                              |
+| Peak memory             | 2.40 GB (2.14 the main process)                                   | 3.04 GB (2.77)                                                                     | **4.77 GB (4.50)**, the NBA and WNBA open                  | 3.34 GB (3.11), after the relaunch                         |
+| Build steps             | game tables 22 s, published 6 and 11 s, plays 436 s, models 162 s | identity and game tables twice (3 and 4 s), published 2 s, plays 99 s, models 41 s | identity 26 s, game tables 72 s, plays 374 s, models 203 s | identity 24 s, game tables 63 s, plays 379 s, models 195 s |
+| Links step after it     | 386 links (377 by id, 9 by name and college)                      | 189 (144, 45)                                                                      | 389 (378, 2 by name and birth date, 9)                     | 190 (144, 46)                                              |
+
+All four files and the links file came to 14.66 GB. **NCAA Men's peak is past D22's 4 GB of process memory**: T1302.9 measured 2.98 GB loading the college leagues alone; here the NBA's and WNBA's workers were already open in the same process. Loaded alone after a relaunch, NCAA Women peaked at 3.34 GB. A restart then opened every league at once (a leaderboard 30 ms after the page was ready), downloaded nothing (each league tried within the day) and peaked at 1.07 GB; the links step ran after each league's launch refresh, every count unchanged. A forced refresh of each league (`scripts/load-report.mjs --force`) tried only open seasons: the NBA 178 of its files in 0.7 minutes (136 ok, 42 not published yet, 45 unchanged), the WNBA 8 (all unchanged), NCAA Men 43 in 2 minutes and NCAA Women 39, sealed seasons untouched (2,883, 1,472, 142 and 140 files sealed).
 
 ### On Windows
 
@@ -103,11 +119,15 @@ The budget: a click to its table on screen in under 500 ms on the full database,
 | Clicks in the window, on a quiet machine                        | 48 to 453                        |
 | Clicks during the models step's heaviest minute of a first load | Up to 674 (the player dashboard) |
 
+At the Stage 13 gate, 2026-11-22, `scripts/engine-speed.mjs` on the four-league load: NCAA Men's 2025-26 worst read 465 ms (by opponent; 40 columns 229 ms median) and NCAA Women's 457 ms (447; 217), inside the budget as at T1302.9 (454 and 440); the NBA's worst 547 ms on a second run (753 on the first) and the WNBA's 466 (851), each the first read of a fresh worker, whose median is 126 and 79 ms; the NBA's 40 columns 420 ms median.
+
 One click read over 500 ms outside a load: Shrunk rates on the player board, 579 ms in the full scripted run, each turn of the toggle being a new query of the board's sixteen columns. The play-level reads of Stage 9 are 63 to 322 ms from a click (Plan T907, 2026-11-13). Every screen's numbers, stage by stage, are in [stats-screens.md](stats-screens.md), "Speed"; `scripts/engine-speed.mjs` times the engine on a real load.
 
 ## Agreement with the sources
 
 How far the numbers agree with what the sources publish, per season. Each line names its tolerance. The full tables are in [nba-agreement.md](nba-agreement.md) (written by `scripts/check-agreement.mjs`), [nba-plays-agreement.md](nba-plays-agreement.md) (written by `scripts/check-plays.mjs` on 2026-11-13) and [nba-data-sources.md](nba-data-sources.md). At the Stage 10 gate the agreement report found no problems across 34 seasons.
+
+**At the Stage 13 gate** (2026-11-22, the four-league load above): `scripts/check-agreement.mjs` found 0 problems for the NBA (34 seasons) and 0 wrong for the WNBA, NCAA Men and NCAA Women; the NCAA record books' champions are the app's leaders in 53 of 55 men's and 58 of 60 women's category-seasons, every difference a stated one ([ncaa-agreement.md](ncaa-agreement.md)); the college models check as at T1302.8 (Elo's Brier 0.1855 and 0.1600). The NBA's and WNBA's sealed seasons are unchanged by the college and link work: every season's player-game count and sums (points, rebounds, assists, field goals, threes), team-game count and points, top scorers and game count equal the Stage 12 gate's load (`gate13`, 2026-11-18). The links equal the research's, pair for pair and method for method ([player-links.md](player-links.md)).
 
 **Box scores and seasons (Stages 4 to 6)**
 
