@@ -127,6 +127,51 @@ describe('the box scores', () => {
       expect([r.source, r.pts, r.players]).toEqual(['ncaa', r.ncaa_pts, r.ncaa_pts])
   })
 
+  it('reads a game from one source when ESPN files both sides’ players under one team', async () => {
+    // NCAA Women's Lamar against Texas College (2023-11-08): ESPN listed all 25 players as Lamar's and
+    // had no line for Texas College, whose 12 stats.ncaa.org lines were then read too, so those 12 were
+    // counted twice, under both teams. Here a fixture game both sources cover is given ESPN's mistake.
+    const db = await openTestDb()
+    await load(db, women)
+    await buildIdentity(db, women)
+    await buildDerived(db, women)
+    const game = await one(
+      db,
+      `SELECT g.game_id, g.espn_game_id, g.home_team_id, g.away_team_id FROM game g
+       WHERE g.source = 'espn' AND g.played AND g.game_id IN (
+         SELECT game_id FROM player_game WHERE source = 'espn' AND ncaa_seconds IS NOT NULL
+         GROUP BY 1 HAVING count(DISTINCT team_id) = 2)
+       ORDER BY g.game_id LIMIT 1`
+    )
+    expect(game.game_id).toBeTruthy()
+    await db.exec(`UPDATE src_espn_player_box SET home_away = 'home' WHERE game_id = ?`, [
+      game.espn_game_id as number
+    ])
+    await buildDerived(db, women)
+    const twice = await one(
+      db,
+      `SELECT count(*)::INTEGER AS n FROM (
+         SELECT game_id, player_id FROM player_game GROUP BY 1, 2 HAVING count(*) > 1)`
+    )
+    expect(twice.n).toBe(0)
+    const sides = await db.all<Row>(
+      `SELECT p.team_id, min(p.source) AS source, max(p.source) AS last, sum(p.pts)::INTEGER AS players,
+              max(t.pts)::INTEGER AS team
+       FROM player_game p JOIN team_game t USING (game_id, team_id)
+       WHERE p.game_id = ? GROUP BY 1 ORDER BY 1`,
+      [game.game_id as string]
+    )
+    // Both teams, every line stats.ncaa.org's, each team's players adding up to its own score.
+    expect(sides.map((s) => s.team_id).sort()).toEqual(
+      [game.home_team_id, game.away_team_id].sort()
+    )
+    for (const s of sides) {
+      expect([s.source, s.last]).toEqual(['ncaa', 'ncaa'])
+      expect(s.players).toBe(s.team)
+    }
+    db.close()
+  }, 60_000)
+
   it('reads ESPN’s team box for a team’s counts, which hold the team rebounds and turnovers', async () => {
     for (const db of [m, w]) {
       const r = await one(
