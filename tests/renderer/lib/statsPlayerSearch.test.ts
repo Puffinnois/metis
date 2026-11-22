@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { hiddenNote, INDEX_ROWS, moreRows, moreTarget, playerIndex } from '@/lib/stats/playerSearch'
+import {
+  hiddenNote,
+  INDEX_ROWS,
+  moreRows,
+  moreTarget,
+  playerIndex,
+  railCount
+} from '@/lib/stats/playerSearch'
 import { LEAGUES } from '@shared/leagues'
 import type { StatsIndexedPlayer } from '@shared/stats/types'
 
@@ -63,6 +70,32 @@ describe('the search beyond the ranked rows (T1304.5)', () => {
     expect(hidden).toBe(7)
     expect(hiddenNote(hidden)).toBe('7 more. Type more of the name.')
     expect(hiddenNote(0)).toBeNull()
+  })
+})
+
+describe('the rail’s count line', () => {
+  it('reads as it always has with ranked rows alone', () => {
+    expect(railCount(24, 0, null, 'Whole season')).toBe('24 PLAYERS · WHOLE SEASON')
+    expect(railCount(3, 0, 'BOS', 'Last 10 games')).toBe('3 PLAYERS · BOS · LAST 10 GAMES')
+    expect(railCount(0, 0, null, 'Whole season')).toBe('0 PLAYERS · WHOLE SEASON')
+  })
+
+  it('never reads 0 over a list: it counts the rows found beyond the ranked ones', () => {
+    expect(railCount(0, 5, null, 'Whole season')).toBe('5 PLAYERS · NOT RANKED')
+    expect(railCount(0, 1, 'BOS', 'Whole season')).toBe('1 PLAYER · NOT RANKED')
+    expect(railCount(2, 3, null, 'Whole season')).toBe('2 RANKED · 3 MORE')
+  })
+
+  it('stays short enough for one line of the rail', () => {
+    // The rail's line holds about 38 characters beside the metric at 11 px mono; it is set to
+    // truncate rather than wrap, and these never reach it.
+    for (const line of [
+      railCount(999, 0, 'BOS', 'Whole season'),
+      railCount(0, 99, null, 'Whole season'),
+      railCount(999, 99, null, 'Whole season')
+    ]) {
+      expect(line.length).toBeLessThanOrEqual(32)
+    }
   })
 })
 

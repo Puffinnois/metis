@@ -80,6 +80,23 @@ export function moreRows(
   return { rows, hidden }
 }
 
+/**
+ * The rail's count line, which counts what is listed and says what it is. With ranked rows alone, the
+ * line as it has always read ("24 PLAYERS · BOS · WHOLE SEASON"); with rows found beyond them (the
+ * league's unranked players, the paired league's), never "0" over a list: "2 RANKED · 3 MORE", or
+ * "3 PLAYERS · NOT RANKED" where none of them is ranked. Upper case, as the line is set.
+ */
+export function railCount(
+  ranked: number,
+  more: number,
+  team: string | null | undefined,
+  range: string
+): string {
+  if (more === 0) return `${ranked} PLAYERS · ${team ? `${team} · ` : ''}${range.toUpperCase()}`
+  if (ranked === 0) return `${more} ${more === 1 ? 'PLAYER' : 'PLAYERS'} · NOT RANKED`
+  return `${ranked} RANKED · ${more} MORE`
+}
+
 /** The count under the rows when there are more than are listed. */
 export function hiddenNote(hidden: number): string | null {
   return hidden > 0 ? `${hidden} more. Type more of the name.` : null

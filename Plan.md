@@ -325,6 +325,7 @@ Set by the owner on 2026-11-17: stats from the leagues already researched, one t
     - **The league menu with the link arriving while it is open:** unit-tested (the same item, its second line changing in place, its height class kept); not driven.
     - **Reads:** a player's other career 23 to 26 ms through the IPC; the player index 44 ms for the NBA, 214 ms for NCAA Men.
     - **The Windows package:** CI's package check on `check/player-link-every-state` passed. No installer was run.
+    - **After the manager's review:** the rail's count line counts what is listed and never reads 0 over a list ("3 RANKED · 2 MORE", "5 PLAYERS · NOT RANKED"; as before with ranked rows alone). Back after a move to another season or league returns to the page as it was left, its season, season type and range included (the manager's decision of 2026-11-21): the page carries its scope in the nav history, kept only for a page left by such a move. Driven (`t1304e-back-steps.json`): Kobe Bryant (2015-16) from Flagg's page, Back to Flagg in 2026-27; the strip's row to NCAA Men and back, and from Bueckers's NCAA Women page on its regular season to her WNBA 2025 row and back to that page and type, then back to her WNBA 2026; the menu's move and back on both pairs; a plain Back unchanged, the season changed on the page after a move from the rail kept as before.
     - The app log holds no error on any run (WSL's GPU line aside).
 
 ## Stage 14: Metis's own measurements

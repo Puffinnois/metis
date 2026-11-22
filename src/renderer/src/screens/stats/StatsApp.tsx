@@ -132,6 +132,7 @@ export function StatsApp({
   // A season asked for with a page opened from another (a strip's row): applied once the league's
   // seasons are read, so the type it falls back to is that season's own.
   const [askedSeason, setAskedSeason] = useState<number | null>(null)
+  const [askedScope, setAskedScope] = useState<StatsScope | null>(null)
   if (focus && focus.nonce !== focused && focus.location.league === league) {
     setFocused(focus.nonce)
     setScreen(focus.location.screen)
@@ -140,11 +141,17 @@ export function StatsApp({
     if (focus.location.game) setGames({ date: null, game: focus.location.game })
     if (focus.location.season !== undefined) setAskedSeason(focus.location.season)
     if (focus.location.playerTab) setPlayerTab(focus.location.playerTab)
+    // Back to a page left by a move to another season or league: the scope it was left in.
+    if (focus.location.scope) setAskedScope(focus.location.scope)
   }
   useEffect(() => {
     if (focus && focus.nonce === focused) onFocused?.()
   }, [focus, focused, onFocused])
   const [chosen, setChosen] = useState<StatsScope | null>(kept.chosen)
+  if (askedScope !== null) {
+    setAskedScope(null)
+    setChosen(askedScope)
+  }
   const scope = chosen ?? defaultScope(data.seasons, data.status)
   if (askedSeason !== null && data.seasons.length > 0) {
     setAskedSeason(null)
@@ -241,11 +248,19 @@ export function StatsApp({
   const locationPlayer = screen === 'player' ? shownPlayer : null
   const locationTeam = screen === 'team' ? shownTeam : null
   const locationGame = screen === 'games' ? games.game : null
+  // The scope goes with each page, so a page left by a move to another season or league can be shown
+  // again as it was; a change of scope alone is no new page (`lib/navHistory.ts`).
+  const scopeKey = JSON.stringify(scope)
   useEffect(() => {
-    onLocation?.(
-      locationOf(league, screen, { player: locationPlayer, team: locationTeam, game: locationGame })
-    )
-  }, [league, screen, locationPlayer, locationTeam, locationGame, onLocation])
+    onLocation?.({
+      ...locationOf(league, screen, {
+        player: locationPlayer,
+        team: locationTeam,
+        game: locationGame
+      }),
+      scope: JSON.parse(scopeKey) as StatsScope
+    })
+  }, [league, screen, locationPlayer, locationTeam, locationGame, scopeKey, onLocation])
 
   useNoteScreen(screen)
 

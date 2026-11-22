@@ -4,7 +4,13 @@ import { StatsSelect } from '@/components/stats/controls'
 import type { Heat } from '@/lib/stats/format'
 import type { OtherRow } from '@/lib/stats/otherPlayers'
 import { RAIL_POSITIONS, railMetrics, type RailPosition, type RailRow } from '@/lib/stats/player'
-import { hiddenNote, MORE_HEADING, type MoreRow, type MoreRows } from '@/lib/stats/playerSearch'
+import {
+  hiddenNote,
+  MORE_HEADING,
+  railCount,
+  type MoreRow,
+  type MoreRows
+} from '@/lib/stats/playerSearch'
 import { cn, scrollToNearest } from '@/lib/utils'
 import type { MetricInfo, StatsTeam } from '@shared/stats/types'
 
@@ -225,12 +231,13 @@ export function PlayerRail({
           />
         </div>
       </div>
-      <div className="flex shrink-0 justify-between border-b border-line-2 px-3.5 py-2 font-mono text-[11px] leading-none text-fg-3">
-        <span>
-          {shownRows.length} PLAYERS · {code ? `${code} · ` : ''}
-          {range.toUpperCase()}
+      <div className="flex shrink-0 justify-between gap-3 border-b border-line-2 px-3.5 py-2 font-mono text-[11px] leading-none text-fg-3">
+        {/* One line that never wraps: it counts what is listed, the rows found beyond the ranked
+            ones included, so it never reads 0 over a list. */}
+        <span className="min-w-0 truncate whitespace-nowrap">
+          {railCount(shownRows.length, found.rows.length + otherRows.length, code, range)}
         </span>
-        <span>{byId.get(metric)?.short ?? ''}</span>
+        <span className="shrink-0">{byId.get(metric)?.short ?? ''}</span>
       </div>
       <div className="min-h-0 flex-1 overflow-auto [scrollbar-width:thin]">
         {error && <div className="px-3.5 py-6 text-[12.5px] text-bad">{error}</div>}

@@ -423,10 +423,83 @@ const nbaRemoved = [
   idle('nba', 600000)
 ]
 
+// Back after a move to another season or league returns to the page as it was left, its scope
+// included; a plain Back is as it always was. Also the rail's count line over found rows.
+const back = run(`const s = await goBack(); return { ...s, strip: undefined }`)
+const stripTo = (start) =>
+  run(
+    `const r = stripRow(${JSON.stringify(start)}); if (!r) return 'NO ROW ' + ${JSON.stringify(start)}; r.click(); await sleep(3000); await until(() => careerTable(), 20000); await sleep(800); return { ...state(), strip: undefined }`
+  )
+const backSteps = [
+  { size: [1500, 950] },
+  { wait: 9000 },
+  ev(HELPERS),
+  pause(['nba', 'wnba', 'ncaam', 'ncaaw']),
+  // A plain Back: Flagg, then LeBron James from the rail in the same season, then Back: Flagg in
+  // 2026-27 as before. Then LeBron again, his season changed to 2025-26 on his page, then Back:
+  // Flagg in 2025-26, the scope as it was left, as Back has always done.
+  open('NBA', 2027, 'Cooper Flagg'),
+  open('NBA', 2027, 'LeBron James'),
+  back,
+  open('NBA', 2027, 'LeBron James'),
+  run(
+    `await setSelect('Season', 2026); await sleep(1500); return { ...state(), strip: undefined }`
+  ),
+  back,
+  // The search into another season: Kobe Bryant (2015-16) from Flagg's page in 2026-27, then Back.
+  open('NBA', 2027, 'Cooper Flagg'),
+  run(`await setSelect('Season type', 'regular'); return { ...state(), strip: undefined }`),
+  search('Kobe'),
+  run('return { count: count() }'),
+  shot('r-01-nba-kobe-count'),
+  openMore('Open Kobe Bryant', 'Bryant'),
+  run('return { ...state(), strip: undefined }'),
+  back,
+  shot('r-02-nba-back-from-kobe'),
+  clear,
+  // The strip's row to the other league, then Back, both pairs.
+  open('NBA', 2027, 'Cooper Flagg'),
+  run('await linkIn(); return { ...state(), strip: undefined }'),
+  stripTo('Open Cooper Flagg’s NCAA Men page'),
+  back,
+  open('WNBA', 2026, 'Paige Bueckers'),
+  run('await linkIn(); return { ...state(), strip: undefined }'),
+  stripTo('Open Paige Bueckers’s NCAA Women page, 2024-25'),
+  // On the college page, its season type changed before the move back to the WNBA and Back again.
+  run(
+    `await setSelect('Season type', 'regular'); await linkIn(); return { ...state(), strip: undefined }`
+  ),
+  stripTo('Open Paige Bueckers’s WNBA page, 2025'),
+  back,
+  back,
+  // The league menu's move, then Back, both pairs.
+  open('NBA', 2027, 'Cooper Flagg'),
+  run('await linkIn(); return pick("NCAA Men")'),
+  back,
+  open('WNBA', 2026, 'Paige Bueckers'),
+  run('await linkIn(); return pick("NCAA Women")'),
+  back,
+  shot('r-03-wnba-back-from-menu-move'),
+  // The count line: no ranked row, and the paired league's row alone.
+  run(
+    `await switchTo('NCAA Men'); await nav('Players'); await setSelect('Season', 2026); return state()`
+  ),
+  search('Flagg'),
+  run('return { count: count() }'),
+  shot('r-04-ncaam-flagg-count'),
+  clear,
+  run(`await switchTo('NBA'); await nav('Players'); return state()`),
+  search('saunders'),
+  run('return { count: count() }'),
+  shot('r-05-nba-saunders-count'),
+  clear
+]
+
 const write = (name, steps) => writeFileSync(join(out, name), JSON.stringify(steps, null, 2) + '\n')
 write('t1304e-search-steps.json', searchSteps)
 write('t1304e-timing-steps.json', timing)
 write('t1304e-nba-steps.json', nba)
 write('t1304e-wnba-steps.json', wnba)
 write('t1304e-nba-removed-steps.json', nbaRemoved)
+write('t1304e-back-steps.json', backSteps)
 console.log('written', searchSteps.length, timing.length, nba.length, wnba.length, 'steps')

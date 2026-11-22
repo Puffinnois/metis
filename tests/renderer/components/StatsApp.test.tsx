@@ -70,12 +70,15 @@ describe('the shell', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Games' }))
     expect(screen.getByRole('heading', { name: 'Games' })).toBeTruthy()
     await waitFor(() =>
-      expect(onLocation).toHaveBeenLastCalledWith({
-        league: 'nba',
-        screen: 'games',
-        team: null,
-        player: null
-      })
+      expect(onLocation).toHaveBeenLastCalledWith(
+        // The page; its scope goes with it, for Back after a move to another season (T1304.5).
+        expect.objectContaining({
+          league: 'nba',
+          screen: 'games',
+          team: null,
+          player: null
+        })
+      )
     )
   })
 
@@ -212,12 +215,15 @@ describe('the league menu', () => {
     expect(screen.getByRole('button', { name: 'League: WNBA' })).toBeTruthy()
     expect(await screen.findByRole('button', { name: TURN_ON.label })).toBeTruthy()
     await waitFor(() =>
-      expect(onLocation).toHaveBeenLastCalledWith({
-        league: 'wnba',
-        screen: 'games',
-        team: null,
-        player: null
-      })
+      expect(onLocation).toHaveBeenLastCalledWith(
+        // The page; its scope goes with it, for Back after a move to another season (T1304.5).
+        expect.objectContaining({
+          league: 'wnba',
+          screen: 'games',
+          team: null,
+          player: null
+        })
+      )
     )
     expect(localStorage.getItem('metis.league')).toBe('wnba')
 
