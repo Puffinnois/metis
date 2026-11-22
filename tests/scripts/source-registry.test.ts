@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import { SOURCES_BY_LEAGUE } from '../../src/main/stats/sources'
-// @ts-expect-error: a plain script module with no types
 import { loadSourceRegistry } from '../../scripts/lib/source-registry.mjs'
 
 // The measuring scripts (load-report.mjs, check-source-rows.mjs) read the source registry under plain
