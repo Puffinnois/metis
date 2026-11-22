@@ -139,3 +139,40 @@ if (!dybantsa.eval.includes('/25\\.5/')) throw new Error('the Dybantsa check was
 const steps = [size, wait, settle, ...pro, cSize, cWait, ...college, ...links]
 writeFileSync(join(DIR, 'stage13-every-screen-steps.json'), JSON.stringify(steps, null, 1) + '\n')
 console.log(`stage13-every-screen-steps.json: ${steps.length} steps`)
+
+// Switching league on a profile holding all four, timed from the menu's pick to the new league's first
+// leaderboard rows: three rounds straight after one another (warm), then three each after a wait
+// longer than the idle delay a league's worker closes after (cold, D22's addition of 2026-11-22). The
+// home screen is shown first, so every switch lands on the leaderboards.
+const IDLE_WAIT_MS = 75_000
+const SWITCH = `
+window.boardRows = () => [...document.querySelectorAll('main section button')].filter((b) => !b.textContent.includes('All →')).length;
+window.timedSwitch = async (name) => { const t0 = performance.now(); if (!(await openMenu())) return { name, error: 'NO MENU' }; const item = items().find((x) => x.textContent.startsWith(name)); if (!item) return { name, error: 'NO ITEM' }; item.click(); await until(() => league() === name, 10000); await until(() => boardRows() > 2, 20000); const ms = Math.round(performance.now() - t0); const errors = [...document.querySelectorAll('main [role=alert]')].map((x) => x.textContent).filter(Boolean); return { name, ms, rows: boardRows(), errors } };
+window.switchTimes = [];
+'switch helpers ready'`
+const ORDER = ['WNBA', 'NCAA Men', 'NCAA Women', 'NBA']
+const timed = (kind, name) =>
+  ev(
+    `(async () => { const r = await timedSwitch(${JSON.stringify(name)}); r.kind = ${JSON.stringify(kind)}; switchTimes.push(r); return check(${JSON.stringify(`${kind}: ${name} answers after a switch`)}, !r.error && r.rows > 2 && r.errors.length === 0, r) })()`
+  )
+const switching = [
+  { size: [1500, 950] },
+  { wait: 6000 },
+  settle,
+  ev(HELPERS),
+  ev(EXTRA),
+  ev(SWITCH),
+  ev(
+    `(async () => { await switchTo('NBA'); await nav('Leaderboards'); await sleep(3000); return 'on the NBA leaderboards' })()`
+  ),
+  ...[1, 2, 3].flatMap(() => ORDER.map((name) => timed('warm', name))),
+  ...[1, 2, 3].flatMap(() =>
+    ORDER.flatMap((name) => [{ wait: IDLE_WAIT_MS }, timed('cold', name)])
+  ),
+  ev(
+    `(async () => { const by = (k) => switchTimes.filter((r) => r.kind === k && r.ms).map((r) => r.ms).sort((a, b) => a - b); const sum = (xs) => ({ n: xs.length, median: xs[Math.floor(xs.length / 2)], worst: xs[xs.length - 1] }); return JSON.stringify({ warm: sum(by('warm')), cold: sum(by('cold')), all: switchTimes }) })()`
+  ),
+  settle
+]
+writeFileSync(join(DIR, 'stage13-switch-steps.json'), JSON.stringify(switching, null, 1) + '\n')
+console.log(`stage13-switch-steps.json: ${switching.length} steps`)
