@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { LEAGUES, pairedLeague, pairOf, type LeagueId } from '@shared/leagues'
-import type { StatsFamily, StatsOtherCareer } from '@shared/stats/types'
+import type { StatsFamily, StatsOtherCareer, StatsOtherPlayer } from '@shared/stats/types'
 import type { StatsClient } from '../client'
 import { summarisePairedFamilies } from '../families'
 import { PAIRED_SOURCES_BY_LEAGUE } from '../sources'
@@ -32,6 +32,8 @@ export interface LinksControl {
    */
   afterRefresh(league: LeagueId): Promise<LinksStepResult | null>
   otherCareer(league: LeagueId, player: string): Promise<StatsOtherCareer>
+  /** The paired league's linked players with no page in this league, for its search (T1304.4). */
+  otherPlayers(league: LeagueId): Promise<StatsOtherPlayer[]>
   /** The paired files a league brings, for its Data panel; started only if `start` is true. */
   pairedFamilies(league: LeagueId, start: boolean): Promise<StatsFamily[]>
   /** The running worker, for scripts; null when it has not started. */
@@ -102,6 +104,9 @@ export function createLinksControl(deps: LinksControlDeps): LinksControl {
     },
     async otherCareer(league, player) {
       return (await ensure()).otherCareer(league, player)
+    },
+    async otherPlayers(league) {
+      return (await ensure()).otherPlayers(league)
     },
     async pairedFamilies(league, start) {
       const other = pairedLeague(league)

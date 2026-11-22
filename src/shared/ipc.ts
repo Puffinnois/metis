@@ -24,6 +24,7 @@ import type {
   GameType,
   StatsProfile,
   StatsOtherCareer,
+  StatsOtherPlayer,
   StatsAvailability,
   StatsCoach,
   StatsPlayerInfo,
@@ -165,6 +166,11 @@ export interface Api {
      * line, the seasons with their source named, or the reason there is none. From the links file.
      */
     otherCareer(league: LeagueId, player: string): Promise<StatsOtherCareer>
+    /**
+     * The paired league's linked players who have no page in this league (T1304.4), for its player
+     * search: shown as the other league's, below its own. From the links file.
+     */
+    otherPlayers(league: LeagueId): Promise<StatsOtherPlayer[]>
     /** Players' status on the latest official injury report; those it does not list are left out. */
     availability(league: LeagueId, players: string[]): Promise<StatsAvailability[]>
     /** A team's head and assistant coaches for a season; empty when the file has none. */
@@ -230,6 +236,7 @@ export const IPC = {
   statsLineups: 'stats:lineups',
   statsProfile: 'stats:profile',
   statsOtherCareer: 'stats:other-career',
+  statsOtherPlayers: 'stats:other-players',
   statsAvailability: 'stats:availability',
   statsCoaches: 'stats:coaches',
   statsShots: 'stats:shots',

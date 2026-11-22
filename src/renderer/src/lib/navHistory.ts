@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
+import type { PlayerTab } from '@/lib/stats/player'
 import type { StatsScreen } from '@/lib/stats/screens'
 import type { LeagueId } from '@shared/leagues'
 
@@ -19,6 +20,11 @@ export interface NavLocation {
    * opens that player in the row's season. Back never sets it, so a scope stays as it was left.
    */
   season?: number
+  /**
+   * The player dashboard's tab to open on: the league menu's move to the same player's page in the
+   * paired league opens on the Overview (T1304.4). Back never sets it either.
+   */
+  playerTab?: PlayerTab
 }
 
 /** Pages kept; the oldest go first. */

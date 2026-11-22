@@ -4,6 +4,7 @@ import type {
   StatsDraftLine,
   StatsLinkMethod,
   StatsOtherCareer,
+  StatsOtherPlayer,
   StatsOtherSeason
 } from '@shared/stats/types'
 import { sqlIdent, type StatsDb } from '../db'
@@ -199,6 +200,89 @@ async function proReason(
     }
   }
   return { kind: 'no-link', text: `No linked ${college.name} career.` }
+}
+
+/** Ids from the links file, written into a statement as integers. */
+const idList = (ids: number[]): string =>
+  ids.length === 0 ? 'NULL' : ids.map((id) => String(Math.trunc(Number(id)))).join(', ')
+
+/**
+ * The linked players of the paired league who have no page in this one (T1304.4's read), for this
+ * league's player search: a link whose id here is not among the players this league last handed over.
+ * In practice the draftees who never played in the professional league; a college league's list is
+ * empty, since every link starts from a college player. Each with their last season in the other
+ * league and its team, from ESPN's lines of that league (the team a season ended with) or, for a
+ * college, from the college file's own players. Empty while this league has handed over no players:
+ * nobody can be said to have no page in it then. Reads only the links file.
+ */
+export async function readOtherPlayers(db: StatsDb, league: LeagueId): Promise<StatsOtherPlayer[]> {
+  const pair = pairOf(league)
+  if (!pair) return []
+  const isCollege = pair.college === league
+  const other = isCollege ? pair.pro : pair.college
+  const t = await pairTables(db, pair)
+  const side = isCollege ? t.collegeSide : t.proSide
+  const sideId = isCollege ? 'col_id' : 'pro_id'
+  const held = await db.get<{ n: number }>(
+    `SELECT count(*)::INTEGER AS n FROM ${sqlIdent(side)} WHERE ${sideId} IS NOT NULL`
+  )
+  if (!held?.n) return []
+  const here = isCollege ? 'college_id' : 'pro_id'
+  const [id, espn, name] = isCollege
+    ? ['pro_id', 'pro_espn', 'pro_name']
+    : ['college_id', 'college_espn', 'college_name']
+  const links = await db.all<{ id: number | null; espn: number | null; name: string | null }>(
+    `SELECT ${id} AS id, ${espn} AS espn, ${name} AS name FROM player_link
+     WHERE ${isCollege ? 'college' : 'pro'} = ? AND (${here} IS NULL OR ${here} NOT IN
+       (SELECT ${sideId} FROM ${sqlIdent(side)} WHERE ${sideId} IS NOT NULL))
+     ORDER BY name, id NULLS LAST, espn NULLS LAST`,
+    [league]
+  )
+  if (links.length === 0) return []
+
+  // ESPN's lines of the other league: one row a player-season in its averages, the team it ended with.
+  const espnTable = isCollege ? t.proEspn : t.collegeEspn
+  const espnIds = links.map((l) => l.espn).filter((e): e is number => e !== null)
+  const lastByEspn = new Map<number, { season: number; team: string | null }>()
+  if (espnTable && espnIds.length > 0) {
+    const rows = await db.all<{ espn: number; season: number; team: string | null }>(
+      `SELECT athlete_id::BIGINT AS espn, max(season)::INTEGER AS season,
+         arg_max(team_display_name, season) AS team
+       FROM ${sqlIdent(espnTable)}
+       WHERE athlete_id IN (${idList(espnIds)}) AND category = 'averages' AND stat_name = 'gamesPlayed'
+       GROUP BY 1`
+    )
+    for (const r of rows) lastByEspn.set(Number(r.espn), { season: Number(r.season), team: r.team })
+  }
+  // A college's own players where ESPN's lines lack them: the last season, and the team where the
+  // player had only one (the file keeps no order between a transfer's teams).
+  const lastById = new Map<number, { season: number | null; team: string | null }>()
+  const ids = links.map((l) => l.id).filter((i): i is number => i !== null)
+  if (!isCollege && ids.length > 0) {
+    const rows = await db.all<{ id: number; season: number | null; teams: string[] | null }>(
+      `SELECT col_id AS id, last_season AS season, team_names AS teams
+       FROM ${sqlIdent(t.collegeSide)} WHERE col_id IN (${idList(ids)})`
+    )
+    for (const r of rows) {
+      const teams = (r.teams ?? []).filter((x) => x !== null)
+      lastById.set(Number(r.id), {
+        season: num(r.season),
+        team: teams.length === 1 ? teams[0] : null
+      })
+    }
+  }
+  return links.map((l) => {
+    const last =
+      (l.espn !== null ? lastByEspn.get(Number(l.espn)) : undefined) ??
+      (l.id !== null ? lastById.get(Number(l.id)) : undefined)
+    return {
+      league: other,
+      playerId: l.id === null ? null : String(l.id),
+      name: l.name ?? '',
+      lastSeason: last?.season ?? null,
+      team: last?.team ?? null
+    }
+  })
 }
 
 /**

@@ -227,6 +227,31 @@ describe('the links service', () => {
     expect(await s.counts('ncaam')).toEqual({ id: 2, 'name+birth': 1, 'name+college': 1 })
   })
 
+  it('lists the paired league’s linked players who have no page in this league, for its search', async () => {
+    const s = await service()
+    const nba = await nbaFile()
+    const ncaam = await ncaamFile()
+    await s.ingestSide((await writeLinkSide(ncaam, LEAGUES.ncaam, tempDir(), 'a'))!)
+    // The NBA has handed over no players yet: nobody can be said to have no page there.
+    expect(await s.otherPlayers('nba')).toEqual([])
+    await s.ingestSide((await writeLinkSide(nba, LEAGUES.nba, tempDir(), 'a'))!)
+    // Thomas Sorber was drafted and linked by name, class and college, and has no NBA row. The three
+    // linked players the NBA holds are its own rows, never listed again.
+    expect(await s.otherPlayers('nba')).toEqual([
+      {
+        league: 'ncaam',
+        playerId: '105',
+        name: 'Thomas Sorber',
+        lastSeason: 2025,
+        team: 'Georgetown Hoyas'
+      }
+    ])
+    // Every link starts from a college player, so a college league's search gains no one.
+    expect(await s.otherPlayers('ncaam')).toEqual([])
+    // The other pair holds nothing yet.
+    expect(await s.otherPlayers('wnba')).toEqual([])
+  })
+
   it("downloads a league's paired files through the source registry's path, with their state", async () => {
     const files = tempDir()
     const db = await StatsDb.open(':memory:')

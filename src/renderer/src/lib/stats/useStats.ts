@@ -17,6 +17,7 @@ import type {
   StatsMatchups,
   StatsMatchupScope,
   StatsOtherCareer,
+  StatsOtherPlayer,
   StatsGameMatchups,
   StatsOfficialCareer,
   StatsOnCourtScope,
@@ -355,6 +356,44 @@ export const useCoaches = (
 /** A player's bio, draft and combines. */
 export const useProfile = (player: string, version: string | null): ReadState<StatsProfile> =>
   useRead(`${version}|${player}`, (league) => api.stats.profile(league, player))
+
+/**
+ * The paired league's linked players with no page in the league on screen, for its player search
+ * (T1304.4): read from the links file once `wanted` (the search is used), and again when either
+ * league of the pair changes. A few dozen names at most, so the search filters them as it types and
+ * never waits on a read.
+ */
+export function useOtherPlayers(wanted: boolean): ReadState<StatsOtherPlayer[]> {
+  const league = useLeague().id
+  const other = pairedLeague(league)
+  const [changes, setChanges] = useState(0)
+  useEffect(() => {
+    if (!other || !wanted) return
+    return api.stats.onChanged(
+      (changed) => (changed === league || changed === other) && setChanges((n) => n + 1)
+    )
+  }, [league, other, wanted])
+  const key = other && wanted ? league : null
+  const [done, setDone] = useState<{
+    key: string
+    value: StatsOtherPlayer[] | null
+    error: string | null
+  } | null>(null)
+  useEffect(() => {
+    if (key === null) return
+    let cancelled = false
+    api.stats
+      .otherPlayers(key)
+      .then((value) => !cancelled && setDone({ key, value, error: null }))
+      .catch((err) => !cancelled && setDone({ key, value: null, error: errorMessage(err) }))
+    return () => {
+      cancelled = true
+    }
+  }, [key, changes])
+  return done !== null && done.key === key
+    ? { value: done.value, error: done.error, loading: false }
+    : { value: null, error: null, loading: key !== null }
+}
 
 /**
  * A player's career in the other league of their pair (T1304.3), read from the links file. Read again

@@ -364,6 +364,13 @@ The first build ran out of memory at 512 MB, because the matcher read ESPN's col
 
 **The read.** A player's other career takes 15 to 36 ms the first time and 15 to 30 ms after (`check-links.mjs`), and 36 ms through the app's IPC from the renderer (the drive). It is served by the links worker on its own connection, so it never waits behind a league's refresh.
 
+## The switch and the search (T1304.4)
+
+Two reads of the links file serve the screens, each answered by the links worker on its own connection (D47).
+
+- **The league switch** reads nothing new: a player's page already holds `otherCareer` for the strip. With a link, the paired league built, and at least one season there, the league menu's item for that league opens the player's page there, on the Overview, in their latest season in that league (`lib/stats/leagueSwitch.ts`). A draftee with no game on the other side has no page there, so the menu switches as before for them.
+- **The search** reads `otherPlayers(league)`: the links of the league's pair whose id in the league on screen is not among the players that league last handed over (`side_<league>_players`), with their id, name, last season and team in the other league (from ESPN's lines of that league, else the college file's own players). Nothing is listed while the league has handed over no players, since nobody can then be said to lack a page in it. Every link starts from a college player, so a college league's list is always empty; a professional league's is its draftees who never played. On the four-league profile of T1304.2 that is **2 of 388 NBA links** (Lajae Jones, Richie Saunders, both linked by name and college, drafted in 2026) and **46 of 190 WNBA links** (every one linked by name and class, with no WNBA row: Abbey Hsu among them). The list is read once when the search is first used and filtered in the renderer as one types.
+
 ## What could not be measured
 
 - Whether the 2026-27 college rows of players drafted from abroad (Nnaji, Niang, Ngoy, Claessens, Kane, Sivka, Ran) are those players: no birth date or ESPN id on the professional side.

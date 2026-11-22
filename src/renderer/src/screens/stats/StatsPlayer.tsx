@@ -86,7 +86,10 @@ import {
   type Fact
 } from '@/lib/stats/profile'
 import { rangeLabel, scopeLabel, seasonOf, typeLabel, type StatsScope } from '@/lib/stats/scope'
-import { currentLeague, seasonLabel } from '@/lib/stats/league'
+import { currentLeague, seasonLabel, useLeague } from '@/lib/stats/league'
+import { downloadOf, leagueHolds, useLeagueDownloads } from '@/lib/stats/downloads'
+import { offerSwitch, playerSwitch, withdrawSwitch } from '@/lib/stats/leagueSwitch'
+import { otherHeading, otherRows, type OtherRow } from '@/lib/stats/otherPlayers'
 import { rowQualifier } from '@/lib/stats/qualifying'
 import {
   useAvailability,
@@ -95,6 +98,7 @@ import {
   useProfile,
   useSeasonGames,
   useOtherCareer,
+  useOtherPlayers,
   useStatsQueries,
   useStatsQuery,
   type ReadState,
@@ -110,7 +114,7 @@ import type {
   StatsPlayerInfo,
   StatsRow
 } from '@shared/stats/types'
-import type { LeagueId } from '@shared/leagues'
+import { leagueOf, pairedLeague, type LeagueId } from '@shared/leagues'
 import type { NavLocation } from '@/lib/navHistory'
 
 /** The dashboard is about one player: never another player's answers while their own load. */
@@ -207,6 +211,42 @@ export function StatsPlayer({
   const settle = useMemo(() => () => setSettledFor(player), [player])
   const career = useOtherCareer(settledFor === player ? player : null)
   const hint = stripHint(career.value)
+  // The paired league, as the strip, the league menu and the search treat it.
+  const leagueId = useLeague().id
+  const downloads = useLeagueDownloads()
+  const other = pairedLeague(leagueId)
+  const otherDownload = other && downloads ? downloadOf(downloads, other) : undefined
+  const otherHolds = other && downloads ? leagueHolds(leagueOf(other), otherDownload) : undefined
+  // The league menu's move to this player's page in the paired league, offered once the read is in
+  // (T1304.4): until then the menu switches as it always has, and never waits on the read.
+  const move = useMemo(
+    () => playerSwitch(leagueId, player, career.value, otherHolds),
+    [leagueId, player, career.value, otherHolds]
+  )
+  useEffect(() => {
+    if (!move) return
+    offerSwitch(move)
+    return () => withdrawSwitch(move)
+  }, [move])
+  // The search's rows of the paired league: read once the search is first used.
+  const [wantOthers, setWantOthers] = useState(false)
+  const others = useOtherPlayers(wantOthers)
+  const otherOn = otherDownload?.on ?? false
+  const elsewhere = useMemo(
+    () =>
+      other
+        ? {
+            heading: otherHeading(leagueOf(other), leagueOf(leagueId)),
+            rows: (search: string) => otherRows(others.value, search, otherHolds, otherOn),
+            onWant: () => setWantOthers(true),
+            onOpen: (row: OtherRow) => {
+              if (row.open) onOpenPage?.(row.open)
+              else if (row.data) onOpenData?.(row.data)
+            }
+          }
+        : undefined,
+    [other, leagueId, others.value, otherHolds, otherOn, onOpenPage, onOpenData]
+  )
   const [seekStrip, setSeekStrip] = useState(0)
   const showStrip = (): void => {
     onTab('overview')
@@ -236,6 +276,7 @@ export function StatsPlayer({
         byId={data.byId}
         selected={player}
         onSelect={onPlayer}
+        elsewhere={elsewhere}
       />
       <div className="min-w-0 flex-1 overflow-auto [scrollbar-width:thin]">
         {infoError || self.error ? (

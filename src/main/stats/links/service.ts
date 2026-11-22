@@ -1,7 +1,7 @@
 import { mkdirSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { LEAGUES, LINKS_FILE, pairedLeague, pairOf, type LeagueId } from '@shared/leagues'
-import type { StatsFamily, StatsOtherCareer } from '@shared/stats/types'
+import type { StatsFamily, StatsOtherCareer, StatsOtherPlayer } from '@shared/stats/types'
 import { sqlString, StatsDb, type Row } from '../db'
 import { createDownloads } from '../download'
 import { summarisePairedFamilies, type FileAttempt, type HeldFile } from '../families'
@@ -10,7 +10,7 @@ import { INTERRUPTED_MESSAGE } from '../schema'
 import { PAIRED_SOURCES_BY_LEAGUE } from '../sources'
 import { refreshStats } from '../sync'
 import type { LinkLinesFiles, LinkSideFiles, LinksWorkerInit } from './protocol'
-import { readOtherCareer } from './read'
+import { readOtherCareer, readOtherPlayers } from './read'
 import { matchSql, NAME_MACRO } from './sql'
 import {
   keptSeasonTable,
@@ -35,6 +35,7 @@ export interface LinksService {
   linkedIds(league: LeagueId): Promise<number[]>
   counts(league: LeagueId): Promise<Record<string, number>>
   otherCareer(league: LeagueId, player: string): Promise<StatsOtherCareer>
+  otherPlayers(league: LeagueId): Promise<StatsOtherPlayer[]>
   pairedFamilies(league: LeagueId): Promise<StatsFamily[]>
   read(sql: string): Promise<Row[]>
   cancel(): void
@@ -218,6 +219,7 @@ export async function openLinksService(
       }),
     counts: (league) => read((conn) => countsOf(conn, league)),
     otherCareer: (league, player) => read((conn) => readOtherCareer(conn, league, player)),
+    otherPlayers: (league) => read((conn) => readOtherPlayers(conn, league)),
     pairedFamilies: (league) =>
       read(async (conn) => {
         const other = pairedLeague(league)

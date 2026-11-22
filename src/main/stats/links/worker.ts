@@ -31,6 +31,8 @@ async function handle(request: LinksRequest): Promise<unknown> {
       return service.counts(request.league)
     case 'otherCareer':
       return service.otherCareer(request.league, request.player)
+    case 'otherPlayers':
+      return service.otherPlayers(request.league)
     case 'pairedFamilies':
       return service.pairedFamilies(request.league)
     case 'read':

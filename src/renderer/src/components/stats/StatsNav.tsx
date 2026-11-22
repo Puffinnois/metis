@@ -2,6 +2,7 @@ import { DevChip } from '@/components/dev/DevChip'
 import { BackButton, Mark, VersionTag } from '@/components/edition'
 import { LeagueMenu } from '@/components/stats/LeagueMenu'
 import { UpdatePill } from '@/components/UpdatePill'
+import type { NavLocation } from '@/lib/navHistory'
 import { freshness } from '@/lib/stats/scope'
 import { NAV_ITEMS, type StatsScreen } from '@/lib/stats/screens'
 import { cn } from '@/lib/utils'
@@ -19,6 +20,8 @@ interface StatsNavProps {
   onBack?: () => void
   onOpenUpdate: () => void
   onToggleTheme: () => void
+  /** A page of any league: the league menu's move to the same player in the paired league. */
+  onOpenPage?: (location: NavLocation) => void
 }
 
 /** The nav: 52px, mark + "Metis", the league menu, the screens, the status line, theme. */
@@ -31,7 +34,8 @@ export function StatsNav({
   canGoBack = false,
   onBack,
   onOpenUpdate,
-  onToggleTheme
+  onToggleTheme,
+  onOpenPage
 }: StatsNavProps): React.JSX.Element {
   return (
     <nav className="flex h-[52px] shrink-0 items-center gap-[30px] border-b border-line px-6">
@@ -40,7 +44,7 @@ export function StatsNav({
         <Mark />
         <span className="text-[15px] leading-none font-semibold tracking-[-0.01em]">Metis</span>
         <VersionTag version={version} />
-        <LeagueMenu />
+        <LeagueMenu onOpenPage={onOpenPage} />
         <DevChip />
       </div>
       <div className="flex gap-[22px] self-stretch text-[13.5px] leading-none font-medium">

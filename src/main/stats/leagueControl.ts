@@ -2,7 +2,12 @@ import { rmSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Db } from '@main/db/connection'
 import { LEAGUES, leagueOf, type LeagueId } from '@shared/leagues'
-import type { LeagueDownload, LeagueDownloads, StatsOtherCareer } from '@shared/stats/types'
+import type {
+  LeagueDownload,
+  LeagueDownloads,
+  StatsOtherCareer,
+  StatsOtherPlayer
+} from '@shared/stats/types'
 import type { StatsClient } from './client'
 import { withPairedFamilies } from './families'
 import { statsFilePath } from './files'
@@ -47,6 +52,8 @@ export interface LeagueControl {
   deleteFile(league: LeagueId): Promise<LeagueDownloads>
   /** A player's career in the other league of the pair, from the links file (T1304.2). */
   otherCareer(league: LeagueId, player: string): Promise<StatsOtherCareer>
+  /** The paired league's linked players with no page in this league, from the links file (T1304.4). */
+  otherPlayers(league: LeagueId): Promise<StatsOtherPlayer[]>
   /** The links worker's control, for scripts and tests; null when leagues are not linked. */
   links: LinksControl | null
   close(): Promise<unknown>
@@ -183,6 +190,10 @@ export function createLeagueControl(deps: LeagueControlDeps): LeagueControl {
     otherCareer(league, player) {
       if (!links) return Promise.reject(new Error('players are not linked in this build'))
       return links.otherCareer(leagueOf(league).id, player)
+    },
+    otherPlayers(league) {
+      if (!links) return Promise.reject(new Error('players are not linked in this build'))
+      return links.otherPlayers(leagueOf(league).id)
     },
     links,
     close: () =>

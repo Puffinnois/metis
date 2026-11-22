@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { api } from '@/lib/api'
+import { setLeague } from '@/lib/stats/league'
 import { StatsApp } from '@/screens/stats/StatsApp'
 import { LEAGUES } from '@shared/leagues'
 
@@ -49,7 +50,8 @@ vi.mock('@/lib/api', () => ({
       gameMatchups: vi.fn(() => Promise.resolve({ pairs: [], reason: null })),
       officialsSeason: vi.fn(() => Promise.resolve(null)),
       officialCareer: vi.fn(() => Promise.resolve(null)),
-      otherCareer: vi.fn()
+      otherCareer: vi.fn(),
+      otherPlayers: vi.fn(() => Promise.resolve([]))
     },
     dev: { mode: vi.fn().mockResolvedValue(false), onModeChanged: vi.fn(() => () => {}) }
   }
@@ -440,5 +442,122 @@ describe('the player dashboard', () => {
     expect(document.querySelector('[data-subject]')?.getAttribute('data-subject')).toMatch(
       /^player:/
     )
+  })
+})
+
+describe('the same player across leagues (T1304.4)', () => {
+  /** NCAA Men downloaded and built, beside the NBA. */
+  const BOTH = {
+    decided: true,
+    freeBytes: null,
+    leagues: (['nba', 'ncaam'] as const).map((league) => ({
+      league,
+      on: true,
+      hasFile: true,
+      fileBytes: 1,
+      hasData: true,
+      roomNeeded: 0
+    }))
+  }
+  /** Dončić's Duke season in Metis's own lines, the NCAA Men downloaded. */
+  const LINKED_HERE: StatsOtherCareer = {
+    ...LINKED,
+    source: { kind: 'metis', label: "Metis's own season lines" },
+    seasons: LINKED.seasons.map((s) => ({ ...s, gameType: 'regular' }))
+  }
+
+  afterEach(() => {
+    // A switch as before moves the whole app to the other league; the next test starts on the NBA.
+    setLeague('nba')
+    vi.mocked(api.leagues.downloads).mockResolvedValue({
+      decided: true,
+      leagues: [],
+      freeBytes: null
+    })
+  })
+
+  async function openWith(onOpenPage: (l: unknown) => void): Promise<void> {
+    render(
+      <StatsApp
+        update={{ status: 'idle' }}
+        version="0.1.0"
+        onOpenUpdate={() => {}}
+        onToggleTheme={() => {}}
+        onOpenPage={onOpenPage}
+      />
+    )
+    fireEvent.click(await screen.findByRole('button', { name: 'Players' }))
+    await screen.findByRole('heading', { level: 1, name: /Dončić/ })
+  }
+
+  it('opens the player’s page in the paired league from the league menu, once the link is in', async () => {
+    vi.mocked(api.leagues.downloads).mockResolvedValue(BOTH)
+    vi.mocked(api.stats.otherCareer).mockResolvedValue(LINKED_HERE)
+    const onOpenPage = vi.fn()
+    await openWith(onOpenPage)
+    await screen.findByRole('button', { name: /^NCAA Men: Duke Blue Devils/ })
+    fireEvent.keyDown(screen.getByRole('button', { name: 'League: NBA' }), { key: 'Enter' })
+    const item = await screen.findByRole('menuitemradio', { name: /^NCAA Men/ })
+    // The item says where it goes, in its second line's place.
+    await waitFor(() => expect(item.textContent).toContain('Luka Dončić’s page'))
+    expect(item.textContent).not.toContain('National Collegiate')
+    fireEvent.click(item)
+    expect(onOpenPage).toHaveBeenCalledWith({
+      league: 'ncaam',
+      screen: 'player',
+      team: null,
+      player: { id: '5041939', position: null },
+      season: 2025,
+      playerTab: 'overview'
+    })
+  })
+
+  it('keeps the menu as it was where the paired league is not downloaded', async () => {
+    vi.mocked(api.stats.otherCareer).mockResolvedValue(LINKED)
+    const onOpenPage = vi.fn()
+    await openWith(onOpenPage)
+    await screen.findByRole('button', { name: /^NCAA Men: Duke Blue Devils/ })
+    fireEvent.keyDown(screen.getByRole('button', { name: 'League: NBA' }), { key: 'Enter' })
+    const item = await screen.findByRole('menuitemradio', { name: /^NCAA Men/ })
+    expect(item.textContent).not.toContain('Dončić')
+    fireEvent.click(item)
+    expect(onOpenPage).not.toHaveBeenCalled()
+    // The league switches as it always has.
+    expect(await screen.findByRole('button', { name: 'League: NCAA Men' })).toBeTruthy()
+  })
+
+  it('lists a search’s players of the paired league below the league’s own, labelled', async () => {
+    vi.mocked(api.leagues.downloads).mockResolvedValue(BOTH)
+    vi.mocked(api.stats.otherPlayers).mockResolvedValue([
+      {
+        league: 'ncaam',
+        playerId: '105',
+        name: 'Thomas Sorber',
+        lastSeason: 2025,
+        team: 'Georgetown Hoyas'
+      },
+      { league: 'ncaam', playerId: '106', name: 'Luka Tatum', lastSeason: 2024, team: null }
+    ])
+    const onOpenPage = vi.fn()
+    await openWith(onOpenPage)
+    const rail = screen.getByRole('complementary', { name: 'Players' })
+    const input = within(rail).getByRole('textbox', { name: 'Search players' })
+    fireEvent.focus(input)
+    fireEvent.change(input, { target: { value: 'tatum' } })
+    const group = await within(rail).findByRole('group', { name: 'NCAA Men · No NBA games' })
+    // The league's own Jayson Tatum first, ranked; the other league's below, never ranked.
+    const buttons = within(rail)
+      .getAllByRole('button')
+      .map((b) => b.textContent ?? '')
+      .filter((t) => t.includes('Tatum'))
+    expect(buttons[0]).toMatch(/Jayson Tatum/)
+    expect(buttons[1]).toBe('Luka TatumNCAA Men2023-24')
+    fireEvent.click(within(group).getByRole('button', { name: /Luka Tatum/ }))
+    expect(onOpenPage).toHaveBeenCalledWith(
+      expect.objectContaining({ league: 'ncaam', player: { id: '106', position: null } })
+    )
+    // Read once, when the search was first used.
+    expect(api.stats.otherPlayers).toHaveBeenCalledTimes(1)
+    expect(api.stats.otherPlayers).toHaveBeenCalledWith('nba')
   })
 })
