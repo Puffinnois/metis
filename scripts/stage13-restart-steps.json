@@ -1,0 +1,23 @@
+[
+  {
+    "size": [1500, 950]
+  },
+  {
+    "wait": 3000
+  },
+  {
+    "eval": "\nwindow.sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nwindow.until = async (fn, ms = 15000) => { const t0 = performance.now(); while (performance.now() - t0 < ms) { if (await fn()) return true; await sleep(250) } return false };\nwindow.button = (name, within) => [...(within ?? document).querySelectorAll('button')].find((x) => x.textContent.trim() === name);\nwindow.section = (name) => document.querySelector('section[aria-label=\"' + name + '\"]');\nwindow.dl = async (league) => (await window.api.leagues.downloads()).leagues.find((l) => l.league === league);\nwindow.check = (label, ok, got) => (ok ? 'OK ' : 'MISMATCH ') + label + ' got ' + JSON.stringify(got);\nwindow.families = async (league) => { const d = await window.api.stats.data(league); const f = Array.isArray(d) ? d : (d.families ?? []); const own = f.filter((x) => !x.seasonsOf); const sum = (k, xs) => xs.reduce((a, x) => a + (x[k] ?? 0), 0); return { releases: own.length, loaded: sum('filesLoaded', own), expected: sum('filesExpected', own), bytes: sum('bytes', own), failed: own.filter((x) => x.state === 'failed' || x.lastError).map((x) => [x.release, x.lastError]), paired: f.filter((x) => x.seasonsOf).map((x) => [x.release, x.filesLoaded, x.filesExpected, x.bytes]) } };\nwindow.settle = async (league, capMin, stopAtFiles) => { const t0 = performance.now(); let quietSince = null; const log = []; let last = ''; let maxTotal = 0; while (performance.now() - t0 < capMin * 60000) { const s = await window.api.stats.status(league); if (s.progress) maxTotal = Math.max(maxTotal, s.progress.total); if (stopAtFiles && s.progress && s.progress.done >= stopAtFiles) return { stopped: true, minutes: Math.round((performance.now() - t0) / 6000) / 10, progress: s.progress, log }; const line = s.busy ? (s.progress ? 'files' : 'building') : 'idle'; if (line !== last) log.push(Math.round((performance.now() - t0) / 1000) + 's ' + line + (s.progress ? ' ' + s.progress.done + '/' + s.progress.total : '')); last = line; if (!s.busy && !s.progress && s.builtAt) { quietSince ??= performance.now(); if (performance.now() - quietSince > 90000) return { minutes: Math.round((quietSince - t0) / 6000) / 10, maxTotal, status: s, log }; } else quietSince = null; await sleep(5000) } return { minutes: null, timedOut: true, log } };\n'helpers ready'\n"
+  },
+  {
+    "eval": "(async () => { const t0 = performance.now(); const ok = await until(async () => { const q = await window.api.stats.query('nba', { entity: 'player', metrics: ['pts'], transform: 'perGame', scope: { seasons: [2027] } }); return q.rows.length > 0 }, 30000); return check('restarted: the NBA answers at once', ok, { ms: Math.round(performance.now() - t0) }) })()"
+  },
+  {
+    "eval": "(async () => { const out = {}; for (const l of ['nba', 'wnba', 'ncaam', 'ncaaw']) { const r = await settle(l, 30); out[l] = { minutes: r.minutes, maxTotal: r.maxTotal, log: r.log } } return check('each league refreshes at the restart and settles', Object.values(out).every((x) => x.minutes !== null), out) })()"
+  },
+  {
+    "eval": "(async () => { const out = {}; for (const l of ['nba', 'wnba', 'ncaam', 'ncaaw']) out[l] = await families(l); return check('after the refresh every league holds all its files with no failure', Object.values(out).every((f) => f.failed.length === 0), out) })()"
+  },
+  {
+    "wait": 60000
+  }
+]
