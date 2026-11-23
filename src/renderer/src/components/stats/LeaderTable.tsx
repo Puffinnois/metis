@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { FavouriteStar } from '@/components/stats/FavouriteStar'
 import { MetricHover, StabilityMark } from '@/components/stats/MetricCard'
+import { favouriteEdge, useFavourites } from '@/lib/stats/favourites'
 import { cellTitle, fmtStat, heatOf, type Heat } from '@/lib/stats/format'
 import {
   columnGroups,
@@ -98,6 +99,7 @@ export function LeaderTable({
   }, [selected])
 
   const nameSorted = board.sort.by === 'name'
+  const favourites = useFavourites()
   return (
     <table className="min-w-full border-separate border-spacing-0">
       <thead>
@@ -210,7 +212,13 @@ export function LeaderTable({
                 isSel ? 'bg-sel' : 'bg-panel hover:bg-hover'
               )}
             >
-              <td className="sticky left-0 z-[1] h-[30px] border-b border-line-2 bg-inherit p-0 align-middle">
+              <td
+                className={cn(
+                  'sticky left-0 z-[1] h-[30px] border-b border-line-2 bg-inherit p-0 align-middle',
+                  // The gold edge on the first cell: a row cannot carry a shadow (T1601.2).
+                  favouriteEdge(favourites.isFavourite(board.entity, r.id))
+                )}
+              >
                 <div
                   className={cn(
                     'grid items-center gap-x-2 pr-2.5 pl-3',

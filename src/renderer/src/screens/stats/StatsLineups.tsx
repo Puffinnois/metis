@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ArrowDown, ArrowUp } from 'lucide-react'
 import { Segmented, StatsSelect } from '@/components/stats/controls'
-import { Loading, MiniTable, Notes, SectionHead } from '@/components/stats/parts'
+import { Loading, MiniTable, Notes, SectionHead, TABLE_SCROLL } from '@/components/stats/parts'
 import {
   DEFAULT_MIN_MINUTES,
   DEFAULT_SORT,
@@ -187,7 +187,7 @@ function UnitTable({
           No unit has played {floor} minutes. Lower the minimum to see them.
         </p>
       ) : (
-        <div className="overflow-x-auto">
+        <div className={TABLE_SCROLL}>
           <MiniTable
             label="Lineups"
             columns={`minmax(330px,2.4fr) 32px 56px repeat(${columns.length}, minmax(52px,1fr))`}

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Search } from 'lucide-react'
 import { StatsSelect } from '@/components/stats/controls'
 import { FavouriteStar } from '@/components/stats/FavouriteStar'
+import { favouriteEdge, useFavourites } from '@/lib/stats/favourites'
 import type { Heat } from '@/lib/stats/format'
 import type { OtherRow } from '@/lib/stats/otherPlayers'
 import { RAIL_POSITIONS, railMetrics, type RailPosition, type RailRow } from '@/lib/stats/player'
@@ -99,6 +100,7 @@ export function PlayerRail({
     onOpen: (row: OtherRow) => void
   }
 }): React.JSX.Element {
+  const favourites = useFavourites()
   const [search, setSearch] = useState('')
   const [limit, setLimit] = useState(PAGE)
   const shownRows = rows(search)
@@ -262,6 +264,7 @@ export function PlayerRail({
                 onClick={() => onSelect(r.id)}
                 className={cn(
                   'grid h-10 w-full cursor-pointer grid-cols-[24px_16px_minmax(0,1fr)_auto] items-center gap-x-2 border-b border-line-2 pr-3.5 pl-3 text-left',
+                  favouriteEdge(favourites.isFavourite('player', r.id)),
                   on ? 'bg-sel' : 'hover:bg-hover'
                 )}
               >
@@ -333,6 +336,8 @@ export function PlayerRail({
                     onClick={() => more.onOpen(r)}
                     className={cn(
                       'grid h-10 w-full cursor-pointer grid-cols-[24px_16px_minmax(0,1fr)] items-center gap-x-2 border-b border-line-2 pr-3.5 pl-3 text-left',
+                      // The keyboard's cobalt edge, given after it, wins while it rests here.
+                      favouriteEdge(favourites.isFavourite('player', r.id)),
                       r.id === selected ? 'bg-sel' : key === resting ? CURSOR : 'hover:bg-hover'
                     )}
                   >

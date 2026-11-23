@@ -2,12 +2,17 @@
 import { describe, expect, it, vi } from 'vitest'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import {
+  FAV_EDGE,
+  favouriteEdge,
   favouriteLabel,
+  favouritesLast,
+  gameHasFavourite,
   setsOf,
   toggled,
   useFavourites,
   useFavouritesState
 } from '@/lib/stats/favourites'
+import { cn } from '@/lib/utils'
 import { emptyFavourites, type Favourite, type FavouritesByLeague } from '@shared/favourites'
 import type { Api } from '@shared/ipc'
 import type { LeagueId } from '@shared/leagues'
@@ -172,5 +177,40 @@ describe('useFavouritesState', () => {
     expect(result.current.isFavourite('player', '7')).toBe(true)
     act(() => result.current.toggle('team', '150', 'Duke Blue Devils'))
     expect(source.add).toHaveBeenCalledWith('ncaam', 'team', '150', 'Duke Blue Devils')
+  })
+})
+
+describe('the favourite mark’s logic (T1601.2)', () => {
+  it('edges a favourite row in gold, and gives nothing to the others', () => {
+    expect(favouriteEdge(true)).toBe(FAV_EDGE)
+    expect(FAV_EDGE).toContain('var(--fav)')
+    expect(favouriteEdge(false)).toBe('')
+  })
+
+  it('lets an inset edge given after it win: the rail’s keyboard cursor', () => {
+    const cursor = 'bg-hover shadow-[inset_2px_0_0_var(--cobalt)]'
+    expect(cn(favouriteEdge(true), cursor)).not.toContain('--fav')
+    expect(cn(favouriteEdge(true), cursor)).toContain('--cobalt')
+    // A selected row keeps its shade and the edge.
+    expect(cn(favouriteEdge(true), 'bg-sel')).toBe(`${FAV_EDGE} bg-sel`)
+  })
+
+  it('edges a game when either team is a favourite', () => {
+    const teams = new Set(['1610612738'])
+    expect(gameHasFavourite(teams, ['1610612747', '1610612738'])).toBe(true)
+    expect(gameHasFavourite(teams, ['1610612747', '1610612744'])).toBe(false)
+    expect(gameHasFavourite(teams, [])).toBe(false)
+  })
+
+  it('draws favourites last, above the others, each group in its own order', () => {
+    const fav = new Set(['b', 'd'])
+    expect(favouritesLast(['a', 'b', 'c', 'd', 'e'], (p) => fav.has(p))).toEqual([
+      'a',
+      'c',
+      'e',
+      'b',
+      'd'
+    ])
+    expect(favouritesLast([], () => true)).toEqual([])
   })
 })

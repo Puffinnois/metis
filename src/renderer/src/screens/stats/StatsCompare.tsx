@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { X } from 'lucide-react'
 import { ColumnPicker } from '@/components/stats/ColumnPicker'
 import { Segmented, StatsButton, StatsSelect } from '@/components/stats/controls'
+import { FavouriteMark, FavouriteName } from '@/components/stats/FavouriteStar'
 import { MetricHover, StabilityMark } from '@/components/stats/MetricCard'
 import { Loading, Notes } from '@/components/stats/parts'
 import { ScopeBar } from '@/components/stats/ScopeBar'
@@ -304,6 +305,7 @@ function SlotCard({
     <SlotSearch
       label={`${id ? 'Replace' : 'Add'} the ${ORDINAL[slot]} ${what}`}
       placeholder={placeholder}
+      entity={entity}
       candidates={candidates}
       exclude={exclude}
       loading={loadingCandidates}
@@ -361,9 +363,12 @@ function SlotCard({
         type="button"
         onClick={onOpen}
         title={entity === 'team' ? 'Open the team dashboard' : 'Open the player dashboard'}
-        className="min-w-0 cursor-pointer truncate text-left text-[22px] leading-[1.1] font-bold tracking-[-0.03em] hover:text-cobalt"
+        className="flex min-w-0 cursor-pointer text-left text-[22px] leading-[1.1] font-bold tracking-[-0.03em] hover:text-cobalt"
       >
-        {c.name}
+        {/* The series keep their own colour (the swatch); the gold is the mark alone. */}
+        <FavouriteName kind={entity} id={id} className="gap-1.5 [&>span:first-child_svg]:size-4">
+          {c.name}
+        </FavouriteName>
       </button>
       <div className="flex justify-end font-mono text-[11px] text-fg-3">{leads}</div>
       {search(`Replace with…`)}
@@ -373,6 +378,7 @@ function SlotCard({
 
 /** A search that lists matches under it; a click or Enter puts the first in the slot. */
 function SlotSearch({
+  entity,
   label,
   placeholder,
   candidates,
@@ -381,6 +387,7 @@ function SlotSearch({
   onOpen,
   onPick
 }: {
+  entity: Entity
   label: string
   placeholder: string
   candidates: Candidate[]
@@ -438,6 +445,7 @@ function SlotSearch({
                 }}
                 className="flex h-[30px] w-full cursor-pointer items-center gap-2 rounded-[5px] px-2 text-left text-[12.5px] hover:bg-hover"
               >
+                <FavouriteMark kind={entity} id={m.id} />
                 <span className="min-w-0 flex-1 truncate text-fg">{m.name}</span>
                 <span className="font-mono text-[11px] text-fg-3">{m.detail}</span>
               </button>

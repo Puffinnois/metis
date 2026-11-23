@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { FavouriteStar } from '@/components/stats/FavouriteStar'
+import { FavouriteMark, FavouriteName, FavouriteStar } from '@/components/stats/FavouriteStar'
+import { MiniTable } from '@/components/stats/parts'
+import { FAV_GUTTER_EDGE } from '@/lib/stats/favourites'
 import { FavouritesContext, type Favourites } from '@/lib/stats/favourites'
 import { emptyFavourites } from '@shared/favourites'
 
@@ -101,5 +103,71 @@ describe('FavouriteStar', () => {
   it('is not drawn outside a favourites provider', () => {
     const { container } = renderIn(null, <FavouriteStar kind="player" id="1" name="Someone" />)
     expect(container.innerHTML).toBe('')
+  })
+})
+
+describe('FavouriteMark and FavouriteName (T1601.2)', () => {
+  it('is a static gold star for a favourite, labelled, never a button', () => {
+    renderIn(provider(['1']), <FavouriteMark kind="player" id="1" />)
+    const mark = screen.getByRole('img', { name: 'Favourite' })
+    expect(mark.className).toContain('text-fav')
+    expect(mark.querySelector('svg')?.getAttribute('fill')).toBe('currentColor')
+    expect(screen.queryByRole('button')).toBeNull()
+  })
+
+  it('draws nothing for a row that is not a favourite, or a team sharing the id', () => {
+    const { container } = renderIn(
+      provider(['1']),
+      <>
+        <FavouriteMark kind="player" id="2" />
+        <FavouriteMark kind="team" id="1" />
+        <FavouriteMark kind="player" id={null} />
+      </>
+    )
+    expect(container.innerHTML).toBe('')
+  })
+
+  it('puts the mark before a favourite’s name, and leaves another name alone', () => {
+    renderIn(
+      provider([], ['1610612738']),
+      <>
+        <FavouriteName kind="team" id="1610612738">
+          Boston Celtics
+        </FavouriteName>
+        <FavouriteName kind="team" id="1610612747">
+          Los Angeles Lakers
+        </FavouriteName>
+      </>
+    )
+    const marked = screen.getByText('Boston Celtics').parentElement!
+    expect(marked.firstElementChild?.getAttribute('aria-label')).toBe('Favourite')
+    const plain = screen.getByText('Los Angeles Lakers').parentElement!
+    expect(plain.children).toHaveLength(1)
+  })
+
+  it('edges a favourite row of a small table in its gutter, its grid unchanged', () => {
+    renderIn(
+      provider(['1']),
+      <MiniTable
+        label="Players"
+        columns="1fr 40px"
+        head={['Player', 'PTS']}
+        rows={[
+          { key: '1', favourite: true, cells: ['One', '30'] },
+          { key: '2', cells: ['Two', '20'] }
+        ]}
+      />
+    )
+    const [, fav, plain] = screen.getAllByRole('row')
+    // A bar 8 px left of the row, in the table's gutter, never on the first cell.
+    expect(fav.className).toContain('before:-left-2')
+    expect(fav.className).toContain('before:bg-fav')
+    expect(plain.className).not.toContain('before:bg-fav')
+    expect(fav.style.gridTemplateColumns).toBe(plain.style.gridTemplateColumns)
+    expect(fav.className.replace(` ${FAV_GUTTER_EDGE}`, '')).toBe(plain.className)
+    // The gutter is taken back by the margin, so every cell stays where it was.
+    const table = screen.getByRole('table')
+    expect(table.className).toContain('-ml-2')
+    expect(table.className).toContain('pl-2')
   })
 })

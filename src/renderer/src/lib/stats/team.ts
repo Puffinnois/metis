@@ -501,6 +501,8 @@ export interface ScheduleRow {
   key: string
   date: string
   opponent: string
+  /** The opponent's id, for the favourite mark (T1601.2). */
+  opponentId: string | null
   type: string | null
   score: string | null
   result: TeamGame['result']
@@ -520,6 +522,7 @@ export function scheduleRows(games: readonly TeamGame[], through: string | null)
       key: g.id,
       date: shortDay(g.date),
       opponent: opponentText(g),
+      opponentId: g.opponent.id,
       type: typeTag(g.type),
       score: scoreText(g),
       result: g.result,

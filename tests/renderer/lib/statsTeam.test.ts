@@ -307,6 +307,8 @@ describe('a team’s games', () => {
       ['next', '', null]
     ])
     expect(scheduleRows(of('A'), '2026-02-01').find((r) => r.key === 'po')?.type).toBe('Playoffs')
+    // The opponent's id, for the favourite mark (T1601.2).
+    expect(rows.every((r) => typeof r.opponentId === 'string')).toBe(true)
   })
 
   it('charts the playoff odds after each game holding a forecast, in date order', () => {

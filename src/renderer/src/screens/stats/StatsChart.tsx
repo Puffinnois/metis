@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { ArrowUpDown, Search } from 'lucide-react'
+import { FavouriteMark } from '@/components/stats/FavouriteStar'
 import { CheckToggle, Segmented, StatsSelect } from '@/components/stats/controls'
 import { Loading, Notes } from '@/components/stats/parts'
 import { PctChip, PickSwatch, Scatter, type DotCard } from '@/components/stats/Scatter'
@@ -41,6 +42,7 @@ import { RAIL_POSITIONS } from '@/lib/stats/player'
 import { leaderRuleWords } from '@/lib/stats/qualifying'
 import { seasonOf, type StatsScope } from '@/lib/stats/scope'
 import { useStatsQuery, type StatsData } from '@/lib/stats/useStats'
+import { favouriteEdge, useFavourites } from '@/lib/stats/favourites'
 import { cn } from '@/lib/utils'
 import type { MetricInfo } from '@shared/stats/types'
 
@@ -426,6 +428,7 @@ function Picks({
       {picks.map((p, k) => (
         <span key={p.id} className="flex items-center gap-1.5 text-[12.5px] font-medium text-fg">
           <PickSwatch slot={k} />
+          <FavouriteMark kind={entity} id={p.id} />
           {entity === 'team' ? p.name : shortName(entity, p)}
         </span>
       ))}
@@ -517,6 +520,7 @@ function Ready({
 }): React.JSX.Element {
   const { entity } = state
   const isPlayer = entity === 'player'
+  const favourites = useFavourites()
   const X = info(axes.x)
   const Y = info(axes.y)
   const s = scales(view.domain, { x: X?.direction === 'lower', y: Y?.direction === 'lower' })
@@ -623,6 +627,7 @@ function Ready({
             className={cn(
               grid,
               'h-[34px] border-b border-line-2 text-[12.5px]',
+              favouriteEdge(favourites.isFavourite(isPlayer ? 'player' : 'team', d.id)),
               d.matched && 'bg-cobalt-soft',
               !d.qualified && 'opacity-55'
             )}
@@ -634,6 +639,7 @@ function Ready({
               className="flex min-w-0 cursor-pointer items-center gap-1.5 text-left font-medium text-fg hover:text-cobalt"
             >
               {d.pick >= 0 && <PickSwatch slot={d.pick} />}
+              <FavouriteMark kind={isPlayer ? 'player' : 'team'} id={d.id} />
               <span className="truncate">{isPlayer ? d.name : `${d.team} · ${d.name}`}</span>
             </button>
             {isPlayer && (

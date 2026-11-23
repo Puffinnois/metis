@@ -62,6 +62,9 @@ export interface RailGame {
   id: string
   away: string
   home: string
+  /** The teams' ids, for the favourite mark (T1601.2); null where the data has none. */
+  awayId: string | null
+  homeId: string | null
   awayScore: string
   homeScore: string
   awayWon: boolean
@@ -89,6 +92,8 @@ export function railGames(
         id: g.id,
         away: g.away.code,
         home: g.home.code,
+        awayId: g.away.id,
+        homeId: g.home.id,
         awayScore: g.played ? String(away) : '',
         homeScore: g.played ? String(home) : '',
         awayWon: g.played && away > home,

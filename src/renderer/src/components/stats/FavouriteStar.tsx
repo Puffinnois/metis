@@ -3,6 +3,62 @@ import { favouriteLabel, useFavourites, useHasFavourites } from '@/lib/stats/fav
 import { cn } from '@/lib/utils'
 import type { FavouriteKind } from '@shared/favourites'
 
+/**
+ * The static favourite mark (T1601.2): a small filled gold star, shown only for a favourite, never a
+ * button. Every screen that lists players or teams where the star is not toggled uses it; a row that
+ * is not a favourite gets nothing. `on` is for a caller that already looked it up.
+ */
+export function FavouriteMark({
+  kind,
+  id,
+  on,
+  className
+}: {
+  kind: FavouriteKind
+  id: string | null | undefined
+  on?: boolean
+  className?: string
+}): React.JSX.Element | null {
+  const favourites = useFavourites()
+  const shown = on ?? (id != null && favourites.isFavourite(kind, id))
+  if (!shown) return null
+  return (
+    <span
+      role="img"
+      aria-label="Favourite"
+      title="Favourite"
+      className={cn('inline-flex shrink-0 items-center text-fav', className)}
+    >
+      <Star aria-hidden="true" className="size-[11px]" fill="currentColor" strokeWidth={1.5} />
+    </span>
+  )
+}
+
+/**
+ * A name with the mark before it, for a favourite, cut with an ellipsis where it runs long. Before the
+ * name so a long one never hides it, and inside the name's own cell so no column moves.
+ */
+export function FavouriteName({
+  kind,
+  id,
+  children,
+  className
+}: {
+  kind: FavouriteKind
+  id: string | null | undefined
+  children: React.ReactNode
+  className?: string
+}): React.JSX.Element {
+  return (
+    <span
+      className={cn('inline-flex max-w-full min-w-0 items-center gap-1 align-bottom', className)}
+    >
+      <FavouriteMark kind={kind} id={id} />
+      <span className="min-w-0 truncate">{children}</span>
+    </span>
+  )
+}
+
 const SIZES = {
   sm: { box: 'size-4', icon: 'size-3' },
   lg: { box: 'size-7', icon: 'size-[18px]' }

@@ -1,6 +1,6 @@
 import { AssistNetwork } from '@/components/stats/AssistNetwork'
 import { CareerStrip } from '@/components/stats/CareerStrip'
-import { FavouriteStar } from '@/components/stats/FavouriteStar'
+import { FavouriteName, FavouriteStar } from '@/components/stats/FavouriteStar'
 import { MetricHead } from '@/components/stats/MetricCard'
 import { ShotChart } from '@/components/stats/ShotChart'
 import { useScreenState } from '@/lib/stats/session'
@@ -16,7 +16,8 @@ import {
   ResultChip,
   SectionHead,
   SplitTables,
-  TabRow
+  TabRow,
+  TABLE_SCROLL
 } from '@/components/stats/parts'
 import { PlayerRail } from '@/components/stats/PlayerRail'
 import { playSplitDefs, playSplitTableNotes } from '@/lib/stats/splits'
@@ -108,6 +109,7 @@ import {
   type StatsData
 } from '@/lib/stats/useStats'
 import { stripHint, type StripHint } from '@/lib/stats/careerStrip'
+import { useFavourites } from '@/lib/stats/favourites'
 import { cn } from '@/lib/utils'
 import { WithOrWithout } from './StatsOnCourt'
 import type {
@@ -599,6 +601,7 @@ function PairTable({
   empty: string
   onOpenPlayer: (player: string) => void
 }): React.JSX.Element {
+  const favourites = useFavourites()
   const [all, setAll] = useState(false)
   const rows = pairRows(pairs, all ? null : PAIR_LIMIT)
   return (
@@ -607,7 +610,7 @@ function PairTable({
       {pairs.length === 0 ? (
         <p className="m-0 text-[12.5px] text-fg-3">{empty}</p>
       ) : (
-        <div className="overflow-x-auto">
+        <div className={TABLE_SCROLL}>
           <MiniTable
             label={title}
             columns={`minmax(150px,1.6fr) 32px repeat(${PAIR_HEAD.length - 2}, minmax(52px,1fr))`}
@@ -617,10 +620,16 @@ function PairTable({
               key: r.key,
               title: `Open ${r.name}’s dashboard`,
               onOpen: () => onOpenPlayer(r.key),
+              favourite: favourites.isFavourite('player', r.key),
               cells: [
-                <span key="n" className="font-sans text-[13px] font-medium">
+                <FavouriteName
+                  key="n"
+                  kind="player"
+                  id={r.key}
+                  className="font-sans text-[13px] font-medium"
+                >
                   {r.name}
-                </span>,
+                </FavouriteName>,
                 ...r.cells
               ]
             }))}
@@ -934,7 +943,7 @@ function Career({
             No games in {typeLabel(scope.seasonType).toLowerCase()} in any season.
           </p>
         )}
-        <div className={cn('overflow-x-auto', rows.length === 0 && 'hidden')}>
+        <div className={cn(TABLE_SCROLL, rows.length === 0 && 'hidden')}>
           <MiniTable
             label="Career by season"
             columns={`minmax(72px,1fr) 44px 40px ${head.map(() => 'minmax(52px,1fr)').join(' ')}`}
@@ -1001,7 +1010,7 @@ function GameLog({ data, scope, player, onOpenGame }: TabProps): React.JSX.Eleme
   return (
     <section className="flex flex-col gap-2.5">
       <SectionHead title="Game log" note={`${rows.length} games · ${scopeLabel(scope)}`} />
-      <div className="overflow-x-auto">
+      <div className={TABLE_SCROLL}>
         <MiniTable
           label="Game log"
           columns={`52px 64px 42px 104px ${LOG_COLUMNS.map((c) =>
@@ -1033,7 +1042,9 @@ function GameLog({ data, scope, player, onOpenGame }: TabProps): React.JSX.Eleme
                   {r.date}
                 </span>,
                 <span key="o" className="font-semibold whitespace-nowrap">
-                  {r.opponent}
+                  <FavouriteName kind="team" id={r.opponentId}>
+                    {r.opponent}
+                  </FavouriteName>
                   {!r.started && <span className="ml-1 font-normal text-fg-3">·</span>}
                 </span>,
                 <span key="t" className="text-fg-2">

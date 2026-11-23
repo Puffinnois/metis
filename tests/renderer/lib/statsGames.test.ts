@@ -121,6 +121,9 @@ describe('the date rail', () => {
     expect(rail[0]).toMatchObject({
       away: 'LAL',
       home: 'BOS',
+      // The teams' ids, for the favourite mark (T1601.2).
+      awayId: expect.any(String),
+      homeId: expect.any(String),
       awayScore: '102',
       homeScore: '110',
       homeWon: true,
