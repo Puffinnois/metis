@@ -24,6 +24,9 @@ const HEAT: Record<Heat, string> = {
   l3: 'bg-l3 font-semibold'
 }
 
+/** A cell's shade for its heat, the leaderboard's: other tables tinted on the same scale use it. */
+export const HEAT_CELL: Readonly<Record<Heat, string>> = HEAT
+
 /** The percentile legend, under the table. */
 export function HeatLegend(): React.JSX.Element {
   const steps: [Heat, string][] = [

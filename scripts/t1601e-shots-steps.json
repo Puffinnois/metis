@@ -1,0 +1,44 @@
+[
+  {
+    "size": [1500, 950]
+  },
+  {
+    "wait": 9000
+  },
+  {
+    "eval": "\nwindow.sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nwindow.until = async (fn, ms = 30000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await fn()) return true; await sleep(20) } return false };\nwindow.nav = async (name) => { const b = [...document.querySelectorAll('nav button')].find((x) => x.textContent.trim() === name); if (!b) return 'NO NAV ' + name; b.click(); await sleep(800); return 'nav ' + name };\nwindow.trigger = () => document.querySelector('button[aria-label^=\"League: \"]');\nwindow.league = () => trigger()?.getAttribute('aria-label')?.replace('League: ', '') ?? null;\nwindow.items = () => [...document.querySelectorAll('[role=menuitemradio]')];\nwindow.openMenu = async () => { const t = trigger(); if (!t) return false; t.focus(); t.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return until(() => items().length > 0, 5000) };\nwindow.pick = async (name) => { if (league() === name) return name; if (!(await openMenu())) return 'NO MENU'; const item = items().find((x) => x.textContent.startsWith(name)); if (!item) return 'NO ITEM ' + name; item.click(); await until(() => league() === name, 5000); await sleep(2500); return league() };\nwindow.settled = () => document.querySelectorAll('section[data-league]').length > 0 && !document.querySelector('[data-loading]');\nwindow.openPage = async () => { const b = [...document.querySelectorAll('nav button')].find((x) => x.textContent.trim() === 'Favourites'); const t0 = performance.now(); b.click(); await until(() => document.querySelector('[data-day]') && settled(), 30000); const ms = Math.round(performance.now() - t0); await sleep(500); return ms };\nwindow.day = () => document.querySelector('[data-day]')?.dataset.day ?? null;\nwindow.rows = () => [...document.querySelectorAll('section[data-league] [role=row][data-state]')].map((r) => ({ league: r.closest('section').dataset.league, state: r.dataset.state, text: r.innerText.replace(/\\s+/g, ' ').trim().slice(0, 160) }));\nwindow.page = () => ({ day: day(), sections: [...document.querySelectorAll('section[data-league]')].map((s) => ({ league: s.dataset.league, ms: s.dataset.ms, through: s.querySelector('[data-through]')?.textContent ?? null, foot: s.querySelector('[data-absent]')?.textContent ?? null, notDownloaded: s.innerText.includes('Not downloaded') })), rows: rows() });\nwindow.step = async (by) => { const b = document.querySelector(by < 0 ? 'button[title^=\"The day before\"]' : 'button[title^=\"The day after\"]'); if (!b || b.disabled) return null; b.click(); await sleep(400); await until(settled, 20000); await sleep(300); return day() };\nwindow.cellTitles = (name) => { const r = [...document.querySelectorAll('[role=row][data-state=played]')].find((x) => x.innerText.includes(name)); return r ? [...r.querySelectorAll('[role=cell]')].map((c) => ({ text: c.textContent.trim(), heat: c.dataset.heat ?? null, title: c.title })) : null };\nwindow.errors = async () => (await window.api.dev.recentErrors()).map((e) => e.message.slice(0, 200));\nwindow.themeNow = () => (document.documentElement.classList.contains('dark') ? 'dark' : 'light');\nwindow.toTheme = async (want) => { if (themeNow() !== want) document.querySelector('button[aria-label=\"Switch theme\"]').click(); await sleep(800); return themeNow() };\n'helpers ready'"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { await toTheme('light'); await pick('NBA'); return openPage() })()))()"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { const sub = document.querySelector('[data-day]')?.textContent.trim(); const minCells = [...document.querySelectorAll('[role=row][data-state=played]')].map((r) => r.querySelectorAll('[role=cell]')[0]).filter(Boolean).map((c) => ({ text: c.textContent.trim(), heat: c.dataset.heat, title: c.title })); const pending = [...document.querySelectorAll('[role=row][data-state=pending] [role=cell]')].map((c) => ({ text: c.textContent.trim(), title: c.title })); return { day: day(), sub, minCells, pending } })()))()"
+  },
+  {
+    "shot": "11-opening-light"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { return toTheme('dark') })()))()"
+  },
+  {
+    "shot": "12-opening-dark"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { const sel = [...document.querySelectorAll('select')].find((x) => x.title === 'Day'); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(sel, '2026-11-08'); sel.dispatchEvent(new Event('change', { bubbles: true })); await sleep(1500); return day() })()))()"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { const sub = document.querySelector('[data-day]')?.textContent.trim(); const minCells = [...document.querySelectorAll('[role=row][data-state=played]')].map((r) => r.querySelectorAll('[role=cell]')[0]).filter(Boolean).map((c) => ({ text: c.textContent.trim(), heat: c.dataset.heat, title: c.title })); const pending = [...document.querySelectorAll('[role=row][data-state=pending] [role=cell]')].map((c) => ({ text: c.textContent.trim(), title: c.title })); return { day: day(), sub, minCells, pending } })()))()"
+  },
+  {
+    "shot": "13-stepped-back-dark"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { return toTheme('light') })()))()"
+  },
+  {
+    "shot": "14-stepped-back-light"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { return { errors: await errors() } })()))()"
+  }
+]

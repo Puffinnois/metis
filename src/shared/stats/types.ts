@@ -481,6 +481,19 @@ export interface StatsOfficial {
 }
 
 /**
+ * A player's listing for one game on the official injury report (T1601.4): the status and reason of
+ * the last report before the game, as published. What the report said, never whether they played.
+ */
+export interface StatsGameListing {
+  gameId: string
+  playerId: string
+  /** "Out", "Doubtful", "Questionable", "Probable", "Available". */
+  status: string
+  /** "Injury/Illness - Low Back Tightness"; null when none is given. */
+  reason: string | null
+}
+
+/**
  * A player's status on the latest official injury report of the current season, as published: not a
  * forecast of whether they play.
  */

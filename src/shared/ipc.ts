@@ -27,6 +27,7 @@ import type {
   StatsOtherCareer,
   StatsOtherPlayer,
   StatsAvailability,
+  StatsGameListing,
   StatsCoach,
   StatsIndexedPlayer,
   StatsPlayerInfo,
@@ -199,6 +200,8 @@ export interface Api {
     otherPlayers(league: LeagueId): Promise<StatsOtherPlayer[]>
     /** Players' status on the latest official injury report; those it does not list are left out. */
     availability(league: LeagueId, players: string[]): Promise<StatsAvailability[]>
+    /** The players' listings on the injury report for these games, the last before each (T1601.4). */
+    gameListings(league: LeagueId, games: string[], players: string[]): Promise<StatsGameListing[]>
     /** A team's head and assistant coaches for a season; empty when the file has none. */
     coaches(league: LeagueId, team: string, season: number): Promise<StatsCoach[]>
     /** The shots a chart draws for a player or team in a scope, or why there are none. */
@@ -265,6 +268,7 @@ export const IPC = {
   statsOtherCareer: 'stats:other-career',
   statsOtherPlayers: 'stats:other-players',
   statsAvailability: 'stats:availability',
+  statsGameListings: 'stats:game-listings',
   statsCoaches: 'stats:coaches',
   statsShots: 'stats:shots',
   statsAssists: 'stats:assists',

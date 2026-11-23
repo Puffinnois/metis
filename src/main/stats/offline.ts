@@ -99,6 +99,7 @@ export function offlineStats(league: League, reason: string | null = league.noDa
         combineYears: null
       }),
     availability: () => Promise.resolve([]),
+    gameListings: () => Promise.resolve([]),
     coaches: () => Promise.resolve([]),
     shots: () =>
       Promise.resolve({

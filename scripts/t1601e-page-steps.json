@@ -1,0 +1,56 @@
+[
+  {
+    "size": [1500, 950]
+  },
+  {
+    "wait": 9000
+  },
+  {
+    "eval": "\nwindow.sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nwindow.until = async (fn, ms = 30000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await fn()) return true; await sleep(20) } return false };\nwindow.nav = async (name) => { const b = [...document.querySelectorAll('nav button')].find((x) => x.textContent.trim() === name); if (!b) return 'NO NAV ' + name; b.click(); await sleep(800); return 'nav ' + name };\nwindow.trigger = () => document.querySelector('button[aria-label^=\"League: \"]');\nwindow.league = () => trigger()?.getAttribute('aria-label')?.replace('League: ', '') ?? null;\nwindow.items = () => [...document.querySelectorAll('[role=menuitemradio]')];\nwindow.openMenu = async () => { const t = trigger(); if (!t) return false; t.focus(); t.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return until(() => items().length > 0, 5000) };\nwindow.pick = async (name) => { if (league() === name) return name; if (!(await openMenu())) return 'NO MENU'; const item = items().find((x) => x.textContent.startsWith(name)); if (!item) return 'NO ITEM ' + name; item.click(); await until(() => league() === name, 5000); await sleep(2500); return league() };\nwindow.settled = () => document.querySelectorAll('section[data-league]').length > 0 && !document.querySelector('[data-loading]');\nwindow.openPage = async () => { const b = [...document.querySelectorAll('nav button')].find((x) => x.textContent.trim() === 'Favourites'); const t0 = performance.now(); b.click(); await until(() => document.querySelector('[data-day]') && settled(), 30000); const ms = Math.round(performance.now() - t0); await sleep(500); return ms };\nwindow.day = () => document.querySelector('[data-day]')?.dataset.day ?? null;\nwindow.rows = () => [...document.querySelectorAll('section[data-league] [role=row][data-state]')].map((r) => ({ league: r.closest('section').dataset.league, state: r.dataset.state, text: r.innerText.replace(/\\s+/g, ' ').trim().slice(0, 160) }));\nwindow.page = () => ({ day: day(), sections: [...document.querySelectorAll('section[data-league]')].map((s) => ({ league: s.dataset.league, ms: s.dataset.ms, through: s.querySelector('[data-through]')?.textContent ?? null, foot: s.querySelector('[data-absent]')?.textContent ?? null, notDownloaded: s.innerText.includes('Not downloaded') })), rows: rows() });\nwindow.step = async (by) => { const b = document.querySelector(by < 0 ? 'button[title^=\"The day before\"]' : 'button[title^=\"The day after\"]'); if (!b || b.disabled) return null; b.click(); await sleep(400); await until(settled, 20000); await sleep(300); return day() };\nwindow.cellTitles = (name) => { const r = [...document.querySelectorAll('[role=row][data-state=played]')].find((x) => x.innerText.includes(name)); return r ? [...r.querySelectorAll('[role=cell]')].map((c) => ({ text: c.textContent.trim(), heat: c.dataset.heat ?? null, title: c.title })) : null };\nwindow.errors = async () => (await window.api.dev.recentErrors()).map((e) => e.message.slice(0, 200));\nwindow.themeNow = () => (document.documentElement.classList.contains('dark') ? 'dark' : 'light');\nwindow.toTheme = async (want) => { if (themeNow() !== want) document.querySelector('button[aria-label=\"Switch theme\"]').click(); await sleep(800); return themeNow() };\n'helpers ready'"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { await window.api.favourites.add('nba', 'player', '1629029', 'Luka Dončić'); await pick('NCAA Men'); await pick('NBA'); return 'starred' })()))()"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { await toTheme('light'); return { league: await pick('NBA'), favourites: Object.fromEntries(Object.entries(await window.api.favourites.all()).map(([l, f]) => [l, f.map((x) => x.kind + ':' + x.name + (x.from ? ' (from ' + x.from + ')' : ''))])) } })()))()"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { const paint = await openPage(); return { paint, ...page() } })()))()"
+  },
+  {
+    "shot": "01-opening-day"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { const seen = [day()]; for (let i = 0; i < 12; i++) { if (rows().some((r) => r.state === 'played' && r.text.includes('Gilgeous'))) break; const d = await step(-1); if (!d) break; seen.push(d) } window.__sgaDay = day(); return { visited: seen, ...page() } })()))()"
+  },
+  {
+    "shot": "02-sga-played"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { return { sga: cellTitles('Gilgeous'), team: cellTitles('Lakers') ?? cellTitles('Duke') } })()))()"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { for (let i = 0; i < 20; i++) { const r = rows(); if (r.some((x) => x.state === 'dnp') && r.some((x) => x.state === 'nogame') && r.some((x) => x.state === 'played')) break; if (!(await step(-1))) break } return page() })()))()"
+  },
+  {
+    "shot": "03-each-state"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { const sel = [...document.querySelectorAll('select')].find((x) => x.title === 'Day'); const opts = [...sel.options].map((o) => o.value); const skipped = []; for (let d = new Date(opts[0] + 'T00:00:00Z'); d <= new Date(opts.at(-1) + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + 1)) { const iso = d.toISOString().slice(0, 10); if (!opts.includes(iso)) skipped.push(iso) } const from = window.__sgaDay; return { days: opts.length, first: opts[0], last: opts.at(-1), skipped } })()))()"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { await sleep(500); const before = { league: league(), day: day() }; const b = [...document.querySelectorAll('section[data-league=ncaam] button')].find((x) => x.textContent.trim() === 'Duke Blue Devils'); if (!b) return 'NO DUKE'; b.click(); await until(() => league() === 'NCAA Men' && (document.querySelector('main h1')?.textContent ?? '').length > 0, 15000); await sleep(1500); const there = { league: league(), h1: document.querySelector('main h1')?.textContent }; document.querySelector('nav button[aria-label=Back]').click(); await until(() => league() === 'NBA' && settled(), 20000); await sleep(1500); return { before, there, back: { league: league(), day: day(), screen: document.querySelector('main h1')?.textContent } } })()))()"
+  },
+  {
+    "shot": "04-back-from-ncaam"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { await toTheme('dark'); await sleep(500); return page().day })()))()"
+  },
+  {
+    "shot": "05-dark"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { await toTheme('light'); return { errors: await errors() } })()))()"
+  }
+]

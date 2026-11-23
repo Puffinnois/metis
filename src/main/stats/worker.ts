@@ -70,6 +70,8 @@ async function handle(request: StatsRequest): Promise<unknown> {
       return service.lineups(request.team, request.season, request.gameType, request.group)
     case 'availability':
       return service.availability(request.players)
+    case 'gameListings':
+      return service.gameListings(request.games, request.players)
     case 'coaches':
       return service.coaches(request.team, request.season)
     case 'shots':

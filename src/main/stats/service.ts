@@ -29,6 +29,7 @@ import type {
   StatsOfficialsSeason,
   StatsProfile,
   StatsAvailability,
+  StatsGameListing,
   StatsCoach,
   StatsStatus
 } from '@shared/stats/types'
@@ -51,7 +52,7 @@ import type {
   StatsSyncResult,
   StatsWorkerInit
 } from './protocol'
-import { readAvailability, readCoaches } from './availabilityReads'
+import { readAvailability, readCoaches, readGameListings } from './availabilityReads'
 import { readShotChart } from './shotReads'
 import { readAssistNetwork, readGameFlow } from './playReads'
 import type { LineupGroup } from '@shared/stats/lineups'
@@ -166,6 +167,8 @@ export interface StatsService {
   /** A player's bio, draft and combines, each combine measure ranked within its position group. */
   profile(player: string): Promise<StatsProfile>
   availability(players: string[]): Promise<StatsAvailability[]>
+  /** The players' listings on the injury report for these games (T1601.4). */
+  gameListings(games: string[], players: string[]): Promise<StatsGameListing[]>
   coaches(team: string, season: number): Promise<StatsCoach[]>
   /** The shots a chart draws, capped, with every shot of the scope counted by zone. */
   shots(request: StatsShotRequest): Promise<StatsShotChart>
@@ -488,6 +491,7 @@ export async function openStatsService(
     lineups: (team, season, gameType, group) =>
       read((reader) => readLineups(reader, team, season, gameType, group)),
     availability: (players) => read((reader) => readAvailability(reader, players)),
+    gameListings: (games, players) => read((reader) => readGameListings(reader, games, players)),
     coaches: (team, season) => read((reader) => readCoaches(reader, team, season)),
     shots: (request) => read((reader) => readShotChart(reader, request, league)),
     assists: (request) => read((reader) => readAssistNetwork(reader, request, league)),
@@ -567,6 +571,7 @@ export async function openStatsService(
         lineups: published.lineups,
         profile: published.profile,
         availability: published.availability,
+        gameListings: published.gameListings,
         coaches: published.coaches
       })
     }
@@ -592,6 +597,7 @@ export async function openStatsService(
     lineups: none.lineups,
     profile: none.profile,
     availability: none.availability,
+    gameListings: none.gameListings,
     coaches: none.coaches,
     shots: none.shots,
     assists: none.assists,
