@@ -891,6 +891,12 @@ export interface LeaderboardBoard {
    * the flag, never the ids; absent in views saved before it, which open with it off.
    */
   favourites?: boolean
+  /**
+   * Conditions on attributes and metrics (T1701.2, D51), as the engine reads them: a percentage as a
+   * fraction, a metric compared in the board's mode. One not yet finished is kept and not asked for.
+   * Absent in views saved before them, which open with none.
+   */
+  filters?: StatsFilter[]
 }
 
 /** A saved view: a named leaderboard, kept in `metis.db`. */
