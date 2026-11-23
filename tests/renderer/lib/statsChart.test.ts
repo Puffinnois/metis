@@ -34,6 +34,7 @@ import {
   shortName,
   ticks,
   whoWords,
+  dotPaint,
   type ChartDot,
   type ChartState
 } from '@/lib/stats/chart'
@@ -522,5 +523,65 @@ describe('the drawing', () => {
       'Bo',
       'Cy'
     ])
+  })
+})
+
+describe('dotPaint: a favourite on the chart (T1601.2)', () => {
+  const d = (over: Partial<ChartDot> = {}): ChartDot => ({
+    id: '1',
+    name: 'Someone',
+    team: 'OKC',
+    position: 'G',
+    x: 0,
+    y: 0,
+    qualified: true,
+    values: {},
+    percentiles: { ast: 80 },
+    category: 'G',
+    matched: false,
+    pick: -1,
+    games: 10,
+    sample: null,
+    ...over
+  })
+  const off = { hovered: false, favourite: false }
+  const fav = { hovered: false, favourite: true }
+
+  it('fills a favourite gold, ringed in gold, when nothing is coloured by', () => {
+    expect(dotPaint(d(), { colour: null, ...fav })).toEqual({
+      fill: 'var(--fav)',
+      ring: 'var(--fav)',
+      ringWidth: 3.5,
+      ringGap: 3.75
+    })
+    expect(dotPaint(d(), { colour: null, ...off })).toMatchObject({
+      fill: 'var(--cobalt)',
+      ring: null
+    })
+  })
+
+  it('keeps the colour-by fill of a favourite and gives it a heavier gold ring than a pick’s', () => {
+    for (const colour of [POSITION_COLOUR, 'ast']) {
+      const plain = dotPaint(d(), { colour, ...off })
+      const starred = dotPaint(d(), { colour, ...fav })
+      expect(starred.fill).toBe(plain.fill)
+      expect(starred.fill).not.toBe('var(--fav)')
+      expect(starred.ring).toBe('var(--fav)')
+      expect(starred.ringWidth).toBeGreaterThan(
+        dotPaint(d({ pick: 0 }), { colour, ...off }).ringWidth
+      )
+    }
+  })
+
+  it('rings in order: a pick, the hover, a favourite, a search match', () => {
+    const colour = 'ast'
+    expect(
+      dotPaint(d({ pick: 1, matched: true }), { colour, hovered: true, favourite: true }).ring
+    ).toBe('var(--s2)')
+    expect(dotPaint(d({ matched: true }), { colour, hovered: true, favourite: true }).ring).toBe(
+      'var(--cobalt)'
+    )
+    expect(dotPaint(d({ matched: true }), { colour, ...fav }).ring).toBe('var(--fav)')
+    expect(dotPaint(d({ matched: true }), { colour, ...off }).ring).toBe('var(--fg)')
   })
 })

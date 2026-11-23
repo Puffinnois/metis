@@ -13,7 +13,7 @@ import {
 import type { StatsScope } from '@/lib/stats/scope'
 import { useFavourites } from '@/lib/stats/favourites'
 import { useAssists } from '@/lib/stats/useStats'
-import { Loading, MiniTable, SectionHead } from './parts'
+import { Loading, MiniTable, SectionHead, TABLE_SCROLL } from './parts'
 import { FavouriteName } from './FavouriteStar'
 
 /**
@@ -114,7 +114,7 @@ function PairList({
       {rows.length === 0 ? (
         <p className="m-0 text-[12.5px] text-fg-3">{empty}</p>
       ) : (
-        <div className="overflow-x-auto">
+        <div className={TABLE_SCROLL}>
           <MiniTable
             label={title}
             columns={

@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { StatsSelect } from '@/components/stats/controls'
 import { FavouriteMark, FavouriteName } from '@/components/stats/FavouriteStar'
-import { Loading, MiniTable, NavButton, SectionHead } from '@/components/stats/parts'
+import { Loading, MiniTable, NavButton, SectionHead, TABLE_SCROLL } from '@/components/stats/parts'
 import { useNoteContext } from '@/lib/dev/noteContext'
 import {
   BOX_HEAD,
@@ -514,7 +514,7 @@ function GamePairs({
           {gamePairCount(side.rows.length, side.total)}
         </span>
       </div>
-      <div className="overflow-x-auto">
+      <div className={TABLE_SCROLL}>
         <MiniTable
           label={`${side.code} on defense`}
           columns={`minmax(150px,1.3fr) minmax(150px,1.3fr) repeat(${GAME_PAIR_HEAD.length - 2}, minmax(44px,1fr))`}
@@ -548,7 +548,7 @@ function OfficialTable({
   onOpen?: (id: string) => void
 }): React.JSX.Element {
   return (
-    <div className="overflow-x-auto">
+    <div className={TABLE_SCROLL}>
       <MiniTable
         label={label}
         columns={OFFICIAL_COLUMNS}
@@ -860,7 +860,7 @@ function Box({
           {side.startersKnown ? 'Box score' : 'Box score · who started is not listed'}
         </span>
       </div>
-      <div className="overflow-x-auto">
+      <div className={TABLE_SCROLL}>
         <MiniTable
           label={`${side.code} box score`}
           columns={BOX_COLUMNS}

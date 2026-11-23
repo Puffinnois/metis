@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { Segmented, StatsSelect } from '@/components/stats/controls'
 import { MetricHead } from '@/components/stats/MetricCard'
 import { FavouriteName } from '@/components/stats/FavouriteStar'
-import { Loading, MiniTable, Notes, SectionHead } from '@/components/stats/parts'
+import { Loading, MiniTable, Notes, SectionHead, TABLE_SCROLL } from '@/components/stats/parts'
 import { useScreenState } from '@/lib/stats/session'
 import { useFavourites } from '@/lib/stats/favourites'
 import { moveToSeason, type StatsScope } from '@/lib/stats/scope'
@@ -93,7 +93,7 @@ export function StatsStandings({
           {standingsTables(rows, view, strength, forecast).map((t) => (
             <section key={t.title} className="flex flex-col gap-1">
               <SectionHead title={t.title} />
-              <div className="overflow-x-auto">
+              <div className={TABLE_SCROLL}>
                 <MiniTable
                   label={`${t.title} standings`}
                   columns={standingsColumns(forecast, rows)}

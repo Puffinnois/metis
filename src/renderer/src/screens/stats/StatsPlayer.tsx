@@ -16,7 +16,8 @@ import {
   ResultChip,
   SectionHead,
   SplitTables,
-  TabRow
+  TabRow,
+  TABLE_SCROLL
 } from '@/components/stats/parts'
 import { PlayerRail } from '@/components/stats/PlayerRail'
 import { playSplitDefs, playSplitTableNotes } from '@/lib/stats/splits'
@@ -609,7 +610,7 @@ function PairTable({
       {pairs.length === 0 ? (
         <p className="m-0 text-[12.5px] text-fg-3">{empty}</p>
       ) : (
-        <div className="overflow-x-auto">
+        <div className={TABLE_SCROLL}>
           <MiniTable
             label={title}
             columns={`minmax(150px,1.6fr) 32px repeat(${PAIR_HEAD.length - 2}, minmax(52px,1fr))`}
@@ -942,7 +943,7 @@ function Career({
             No games in {typeLabel(scope.seasonType).toLowerCase()} in any season.
           </p>
         )}
-        <div className={cn('overflow-x-auto', rows.length === 0 && 'hidden')}>
+        <div className={cn(TABLE_SCROLL, rows.length === 0 && 'hidden')}>
           <MiniTable
             label="Career by season"
             columns={`minmax(72px,1fr) 44px 40px ${head.map(() => 'minmax(52px,1fr)').join(' ')}`}
@@ -1009,7 +1010,7 @@ function GameLog({ data, scope, player, onOpenGame }: TabProps): React.JSX.Eleme
   return (
     <section className="flex flex-col gap-2.5">
       <SectionHead title="Game log" note={`${rows.length} games · ${scopeLabel(scope)}`} />
-      <div className="overflow-x-auto">
+      <div className={TABLE_SCROLL}>
         <MiniTable
           label="Game log"
           columns={`52px 64px 42px 104px ${LOG_COLUMNS.map((c) =>

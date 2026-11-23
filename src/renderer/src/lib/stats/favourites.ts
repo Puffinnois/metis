@@ -174,6 +174,13 @@ export function useFavouritesState(
  */
 export const FAV_EDGE = 'shadow-[inset_2px_0_0_var(--fav)]'
 
+/**
+ * The edge in a small table's gutter: a 2 px bar 8 px left of the row, so it never sits on the first
+ * cell. The table keeps that gutter (`MiniTable`, `TABLE_SCROLL`).
+ */
+export const FAV_GUTTER_EDGE =
+  'relative before:absolute before:inset-y-0 before:-left-2 before:w-[2px] before:bg-fav'
+
 /** The edge's class for a row, or nothing for a row that is not a favourite. */
 export const favouriteEdge = (on: boolean): string => (on ? FAV_EDGE : '')
 

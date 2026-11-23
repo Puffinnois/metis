@@ -1,5 +1,5 @@
 import { FavouriteName } from '@/components/stats/FavouriteStar'
-import { favouriteEdge, useFavourites } from '@/lib/stats/favourites'
+import { FAV_GUTTER_EDGE, useFavourites } from '@/lib/stats/favourites'
 import { cn } from '@/lib/utils'
 
 /** The dashboards' small pieces: loading lines, section heads, mono tables. */
@@ -35,6 +35,15 @@ export interface MiniRow {
   favourite?: boolean
 }
 
+/** The gutter a small table keeps on its left for a favourite's edge, in px. */
+const GUTTER = 8
+
+/**
+ * The box a small table scrolls in when it is wider than the window: the same gutter, inside the
+ * scroll box, so the edge is not cut off. Every scroll box around a `MiniTable` uses it.
+ */
+export const TABLE_SCROLL = '-ml-2 overflow-x-auto pl-2'
+
 /** A small mono table: a header under a rule, then rows. Numbers align right. */
 export function MiniTable({
   columns,
@@ -57,8 +66,10 @@ export function MiniTable({
   const align = (i: number): string => (i === 0 || left.includes(i) ? 'text-left' : 'text-right')
   return (
     <div
-      className="flex flex-col font-mono text-[12.5px] tabular-nums"
-      style={minWidth ? { minWidth } : undefined}
+      // An 8 px gutter on the left, taken back by the margin so no cell moves: a favourite's edge is
+      // drawn there, clear of the first cell (T1601.2). The width the columns had is kept.
+      className="-ml-2 flex flex-col pl-2 font-mono text-[12.5px] tabular-nums"
+      style={minWidth ? { minWidth: minWidth + GUTTER } : undefined}
       role="table"
       aria-label={label}
     >
@@ -77,7 +88,7 @@ export function MiniTable({
         const style = cn(
           'grid h-[34px] items-center gap-x-3 border-b border-line-2',
           r.strong && 'border-t border-fg-3 font-semibold',
-          favouriteEdge(!!r.favourite)
+          r.favourite && FAV_GUTTER_EDGE
         )
         const cells = r.cells.map((c, i) => (
           <span
@@ -261,7 +272,7 @@ export function SplitTables({
         <section key={g.title} className="flex flex-col gap-1.5">
           <h3 className="m-0 text-[12.5px] leading-none font-semibold text-fg-2">{g.title}</h3>
           {g.note && <div className="text-[12px] text-fg-3">{g.note}</div>}
-          <div className="overflow-x-auto">
+          <div className={TABLE_SCROLL}>
             <MiniTable
               label={g.title}
               columns={columns}

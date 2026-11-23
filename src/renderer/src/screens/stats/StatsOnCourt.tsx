@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { ArrowDown, ArrowUp } from 'lucide-react'
 import { Segmented, StatsSelect } from '@/components/stats/controls'
 import { FavouriteName } from '@/components/stats/FavouriteStar'
-import { Loading, MiniTable, Notes, SectionHead } from '@/components/stats/parts'
+import { Loading, MiniTable, Notes, SectionHead, TABLE_SCROLL } from '@/components/stats/parts'
 import { shortName } from '@/lib/stats/lineups'
 import {
   DEFAULT_MIN_POSSESSIONS,
@@ -96,7 +96,7 @@ export function DerivedUnits({
               ? `${shown.length} of ${rows.length} groups`
               : `${rows.length} groups`}
           </p>
-          <div className="overflow-x-auto">
+          <div className={TABLE_SCROLL}>
             <MiniTable
               label="Derived lineups"
               columns={`minmax(${size === '5' ? 330 : 220}px,2.4fr) ${LINE_GRID}`}
@@ -218,7 +218,7 @@ export function WithOrWithout({
             onChange={(id) => setMate(id)}
             className="self-start"
           />
-          <div className="overflow-x-auto">
+          <div className={TABLE_SCROLL}>
             <MiniTable
               label="With or without"
               columns={`minmax(220px,2fr) ${LINE_GRID}`}
@@ -277,7 +277,7 @@ export function TeamOnOff({
         <Loading error={error} />
       ) : (
         <>
-          <div className="overflow-x-auto">
+          <div className={TABLE_SCROLL}>
             <MiniTable
               label="On and off"
               columns={`minmax(170px,1.6fr) repeat(${TEAM_ON_OFF_METRICS.length}, minmax(56px,1fr))`}

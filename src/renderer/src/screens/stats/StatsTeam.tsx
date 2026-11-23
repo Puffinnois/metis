@@ -17,7 +17,8 @@ import {
   ResultChip,
   SectionHead,
   SplitTables,
-  TabRow
+  TabRow,
+  TABLE_SCROLL
 } from '@/components/stats/parts'
 import { ScopeBar } from '@/components/stats/ScopeBar'
 import { StatSection, StatSections } from '@/components/stats/StatLines'
@@ -657,7 +658,7 @@ function Players({ data, scope, team, mode, onOpenPlayer }: TabProps): React.JSX
   return (
     <section className="flex flex-col gap-2.5">
       <SectionHead title="Players" note="Their games for this team, most minutes first" />
-      <div className="overflow-x-auto">
+      <div className={TABLE_SCROLL}>
         <MiniTable
           label="Players"
           columns={`minmax(170px,1.6fr) 28px 32px ${head.map(() => 'minmax(48px,1fr)').join(' ')}`}

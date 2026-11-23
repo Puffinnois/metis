@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react'
-import { MiniTable, Notes, SectionHead } from '@/components/stats/parts'
+import { MiniTable, Notes, SectionHead, TABLE_SCROLL } from '@/components/stats/parts'
 import type { NavLocation } from '@/lib/navHistory'
 import { careerStrip, ownLines, stripQuery, type StripRow } from '@/lib/stats/careerStrip'
 import { downloadOf, leagueHolds, useLeagueDownloads } from '@/lib/stats/downloads'
@@ -116,7 +116,7 @@ export function CareerStrip({
       className="flex scroll-mt-4 flex-col gap-2.5 outline-none"
     >
       <SectionHead title={view.title} note={view.note} />
-      <div className="overflow-x-auto">
+      <div className={TABLE_SCROLL}>
         <MiniTable
           label={view.title}
           columns={COLUMNS}

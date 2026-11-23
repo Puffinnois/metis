@@ -1,20 +1,20 @@
 import { useState } from 'react'
 import { FavouriteMark } from '@/components/stats/FavouriteStar'
 import {
-  categoryColour,
+  DOT_SERIES,
+  dotPaint,
   dotRadius,
-  isCategory,
   labelItems,
   placeLabels,
   PLOT,
   type ChartDot,
+  type DotPaint,
   type Scales
 } from '@/lib/stats/chart'
-import { heatColor } from '@/lib/stats/format'
 import { favouritesLast, useFavourites } from '@/lib/stats/favourites'
 import type { Entity } from '@shared/stats/types'
 
-const SERIES = ['var(--s1)', 'var(--s2)', 'var(--s3)']
+const SERIES = DOT_SERIES
 
 /** What the hover card says about a dot. */
 export interface DotCard {
@@ -70,29 +70,11 @@ export function Scatter({
   })
   const labels = placeLabels(labelItems(entity, dots, at), entity === 'team' ? 6.6 : 6.3)
   const hovered = dots.find((d) => d.id === hover) ?? null
-  // A favourite is drawn in the gold with a gold ring (T1601.2); a pick's or the hover's ring wins.
+  // A favourite's paint (T1601.2): gold, or its colour-by's fill with a gold ring (`dotPaint`).
   const favourites = useFavourites()
   const isFav = (d: ChartDot): boolean => favourites.isFavourite(entity, d.id)
-  const ring = (d: ChartDot): string | null =>
-    d.pick >= 0
-      ? SERIES[d.pick]
-      : d.id === hover
-        ? 'var(--cobalt)'
-        : isFav(d)
-          ? 'var(--fav)'
-          : d.matched
-            ? 'var(--fg)'
-            : null
-  const fill = (d: ChartDot): string =>
-    isFav(d)
-      ? 'var(--fav)'
-      : colour === null
-        ? 'var(--cobalt)'
-        : isCategory(colour)
-          ? categoryColour(colour, d.category)
-          : d.percentiles[colour] === null || d.percentiles[colour] === undefined
-            ? 'var(--fg-3)'
-            : heatColor((d.percentiles[colour] ?? 50) / 100, false)
+  const paint = (d: ChartDot): DotPaint =>
+    dotPaint(d, { colour, hovered: d.id === hover, favourite: isFav(d) })
   // Favourites over the crowd, and the hovered last, over every other dot.
   const layered = favouritesLast(dots, isFav)
   const order = hovered ? [...layered.filter((d) => d.id !== hover), hovered] : layered
@@ -160,7 +142,8 @@ export function Scatter({
         </text>
         {order.map((d) => {
           const { cx, cy, r } = at(d)
-          const rim = ring(d)
+          const p = paint(d)
+          const rim = p.ring
           // Special dots are opaque; coloured ones nearly; the rest let the crowd show through.
           const opacity = rim !== null ? 1 : colour !== null ? 0.85 : entity === 'team' ? 0.62 : 0.5
           return (
@@ -175,17 +158,17 @@ export function Scatter({
                 <circle
                   cx={cx}
                   cy={cy}
-                  r={r + (d.pick >= 0 ? 4 : 3.75)}
+                  r={r + p.ringGap}
                   fill="none"
                   stroke={rim}
-                  strokeWidth={d.pick >= 0 ? 4 : 3.5}
+                  strokeWidth={p.ringWidth}
                 />
               )}
               <circle
                 cx={cx}
                 cy={cy}
                 r={r}
-                fill={fill(d)}
+                fill={p.fill}
                 fillOpacity={opacity}
                 stroke="var(--panel)"
                 strokeWidth={rim !== null ? 2 : 1}

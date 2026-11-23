@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { FavouriteMark, FavouriteName, FavouriteStar } from '@/components/stats/FavouriteStar'
 import { MiniTable } from '@/components/stats/parts'
+import { FAV_GUTTER_EDGE } from '@/lib/stats/favourites'
 import { FavouritesContext, type Favourites } from '@/lib/stats/favourites'
 import { emptyFavourites } from '@shared/favourites'
 
@@ -144,7 +145,7 @@ describe('FavouriteMark and FavouriteName (T1601.2)', () => {
     expect(plain.children).toHaveLength(1)
   })
 
-  it('edges a favourite row of a small table, its grid unchanged', () => {
+  it('edges a favourite row of a small table in its gutter, its grid unchanged', () => {
     renderIn(
       provider(['1']),
       <MiniTable
@@ -158,9 +159,15 @@ describe('FavouriteMark and FavouriteName (T1601.2)', () => {
       />
     )
     const [, fav, plain] = screen.getAllByRole('row')
-    expect(fav.className).toContain('var(--fav)')
-    expect(plain.className).not.toContain('var(--fav)')
+    // A bar 8 px left of the row, in the table's gutter, never on the first cell.
+    expect(fav.className).toContain('before:-left-2')
+    expect(fav.className).toContain('before:bg-fav')
+    expect(plain.className).not.toContain('before:bg-fav')
     expect(fav.style.gridTemplateColumns).toBe(plain.style.gridTemplateColumns)
-    expect(fav.className.replace(/ ?shadow-\S+/, '')).toBe(plain.className)
+    expect(fav.className.replace(` ${FAV_GUTTER_EDGE}`, '')).toBe(plain.className)
+    // The gutter is taken back by the margin, so every cell stays where it was.
+    const table = screen.getByRole('table')
+    expect(table.className).toContain('-ml-2')
+    expect(table.className).toContain('pl-2')
   })
 })

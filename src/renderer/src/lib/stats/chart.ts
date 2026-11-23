@@ -1,5 +1,5 @@
 import type { ExploreSubject } from '@/lib/stats/explore'
-import { familyLabel, fmtStat } from '@/lib/stats/format'
+import { familyLabel, fmtStat, heatColor } from '@/lib/stats/format'
 import {
   ownQualifiers,
   pickable,
@@ -689,4 +689,47 @@ export function chartSubtitle(
 /** The picks as Compare's subjects, in order. */
 export function compareSubjects(entity: Entity, picks: readonly string[]): ExploreSubject[] {
   return picks.map((id) => ({ entity, id }))
+}
+
+/** The picks' series colours, in pick order (Compare's too). */
+export const DOT_SERIES = ['var(--s1)', 'var(--s2)', 'var(--s3)']
+
+/** How a dot is painted: its fill, and the ring around it, if any. */
+export interface DotPaint {
+  fill: string
+  ring: string | null
+  ringWidth: number
+  /** How far the ring sits outside the dot. */
+  ringGap: number
+}
+
+/**
+ * A dot's paint. The fill is the colour-by's (a category, a percentile, or cobalt with none). A
+ * favourite (T1601.2) is filled gold only when nothing is coloured by, so a third variable is never
+ * lost; with a colour-by it keeps its fill and gets a heavier gold ring. Rings in order: a pick's, the
+ * hover's, a favourite's, a search match's.
+ */
+export function dotPaint(
+  d: ChartDot,
+  o: { colour: string | null; hovered: boolean; favourite: boolean }
+): DotPaint {
+  const fill =
+    o.colour === null
+      ? o.favourite
+        ? 'var(--fav)'
+        : 'var(--cobalt)'
+      : isCategory(o.colour)
+        ? categoryColour(o.colour, d.category)
+        : d.percentiles[o.colour] === null || d.percentiles[o.colour] === undefined
+          ? 'var(--fg-3)'
+          : heatColor((d.percentiles[o.colour] ?? 50) / 100, false)
+  if (d.pick >= 0) return { fill, ring: DOT_SERIES[d.pick], ringWidth: 4, ringGap: 4 }
+  if (o.hovered) return { fill, ring: 'var(--cobalt)', ringWidth: 3.5, ringGap: 3.75 }
+  if (o.favourite) {
+    return o.colour === null
+      ? { fill, ring: 'var(--fav)', ringWidth: 3.5, ringGap: 3.75 }
+      : { fill, ring: 'var(--fav)', ringWidth: 4.5, ringGap: 4.25 }
+  }
+  if (d.matched) return { fill, ring: 'var(--fg)', ringWidth: 3.5, ringGap: 3.75 }
+  return { fill, ring: null, ringWidth: 0, ringGap: 0 }
 }
