@@ -92,7 +92,7 @@ In WSL, Electron needs `ELECTRON_DISABLE_SANDBOX=1` or `--no-sandbox`. Developme
 | `npm run build`                     | Builds the app; `scripts/drive.mjs` then runs it and follows steps |
 | `npm run build:win`                 | A local Windows installer                                          |
 
-How the project is organized and its rules are in [CLAUDE.md](CLAUDE.md). The previous Rust and Tauri implementation is on the [`archive/rust-tauri`](https://github.com/Puffinnois/metis/tree/archive/rust-tauri) branch.
+How the project is organized and its rules are in [CLAUDE.md](CLAUDE.md). The previous Rust and Tauri implementation is at the [`archive/rust-tauri-final`](https://github.com/Puffinnois/metis/tree/archive/rust-tauri-final) tag.
 
 ## Read more
 
