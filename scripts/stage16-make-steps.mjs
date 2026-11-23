@@ -11,6 +11,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const out = process.argv[2]
+const NL = String.fromCharCode(10)
 
 // Stage 13's load helpers (settle, families, the dialog's buttons), as its first load used them.
 const LOAD_HELPERS = JSON.parse(readFileSync(join(out, 'stage13-first-load-steps.json'), 'utf8'))[2]
@@ -60,9 +61,9 @@ window.findFavs = async (L, N) => { const seasons = await window.api.stats.seaso
 // board's row, the team on its page.
 window.starLeague = async (f) => { const a = await openPlayer(f.N, f.season, f.p1.name); const s1 = await starOn(); await board('first'); await expand(); const tr = [...document.querySelectorAll('tbody tr')].find((x) => nameOf(x) === f.p2.name); let s2 = 'not on the board'; if (tr) { const b = tr.querySelector('button[aria-pressed]'); if (b.getAttribute('aria-pressed') !== 'true') b.click(); await sleep(1200); s2 = tr.querySelector('button[aria-pressed]').getAttribute('aria-pressed') } await nav('Teams'); await setSelect('Season', f.season); await setSelect('Team', f.team.id); await tab('Overview'); const s3 = await starOn(); return { league: f.N, player: [a, s1], board: [f.p2.name, s2], team: [heading(), s3] } };
 // The mark on a league's screens, with the favourites found above.
-window.markLeague = async (f) => { const out = {}; await nav('Leaderboards'); await sleep(2000); out.home = marks(document.querySelector('main')); await board('first'); await expand(); out.playersBoard = { p1: rowEdged(f.p1.name), p2: rowEdged(f.p2.name) }; await board('last'); out.teamsBoard = rowEdged(f.team.name) === 'absent' ? rowEdged(f.team.code) : rowEdged(f.team.name); await nav('Standings'); await sleep(2500); const st = [...document.querySelectorAll('[role=table]')].find((t) => t.textContent.includes(f.team.name)); out.standings = st ? miniEdged(st.getAttribute('aria-label'), f.team.name) : 'no standings table names the team'; await nav('Teams'); await setSelect('Team', f.team.id); await tab('Players'); out.roster = miniEdged('Players', f.p1.name); await nav('Games'); await setSelect('Season', f.season); const games = await window.api.stats.games(f.L, f.season); const g = games.filter((x) => x.played && x.hasBox && [x.home.id, x.away.id].includes(f.team.id)).at(-1); if (g) { await setSelect('Day', g.date); await sleep(1500); const card = [...document.querySelector('[aria-label="The day’s games"]').querySelectorAll('button')].find((c) => c.querySelector('[aria-label=Favourite]')); out.gameCard = card ? edged(card) : 'no marked card'; card?.click(); await sleep(4000); out.boxScore = miniEdged(f.team.code + ' box score', f.p1.name) } await nav('Explore'); await tab('Chart'); await sleep(4000); const dot = document.querySelector('[data-dot="' + f.p1.id + '"] circle:last-child'); out.chartDot = dot ? dot.getAttribute('fill') : 'no dot'; return { league: f.N, ...out } };
+window.markLeague = async (f) => { await pick(f.N); const out = {}; await nav('Leaderboards'); await sleep(2000); out.home = marks(document.querySelector('main')); await board('first'); await expand(); out.playersBoard = { p1: rowEdged(f.p1.name), p2: rowEdged(f.p2.name) }; await board('last'); out.teamsBoard = rowEdged(f.team.name) === 'absent' ? rowEdged(f.team.code) : rowEdged(f.team.name); await nav('Standings'); await sleep(2500); const st = [...document.querySelectorAll('[role=table]')].find((t) => t.textContent.includes(f.team.name)); out.standings = st ? miniEdged(st.getAttribute('aria-label'), f.team.name) : 'no standings table names the team'; await nav('Teams'); await setSelect('Team', f.team.id); await tab('Players'); out.roster = miniEdged('Players', f.p1.name); await nav('Games'); await setSelect('Season', f.season); const games = await window.api.stats.games(f.L, f.season); const g = games.filter((x) => x.played && x.hasBox && [x.home.id, x.away.id].includes(f.team.id)).at(-1); if (g) { await setSelect('Day', g.date); await sleep(1500); const card = [...document.querySelector('[aria-label="The day’s games"]').querySelectorAll('button')].find((c) => c.querySelector('[aria-label=Favourite]')); out.gameCard = card ? edged(card) : 'no marked card'; card?.click(); await sleep(4000); out.boxScore = miniEdged(f.team.code + ' box score', f.p1.name) } await nav('Explore'); await tab('Chart'); await sleep(4000); const dot = document.querySelector('[data-dot="' + f.p1.id + '"] circle:last-child'); out.chartDot = dot ? dot.getAttribute('fill') : 'no dot'; return { league: f.N, ...out } };
 // The three filters on a league: the board's ranks against the unfiltered board, the chart's dots, the games.
-window.filterLeague = async (f) => { const out = {}; await board('first'); await setToggle('Favourites', false); await expand(); const all = ranks(); await setToggle('Favourites', true); await sleep(1000); const fav = ranks(); out.board = Object.entries(fav).map(([n, r]) => [n, r, all[n] ?? 'absent', String(all[n]) === r]); await setToggle('Favourites', false); await nav('Explore'); await tab('Chart'); await sleep(3000); const before = document.querySelectorAll('[data-dot]').length; await setToggle('Favourites', true); await sleep(1200); out.chart = { before, after: document.querySelectorAll('[data-dot]').length, caption: document.querySelector('[data-summary]')?.textContent.trim() }; await setToggle('Favourites', false); await nav('Games'); const g = (await window.api.stats.games(f.L, f.season)).filter((x) => x.played && [x.home.id, x.away.id].includes(f.team.id)).at(-1); if (g) { await setSelect('Season', f.season); await setSelect('Day', g.date); await sleep(1200); const list = () => document.querySelector('[aria-label="The day’s games"]').querySelectorAll('button').length; const n0 = list(); await setToggle('Favourites', true); await sleep(2500); out.games = { day: g.date, all: n0, favourites: list() }; await setToggle('Favourites', false) } return { league: f.N, ...out } };
+window.filterLeague = async (f) => { await pick(f.N); const out = {}; await board('first'); await setToggle('Favourites', false); await expand(); const all = ranks(); await setToggle('Favourites', true); await sleep(1000); const fav = ranks(); out.board = Object.entries(fav).map(([n, r]) => [n, r, all[n] ?? 'absent', String(all[n]) === r]); await setToggle('Favourites', false); await nav('Explore'); await tab('Chart'); await sleep(3000); const before = document.querySelectorAll('[data-dot]').length; await setToggle('Favourites', true); await sleep(1200); out.chart = { before, after: document.querySelectorAll('[data-dot]').length, caption: document.querySelector('[data-summary]')?.textContent.trim() }; await setToggle('Favourites', false); await nav('Games'); const g = (await window.api.stats.games(f.L, f.season)).filter((x) => x.played && [x.home.id, x.away.id].includes(f.team.id)).at(-1); if (g) { await setSelect('Season', f.season); await setSelect('Day', g.date); await sleep(1200); const list = () => document.querySelector('[aria-label="The day’s games"]').querySelectorAll('button').length; const n0 = list(); await setToggle('Favourites', true); await sleep(2500); out.games = { day: g.date, all: n0, favourites: list() }; await setToggle('Favourites', false) } return { league: f.N, ...out } };
 'helpers ready'`
 
 const ev = (js) => ({ eval: js })
@@ -174,12 +175,67 @@ const heavy = [
     `await nav('Games'); const s = (await window.api.stats.seasons('nba'))[0]; await setSelect('Season', s.season); const games = await window.api.stats.games('nba', s.season); const day = games.filter((g) => g.played).at(-1).date; await setSelect('Day', day); await sleep(1200); const list = () => [...document.querySelector('[aria-label="The day’s games"]').querySelectorAll('button')].map((b) => b.textContent.replace(/\\s+/g, ' ').trim()); const all = list(); const t0 = performance.now(); await setToggle('Favourites', true); await until(() => list().length !== all.length, 8000); const ms = Math.round(performance.now() - t0); await sleep(1500); const fav = list(); await setToggle('Favourites', false); return { day, season: s.season, all: all.length, favourites: fav.length, kept: fav, filterMs: ms }`
   ),
   shot('heavy-01-games-filtered'),
+  // UCF on NCAA Men's 365-team board, every row shown.
+  run(
+    `await pick('NCAA Men'); await board('last'); await expand(); const r = rowEdged('UCF Knights'); await pick('NBA'); return { ucf: r }`
+  ),
   run(
     `const ms = await openFavourites(); return { firstPaint: ms, ...page(), rowsShown: document.querySelectorAll('[role=row][data-state]').length }`
   ),
   shot('heavy-02-favourites'),
   run(`return { errors: await errors() }`)
 ]
+
+// The mark and the filters again on the upgraded profile, each league on screen, and the page opened
+// twice (the second time with every league's worker open).
+const again = [
+  { size: [1500, 950] },
+  { wait: 12000 },
+  ev(HELPERS),
+  run(
+    `await toTheme('light'); window.FS = []; for (const [l, n] of ${JSON.stringify(LEAGUES)}) window.FS.push(await findFavs(l, n)); return window.FS.map((f) => [f.N, f.p1.name, f.p2.name, f.team.name])`
+  ),
+  ...LEAGUES.flatMap((_, i) => [
+    run(`return markLeague(window.FS[${i}])`),
+    shot(`again-mark-${LEAGUES[i][0]}`)
+  ]),
+  ...LEAGUES.map((_, i) => run(`return filterLeague(window.FS[${i}])`)),
+  run(
+    `await pick('NBA'); const first = await openFavourites(); const sections1 = page().sections.map((x) => [x.league, x.ms]); await nav('Glossary'); await sleep(1500); const second = await openFavourites(); return { first, sections1, second, sections2: page().sections.map((x) => [x.league, x.ms]) }`
+  ),
+  run(
+    `await toTheme('dark'); await board('first'); await setToggle('Favourites', true); await sleep(800); return ranks()`
+  ),
+  shot('again-board-filtered-dark'),
+  run(
+    `await setToggle('Favourites', false); await toTheme('light'); return { errors: await errors() }`
+  )
+]
+writeFileSync(join(out, 'stage16-again-steps.json'), JSON.stringify(again, null, 2) + '\n')
+
+// Games past 64 favourite players, a test that can fail: the NBA's favourites become 70 players only,
+// the first 64 from four teams and the last 6 all from a fifth, so that fifth team's game is listed on a
+// day only if the players past the 64th are read. The other leagues' favourites stay.
+const past64 = [
+  { size: [1500, 950] },
+  { wait: 12000 },
+  ev(HELPERS),
+  run(
+    `const s = (await window.api.stats.seasons('nba'))[0]; for (const f of (await window.api.favourites.all()).nba) await window.api.favourites.remove('nba', f.kind, f.id); const r = await window.api.stats.query('nba', { entity: 'player', metrics: ['min'], scope: { seasons: [s.season] }, sort: { metric: 'min', dir: 'desc' }, limit: 1000 }); const byTeam = new Map(); for (const row of r.rows) { if (!row.team) continue; byTeam.set(row.team, [...(byTeam.get(row.team) ?? []), row]) } const teams = [...byTeam.keys()].filter((t) => byTeam.get(t).length >= 6); const first = []; let used = 0; while (first.length < 64) { const t = teams[used++]; for (const row of byTeam.get(t)) if (first.length < 64) first.push(row) } const firstTeams = [...new Set(first.map((x) => x.team))]; const tail = teams.find((t) => !firstTeams.includes(t)); const last = byTeam.get(tail).slice(0, 6); for (const row of [...first, ...last]) await window.api.favourites.add('nba', 'player', row.id, row.name); const stored = (await window.api.favourites.all()).nba; window.__tail = tail; window.__firstTeams = firstTeams; return { firstTeams, tail, lastSix: last.map((x) => x.name), stored: stored.length, kinds: [...new Set(stored.map((f) => f.kind))], order: stored.slice(62, 70).map((f) => f.name) }`
+  ),
+  run(
+    `await pick('WNBA'); await pick('NBA'); return (await window.api.favourites.all()).nba.length`
+  ),
+  run(
+    `const s = (await window.api.stats.seasons('nba'))[0]; const code = (id) => s.teams.find((t) => t.id === id)?.code; const games = (await window.api.stats.games('nba', s.season)).filter((g) => g.played); const tailDays = games.filter((g) => [code(g.home.id), code(g.away.id)].includes(window.__tail) && ![code(g.home.id), code(g.away.id)].some((c) => window.__firstTeams.includes(c))); const g = tailDays.at(-1); await nav('Games'); await setSelect('Season', s.season); await setSelect('Day', g.date); await sleep(1500); const list = () => [...document.querySelector('[aria-label="The day’s games"]').querySelectorAll('button')].map((b) => b.textContent.replace(/\\s+/g, ' ').trim()); const all = list(); const t0 = performance.now(); await setToggle('Favourites', true); await until(() => list().length !== all.length, 15000); const ms = Math.round(performance.now() - t0); await sleep(1500); const fav = list(); await setToggle('Favourites', false); return { day: g.date, tailGame: code(g.away.id) + ' @ ' + code(g.home.id), all: all.length, kept: fav, filterMs: ms }`
+  ),
+  shot('past64-games'),
+  run(
+    `const first = await openFavourites(); await nav('Glossary'); await sleep(1500); const second = await openFavourites(); return { first, second, sections: page().sections.map((x) => [x.league, x.ms, x.rows.length]) }`
+  ),
+  run(`return { errors: await errors() }`)
+]
+writeFileSync(join(out, 'stage16-past64-steps.json'), JSON.stringify(past64, null, 2) + NL)
 
 writeFileSync(join(out, 'stage16-wnba-load-steps.json'), JSON.stringify(wnbaLoad, null, 2) + '\n')
 writeFileSync(
@@ -188,4 +244,19 @@ writeFileSync(
 )
 writeFileSync(join(out, 'stage16-upgrade-steps.json'), JSON.stringify(upgrade, null, 2) + '\n')
 writeFileSync(join(out, 'stage16-heavy-steps.json'), JSON.stringify(heavy, null, 2) + '\n')
+
+// Each favourites read, timed through the IPC three times on the full files: the favourites with a linked
+// player (the links worker's pairedIds), an NCAA Men board and its places read for a favourite 3,000 rows
+// deep, the Games filter's player teams for 70 NBA players, the page's NBA section games for those 70, and
+// the injury report's listings.
+const reads = [
+  { size: [1500, 950] },
+  { wait: 12000 },
+  ev(HELPERS),
+  run(
+    `const time = async (f) => { const t0 = performance.now(); const r = await f(); const rows = Array.isArray(r) ? r.reduce((n, x) => n + (x.rows?.length ?? 1), 0) : (r?.rows?.length ?? null); return [Math.round(performance.now() - t0), rows] }; await window.api.favourites.add('ncaam', 'player', '5041939', 'Cooper Flagg'); const s = (await window.api.stats.seasons('ncaam'))[0]; const base = { entity: 'player', metrics: ['pts', 'min', 'reb', 'ast', 'stl', 'blk', 'fg_pct', 'fg3_pct', 'ft_pct', 'ts_pct', 'tov'], scope: { seasons: [s.season] }, sort: { metric: 'pts', dir: 'desc' }, transform: 'perGame', limit: 1000 }; const full = await window.api.stats.query('ncaam', { ...base, limit: 5000 }); const deep = full.rows[3000]; const ids = (await window.api.favourites.all()).nba.filter((f) => f.kind === 'player').map((f) => f.id); const ns = (await window.api.stats.seasons('nba'))[0]; const batches = [ids.slice(0, 64), ids.slice(64)]; const games = (await window.api.stats.games('nba', ns.season)).filter((x) => x.played).slice(-20).map((x) => x.id); const out = { favouritesAll: [], board: [], places: [], gamesTeams: [], sectionGames: [], listings: [] }; for (let i = 0; i < 3; i++) { out.favouritesAll.push(await time(() => window.api.favourites.all())); out.board.push(await time(() => window.api.stats.query('ncaam', base))); out.places.push(await time(() => window.api.stats.query('ncaam', { ...base, places: { ids: [deep.id], standing: 'pts' } }))); out.gamesTeams.push(await time(() => Promise.all(batches.map((b) => window.api.stats.query('nba', { entity: 'player', metrics: ['pts'], scope: { seasons: [ns.season], players: b }, limit: b.length, ranks: false }))))); out.sectionGames.push(await time(() => Promise.all(batches.map((b) => window.api.stats.query('nba', { entity: 'player', metrics: ['min', 'pts', 'reb', 'ast', 'stl', 'blk', 'tov', 'fgm', 'fga', 'fg3m', 'fg3a', 'ftm', 'fta', 'plus_minus', 'games_out_injury', 'games_out_other'], scope: { seasons: [ns.season], gameTypes: ['regular'], players: b }, groupBy: ['game'], limit: 5000, ranks: false }))))); out.listings.push(await time(() => window.api.stats.gameListings('nba', games, ids))) } const placed = (await window.api.stats.query('ncaam', { ...base, places: { ids: [deep.id], standing: 'pts' } })).rows[0]?.place; await window.api.favourites.remove('ncaam', 'player', '5041939'); return { deep: deep.name, placed, ...out }`
+  ),
+  run(`return { errors: await errors() }`)
+]
+writeFileSync(join(out, 'stage16-reads-steps.json'), JSON.stringify(reads, null, 2) + '\n')
 console.log('written')
