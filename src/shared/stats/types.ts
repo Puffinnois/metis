@@ -1,4 +1,5 @@
 import type { LeagueId } from '../leagues'
+import type { Placement } from './categories'
 import type { FlowSummary } from './playDetail'
 /**
  * The one set of game types (D12). All-Star and preseason never count unless asked for. The college
@@ -99,8 +100,18 @@ export interface MetricDef {
   short: string
   description: string
   family: MetricFamily
+  /**
+   * Where a reader finds it, by what it measures (D52, `categories.ts`): one sub-group in each
+   * category it belongs to, the primary first. Every metric but a stored one has at least one.
+   */
+  categories?: readonly Placement[]
   entity: Entity
-  /** Team metrics: which end it measures. */
+  /**
+   * Team metrics: mostly whose columns they are, the team's own (`offense`) or its opponents'
+   * (`defense`), which the team tabs offer first; a few of the team's own read `defense` (its
+   * defensive rating, defensive rebound percentage, hustle on defense). Not the end of the floor: the
+   * team's steals read `offense`. The end is the categories'.
+   */
   side?: 'offense' | 'defense'
   kind: MetricKind
   aggregation: MetricAggregation

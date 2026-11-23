@@ -82,63 +82,103 @@ export const COLLEGE: MetricDef[] = [
     'Field-goal percentage at the rim',
     'Rim FG%',
     `Shots made at the rim over shots taken there, as stats.ncaa.org charts each shot.${OWN}`,
-    { ...splitShare('ncaa_rimm', 'ncaa_rima', 200), family: 'shooting' }
+    {
+      ...splitShare('ncaa_rimm', 'ncaa_rima', 200),
+      family: 'shooting',
+      categories: ['shooting.rim_paint', 'offense.shooting']
+    }
   ),
   ...sides(
     'ncaa_rim_rate',
     'Share of shots at the rim',
     'Rim rate',
     `Shots at the rim over all field-goal attempts.${OWN}`,
-    { ...splitShare('ncaa_rima', 'ncaa_fga', 500), family: 'shooting', direction: 'neutral' }
+    {
+      ...splitShare('ncaa_rima', 'ncaa_fga', 500),
+      family: 'shooting',
+      direction: 'neutral',
+      categories: ['shooting.rim_paint', 'offense.shooting']
+    }
   ),
   ...sides(
     'ncaa_mid_pct',
     'Mid-range field-goal percentage',
     'Mid FG%',
     `Two-point shots made away from the rim over those taken.${OWN}`,
-    { ...splitShare('ncaa_midm', 'ncaa_mida', 200), family: 'shooting' }
+    {
+      ...splitShare('ncaa_midm', 'ncaa_mida', 200),
+      family: 'shooting',
+      categories: ['shooting.mid_range', 'offense.shooting']
+    }
   ),
   ...sides(
     'ncaa_mid_rate',
     'Share of shots from mid-range',
     'Mid rate',
     `Two-point shots away from the rim over all field-goal attempts.${OWN}`,
-    { ...splitShare('ncaa_mida', 'ncaa_fga', 500), family: 'shooting', direction: 'neutral' }
+    {
+      ...splitShare('ncaa_mida', 'ncaa_fga', 500),
+      family: 'shooting',
+      direction: 'neutral',
+      categories: ['shooting.mid_range', 'offense.shooting']
+    }
   ),
   ...sides(
     'ncaa_putbacks',
     'Putbacks made',
     'PUTB',
     `Shots made straight from an offensive rebound.${OWN}`,
-    { ...splitCount('ncaa_pbackm'), family: 'scoring' }
+    {
+      ...splitCount('ncaa_pbackm'),
+      family: 'scoring',
+      categories: ['scoring.by_situation', 'rebounding.offensive', 'offense.scoring']
+    }
   ),
   ...sides(
     'ncaa_putback_pct',
     'Putback field-goal percentage',
     'PUTB%',
     `Putbacks made over putbacks tried.${OWN}`,
-    { ...splitShare('ncaa_pbackm', 'ncaa_pbacka', 50), family: 'scoring' }
+    {
+      ...splitShare('ncaa_pbackm', 'ncaa_pbacka', 50),
+      family: 'scoring',
+      categories: ['shooting.transition_putbacks', 'offense.shooting']
+    }
   ),
   ...sides(
     'ncaa_rim_blocks',
     'Blocks at the rim',
     'BLK rim',
     `Blocked shots taken at the rim.${OWN}`,
-    { ...splitCount('ncaa_blk_rim'), family: 'scoring' }
+    {
+      ...splitCount('ncaa_blk_rim'),
+      family: 'scoring',
+      categories: ['defense.steals_blocks'],
+      opponents: ['offense.shooting', 'shooting.rim_paint']
+    }
   ),
   ...sides(
     'ncaa_trans_rate',
     'Share of shots in transition',
     'Trans rate',
     `Field-goal attempts in transition over all of them.${OWN}`,
-    { ...splitShare('ncaa_fga_trans', 'ncaa_fga', 500), family: 'scoring', direction: 'neutral' }
+    {
+      ...splitShare('ncaa_fga_trans', 'ncaa_fga', 500),
+      family: 'scoring',
+      direction: 'neutral',
+      categories: ['scoring.by_situation', 'offense.scoring']
+    }
   ),
   ...sides(
     'ncaa_trans_pts',
     'Points in transition',
     'Trans PTS',
     `Points scored in transition.${OWN}`,
-    { ...splitCount('ncaa_pts_trans'), family: 'scoring' }
+    {
+      ...splitCount('ncaa_pts_trans'),
+      family: 'scoring',
+      categories: ['scoring.by_situation', 'offense.scoring']
+    }
   ),
   ...sides(
     'ncaa_trans_efg_pct',
@@ -152,7 +192,8 @@ export const COLLEGE: MetricDef[] = [
         unit: 'pct',
         minSample: 100
       }),
-      family: 'scoring'
+      family: 'scoring',
+      categories: ['shooting.transition_putbacks', 'offense.shooting']
     }
   ),
   ...sides(
@@ -160,21 +201,36 @@ export const COLLEGE: MetricDef[] = [
     'Share of field goals assisted',
     'AST FGM%',
     `Field goals made off an assist over all made.${OWN}`,
-    { ...splitShare('ncaa_fgm_ast', 'ncaa_fgm', 200), family: 'scoring', direction: 'neutral' }
+    {
+      ...splitShare('ncaa_fgm_ast', 'ncaa_fgm', 200),
+      family: 'scoring',
+      direction: 'neutral',
+      categories: ['scoring.assisted', 'offense.scoring']
+    }
   ),
   ...sides(
     'ncaa_assisted_3pm_pct',
     'Share of threes assisted',
     'AST 3PM%',
     `Threes made off an assist over all made.${OWN}`,
-    { ...splitShare('ncaa_fg3m_ast', 'ncaa_fg3m', 82), family: 'scoring', direction: 'neutral' }
+    {
+      ...splitShare('ncaa_fg3m_ast', 'ncaa_fg3m', 82),
+      family: 'scoring',
+      direction: 'neutral',
+      categories: ['scoring.assisted', 'offense.scoring']
+    }
   ),
   ...sides(
     'ncaa_assisted_rim_pct',
     'Share of rim makes assisted',
     'AST rim%',
     `Shots made at the rim off an assist over all made there.${OWN}`,
-    { ...splitShare('ncaa_rimm_ast', 'ncaa_rimm', 100), family: 'scoring', direction: 'neutral' }
+    {
+      ...splitShare('ncaa_rimm_ast', 'ncaa_rimm', 100),
+      family: 'scoring',
+      direction: 'neutral',
+      categories: ['scoring.assisted', 'offense.scoring']
+    }
   ),
   // Possessions are the team box's, estimated by stats.ncaa.org from its play by play.
   ...teamSides(
@@ -188,7 +244,8 @@ export const COLLEGE: MetricDef[] = [
       kind: 'estimated',
       decimals: 1,
       direction: 'neutral',
-      reads: [NCAA_PLAYER_BOX, NCAA_TEAM_BOX]
+      reads: [NCAA_PLAYER_BOX, NCAA_TEAM_BOX],
+      categories: ['results.pace']
     }
   ),
   ...teamSides(
@@ -203,7 +260,8 @@ export const COLLEGE: MetricDef[] = [
         reads: [NCAA_PLAYER_BOX, NCAA_TEAM_BOX]
       }),
       family: 'possessions',
-      kind: 'derived'
+      kind: 'derived',
+      categories: ['results.ratings', 'offense.ratings']
     }
   )
 ]

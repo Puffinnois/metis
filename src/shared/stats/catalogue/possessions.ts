@@ -25,7 +25,8 @@ export const POSSESSIONS: MetricDef[] = [
       family: 'possessions',
       kind: 'estimated',
       aggregation: 'sum',
-      direction: 'neutral'
+      direction: 'neutral',
+      categories: ['results.pace']
     }
   ),
   metric(
@@ -40,7 +41,8 @@ export const POSSESSIONS: MetricDef[] = [
       aggregation: 'sum',
       perGameBy: 'box_games',
       direction: 'neutral',
-      side: 'offense'
+      side: 'offense',
+      categories: ['results.pace']
     }
   ),
   metric(
@@ -55,7 +57,8 @@ export const POSSESSIONS: MetricDef[] = [
       aggregation: 'sum',
       perGameBy: 'box_games',
       direction: 'neutral',
-      side: 'offense'
+      side: 'offense',
+      categories: ['results.pace']
     }
   ),
   metric(
@@ -69,7 +72,8 @@ export const POSSESSIONS: MetricDef[] = [
       sample: 'poss_sym',
       unit: 'rating',
       side: 'offense',
-      tier: 'core'
+      tier: 'core',
+      categories: ['results.ratings', 'offense.ratings']
     }
   ),
   metric(
@@ -84,7 +88,8 @@ export const POSSESSIONS: MetricDef[] = [
       unit: 'rating',
       direction: 'lower',
       side: 'defense',
-      tier: 'core'
+      tier: 'core',
+      categories: ['results.ratings', 'defense.ratings']
     }
   ),
   metric(
@@ -98,7 +103,8 @@ export const POSSESSIONS: MetricDef[] = [
       sample: 'poss_sym',
       unit: 'rating',
       side: 'offense',
-      tier: 'core'
+      tier: 'core',
+      categories: ['results.ratings']
     }
   ),
   metric(
@@ -114,7 +120,8 @@ export const POSSESSIONS: MetricDef[] = [
       unit: 'pace',
       direction: 'neutral',
       side: 'offense',
-      tier: 'core'
+      tier: 'core',
+      categories: ['results.pace']
     }
   ),
   metric(
@@ -128,7 +135,8 @@ export const POSSESSIONS: MetricDef[] = [
       sample: 'poss_sym',
       unit: 'pace',
       direction: 'neutral',
-      side: 'offense'
+      side: 'offense',
+      categories: ['results.pace']
     }
   ),
   ...teamSides(
@@ -141,7 +149,8 @@ export const POSSESSIONS: MetricDef[] = [
       sample: 'poss_sym',
       family: 'possessions',
       kind: 'estimated',
-      decimals: 3
+      decimals: 3,
+      categories: ['results.ratings', 'offense.ratings']
     }
   ),
   metric(
@@ -155,7 +164,8 @@ export const POSSESSIONS: MetricDef[] = [
       value: '{on_poss}',
       sample: 'games',
       aggregation: 'sum',
-      direction: 'neutral'
+      direction: 'neutral',
+      categories: ['playing_time.possessions']
     }
   )
 ]

@@ -62,7 +62,8 @@ export const RATINGS: MetricDef[] = [
       ...fromScores,
       value: '({points_for} - {points_against}) / nullif({games}, 0)',
       decimals: 2,
-      tier: 'core'
+      tier: 'core',
+      categories: ['results.margin']
     }
   ),
   metric(
@@ -70,7 +71,15 @@ export const RATINGS: MetricDef[] = [
     'Pythagorean winning percentage',
     'PYTH%',
     'The winning percentage the points scored and allowed point to: points for to the 14th, over points for and against each to the 14th (the exponent Basketball-Reference uses).',
-    { ...fromScores, kind: 'estimated', value: pyth, unit: 'pct', decimals: 1, pythagorean: true }
+    {
+      ...fromScores,
+      kind: 'estimated',
+      value: pyth,
+      unit: 'pct',
+      decimals: 1,
+      pythagorean: true,
+      categories: ['results.pythagorean']
+    }
   ),
   metric(
     'team_pyth_w',
@@ -82,7 +91,8 @@ export const RATINGS: MetricDef[] = [
       kind: 'estimated',
       value: `${decided} * ${pyth}`,
       decimals: 1,
-      pythagorean: true
+      pythagorean: true,
+      categories: ['results.pythagorean']
     }
   ),
   metric(
@@ -96,7 +106,8 @@ export const RATINGS: MetricDef[] = [
       value: `${decided} * (1 - ${pyth})`,
       decimals: 1,
       direction: 'lower',
-      pythagorean: true
+      pythagorean: true,
+      categories: ['results.pythagorean']
     }
   ),
   metric(
@@ -109,7 +120,8 @@ export const RATINGS: MetricDef[] = [
       value: `{wins} - ${decided} * ${pyth}`,
       decimals: 1,
       direction: 'neutral',
-      pythagorean: true
+      pythagorean: true,
+      categories: ['results.pythagorean']
     }
   ),
   metric(
@@ -117,35 +129,54 @@ export const RATINGS: MetricDef[] = [
     'Simple Rating System',
     'SRS',
     'Points a game better than an average team on a neutral floor: the margin of victory plus the strength of schedule. Solved on the regular season, as of the last game in scope.',
-    { ...solved, value: '{srs}', decimals: 2, tier: 'core' }
+    { ...solved, value: '{srs}', decimals: 2, tier: 'core', categories: ['results.adjusted'] }
   ),
   metric(
     'team_sos',
     'Strength of schedule',
     'SOS',
     'The average SRS of the opponents played, one term per game, so SRS is the margin of victory plus it. Regular season, as of the last game in scope.',
-    { ...solved, value: '{sos}', decimals: 2, direction: 'neutral' }
+    {
+      ...solved,
+      value: '{sos}',
+      decimals: 2,
+      direction: 'neutral',
+      categories: ['results.adjusted']
+    }
   ),
   metric(
     'team_sos_left',
     'Strength of schedule left',
     'SOS LEFT',
     'The average SRS, as of the last game in scope, of the opponents in the regular-season games after it, one term per game. Blank once none are left.',
-    { ...solved, value: '{sos_left}', decimals: 2, direction: 'neutral' }
+    {
+      ...solved,
+      value: '{sos_left}',
+      decimals: 2,
+      direction: 'neutral',
+      categories: ['results.schedule']
+    }
   ),
   metric(
     'team_games_left',
     'Games left',
     'LEFT',
     'Regular-season games on the schedule after the last game in scope.',
-    { ...solved, value: '{games_left}', unit: 'count', decimals: 0, direction: 'neutral' }
+    {
+      ...solved,
+      value: '{games_left}',
+      unit: 'count',
+      decimals: 0,
+      direction: 'neutral',
+      categories: ['results.schedule']
+    }
   ),
   metric(
     'team_adj_ortg',
     'Adjusted offensive rating',
     'ADJ ORtg',
     `Points scored per 100 estimated possessions against an average defense on a neutral floor: a regression on the regular season so far that adjusts for the defenses faced and home court. ${NOT_PUBLISHED}`,
-    { ...adjusted, value: '{adj_ortg}' }
+    { ...adjusted, value: '{adj_ortg}', categories: ['results.adjusted', 'offense.ratings'] }
   ),
   metric(
     'team_adj_drtg',
@@ -153,21 +184,26 @@ export const RATINGS: MetricDef[] = [
     'ADJ DRtg',
     `Points allowed per 100 estimated possessions against an average offense on a neutral floor: a regression on the regular season so far that adjusts for the offenses faced and home court. ${NOT_PUBLISHED}`,
     // The offense side, as SRS is, so the team board's Ratings preset shows it beside the others.
-    { ...adjusted, value: '{adj_drtg}', direction: 'lower' }
+    {
+      ...adjusted,
+      value: '{adj_drtg}',
+      direction: 'lower',
+      categories: ['results.adjusted', 'defense.ratings']
+    }
   ),
   metric(
     'team_adj_nrtg',
     'Adjusted net rating',
     'ADJ NRtg',
     `Adjusted offensive rating minus adjusted defensive rating: points per 100 possessions better than an average team on a neutral floor. ${NOT_PUBLISHED}`,
-    { ...adjusted, value: '{adj_nrtg}', tier: 'core' }
+    { ...adjusted, value: '{adj_nrtg}', tier: 'core', categories: ['results.adjusted'] }
   ),
   metric(
     'team_adj_home',
     'Home court, per 100 possessions',
     'HOME',
     `The net points per 100 possessions a team gains at home over a neutral floor, the league's estimate from the regression behind the adjusted ratings, as of the last game in scope. ${NOT_PUBLISHED}`,
-    { ...adjusted, value: '{adj_home}', direction: 'neutral' }
+    { ...adjusted, value: '{adj_home}', direction: 'neutral', categories: ['results.adjusted'] }
   )
 ]
 
@@ -194,14 +230,28 @@ RATINGS.push(
     'Elo rating',
     'ELO',
     'A rating carried from game to game, 1500 an average team: 100 points better wins 64 % of the time on a neutral floor. FiveThirtyEight’s NBA Elo, playoffs included, as of the last game in scope.',
-    { ...rated, model: 'elo_game', value: '{elo}', decimals: 0, tier: 'core' }
+    {
+      ...rated,
+      model: 'elo_game',
+      value: '{elo}',
+      decimals: 0,
+      tier: 'core',
+      categories: ['results.elo']
+    }
   ),
   metric(
     'team_elo_exp_w',
     'Expected wins by Elo',
     'ELO W',
     'The games Elo expected the team to win: its win probability before each game, added over the games in scope.',
-    { ...rated, model: 'elo_wins', value: '{elo_exp_wins}', aggregation: 'sum', totalOnly: true }
+    {
+      ...rated,
+      model: 'elo_wins',
+      value: '{elo_exp_wins}',
+      aggregation: 'sum',
+      totalOnly: true,
+      categories: ['results.elo']
+    }
   ),
   metric(
     'team_elo_w_over',
@@ -215,7 +265,8 @@ RATINGS.push(
       aggregation: 'sum',
       totalOnly: true,
       decimals: 1,
-      direction: 'neutral'
+      direction: 'neutral',
+      categories: ['results.elo']
     }
   )
 )
@@ -249,6 +300,7 @@ const odds = (
     value,
     unit: 'pct',
     decimals: 1,
+    categories: ['predictive.season_forecast', 'results.forecast'],
     ...o
   })
 
@@ -258,14 +310,25 @@ RATINGS.push(
     'Projected wins',
     'PROJ W',
     'Regular-season wins, the games played and the rest simulated from Elo: the mean over the runs, as of the last game in scope.',
-    { ...forecast, value: '{proj_w}', decimals: 1 }
+    {
+      ...forecast,
+      value: '{proj_w}',
+      decimals: 1,
+      categories: ['predictive.season_forecast', 'results.forecast']
+    }
   ),
   metric(
     'team_proj_l',
     'Projected losses',
     'PROJ L',
     'Regular-season losses, the games played and the rest simulated from Elo: the mean over the runs, as of the last game in scope.',
-    { ...forecast, value: '{proj_l}', decimals: 1, direction: 'lower' }
+    {
+      ...forecast,
+      value: '{proj_l}',
+      decimals: 1,
+      direction: 'lower',
+      categories: ['predictive.season_forecast', 'results.forecast']
+    }
   ),
   odds(
     'team_playoff_pct',
@@ -323,14 +386,27 @@ RATINGS.push(
     'Mean seed',
     'SEED',
     'The team’s mean place in its conference over the runs, one to fifteen, before the play-in: as of the last game in scope.',
-    { ...forecast, value: '{mean_seed}', decimals: 1, direction: 'lower' }
+    {
+      ...forecast,
+      value: '{mean_seed}',
+      decimals: 1,
+      direction: 'lower',
+      categories: ['predictive.season_forecast', 'results.forecast']
+    }
   ),
   metric(
     'team_forecast_runs',
     'Forecast runs',
     'RUNS',
     'How many times the season was simulated for the forecast read: 10,000 for the season in progress, 500 for a past season’s snapshots.',
-    { ...forecast, value: '{runs}', unit: 'count', decimals: 0, direction: 'neutral' }
+    {
+      ...forecast,
+      value: '{runs}',
+      unit: 'count',
+      decimals: 0,
+      direction: 'neutral',
+      categories: ['predictive.season_forecast', 'results.forecast']
+    }
   )
 )
 

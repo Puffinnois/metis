@@ -19,7 +19,9 @@ export const COMPOSITE: MetricDef[] = [
       aggregation: 'sum',
       decimals: 0,
       tier: 'core',
-      ...f
+      ...f,
+      categories: ['impact.composites'],
+      opponents: ['defense.impact', 'impact.composites']
     }
   ),
   ...allSides(
@@ -34,7 +36,9 @@ export const COMPOSITE: MetricDef[] = [
       aggregation: 'sum',
       decimals: 1,
       tier: 'core',
-      ...f
+      ...f,
+      categories: ['impact.composites'],
+      opponents: ['defense.impact', 'impact.composites']
     }
   ),
   metric(
@@ -48,7 +52,8 @@ export const COMPOSITE: MetricDef[] = [
       unit: 'pct',
       minSample: 1000,
       tier: 'core',
-      ...f
+      ...f,
+      categories: ['impact.composites']
     }
   ),
   metric(
@@ -62,7 +67,8 @@ export const COMPOSITE: MetricDef[] = [
       unit: 'pct',
       entity: 'team',
       side: 'offense',
-      ...f
+      ...f,
+      categories: ['impact.composites']
     }
   )
 ]

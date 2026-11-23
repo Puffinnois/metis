@@ -45,42 +45,48 @@ const RAPM: MetricDef[] = [
     sdv('RAPM'),
     head('RAPM'),
     `Regularized adjusted plus-minus: points per 100 possessions the player added, from the scores of every stint they played, with each player’s estimate pulled toward zero. ${WHOSE} ${NO_PLAY_IN} ${BY_POSS}`,
-    model('rapm', 'impact_poss', 4000)
+    { ...model('rapm', 'impact_poss', 4000), categories: ['impact.pm_models'] }
   ),
   metric(
     'sdv_o_rapm',
     sdv('Offensive RAPM'),
     head('ORAPM'),
     `The offensive part of RAPM: points per 100 possessions the player added at that end. ${WHOSE} ${NO_PLAY_IN} ${BY_POSS}`,
-    model('o_rapm', 'off_poss', 2000)
+    { ...model('o_rapm', 'off_poss', 2000), categories: ['impact.pm_models', 'offense.impact'] }
   ),
   metric(
     'sdv_d_rapm',
     sdv('Defensive RAPM'),
     head('DRAPM'),
     `The defensive part of RAPM: points per 100 possessions the player saved at that end. ${WHOSE} ${NO_PLAY_IN} ${BY_POSS}`,
-    model('d_rapm', 'def_poss', 2000)
+    { ...model('d_rapm', 'def_poss', 2000), categories: ['impact.pm_models', 'defense.impact'] }
   ),
   metric(
     'sdv_adj_rapm',
     sdv('Adjusted RAPM'),
     head('aRAPM'),
     `A second RAPM fit the dataset publishes beside the first. Centred on zero like RAPM, it differs from it by about 3 points per 100 possessions on a typical player-season. ${WHOSE} ${NO_PLAY_IN} ${BY_POSS}`,
-    model('adj_rapm', 'impact_poss', 4000)
+    { ...model('adj_rapm', 'impact_poss', 4000), categories: ['impact.pm_models'] }
   ),
   metric(
     'sdv_o_adj_rapm',
     sdv('Offensive adjusted RAPM'),
     head('OaRAPM'),
     `The offensive part of adjusted RAPM. It is not centred on zero: it averages about +9 a season, and the defensive part about −9, so only their sum compares with RAPM. ${WHOSE} ${NO_PLAY_IN} ${BY_POSS}`,
-    model('o_adj_rapm', 'off_poss', 2000, { direction: 'neutral' })
+    {
+      ...model('o_adj_rapm', 'off_poss', 2000, { direction: 'neutral' }),
+      categories: ['impact.pm_models', 'offense.impact']
+    }
   ),
   metric(
     'sdv_d_adj_rapm',
     sdv('Defensive adjusted RAPM'),
     head('DaRAPM'),
     `The defensive part of adjusted RAPM. It is not centred on zero: it averages about −9 a season, and the offensive part about +9, so only their sum compares with RAPM. ${WHOSE} ${NO_PLAY_IN} ${BY_POSS}`,
-    model('d_adj_rapm', 'def_poss', 2000, { direction: 'neutral' })
+    {
+      ...model('d_adj_rapm', 'def_poss', 2000, { direction: 'neutral' }),
+      categories: ['impact.pm_models', 'defense.impact']
+    }
   )
 ]
 
@@ -90,42 +96,42 @@ const BOX: MetricDef[] = [
     sdv('SPM'),
     head('SPM'),
     `Statistical plus-minus: the points per 100 possessions a fitted model of the box score says the player added. ${WHOSE} ${NO_PLAY_IN} ${BY_MIN}`,
-    model('spm', 'minutes', 1000)
+    { ...model('spm', 'minutes', 1000), categories: ['impact.box_models'] }
   ),
   metric(
     'sdv_ospm',
     sdv('Offensive SPM'),
     head('OSPM'),
     `The offensive part of SPM. ${WHOSE} ${NO_PLAY_IN} ${BY_MIN}`,
-    model('ospm', 'minutes', 1000)
+    { ...model('ospm', 'minutes', 1000), categories: ['impact.box_models', 'offense.impact'] }
   ),
   metric(
     'sdv_dspm',
     sdv('Defensive SPM'),
     head('DSPM'),
     `The defensive part of SPM. ${WHOSE} ${NO_PLAY_IN} ${BY_MIN}`,
-    model('dspm', 'minutes', 1000)
+    { ...model('dspm', 'minutes', 1000), categories: ['impact.box_models', 'defense.impact'] }
   ),
   metric(
     'sdv_bpm',
     sdv('BPM'),
     head('BPM'),
     `Box plus-minus, version 2: points per 100 possessions above an average player, from the box score, position and role, adjusted to the team’s rating. It is not Basketball-Reference’s published BPM. ${WHOSE} ${NO_PLAY_IN} ${BY_MIN}`,
-    model('bpm', 'minutes', 1000)
+    { ...model('bpm', 'minutes', 1000), categories: ['impact.box_models'] }
   ),
   metric(
     'sdv_obpm',
     sdv('Offensive BPM'),
     head('OBPM'),
     `The offensive part of BPM. ${WHOSE} ${NO_PLAY_IN} ${BY_MIN}`,
-    model('obpm', 'minutes', 1000)
+    { ...model('obpm', 'minutes', 1000), categories: ['impact.box_models', 'offense.impact'] }
   ),
   metric(
     'sdv_dbpm',
     sdv('Defensive BPM'),
     head('DBPM'),
     `The defensive part of BPM: BPM less its offensive part, not a count of stops. ${WHOSE} ${NO_PLAY_IN} ${BY_MIN}`,
-    model('dbpm', 'minutes', 1000)
+    { ...model('dbpm', 'minutes', 1000), categories: ['impact.box_models', 'defense.impact'] }
   ),
   metric(
     'sdv_war',
@@ -143,7 +149,8 @@ const BOX: MetricDef[] = [
       decimals: 1,
       sources: SOURCES,
       firstSeason: FIRST,
-      published: TABLE
+      published: TABLE,
+      categories: ['impact.box_models']
     }
   )
 ]
@@ -173,21 +180,27 @@ const DARKO_METRICS: MetricDef[] = [
     sdv('DARKO skill'),
     head('DARKO'),
     `DARKO’s estimate of the player’s impact at the end of the season, in points per 100 possessions, with recent games weighted most. ${WHOSE} ${DARKO_NOTE}`,
-    darko('darko_filtered_skill')
+    {
+      ...darko('darko_filtered_skill'),
+      categories: ['impact.pm_models', 'predictive.player_projections']
+    }
   ),
   metric(
     'sdv_darko_next',
     sdv('DARKO next-season projection'),
     head('DARKO Next'),
     `DARKO’s projection of the player’s impact next season, in points per 100 possessions, made at the end of this one. A published model value, not a prediction from Metis. ${WHOSE} ${DARKO_NOTE}`,
-    darko('darko_projected_rating')
+    { ...darko('darko_projected_rating'), categories: ['predictive.player_projections'] }
   ),
   metric(
     'sdv_darko_sd',
     sdv('DARKO projection spread'),
     head('DARKO SD'),
     `The standard deviation of DARKO’s next-season projection: how unsure it is. About 2 for most players and about 10 for those with little history. ${WHOSE} ${DARKO_NOTE}`,
-    darko('darko_projected_sd', { direction: 'neutral', firstSeason: 1999 })
+    {
+      ...darko('darko_projected_sd', { direction: 'neutral', firstSeason: 1999 }),
+      categories: ['predictive.player_projections']
+    }
   )
 ]
 

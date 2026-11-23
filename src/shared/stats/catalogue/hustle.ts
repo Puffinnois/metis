@@ -1,3 +1,4 @@
+import type { Placement } from '../categories'
 import type { MetricDef } from '../types'
 import { metric, ratio, type Opts } from './define'
 
@@ -20,6 +21,7 @@ interface Hustle {
   short: string
   description: string
   side: Side
+  categories: readonly Placement[]
   direction?: MetricDef['direction']
   firstSeason?: number
 }
@@ -59,6 +61,7 @@ const share = (table: string, a: string, b: string, o: Partial<Opts> = {}): Opts
 const COUNTS: Hustle[] = [
   {
     id: 'contested_shots',
+    categories: ['defense.defended_shots', 'hustle.contests'],
     column: 'contested_shots',
     label: 'Contested shots',
     short: 'Contests',
@@ -67,6 +70,7 @@ const COUNTS: Hustle[] = [
   },
   {
     id: 'contested_shots_2pt',
+    categories: ['defense.defended_shots', 'hustle.contests'],
     column: 'contested_shots_2_pt',
     label: 'Contested twos',
     short: 'Contests 2PT',
@@ -75,6 +79,7 @@ const COUNTS: Hustle[] = [
   },
   {
     id: 'contested_shots_3pt',
+    categories: ['defense.defended_shots', 'hustle.contests'],
     column: 'contested_shots_3_pt',
     label: 'Contested threes',
     short: 'Contests 3PT',
@@ -83,6 +88,7 @@ const COUNTS: Hustle[] = [
   },
   {
     id: 'deflections',
+    categories: ['defense.hustle', 'hustle.loose_balls'],
     column: 'deflections',
     label: 'Deflections',
     short: 'Defl',
@@ -91,6 +97,7 @@ const COUNTS: Hustle[] = [
   },
   {
     id: 'charges_drawn',
+    categories: ['defense.hustle', 'hustle.charges', 'fouls.drawn'],
     column: 'charges_drawn',
     label: 'Charges drawn',
     short: 'Charges',
@@ -99,6 +106,7 @@ const COUNTS: Hustle[] = [
   },
   {
     id: 'screen_assists',
+    categories: ['hustle.screens', 'playmaking.creation', 'offense.hustle'],
     column: 'screen_assists',
     label: 'Screen assists',
     short: 'Screen AST',
@@ -107,6 +115,7 @@ const COUNTS: Hustle[] = [
   },
   {
     id: 'screen_ast_pts',
+    categories: ['hustle.screens', 'playmaking.creation', 'offense.hustle'],
     column: 'screen_ast_pts',
     label: 'Screen-assist points',
     short: 'Screen PTS',
@@ -115,6 +124,7 @@ const COUNTS: Hustle[] = [
   },
   {
     id: 'loose_balls',
+    categories: ['hustle.loose_balls'],
     column: 'loose_balls_recovered',
     label: 'Loose balls recovered',
     short: 'Loose Balls',
@@ -123,6 +133,7 @@ const COUNTS: Hustle[] = [
   },
   {
     id: 'off_loose_balls',
+    categories: ['hustle.loose_balls', 'offense.hustle'],
     column: 'off_loose_balls_recovered',
     label: 'Offensive loose balls recovered',
     short: 'Off Loose',
@@ -131,6 +142,7 @@ const COUNTS: Hustle[] = [
   },
   {
     id: 'def_loose_balls',
+    categories: ['defense.hustle', 'hustle.loose_balls'],
     column: 'def_loose_balls_recovered',
     label: 'Defensive loose balls recovered',
     short: 'Def Loose',
@@ -139,6 +151,7 @@ const COUNTS: Hustle[] = [
   },
   {
     id: 'box_outs',
+    categories: ['rebounding.box_outs', 'hustle.box_outs'],
     column: 'box_outs',
     label: 'Box outs',
     short: 'Box Outs',
@@ -148,6 +161,7 @@ const COUNTS: Hustle[] = [
   },
   {
     id: 'off_box_outs',
+    categories: ['rebounding.box_outs', 'hustle.box_outs', 'offense.hustle'],
     column: 'off_boxouts',
     label: 'Offensive box outs',
     short: 'Off Box Outs',
@@ -157,6 +171,7 @@ const COUNTS: Hustle[] = [
   },
   {
     id: 'def_box_outs',
+    categories: ['rebounding.box_outs', 'hustle.box_outs', 'defense.hustle'],
     column: 'def_boxouts',
     label: 'Defensive box outs',
     short: 'Def Box Outs',
@@ -172,7 +187,11 @@ const PLAYER_COUNTS: MetricDef[] = COUNTS.map((h) =>
     h.label,
     h.short,
     h.description,
-    count(PLAYER, h.column, { firstSeason: h.firstSeason ?? FIRST, direction: h.direction })
+    count(PLAYER, h.column, {
+      firstSeason: h.firstSeason ?? FIRST,
+      direction: h.direction,
+      categories: h.categories
+    })
   )
 )
 
@@ -187,7 +206,8 @@ const TEAM_COUNTS: MetricDef[] = COUNTS.map((h) =>
       entity: 'team',
       side: h.side,
       firstSeason: h.firstSeason ?? FIRST,
-      direction: h.direction
+      direction: h.direction,
+      categories: h.categories
     })
   )
 )
@@ -205,6 +225,7 @@ function shares(table: string, entity: 'player' | 'team'): MetricDef[] {
       `The share of ${whose} loose-ball recoveries made on offense.`,
       share(table, 'off_loose_balls_recovered', 'loose_balls_recovered', {
         minSample: entity === 'team' ? undefined : 20,
+        categories: ['hustle.loose_balls'],
         ...team
       })
     ),
@@ -215,6 +236,7 @@ function shares(table: string, entity: 'player' | 'team'): MetricDef[] {
       `The share of ${whose} box outs made on the offensive glass.`,
       share(table, 'off_boxouts', 'box_outs', {
         minSample: entity === 'team' ? undefined : 50,
+        categories: ['rebounding.box_outs', 'hustle.box_outs'],
         firstSeason: BOX_OUTS,
         ...team
       })
@@ -231,14 +253,20 @@ const PLAYER_BOX_OUT_REBOUNDS: MetricDef[] = [
     'Box outs leading to a team rebound',
     'BO Team REB',
     "The player's box outs on which their team took the rebound.",
-    count(PLAYER, 'box_out_player_team_rebs', { firstSeason: BOX_OUTS })
+    {
+      ...count(PLAYER, 'box_out_player_team_rebs', { firstSeason: BOX_OUTS }),
+      categories: ['rebounding.box_outs', 'hustle.box_outs']
+    }
   ),
   metric(
     'box_out_rebs',
     'Box outs leading to their own rebound',
     'BO REB',
     "The player's box outs on which they took the rebound themselves.",
-    count(PLAYER, 'box_out_player_rebs', { firstSeason: BOX_OUTS })
+    {
+      ...count(PLAYER, 'box_out_player_rebs', { firstSeason: BOX_OUTS }),
+      categories: ['rebounding.box_outs', 'hustle.box_outs']
+    }
   ),
   metric(
     'box_out_team_reb_pct',
@@ -250,7 +278,8 @@ const PLAYER_BOX_OUT_REBOUNDS: MetricDef[] = [
         minSample: 50,
         firstSeason: BOX_OUTS
       }),
-      direction: 'higher'
+      direction: 'higher',
+      categories: ['rebounding.box_outs', 'hustle.box_outs']
     }
   ),
   metric(
@@ -258,7 +287,10 @@ const PLAYER_BOX_OUT_REBOUNDS: MetricDef[] = [
     'Own rebound rate after box outs',
     'BO REB%',
     `The share of the player's box outs that ended in their own rebound, as the NBA publishes it. Not a rebound percentage. ${WEIGHTED}`,
-    share(PLAYER, 'pct_box_outs_reb', 'box_outs', { minSample: 50, firstSeason: BOX_OUTS })
+    {
+      ...share(PLAYER, 'pct_box_outs_reb', 'box_outs', { minSample: 50, firstSeason: BOX_OUTS }),
+      categories: ['rebounding.box_outs', 'hustle.box_outs']
+    }
   )
 ]
 
