@@ -24,6 +24,10 @@ describe('freshness', () => {
   it('tells an empty database from one being loaded', () => {
     expect(freshness(base)).toBe('No stats yet')
     expect(freshness({ ...base, busy: true })).toBe('Loading the stats…')
+    // Files loaded with no table built from them: no date, since the date is the tables' last game.
+    expect(freshness({ ...base, updatedAt: '2026-11-05T10:00:00Z' }, NOW, LEAGUES.nba)).toBe(
+      'NBA files loaded · no tables yet'
+    )
   })
 
   it('names the latest game day and when it was updated', () => {

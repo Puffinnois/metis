@@ -11,18 +11,20 @@ What each screen shows and where its numbers come from, in all four leagues: the
 - **A refresh that rebuilds the tables** (`status.builtAt` changes) re-reads the seasons and runs every query on screen again. A status line ticking through a load does not.
 - **Status line** (`stats.status()`), read again as a load goes, at most once a second:
 
-| It says                                               | When                                                                  |
-| ----------------------------------------------------- | --------------------------------------------------------------------- |
-| No stats yet                                          | Nothing is loaded, and nothing is running                             |
-| No WNBA stats yet                                     | The league is off, with no file; not an error                         |
-| WNBA files loaded · no tables yet                     | On and loaded, its tables not built yet (the registry's `derived`)    |
-| Loading the stats · 412 of 3,070 files                | The first load, before any box score                                  |
-| Data through Nov 4, 2026 · updating 71 of 3,070 files | A load or a refresh is running                                        |
-| Data through Nov 4, 2026 · updated 2 h ago            | Nothing is running, in the league's season months                     |
-| 2025-26 season complete · data through Jun 18, 2026   | Between seasons, with the data through the season just played (below) |
-| Data through Nov 4, 2026 · paused, or Loading paused  | The owner paused                                                      |
-| Not enough disk space                                 | The first load could not start                                        |
-| Stats unavailable                                     | The stats database cannot be read                                     |
+| It says                                               | When                                                                            |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------- |
+| No stats yet                                          | Nothing is loaded, and nothing is running                                       |
+| No WNBA stats yet                                     | The league is off, with no file; not an error                                   |
+| WNBA files loaded · no tables yet                     | Loaded, its tables not built yet (the registry's `derived`, or a build to come) |
+| Loading the stats · 412 of 3,070 files                | The first load, before the tables are built                                     |
+| Data through Nov 4, 2026 · updating 71 of 3,070 files | A load or a refresh is running                                                  |
+| Data through Nov 4, 2026 · updated 2 h ago            | Nothing is running, in the league's season months                               |
+| 2025-26 season complete · data through Jun 18, 2026   | Between seasons, with the data through the season just played (below)           |
+| Data through Nov 4, 2026 · paused, or Loading paused  | The owner paused                                                                |
+| Not enough disk space                                 | The first load could not start                                                  |
+| Stats unavailable                                     | The stats database cannot be read                                               |
+
+**The date** is the last day with a played game in the league's `game` table (`status.through`, in `service.ts`), since that is what every screen can show; a game is played there once the league's schedule has its score. It is not a source's box scores, which can run a day ahead: on Nov 21, 2026, ESPN's file had that day's six NBA games while the NBA's schedule had no score for them yet, and the line read Nov 21 while every screen stopped on Nov 20. Before the tables are built there is no date, and the line says what the load is doing. Games' "Not played" and "Scheduled", the team schedule's next game, the season complete line, Trends' seasons and the Favourites page's subtitle and section notes read the same date.
 
 **Between seasons** (`freshness`, `seasonComplete` in `lib/stats/scope.ts`), one rule for every league: outside the registry's `seasonMonths` (the NBA's October to June, the WNBA's May to October), and when the data runs through the season whose months just ended, the line says that season is complete and the date its data runs through, and nothing about when it was updated, since a date weeks old is not stale then. A refresh or a pause still adds "· updating…" or "· paused". Data that stops short of the season just played reads as in season, as it is not complete. The NBA reads "2025-26 season complete" from July to September, the WNBA "2026 season complete" from November to April.
 

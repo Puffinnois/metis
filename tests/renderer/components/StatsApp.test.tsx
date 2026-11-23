@@ -113,7 +113,12 @@ describe('the shell', () => {
     ['loading, with box scores in', { busy: true, through }, /^NBA data is loading\./],
     ['paused', { paused: true }, /^Loading is paused\./],
     ['paused, with box scores in', { paused: true, through }, /^Loading is paused\./],
-    ['stopped with no tables', { through }, /^The tables are not built yet\./],
+    // Files loaded with no table built: no date, which is the tables' last game, only the load's time.
+    [
+      'stopped with no tables',
+      { updatedAt: '2026-11-05T10:00:00Z' },
+      /^The tables are not built yet\./
+    ],
     [
       'out of disk space',
       { noRoom: { neededBytes: 1, freeBytes: 0 } },

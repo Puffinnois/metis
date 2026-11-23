@@ -76,8 +76,14 @@ import { refreshStats, STATS_DERIVED_STEP } from './sync'
 import type { LinkLinesFiles, LinkSideFiles } from './links/protocol'
 import { writeLinkedLines, writeLinkSide } from './links/side'
 
-/** The table the status line reads the latest game from. */
-const LATEST_GAMES_TABLE = 'src_espn_team_box'
+/**
+ * The table the status line reads its date from: the last day with a played game in the league's own
+ * `game` table, since that is what every screen can show. Not a source's box scores, which can run a
+ * day ahead of the schedule that decides a game is played (ESPN's file had Nov 21, 2026's six NBA games
+ * while the NBA's schedule had no score for them yet, so every screen stopped on Nov 20). Before the
+ * tables are built there is no date, and the line says what the load is doing instead.
+ */
+const LATEST_GAMES_TABLE = 'game'
 const PAUSED_KEY = 'paused'
 
 /**
@@ -327,8 +333,8 @@ export async function openStatsService(
         )
         const latest = exists
           ? await reader.get<{ season: number; date: string | null }>(
-              `SELECT season, max(game_date)::VARCHAR AS date FROM ${LATEST_GAMES_TABLE}
-               GROUP BY season ORDER BY season DESC LIMIT 1`
+              `SELECT season::INTEGER AS season, max(game_date)::VARCHAR AS date FROM ${LATEST_GAMES_TABLE}
+               WHERE played GROUP BY season ORDER BY season DESC LIMIT 1`
             )
           : null
         return {
