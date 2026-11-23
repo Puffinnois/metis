@@ -67,6 +67,11 @@ export interface SessionStore {
   screen: StatsScreen
   /** What each screen keeps while it is on show, by league (`useScreenState`). */
   onScreen: Map<string, unknown>
+  /**
+   * The Favourites page's day, chosen this session (D50): the app's, not a league's, so a move into
+   * another league's section and Back find the page on the day it was left. Null: the latest.
+   */
+  favouritesDay?: string | null
 }
 
 export const createSessionStore = (): SessionStore => ({
@@ -80,6 +85,11 @@ export const SessionContext = createContext<SessionStore | null>(null)
 /** The session a league was left with, or null when it has not been on screen yet. */
 export const sessionOf = (store: SessionStore, league: LeagueId): LeagueSession | null =>
   store.sessions.get(league) ?? null
+
+/** Keeps the Favourites page's day for the session (D50), whichever league is on screen. */
+export function keepFavouritesDay(store: SessionStore | null, day: string | null): void {
+  if (store) store.favouritesDay = day
+}
 
 /** Keeps a league's session as it stands on screen. */
 export function keepSession(store: SessionStore, league: LeagueId, session: LeagueSession): void {

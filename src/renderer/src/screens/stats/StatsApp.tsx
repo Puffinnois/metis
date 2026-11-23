@@ -36,6 +36,7 @@ import { StatsData } from '@/screens/stats/StatsData'
 import { FirstRunLeagues } from '@/components/stats/FirstRunLeagues'
 import { StatsExplore } from '@/screens/stats/StatsExplore'
 import { StatsGames } from '@/screens/stats/StatsGames'
+import { StatsFavourites } from '@/screens/stats/StatsFavourites'
 import { StatsGlossary } from '@/screens/stats/StatsGlossary'
 import { StatsHome } from '@/screens/stats/StatsHome'
 import { StatsLeaderboard } from '@/screens/stats/StatsLeaderboard'
@@ -419,6 +420,8 @@ export function StatsApp({
               onOpenTeam={openTeam}
               onOpenPlayer={openPlayer}
             />
+          ) : screen === 'favourites' ? (
+            <StatsFavourites league={league} onOpenPage={onOpenPage} onOpenData={openData} />
           ) : screen === 'standings' ? (
             <StatsStandings data={data} scope={scope} onScope={setChosen} onOpenTeam={openTeam} />
           ) : playerBoard || teamBoard ? (
