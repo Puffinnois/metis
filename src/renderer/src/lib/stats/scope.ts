@@ -69,7 +69,9 @@ export function freshness(
   if (status.noRoom) return 'Not enough disk space'
   if (status.paused && !status.through) return 'Loading paused'
   if (!status.through) {
-    if (!status.busy) return 'No stats yet'
+    // No played game in the tables: files loaded with the tables not built, or nothing loaded at all.
+    if (!status.busy)
+      return status.updatedAt ? `${league.name} files loaded · no tables yet` : 'No stats yet'
     return files ? `Loading the stats · ${files}` : 'Loading the stats…'
   }
   // A game date has no time of day: read at UTC, so no time zone moves it to the day before.

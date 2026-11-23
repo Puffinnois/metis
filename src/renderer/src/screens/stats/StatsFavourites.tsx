@@ -26,6 +26,7 @@ import {
   shotTint,
   stepFavouriteDay,
   teamGameOn,
+  sectionSeason,
   throughNote,
   tintOf,
   topScorer,
@@ -41,7 +42,6 @@ import {
   type SectionData
 } from '@/lib/stats/favouritesSection'
 import { useLeagueDownloads } from '@/lib/stats/downloads'
-import { seasonLabel } from '@/lib/stats/league'
 import { fullDay } from '@/lib/stats/scope'
 import { keepFavouritesDay, SessionContext } from '@/lib/stats/session'
 import type { NavLocation } from '@/lib/navHistory'
@@ -520,7 +520,7 @@ function Section({
       <h2 className="m-0 text-[17px] leading-none font-semibold tracking-[-0.01em]">{L}</h2>
       {section.season && (
         <span className="font-mono text-[11.5px] text-fg-3">
-          {seasonLabel(section.season.season)}
+          {sectionSeason(section.league, section.season.season)}
         </span>
       )}
       {first && <span className="font-mono text-[11px] text-fg-3">on screen</span>}
@@ -612,7 +612,7 @@ function Section({
     }
   })
   const through = throughNote(L, section.through, day, fullDay)
-  const foot = section.season ? absentNote(absent, seasonLabel(section.season.season)) : null
+  const foot = section.season ? absentNote(absent, section.league, section.season.season) : null
   return (
     <section
       aria-label={L}

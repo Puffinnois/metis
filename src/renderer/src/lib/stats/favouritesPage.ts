@@ -1,5 +1,6 @@
 import { heatOf, type Heat } from '@/lib/stats/format'
 import type { Favourite } from '@shared/favourites'
+import { leagueOf, type LeagueId } from '@shared/leagues'
 import type { GameType, StatsGame, StatsQuery, StatsResult } from '@shared/stats/types'
 
 /**
@@ -355,12 +356,21 @@ export function orderRows<T>(rows: readonly Ordered<T>[]): Ordered<T>[] {
   })
 }
 
+/**
+ * A section's season as the section's own league writes it, whichever league is on screen: the WNBA's
+ * 2026 reads "2026" with the NBA on screen, never the NBA's "2025-26". The season number is the
+ * section's own; only the words could come from the wrong league.
+ */
+export const sectionSeason = (league: LeagueId, season: number): string =>
+  leagueOf(league).seasonLabel(season)
+
 /** The line at a section's foot for the favourites with no game in the season of the page's day. */
-export function absentNote(n: number, season: string): string | null {
+export function absentNote(n: number, league: LeagueId, season: number): string | null {
   if (n === 0) return null
+  const label = sectionSeason(league, season)
   return n === 1
-    ? `1 favourite has no game in ${season}`
-    : `${n} favourites have no game in ${season}`
+    ? `1 favourite has no game in ${label}`
+    : `${n} favourites have no game in ${label}`
 }
 
 /** The section's data note, when its data stops before the page's day. */

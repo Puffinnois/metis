@@ -86,7 +86,9 @@ function emptyScreenNote(status: StatsStatus | null, league: League): string {
   if (status?.busy) {
     return `${league.name} data is loading. Screens open once the box scores are in and their tables are built.`
   }
-  if (status?.through) return 'The tables are not built yet. Metis tries again on its next refresh.'
+  // Files loaded (a load that wrote rows) with no table built from them; the date needs the tables.
+  if (status?.updatedAt)
+    return 'The tables are not built yet. Metis tries again on its next refresh.'
   return `No stats yet: ${league.name} data has not been loaded.`
 }
 
