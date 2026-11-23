@@ -27,8 +27,7 @@ export type FavouritesByLeague = Record<LeagueId, Favourite[]>
 export const emptyFavourites = (): FavouritesByLeague =>
   Object.fromEntries(LEAGUE_IDS.map((id) => [id, []])) as unknown as FavouritesByLeague
 
-export const isFavouriteKind = (v: unknown): v is FavouriteKind =>
-  v === 'player' || v === 'team'
+export const isFavouriteKind = (v: unknown): v is FavouriteKind => v === 'player' || v === 'team'
 
 /** The longest id and name kept; ids are digits in every league today. */
 export const FAVOURITE_ID_MAX = 40

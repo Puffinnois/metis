@@ -227,6 +227,39 @@ describe('the links service', () => {
     expect(await s.counts('ncaam')).toEqual({ id: 2, 'name+birth': 1, 'name+college': 1 })
   })
 
+  it('answers which players are linked and their ids in the paired league, for favourites', async () => {
+    const s = await service()
+    // Nothing handed over yet: no links, and nothing fails (a favourite stays in its league).
+    expect(await s.pairedIds('nba', ['9001'])).toEqual([])
+    const nba = await nbaFile()
+    const ncaam = await ncaamFile()
+    await s.ingestSide((await writeLinkSide(nba, LEAGUES.nba, tempDir(), 'a'))!)
+    await s.ingestSide((await writeLinkSide(ncaam, LEAGUES.ncaam, tempDir(), 'a'))!)
+    // Paolo Banchero, linked by ESPN's id: 101 at Duke, 9001 in the NBA, both ways.
+    expect(await s.pairedIds('ncaam', ['101'])).toEqual([['101', '9001']])
+    expect(await s.pairedIds('nba', ['9001'])).toEqual([['9001', '101']])
+    // Every link of the pair, asked from each side, answers the same pairs turned round.
+    const all = await s.read(
+      "SELECT college_id::VARCHAR AS c, pro_id::VARCHAR AS p FROM player_link WHERE college = 'ncaam' AND pro_id IS NOT NULL ORDER BY 1"
+    )
+    const college = await s.pairedIds(
+      'ncaam',
+      all.map((r) => String(r.c))
+    )
+    expect(college).toEqual(all.map((r) => [String(r.c), String(r.p)]))
+    const pro = await s.pairedIds(
+      'nba',
+      all.map((r) => String(r.p))
+    )
+    expect(new Set(pro.map(([p, c]) => `${c}:${p}`))).toEqual(
+      new Set(college.map(([c, p]) => `${c}:${p}`))
+    )
+    // An unlinked id, a non-number and the other pair answer nothing.
+    expect(await s.pairedIds('nba', ['9007', 'x; DROP TABLE player_link', ''])).toEqual([])
+    expect(await s.pairedIds('wnba', ['9001'])).toEqual([])
+    expect(await s.pairedIds('ncaam', [])).toEqual([])
+  })
+
   it('lists the paired league’s linked players who have no page in this league, for its search', async () => {
     const s = await service()
     const nba = await nbaFile()

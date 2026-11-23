@@ -105,7 +105,12 @@ export interface Api {
   favourites: {
     all(): Promise<FavouritesByLeague>
     /** Stars a player or team by its id in the league's stats file, with the name it shows now. */
-    add(league: LeagueId, kind: FavouriteKind, id: string, name: string): Promise<FavouritesByLeague>
+    add(
+      league: LeagueId,
+      kind: FavouriteKind,
+      id: string,
+      name: string
+    ): Promise<FavouritesByLeague>
     /** Takes the star away; a linked player's goes in both leagues of the pair. */
     remove(league: LeagueId, kind: FavouriteKind, id: string): Promise<FavouritesByLeague>
   }

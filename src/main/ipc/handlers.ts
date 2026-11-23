@@ -227,7 +227,9 @@ export function registerIpcHandlers(ctx: AppContext): void {
   // Favourites are kept in `metis.db` (D49); a linked player's star is followed through the links
   // file's own worker (D47), never a file the main process opens.
   const paired: PairedIds = (league, ids) => ctx.leagues.pairedIds(league, ids)
-  ipcMain.handle(IPC.favouritesAll, (): Promise<FavouritesByLeague> => readFavourites(ctx.db, paired))
+  ipcMain.handle(IPC.favouritesAll, (): Promise<FavouritesByLeague> =>
+    readFavourites(ctx.db, paired)
+  )
   ipcMain.handle(
     IPC.favouritesAdd,
     (

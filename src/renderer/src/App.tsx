@@ -8,6 +8,7 @@ import { NAV_ITEMS, type StatsScreen } from '@/lib/stats/screens'
 import { createSessionStore, SessionContext } from '@/lib/stats/session'
 import { useTheme } from '@/lib/theme'
 import { useUpdateState } from '@/lib/useUpdateState'
+import { FavouritesProvider } from '@/screens/stats/FavouritesProvider'
 import { StatsApp, type StatsFocus } from '@/screens/stats/StatsApp'
 import type { NoteContext } from '@shared/devNotes'
 
@@ -100,19 +101,21 @@ export default function App(): React.JSX.Element {
   return (
     <DevTools screen="home" onGo={goTo}>
       <SessionContext.Provider value={sessions}>
-        <StatsApp
-          key={league.id}
-          focus={focus}
-          onFocused={focused}
-          update={update}
-          version={version}
-          onOpenUpdate={() => setUpdateOpen(true)}
-          onToggleTheme={toggleTheme}
-          onLocation={history.report}
-          canGoBack={history.canGoBack}
-          onBack={goBack}
-          onOpenPage={openMove}
-        />
+        <FavouritesProvider>
+          <StatsApp
+            key={league.id}
+            focus={focus}
+            onFocused={focused}
+            update={update}
+            version={version}
+            onOpenUpdate={() => setUpdateOpen(true)}
+            onToggleTheme={toggleTheme}
+            onLocation={history.report}
+            canGoBack={history.canGoBack}
+            onBack={goBack}
+            onOpenPage={openMove}
+          />
+        </FavouritesProvider>
       </SessionContext.Provider>
       <UpdateDialog
         state={update}

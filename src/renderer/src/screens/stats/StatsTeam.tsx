@@ -1,4 +1,5 @@
 import { AssistNetwork } from '@/components/stats/AssistNetwork'
+import { FavouriteStar } from '@/components/stats/FavouriteStar'
 import { MetricHead } from '@/components/stats/MetricCard'
 import { ShotChart } from '@/components/stats/ShotChart'
 import { useScreenState } from '@/lib/stats/session'
@@ -307,9 +308,12 @@ function Header({
             </span>
           </div>
           <div className="flex items-end gap-[22px]">
-            <h1 className="m-0 font-sans text-[52px] leading-[0.85] font-bold tracking-[-0.04em]">
-              {code}
-            </h1>
+            <div className="flex items-center gap-1.5">
+              <h1 className="m-0 font-sans text-[52px] leading-[0.85] font-bold tracking-[-0.04em]">
+                {code}
+              </h1>
+              <FavouriteStar kind="team" id={team} name={name || code} size="lg" />
+            </div>
             <div className="flex gap-px overflow-hidden rounded-[8px] bg-line shadow-[0_0_0_1px_var(--line)]">
               {tiles.map(([label, value, tone]) => (
                 <div key={label} className="flex flex-col gap-[5px] bg-panel px-3.5 py-2">

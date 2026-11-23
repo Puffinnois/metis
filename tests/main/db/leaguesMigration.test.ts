@@ -60,7 +60,7 @@ describe('metis.db keyed by league', () => {
     const { db, path } = fixtureOf10()
     db.close()
     const upgraded = open(path)
-    expect(migrate(upgraded)).toBe(3)
+    expect(migrate(upgraded)).toBe(4)
     expect(listStatsViews(upgraded, 'nba')).toEqual([
       {
         id: 9,
