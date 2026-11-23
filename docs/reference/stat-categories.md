@@ -7,7 +7,7 @@ This is the taxonomy, written before it is built (T1702.1). It places every metr
 ## What a category is
 
 - **A category groups metrics by what they measure**: points, shots, passes, rebounds, fouls, a defensive act, a team's results. It has an id, a label, a one-sentence definition a reader can predict its contents from, and ordered **sub-groups**, each with its own sentence.
-- **A metric sits in every category it belongs to**, one sub-group in each: second-chance points are Scoring and Rebounding; a block is Defense; a steal by a team's opponents is the team's Offense (below). The first category listed is the metric's **primary** one, where the Glossary describes it in full.
+- **A metric sits in every category it belongs to**, one sub-group in each: second-chance points are Scoring and Rebounding; a block is Defense; a steal by a team's opponents is the team's Offense (below). The first category listed is the metric's **primary** one, where the Glossary describes it in full; an opponents' metric leads with the team's end, Offense or Defense, so "Opponent turnovers" is described under Defense.
 - **The family stays, as the source.** `family` keeps saying which section of the reference and which kind of table a metric comes from (Tracking, Play by play, Shot zones, Impact (SportsDataverse)). It is no longer what the screens group by; it remains a filter ("From: Tracking") and a line on the metric's card.
 - **Offense and Defense are umbrellas.** They hold every statistic of one end of the floor: Offense the scoring, shooting, playmaking, turnovers, offensive rebounding, fouls drawn, usage, offensive play types and offensive impact; Defense the steals and blocks, defended shots, matchups, defensive rebounding, fouls committed on defense, defensive hustle, defensive play types and defensive impact, and for a team everything its opponents did with the ball. Their sub-groups are headings that open the specific categories' sub-groups for that end (below, "Views over 40 metrics").
 - **Overview is a preset, not a category.** It is today's default board (the tab's `groups` in `lib/stats/leaderboard.ts`, the dashboards' Overview tabs): the most-read numbers across categories. No metric is tagged Overview.
@@ -33,12 +33,12 @@ Fourteen categories, in the order the screens show them. A category with nothing
 | Playmaking           | Making plays for others and keeping the ball: passes and assists, the shots created beyond them, handling the ball, and turnovers.                                                | Passing; Creation; Ball handling; Turnovers                                                                                                                                                                                                                            |
 | Rebounding           | Rebounds at either end: how many, what share of the chances, contested or not, and the box outs behind them.                                                                      | Offensive; Defensive; All rebounds; Box outs                                                                                                                                                                                                                           |
 | Fouls                | Fouls and violations: those committed, those drawn, and the flagrants, technicals and ejections.                                                                                  | Committed; Drawn; Violations; Flagrants, technicals and ejections                                                                                                                                                                                                      |
-| Hustle               | The effort plays the NBA counts as hustle: contests, deflections, loose balls, charges drawn, screen assists and box outs.                                                        | Contests; Loose balls and deflections; Charges; Screens; Box outs                                                                                                                                                                                                      |
+| Hustle and movement  | Effort and activity: the hustle plays the NBA counts (contests, deflections, loose balls, charges drawn, screen assists, box outs) and how far and how fast a player moved.       | Contests; Loose balls and deflections; Charges; Screens; Box outs; Movement                                                                                                                                                                                            |
 | Play types           | How a player's plays ended, by the kind of play, on offense and on defense: possessions, frequency and results of each.                                                           | One a play type: Isolation, Transition, Pick-and-roll ball handler, Pick-and-roll roll man, Post-up, Spot-up, Handoff, Cut, Off screen, Putbacks, Miscellaneous; then the seven defended, "Isolation defense" to "Off screen defense"                                  |
 | Impact               | How much a player adds to the team's results: the team's margin with them on the floor and off it, and the all-in-one models and composites built from box scores and plus-minus. | On court; Plus-minus models; Box-score models; Box-score composites; Individual ratings; All-around games                                                                                                                                                              |
 | Predictive           | Numbers that look ahead: a season's forecast for a team, a projection for a player, each named as its maker's estimate.                                                           | Season forecast; Player projections                                                                                                                                                                                                                                    |
-| Results and strength | Winning and how strong a team is: record, margin, efficiency and pace, ratings adjusted for opponents, Elo, Pythagorean record, schedule, game flow and forecast.                 | Record; Margin; Efficiency and pace; Adjusted ratings; Elo; Pythagorean; Schedule; Game flow; Forecast; Rankings and seeds                                                                                                                                             |
-| Playing time         | How much a player was on the floor and how much they moved: games, starts, minutes, possessions, distance and speed, and the games they missed.                                   | Games and minutes; Possessions; Movement; Games missed                                                                                                                                                                                                                 |
+| Results and strength | Winning and how strong a team is: record, margin, ratings, pace and possessions, ratings adjusted for opponents, Elo, Pythagorean record, schedule, game flow and forecast.       | Record; Margin; Ratings; Pace and possessions; Adjusted ratings; Elo; Pythagorean; Schedule; Game flow; Forecast; Rankings and seeds                                                                                                                                   |
+| Playing time         | How much a player was on the floor: games, starts, minutes, possessions, and the games they missed.                                                                               | Games and minutes; Possessions; Games missed                                                                                                                                                                                                                           |
 | Fantasy              | Fantasy points under the common scoring systems, as ordinary metrics (D4, T1201); nothing about rosters or advice.                                                                | Points (by scoring system), added by T1703.2                                                                                                                                                                                                                           |
 
 ### The sub-groups
@@ -56,7 +56,7 @@ Fourteen categories, in the order the screens show them. A category with nothing
 
 **Shooting**
 
-- _Field goals_, _Twos_, _Threes_, _Free throws_: makes, attempts, misses and percentages of each (free throws with the free-throw rate, and-ones and shooting-foul trips); the player's own shots blocked (`nba_blka`) are Field goals.
+- _Field goals_, _Twos_, _Threes_, _Free throws_: makes, attempts, misses and percentages of each (free throws with the free-throw rate, also in Fouls › Drawn, and the and-ones and shooting-foul trips); the player's own shots blocked (`nba_blka`) are Field goals.
 - _Efficiency_: shooting that counts the three and the free throw: eFG%, TS%, points per attempt, points above the league by location.
 - _Shot selection_: where the attempts come from: three- and two-point attempt rates, share of attempts from two and three, average shot distance.
 - _Share of team_: a player's share of the team's makes and attempts.
@@ -83,11 +83,11 @@ Fourteen categories, in the order the screens show them. A category with nothing
 **Fouls**
 
 - _Committed_: personal fouls and their kinds: shooting, non-shooting, offensive, loose-ball, take, transition take, clear path; the shooting share of fouls; the offensive-foul turnovers.
-- _Drawn_: fouls drawn, shooting fouls drawn, and-ones, two- and three-shot trips, trips per attempt, the fouls drawn on drives and touches, charges drawn.
+- _Drawn_: fouls drawn, free-throw attempt rate, shooting fouls drawn, and-ones, two- and three-shot trips, trips per attempt, the fouls drawn on drives and touches, charges drawn.
 - _Violations_: defensive three seconds, defensive goaltending, kicked balls.
 - _Flagrants, technicals and ejections_.
 
-**Hustle**: _Contests_ (contested shots, twos and threes), _Loose balls and deflections_, _Charges_, _Screens_ (screen assists and their points), _Box outs_.
+**Hustle and movement**: _Contests_ (contested shots, twos and threes), _Loose balls and deflections_, _Charges_, _Screens_ (screen assists and their points), _Box outs_, _Movement_ (distance and average speed, on offense and defense).
 
 **Play types**: one sub-group a play type, each with its 13 metrics (possessions, frequency, points, points per possession, FG, FG%, eFG%, free-throw, turnover, shooting-foul, and-one and score frequencies); the seven defended types after the eleven on offense.
 
@@ -106,7 +106,8 @@ Fourteen categories, in the order the screens show them. A category with nothing
 
 - _Record_: wins, losses and win percentage (for a player, the team's in the games they played).
 - _Margin_: point differential, margin of victory.
-- _Efficiency and pace_: offensive, defensive and net ratings, points per possession, pace and possessions, each source's beside Metis's.
+- _Ratings_: offensive, defensive and net ratings and points per possession, each source's beside Metis's.
+- _Pace and possessions_: pace and the possession estimates, each source's beside Metis's.
 - _Adjusted ratings_: SRS, strength of schedule, the adjusted ratings and home court, SportsDataverse's adjusted efficiency for the colleges.
 - _Elo_, _Pythagorean_: the rating and the wins it expects; the Pythagorean record and the wins over it.
 - _Schedule_: games left and the strength of schedule left.
@@ -114,7 +115,7 @@ Fourteen categories, in the order the screens show them. A category with nothing
 - _Forecast_: the season forecast, also here.
 - _Rankings and seeds_: NET, quadrants, polls and seeds, listed as unavailable (D44).
 
-**Playing time**: _Games and minutes_ (games, starts, minutes, minutes on court from the plays), _Possessions_ (possessions played, the NBA's), _Movement_ (distance and average speed, on offense and defense), _Games missed_ (injury or illness, other reasons).
+**Playing time**: _Games and minutes_ (games, starts, minutes, minutes on court from the plays), _Possessions_ (possessions played, the NBA's), _Games missed_ (injury or illness, other reasons).
 
 ## The hard cases
 
@@ -123,23 +124,23 @@ How the cases that could go more than one way were decided. The rule behind most
 1. **A turnover is Playmaking and Offense.** Playmaking › Turnovers, since keeping the ball is half of making plays, and Offense › Turnovers as a heading of its own, not folded into Offense › Playmaking, so a reader of Offense sees ball security beside scoring. The opponents' turnovers are the team's Defense › Turnovers forced.
 2. **Plus-minus is Impact › On court.** The manager's list had "On court and lineups" and "Impact and all-in-one" apart. Raw plus-minus, on-off and on-court ratings are the simplest measure of impact and the input of the plus-minus models, and a reader looking for impact expects plus-minus; two categories would split one question. So On court is a sub-group of Impact. Lineups are a screen of their own with no catalogue metric, so nothing is lost by the name. A player's own rates counted from the plays while on court (usage, AST%, rebound, steal and block percentages "on court") are placed by their act, not in Impact: `onc_usg_pct` is Offense › Usage, `onc_ast_pct` Playmaking › Passing.
 3. **The league indexes go with their rate**, not in a category of their own: TS+ and eFG+ are Shooting › Efficiency, 3P+ Shooting › Threes, TOV%+ Playmaking › Turnovers, AST%+ Playmaking › Passing, ORB%+ Rebounding › Offensive, STL%+ and BLK%+ Defense › Steals and blocks, USG%+ Offense › Usage. An index says how a rate compares with the league; what it measures is the rate's. Their family (`indexes`) stays, so "League indexes" remains a source filter.
-4. **Opponents' defensive acts are the team's Offense** (above), where the manager's starting list put "for teams everything their opponents did" under Defense. Opponents' steals, blocks, defensive rebounds, fouls and violations measure the team's ball security, shots blocked, misses lost and fouls drawn, which a reader of Defense would not expect to find there. **For the manager's decision.**
+4. **Opponents' defensive acts are the team's Offense** (above), where the manager's starting list put "for teams everything their opponents did" under Defense. Opponents' steals, blocks, defensive rebounds, fouls and violations measure the team's ball security, shots blocked, misses lost and fouls drawn, which a reader of Defense would not expect to find there. Approved in the manager's review; an opponents' metric's primary category is that end.
 5. **Fouls are a category of their own.** Defense cannot hold them all: offensive fouls are committed with the ball (Offense › Turnovers), technicals, ejections and loose-ball fouls belong to neither end, and fouls drawn are offense. Fouls committed on defense (personal, shooting, non-shooting, take, clear path) and the defensive violations (three seconds, goaltending, kicked balls) are also Defense › Fouls and violations. **Personal fouls (`pf`) count as defensive** though they include offensive fouls (counted apart, `pbp_pf_offensive`), since nearly all are committed on defense and a reader of Defense expects them; the shooting share of fouls and the loose-ball fouls have no end.
 6. **Usage is Offense › Usage alone.** It is neither scoring nor playmaking: it is the share of the team's plays a player finishes, by shot, free throw or turnover. Possessions used (`poss_used`) sits with it.
-7. **Tracking is a source, not a category.** The manager's list had "Tracking and movement". Tracking holds drives, touches, passes, rebound chances, catch-and-shoot, pull-ups and rim protection: by what they measure they are Playmaking, Shooting, Rebounding and Defense, and a reader of Shooting looking for catch-and-shoot 3P% should find it there. Distance and speed are Playing time › Movement. A tracking dashboard's outcomes are spread by the act each counts: a drive's FG% is Shooting › Drives and touches, its points Scoring › Points by situation, its passes and assists Playmaking › Passing, its turnovers Playmaking › Turnovers, its fouls Fouls › Drawn; the drives themselves Playmaking › Creation.
+7. **Tracking is a source, not a category.** The manager's list had "Tracking and movement". Tracking holds drives, touches, passes, rebound chances, catch-and-shoot, pull-ups and rim protection: by what they measure they are Playmaking, Shooting, Rebounding and Defense, and a reader of Shooting looking for catch-and-shoot 3P% should find it there. Distance and speed are Hustle and movement › Movement. A tracking dashboard's outcomes are spread by the act each counts: a drive's FG% is Shooting › Drives and touches, its points Scoring › Points by situation, its passes and assists Playmaking › Passing, its turnovers Playmaking › Turnovers, its fouls Fouls › Drawn; the drives themselves Playmaking › Creation.
 8. **Play types stay whole**, unlike tracking dashboards: 234 metrics, 13 for each of 18 play types, would swamp Scoring and Shooting, and the NBA, Synergy and every reader treat a play type as one unit. They are in Play types and in Offense › Play types or Defense › Play types.
-9. **Hustle stays a category**, as the NBA names and publishes it, and each hustle statistic also sits in its own category: contests in Defense › Defended shots, deflections and defensive loose balls in Defense › Hustle, charges drawn in Defense › Hustle and Fouls › Drawn, box outs in Rebounding › Box outs, screen assists in Playmaking › Creation and Offense › Hustle.
+9. **Hustle stays a category**, as the NBA names and publishes it, named Hustle and movement since distance and speed join it (the manager's review: "Playing time" does not predict average speed; both are the NBA's alone, so the label holds wherever the tab shows), and each hustle statistic also sits in its own category: contests in Defense › Defended shots, deflections and defensive loose balls in Defense › Hustle, charges drawn in Defense › Hustle and Fouls › Drawn, box outs in Rebounding › Box outs, screen assists in Playmaking › Creation and Offense › Hustle.
 10. **Availability is Playing time › Games missed.** Two metrics, NBA only (games out for injury or illness, and for other reasons), are a part of how much a player played, not a tab.
 11. **Double-doubles and the rest are Impact › All-around games.** They count games of all-round production, which is what "all-in-one" means; they measure no one act.
-12. **Pace and possessions.** A team's are Results and strength › Efficiency and pace, with no end: pace is both ends'. A player's possessions played are Playing time › Possessions; the pace with a player on the floor is Impact › On court.
-13. **Ratings.** A team's offensive rating is Results › Efficiency and pace and Offense › Ratings, its defensive rating also Defense › Ratings, its net rating Results alone; the same for the adjusted ratings and SportsDataverse's college ratings. A player's on-court ratings (the NBA's `nba_ortg` and Metis's `onc_ortg`) are Impact › On court with the end.
+12. **Pace and possessions.** A team's are Results and strength › Pace and possessions, with no end: pace is both ends'. A player's possessions played are Playing time › Possessions; the pace with a player on the floor is Impact › On court.
+13. **Ratings.** A team's offensive rating is Results › Ratings and Offense › Ratings, its defensive rating also Defense › Ratings, its net rating Results alone; the same for the adjusted ratings and SportsDataverse's college ratings. A player's on-court ratings (the NBA's `nba_ortg` and Metis's `onc_ortg`) are Impact › On court with the end.
 14. **Game flow** is Results and strength; best runs and droughts are also Offense › Scoring (the team's) or Defense › Scoring allowed (the opponents'). Largest lead, largest deficit and time leading have no end.
 15. **Season forecasts** are Predictive › Season forecast and Results › Forecast, so they are shown under the name a reader looks for ahead and beside the record. DARKO's skill estimate is Impact › Plus-minus models and Predictive › Player projections.
 16. **A player's wins and losses** are Results › Record: the team's record in the games they played.
 17. **Assisted and unassisted makes** are Scoring › Assisted and unassisted (how the baskets came); a team's assisted share is also Playmaking › Passing, the usual measure of ball movement.
 18. **Shares of the team** (`share_*`, the NBA's on-court `nba_share_*`) go with their act: share of rebounds is Rebounding, of steals Defense, of fouls Fouls, of points Scoring.
 19. **Second-chance points and putbacks** are Scoring › Points by situation and Rebounding › Offensive. Points off turnovers and fast-break points are Scoring only; the opponents' are Defense › Scoring allowed.
-20. **Free-throw rate is Shooting › Free throws**, not Fouls: it is free-throw attempts per shot. And-ones and shooting-foul trips are both Fouls › Drawn and Shooting › Free throws.
+20. **Free-throw rate is Shooting › Free throws and Fouls › Drawn**, and Offense › Fouls drawn: it is free-throw attempts per shot, and the usual measure of getting to the line (the manager's review). The opponents' is the team's Defense › Fouls and violations. And-ones and shooting-foul trips are both Fouls › Drawn and Shooting › Free throws.
 21. **Matchups are Defense › Matchups only**, even "assists allowed" or "turnovers forced" in matchups: every matchup figure is about the defender's assignment.
 22. **The NBA's published twins** (`nba_*`, and the colleges' stats.ncaa.org splits) sit in the same sub-group as Metis's own figure, side by side (policy 5): `nba_ts_pct` beside `ts_pct` in Shooting › Efficiency.
 23. **Blocks at the rim (colleges) are Defense.** The catalogue files `ncaa_rim_blocks` under Scoring and words it "Blocked shots taken at the rim". Measured on the 2024-25 men's stats.ncaa.org player box (`src_ncaa_player_box`, read-only on the gate13c load): rim, mid-range and three-point blocks add up to the player's own blocks on 125,341 of 127,466 lines, and no line has zone blocks without blocks. They are shots the player blocked. The opponents' version is the team's Offense › Shooting.
@@ -203,14 +204,14 @@ By category, then sub-group: each metric described in full under its primary cat
 
 Today's tabs: Overview, Scoring, Shooting, Shots, Play by play, Playmaking, Rebounding, Defense, Tracking, Play types, Matchups, Game log, Splits, On/off, Profile.
 
-- Overview stays. **Scoring, Shooting, Playmaking, Rebounding, Defense, Fouls, Hustle, Play types, Impact, Playing time** become category tabs, each with its sub-groups as sections, every metric of the category reachable. **Offense** is a tab too, its sections the umbrella's sub-groups; long sections start folded.
+- Overview stays. **Scoring, Shooting, Playmaking, Rebounding, Defense, Fouls, Hustle and movement, Play types, Impact, Playing time** become category tabs, each with its sub-groups as sections, every metric of the category reachable. **Offense** is a tab too, its sections the umbrella's sub-groups; long sections start folded.
 - **Shots** goes into Shooting: the shot chart heads its zone sections. **Play by play** and **Tracking** go (sources), their metrics spread by category. **Matchups** goes into Defense, its per-opponent table as the Matchups section.
 - Game log, Splits, On/off and Profile stay: they are views of a player, not categories. Old `drive.mjs` step files click tabs by place (the comment in `PLAYER_DASH_TABS`): T1702.4 rewrites the steps that do.
 - Predictive and Fantasy appear when they have a player metric.
 
 ### Team page
 
-Today's tabs: Overview, Offense, Defense, Shots, Play by play, Players, Lineups, Splits, Schedule, On/off. Overview stays; Offense and Defense become the umbrella categories; **Scoring, Shooting, Playmaking, Rebounding, Fouls, Hustle, Impact, Predictive, Results and strength** are added as category tabs, each with the team's side and the opponents'. Shots goes into Shooting (the chart heads the zones); Play by play goes. Players, Lineups, Splits, Schedule and On/off stay.
+Today's tabs: Overview, Offense, Defense, Shots, Play by play, Players, Lineups, Splits, Schedule, On/off. Overview stays; Offense and Defense become the umbrella categories; **Scoring, Shooting, Playmaking, Rebounding, Fouls, Hustle and movement, Impact, Predictive, Results and strength** are added as category tabs, each with the team's side and the opponents'. Shots goes into Shooting (the chart heads the zones); Play by play goes. Players, Lineups, Splits, Schedule and On/off stay.
 
 ### Explore, Compare and Trends
 
@@ -235,14 +236,14 @@ A saved view holds the board (`LeaderboardBoard`): its kind, tab, columns, sort 
   - A new sub-group is a change to the registry, reviewed with the PR that needs it; a sub-group past 40 metrics a kind and side splits.
 - **The audit** of T1703.1 is `docs/reference/stats-gap-audit.md`.
 
-## Open decisions for the manager
+## Decisions of the manager's review (2026-11-23)
 
-1. **Opponents' defensive acts in Offense** (hard case 4), rather than every opponents' metric in Defense.
-2. **The list changed from the manager's starting one:** Overview is a preset; Tracking and movement is not a category (hard case 7, Movement in Playing time); On court is a sub-group of Impact (hard case 2); Availability is in Playing time (hard case 10); Fouls is added (hard case 5); "Team results and strength" is Results and strength, since players have a record too. Fourteen categories, of which a screen shows at most 12 today.
-3. **Positions** stay as a control beside the category tabs on the players' board.
-4. **The primary category** is the first listed, the one the Glossary describes a metric under.
-5. **The appendix** below is generated from the catalogue by a script kept out of the repository for this part (`classify.mjs` and `gen.mjs`, in the worktree's ignored `.claude/`). Once T1702.2 puts the categories in the code, the appendix could be regenerated from the registry by a checked-in script, or dropped for the Glossary, which then shows the same. Which?
-6. **The meanings** above are applied in T1702.2, or in a PR of their own after it, to keep T1702.2 small (it must merge before any metric is added).
+1. **Opponents' defensive acts in Offense** (hard case 4): approved. An opponents' metric's primary category is the team's end, Offense or Defense.
+2. **The list changed from the starting one**: approved. Overview is a preset; Tracking is a source (hard case 7); On court is a sub-group of Impact (hard case 2); Availability is in Playing time (hard case 10); Fouls is added (hard case 5); Results and strength, since players have a record too. With these changes: Movement leaves Playing time for **Hustle and movement** (id `hustle`); Results and strength's "Efficiency and pace" splits into **Ratings** and **Pace and possessions**; free-throw attempt rate is also **Fouls › Drawn** (hard case 20); All-around games stays in Impact. Fourteen categories, of which a screen shows at most 12 today.
+3. **Positions** stay as a control beside the category tabs on the players' board: approved.
+4. **The primary category** is the first listed, with the rule in 1: approved.
+5. **The appendix** stays in this document as the reviewed record. T1702.2 removes it, since the code is then the one source and the Glossary shows it; the rules, hard cases and counts stay, the counts dated with their commit. T1702.2 adds a checked-in script that prints every metric with its categories and the counts per category, sub-group and league from the registry.
+6. **The meanings**: all approved, applied in T1702.2. `eff` is "Efficiency (EFF)"; the family labels read as sources ("Box-score rates", "Splits and shares"); `side` is documented as the team's own or its opponents', with no rename in code.
 
 ## Counts
 
@@ -266,13 +267,13 @@ Metrics shown in each category; a metric in several categories counts in each, s
 | Shooting             |         235 |       360 |          194 |        360 |              150 |            290 |                150 |              290 |
 | Playmaking           |          82 |        56 |           37 |         54 |               30 |             49 |                 30 |               49 |
 | Rebounding           |          54 |        22 |           22 |         18 |               16 |             14 |                 16 |               14 |
-| Fouls                |          41 |        57 |           32 |         56 |               19 |             36 |                 19 |               36 |
-| Hustle               |          19 |        15 |            – |          – |                – |              – |                  – |                – |
+| Fouls                |          43 |        63 |           34 |         62 |               21 |             40 |                 21 |               40 |
+| Hustle and movement  |          25 |        15 |            – |          – |                – |              – |                  – |                – |
 | Play types           |         234 |         – |            – |          – |                – |              – |                  – |                – |
 | Impact               |          69 |        11 |           65 |         10 |               45 |              9 |                 45 |                9 |
 | Predictive           |           – |        11 |            – |          8 |                – |              – |                  – |                – |
 | Results and strength |           3 |        65 |            3 |         61 |                3 |             54 |                  3 |               54 |
-| Playing time         |          14 |         – |            6 |          – |                5 |              – |                  5 |                – |
+| Playing time         |           8 |         – |            6 |          – |                5 |              – |                  5 |                – |
 | Fantasy              |           – |         – |            – |          – |                – |              – |                  – |                – |
 | Shown in the league  |         821 |       624 |          398 |        604 |              292 |            489 |                292 |              489 |
 
@@ -283,11 +284,11 @@ The most metrics any sub-group shows in one view: players, and teams as the team
 | Category             | Sub-group                           |   NBA P |       NBA T |  WNBA P |      WNBA T |  NCAA P |      NCAA T |
 | -------------------- | ----------------------------------- | ------: | ----------: | ------: | ----------: | ------: | ----------: |
 | Offense              | Scoring                             |  **46** |  **43** / – |      33 |  **43** / – |      21 |      32 / – |
-| Offense              | Shooting                            | **228** | **174** / 1 | **187** | **174** / 1 | **143** | **137** / 2 |
+| Offense              | Shooting                            | **226** | **171** / 1 | **185** | **171** / 1 | **141** | **135** / 2 |
 | Offense              | Playmaking                          |  **50** |       7 / – |      15 |       7 / – |      11 |       4 / – |
 | Offense              | Turnovers                           |      31 |      21 / 1 |      23 |      21 / 1 |      20 |      20 / 1 |
 | Offense              | Rebounding                          |      15 |       4 / 1 |       7 |       4 / 1 |       5 |       3 / 1 |
-| Offense              | Fouls drawn                         |      19 |       9 / 9 |      11 |       9 / 9 |       9 |       9 / 3 |
+| Offense              | Fouls drawn                         |      21 |      12 / 9 |      13 |      12 / 9 |      11 |      11 / 3 |
 | Offense              | Usage                               |       6 |           – |       6 |           – |       4 |           – |
 | Offense              | Hustle                              |       4 |       4 / – |       – |           – |       – |           – |
 | Offense              | Play types                          | **143** |           – |       – |           – |       – |           – |
@@ -297,12 +298,12 @@ The most metrics any sub-group shows in one view: players, and teams as the team
 | Defense              | Defended shots                      |       6 |       3 / – |       – |           – |       – |           – |
 | Defense              | Matchups                            |      26 |           – |       – |           – |       – |           – |
 | Defense              | Rebounding                          |      15 |       4 / 2 |       7 |       4 / 2 |       5 |       3 / 1 |
-| Defense              | Fouls and violations                |      11 |       9 / 9 |      11 |       9 / 9 |       4 |       3 / 9 |
+| Defense              | Fouls and violations                |      11 |      9 / 12 |      11 |      9 / 12 |       4 |      3 / 11 |
 | Defense              | Hustle                              |       4 |       4 / – |       – |           – |       – |           – |
 | Defense              | Play types                          |  **91** |           – |       – |           – |       – |           – |
 | Defense              | Impact                              |      20 |       1 / 2 |      19 |       1 / 2 |      11 |       1 / 2 |
 | Defense              | Scoring allowed                     |       – |      – / 28 |       – |      – / 28 |       – |      – / 30 |
-| Defense              | Shooting allowed                    |       – | – / **171** |       – | – / **171** |       – | – / **137** |
+| Defense              | Shooting allowed                    |       – | – / **168** |       – | – / **168** |       – | – / **135** |
 | Defense              | Playmaking allowed                  |       – |       – / 4 |       – |       – / 4 |       – |       – / 4 |
 | Defense              | Turnovers forced                    |       – |      – / 21 |       – |      – / 21 |       – |      – / 20 |
 | Defense              | Ratings                             |       – |       4 / 1 |       – |       4 / 1 |       – |       4 / 2 |
@@ -337,14 +338,15 @@ The most metrics any sub-group shows in one view: players, and teams as the team
 | Rebounding           | All rebounds                        |      15 |       4 / 1 |       7 |       4 / 1 |       5 |       3 / 1 |
 | Rebounding           | Box outs                            |       8 |       4 / – |       – |           – |       – |           – |
 | Fouls                | Committed                           |      13 |     11 / 11 |      13 |     11 / 11 |       9 |       8 / 8 |
-| Fouls                | Drawn                               |      20 |      10 / 9 |      11 |       9 / 9 |       9 |       9 / 9 |
+| Fouls                | Drawn                               |      22 |     13 / 12 |      13 |     12 / 12 |      11 |     11 / 11 |
 | Fouls                | Violations                          |       3 |       3 / 3 |       3 |       3 / 3 |       – |           – |
 | Fouls                | Flagrants, technicals and ejections |       5 |       5 / 5 |       5 |       5 / 5 |       1 |       1 / 1 |
-| Hustle               | Contests                            |       3 |       3 / – |       – |           – |       – |           – |
-| Hustle               | Loose balls and deflections         |       5 |       5 / – |       – |           – |       – |           – |
-| Hustle               | Charges                             |       1 |       1 / – |       – |           – |       – |           – |
-| Hustle               | Screens                             |       2 |       2 / – |       – |           – |       – |           – |
-| Hustle               | Box outs                            |       8 |       4 / – |       – |           – |       – |           – |
+| Hustle and movement  | Contests                            |       3 |       3 / – |       – |           – |       – |           – |
+| Hustle and movement  | Loose balls and deflections         |       5 |       5 / – |       – |           – |       – |           – |
+| Hustle and movement  | Charges                             |       1 |       1 / – |       – |           – |       – |           – |
+| Hustle and movement  | Screens                             |       2 |       2 / – |       – |           – |       – |           – |
+| Hustle and movement  | Box outs                            |       8 |       4 / – |       – |           – |       – |           – |
+| Hustle and movement  | Movement                            |       6 |           – |       – |           – |       – |           – |
 | Play types           | Isolation                           |      13 |           – |       – |           – |       – |           – |
 | Play types           | Transition                          |      13 |           – |       – |           – |       – |           – |
 | Play types           | Pick-and-roll ball handler          |      13 |           – |       – |           – |       – |           – |
@@ -373,7 +375,8 @@ The most metrics any sub-group shows in one view: players, and teams as the team
 | Predictive           | Player projections                  |       – |           – |       – |           – |       – |           – |
 | Results and strength | Record                              |       3 |       3 / – |       3 |       3 / – |       3 |       3 / – |
 | Results and strength | Margin                              |       – |       2 / – |       – |       2 / – |       – |       2 / – |
-| Results and strength | Efficiency and pace                 |       – |      19 / 2 |       – |      18 / 2 |       – |      10 / 4 |
+| Results and strength | Ratings                             |       – |      10 / 1 |       – |      10 / 1 |       – |       5 / 2 |
+| Results and strength | Pace and possessions                |       – |       9 / 1 |       – |       8 / 1 |       – |       5 / 2 |
 | Results and strength | Adjusted ratings                    |       – |       6 / – |       – |       6 / – |       – |      13 / – |
 | Results and strength | Elo                                 |       – |       3 / – |       – |       3 / – |       – |       3 / – |
 | Results and strength | Pythagorean                         |       – |       4 / – |       – |       4 / – |       – |       4 / – |
@@ -383,7 +386,6 @@ The most metrics any sub-group shows in one view: players, and teams as the team
 | Results and strength | Rankings and seeds                  |       – |           – |       – |           – |       – |           – |
 | Playing time         | Games and minutes                   |       3 |           – |       3 |           – |       3 |           – |
 | Playing time         | Possessions                         |       3 |           – |       3 |           – |       2 |           – |
-| Playing time         | Movement                            |       6 |           – |       – |           – |       – |           – |
 | Playing time         | Games missed                        |       2 |           – |       – |           – |       – |           – |
 
 ## Appendix: every metric
@@ -405,66 +407,66 @@ Every catalogue metric, by family (the source), with its categories and sub-grou
 | `team_l`          | Losses                          | team   | NWMF    | Results and strength › Record                      |
 | `team_win_pct`    | Win percentage                  | team   | NWMF    | Results and strength › Record                      |
 | `team_pts`        | Points                          | team   | NWMF    | Scoring › Points; Offense › Scoring                |
-| `opp_pts`         | Points allowed                  | opp    | NWMF    | Scoring › Points; Defense › Scoring allowed        |
+| `opp_pts`         | Points allowed                  | opp    | NWMF    | Defense › Scoring allowed; Scoring › Points        |
 | `team_point_diff` | Point differential              | team   | NWMF    | Results and strength › Margin                      |
 | `pts`             | Points                          | player | NWMF    | Scoring › Points; Offense › Scoring                |
 | `fgm`             | Field goals made                | player | NWMF    | Shooting › Field goals; Offense › Shooting         |
 | `team_fgm`        | Field goals made                | team   | NWMF    | Shooting › Field goals; Offense › Shooting         |
-| `opp_fgm`         | Opponent field goals made       | opp    | NWMF    | Shooting › Field goals; Defense › Shooting allowed |
+| `opp_fgm`         | Opponent field goals made       | opp    | NWMF    | Defense › Shooting allowed; Shooting › Field goals |
 | `fga`             | Field-goal attempts             | player | NWMF    | Shooting › Field goals; Offense › Shooting         |
 | `team_fga`        | Field-goal attempts             | team   | NWMF    | Shooting › Field goals; Offense › Shooting         |
-| `opp_fga`         | Opponent field-goal attempts    | opp    | NWMF    | Shooting › Field goals; Defense › Shooting allowed |
+| `opp_fga`         | Opponent field-goal attempts    | opp    | NWMF    | Defense › Shooting allowed; Shooting › Field goals |
 | `fg_pct`          | Field-goal percentage           | player | NWMF    | Shooting › Field goals; Offense › Shooting         |
 | `team_fg_pct`     | Field-goal percentage           | team   | NWMF    | Shooting › Field goals; Offense › Shooting         |
-| `opp_fg_pct`      | Opponent field-goal percentage  | opp    | NWMF    | Shooting › Field goals; Defense › Shooting allowed |
+| `opp_fg_pct`      | Opponent field-goal percentage  | opp    | NWMF    | Defense › Shooting allowed; Shooting › Field goals |
 | `fg_miss`         | Missed field goals              | player | NWMF    | Shooting › Field goals; Offense › Shooting         |
 | `team_fg_miss`    | Missed field goals              | team   | NWMF    | Shooting › Field goals; Offense › Shooting         |
-| `opp_fg_miss`     | Opponent missed field goals     | opp    | NWMF    | Shooting › Field goals; Defense › Shooting allowed |
+| `opp_fg_miss`     | Opponent missed field goals     | opp    | NWMF    | Defense › Shooting allowed; Shooting › Field goals |
 | `fg2m`            | Twos made                       | player | NWMF    | Shooting › Twos; Offense › Shooting                |
 | `team_fg2m`       | Twos made                       | team   | NWMF    | Shooting › Twos; Offense › Shooting                |
-| `opp_fg2m`        | Opponent twos made              | opp    | NWMF    | Shooting › Twos; Defense › Shooting allowed        |
+| `opp_fg2m`        | Opponent twos made              | opp    | NWMF    | Defense › Shooting allowed; Shooting › Twos        |
 | `fg2a`            | Two-point attempts              | player | NWMF    | Shooting › Twos; Offense › Shooting                |
 | `team_fg2a`       | Two-point attempts              | team   | NWMF    | Shooting › Twos; Offense › Shooting                |
-| `opp_fg2a`        | Opponent two-point attempts     | opp    | NWMF    | Shooting › Twos; Defense › Shooting allowed        |
+| `opp_fg2a`        | Opponent two-point attempts     | opp    | NWMF    | Defense › Shooting allowed; Shooting › Twos        |
 | `fg2_pct`         | Two-point percentage            | player | NWMF    | Shooting › Twos; Offense › Shooting                |
 | `team_fg2_pct`    | Two-point percentage            | team   | NWMF    | Shooting › Twos; Offense › Shooting                |
-| `opp_fg2_pct`     | Opponent two-point percentage   | opp    | NWMF    | Shooting › Twos; Defense › Shooting allowed        |
+| `opp_fg2_pct`     | Opponent two-point percentage   | opp    | NWMF    | Defense › Shooting allowed; Shooting › Twos        |
 | `fg3m`            | Threes made                     | player | NWMF    | Shooting › Threes; Offense › Shooting              |
 | `team_fg3m`       | Threes made                     | team   | NWMF    | Shooting › Threes; Offense › Shooting              |
-| `opp_fg3m`        | Opponent threes made            | opp    | NWMF    | Shooting › Threes; Defense › Shooting allowed      |
+| `opp_fg3m`        | Opponent threes made            | opp    | NWMF    | Defense › Shooting allowed; Shooting › Threes      |
 | `fg3a`            | Three-point attempts            | player | NWMF    | Shooting › Threes; Offense › Shooting              |
 | `team_fg3a`       | Three-point attempts            | team   | NWMF    | Shooting › Threes; Offense › Shooting              |
-| `opp_fg3a`        | Opponent three-point attempts   | opp    | NWMF    | Shooting › Threes; Defense › Shooting allowed      |
+| `opp_fg3a`        | Opponent three-point attempts   | opp    | NWMF    | Defense › Shooting allowed; Shooting › Threes      |
 | `fg3_pct`         | Three-point percentage          | player | NWMF    | Shooting › Threes; Offense › Shooting              |
 | `team_fg3_pct`    | Three-point percentage          | team   | NWMF    | Shooting › Threes; Offense › Shooting              |
-| `opp_fg3_pct`     | Opponent three-point percentage | opp    | NWMF    | Shooting › Threes; Defense › Shooting allowed      |
+| `opp_fg3_pct`     | Opponent three-point percentage | opp    | NWMF    | Defense › Shooting allowed; Shooting › Threes      |
 | `ftm`             | Free throws made                | player | NWMF    | Shooting › Free throws; Offense › Shooting         |
 | `team_ftm`        | Free throws made                | team   | NWMF    | Shooting › Free throws; Offense › Shooting         |
-| `opp_ftm`         | Opponent free throws made       | opp    | NWMF    | Shooting › Free throws; Defense › Shooting allowed |
+| `opp_ftm`         | Opponent free throws made       | opp    | NWMF    | Defense › Shooting allowed; Shooting › Free throws |
 | `fta`             | Free-throw attempts             | player | NWMF    | Shooting › Free throws; Offense › Shooting         |
 | `team_fta`        | Free-throw attempts             | team   | NWMF    | Shooting › Free throws; Offense › Shooting         |
-| `opp_fta`         | Opponent free-throw attempts    | opp    | NWMF    | Shooting › Free throws; Defense › Shooting allowed |
+| `opp_fta`         | Opponent free-throw attempts    | opp    | NWMF    | Defense › Shooting allowed; Shooting › Free throws |
 | `ft_pct`          | Free-throw percentage           | player | NWMF    | Shooting › Free throws; Offense › Shooting         |
 | `team_ft_pct`     | Free-throw percentage           | team   | NWMF    | Shooting › Free throws; Offense › Shooting         |
-| `opp_ft_pct`      | Opponent free-throw percentage  | opp    | NWMF    | Shooting › Free throws; Defense › Shooting allowed |
+| `opp_ft_pct`      | Opponent free-throw percentage  | opp    | NWMF    | Defense › Shooting allowed; Shooting › Free throws |
 | `ft_miss`         | Missed free throws              | player | NWMF    | Shooting › Free throws; Offense › Shooting         |
 | `team_ft_miss`    | Missed free throws              | team   | NWMF    | Shooting › Free throws; Offense › Shooting         |
-| `opp_ft_miss`     | Opponent missed free throws     | opp    | NWMF    | Shooting › Free throws; Defense › Shooting allowed |
+| `opp_ft_miss`     | Opponent missed free throws     | opp    | NWMF    | Defense › Shooting allowed; Shooting › Free throws |
 | `oreb`            | Offensive rebounds              | player | NWMF    | Rebounding › Offensive; Offense › Rebounding       |
 | `team_oreb`       | Offensive rebounds              | team   | NWMF    | Rebounding › Offensive; Offense › Rebounding       |
-| `opp_oreb`        | Opponent offensive rebounds     | opp    | NWMF    | Rebounding › Offensive; Defense › Rebounding       |
+| `opp_oreb`        | Opponent offensive rebounds     | opp    | NWMF    | Defense › Rebounding; Rebounding › Offensive       |
 | `dreb`            | Defensive rebounds              | player | NWMF    | Rebounding › Defensive; Defense › Rebounding       |
 | `team_dreb`       | Defensive rebounds              | team   | NWMF    | Rebounding › Defensive; Defense › Rebounding       |
-| `opp_dreb`        | Opponent defensive rebounds     | opp    | NWMF    | Rebounding › Defensive; Offense › Rebounding       |
+| `opp_dreb`        | Opponent defensive rebounds     | opp    | NWMF    | Offense › Rebounding; Rebounding › Defensive       |
 | `reb`             | Rebounds                        | player | NWMF    | Rebounding › All rebounds                          |
 | `team_reb`        | Rebounds                        | team   | NWMF    | Rebounding › All rebounds                          |
 | `opp_reb`         | Opponent rebounds               | opp    | NWMF    | Rebounding › All rebounds                          |
 | `ast`             | Assists                         | player | NWMF    | Playmaking › Passing; Offense › Playmaking         |
 | `team_ast`        | Assists                         | team   | NWMF    | Playmaking › Passing; Offense › Playmaking         |
-| `opp_ast`         | Opponent assists                | opp    | NWMF    | Playmaking › Passing; Defense › Playmaking allowed |
+| `opp_ast`         | Opponent assists                | opp    | NWMF    | Defense › Playmaking allowed; Playmaking › Passing |
 | `tov`             | Turnovers                       | player | NWMF    | Playmaking › Turnovers; Offense › Turnovers        |
 | `team_tov`        | Turnovers                       | team   | NWMF    | Playmaking › Turnovers; Offense › Turnovers        |
-| `opp_tov`         | Opponent turnovers              | opp    | NWMF    | Playmaking › Turnovers; Defense › Turnovers forced |
+| `opp_tov`         | Opponent turnovers              | opp    | NWMF    | Defense › Turnovers forced; Playmaking › Turnovers |
 | `stl`             | Steals                          | player | NWMF    | Defense › Steals and blocks                        |
 | `team_stl`        | Steals                          | team   | NWMF    | Defense › Steals and blocks                        |
 | `opp_stl`         | Opponent steals                 | opp    | NWMF    | Offense › Turnovers; Playmaking › Turnovers        |
@@ -473,7 +475,7 @@ Every catalogue metric, by family (the source), with its categories and sub-grou
 | `opp_blk`         | Opponent blocks                 | opp    | NWMF    | Offense › Shooting; Shooting › Field goals         |
 | `pf`              | Personal fouls                  | player | NWMF    | Fouls › Committed; Defense › Fouls and violations  |
 | `team_pf`         | Personal fouls                  | team   | NWMF    | Fouls › Committed; Defense › Fouls and violations  |
-| `opp_pf`          | Opponent personal fouls         | opp    | NWMF    | Fouls › Committed; Offense › Fouls drawn           |
+| `opp_pf`          | Opponent personal fouls         | opp    | NWMF    | Offense › Fouls drawn; Fouls › Committed           |
 | `plus_minus`      | Plus-minus                      | player | NW··    | Impact › On court                                  |
 | `dd2`             | Double-doubles                  | player | NWMF    | Impact › All-around games                          |
 | `td3`             | Triple-doubles                  | player | NWMF    | Impact › All-around games                          |
@@ -488,43 +490,43 @@ Every catalogue metric, by family (the source), with its categories and sub-grou
 | --------------------- | ---------------------------------------------- | ------ | ------- | ---------------------------------------------------------------------------------- |
 | `efg_pct`             | Effective field-goal percentage                | player | NWMF    | Shooting › Efficiency; Offense › Shooting                                          |
 | `team_efg_pct`        | Effective field-goal percentage                | team   | NWMF    | Shooting › Efficiency; Offense › Shooting                                          |
-| `opp_efg_pct`         | Opponent effective field-goal percentage       | opp    | NWMF    | Shooting › Efficiency; Defense › Shooting allowed                                  |
+| `opp_efg_pct`         | Opponent effective field-goal percentage       | opp    | NWMF    | Defense › Shooting allowed; Shooting › Efficiency                                  |
 | `tsa`                 | True shooting attempts                         | player | NWMF    | Shooting › Efficiency; Offense › Shooting                                          |
 | `team_tsa`            | True shooting attempts                         | team   | NWMF    | Shooting › Efficiency; Offense › Shooting                                          |
-| `opp_tsa`             | Opponent true shooting attempts                | opp    | NWMF    | Shooting › Efficiency; Defense › Shooting allowed                                  |
+| `opp_tsa`             | Opponent true shooting attempts                | opp    | NWMF    | Defense › Shooting allowed; Shooting › Efficiency                                  |
 | `ts_pct`              | True shooting percentage                       | player | NWMF    | Shooting › Efficiency; Offense › Shooting                                          |
 | `team_ts_pct`         | True shooting percentage                       | team   | NWMF    | Shooting › Efficiency; Offense › Shooting                                          |
-| `opp_ts_pct`          | Opponent true shooting percentage              | opp    | NWMF    | Shooting › Efficiency; Defense › Shooting allowed                                  |
+| `opp_ts_pct`          | Opponent true shooting percentage              | opp    | NWMF    | Defense › Shooting allowed; Shooting › Efficiency                                  |
 | `pts_per_tsa`         | Points per true shooting attempt               | player | NWMF    | Shooting › Efficiency; Offense › Shooting                                          |
 | `team_pts_per_tsa`    | Points per true shooting attempt               | team   | NWMF    | Shooting › Efficiency; Offense › Shooting                                          |
-| `opp_pts_per_tsa`     | Opponent points per true shooting attempt      | opp    | NWMF    | Shooting › Efficiency; Defense › Shooting allowed                                  |
+| `opp_pts_per_tsa`     | Opponent points per true shooting attempt      | opp    | NWMF    | Defense › Shooting allowed; Shooting › Efficiency                                  |
 | `fg_pts_per_fga`      | Field-goal points per attempt                  | player | NWMF    | Shooting › Efficiency; Offense › Shooting                                          |
 | `team_fg_pts_per_fga` | Field-goal points per attempt                  | team   | NWMF    | Shooting › Efficiency; Offense › Shooting                                          |
-| `opp_fg_pts_per_fga`  | Opponent field-goal points per attempt         | opp    | NWMF    | Shooting › Efficiency; Defense › Shooting allowed                                  |
+| `opp_fg_pts_per_fga`  | Opponent field-goal points per attempt         | opp    | NWMF    | Defense › Shooting allowed; Shooting › Efficiency                                  |
 | `pts_per_fga`         | Points per field-goal attempt                  | player | NWMF    | Shooting › Efficiency; Offense › Shooting                                          |
 | `team_pts_per_fga`    | Points per field-goal attempt                  | team   | NWMF    | Shooting › Efficiency; Offense › Shooting                                          |
-| `opp_pts_per_fga`     | Opponent points per field-goal attempt         | opp    | NWMF    | Shooting › Efficiency; Defense › Shooting allowed                                  |
+| `opp_pts_per_fga`     | Opponent points per field-goal attempt         | opp    | NWMF    | Defense › Shooting allowed; Shooting › Efficiency                                  |
 | `fg3a_rate`           | Three-point attempt rate                       | player | NWMF    | Shooting › Shot selection; Offense › Shooting                                      |
 | `team_fg3a_rate`      | Three-point attempt rate                       | team   | NWMF    | Shooting › Shot selection; Offense › Shooting                                      |
-| `opp_fg3a_rate`       | Opponent three-point attempt rate              | opp    | NWMF    | Shooting › Shot selection; Defense › Shooting allowed                              |
+| `opp_fg3a_rate`       | Opponent three-point attempt rate              | opp    | NWMF    | Defense › Shooting allowed; Shooting › Shot selection                              |
 | `fg2a_rate`           | Two-point attempt rate                         | player | NWMF    | Shooting › Shot selection; Offense › Shooting                                      |
 | `team_fg2a_rate`      | Two-point attempt rate                         | team   | NWMF    | Shooting › Shot selection; Offense › Shooting                                      |
-| `opp_fg2a_rate`       | Opponent two-point attempt rate                | opp    | NWMF    | Shooting › Shot selection; Defense › Shooting allowed                              |
-| `fta_rate`            | Free-throw attempt rate                        | player | NWMF    | Shooting › Free throws; Offense › Shooting                                         |
-| `team_fta_rate`       | Free-throw attempt rate                        | team   | NWMF    | Shooting › Free throws; Offense › Shooting                                         |
-| `opp_fta_rate`        | Opponent free-throw attempt rate               | opp    | NWMF    | Shooting › Free throws; Defense › Shooting allowed                                 |
+| `opp_fg2a_rate`       | Opponent two-point attempt rate                | opp    | NWMF    | Defense › Shooting allowed; Shooting › Shot selection                              |
+| `fta_rate`            | Free-throw attempt rate                        | player | NWMF    | Shooting › Free throws; Fouls › Drawn; Offense › Fouls drawn                       |
+| `team_fta_rate`       | Free-throw attempt rate                        | team   | NWMF    | Shooting › Free throws; Fouls › Drawn; Offense › Fouls drawn                       |
+| `opp_fta_rate`        | Opponent free-throw attempt rate               | opp    | NWMF    | Defense › Fouls and violations; Shooting › Free throws; Fouls › Drawn              |
 | `ftm_per_fga`         | Free throws made per attempt                   | player | NWMF    | Shooting › Free throws; Offense › Shooting                                         |
 | `team_ftm_per_fga`    | Free throws made per attempt                   | team   | NWMF    | Shooting › Free throws; Offense › Shooting                                         |
-| `opp_ftm_per_fga`     | Opponent free throws made per attempt          | opp    | NWMF    | Shooting › Free throws; Defense › Shooting allowed                                 |
+| `opp_ftm_per_fga`     | Opponent free throws made per attempt          | opp    | NWMF    | Defense › Shooting allowed; Shooting › Free throws                                 |
 | `ast_tov`             | Assist-to-turnover ratio                       | player | NWMF    | Playmaking › Passing; Offense › Playmaking                                         |
 | `team_ast_tov`        | Assist-to-turnover ratio                       | team   | NWMF    | Playmaking › Passing; Offense › Playmaking                                         |
-| `opp_ast_tov`         | Opponent assist-to-turnover ratio              | opp    | NWMF    | Playmaking › Passing; Defense › Playmaking allowed                                 |
+| `opp_ast_tov`         | Opponent assist-to-turnover ratio              | opp    | NWMF    | Defense › Playmaking allowed; Playmaking › Passing                                 |
 | `ast_ratio`           | Assist ratio                                   | player | NWMF    | Playmaking › Passing; Offense › Playmaking                                         |
 | `team_ast_ratio`      | Assist ratio                                   | team   | NWMF    | Playmaking › Passing; Offense › Playmaking                                         |
-| `opp_ast_ratio`       | Opponent assist ratio                          | opp    | NWMF    | Playmaking › Passing; Defense › Playmaking allowed                                 |
+| `opp_ast_ratio`       | Opponent assist ratio                          | opp    | NWMF    | Defense › Playmaking allowed; Playmaking › Passing                                 |
 | `tov_pct`             | Turnover percentage                            | player | NWMF    | Playmaking › Turnovers; Offense › Turnovers                                        |
 | `team_tov_pct`        | Turnover percentage                            | team   | NWMF    | Playmaking › Turnovers; Offense › Turnovers                                        |
-| `opp_tov_pct`         | Opponent turnover percentage                   | opp    | NWMF    | Playmaking › Turnovers; Defense › Turnovers forced                                 |
+| `opp_tov_pct`         | Opponent turnover percentage                   | opp    | NWMF    | Defense › Turnovers forced; Playmaking › Turnovers                                 |
 | `ast_pct`             | Assist percentage                              | player | NWMF    | Playmaking › Passing; Offense › Playmaking                                         |
 | `orb_pct`             | Offensive rebound percentage                   | player | NWMF    | Rebounding › Offensive; Offense › Rebounding                                       |
 | `drb_pct`             | Defensive rebound percentage                   | player | NWMF    | Rebounding › Defensive; Defense › Rebounding                                       |
@@ -533,7 +535,7 @@ Every catalogue metric, by family (the source), with its categories and sub-grou
 | `blk_pct`             | Block percentage                               | player | NWMF    | Defense › Steals and blocks                                                        |
 | `usg_pct`             | Usage percentage                               | player | NWMF    | Offense › Usage                                                                    |
 | `team_ast_share`      | Assisted field goals                           | team   | NWMF    | Scoring › Assisted and unassisted; Playmaking › Passing; Offense › Scoring         |
-| `opp_ast_share`       | Opponent assisted field goals                  | opp    | NWMF    | Scoring › Assisted and unassisted; Playmaking › Passing; Defense › Scoring allowed |
+| `opp_ast_share`       | Opponent assisted field goals                  | opp    | NWMF    | Defense › Scoring allowed; Scoring › Assisted and unassisted; Playmaking › Passing |
 | `team_orb_pct`        | Offensive rebound percentage                   | team   | NWMF    | Rebounding › Offensive; Offense › Rebounding                                       |
 | `team_drb_pct`        | Defensive rebound percentage                   | team   | NWMF    | Rebounding › Defensive; Defense › Rebounding                                       |
 | `team_trb_pct`        | Total rebound percentage                       | team   | NWMF    | Rebounding › All rebounds                                                          |
@@ -558,64 +560,64 @@ Every catalogue metric, by family (the source), with its categories and sub-grou
 | `team_nba_efg_pct`    | Effective field-goal percentage (NBA)          | team   | NW··    | Shooting › Efficiency; Offense › Shooting                                          |
 | `team_nba_ts_pct`     | True shooting percentage (NBA)                 | team   | NW··    | Shooting › Efficiency; Offense › Shooting                                          |
 | `team_nba_tov_pct`    | Turnover percentage (NBA)                      | team   | NW··    | Playmaking › Turnovers; Offense › Turnovers                                        |
-| `team_nba_fta_rate`   | Free-throw attempt rate (NBA)                  | team   | NW··    | Shooting › Free throws; Offense › Shooting                                         |
-| `opp_nba_efg_pct`     | Opponent effective field-goal percentage (NBA) | opp    | NW··    | Shooting › Efficiency; Defense › Shooting allowed                                  |
-| `opp_nba_fta_rate`    | Opponent free-throw attempt rate (NBA)         | opp    | NW··    | Shooting › Free throws; Defense › Shooting allowed                                 |
-| `opp_nba_tov_pct`     | Opponent turnover percentage (NBA)             | opp    | NW··    | Playmaking › Turnovers; Defense › Turnovers forced                                 |
-| `opp_nba_oreb_pct`    | Opponent offensive rebound percentage (NBA)    | opp    | NW··    | Rebounding › Offensive; Defense › Rebounding                                       |
+| `team_nba_fta_rate`   | Free-throw attempt rate (NBA)                  | team   | NW··    | Shooting › Free throws; Fouls › Drawn; Offense › Fouls drawn                       |
+| `opp_nba_efg_pct`     | Opponent effective field-goal percentage (NBA) | opp    | NW··    | Defense › Shooting allowed; Shooting › Efficiency                                  |
+| `opp_nba_fta_rate`    | Opponent free-throw attempt rate (NBA)         | opp    | NW··    | Defense › Fouls and violations; Shooting › Free throws; Fouls › Drawn              |
+| `opp_nba_tov_pct`     | Opponent turnover percentage (NBA)             | opp    | NW··    | Defense › Turnovers forced; Playmaking › Turnovers                                 |
+| `opp_nba_oreb_pct`    | Opponent offensive rebound percentage (NBA)    | opp    | NW··    | Defense › Rebounding; Rebounding › Offensive                                       |
 | `ncaa_rim_pct`        | Field-goal percentage at the rim               | player | ··MF    | Shooting › Restricted area and paint; Offense › Shooting                           |
 | `team_ncaa_rim_pct`   | Field-goal percentage at the rim               | team   | ··MF    | Shooting › Restricted area and paint; Offense › Shooting                           |
-| `opp_ncaa_rim_pct`    | Opponent field-goal percentage at the rim      | opp    | ··MF    | Shooting › Restricted area and paint; Defense › Shooting allowed                   |
+| `opp_ncaa_rim_pct`    | Opponent field-goal percentage at the rim      | opp    | ··MF    | Defense › Shooting allowed; Shooting › Restricted area and paint                   |
 | `ncaa_rim_rate`       | Share of shots at the rim                      | player | ··MF    | Shooting › Restricted area and paint; Offense › Shooting                           |
 | `team_ncaa_rim_rate`  | Share of shots at the rim                      | team   | ··MF    | Shooting › Restricted area and paint; Offense › Shooting                           |
-| `opp_ncaa_rim_rate`   | Opponent share of shots at the rim             | opp    | ··MF    | Shooting › Restricted area and paint; Defense › Shooting allowed                   |
+| `opp_ncaa_rim_rate`   | Opponent share of shots at the rim             | opp    | ··MF    | Defense › Shooting allowed; Shooting › Restricted area and paint                   |
 | `ncaa_mid_pct`        | Mid-range field-goal percentage                | player | ··MF    | Shooting › Mid-range; Offense › Shooting                                           |
 | `team_ncaa_mid_pct`   | Mid-range field-goal percentage                | team   | ··MF    | Shooting › Mid-range; Offense › Shooting                                           |
-| `opp_ncaa_mid_pct`    | Opponent mid-range field-goal percentage       | opp    | ··MF    | Shooting › Mid-range; Defense › Shooting allowed                                   |
+| `opp_ncaa_mid_pct`    | Opponent mid-range field-goal percentage       | opp    | ··MF    | Defense › Shooting allowed; Shooting › Mid-range                                   |
 | `ncaa_mid_rate`       | Share of shots from mid-range                  | player | ··MF    | Shooting › Mid-range; Offense › Shooting                                           |
 | `team_ncaa_mid_rate`  | Share of shots from mid-range                  | team   | ··MF    | Shooting › Mid-range; Offense › Shooting                                           |
-| `opp_ncaa_mid_rate`   | Opponent share of shots from mid-range         | opp    | ··MF    | Shooting › Mid-range; Defense › Shooting allowed                                   |
+| `opp_ncaa_mid_rate`   | Opponent share of shots from mid-range         | opp    | ··MF    | Defense › Shooting allowed; Shooting › Mid-range                                   |
 
 ### possessions (36)
 
-| Metric            | Label                                                | Who    | Leagues | Categories                                                    |
-| ----------------- | ---------------------------------------------------- | ------ | ------- | ------------------------------------------------------------- |
-| `team_poss`       | Possessions, simple estimate                         | team   | NWMF    | Results and strength › Efficiency and pace                    |
-| `opp_poss`        | Opponent possessions, simple estimate                | opp    | NWMF    | Results and strength › Efficiency and pace                    |
-| `team_poss_sym`   | Possessions per team                                 | team   | NWMF    | Results and strength › Efficiency and pace                    |
-| `team_poss_bref`  | Possessions, rebound-adjusted                        | team   | NWMF    | Results and strength › Efficiency and pace                    |
-| `team_ortg`       | Offensive rating                                     | team   | NWMF    | Results and strength › Efficiency and pace; Offense › Ratings |
-| `team_drtg`       | Defensive rating                                     | team   | NWMF    | Results and strength › Efficiency and pace; Defense › Ratings |
-| `team_nrtg`       | Net rating                                           | team   | NWMF    | Results and strength › Efficiency and pace                    |
-| `team_pace`       | Pace                                                 | team   | NWMF    | Results and strength › Efficiency and pace                    |
-| `team_pace40`     | Pace per 40                                          | team   | N···    | Results and strength › Efficiency and pace                    |
-| `team_ppp`        | Points per possession                                | team   | NWMF    | Results and strength › Efficiency and pace; Offense › Ratings |
-| `opp_ppp`         | Opponent points per possession                       | opp    | NWMF    | Results and strength › Efficiency and pace; Defense › Ratings |
-| `player_on_poss`  | Possessions played                                   | player | NWMF    | Playing time › Possessions                                    |
-| `nba_ortg`        | On-court offensive rating (NBA)                      | player | NW··    | Impact › On court; Offense › Impact                           |
-| `nba_drtg`        | On-court defensive rating (NBA)                      | player | NW··    | Impact › On court; Defense › Impact                           |
-| `nba_nrtg`        | On-court net rating (NBA)                            | player | NW··    | Impact › On court                                             |
-| `nba_e_ortg`      | Estimated offensive rating (NBA)                     | player | NW··    | Impact › On court; Offense › Impact                           |
-| `nba_e_drtg`      | Estimated defensive rating (NBA)                     | player | NW··    | Impact › On court; Defense › Impact                           |
-| `nba_e_nrtg`      | Estimated net rating (NBA)                           | player | NW··    | Impact › On court                                             |
-| `nba_pace`        | Pace (NBA)                                           | player | NW··    | Impact › On court                                             |
-| `nba_pace40`      | Pace per 40 (NBA)                                    | player | NW··    | Impact › On court                                             |
-| `nba_e_pace`      | Estimated pace (NBA)                                 | player | NW··    | Impact › On court                                             |
-| `nba_poss`        | Possessions played (NBA)                             | player | NW··    | Playing time › Possessions                                    |
-| `team_nba_ortg`   | Offensive rating (NBA)                               | team   | NW··    | Results and strength › Efficiency and pace; Offense › Ratings |
-| `team_nba_drtg`   | Defensive rating (NBA)                               | team   | NW··    | Results and strength › Efficiency and pace; Defense › Ratings |
-| `team_nba_nrtg`   | Net rating (NBA)                                     | team   | NW··    | Results and strength › Efficiency and pace                    |
-| `team_nba_e_ortg` | Estimated offensive rating (NBA)                     | team   | NW··    | Results and strength › Efficiency and pace; Offense › Ratings |
-| `team_nba_e_drtg` | Estimated defensive rating (NBA)                     | team   | NW··    | Results and strength › Efficiency and pace; Defense › Ratings |
-| `team_nba_e_nrtg` | Estimated net rating (NBA)                           | team   | NW··    | Results and strength › Efficiency and pace                    |
-| `team_nba_pace`   | Pace (NBA)                                           | team   | NW··    | Results and strength › Efficiency and pace                    |
-| `team_nba_pace40` | Pace per 40 (NBA)                                    | team   | NW··    | Results and strength › Efficiency and pace                    |
-| `team_nba_e_pace` | Estimated pace (NBA)                                 | team   | NW··    | Results and strength › Efficiency and pace                    |
-| `team_nba_poss`   | Possessions (NBA)                                    | team   | NW··    | Results and strength › Efficiency and pace                    |
-| `team_ncaa_poss`  | Possessions (stats.ncaa.org)                         | team   | ··MF    | Results and strength › Efficiency and pace                    |
-| `opp_ncaa_poss`   | Opponent possessions (stats.ncaa.org)                | opp    | ··MF    | Results and strength › Efficiency and pace                    |
-| `team_ncaa_rtg`   | Points per 100 possessions (stats.ncaa.org)          | team   | ··MF    | Results and strength › Efficiency and pace; Offense › Ratings |
-| `opp_ncaa_rtg`    | Opponent points per 100 possessions (stats.ncaa.org) | opp    | ··MF    | Results and strength › Efficiency and pace; Defense › Ratings |
+| Metric            | Label                                                | Who    | Leagues | Categories                                        |
+| ----------------- | ---------------------------------------------------- | ------ | ------- | ------------------------------------------------- |
+| `team_poss`       | Possessions, simple estimate                         | team   | NWMF    | Results and strength › Pace and possessions       |
+| `opp_poss`        | Opponent possessions, simple estimate                | opp    | NWMF    | Results and strength › Pace and possessions       |
+| `team_poss_sym`   | Possessions per team                                 | team   | NWMF    | Results and strength › Pace and possessions       |
+| `team_poss_bref`  | Possessions, rebound-adjusted                        | team   | NWMF    | Results and strength › Pace and possessions       |
+| `team_ortg`       | Offensive rating                                     | team   | NWMF    | Results and strength › Ratings; Offense › Ratings |
+| `team_drtg`       | Defensive rating                                     | team   | NWMF    | Results and strength › Ratings; Defense › Ratings |
+| `team_nrtg`       | Net rating                                           | team   | NWMF    | Results and strength › Ratings                    |
+| `team_pace`       | Pace                                                 | team   | NWMF    | Results and strength › Pace and possessions       |
+| `team_pace40`     | Pace per 40                                          | team   | N···    | Results and strength › Pace and possessions       |
+| `team_ppp`        | Points per possession                                | team   | NWMF    | Results and strength › Ratings; Offense › Ratings |
+| `opp_ppp`         | Opponent points per possession                       | opp    | NWMF    | Defense › Ratings; Results and strength › Ratings |
+| `player_on_poss`  | Possessions played                                   | player | NWMF    | Playing time › Possessions                        |
+| `nba_ortg`        | On-court offensive rating (NBA)                      | player | NW··    | Impact › On court; Offense › Impact               |
+| `nba_drtg`        | On-court defensive rating (NBA)                      | player | NW··    | Impact › On court; Defense › Impact               |
+| `nba_nrtg`        | On-court net rating (NBA)                            | player | NW··    | Impact › On court                                 |
+| `nba_e_ortg`      | Estimated offensive rating (NBA)                     | player | NW··    | Impact › On court; Offense › Impact               |
+| `nba_e_drtg`      | Estimated defensive rating (NBA)                     | player | NW··    | Impact › On court; Defense › Impact               |
+| `nba_e_nrtg`      | Estimated net rating (NBA)                           | player | NW··    | Impact › On court                                 |
+| `nba_pace`        | Pace (NBA)                                           | player | NW··    | Impact › On court                                 |
+| `nba_pace40`      | Pace per 40 (NBA)                                    | player | NW··    | Impact › On court                                 |
+| `nba_e_pace`      | Estimated pace (NBA)                                 | player | NW··    | Impact › On court                                 |
+| `nba_poss`        | Possessions played (NBA)                             | player | NW··    | Playing time › Possessions                        |
+| `team_nba_ortg`   | Offensive rating (NBA)                               | team   | NW··    | Results and strength › Ratings; Offense › Ratings |
+| `team_nba_drtg`   | Defensive rating (NBA)                               | team   | NW··    | Results and strength › Ratings; Defense › Ratings |
+| `team_nba_nrtg`   | Net rating (NBA)                                     | team   | NW··    | Results and strength › Ratings                    |
+| `team_nba_e_ortg` | Estimated offensive rating (NBA)                     | team   | NW··    | Results and strength › Ratings; Offense › Ratings |
+| `team_nba_e_drtg` | Estimated defensive rating (NBA)                     | team   | NW··    | Results and strength › Ratings; Defense › Ratings |
+| `team_nba_e_nrtg` | Estimated net rating (NBA)                           | team   | NW··    | Results and strength › Ratings                    |
+| `team_nba_pace`   | Pace (NBA)                                           | team   | NW··    | Results and strength › Pace and possessions       |
+| `team_nba_pace40` | Pace per 40 (NBA)                                    | team   | NW··    | Results and strength › Pace and possessions       |
+| `team_nba_e_pace` | Estimated pace (NBA)                                 | team   | NW··    | Results and strength › Pace and possessions       |
+| `team_nba_poss`   | Possessions (NBA)                                    | team   | NW··    | Results and strength › Pace and possessions       |
+| `team_ncaa_poss`  | Possessions (stats.ncaa.org)                         | team   | ··MF    | Results and strength › Pace and possessions       |
+| `opp_ncaa_poss`   | Opponent possessions (stats.ncaa.org)                | opp    | ··MF    | Results and strength › Pace and possessions       |
+| `team_ncaa_rtg`   | Points per 100 possessions (stats.ncaa.org)          | team   | ··MF    | Results and strength › Ratings; Offense › Ratings |
+| `opp_ncaa_rtg`    | Opponent points per 100 possessions (stats.ncaa.org) | opp    | ··MF    | Defense › Ratings; Results and strength › Ratings |
 
 ### on_court (24)
 
@@ -652,34 +654,34 @@ Every catalogue metric, by family (the source), with its categories and sub-grou
 | ---------------------------- | ------------------------------------------------------ | ------ | ------- | -------------------------------------------------------------------------------- |
 | `pts_2pt`                    | Two-point scoring                                      | player | NWMF    | Scoring › Points by shot; Offense › Scoring                                      |
 | `team_pts_2pt`               | Two-point scoring                                      | team   | NWMF    | Scoring › Points by shot; Offense › Scoring                                      |
-| `opp_pts_2pt`                | Opponent two-point scoring                             | opp    | NWMF    | Scoring › Points by shot; Defense › Scoring allowed                              |
+| `opp_pts_2pt`                | Opponent two-point scoring                             | opp    | NWMF    | Defense › Scoring allowed; Scoring › Points by shot                              |
 | `pts_3pt`                    | Three-point scoring                                    | player | NWMF    | Scoring › Points by shot; Offense › Scoring                                      |
 | `team_pts_3pt`               | Three-point scoring                                    | team   | NWMF    | Scoring › Points by shot; Offense › Scoring                                      |
-| `opp_pts_3pt`                | Opponent three-point scoring                           | opp    | NWMF    | Scoring › Points by shot; Defense › Scoring allowed                              |
+| `opp_pts_3pt`                | Opponent three-point scoring                           | opp    | NWMF    | Defense › Scoring allowed; Scoring › Points by shot                              |
 | `pts_ft`                     | Free-throw scoring                                     | player | NWMF    | Scoring › Points by shot; Offense › Scoring                                      |
 | `team_pts_ft`                | Free-throw scoring                                     | team   | NWMF    | Scoring › Points by shot; Offense › Scoring                                      |
-| `opp_pts_ft`                 | Opponent free-throw scoring                            | opp    | NWMF    | Scoring › Points by shot; Defense › Scoring allowed                              |
+| `opp_pts_ft`                 | Opponent free-throw scoring                            | opp    | NWMF    | Defense › Scoring allowed; Scoring › Points by shot                              |
 | `share_pts_2pt`              | Share of points from twos                              | player | NWMF    | Scoring › Points by shot; Offense › Scoring                                      |
 | `team_share_pts_2pt`         | Share of points from twos                              | team   | NWMF    | Scoring › Points by shot; Offense › Scoring                                      |
-| `opp_share_pts_2pt`          | Opponent share of points from twos                     | opp    | NWMF    | Scoring › Points by shot; Defense › Scoring allowed                              |
+| `opp_share_pts_2pt`          | Opponent share of points from twos                     | opp    | NWMF    | Defense › Scoring allowed; Scoring › Points by shot                              |
 | `share_pts_3pt`              | Share of points from threes                            | player | NWMF    | Scoring › Points by shot; Offense › Scoring                                      |
 | `team_share_pts_3pt`         | Share of points from threes                            | team   | NWMF    | Scoring › Points by shot; Offense › Scoring                                      |
-| `opp_share_pts_3pt`          | Opponent share of points from threes                   | opp    | NWMF    | Scoring › Points by shot; Defense › Scoring allowed                              |
+| `opp_share_pts_3pt`          | Opponent share of points from threes                   | opp    | NWMF    | Defense › Scoring allowed; Scoring › Points by shot                              |
 | `share_pts_ft`               | Share of points from free throws                       | player | NWMF    | Scoring › Points by shot; Offense › Scoring                                      |
 | `team_share_pts_ft`          | Share of points from free throws                       | team   | NWMF    | Scoring › Points by shot; Offense › Scoring                                      |
-| `opp_share_pts_ft`           | Opponent share of points from free throws              | opp    | NWMF    | Scoring › Points by shot; Defense › Scoring allowed                              |
+| `opp_share_pts_ft`           | Opponent share of points from free throws              | opp    | NWMF    | Defense › Scoring allowed; Scoring › Points by shot                              |
 | `team_paint_pts`             | Points in the paint                                    | team   | NWMF    | Scoring › Points by situation; Offense › Scoring                                 |
-| `opp_paint_pts`              | Opponent points in the paint                           | opp    | NWMF    | Scoring › Points by situation; Defense › Scoring allowed                         |
+| `opp_paint_pts`              | Opponent points in the paint                           | opp    | NWMF    | Defense › Scoring allowed; Scoring › Points by situation                         |
 | `team_fast_break_pts`        | Fast-break points                                      | team   | NWMF    | Scoring › Points by situation; Offense › Scoring                                 |
-| `opp_fast_break_pts`         | Opponent fast-break points                             | opp    | NWMF    | Scoring › Points by situation; Defense › Scoring allowed                         |
+| `opp_fast_break_pts`         | Opponent fast-break points                             | opp    | NWMF    | Defense › Scoring allowed; Scoring › Points by situation                         |
 | `team_turnover_pts`          | Points off turnovers                                   | team   | NWMF    | Scoring › Points by situation; Offense › Scoring                                 |
-| `opp_turnover_pts`           | Opponent points off turnovers                          | opp    | NWMF    | Scoring › Points by situation; Defense › Scoring allowed                         |
+| `opp_turnover_pts`           | Opponent points off turnovers                          | opp    | NWMF    | Defense › Scoring allowed; Scoring › Points by situation                         |
 | `team_share_pts_paint`       | Share of points in the paint                           | team   | NWMF    | Scoring › Points by situation; Offense › Scoring                                 |
-| `opp_share_pts_paint`        | Opponent share of points in the paint                  | opp    | NWMF    | Scoring › Points by situation; Defense › Scoring allowed                         |
+| `opp_share_pts_paint`        | Opponent share of points in the paint                  | opp    | NWMF    | Defense › Scoring allowed; Scoring › Points by situation                         |
 | `team_share_pts_fb`          | Share of points on the fast break                      | team   | NWMF    | Scoring › Points by situation; Offense › Scoring                                 |
-| `opp_share_pts_fb`           | Opponent share of points on the fast break             | opp    | NWMF    | Scoring › Points by situation; Defense › Scoring allowed                         |
+| `opp_share_pts_fb`           | Opponent share of points on the fast break             | opp    | NWMF    | Defense › Scoring allowed; Scoring › Points by situation                         |
 | `team_share_pts_tov`         | Share of points off turnovers                          | team   | NWMF    | Scoring › Points by situation; Offense › Scoring                                 |
-| `opp_share_pts_tov`          | Opponent share of points off turnovers                 | opp    | NWMF    | Scoring › Points by situation; Defense › Scoring allowed                         |
+| `opp_share_pts_tov`          | Opponent share of points off turnovers                 | opp    | NWMF    | Defense › Scoring allowed; Scoring › Points by situation                         |
 | `team_starter_pts`           | Starter points                                         | team   | NWMF    | Scoring › Starters and bench; Offense › Scoring                                  |
 | `team_bench_pts`             | Bench points                                           | team   | NWMF    | Scoring › Starters and bench; Offense › Scoring                                  |
 | `share_pts`                  | Share of team points                                   | player | NWMF    | Scoring › Share of team; Offense › Scoring                                       |
@@ -700,19 +702,19 @@ Every catalogue metric, by family (the source), with its categories and sub-grou
 | `nba_pts_off_tov`            | Points off turnovers (NBA)                             | player | NW··    | Scoring › Points by situation; Offense › Scoring                                 |
 | `nba_on_opp_pts_off_tov`     | Opponent points off turnovers on court (NBA)           | player | NW··    | Impact › On court; Defense › Impact                                              |
 | `team_nba_pts_off_tov`       | Points off turnovers (NBA)                             | team   | NW··    | Scoring › Points by situation; Offense › Scoring                                 |
-| `opp_nba_pts_off_tov`        | Opponent points off turnovers (NBA)                    | opp    | NW··    | Scoring › Points by situation; Defense › Scoring allowed                         |
+| `opp_nba_pts_off_tov`        | Opponent points off turnovers (NBA)                    | opp    | NW··    | Defense › Scoring allowed; Scoring › Points by situation                         |
 | `nba_pts_2_nd_chance`        | Second-chance points (NBA)                             | player | NW··    | Scoring › Points by situation; Rebounding › Offensive; Offense › Scoring         |
 | `nba_on_opp_pts_2_nd_chance` | Opponent second-chance points on court (NBA)           | player | NW··    | Impact › On court; Defense › Impact                                              |
 | `team_nba_pts_2_nd_chance`   | Second-chance points (NBA)                             | team   | NW··    | Scoring › Points by situation; Rebounding › Offensive; Offense › Scoring         |
-| `opp_nba_pts_2_nd_chance`    | Opponent second-chance points (NBA)                    | opp    | NW··    | Scoring › Points by situation; Rebounding › Offensive; Defense › Scoring allowed |
+| `opp_nba_pts_2_nd_chance`    | Opponent second-chance points (NBA)                    | opp    | NW··    | Defense › Scoring allowed; Scoring › Points by situation; Rebounding › Offensive |
 | `nba_pts_fb`                 | Fast-break points (NBA)                                | player | NW··    | Scoring › Points by situation; Offense › Scoring                                 |
 | `nba_on_opp_pts_fb`          | Opponent fast-break points on court (NBA)              | player | NW··    | Impact › On court; Defense › Impact                                              |
 | `team_nba_pts_fb`            | Fast-break points (NBA)                                | team   | NW··    | Scoring › Points by situation; Offense › Scoring                                 |
-| `opp_nba_pts_fb`             | Opponent fast-break points (NBA)                       | opp    | NW··    | Scoring › Points by situation; Defense › Scoring allowed                         |
+| `opp_nba_pts_fb`             | Opponent fast-break points (NBA)                       | opp    | NW··    | Defense › Scoring allowed; Scoring › Points by situation                         |
 | `nba_pts_paint`              | Points in the paint (NBA)                              | player | NW··    | Scoring › Points by situation; Offense › Scoring                                 |
 | `nba_on_opp_pts_paint`       | Opponent points in the paint on court (NBA)            | player | NW··    | Impact › On court; Defense › Impact                                              |
 | `team_nba_pts_paint`         | Points in the paint (NBA)                              | team   | NW··    | Scoring › Points by situation; Offense › Scoring                                 |
-| `opp_nba_pts_paint`          | Opponent points in the paint (NBA)                     | opp    | NW··    | Scoring › Points by situation; Defense › Scoring allowed                         |
+| `opp_nba_pts_paint`          | Opponent points in the paint (NBA)                     | opp    | NW··    | Defense › Scoring allowed; Scoring › Points by situation                         |
 | `nba_share_fga_2pt`          | Share of attempts from two (NBA)                       | player | NW··    | Shooting › Shot selection; Offense › Shooting                                    |
 | `team_nba_share_fga_2pt`     | Share of attempts from two (NBA)                       | team   | NW··    | Shooting › Shot selection; Offense › Shooting                                    |
 | `nba_share_fga_3pt`          | Share of attempts from three (NBA)                     | player | NW··    | Shooting › Shot selection; Offense › Shooting                                    |
@@ -762,31 +764,31 @@ Every catalogue metric, by family (the source), with its categories and sub-grou
 | `nba_share_pts`              | Share of team points on court (NBA)                    | player | NW··    | Scoring › Share of team; Offense › Scoring                                       |
 | `ncaa_putbacks`              | Putbacks made                                          | player | ··MF    | Scoring › Points by situation; Rebounding › Offensive; Offense › Scoring         |
 | `team_ncaa_putbacks`         | Putbacks made                                          | team   | ··MF    | Scoring › Points by situation; Rebounding › Offensive; Offense › Scoring         |
-| `opp_ncaa_putbacks`          | Opponent putbacks made                                 | opp    | ··MF    | Scoring › Points by situation; Rebounding › Offensive; Defense › Scoring allowed |
+| `opp_ncaa_putbacks`          | Opponent putbacks made                                 | opp    | ··MF    | Defense › Scoring allowed; Scoring › Points by situation; Rebounding › Offensive |
 | `ncaa_putback_pct`           | Putback field-goal percentage                          | player | ··MF    | Shooting › Transition and putbacks; Offense › Shooting                           |
 | `team_ncaa_putback_pct`      | Putback field-goal percentage                          | team   | ··MF    | Shooting › Transition and putbacks; Offense › Shooting                           |
-| `opp_ncaa_putback_pct`       | Opponent putback field-goal percentage                 | opp    | ··MF    | Shooting › Transition and putbacks; Defense › Shooting allowed                   |
+| `opp_ncaa_putback_pct`       | Opponent putback field-goal percentage                 | opp    | ··MF    | Defense › Shooting allowed; Shooting › Transition and putbacks                   |
 | `ncaa_rim_blocks`            | Blocks at the rim                                      | player | ··MF    | Defense › Steals and blocks                                                      |
 | `team_ncaa_rim_blocks`       | Blocks at the rim                                      | team   | ··MF    | Defense › Steals and blocks                                                      |
 | `opp_ncaa_rim_blocks`        | Opponent blocks at the rim                             | opp    | ··MF    | Offense › Shooting; Shooting › Restricted area and paint                         |
 | `ncaa_trans_rate`            | Share of shots in transition                           | player | ··MF    | Scoring › Points by situation; Offense › Scoring                                 |
 | `team_ncaa_trans_rate`       | Share of shots in transition                           | team   | ··MF    | Scoring › Points by situation; Offense › Scoring                                 |
-| `opp_ncaa_trans_rate`        | Opponent share of shots in transition                  | opp    | ··MF    | Scoring › Points by situation; Defense › Scoring allowed                         |
+| `opp_ncaa_trans_rate`        | Opponent share of shots in transition                  | opp    | ··MF    | Defense › Scoring allowed; Scoring › Points by situation                         |
 | `ncaa_trans_pts`             | Points in transition                                   | player | ··MF    | Scoring › Points by situation; Offense › Scoring                                 |
 | `team_ncaa_trans_pts`        | Points in transition                                   | team   | ··MF    | Scoring › Points by situation; Offense › Scoring                                 |
-| `opp_ncaa_trans_pts`         | Opponent points in transition                          | opp    | ··MF    | Scoring › Points by situation; Defense › Scoring allowed                         |
+| `opp_ncaa_trans_pts`         | Opponent points in transition                          | opp    | ··MF    | Defense › Scoring allowed; Scoring › Points by situation                         |
 | `ncaa_trans_efg_pct`         | Effective field-goal percentage in transition          | player | ··MF    | Shooting › Transition and putbacks; Offense › Shooting                           |
 | `team_ncaa_trans_efg_pct`    | Effective field-goal percentage in transition          | team   | ··MF    | Shooting › Transition and putbacks; Offense › Shooting                           |
-| `opp_ncaa_trans_efg_pct`     | Opponent effective field-goal percentage in transition | opp    | ··MF    | Shooting › Transition and putbacks; Defense › Shooting allowed                   |
+| `opp_ncaa_trans_efg_pct`     | Opponent effective field-goal percentage in transition | opp    | ··MF    | Defense › Shooting allowed; Shooting › Transition and putbacks                   |
 | `ncaa_assisted_pct`          | Share of field goals assisted                          | player | ··MF    | Scoring › Assisted and unassisted; Offense › Scoring                             |
 | `team_ncaa_assisted_pct`     | Share of field goals assisted                          | team   | ··MF    | Scoring › Assisted and unassisted; Offense › Scoring                             |
-| `opp_ncaa_assisted_pct`      | Opponent share of field goals assisted                 | opp    | ··MF    | Scoring › Assisted and unassisted; Defense › Scoring allowed                     |
+| `opp_ncaa_assisted_pct`      | Opponent share of field goals assisted                 | opp    | ··MF    | Defense › Scoring allowed; Scoring › Assisted and unassisted                     |
 | `ncaa_assisted_3pm_pct`      | Share of threes assisted                               | player | ··MF    | Scoring › Assisted and unassisted; Offense › Scoring                             |
 | `team_ncaa_assisted_3pm_pct` | Share of threes assisted                               | team   | ··MF    | Scoring › Assisted and unassisted; Offense › Scoring                             |
-| `opp_ncaa_assisted_3pm_pct`  | Opponent share of threes assisted                      | opp    | ··MF    | Scoring › Assisted and unassisted; Defense › Scoring allowed                     |
+| `opp_ncaa_assisted_3pm_pct`  | Opponent share of threes assisted                      | opp    | ··MF    | Defense › Scoring allowed; Scoring › Assisted and unassisted                     |
 | `ncaa_assisted_rim_pct`      | Share of rim makes assisted                            | player | ··MF    | Scoring › Assisted and unassisted; Offense › Scoring                             |
 | `team_ncaa_assisted_rim_pct` | Share of rim makes assisted                            | team   | ··MF    | Scoring › Assisted and unassisted; Offense › Scoring                             |
-| `opp_ncaa_assisted_rim_pct`  | Opponent share of rim makes assisted                   | opp    | ··MF    | Scoring › Assisted and unassisted; Defense › Scoring allowed                     |
+| `opp_ncaa_assisted_rim_pct`  | Opponent share of rim makes assisted                   | opp    | ··MF    | Defense › Scoring allowed; Scoring › Assisted and unassisted                     |
 
 ### composite (11)
 
@@ -794,10 +796,10 @@ Every catalogue metric, by family (the source), with its categories and sub-grou
 | -------------- | ---------------------------- | ------ | ------- | ----------------------------------------------- |
 | `eff`          | Efficiency                   | player | NWMF    | Impact › Box-score composites                   |
 | `team_eff`     | Efficiency                   | team   | NWMF    | Impact › Box-score composites                   |
-| `opp_eff`      | Opponent efficiency          | opp    | NWMF    | Impact › Box-score composites; Defense › Impact |
+| `opp_eff`      | Opponent efficiency          | opp    | NWMF    | Defense › Impact; Impact › Box-score composites |
 | `gmsc`         | Game Score                   | player | NWMF    | Impact › Box-score composites                   |
 | `team_gmsc`    | Game Score                   | team   | NWMF    | Impact › Box-score composites                   |
-| `opp_gmsc`     | Opponent game Score          | opp    | NWMF    | Impact › Box-score composites; Defense › Impact |
+| `opp_gmsc`     | Opponent game Score          | opp    | NWMF    | Defense › Impact; Impact › Box-score composites |
 | `pie`          | Player Impact Estimate       | player | NWMF    | Impact › Box-score composites                   |
 | `team_pie`     | Team Impact Estimate         | team   | NWMF    | Impact › Box-score composites                   |
 | `nba_pie`      | Player Impact Estimate (NBA) | player | NW··    | Impact › Box-score composites                   |
@@ -808,12 +810,12 @@ Every catalogue metric, by family (the source), with its categories and sub-grou
 
 | Metric                      | Label                                           | Who    | Leagues | Categories                                                 |
 | --------------------------- | ----------------------------------------------- | ------ | ------- | ---------------------------------------------------------- |
-| `dist_miles`                | Distance run                                    | player | N···    | Playing time › Movement                                    |
-| `dist_miles_off`            | Distance run on offense                         | player | N···    | Playing time › Movement                                    |
-| `dist_miles_def`            | Distance run on defense                         | player | N···    | Playing time › Movement                                    |
-| `avg_speed`                 | Average speed                                   | player | N···    | Playing time › Movement                                    |
-| `avg_speed_off`             | Average speed on offense                        | player | N···    | Playing time › Movement                                    |
-| `avg_speed_def`             | Average speed on defense                        | player | N···    | Playing time › Movement                                    |
+| `dist_miles`                | Distance run                                    | player | N···    | Hustle and movement › Movement                             |
+| `dist_miles_off`            | Distance run on offense                         | player | N···    | Hustle and movement › Movement                             |
+| `dist_miles_def`            | Distance run on defense                         | player | N···    | Hustle and movement › Movement                             |
+| `avg_speed`                 | Average speed                                   | player | N···    | Hustle and movement › Movement                             |
+| `avg_speed_off`             | Average speed on offense                        | player | N···    | Hustle and movement › Movement                             |
+| `avg_speed_def`             | Average speed on defense                        | player | N···    | Hustle and movement › Movement                             |
 | `touches`                   | Touches                                         | player | N···    | Playmaking › Ball handling; Offense › Playmaking           |
 | `front_ct_touches`          | Frontcourt touches                              | player | N···    | Playmaking › Ball handling; Offense › Playmaking           |
 | `time_of_poss`              | Time of possession                              | player | N···    | Playmaking › Ball handling; Offense › Playmaking           |
@@ -949,42 +951,42 @@ Every catalogue metric, by family (the source), with its categories and sub-grou
 
 ### hustle (34)
 
-| Metric                     | Label                                 | Who    | Leagues | Categories                                                 |
-| -------------------------- | ------------------------------------- | ------ | ------- | ---------------------------------------------------------- |
-| `contested_shots`          | Contested shots                       | player | N···    | Defense › Defended shots; Hustle › Contests                |
-| `contested_shots_2pt`      | Contested twos                        | player | N···    | Defense › Defended shots; Hustle › Contests                |
-| `contested_shots_3pt`      | Contested threes                      | player | N···    | Defense › Defended shots; Hustle › Contests                |
-| `deflections`              | Deflections                           | player | N···    | Defense › Hustle; Hustle › Loose balls and deflections     |
-| `charges_drawn`            | Charges drawn                         | player | N···    | Defense › Hustle; Hustle › Charges; Fouls › Drawn          |
-| `screen_assists`           | Screen assists                        | player | N···    | Hustle › Screens; Playmaking › Creation; Offense › Hustle  |
-| `screen_ast_pts`           | Screen-assist points                  | player | N···    | Hustle › Screens; Playmaking › Creation; Offense › Hustle  |
-| `loose_balls`              | Loose balls recovered                 | player | N···    | Hustle › Loose balls and deflections                       |
-| `off_loose_balls`          | Offensive loose balls recovered       | player | N···    | Hustle › Loose balls and deflections; Offense › Hustle     |
-| `def_loose_balls`          | Defensive loose balls recovered       | player | N···    | Defense › Hustle; Hustle › Loose balls and deflections     |
-| `box_outs`                 | Box outs                              | player | N···    | Rebounding › Box outs; Hustle › Box outs                   |
-| `off_box_outs`             | Offensive box outs                    | player | N···    | Rebounding › Box outs; Hustle › Box outs; Offense › Hustle |
-| `def_box_outs`             | Defensive box outs                    | player | N···    | Rebounding › Box outs; Hustle › Box outs; Defense › Hustle |
-| `off_loose_balls_pct`      | Offensive share of loose balls        | player | N···    | Hustle › Loose balls and deflections                       |
-| `off_box_outs_pct`         | Offensive share of box outs           | player | N···    | Rebounding › Box outs; Hustle › Box outs                   |
-| `box_out_team_rebs`        | Box outs leading to a team rebound    | player | N···    | Rebounding › Box outs; Hustle › Box outs                   |
-| `box_out_rebs`             | Box outs leading to their own rebound | player | N···    | Rebounding › Box outs; Hustle › Box outs                   |
-| `box_out_team_reb_pct`     | Team rebound rate after box outs      | player | N···    | Rebounding › Box outs; Hustle › Box outs                   |
-| `box_out_reb_pct`          | Own rebound rate after box outs       | player | N···    | Rebounding › Box outs; Hustle › Box outs                   |
-| `team_contested_shots`     | Contested shots                       | team   | N···    | Defense › Defended shots; Hustle › Contests                |
-| `team_contested_shots_2pt` | Contested twos                        | team   | N···    | Defense › Defended shots; Hustle › Contests                |
-| `team_contested_shots_3pt` | Contested threes                      | team   | N···    | Defense › Defended shots; Hustle › Contests                |
-| `team_deflections`         | Deflections                           | team   | N···    | Defense › Hustle; Hustle › Loose balls and deflections     |
-| `team_charges_drawn`       | Charges drawn                         | team   | N···    | Defense › Hustle; Hustle › Charges; Fouls › Drawn          |
-| `team_screen_assists`      | Screen assists                        | team   | N···    | Hustle › Screens; Playmaking › Creation; Offense › Hustle  |
-| `team_screen_ast_pts`      | Screen-assist points                  | team   | N···    | Hustle › Screens; Playmaking › Creation; Offense › Hustle  |
-| `team_loose_balls`         | Loose balls recovered                 | team   | N···    | Hustle › Loose balls and deflections                       |
-| `team_off_loose_balls`     | Offensive loose balls recovered       | team   | N···    | Hustle › Loose balls and deflections; Offense › Hustle     |
-| `team_def_loose_balls`     | Defensive loose balls recovered       | team   | N···    | Defense › Hustle; Hustle › Loose balls and deflections     |
-| `team_box_outs`            | Box outs                              | team   | N···    | Rebounding › Box outs; Hustle › Box outs                   |
-| `team_off_box_outs`        | Offensive box outs                    | team   | N···    | Rebounding › Box outs; Hustle › Box outs; Offense › Hustle |
-| `team_def_box_outs`        | Defensive box outs                    | team   | N···    | Rebounding › Box outs; Hustle › Box outs; Defense › Hustle |
-| `team_off_loose_balls_pct` | Offensive share of loose balls        | team   | N···    | Hustle › Loose balls and deflections                       |
-| `team_off_box_outs_pct`    | Offensive share of box outs           | team   | N···    | Rebounding › Box outs; Hustle › Box outs                   |
+| Metric                     | Label                                 | Who    | Leagues | Categories                                                              |
+| -------------------------- | ------------------------------------- | ------ | ------- | ----------------------------------------------------------------------- |
+| `contested_shots`          | Contested shots                       | player | N···    | Defense › Defended shots; Hustle and movement › Contests                |
+| `contested_shots_2pt`      | Contested twos                        | player | N···    | Defense › Defended shots; Hustle and movement › Contests                |
+| `contested_shots_3pt`      | Contested threes                      | player | N···    | Defense › Defended shots; Hustle and movement › Contests                |
+| `deflections`              | Deflections                           | player | N···    | Defense › Hustle; Hustle and movement › Loose balls and deflections     |
+| `charges_drawn`            | Charges drawn                         | player | N···    | Defense › Hustle; Hustle and movement › Charges; Fouls › Drawn          |
+| `screen_assists`           | Screen assists                        | player | N···    | Hustle and movement › Screens; Playmaking › Creation; Offense › Hustle  |
+| `screen_ast_pts`           | Screen-assist points                  | player | N···    | Hustle and movement › Screens; Playmaking › Creation; Offense › Hustle  |
+| `loose_balls`              | Loose balls recovered                 | player | N···    | Hustle and movement › Loose balls and deflections                       |
+| `off_loose_balls`          | Offensive loose balls recovered       | player | N···    | Hustle and movement › Loose balls and deflections; Offense › Hustle     |
+| `def_loose_balls`          | Defensive loose balls recovered       | player | N···    | Defense › Hustle; Hustle and movement › Loose balls and deflections     |
+| `box_outs`                 | Box outs                              | player | N···    | Rebounding › Box outs; Hustle and movement › Box outs                   |
+| `off_box_outs`             | Offensive box outs                    | player | N···    | Rebounding › Box outs; Hustle and movement › Box outs; Offense › Hustle |
+| `def_box_outs`             | Defensive box outs                    | player | N···    | Rebounding › Box outs; Hustle and movement › Box outs; Defense › Hustle |
+| `off_loose_balls_pct`      | Offensive share of loose balls        | player | N···    | Hustle and movement › Loose balls and deflections                       |
+| `off_box_outs_pct`         | Offensive share of box outs           | player | N···    | Rebounding › Box outs; Hustle and movement › Box outs                   |
+| `box_out_team_rebs`        | Box outs leading to a team rebound    | player | N···    | Rebounding › Box outs; Hustle and movement › Box outs                   |
+| `box_out_rebs`             | Box outs leading to their own rebound | player | N···    | Rebounding › Box outs; Hustle and movement › Box outs                   |
+| `box_out_team_reb_pct`     | Team rebound rate after box outs      | player | N···    | Rebounding › Box outs; Hustle and movement › Box outs                   |
+| `box_out_reb_pct`          | Own rebound rate after box outs       | player | N···    | Rebounding › Box outs; Hustle and movement › Box outs                   |
+| `team_contested_shots`     | Contested shots                       | team   | N···    | Defense › Defended shots; Hustle and movement › Contests                |
+| `team_contested_shots_2pt` | Contested twos                        | team   | N···    | Defense › Defended shots; Hustle and movement › Contests                |
+| `team_contested_shots_3pt` | Contested threes                      | team   | N···    | Defense › Defended shots; Hustle and movement › Contests                |
+| `team_deflections`         | Deflections                           | team   | N···    | Defense › Hustle; Hustle and movement › Loose balls and deflections     |
+| `team_charges_drawn`       | Charges drawn                         | team   | N···    | Defense › Hustle; Hustle and movement › Charges; Fouls › Drawn          |
+| `team_screen_assists`      | Screen assists                        | team   | N···    | Hustle and movement › Screens; Playmaking › Creation; Offense › Hustle  |
+| `team_screen_ast_pts`      | Screen-assist points                  | team   | N···    | Hustle and movement › Screens; Playmaking › Creation; Offense › Hustle  |
+| `team_loose_balls`         | Loose balls recovered                 | team   | N···    | Hustle and movement › Loose balls and deflections                       |
+| `team_off_loose_balls`     | Offensive loose balls recovered       | team   | N···    | Hustle and movement › Loose balls and deflections; Offense › Hustle     |
+| `team_def_loose_balls`     | Defensive loose balls recovered       | team   | N···    | Defense › Hustle; Hustle and movement › Loose balls and deflections     |
+| `team_box_outs`            | Box outs                              | team   | N···    | Rebounding › Box outs; Hustle and movement › Box outs                   |
+| `team_off_box_outs`        | Offensive box outs                    | team   | N···    | Rebounding › Box outs; Hustle and movement › Box outs; Offense › Hustle |
+| `team_def_box_outs`        | Defensive box outs                    | team   | N···    | Rebounding › Box outs; Hustle and movement › Box outs; Defense › Hustle |
+| `team_off_loose_balls_pct` | Offensive share of loose balls        | team   | N···    | Hustle and movement › Loose balls and deflections                       |
+| `team_off_box_outs_pct`    | Offensive share of box outs           | team   | N···    | Rebounding › Box outs; Hustle and movement › Box outs                   |
 
 ### play_types (234)
 
@@ -1571,143 +1573,143 @@ Every catalogue metric, by family (the source), with its categories and sub-grou
 | `team_shot_avg_dist`       | Average shot distance                                                | team   | NWMF    | Shooting › Shot selection; Offense › Shooting                        |
 | `team_shot_pts_above`      | Points above league by location                                      | team   | NWMF    | Shooting › Efficiency; Offense › Shooting                            |
 | `team_shot_pps_above`      | Points per shot above league by location                             | team   | NWMF    | Shooting › Efficiency; Offense › Shooting                            |
-| `opp_shot_ra_fga`          | Opponent restricted area attempts                                    | opp    | NWMF    | Shooting › Restricted area and paint; Defense › Shooting allowed     |
-| `opp_shot_ra_fgm`          | Opponent restricted area makes                                       | opp    | NWMF    | Shooting › Restricted area and paint; Defense › Shooting allowed     |
-| `opp_shot_ra_fg_pct`       | Opponent restricted area FG%                                         | opp    | NWMF    | Shooting › Restricted area and paint; Defense › Shooting allowed     |
-| `opp_shot_ra_freq`         | Opponent restricted area frequency                                   | opp    | NWMF    | Shooting › Restricted area and paint; Defense › Shooting allowed     |
-| `opp_shot_ra_pps`          | Opponent restricted area points per shot                             | opp    | NWMF    | Shooting › Restricted area and paint; Defense › Shooting allowed     |
-| `opp_shot_ra_efg_pct`      | Opponent restricted area eFG%                                        | opp    | NWMF    | Shooting › Restricted area and paint; Defense › Shooting allowed     |
-| `opp_shot_ra_fg_rel`       | Opponent restricted area FG% vs league                               | opp    | NWMF    | Shooting › Restricted area and paint; Defense › Shooting allowed     |
-| `opp_shot_ra_pps_rel`      | Opponent restricted area points per shot vs league                   | opp    | NWMF    | Shooting › Restricted area and paint; Defense › Shooting allowed     |
-| `opp_shot_ra_ast_pct`      | Opponent restricted area assisted share                              | opp    | NW··    | Shooting › Restricted area and paint; Defense › Shooting allowed     |
-| `opp_shot_paint_fga`       | Opponent paint outside the restricted area attempts                  | opp    | NWMF    | Shooting › Restricted area and paint; Defense › Shooting allowed     |
-| `opp_shot_paint_fgm`       | Opponent paint outside the restricted area makes                     | opp    | NWMF    | Shooting › Restricted area and paint; Defense › Shooting allowed     |
-| `opp_shot_paint_fg_pct`    | Opponent paint outside the restricted area FG%                       | opp    | NWMF    | Shooting › Restricted area and paint; Defense › Shooting allowed     |
-| `opp_shot_paint_freq`      | Opponent paint outside the restricted area frequency                 | opp    | NWMF    | Shooting › Restricted area and paint; Defense › Shooting allowed     |
-| `opp_shot_paint_pps`       | Opponent paint outside the restricted area points per shot           | opp    | NWMF    | Shooting › Restricted area and paint; Defense › Shooting allowed     |
-| `opp_shot_paint_efg_pct`   | Opponent paint outside the restricted area eFG%                      | opp    | NWMF    | Shooting › Restricted area and paint; Defense › Shooting allowed     |
-| `opp_shot_paint_fg_rel`    | Opponent paint outside the restricted area FG% vs league             | opp    | NWMF    | Shooting › Restricted area and paint; Defense › Shooting allowed     |
-| `opp_shot_paint_pps_rel`   | Opponent paint outside the restricted area points per shot vs league | opp    | NWMF    | Shooting › Restricted area and paint; Defense › Shooting allowed     |
-| `opp_shot_paint_ast_pct`   | Opponent paint outside the restricted area assisted share            | opp    | NW··    | Shooting › Restricted area and paint; Defense › Shooting allowed     |
-| `opp_shot_mid_fga`         | Opponent mid-range attempts                                          | opp    | NWMF    | Shooting › Mid-range; Defense › Shooting allowed                     |
-| `opp_shot_mid_fgm`         | Opponent mid-range makes                                             | opp    | NWMF    | Shooting › Mid-range; Defense › Shooting allowed                     |
-| `opp_shot_mid_fg_pct`      | Opponent mid-range FG%                                               | opp    | NWMF    | Shooting › Mid-range; Defense › Shooting allowed                     |
-| `opp_shot_mid_freq`        | Opponent mid-range frequency                                         | opp    | NWMF    | Shooting › Mid-range; Defense › Shooting allowed                     |
-| `opp_shot_mid_pps`         | Opponent mid-range points per shot                                   | opp    | NWMF    | Shooting › Mid-range; Defense › Shooting allowed                     |
-| `opp_shot_mid_efg_pct`     | Opponent mid-range eFG%                                              | opp    | NWMF    | Shooting › Mid-range; Defense › Shooting allowed                     |
-| `opp_shot_mid_fg_rel`      | Opponent mid-range FG% vs league                                     | opp    | NWMF    | Shooting › Mid-range; Defense › Shooting allowed                     |
-| `opp_shot_mid_pps_rel`     | Opponent mid-range points per shot vs league                         | opp    | NWMF    | Shooting › Mid-range; Defense › Shooting allowed                     |
-| `opp_shot_mid_ast_pct`     | Opponent mid-range assisted share                                    | opp    | NW··    | Shooting › Mid-range; Defense › Shooting allowed                     |
-| `opp_shot_c3_fga`          | Opponent corner three attempts                                       | opp    | NWMF    | Shooting › Corner threes; Defense › Shooting allowed                 |
-| `opp_shot_c3_fgm`          | Opponent corner three makes                                          | opp    | NWMF    | Shooting › Corner threes; Defense › Shooting allowed                 |
-| `opp_shot_c3_fg_pct`       | Opponent corner three FG%                                            | opp    | NWMF    | Shooting › Corner threes; Defense › Shooting allowed                 |
-| `opp_shot_c3_freq`         | Opponent corner three frequency                                      | opp    | NWMF    | Shooting › Corner threes; Defense › Shooting allowed                 |
-| `opp_shot_c3_pps`          | Opponent corner three points per shot                                | opp    | NWMF    | Shooting › Corner threes; Defense › Shooting allowed                 |
-| `opp_shot_c3_efg_pct`      | Opponent corner three eFG%                                           | opp    | NWMF    | Shooting › Corner threes; Defense › Shooting allowed                 |
-| `opp_shot_c3_fg_rel`       | Opponent corner three FG% vs league                                  | opp    | NWMF    | Shooting › Corner threes; Defense › Shooting allowed                 |
-| `opp_shot_c3_pps_rel`      | Opponent corner three points per shot vs league                      | opp    | NWMF    | Shooting › Corner threes; Defense › Shooting allowed                 |
-| `opp_shot_c3_ast_pct`      | Opponent corner three assisted share                                 | opp    | NW··    | Shooting › Corner threes; Defense › Shooting allowed                 |
-| `opp_shot_c3l_fga`         | Opponent left corner three attempts                                  | opp    | NWMF    | Shooting › Corner threes; Defense › Shooting allowed                 |
-| `opp_shot_c3l_fgm`         | Opponent left corner three makes                                     | opp    | NWMF    | Shooting › Corner threes; Defense › Shooting allowed                 |
-| `opp_shot_c3l_fg_pct`      | Opponent left corner three FG%                                       | opp    | NWMF    | Shooting › Corner threes; Defense › Shooting allowed                 |
-| `opp_shot_c3l_freq`        | Opponent left corner three frequency                                 | opp    | NWMF    | Shooting › Corner threes; Defense › Shooting allowed                 |
-| `opp_shot_c3l_pps`         | Opponent left corner three points per shot                           | opp    | NWMF    | Shooting › Corner threes; Defense › Shooting allowed                 |
-| `opp_shot_c3l_efg_pct`     | Opponent left corner three eFG%                                      | opp    | NWMF    | Shooting › Corner threes; Defense › Shooting allowed                 |
-| `opp_shot_c3l_fg_rel`      | Opponent left corner three FG% vs league                             | opp    | NWMF    | Shooting › Corner threes; Defense › Shooting allowed                 |
-| `opp_shot_c3l_pps_rel`     | Opponent left corner three points per shot vs league                 | opp    | NWMF    | Shooting › Corner threes; Defense › Shooting allowed                 |
-| `opp_shot_c3l_ast_pct`     | Opponent left corner three assisted share                            | opp    | NW··    | Shooting › Corner threes; Defense › Shooting allowed                 |
-| `opp_shot_c3r_fga`         | Opponent right corner three attempts                                 | opp    | NWMF    | Shooting › Corner threes; Defense › Shooting allowed                 |
-| `opp_shot_c3r_fgm`         | Opponent right corner three makes                                    | opp    | NWMF    | Shooting › Corner threes; Defense › Shooting allowed                 |
-| `opp_shot_c3r_fg_pct`      | Opponent right corner three FG%                                      | opp    | NWMF    | Shooting › Corner threes; Defense › Shooting allowed                 |
-| `opp_shot_c3r_freq`        | Opponent right corner three frequency                                | opp    | NWMF    | Shooting › Corner threes; Defense › Shooting allowed                 |
-| `opp_shot_c3r_pps`         | Opponent right corner three points per shot                          | opp    | NWMF    | Shooting › Corner threes; Defense › Shooting allowed                 |
-| `opp_shot_c3r_efg_pct`     | Opponent right corner three eFG%                                     | opp    | NWMF    | Shooting › Corner threes; Defense › Shooting allowed                 |
-| `opp_shot_c3r_fg_rel`      | Opponent right corner three FG% vs league                            | opp    | NWMF    | Shooting › Corner threes; Defense › Shooting allowed                 |
-| `opp_shot_c3r_pps_rel`     | Opponent right corner three points per shot vs league                | opp    | NWMF    | Shooting › Corner threes; Defense › Shooting allowed                 |
-| `opp_shot_c3r_ast_pct`     | Opponent right corner three assisted share                           | opp    | NW··    | Shooting › Corner threes; Defense › Shooting allowed                 |
-| `opp_shot_atb3_fga`        | Opponent above-the-break three attempts                              | opp    | NWMF    | Shooting › Above the break and backcourt; Defense › Shooting allowed |
-| `opp_shot_atb3_fgm`        | Opponent above-the-break three makes                                 | opp    | NWMF    | Shooting › Above the break and backcourt; Defense › Shooting allowed |
-| `opp_shot_atb3_fg_pct`     | Opponent above-the-break three FG%                                   | opp    | NWMF    | Shooting › Above the break and backcourt; Defense › Shooting allowed |
-| `opp_shot_atb3_freq`       | Opponent above-the-break three frequency                             | opp    | NWMF    | Shooting › Above the break and backcourt; Defense › Shooting allowed |
-| `opp_shot_atb3_pps`        | Opponent above-the-break three points per shot                       | opp    | NWMF    | Shooting › Above the break and backcourt; Defense › Shooting allowed |
-| `opp_shot_atb3_efg_pct`    | Opponent above-the-break three eFG%                                  | opp    | NWMF    | Shooting › Above the break and backcourt; Defense › Shooting allowed |
-| `opp_shot_atb3_fg_rel`     | Opponent above-the-break three FG% vs league                         | opp    | NWMF    | Shooting › Above the break and backcourt; Defense › Shooting allowed |
-| `opp_shot_atb3_pps_rel`    | Opponent above-the-break three points per shot vs league             | opp    | NWMF    | Shooting › Above the break and backcourt; Defense › Shooting allowed |
-| `opp_shot_atb3_ast_pct`    | Opponent above-the-break three assisted share                        | opp    | NW··    | Shooting › Above the break and backcourt; Defense › Shooting allowed |
-| `opp_shot_back_fga`        | Opponent backcourt attempts                                          | opp    | NWMF    | Shooting › Above the break and backcourt; Defense › Shooting allowed |
-| `opp_shot_back_fgm`        | Opponent backcourt makes                                             | opp    | NWMF    | Shooting › Above the break and backcourt; Defense › Shooting allowed |
-| `opp_shot_back_fg_pct`     | Opponent backcourt FG%                                               | opp    | NWMF    | Shooting › Above the break and backcourt; Defense › Shooting allowed |
-| `opp_shot_back_freq`       | Opponent backcourt frequency                                         | opp    | NWMF    | Shooting › Above the break and backcourt; Defense › Shooting allowed |
-| `opp_shot_back_pps`        | Opponent backcourt points per shot                                   | opp    | NWMF    | Shooting › Above the break and backcourt; Defense › Shooting allowed |
-| `opp_shot_back_efg_pct`    | Opponent backcourt eFG%                                              | opp    | NWMF    | Shooting › Above the break and backcourt; Defense › Shooting allowed |
-| `opp_shot_back_fg_rel`     | Opponent backcourt FG% vs league                                     | opp    | NWMF    | Shooting › Above the break and backcourt; Defense › Shooting allowed |
-| `opp_shot_back_pps_rel`    | Opponent backcourt points per shot vs league                         | opp    | NWMF    | Shooting › Above the break and backcourt; Defense › Shooting allowed |
-| `opp_shot_back_ast_pct`    | Opponent backcourt assisted share                                    | opp    | NW··    | Shooting › Above the break and backcourt; Defense › Shooting allowed |
-| `opp_shot_lt8_fga`         | Opponent less than 8 feet attempts                                   | opp    | NWMF    | Shooting › Distances; Defense › Shooting allowed                     |
-| `opp_shot_lt8_fgm`         | Opponent less than 8 feet makes                                      | opp    | NWMF    | Shooting › Distances; Defense › Shooting allowed                     |
-| `opp_shot_lt8_fg_pct`      | Opponent less than 8 feet FG%                                        | opp    | NWMF    | Shooting › Distances; Defense › Shooting allowed                     |
-| `opp_shot_lt8_freq`        | Opponent less than 8 feet frequency                                  | opp    | NWMF    | Shooting › Distances; Defense › Shooting allowed                     |
-| `opp_shot_lt8_pps`         | Opponent less than 8 feet points per shot                            | opp    | NWMF    | Shooting › Distances; Defense › Shooting allowed                     |
-| `opp_shot_lt8_efg_pct`     | Opponent less than 8 feet eFG%                                       | opp    | NWMF    | Shooting › Distances; Defense › Shooting allowed                     |
-| `opp_shot_lt8_fg_rel`      | Opponent less than 8 feet FG% vs league                              | opp    | NWMF    | Shooting › Distances; Defense › Shooting allowed                     |
-| `opp_shot_lt8_pps_rel`     | Opponent less than 8 feet points per shot vs league                  | opp    | NWMF    | Shooting › Distances; Defense › Shooting allowed                     |
-| `opp_shot_d8_16_fga`       | Opponent 8 to 16 feet attempts                                       | opp    | NWMF    | Shooting › Distances; Defense › Shooting allowed                     |
-| `opp_shot_d8_16_fgm`       | Opponent 8 to 16 feet makes                                          | opp    | NWMF    | Shooting › Distances; Defense › Shooting allowed                     |
-| `opp_shot_d8_16_fg_pct`    | Opponent 8 to 16 feet FG%                                            | opp    | NWMF    | Shooting › Distances; Defense › Shooting allowed                     |
-| `opp_shot_d8_16_freq`      | Opponent 8 to 16 feet frequency                                      | opp    | NWMF    | Shooting › Distances; Defense › Shooting allowed                     |
-| `opp_shot_d8_16_pps`       | Opponent 8 to 16 feet points per shot                                | opp    | NWMF    | Shooting › Distances; Defense › Shooting allowed                     |
-| `opp_shot_d8_16_efg_pct`   | Opponent 8 to 16 feet eFG%                                           | opp    | NWMF    | Shooting › Distances; Defense › Shooting allowed                     |
-| `opp_shot_d8_16_fg_rel`    | Opponent 8 to 16 feet FG% vs league                                  | opp    | NWMF    | Shooting › Distances; Defense › Shooting allowed                     |
-| `opp_shot_d8_16_pps_rel`   | Opponent 8 to 16 feet points per shot vs league                      | opp    | NWMF    | Shooting › Distances; Defense › Shooting allowed                     |
-| `opp_shot_d16_24_fga`      | Opponent 16 to 24 feet attempts                                      | opp    | NWMF    | Shooting › Distances; Defense › Shooting allowed                     |
-| `opp_shot_d16_24_fgm`      | Opponent 16 to 24 feet makes                                         | opp    | NWMF    | Shooting › Distances; Defense › Shooting allowed                     |
-| `opp_shot_d16_24_fg_pct`   | Opponent 16 to 24 feet FG%                                           | opp    | NWMF    | Shooting › Distances; Defense › Shooting allowed                     |
-| `opp_shot_d16_24_freq`     | Opponent 16 to 24 feet frequency                                     | opp    | NWMF    | Shooting › Distances; Defense › Shooting allowed                     |
-| `opp_shot_d16_24_pps`      | Opponent 16 to 24 feet points per shot                               | opp    | NWMF    | Shooting › Distances; Defense › Shooting allowed                     |
-| `opp_shot_d16_24_efg_pct`  | Opponent 16 to 24 feet eFG%                                          | opp    | NWMF    | Shooting › Distances; Defense › Shooting allowed                     |
-| `opp_shot_d16_24_fg_rel`   | Opponent 16 to 24 feet FG% vs league                                 | opp    | NWMF    | Shooting › Distances; Defense › Shooting allowed                     |
-| `opp_shot_d16_24_pps_rel`  | Opponent 16 to 24 feet points per shot vs league                     | opp    | NWMF    | Shooting › Distances; Defense › Shooting allowed                     |
-| `opp_shot_d24p_fga`        | Opponent 24 feet and beyond attempts                                 | opp    | NWMF    | Shooting › Distances; Defense › Shooting allowed                     |
-| `opp_shot_d24p_fgm`        | Opponent 24 feet and beyond makes                                    | opp    | NWMF    | Shooting › Distances; Defense › Shooting allowed                     |
-| `opp_shot_d24p_fg_pct`     | Opponent 24 feet and beyond FG%                                      | opp    | NWMF    | Shooting › Distances; Defense › Shooting allowed                     |
-| `opp_shot_d24p_freq`       | Opponent 24 feet and beyond frequency                                | opp    | NWMF    | Shooting › Distances; Defense › Shooting allowed                     |
-| `opp_shot_d24p_pps`        | Opponent 24 feet and beyond points per shot                          | opp    | NWMF    | Shooting › Distances; Defense › Shooting allowed                     |
-| `opp_shot_d24p_efg_pct`    | Opponent 24 feet and beyond eFG%                                     | opp    | NWMF    | Shooting › Distances; Defense › Shooting allowed                     |
-| `opp_shot_d24p_fg_rel`     | Opponent 24 feet and beyond FG% vs league                            | opp    | NWMF    | Shooting › Distances; Defense › Shooting allowed                     |
-| `opp_shot_d24p_pps_rel`    | Opponent 24 feet and beyond points per shot vs league                | opp    | NWMF    | Shooting › Distances; Defense › Shooting allowed                     |
-| `opp_shot_dunk_fga`        | Opponent dunk attempts                                               | opp    | NW··    | Shooting › Shot types; Defense › Shooting allowed                    |
-| `opp_shot_dunk_fgm`        | Opponent dunk makes                                                  | opp    | NW··    | Shooting › Shot types; Defense › Shooting allowed                    |
-| `opp_shot_dunk_fg_pct`     | Opponent dunk FG%                                                    | opp    | NW··    | Shooting › Shot types; Defense › Shooting allowed                    |
-| `opp_shot_dunk_freq`       | Opponent dunk frequency                                              | opp    | NW··    | Shooting › Shot types; Defense › Shooting allowed                    |
-| `opp_shot_dunk_fg_rel`     | Opponent dunk FG% vs league                                          | opp    | NW··    | Shooting › Shot types; Defense › Shooting allowed                    |
-| `opp_shot_tip_fga`         | Opponent tip attempts                                                | opp    | NW··    | Shooting › Shot types; Defense › Shooting allowed                    |
-| `opp_shot_tip_fgm`         | Opponent tip makes                                                   | opp    | NW··    | Shooting › Shot types; Defense › Shooting allowed                    |
-| `opp_shot_tip_fg_pct`      | Opponent tip FG%                                                     | opp    | NW··    | Shooting › Shot types; Defense › Shooting allowed                    |
-| `opp_shot_tip_freq`        | Opponent tip frequency                                               | opp    | NW··    | Shooting › Shot types; Defense › Shooting allowed                    |
-| `opp_shot_tip_fg_rel`      | Opponent tip FG% vs league                                           | opp    | NW··    | Shooting › Shot types; Defense › Shooting allowed                    |
-| `opp_shot_layup_fga`       | Opponent layup attempts                                              | opp    | NW··    | Shooting › Shot types; Defense › Shooting allowed                    |
-| `opp_shot_layup_fgm`       | Opponent layup makes                                                 | opp    | NW··    | Shooting › Shot types; Defense › Shooting allowed                    |
-| `opp_shot_layup_fg_pct`    | Opponent layup FG%                                                   | opp    | NW··    | Shooting › Shot types; Defense › Shooting allowed                    |
-| `opp_shot_layup_freq`      | Opponent layup frequency                                             | opp    | NW··    | Shooting › Shot types; Defense › Shooting allowed                    |
-| `opp_shot_layup_fg_rel`    | Opponent layup FG% vs league                                         | opp    | NW··    | Shooting › Shot types; Defense › Shooting allowed                    |
-| `opp_shot_hook_fga`        | Opponent hook attempts                                               | opp    | NW··    | Shooting › Shot types; Defense › Shooting allowed                    |
-| `opp_shot_hook_fgm`        | Opponent hook makes                                                  | opp    | NW··    | Shooting › Shot types; Defense › Shooting allowed                    |
-| `opp_shot_hook_fg_pct`     | Opponent hook FG%                                                    | opp    | NW··    | Shooting › Shot types; Defense › Shooting allowed                    |
-| `opp_shot_hook_freq`       | Opponent hook frequency                                              | opp    | NW··    | Shooting › Shot types; Defense › Shooting allowed                    |
-| `opp_shot_hook_fg_rel`     | Opponent hook FG% vs league                                          | opp    | NW··    | Shooting › Shot types; Defense › Shooting allowed                    |
-| `opp_shot_floater_fga`     | Opponent floater attempts                                            | opp    | NW··    | Shooting › Shot types; Defense › Shooting allowed                    |
-| `opp_shot_floater_fgm`     | Opponent floater makes                                               | opp    | NW··    | Shooting › Shot types; Defense › Shooting allowed                    |
-| `opp_shot_floater_fg_pct`  | Opponent floater FG%                                                 | opp    | NW··    | Shooting › Shot types; Defense › Shooting allowed                    |
-| `opp_shot_floater_freq`    | Opponent floater frequency                                           | opp    | NW··    | Shooting › Shot types; Defense › Shooting allowed                    |
-| `opp_shot_floater_fg_rel`  | Opponent floater FG% vs league                                       | opp    | NW··    | Shooting › Shot types; Defense › Shooting allowed                    |
-| `opp_shot_jumper_fga`      | Opponent jump shot attempts                                          | opp    | NW··    | Shooting › Shot types; Defense › Shooting allowed                    |
-| `opp_shot_jumper_fgm`      | Opponent jump shot makes                                             | opp    | NW··    | Shooting › Shot types; Defense › Shooting allowed                    |
-| `opp_shot_jumper_fg_pct`   | Opponent jump shot FG%                                               | opp    | NW··    | Shooting › Shot types; Defense › Shooting allowed                    |
-| `opp_shot_jumper_freq`     | Opponent jump shot frequency                                         | opp    | NW··    | Shooting › Shot types; Defense › Shooting allowed                    |
-| `opp_shot_jumper_fg_rel`   | Opponent jump shot FG% vs league                                     | opp    | NW··    | Shooting › Shot types; Defense › Shooting allowed                    |
-| `opp_shot_avg_dist`        | Opponent average shot distance                                       | opp    | NWMF    | Shooting › Shot selection; Defense › Shooting allowed                |
-| `opp_shot_pts_above`       | Opponent points above league by location                             | opp    | NWMF    | Shooting › Efficiency; Defense › Shooting allowed                    |
-| `opp_shot_pps_above`       | Opponent points per shot above league by location                    | opp    | NWMF    | Shooting › Efficiency; Defense › Shooting allowed                    |
+| `opp_shot_ra_fga`          | Opponent restricted area attempts                                    | opp    | NWMF    | Defense › Shooting allowed; Shooting › Restricted area and paint     |
+| `opp_shot_ra_fgm`          | Opponent restricted area makes                                       | opp    | NWMF    | Defense › Shooting allowed; Shooting › Restricted area and paint     |
+| `opp_shot_ra_fg_pct`       | Opponent restricted area FG%                                         | opp    | NWMF    | Defense › Shooting allowed; Shooting › Restricted area and paint     |
+| `opp_shot_ra_freq`         | Opponent restricted area frequency                                   | opp    | NWMF    | Defense › Shooting allowed; Shooting › Restricted area and paint     |
+| `opp_shot_ra_pps`          | Opponent restricted area points per shot                             | opp    | NWMF    | Defense › Shooting allowed; Shooting › Restricted area and paint     |
+| `opp_shot_ra_efg_pct`      | Opponent restricted area eFG%                                        | opp    | NWMF    | Defense › Shooting allowed; Shooting › Restricted area and paint     |
+| `opp_shot_ra_fg_rel`       | Opponent restricted area FG% vs league                               | opp    | NWMF    | Defense › Shooting allowed; Shooting › Restricted area and paint     |
+| `opp_shot_ra_pps_rel`      | Opponent restricted area points per shot vs league                   | opp    | NWMF    | Defense › Shooting allowed; Shooting › Restricted area and paint     |
+| `opp_shot_ra_ast_pct`      | Opponent restricted area assisted share                              | opp    | NW··    | Defense › Shooting allowed; Shooting › Restricted area and paint     |
+| `opp_shot_paint_fga`       | Opponent paint outside the restricted area attempts                  | opp    | NWMF    | Defense › Shooting allowed; Shooting › Restricted area and paint     |
+| `opp_shot_paint_fgm`       | Opponent paint outside the restricted area makes                     | opp    | NWMF    | Defense › Shooting allowed; Shooting › Restricted area and paint     |
+| `opp_shot_paint_fg_pct`    | Opponent paint outside the restricted area FG%                       | opp    | NWMF    | Defense › Shooting allowed; Shooting › Restricted area and paint     |
+| `opp_shot_paint_freq`      | Opponent paint outside the restricted area frequency                 | opp    | NWMF    | Defense › Shooting allowed; Shooting › Restricted area and paint     |
+| `opp_shot_paint_pps`       | Opponent paint outside the restricted area points per shot           | opp    | NWMF    | Defense › Shooting allowed; Shooting › Restricted area and paint     |
+| `opp_shot_paint_efg_pct`   | Opponent paint outside the restricted area eFG%                      | opp    | NWMF    | Defense › Shooting allowed; Shooting › Restricted area and paint     |
+| `opp_shot_paint_fg_rel`    | Opponent paint outside the restricted area FG% vs league             | opp    | NWMF    | Defense › Shooting allowed; Shooting › Restricted area and paint     |
+| `opp_shot_paint_pps_rel`   | Opponent paint outside the restricted area points per shot vs league | opp    | NWMF    | Defense › Shooting allowed; Shooting › Restricted area and paint     |
+| `opp_shot_paint_ast_pct`   | Opponent paint outside the restricted area assisted share            | opp    | NW··    | Defense › Shooting allowed; Shooting › Restricted area and paint     |
+| `opp_shot_mid_fga`         | Opponent mid-range attempts                                          | opp    | NWMF    | Defense › Shooting allowed; Shooting › Mid-range                     |
+| `opp_shot_mid_fgm`         | Opponent mid-range makes                                             | opp    | NWMF    | Defense › Shooting allowed; Shooting › Mid-range                     |
+| `opp_shot_mid_fg_pct`      | Opponent mid-range FG%                                               | opp    | NWMF    | Defense › Shooting allowed; Shooting › Mid-range                     |
+| `opp_shot_mid_freq`        | Opponent mid-range frequency                                         | opp    | NWMF    | Defense › Shooting allowed; Shooting › Mid-range                     |
+| `opp_shot_mid_pps`         | Opponent mid-range points per shot                                   | opp    | NWMF    | Defense › Shooting allowed; Shooting › Mid-range                     |
+| `opp_shot_mid_efg_pct`     | Opponent mid-range eFG%                                              | opp    | NWMF    | Defense › Shooting allowed; Shooting › Mid-range                     |
+| `opp_shot_mid_fg_rel`      | Opponent mid-range FG% vs league                                     | opp    | NWMF    | Defense › Shooting allowed; Shooting › Mid-range                     |
+| `opp_shot_mid_pps_rel`     | Opponent mid-range points per shot vs league                         | opp    | NWMF    | Defense › Shooting allowed; Shooting › Mid-range                     |
+| `opp_shot_mid_ast_pct`     | Opponent mid-range assisted share                                    | opp    | NW··    | Defense › Shooting allowed; Shooting › Mid-range                     |
+| `opp_shot_c3_fga`          | Opponent corner three attempts                                       | opp    | NWMF    | Defense › Shooting allowed; Shooting › Corner threes                 |
+| `opp_shot_c3_fgm`          | Opponent corner three makes                                          | opp    | NWMF    | Defense › Shooting allowed; Shooting › Corner threes                 |
+| `opp_shot_c3_fg_pct`       | Opponent corner three FG%                                            | opp    | NWMF    | Defense › Shooting allowed; Shooting › Corner threes                 |
+| `opp_shot_c3_freq`         | Opponent corner three frequency                                      | opp    | NWMF    | Defense › Shooting allowed; Shooting › Corner threes                 |
+| `opp_shot_c3_pps`          | Opponent corner three points per shot                                | opp    | NWMF    | Defense › Shooting allowed; Shooting › Corner threes                 |
+| `opp_shot_c3_efg_pct`      | Opponent corner three eFG%                                           | opp    | NWMF    | Defense › Shooting allowed; Shooting › Corner threes                 |
+| `opp_shot_c3_fg_rel`       | Opponent corner three FG% vs league                                  | opp    | NWMF    | Defense › Shooting allowed; Shooting › Corner threes                 |
+| `opp_shot_c3_pps_rel`      | Opponent corner three points per shot vs league                      | opp    | NWMF    | Defense › Shooting allowed; Shooting › Corner threes                 |
+| `opp_shot_c3_ast_pct`      | Opponent corner three assisted share                                 | opp    | NW··    | Defense › Shooting allowed; Shooting › Corner threes                 |
+| `opp_shot_c3l_fga`         | Opponent left corner three attempts                                  | opp    | NWMF    | Defense › Shooting allowed; Shooting › Corner threes                 |
+| `opp_shot_c3l_fgm`         | Opponent left corner three makes                                     | opp    | NWMF    | Defense › Shooting allowed; Shooting › Corner threes                 |
+| `opp_shot_c3l_fg_pct`      | Opponent left corner three FG%                                       | opp    | NWMF    | Defense › Shooting allowed; Shooting › Corner threes                 |
+| `opp_shot_c3l_freq`        | Opponent left corner three frequency                                 | opp    | NWMF    | Defense › Shooting allowed; Shooting › Corner threes                 |
+| `opp_shot_c3l_pps`         | Opponent left corner three points per shot                           | opp    | NWMF    | Defense › Shooting allowed; Shooting › Corner threes                 |
+| `opp_shot_c3l_efg_pct`     | Opponent left corner three eFG%                                      | opp    | NWMF    | Defense › Shooting allowed; Shooting › Corner threes                 |
+| `opp_shot_c3l_fg_rel`      | Opponent left corner three FG% vs league                             | opp    | NWMF    | Defense › Shooting allowed; Shooting › Corner threes                 |
+| `opp_shot_c3l_pps_rel`     | Opponent left corner three points per shot vs league                 | opp    | NWMF    | Defense › Shooting allowed; Shooting › Corner threes                 |
+| `opp_shot_c3l_ast_pct`     | Opponent left corner three assisted share                            | opp    | NW··    | Defense › Shooting allowed; Shooting › Corner threes                 |
+| `opp_shot_c3r_fga`         | Opponent right corner three attempts                                 | opp    | NWMF    | Defense › Shooting allowed; Shooting › Corner threes                 |
+| `opp_shot_c3r_fgm`         | Opponent right corner three makes                                    | opp    | NWMF    | Defense › Shooting allowed; Shooting › Corner threes                 |
+| `opp_shot_c3r_fg_pct`      | Opponent right corner three FG%                                      | opp    | NWMF    | Defense › Shooting allowed; Shooting › Corner threes                 |
+| `opp_shot_c3r_freq`        | Opponent right corner three frequency                                | opp    | NWMF    | Defense › Shooting allowed; Shooting › Corner threes                 |
+| `opp_shot_c3r_pps`         | Opponent right corner three points per shot                          | opp    | NWMF    | Defense › Shooting allowed; Shooting › Corner threes                 |
+| `opp_shot_c3r_efg_pct`     | Opponent right corner three eFG%                                     | opp    | NWMF    | Defense › Shooting allowed; Shooting › Corner threes                 |
+| `opp_shot_c3r_fg_rel`      | Opponent right corner three FG% vs league                            | opp    | NWMF    | Defense › Shooting allowed; Shooting › Corner threes                 |
+| `opp_shot_c3r_pps_rel`     | Opponent right corner three points per shot vs league                | opp    | NWMF    | Defense › Shooting allowed; Shooting › Corner threes                 |
+| `opp_shot_c3r_ast_pct`     | Opponent right corner three assisted share                           | opp    | NW··    | Defense › Shooting allowed; Shooting › Corner threes                 |
+| `opp_shot_atb3_fga`        | Opponent above-the-break three attempts                              | opp    | NWMF    | Defense › Shooting allowed; Shooting › Above the break and backcourt |
+| `opp_shot_atb3_fgm`        | Opponent above-the-break three makes                                 | opp    | NWMF    | Defense › Shooting allowed; Shooting › Above the break and backcourt |
+| `opp_shot_atb3_fg_pct`     | Opponent above-the-break three FG%                                   | opp    | NWMF    | Defense › Shooting allowed; Shooting › Above the break and backcourt |
+| `opp_shot_atb3_freq`       | Opponent above-the-break three frequency                             | opp    | NWMF    | Defense › Shooting allowed; Shooting › Above the break and backcourt |
+| `opp_shot_atb3_pps`        | Opponent above-the-break three points per shot                       | opp    | NWMF    | Defense › Shooting allowed; Shooting › Above the break and backcourt |
+| `opp_shot_atb3_efg_pct`    | Opponent above-the-break three eFG%                                  | opp    | NWMF    | Defense › Shooting allowed; Shooting › Above the break and backcourt |
+| `opp_shot_atb3_fg_rel`     | Opponent above-the-break three FG% vs league                         | opp    | NWMF    | Defense › Shooting allowed; Shooting › Above the break and backcourt |
+| `opp_shot_atb3_pps_rel`    | Opponent above-the-break three points per shot vs league             | opp    | NWMF    | Defense › Shooting allowed; Shooting › Above the break and backcourt |
+| `opp_shot_atb3_ast_pct`    | Opponent above-the-break three assisted share                        | opp    | NW··    | Defense › Shooting allowed; Shooting › Above the break and backcourt |
+| `opp_shot_back_fga`        | Opponent backcourt attempts                                          | opp    | NWMF    | Defense › Shooting allowed; Shooting › Above the break and backcourt |
+| `opp_shot_back_fgm`        | Opponent backcourt makes                                             | opp    | NWMF    | Defense › Shooting allowed; Shooting › Above the break and backcourt |
+| `opp_shot_back_fg_pct`     | Opponent backcourt FG%                                               | opp    | NWMF    | Defense › Shooting allowed; Shooting › Above the break and backcourt |
+| `opp_shot_back_freq`       | Opponent backcourt frequency                                         | opp    | NWMF    | Defense › Shooting allowed; Shooting › Above the break and backcourt |
+| `opp_shot_back_pps`        | Opponent backcourt points per shot                                   | opp    | NWMF    | Defense › Shooting allowed; Shooting › Above the break and backcourt |
+| `opp_shot_back_efg_pct`    | Opponent backcourt eFG%                                              | opp    | NWMF    | Defense › Shooting allowed; Shooting › Above the break and backcourt |
+| `opp_shot_back_fg_rel`     | Opponent backcourt FG% vs league                                     | opp    | NWMF    | Defense › Shooting allowed; Shooting › Above the break and backcourt |
+| `opp_shot_back_pps_rel`    | Opponent backcourt points per shot vs league                         | opp    | NWMF    | Defense › Shooting allowed; Shooting › Above the break and backcourt |
+| `opp_shot_back_ast_pct`    | Opponent backcourt assisted share                                    | opp    | NW··    | Defense › Shooting allowed; Shooting › Above the break and backcourt |
+| `opp_shot_lt8_fga`         | Opponent less than 8 feet attempts                                   | opp    | NWMF    | Defense › Shooting allowed; Shooting › Distances                     |
+| `opp_shot_lt8_fgm`         | Opponent less than 8 feet makes                                      | opp    | NWMF    | Defense › Shooting allowed; Shooting › Distances                     |
+| `opp_shot_lt8_fg_pct`      | Opponent less than 8 feet FG%                                        | opp    | NWMF    | Defense › Shooting allowed; Shooting › Distances                     |
+| `opp_shot_lt8_freq`        | Opponent less than 8 feet frequency                                  | opp    | NWMF    | Defense › Shooting allowed; Shooting › Distances                     |
+| `opp_shot_lt8_pps`         | Opponent less than 8 feet points per shot                            | opp    | NWMF    | Defense › Shooting allowed; Shooting › Distances                     |
+| `opp_shot_lt8_efg_pct`     | Opponent less than 8 feet eFG%                                       | opp    | NWMF    | Defense › Shooting allowed; Shooting › Distances                     |
+| `opp_shot_lt8_fg_rel`      | Opponent less than 8 feet FG% vs league                              | opp    | NWMF    | Defense › Shooting allowed; Shooting › Distances                     |
+| `opp_shot_lt8_pps_rel`     | Opponent less than 8 feet points per shot vs league                  | opp    | NWMF    | Defense › Shooting allowed; Shooting › Distances                     |
+| `opp_shot_d8_16_fga`       | Opponent 8 to 16 feet attempts                                       | opp    | NWMF    | Defense › Shooting allowed; Shooting › Distances                     |
+| `opp_shot_d8_16_fgm`       | Opponent 8 to 16 feet makes                                          | opp    | NWMF    | Defense › Shooting allowed; Shooting › Distances                     |
+| `opp_shot_d8_16_fg_pct`    | Opponent 8 to 16 feet FG%                                            | opp    | NWMF    | Defense › Shooting allowed; Shooting › Distances                     |
+| `opp_shot_d8_16_freq`      | Opponent 8 to 16 feet frequency                                      | opp    | NWMF    | Defense › Shooting allowed; Shooting › Distances                     |
+| `opp_shot_d8_16_pps`       | Opponent 8 to 16 feet points per shot                                | opp    | NWMF    | Defense › Shooting allowed; Shooting › Distances                     |
+| `opp_shot_d8_16_efg_pct`   | Opponent 8 to 16 feet eFG%                                           | opp    | NWMF    | Defense › Shooting allowed; Shooting › Distances                     |
+| `opp_shot_d8_16_fg_rel`    | Opponent 8 to 16 feet FG% vs league                                  | opp    | NWMF    | Defense › Shooting allowed; Shooting › Distances                     |
+| `opp_shot_d8_16_pps_rel`   | Opponent 8 to 16 feet points per shot vs league                      | opp    | NWMF    | Defense › Shooting allowed; Shooting › Distances                     |
+| `opp_shot_d16_24_fga`      | Opponent 16 to 24 feet attempts                                      | opp    | NWMF    | Defense › Shooting allowed; Shooting › Distances                     |
+| `opp_shot_d16_24_fgm`      | Opponent 16 to 24 feet makes                                         | opp    | NWMF    | Defense › Shooting allowed; Shooting › Distances                     |
+| `opp_shot_d16_24_fg_pct`   | Opponent 16 to 24 feet FG%                                           | opp    | NWMF    | Defense › Shooting allowed; Shooting › Distances                     |
+| `opp_shot_d16_24_freq`     | Opponent 16 to 24 feet frequency                                     | opp    | NWMF    | Defense › Shooting allowed; Shooting › Distances                     |
+| `opp_shot_d16_24_pps`      | Opponent 16 to 24 feet points per shot                               | opp    | NWMF    | Defense › Shooting allowed; Shooting › Distances                     |
+| `opp_shot_d16_24_efg_pct`  | Opponent 16 to 24 feet eFG%                                          | opp    | NWMF    | Defense › Shooting allowed; Shooting › Distances                     |
+| `opp_shot_d16_24_fg_rel`   | Opponent 16 to 24 feet FG% vs league                                 | opp    | NWMF    | Defense › Shooting allowed; Shooting › Distances                     |
+| `opp_shot_d16_24_pps_rel`  | Opponent 16 to 24 feet points per shot vs league                     | opp    | NWMF    | Defense › Shooting allowed; Shooting › Distances                     |
+| `opp_shot_d24p_fga`        | Opponent 24 feet and beyond attempts                                 | opp    | NWMF    | Defense › Shooting allowed; Shooting › Distances                     |
+| `opp_shot_d24p_fgm`        | Opponent 24 feet and beyond makes                                    | opp    | NWMF    | Defense › Shooting allowed; Shooting › Distances                     |
+| `opp_shot_d24p_fg_pct`     | Opponent 24 feet and beyond FG%                                      | opp    | NWMF    | Defense › Shooting allowed; Shooting › Distances                     |
+| `opp_shot_d24p_freq`       | Opponent 24 feet and beyond frequency                                | opp    | NWMF    | Defense › Shooting allowed; Shooting › Distances                     |
+| `opp_shot_d24p_pps`        | Opponent 24 feet and beyond points per shot                          | opp    | NWMF    | Defense › Shooting allowed; Shooting › Distances                     |
+| `opp_shot_d24p_efg_pct`    | Opponent 24 feet and beyond eFG%                                     | opp    | NWMF    | Defense › Shooting allowed; Shooting › Distances                     |
+| `opp_shot_d24p_fg_rel`     | Opponent 24 feet and beyond FG% vs league                            | opp    | NWMF    | Defense › Shooting allowed; Shooting › Distances                     |
+| `opp_shot_d24p_pps_rel`    | Opponent 24 feet and beyond points per shot vs league                | opp    | NWMF    | Defense › Shooting allowed; Shooting › Distances                     |
+| `opp_shot_dunk_fga`        | Opponent dunk attempts                                               | opp    | NW··    | Defense › Shooting allowed; Shooting › Shot types                    |
+| `opp_shot_dunk_fgm`        | Opponent dunk makes                                                  | opp    | NW··    | Defense › Shooting allowed; Shooting › Shot types                    |
+| `opp_shot_dunk_fg_pct`     | Opponent dunk FG%                                                    | opp    | NW··    | Defense › Shooting allowed; Shooting › Shot types                    |
+| `opp_shot_dunk_freq`       | Opponent dunk frequency                                              | opp    | NW··    | Defense › Shooting allowed; Shooting › Shot types                    |
+| `opp_shot_dunk_fg_rel`     | Opponent dunk FG% vs league                                          | opp    | NW··    | Defense › Shooting allowed; Shooting › Shot types                    |
+| `opp_shot_tip_fga`         | Opponent tip attempts                                                | opp    | NW··    | Defense › Shooting allowed; Shooting › Shot types                    |
+| `opp_shot_tip_fgm`         | Opponent tip makes                                                   | opp    | NW··    | Defense › Shooting allowed; Shooting › Shot types                    |
+| `opp_shot_tip_fg_pct`      | Opponent tip FG%                                                     | opp    | NW··    | Defense › Shooting allowed; Shooting › Shot types                    |
+| `opp_shot_tip_freq`        | Opponent tip frequency                                               | opp    | NW··    | Defense › Shooting allowed; Shooting › Shot types                    |
+| `opp_shot_tip_fg_rel`      | Opponent tip FG% vs league                                           | opp    | NW··    | Defense › Shooting allowed; Shooting › Shot types                    |
+| `opp_shot_layup_fga`       | Opponent layup attempts                                              | opp    | NW··    | Defense › Shooting allowed; Shooting › Shot types                    |
+| `opp_shot_layup_fgm`       | Opponent layup makes                                                 | opp    | NW··    | Defense › Shooting allowed; Shooting › Shot types                    |
+| `opp_shot_layup_fg_pct`    | Opponent layup FG%                                                   | opp    | NW··    | Defense › Shooting allowed; Shooting › Shot types                    |
+| `opp_shot_layup_freq`      | Opponent layup frequency                                             | opp    | NW··    | Defense › Shooting allowed; Shooting › Shot types                    |
+| `opp_shot_layup_fg_rel`    | Opponent layup FG% vs league                                         | opp    | NW··    | Defense › Shooting allowed; Shooting › Shot types                    |
+| `opp_shot_hook_fga`        | Opponent hook attempts                                               | opp    | NW··    | Defense › Shooting allowed; Shooting › Shot types                    |
+| `opp_shot_hook_fgm`        | Opponent hook makes                                                  | opp    | NW··    | Defense › Shooting allowed; Shooting › Shot types                    |
+| `opp_shot_hook_fg_pct`     | Opponent hook FG%                                                    | opp    | NW··    | Defense › Shooting allowed; Shooting › Shot types                    |
+| `opp_shot_hook_freq`       | Opponent hook frequency                                              | opp    | NW··    | Defense › Shooting allowed; Shooting › Shot types                    |
+| `opp_shot_hook_fg_rel`     | Opponent hook FG% vs league                                          | opp    | NW··    | Defense › Shooting allowed; Shooting › Shot types                    |
+| `opp_shot_floater_fga`     | Opponent floater attempts                                            | opp    | NW··    | Defense › Shooting allowed; Shooting › Shot types                    |
+| `opp_shot_floater_fgm`     | Opponent floater makes                                               | opp    | NW··    | Defense › Shooting allowed; Shooting › Shot types                    |
+| `opp_shot_floater_fg_pct`  | Opponent floater FG%                                                 | opp    | NW··    | Defense › Shooting allowed; Shooting › Shot types                    |
+| `opp_shot_floater_freq`    | Opponent floater frequency                                           | opp    | NW··    | Defense › Shooting allowed; Shooting › Shot types                    |
+| `opp_shot_floater_fg_rel`  | Opponent floater FG% vs league                                       | opp    | NW··    | Defense › Shooting allowed; Shooting › Shot types                    |
+| `opp_shot_jumper_fga`      | Opponent jump shot attempts                                          | opp    | NW··    | Defense › Shooting allowed; Shooting › Shot types                    |
+| `opp_shot_jumper_fgm`      | Opponent jump shot makes                                             | opp    | NW··    | Defense › Shooting allowed; Shooting › Shot types                    |
+| `opp_shot_jumper_fg_pct`   | Opponent jump shot FG%                                               | opp    | NW··    | Defense › Shooting allowed; Shooting › Shot types                    |
+| `opp_shot_jumper_freq`     | Opponent jump shot frequency                                         | opp    | NW··    | Defense › Shooting allowed; Shooting › Shot types                    |
+| `opp_shot_jumper_fg_rel`   | Opponent jump shot FG% vs league                                     | opp    | NW··    | Defense › Shooting allowed; Shooting › Shot types                    |
+| `opp_shot_avg_dist`        | Opponent average shot distance                                       | opp    | NWMF    | Defense › Shooting allowed; Shooting › Shot selection                |
+| `opp_shot_pts_above`       | Opponent points above league by location                             | opp    | NWMF    | Defense › Shooting allowed; Shooting › Efficiency                    |
+| `opp_shot_pps_above`       | Opponent points per shot above league by location                    | opp    | NWMF    | Defense › Shooting allowed; Shooting › Efficiency                    |
 
 ### plays (162)
 
@@ -1715,72 +1717,72 @@ Every catalogue metric, by family (the source), with its categories and sub-grou
 | ------------------------------ | ------------------------------------------ | ------ | ------- | --------------------------------------------------------------------- |
 | `pbp_tov_bad_pass`             | Bad pass turnovers                         | player | NWMF    | Playmaking › Turnovers; Offense › Turnovers                           |
 | `team_pbp_tov_bad_pass`        | Bad pass turnovers                         | team   | NWMF    | Playmaking › Turnovers; Offense › Turnovers                           |
-| `opp_pbp_tov_bad_pass`         | Opponent bad pass turnovers                | opp    | NWMF    | Playmaking › Turnovers; Defense › Turnovers forced                    |
+| `opp_pbp_tov_bad_pass`         | Opponent bad pass turnovers                | opp    | NWMF    | Defense › Turnovers forced; Playmaking › Turnovers                    |
 | `pbp_tov_lost_ball`            | Lost ball turnovers                        | player | NWMF    | Playmaking › Turnovers; Offense › Turnovers                           |
 | `team_pbp_tov_lost_ball`       | Lost ball turnovers                        | team   | NWMF    | Playmaking › Turnovers; Offense › Turnovers                           |
-| `opp_pbp_tov_lost_ball`        | Opponent lost ball turnovers               | opp    | NWMF    | Playmaking › Turnovers; Defense › Turnovers forced                    |
+| `opp_pbp_tov_lost_ball`        | Opponent lost ball turnovers               | opp    | NWMF    | Defense › Turnovers forced; Playmaking › Turnovers                    |
 | `pbp_tov_off_foul`             | Offensive foul turnovers                   | player | NWMF    | Playmaking › Turnovers; Fouls › Committed; Offense › Turnovers        |
 | `team_pbp_tov_off_foul`        | Offensive foul turnovers                   | team   | NWMF    | Playmaking › Turnovers; Fouls › Committed; Offense › Turnovers        |
-| `opp_pbp_tov_off_foul`         | Opponent offensive foul turnovers          | opp    | NWMF    | Playmaking › Turnovers; Fouls › Committed; Defense › Turnovers forced |
+| `opp_pbp_tov_off_foul`         | Opponent offensive foul turnovers          | opp    | NWMF    | Defense › Turnovers forced; Playmaking › Turnovers; Fouls › Committed |
 | `pbp_tov_travel`               | Traveling turnovers                        | player | NWMF    | Playmaking › Turnovers; Offense › Turnovers                           |
 | `team_pbp_tov_travel`          | Traveling turnovers                        | team   | NWMF    | Playmaking › Turnovers; Offense › Turnovers                           |
-| `opp_pbp_tov_travel`           | Opponent traveling turnovers               | opp    | NWMF    | Playmaking › Turnovers; Defense › Turnovers forced                    |
+| `opp_pbp_tov_travel`           | Opponent traveling turnovers               | opp    | NWMF    | Defense › Turnovers forced; Playmaking › Turnovers                    |
 | `pbp_tov_shot_clock`           | Shot clock turnovers                       | player | NWMF    | Playmaking › Turnovers; Offense › Turnovers                           |
 | `team_pbp_tov_shot_clock`      | Shot clock turnovers                       | team   | NWMF    | Playmaking › Turnovers; Offense › Turnovers                           |
-| `opp_pbp_tov_shot_clock`       | Opponent shot clock turnovers              | opp    | NWMF    | Playmaking › Turnovers; Defense › Turnovers forced                    |
+| `opp_pbp_tov_shot_clock`       | Opponent shot clock turnovers              | opp    | NWMF    | Defense › Turnovers forced; Playmaking › Turnovers                    |
 | `pbp_tov_out_of_bounds`        | Stepped out of bounds turnovers            | player | NWMF    | Playmaking › Turnovers; Offense › Turnovers                           |
 | `team_pbp_tov_out_of_bounds`   | Stepped out of bounds turnovers            | team   | NWMF    | Playmaking › Turnovers; Offense › Turnovers                           |
-| `opp_pbp_tov_out_of_bounds`    | Opponent stepped out of bounds turnovers   | opp    | NWMF    | Playmaking › Turnovers; Defense › Turnovers forced                    |
+| `opp_pbp_tov_out_of_bounds`    | Opponent stepped out of bounds turnovers   | opp    | NWMF    | Defense › Turnovers forced; Playmaking › Turnovers                    |
 | `pbp_tov_violation`            | Other violation turnovers                  | player | NWMF    | Playmaking › Turnovers; Offense › Turnovers                           |
 | `team_pbp_tov_violation`       | Other violation turnovers                  | team   | NWMF    | Playmaking › Turnovers; Offense › Turnovers                           |
-| `opp_pbp_tov_violation`        | Opponent other violation turnovers         | opp    | NWMF    | Playmaking › Turnovers; Defense › Turnovers forced                    |
+| `opp_pbp_tov_violation`        | Opponent other violation turnovers         | opp    | NWMF    | Defense › Turnovers forced; Playmaking › Turnovers                    |
 | `pbp_tov_other`                | Other turnovers                            | player | NWMF    | Playmaking › Turnovers; Offense › Turnovers                           |
 | `team_pbp_tov_other`           | Other turnovers                            | team   | NWMF    | Playmaking › Turnovers; Offense › Turnovers                           |
-| `opp_pbp_tov_other`            | Opponent other turnovers                   | opp    | NWMF    | Playmaking › Turnovers; Defense › Turnovers forced                    |
+| `opp_pbp_tov_other`            | Opponent other turnovers                   | opp    | NWMF    | Defense › Turnovers forced; Playmaking › Turnovers                    |
 | `pbp_tov_live`                 | Live-ball turnovers                        | player | NWMF    | Playmaking › Turnovers; Offense › Turnovers                           |
 | `team_pbp_tov_live`            | Live-ball turnovers                        | team   | NWMF    | Playmaking › Turnovers; Offense › Turnovers                           |
-| `opp_pbp_tov_live`             | Opponent live-ball turnovers               | opp    | NWMF    | Playmaking › Turnovers; Defense › Turnovers forced                    |
+| `opp_pbp_tov_live`             | Opponent live-ball turnovers               | opp    | NWMF    | Defense › Turnovers forced; Playmaking › Turnovers                    |
 | `pbp_tov_dead`                 | Dead-ball turnovers                        | player | NWMF    | Playmaking › Turnovers; Offense › Turnovers                           |
 | `team_pbp_tov_dead`            | Dead-ball turnovers                        | team   | NWMF    | Playmaking › Turnovers; Offense › Turnovers                           |
-| `opp_pbp_tov_dead`             | Opponent dead-ball turnovers               | opp    | NWMF    | Playmaking › Turnovers; Defense › Turnovers forced                    |
+| `opp_pbp_tov_dead`             | Opponent dead-ball turnovers               | opp    | NWMF    | Defense › Turnovers forced; Playmaking › Turnovers                    |
 | `pbp_tov_live_share`           | Live-ball turnover share                   | player | NWMF    | Playmaking › Turnovers; Offense › Turnovers                           |
 | `team_pbp_tov_live_share`      | Live-ball turnover share                   | team   | NWMF    | Playmaking › Turnovers; Offense › Turnovers                           |
-| `opp_pbp_tov_live_share`       | Opponent live-ball turnover share          | opp    | NWMF    | Playmaking › Turnovers; Defense › Turnovers forced                    |
+| `opp_pbp_tov_live_share`       | Opponent live-ball turnover share          | opp    | NWMF    | Defense › Turnovers forced; Playmaking › Turnovers                    |
 | `pbp_tov_bad_pass_share`       | Bad pass share of turnovers                | player | NWMF    | Playmaking › Turnovers; Offense › Turnovers                           |
 | `team_pbp_tov_bad_pass_share`  | Bad pass share of turnovers                | team   | NWMF    | Playmaking › Turnovers; Offense › Turnovers                           |
-| `opp_pbp_tov_bad_pass_share`   | Opponent bad pass share of turnovers       | opp    | NWMF    | Playmaking › Turnovers; Defense › Turnovers forced                    |
+| `opp_pbp_tov_bad_pass_share`   | Opponent bad pass share of turnovers       | opp    | NWMF    | Defense › Turnovers forced; Playmaking › Turnovers                    |
 | `pbp_tov_lost_ball_share`      | Lost ball share of turnovers               | player | NWMF    | Playmaking › Turnovers; Offense › Turnovers                           |
 | `team_pbp_tov_lost_ball_share` | Lost ball share of turnovers               | team   | NWMF    | Playmaking › Turnovers; Offense › Turnovers                           |
-| `opp_pbp_tov_lost_ball_share`  | Opponent lost ball share of turnovers      | opp    | NWMF    | Playmaking › Turnovers; Defense › Turnovers forced                    |
+| `opp_pbp_tov_lost_ball_share`  | Opponent lost ball share of turnovers      | opp    | NWMF    | Defense › Turnovers forced; Playmaking › Turnovers                    |
 | `pbp_tov_off_foul_share`       | Offensive foul share of turnovers          | player | NWMF    | Playmaking › Turnovers; Fouls › Committed; Offense › Turnovers        |
 | `team_pbp_tov_off_foul_share`  | Offensive foul share of turnovers          | team   | NWMF    | Playmaking › Turnovers; Fouls › Committed; Offense › Turnovers        |
-| `opp_pbp_tov_off_foul_share`   | Opponent offensive foul share of turnovers | opp    | NWMF    | Playmaking › Turnovers; Fouls › Committed; Defense › Turnovers forced |
+| `opp_pbp_tov_off_foul_share`   | Opponent offensive foul share of turnovers | opp    | NWMF    | Defense › Turnovers forced; Playmaking › Turnovers; Fouls › Committed |
 | `pbp_tov_travel_share`         | Traveling share of turnovers               | player | NWMF    | Playmaking › Turnovers; Offense › Turnovers                           |
 | `team_pbp_tov_travel_share`    | Traveling share of turnovers               | team   | NWMF    | Playmaking › Turnovers; Offense › Turnovers                           |
-| `opp_pbp_tov_travel_share`     | Opponent traveling share of turnovers      | opp    | NWMF    | Playmaking › Turnovers; Defense › Turnovers forced                    |
+| `opp_pbp_tov_travel_share`     | Opponent traveling share of turnovers      | opp    | NWMF    | Defense › Turnovers forced; Playmaking › Turnovers                    |
 | `team_pbp_tov_team`            | Team turnovers                             | team   | NWMF    | Playmaking › Turnovers; Offense › Turnovers                           |
-| `opp_pbp_tov_team`             | Opponent team turnovers                    | opp    | NWMF    | Playmaking › Turnovers; Defense › Turnovers forced                    |
+| `opp_pbp_tov_team`             | Opponent team turnovers                    | opp    | NWMF    | Defense › Turnovers forced; Playmaking › Turnovers                    |
 | `pbp_pf_shooting`              | Shooting fouls                             | player | NWMF    | Fouls › Committed; Defense › Fouls and violations                     |
 | `team_pbp_pf_shooting`         | Shooting fouls                             | team   | NWMF    | Fouls › Committed; Defense › Fouls and violations                     |
-| `opp_pbp_pf_shooting`          | Opponent shooting fouls                    | opp    | NWMF    | Fouls › Committed; Offense › Fouls drawn                              |
+| `opp_pbp_pf_shooting`          | Opponent shooting fouls                    | opp    | NWMF    | Offense › Fouls drawn; Fouls › Committed                              |
 | `pbp_pf_personal`              | Non-shooting fouls                         | player | NWMF    | Fouls › Committed; Defense › Fouls and violations                     |
 | `team_pbp_pf_personal`         | Non-shooting fouls                         | team   | NWMF    | Fouls › Committed; Defense › Fouls and violations                     |
-| `opp_pbp_pf_personal`          | Opponent non-shooting fouls                | opp    | NWMF    | Fouls › Committed; Offense › Fouls drawn                              |
+| `opp_pbp_pf_personal`          | Opponent non-shooting fouls                | opp    | NWMF    | Offense › Fouls drawn; Fouls › Committed                              |
 | `pbp_pf_offensive`             | Offensive fouls                            | player | NWMF    | Fouls › Committed; Offense › Turnovers                                |
 | `team_pbp_pf_offensive`        | Offensive fouls                            | team   | NWMF    | Fouls › Committed; Offense › Turnovers                                |
-| `opp_pbp_pf_offensive`         | Opponent offensive fouls                   | opp    | NWMF    | Fouls › Committed; Defense › Turnovers forced                         |
+| `opp_pbp_pf_offensive`         | Opponent offensive fouls                   | opp    | NWMF    | Defense › Turnovers forced; Fouls › Committed                         |
 | `pbp_pf_loose_ball`            | Loose ball fouls                           | player | NWMF    | Fouls › Committed                                                     |
 | `team_pbp_pf_loose_ball`       | Loose ball fouls                           | team   | NWMF    | Fouls › Committed                                                     |
 | `opp_pbp_pf_loose_ball`        | Opponent loose ball fouls                  | opp    | NWMF    | Fouls › Committed                                                     |
 | `pbp_pf_take`                  | Take fouls                                 | player | NW··    | Fouls › Committed; Defense › Fouls and violations                     |
 | `team_pbp_pf_take`             | Take fouls                                 | team   | NW··    | Fouls › Committed; Defense › Fouls and violations                     |
-| `opp_pbp_pf_take`              | Opponent take fouls                        | opp    | NW··    | Fouls › Committed; Offense › Fouls drawn                              |
+| `opp_pbp_pf_take`              | Opponent take fouls                        | opp    | NW··    | Offense › Fouls drawn; Fouls › Committed                              |
 | `pbp_pf_transition_take`       | Transition take fouls                      | player | NW··    | Fouls › Committed; Defense › Fouls and violations                     |
 | `team_pbp_pf_transition_take`  | Transition take fouls                      | team   | NW··    | Fouls › Committed; Defense › Fouls and violations                     |
-| `opp_pbp_pf_transition_take`   | Opponent transition take fouls             | opp    | NW··    | Fouls › Committed; Offense › Fouls drawn                              |
+| `opp_pbp_pf_transition_take`   | Opponent transition take fouls             | opp    | NW··    | Offense › Fouls drawn; Fouls › Committed                              |
 | `pbp_pf_clear_path`            | Clear path fouls                           | player | NW··    | Fouls › Committed; Defense › Fouls and violations                     |
 | `team_pbp_pf_clear_path`       | Clear path fouls                           | team   | NW··    | Fouls › Committed; Defense › Fouls and violations                     |
-| `opp_pbp_pf_clear_path`        | Opponent clear path fouls                  | opp    | NW··    | Fouls › Committed; Offense › Fouls drawn                              |
+| `opp_pbp_pf_clear_path`        | Opponent clear path fouls                  | opp    | NW··    | Offense › Fouls drawn; Fouls › Committed                              |
 | `pbp_pf_flagrant1`             | Flagrant 1 fouls                           | player | NW··    | Fouls › Flagrants, technicals and ejections                           |
 | `team_pbp_pf_flagrant1`        | Flagrant 1 fouls                           | team   | NW··    | Fouls › Flagrants, technicals and ejections                           |
 | `opp_pbp_pf_flagrant1`         | Opponent flagrant 1 fouls                  | opp    | NW··    | Fouls › Flagrants, technicals and ejections                           |
@@ -1798,70 +1800,70 @@ Every catalogue metric, by family (the source), with its categories and sub-grou
 | `opp_pbp_tech`                 | Opponent technical fouls                   | opp    | NWMF    | Fouls › Flagrants, technicals and ejections                           |
 | `pbp_def3`                     | Defensive three seconds                    | player | NW··    | Fouls › Violations; Defense › Fouls and violations                    |
 | `team_pbp_def3`                | Defensive three seconds                    | team   | NW··    | Fouls › Violations; Defense › Fouls and violations                    |
-| `opp_pbp_def3`                 | Opponent defensive three seconds           | opp    | NW··    | Fouls › Violations; Offense › Fouls drawn                             |
+| `opp_pbp_def3`                 | Opponent defensive three seconds           | opp    | NW··    | Offense › Fouls drawn; Fouls › Violations                             |
 | `pbp_ejections`                | Ejections                                  | player | NW··    | Fouls › Flagrants, technicals and ejections                           |
 | `team_pbp_ejections`           | Ejections                                  | team   | NW··    | Fouls › Flagrants, technicals and ejections                           |
 | `opp_pbp_ejections`            | Opponent ejections                         | opp    | NW··    | Fouls › Flagrants, technicals and ejections                           |
 | `pbp_fd`                       | Fouls drawn                                | player | NWMF    | Fouls › Drawn; Offense › Fouls drawn                                  |
 | `team_pbp_fd`                  | Fouls drawn                                | team   | NWMF    | Fouls › Drawn; Offense › Fouls drawn                                  |
-| `opp_pbp_fd`                   | Opponent fouls drawn                       | opp    | NWMF    | Fouls › Drawn; Defense › Fouls and violations                         |
+| `opp_pbp_fd`                   | Opponent fouls drawn                       | opp    | NWMF    | Defense › Fouls and violations; Fouls › Drawn                         |
 | `pbp_fd_shooting`              | Shooting fouls drawn                       | player | NWMF    | Fouls › Drawn; Offense › Fouls drawn                                  |
 | `team_pbp_fd_shooting`         | Shooting fouls drawn                       | team   | NWMF    | Fouls › Drawn; Offense › Fouls drawn                                  |
-| `opp_pbp_fd_shooting`          | Opponent shooting fouls drawn              | opp    | NWMF    | Fouls › Drawn; Defense › Fouls and violations                         |
+| `opp_pbp_fd_shooting`          | Opponent shooting fouls drawn              | opp    | NWMF    | Defense › Fouls and violations; Fouls › Drawn                         |
 | `pbp_and1`                     | And-ones                                   | player | NWMF    | Fouls › Drawn; Shooting › Free throws; Offense › Fouls drawn          |
 | `team_pbp_and1`                | And-ones                                   | team   | NWMF    | Fouls › Drawn; Shooting › Free throws; Offense › Fouls drawn          |
-| `opp_pbp_and1`                 | Opponent and-ones                          | opp    | NWMF    | Fouls › Drawn; Shooting › Free throws; Defense › Fouls and violations |
+| `opp_pbp_and1`                 | Opponent and-ones                          | opp    | NWMF    | Defense › Fouls and violations; Fouls › Drawn; Shooting › Free throws |
 | `pbp_and1_ftm`                 | And-ones converted                         | player | NWMF    | Fouls › Drawn; Shooting › Free throws; Offense › Fouls drawn          |
 | `team_pbp_and1_ftm`            | And-ones converted                         | team   | NWMF    | Fouls › Drawn; Shooting › Free throws; Offense › Fouls drawn          |
-| `opp_pbp_and1_ftm`             | Opponent and-ones converted                | opp    | NWMF    | Fouls › Drawn; Shooting › Free throws; Defense › Fouls and violations |
+| `opp_pbp_and1_ftm`             | Opponent and-ones converted                | opp    | NWMF    | Defense › Fouls and violations; Fouls › Drawn; Shooting › Free throws |
 | `pbp_and1_pct`                 | And-one conversion                         | player | NWMF    | Fouls › Drawn; Shooting › Free throws; Offense › Fouls drawn          |
 | `team_pbp_and1_pct`            | And-one conversion                         | team   | NWMF    | Fouls › Drawn; Shooting › Free throws; Offense › Fouls drawn          |
-| `opp_pbp_and1_pct`             | Opponent and-one conversion                | opp    | NWMF    | Fouls › Drawn; Shooting › Free throws; Defense › Fouls and violations |
+| `opp_pbp_and1_pct`             | Opponent and-one conversion                | opp    | NWMF    | Defense › Fouls and violations; Fouls › Drawn; Shooting › Free throws |
 | `pbp_and1_rate`                | And-ones per make                          | player | NWMF    | Fouls › Drawn; Shooting › Free throws; Offense › Fouls drawn          |
 | `team_pbp_and1_rate`           | And-ones per make                          | team   | NWMF    | Fouls › Drawn; Shooting › Free throws; Offense › Fouls drawn          |
-| `opp_pbp_and1_rate`            | Opponent and-ones per make                 | opp    | NWMF    | Fouls › Drawn; Shooting › Free throws; Defense › Fouls and violations |
+| `opp_pbp_and1_rate`            | Opponent and-ones per make                 | opp    | NWMF    | Defense › Fouls and violations; Fouls › Drawn; Shooting › Free throws |
 | `pbp_ft_trip2`                 | Two-shot fouls                             | player | NWMF    | Fouls › Drawn; Shooting › Free throws; Offense › Fouls drawn          |
 | `team_pbp_ft_trip2`            | Two-shot fouls                             | team   | NWMF    | Fouls › Drawn; Shooting › Free throws; Offense › Fouls drawn          |
-| `opp_pbp_ft_trip2`             | Opponent two-shot fouls                    | opp    | NWMF    | Fouls › Drawn; Shooting › Free throws; Defense › Fouls and violations |
+| `opp_pbp_ft_trip2`             | Opponent two-shot fouls                    | opp    | NWMF    | Defense › Fouls and violations; Fouls › Drawn; Shooting › Free throws |
 | `pbp_ft_trip3`                 | Three-shot fouls                           | player | NWMF    | Fouls › Drawn; Shooting › Free throws; Offense › Fouls drawn          |
 | `team_pbp_ft_trip3`            | Three-shot fouls                           | team   | NWMF    | Fouls › Drawn; Shooting › Free throws; Offense › Fouls drawn          |
-| `opp_pbp_ft_trip3`             | Opponent three-shot fouls                  | opp    | NWMF    | Fouls › Drawn; Shooting › Free throws; Defense › Fouls and violations |
+| `opp_pbp_ft_trip3`             | Opponent three-shot fouls                  | opp    | NWMF    | Defense › Fouls and violations; Fouls › Drawn; Shooting › Free throws |
 | `pbp_trip_rate`                | Shooting-foul trips per FGA                | player | NWMF    | Fouls › Drawn; Shooting › Free throws; Offense › Fouls drawn          |
 | `team_pbp_trip_rate`           | Shooting-foul trips per FGA                | team   | NWMF    | Fouls › Drawn; Shooting › Free throws; Offense › Fouls drawn          |
-| `opp_pbp_trip_rate`            | Opponent shooting-foul trips per FGA       | opp    | NWMF    | Fouls › Drawn; Shooting › Free throws; Defense › Fouls and violations |
+| `opp_pbp_trip_rate`            | Opponent shooting-foul trips per FGA       | opp    | NWMF    | Defense › Fouls and violations; Fouls › Drawn; Shooting › Free throws |
 | `pbp_made2_ast`                | Assisted twos                              | player | NWMF    | Scoring › Assisted and unassisted; Offense › Scoring                  |
 | `team_pbp_made2_ast`           | Assisted twos                              | team   | NWMF    | Scoring › Assisted and unassisted; Offense › Scoring                  |
-| `opp_pbp_made2_ast`            | Opponent assisted twos                     | opp    | NWMF    | Scoring › Assisted and unassisted; Defense › Scoring allowed          |
+| `opp_pbp_made2_ast`            | Opponent assisted twos                     | opp    | NWMF    | Defense › Scoring allowed; Scoring › Assisted and unassisted          |
 | `pbp_made2_unast`              | Unassisted twos                            | player | NWMF    | Scoring › Assisted and unassisted; Offense › Scoring                  |
 | `team_pbp_made2_unast`         | Unassisted twos                            | team   | NWMF    | Scoring › Assisted and unassisted; Offense › Scoring                  |
-| `opp_pbp_made2_unast`          | Opponent unassisted twos                   | opp    | NWMF    | Scoring › Assisted and unassisted; Defense › Scoring allowed          |
+| `opp_pbp_made2_unast`          | Opponent unassisted twos                   | opp    | NWMF    | Defense › Scoring allowed; Scoring › Assisted and unassisted          |
 | `pbp_made3_ast`                | Assisted threes                            | player | NWMF    | Scoring › Assisted and unassisted; Offense › Scoring                  |
 | `team_pbp_made3_ast`           | Assisted threes                            | team   | NWMF    | Scoring › Assisted and unassisted; Offense › Scoring                  |
-| `opp_pbp_made3_ast`            | Opponent assisted threes                   | opp    | NWMF    | Scoring › Assisted and unassisted; Defense › Scoring allowed          |
+| `opp_pbp_made3_ast`            | Opponent assisted threes                   | opp    | NWMF    | Defense › Scoring allowed; Scoring › Assisted and unassisted          |
 | `pbp_made3_unast`              | Unassisted threes                          | player | NWMF    | Scoring › Assisted and unassisted; Offense › Scoring                  |
 | `team_pbp_made3_unast`         | Unassisted threes                          | team   | NWMF    | Scoring › Assisted and unassisted; Offense › Scoring                  |
-| `opp_pbp_made3_unast`          | Opponent unassisted threes                 | opp    | NWMF    | Scoring › Assisted and unassisted; Defense › Scoring allowed          |
+| `opp_pbp_made3_unast`          | Opponent unassisted threes                 | opp    | NWMF    | Defense › Scoring allowed; Scoring › Assisted and unassisted          |
 | `pbp_ast2_share`               | Assisted share of twos                     | player | NWMF    | Scoring › Assisted and unassisted; Offense › Scoring                  |
 | `team_pbp_ast2_share`          | Assisted share of twos                     | team   | NWMF    | Scoring › Assisted and unassisted; Offense › Scoring                  |
-| `opp_pbp_ast2_share`           | Opponent assisted share of twos            | opp    | NWMF    | Scoring › Assisted and unassisted; Defense › Scoring allowed          |
+| `opp_pbp_ast2_share`           | Opponent assisted share of twos            | opp    | NWMF    | Defense › Scoring allowed; Scoring › Assisted and unassisted          |
 | `pbp_ast3_share`               | Assisted share of threes                   | player | NWMF    | Scoring › Assisted and unassisted; Offense › Scoring                  |
 | `team_pbp_ast3_share`          | Assisted share of threes                   | team   | NWMF    | Scoring › Assisted and unassisted; Offense › Scoring                  |
-| `opp_pbp_ast3_share`           | Opponent assisted share of threes          | opp    | NWMF    | Scoring › Assisted and unassisted; Defense › Scoring allowed          |
+| `opp_pbp_ast3_share`           | Opponent assisted share of threes          | opp    | NWMF    | Defense › Scoring allowed; Scoring › Assisted and unassisted          |
 | `pbp_unast_share`              | Unassisted share of makes                  | player | NWMF    | Scoring › Assisted and unassisted; Offense › Scoring                  |
 | `team_pbp_unast_share`         | Unassisted share of makes                  | team   | NWMF    | Scoring › Assisted and unassisted; Offense › Scoring                  |
-| `opp_pbp_unast_share`          | Opponent unassisted share of makes         | opp    | NWMF    | Scoring › Assisted and unassisted; Defense › Scoring allowed          |
+| `opp_pbp_unast_share`          | Opponent unassisted share of makes         | opp    | NWMF    | Defense › Scoring allowed; Scoring › Assisted and unassisted          |
 | `pbp_goaltend`                 | Defensive goaltending                      | player | NW··    | Fouls › Violations; Defense › Fouls and violations                    |
 | `team_pbp_goaltend`            | Defensive goaltending                      | team   | NW··    | Fouls › Violations; Defense › Fouls and violations                    |
-| `opp_pbp_goaltend`             | Opponent defensive goaltending             | opp    | NW··    | Fouls › Violations; Offense › Fouls drawn                             |
+| `opp_pbp_goaltend`             | Opponent defensive goaltending             | opp    | NW··    | Offense › Fouls drawn; Fouls › Violations                             |
 | `pbp_kicked`                   | Kicked balls                               | player | NW··    | Fouls › Violations; Defense › Fouls and violations                    |
 | `team_pbp_kicked`              | Kicked balls                               | team   | NW··    | Fouls › Violations; Defense › Fouls and violations                    |
-| `opp_pbp_kicked`               | Opponent kicked balls                      | opp    | NW··    | Fouls › Violations; Offense › Fouls drawn                             |
+| `opp_pbp_kicked`               | Opponent kicked balls                      | opp    | NW··    | Offense › Fouls drawn; Fouls › Violations                             |
 | `pbp_ast2`                     | Assists on twos                            | player | NWMF    | Playmaking › Passing; Offense › Playmaking                            |
 | `pbp_ast3`                     | Assists on threes                          | player | NWMF    | Playmaking › Passing; Offense › Playmaking                            |
 | `pbp_ast_pts`                  | Assist points                              | player | NWMF    | Playmaking › Creation; Offense › Playmaking                           |
 | `pbp_ast_to3_share`            | Share of assists on threes                 | player | NWMF    | Playmaking › Passing; Offense › Playmaking                            |
 | `team_pbp_ast_pts`             | Assist points                              | team   | NWMF    | Playmaking › Creation; Offense › Playmaking                           |
-| `opp_pbp_ast_pts`              | Opponent assist points                     | opp    | NWMF    | Playmaking › Creation; Defense › Playmaking allowed                   |
+| `opp_pbp_ast_pts`              | Opponent assist points                     | opp    | NWMF    | Defense › Playmaking allowed; Playmaking › Creation                   |
 | `team_pbp_lead_changes`        | Lead changes                               | team   | NWMF    | Results and strength › Game flow                                      |
 | `team_pbp_times_tied`          | Times tied                                 | team   | NWMF    | Results and strength › Game flow                                      |
 | `team_pbp_tied_share`          | Time tied                                  | team   | NWMF    | Results and strength › Game flow                                      |
@@ -1872,9 +1874,9 @@ Every catalogue metric, by family (the source), with its categories and sub-grou
 | `team_pbp_drought_fg`          | Longest field-goal drought                 | team   | NWMF    | Results and strength › Game flow; Offense › Scoring                   |
 | `opp_pbp_largest_lead`         | Largest deficit                            | opp    | NWMF    | Results and strength › Game flow                                      |
 | `opp_pbp_lead_share`           | Time trailing                              | opp    | NWMF    | Results and strength › Game flow                                      |
-| `opp_pbp_best_run`             | Opponent best run                          | opp    | NWMF    | Results and strength › Game flow; Defense › Scoring allowed           |
-| `opp_pbp_drought`              | Opponent longest scoring drought           | opp    | NWMF    | Results and strength › Game flow; Defense › Scoring allowed           |
-| `opp_pbp_drought_fg`           | Opponent longest field-goal drought        | opp    | NWMF    | Results and strength › Game flow; Defense › Scoring allowed           |
+| `opp_pbp_best_run`             | Opponent best run                          | opp    | NWMF    | Defense › Scoring allowed; Results and strength › Game flow           |
+| `opp_pbp_drought`              | Opponent longest scoring drought           | opp    | NWMF    | Defense › Scoring allowed; Results and strength › Game flow           |
+| `opp_pbp_drought_fg`           | Opponent longest field-goal drought        | opp    | NWMF    | Defense › Scoring allowed; Results and strength › Game flow           |
 
 ### ratings (38)
 
@@ -1950,42 +1952,42 @@ Every catalogue metric, by family (the source), with its categories and sub-grou
 
 ### indexes (37)
 
-| Metric                | Label                                          | Who    | Leagues | Categories                                            |
-| --------------------- | ---------------------------------------------- | ------ | ------- | ----------------------------------------------------- |
-| `ts_pct_plus`         | True shooting percentage index                 | player | NWMF    | Shooting › Efficiency; Offense › Shooting             |
-| `efg_pct_plus`        | Effective field-goal percentage index          | player | NWMF    | Shooting › Efficiency; Offense › Shooting             |
-| `fg_pct_plus`         | Field-goal percentage index                    | player | NWMF    | Shooting › Field goals; Offense › Shooting            |
-| `fg2_pct_plus`        | Two-point percentage index                     | player | NWMF    | Shooting › Twos; Offense › Shooting                   |
-| `fg3_pct_plus`        | Three-point percentage index                   | player | NWMF    | Shooting › Threes; Offense › Shooting                 |
-| `ft_pct_plus`         | Free-throw percentage index                    | player | NWMF    | Shooting › Free throws; Offense › Shooting            |
-| `fg3a_rate_plus`      | Three-point attempt rate index                 | player | NWMF    | Shooting › Shot selection; Offense › Shooting         |
-| `fta_rate_plus`       | Free-throw attempt rate index                  | player | NWMF    | Shooting › Free throws; Offense › Shooting            |
-| `tov_pct_plus`        | Turnover percentage index                      | player | NWMF    | Playmaking › Turnovers; Offense › Turnovers           |
-| `ast_pct_plus`        | Assist percentage index                        | player | NWMF    | Playmaking › Passing; Offense › Playmaking            |
-| `orb_pct_plus`        | Offensive rebound percentage index             | player | NWMF    | Rebounding › Offensive; Offense › Rebounding          |
-| `drb_pct_plus`        | Defensive rebound percentage index             | player | NWMF    | Rebounding › Defensive; Defense › Rebounding          |
-| `trb_pct_plus`        | Total rebound percentage index                 | player | NWMF    | Rebounding › All rebounds                             |
-| `stl_pct_plus`        | Steal percentage index                         | player | NWMF    | Defense › Steals and blocks                           |
-| `blk_pct_plus`        | Block percentage index                         | player | NWMF    | Defense › Steals and blocks                           |
-| `usg_pct_plus`        | Usage percentage index                         | player | NWMF    | Offense › Usage                                       |
-| `team_ts_pct_plus`    | True shooting percentage index                 | team   | NWMF    | Shooting › Efficiency; Offense › Shooting             |
-| `opp_ts_pct_plus`     | Opponent true shooting percentage index        | opp    | NWMF    | Shooting › Efficiency; Defense › Shooting allowed     |
-| `team_efg_pct_plus`   | Effective field-goal percentage index          | team   | NWMF    | Shooting › Efficiency; Offense › Shooting             |
-| `opp_efg_pct_plus`    | Opponent effective field-goal percentage index | opp    | NWMF    | Shooting › Efficiency; Defense › Shooting allowed     |
-| `team_fg_pct_plus`    | Field-goal percentage index                    | team   | NWMF    | Shooting › Field goals; Offense › Shooting            |
-| `opp_fg_pct_plus`     | Opponent field-goal percentage index           | opp    | NWMF    | Shooting › Field goals; Defense › Shooting allowed    |
-| `team_fg2_pct_plus`   | Two-point percentage index                     | team   | NWMF    | Shooting › Twos; Offense › Shooting                   |
-| `opp_fg2_pct_plus`    | Opponent two-point percentage index            | opp    | NWMF    | Shooting › Twos; Defense › Shooting allowed           |
-| `team_fg3_pct_plus`   | Three-point percentage index                   | team   | NWMF    | Shooting › Threes; Offense › Shooting                 |
-| `opp_fg3_pct_plus`    | Opponent three-point percentage index          | opp    | NWMF    | Shooting › Threes; Defense › Shooting allowed         |
-| `team_ft_pct_plus`    | Free-throw percentage index                    | team   | NWMF    | Shooting › Free throws; Offense › Shooting            |
-| `opp_ft_pct_plus`     | Opponent free-throw percentage index           | opp    | NWMF    | Shooting › Free throws; Defense › Shooting allowed    |
-| `team_fg3a_rate_plus` | Three-point attempt rate index                 | team   | NWMF    | Shooting › Shot selection; Offense › Shooting         |
-| `opp_fg3a_rate_plus`  | Opponent three-point attempt rate index        | opp    | NWMF    | Shooting › Shot selection; Defense › Shooting allowed |
-| `team_fta_rate_plus`  | Free-throw attempt rate index                  | team   | NWMF    | Shooting › Free throws; Offense › Shooting            |
-| `opp_fta_rate_plus`   | Opponent free-throw attempt rate index         | opp    | NWMF    | Shooting › Free throws; Defense › Shooting allowed    |
-| `team_tov_pct_plus`   | Turnover percentage index                      | team   | NWMF    | Playmaking › Turnovers; Offense › Turnovers           |
-| `opp_tov_pct_plus`    | Opponent turnover percentage index             | opp    | NWMF    | Playmaking › Turnovers; Defense › Turnovers forced    |
-| `team_orb_pct_plus`   | Offensive rebound percentage index             | team   | NWMF    | Rebounding › Offensive; Offense › Rebounding          |
-| `team_drb_pct_plus`   | Defensive rebound percentage index             | team   | NWMF    | Rebounding › Defensive; Defense › Rebounding          |
-| `team_trb_pct_plus`   | Total rebound percentage index                 | team   | NWMF    | Rebounding › All rebounds                             |
+| Metric                | Label                                          | Who    | Leagues | Categories                                                            |
+| --------------------- | ---------------------------------------------- | ------ | ------- | --------------------------------------------------------------------- |
+| `ts_pct_plus`         | True shooting percentage index                 | player | NWMF    | Shooting › Efficiency; Offense › Shooting                             |
+| `efg_pct_plus`        | Effective field-goal percentage index          | player | NWMF    | Shooting › Efficiency; Offense › Shooting                             |
+| `fg_pct_plus`         | Field-goal percentage index                    | player | NWMF    | Shooting › Field goals; Offense › Shooting                            |
+| `fg2_pct_plus`        | Two-point percentage index                     | player | NWMF    | Shooting › Twos; Offense › Shooting                                   |
+| `fg3_pct_plus`        | Three-point percentage index                   | player | NWMF    | Shooting › Threes; Offense › Shooting                                 |
+| `ft_pct_plus`         | Free-throw percentage index                    | player | NWMF    | Shooting › Free throws; Offense › Shooting                            |
+| `fg3a_rate_plus`      | Three-point attempt rate index                 | player | NWMF    | Shooting › Shot selection; Offense › Shooting                         |
+| `fta_rate_plus`       | Free-throw attempt rate index                  | player | NWMF    | Shooting › Free throws; Fouls › Drawn; Offense › Fouls drawn          |
+| `tov_pct_plus`        | Turnover percentage index                      | player | NWMF    | Playmaking › Turnovers; Offense › Turnovers                           |
+| `ast_pct_plus`        | Assist percentage index                        | player | NWMF    | Playmaking › Passing; Offense › Playmaking                            |
+| `orb_pct_plus`        | Offensive rebound percentage index             | player | NWMF    | Rebounding › Offensive; Offense › Rebounding                          |
+| `drb_pct_plus`        | Defensive rebound percentage index             | player | NWMF    | Rebounding › Defensive; Defense › Rebounding                          |
+| `trb_pct_plus`        | Total rebound percentage index                 | player | NWMF    | Rebounding › All rebounds                                             |
+| `stl_pct_plus`        | Steal percentage index                         | player | NWMF    | Defense › Steals and blocks                                           |
+| `blk_pct_plus`        | Block percentage index                         | player | NWMF    | Defense › Steals and blocks                                           |
+| `usg_pct_plus`        | Usage percentage index                         | player | NWMF    | Offense › Usage                                                       |
+| `team_ts_pct_plus`    | True shooting percentage index                 | team   | NWMF    | Shooting › Efficiency; Offense › Shooting                             |
+| `opp_ts_pct_plus`     | Opponent true shooting percentage index        | opp    | NWMF    | Defense › Shooting allowed; Shooting › Efficiency                     |
+| `team_efg_pct_plus`   | Effective field-goal percentage index          | team   | NWMF    | Shooting › Efficiency; Offense › Shooting                             |
+| `opp_efg_pct_plus`    | Opponent effective field-goal percentage index | opp    | NWMF    | Defense › Shooting allowed; Shooting › Efficiency                     |
+| `team_fg_pct_plus`    | Field-goal percentage index                    | team   | NWMF    | Shooting › Field goals; Offense › Shooting                            |
+| `opp_fg_pct_plus`     | Opponent field-goal percentage index           | opp    | NWMF    | Defense › Shooting allowed; Shooting › Field goals                    |
+| `team_fg2_pct_plus`   | Two-point percentage index                     | team   | NWMF    | Shooting › Twos; Offense › Shooting                                   |
+| `opp_fg2_pct_plus`    | Opponent two-point percentage index            | opp    | NWMF    | Defense › Shooting allowed; Shooting › Twos                           |
+| `team_fg3_pct_plus`   | Three-point percentage index                   | team   | NWMF    | Shooting › Threes; Offense › Shooting                                 |
+| `opp_fg3_pct_plus`    | Opponent three-point percentage index          | opp    | NWMF    | Defense › Shooting allowed; Shooting › Threes                         |
+| `team_ft_pct_plus`    | Free-throw percentage index                    | team   | NWMF    | Shooting › Free throws; Offense › Shooting                            |
+| `opp_ft_pct_plus`     | Opponent free-throw percentage index           | opp    | NWMF    | Defense › Shooting allowed; Shooting › Free throws                    |
+| `team_fg3a_rate_plus` | Three-point attempt rate index                 | team   | NWMF    | Shooting › Shot selection; Offense › Shooting                         |
+| `opp_fg3a_rate_plus`  | Opponent three-point attempt rate index        | opp    | NWMF    | Defense › Shooting allowed; Shooting › Shot selection                 |
+| `team_fta_rate_plus`  | Free-throw attempt rate index                  | team   | NWMF    | Shooting › Free throws; Fouls › Drawn; Offense › Fouls drawn          |
+| `opp_fta_rate_plus`   | Opponent free-throw attempt rate index         | opp    | NWMF    | Defense › Fouls and violations; Shooting › Free throws; Fouls › Drawn |
+| `team_tov_pct_plus`   | Turnover percentage index                      | team   | NWMF    | Playmaking › Turnovers; Offense › Turnovers                           |
+| `opp_tov_pct_plus`    | Opponent turnover percentage index             | opp    | NWMF    | Defense › Turnovers forced; Playmaking › Turnovers                    |
+| `team_orb_pct_plus`   | Offensive rebound percentage index             | team   | NWMF    | Rebounding › Offensive; Offense › Rebounding                          |
+| `team_drb_pct_plus`   | Defensive rebound percentage index             | team   | NWMF    | Rebounding › Defensive; Defense › Rebounding                          |
+| `team_trb_pct_plus`   | Total rebound percentage index                 | team   | NWMF    | Rebounding › All rebounds                                             |
