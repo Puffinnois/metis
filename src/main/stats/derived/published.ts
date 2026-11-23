@@ -41,8 +41,9 @@ export interface PublishedRecipe {
 
 export const NBA_PUBLISHED: PublishedRecipe = {
   // 13: a NaN as published reads NULL (T1301.7). 14: the availability table breaks a tie between
-  // two teams on one report the same way on every build (T1301.8).
-  version: 14,
+  // two teams on one report the same way on every build (T1301.8). 16: the published fantasy
+  // points (T1703.2; 15 is BOBAN's, in the PR before this one).
+  version: 16,
   sources: {},
   team: (id) => id
 }
@@ -52,8 +53,8 @@ export const NBA_PUBLISHED: PublishedRecipe = {
  * own, and the 2026 Portland Fire, 1611661327 in every file and `-1611661327` in `team` (T1301.5).
  */
 export const WNBA_PUBLISHED: PublishedRecipe = {
-  // 2: a NaN as published reads NULL.
-  version: 2,
+  // 2: a NaN as published reads NULL. 4: the published fantasy points (T1703.2; 3 is BOBAN's).
+  version: 4,
   sources: { src_nba_impact: 'src_wnba_impact' },
   team: (id, season) =>
     `(CASE WHEN EXISTS (SELECT 1 FROM team tk WHERE tk.team_id = -(${id}) AND tk.season = ${season})

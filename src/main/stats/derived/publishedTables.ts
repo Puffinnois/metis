@@ -590,6 +590,16 @@ export const PUBLISHED_TABLES: readonly PublishedTable[] = [
     columns: [...MISC_POINTS, 'blka', 'pfd']
   },
   {
+    // The league's published fantasy points under the NBA's and the WNBA's scoring (T1703.2). Both
+    // leagues' dashboards publish both, totals over each season type.
+    table: 'pub_player_fantasy',
+    entity: 'player',
+    source: 'src_dash_player_stats_base',
+    games: 'gp',
+    minutes: 'min',
+    columns: ['nba_fantasy_pts', 'wnba_fantasy_pts']
+  },
+  {
     table: 'pub_team_misc',
     entity: 'team',
     source: 'src_dash_team_stats_misc',

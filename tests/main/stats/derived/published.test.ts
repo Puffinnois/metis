@@ -19,6 +19,8 @@ vi.mock('@main/stats/derived/publishedTables', async (actual) => {
     PUBLISHED_TABLES: [
       // A real one: the catch-and-shoot file, whose blank threes need reading as 0.
       real.PUBLISHED_TABLES.find((t) => t.table === 'pub_player_catch_shoot')!,
+      // The league's published fantasy points, under the NBA's and the WNBA's scoring.
+      real.PUBLISHED_TABLES.find((t) => t.table === 'pub_player_fantasy')!,
       // A play type, read from the one file of them all.
       real.PUBLISHED_TABLES.find((t) => t.table === 'pub_player_pt_d_iso')!,
       // The defenders' matchups: the rollup, with the pair file taking over where it is out.
@@ -346,6 +348,25 @@ describe('the published tables', () => {
         { off_player_id: 2, games: 2, minutes: 599.5 / 60, partial_poss: 60, player_pts: 5 }
       ])
     })
+  })
+
+  it('store the published fantasy points as totals of each season type', async () => {
+    // Nikola Jokić's 2024-25 as the base dashboard publishes it: the NBA's scoring, 4,501.4, is
+    // PTS + 1.2 REB + 1.5 AST + 3 STL + 3 BLK - TOV of the row; the WNBA's, 4,161, PTS + 3PM + REB +
+    // AST + 2 STL + 2 BLK.
+    await db.exec(`CREATE TABLE src_dash_player_stats_base (player_id BIGINT, season INTEGER,
+      season_type VARCHAR, gp BIGINT, min DOUBLE, nba_fantasy_pts DOUBLE, wnba_fantasy_pts DOUBLE)`)
+    await db.exec(`INSERT INTO src_dash_player_stats_base VALUES
+      (203999, 2025, 'Regular Season', 70, 2573.0, 4501.4, 4161),
+      (203999, 2025, 'Playoffs', 11, 435.0, 701.5, 640)`)
+    await buildPublished(db)
+    expect(
+      await db.all(`SELECT game_type, games, nba_fantasy_pts, wnba_fantasy_pts
+        FROM pub_player_fantasy ORDER BY game_type`)
+    ).toEqual([
+      { game_type: 'playoffs', games: 11, nba_fantasy_pts: 701.5, wnba_fantasy_pts: 640 },
+      { game_type: 'regular', games: 70, nba_fantasy_pts: 4501.4, wnba_fantasy_pts: 4161 }
+    ])
   })
 
   describe('impact models', () => {
