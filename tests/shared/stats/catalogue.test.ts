@@ -297,7 +297,7 @@ const SHARED: Record<string, (s: Side) => number> = {
     0.7 * s.ast +
     0.7 * s.blk -
     0.4 * s.pf -
-    s.tov,
+    s.tov
 }
 
 const share = (c: keyof Side): number => PLAYER[c] / TEAM[c]
