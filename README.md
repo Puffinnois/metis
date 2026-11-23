@@ -41,7 +41,7 @@ The installer holds no data. On first launch Metis asks which leagues to downloa
 | NCAA Men   | 18 minutes | 805 MB   | 4.3 GB   |
 | NCAA Women | 17 minutes | 754 MB   | 4.1 GB   |
 
-All four take about 15 GB of disk. Memory, summed over the app's processes, peaked at 2.4 GB during the NBA's load and at 4.8 GB while NCAA Men's tables were built with the NBA and the WNBA already loaded in the same session. The NBA in more detail, from the Stage 10 gate (2026-11-14):
+All four take about 15 GB of disk. Memory, summed over the app's processes, peaked at 3.1 GB, while NCAA Men's tables were built, when all four were loaded one after the other in one session: a league's stats are closed once nothing uses them and reopen when needed, in under a second. The NBA in more detail, from the Stage 10 gate (2026-11-14):
 
 - **Time:** about 34 minutes, mostly the download, so it depends on your connection. Earlier loads on a faster connection took 12 to 21 minutes. The leaderboards are usable about 3 to 5 minutes in, while the rest loads.
 - **Disk:** a first load needs 6 GB free. The database ends at 5.3 GB, in `%APPDATA%\Metis`. The download is about 1.6 GB, and each file is deleted once loaded.
