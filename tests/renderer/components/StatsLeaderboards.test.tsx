@@ -422,7 +422,7 @@ describe('re-reading', () => {
 // every card: it ignores the content-visibility that spares the real window the off-screen ones.
 // On GitHub's Windows runner the first took 3.4 to 6.8 s (4.3 s at v0.8.0), past the 5 s default.
 describe('the glossary', { timeout: slow(20_000) }, () => {
-  it('lists the metrics, by entity, family and search', async () => {
+  it('lists the metrics, by entity, category, source and search', async () => {
     renderApp()
     fireEvent.click(await screen.findByRole('button', { name: 'Glossary' }))
     expect(await screen.findByRole('heading', { name: 'Glossary' })).toBeTruthy()
@@ -436,11 +436,21 @@ describe('the glossary', { timeout: slow(20_000) }, () => {
     fireEvent.click(screen.getByRole('radio', { name: 'Teams' }))
     expect(screen.getByText('Net rating')).toBeTruthy()
     expect(screen.getAllByText('Estimated').length).toBeGreaterThan(0)
-    fireEvent.change(screen.getByRole('combobox', { name: 'Family' }), {
+    fireEvent.change(screen.getByRole('combobox', { name: 'Source' }), {
       target: { value: 'composite' }
     })
     expect(screen.queryByText('Net rating')).toBeNull()
     expect(screen.getByText('Team Impact Estimate')).toBeTruthy()
+    fireEvent.change(screen.getByRole('combobox', { name: 'Source' }), { target: { value: '' } })
+    // A category describes its own metrics and links those described under another (D52).
+    fireEvent.change(screen.getByRole('combobox', { name: 'Category' }), {
+      target: { value: 'defense' }
+    })
+    expect(screen.queryByText('Net rating')).toBeNull()
+    expect(screen.getByRole('heading', { name: 'Defense › Turnovers forced' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Defensive rating' }))
+    expect(screen.getByRole('heading', { name: 'Results and strength › Ratings' })).toBeTruthy()
+    expect(screen.getByLabelText('Search metrics')).toHaveProperty('value', 'Defensive rating')
   })
 
   it('says when a metric starts and what the source skips', async () => {
