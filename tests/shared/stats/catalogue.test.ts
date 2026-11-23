@@ -613,7 +613,8 @@ const MATCHUP_PER_100 = [
 
 /**
  * SportsDataverse's impact models (`catalogue/impact.ts`): each stored times what it was fitted on, so
- * it reads back over that; WAR is added up; DARKO is stored times games.
+ * it reads back over that; WAR is added up; DARKO and BOBAN are stored times games; the box prior and
+ * REML RAPM times the regular season's possessions.
  */
 const IMPACT_COLUMNS = `
   sdv_rapm rapm impact_poss; sdv_o_rapm o_rapm off_poss; sdv_d_rapm d_rapm def_poss
@@ -621,7 +622,12 @@ const IMPACT_COLUMNS = `
   sdv_d_adj_rapm d_adj_rapm def_poss; sdv_spm spm minutes; sdv_ospm ospm minutes
   sdv_dspm dspm minutes; sdv_bpm bpm minutes; sdv_obpm obpm minutes; sdv_dbpm dbpm minutes
   sdv_war war -; sdv_darko_skill darko_filtered_skill games
-  sdv_darko_next darko_projected_rating games; sdv_darko_sd darko_projected_sd games`
+  sdv_darko_next darko_projected_rating games; sdv_darko_sd darko_projected_sd games
+  sdv_boban_skill boban_filtered_skill games; sdv_boban_next boban_projected_rating games
+  sdv_boban_sd boban_projected_sd games; sdv_box_prior box_prior prior_poss
+  sdv_o_box_prior o_box_prior prior_off_poss; sdv_d_box_prior d_box_prior prior_def_poss
+  sdv_reml_rapm reml_rapm prior_poss; sdv_o_reml_rapm o_reml_rapm prior_off_poss
+  sdv_d_reml_rapm d_reml_rapm prior_def_poss`
   .split(/[;\n]/)
   .map((line) => line.trim().split(/\s+/))
   .filter((parts) => parts.length === 3)
@@ -1149,31 +1155,40 @@ describe('the metric catalogue', () => {
 
   it('says on every impact model’s column head and label that it is SportsDataverse’s', () => {
     const impact = CATALOGUE.filter((m) => m.family === 'impact')
-    // The NBA's and WNBA's sixteen, and the college leagues' BPM and two RAPM fits (T1302.6).
-    expect(impact).toHaveLength(25)
+    // The NBA's and WNBA's sixteen, BOBAN's three and the NBA's box prior and REML RAPM (T1703.2),
+    // and the college leagues' BPM and two RAPM fits (T1302.6).
+    expect(impact).toHaveLength(34)
     for (const m of impact) {
       expect(m.short, m.id).toMatch(/ SDV$/)
       expect(m.label, m.id).toMatch(/\(SportsDataverse\)$/)
-      expect(m.description, m.id).toContain('SportsDataverse’s own calculation')
+      expect(m.description, m.id).toMatch(/SportsDataverse’s own (calculation|model|fit)/)
       // The college models name the SportsDataverse release they come from (D44).
       expect(m.sources[0], m.id).toMatch(/^SportsDataverse's /)
       if (!m.leagues?.ncaam || m.leagues.nba !== null) {
         expect(m.sources, m.id).toEqual(["SportsDataverse's impact models"])
       }
     }
-    // DARKO is one regular season's state, so it answers for one season at a time.
-    expect(impact.filter((m) => m.oneSeason).map((m) => m.id)).toEqual([
-      'sdv_darko_skill',
-      'sdv_darko_next',
-      'sdv_darko_sd'
+    // DARKO and BOBAN are one regular season's state, so they answer for one season at a time.
+    const one = impact.filter((m) => m.oneSeason)
+    expect(one.map((m) => [m.id, m.published])).toEqual([
+      ['sdv_boban_skill', 'pub_player_boban'],
+      ['sdv_boban_next', 'pub_player_boban'],
+      ['sdv_boban_sd', 'pub_player_boban'],
+      ['sdv_darko_skill', 'pub_player_darko'],
+      ['sdv_darko_next', 'pub_player_darko'],
+      ['sdv_darko_sd', 'pub_player_darko']
     ])
-    expect(impact.filter((m) => m.oneSeason).every((m) => m.published === 'pub_player_darko')).toBe(
-      true
-    )
-    // The dataset dropped DARKO's columns in November 2026: the three answer with that reason.
-    for (const m of impact.filter((x) => x.oneSeason)) {
-      expect(m.unavailable, m.id).toBe('The dataset no longer publishes DARKO.')
-      expect(m.description, m.id).toContain('November 2026')
+    // The dataset dropped DARKO's columns in November 2026: the three answer with that reason, and
+    // point to BOBAN as another model, never as DARKO under a new name.
+    for (const m of one.filter((x) => x.id.includes('darko'))) {
+      expect(m.unavailable, m.id).toMatch(
+        /^The dataset dropped its DARKO columns in November 2026./
+      )
+      expect(m.unavailable, m.id).toContain('not DARKO')
+    }
+    for (const m of one.filter((x) => x.id.includes('boban'))) {
+      expect(m.unavailable, m.id).toBeUndefined()
+      expect(m.label, m.id).not.toMatch(/DARKO/)
     }
   })
 
