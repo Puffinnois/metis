@@ -1,10 +1,10 @@
 # Decisions
 
-Short log of decisions and why. Newest last. The previous implementation's log (Rust, Tauri) is in `decisions.md` on the `archive/rust-tauri` branch.
+Short log of decisions and why. Newest last. The previous implementation's log (Rust, Tauri) is in `decisions.md` at the `archive/rust-tauri-final` tag.
 
 ## 2026-11-05: the restart
 
-**D1. Restart Metis as a TypeScript app.** The Rust/Python/Tauri implementation is archived at branch `archive/rust-tauri`, tag `archive/rust-tauri-final`. _Why:_ the owner chose to rebuild on the stack and approach that already worked in `fantasy-football-companion`.
+**D1. Restart Metis as a TypeScript app.** The Rust/Python/Tauri implementation is archived at tag `archive/rust-tauri-final`; its branch `archive/rust-tauri`, the same commit, was deleted on 2026-11-23 on the owner's word. _Why:_ the owner chose to rebuild on the stack and approach that already worked in `fantasy-football-companion`.
 
 **D2. Stack: Electron, React, TypeScript, Tailwind, DuckDB (`@duckdb/node-api`), `node:sqlite` for settings, npm, Vitest.** Same as the template, so its code and patterns carry over.
 
