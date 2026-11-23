@@ -541,27 +541,33 @@ export interface RankedRow {
 /**
  * What the engine is asked for a board filtered to favourites (T1601.3) whose rows it did not fetch:
  * the favourites with no row in the answer, each to be placed in the whole order (`StatsQuery.places`),
- * counted among the rows the board stands, as `leaderRows` keeps them. Null when there is nothing to
- * ask: the filter is off, every row is fetched, every favourite has its row, or the board is sorted by
- * name (which orders the fetched rows alone).
+ * counted among the rows the board stands, as `leaderRows` keeps them. The query is the board's own,
+ * so its team and position (`scope.teams`, `scope.positions`) narrow the placed rows and their places
+ * alike. Null when there is nothing to ask: the filter is off, every row is fetched, or every favourite
+ * has its row. Under a name sort it is asked too, ordered as the engine orders that board, so the
+ * screen can say how many favourites it cannot list by name (`unlistedByName`).
  */
 export function placesFor(
   result: StatsResult,
   board: LeaderboardBoard,
-  favourites: ReadonlySet<string>
+  favourites: ReadonlySet<string>,
+  /** The metric the engine sorts the board's query by (`leaderboardQuery`'s `sort`). */
+  engineMetric: string = board.sort.by
 ): StatsQuery['places'] | null {
-  if (!board.favourites || board.sort.by === 'name') return null
+  if (!board.favourites) return null
   if (result.total <= result.rows.length) return null
   const fetched = new Set(result.rows.map((r) => r.id))
   const missing = [...favourites].filter((id) => !fetched.has(id)).slice(0, 500)
   if (!missing.length) return null
   const tab = tabOf(board.entity, board.tab)
   const own = ownQualifiers(result)
-  const standing = own.has(board.sort.by) ? board.sort.by : (tab.qualifier ?? null)
+  // A name sort is ordered by the engine's own sort: the one `leaderboardQuery` asked for.
+  const by = board.sort.by === 'name' ? engineMetric : board.sort.by
+  const standing = own.has(by) ? by : (tab.qualifier ?? null)
   return {
     ids: missing,
     standing,
-    ...(listsEverySample(result, board.sort.by) ? { orSample: true } : {})
+    ...(listsEverySample(result, by) ? { orSample: true } : {})
   }
 }
 
@@ -571,7 +577,11 @@ export function placesFor(
  * with gaps), never 1 to n. With the favourites filter on, the board keeps its favourites: those in
  * the answer, then those the engine placed past it (`extras`, from `placesFor`), ranked by their place
  * among the standing rows, or among every row with "Qualified only" off; one that does not stand is
- * hidden with "Qualified only" on, as any row is.
+ * hidden with "Qualified only" on, as any row is. Both are counted over the same rows: those the
+ * engine answered for the board's scope (its team and position included), standing as `leaderRows`
+ * keeps them. A row kept below the qualifier (`keep`, opened from the home) is listed with no rank and
+ * moves no other row's. Under a name sort the placed rows are not listed: the name sort orders the
+ * fetched rows alone, and `unlistedByName` counts who is left out, for the screen to say so.
  */
 export function boardRows(
   result: StatsResult,
@@ -581,11 +591,17 @@ export function boardRows(
   favourites: ReadonlySet<string> | null,
   extras: readonly StatsRow[] = []
 ): RankedRow[] {
-  const ranked = leaderRows(result, board, '', keep).map((row, i) => ({ row, rank: i + 1 }))
+  // One rule for every rank: the place among the rows the board stands, without the kept row.
+  const rankOf = new Map(leaderRows(result, board, '', null).map((r, i) => [r.id, i + 1]))
+  const ranked = leaderRows(result, board, '', keep).map((row) => ({
+    row,
+    rank: rankOf.get(row.id) ?? null
+  }))
   let shown: RankedRow[] = ranked
   if (board.favourites && favourites) {
     const fetched = new Set(result.rows.map((r) => r.id))
     const placed = extras.flatMap((row): RankedRow[] => {
+      if (board.sort.by === 'name') return []
       if (!favourites.has(row.id) || fetched.has(row.id) || !row.place) return []
       if (board.qualifiedOnly && row.place.standing === null) return []
       return [{ row, rank: board.qualifiedOnly ? row.place.standing : row.place.all }]
@@ -594,4 +610,34 @@ export function boardRows(
   }
   const needle = searchKey(search.trim())
   return needle ? shown.filter((x) => searchKey(x.row.name).includes(needle)) : shown
+}
+
+/**
+ * The favourites a board sorted by name leaves out (T1601.3): placed past the fetched rows, standing
+ * as the board stands them, so they would be listed under any other sort. Zero under another sort.
+ */
+export function unlistedByName(
+  result: StatsResult,
+  board: LeaderboardBoard,
+  favourites: ReadonlySet<string>,
+  extras: readonly StatsRow[]
+): number {
+  if (!board.favourites || board.sort.by !== 'name') return 0
+  const fetched = new Set(result.rows.map((r) => r.id))
+  return extras.filter(
+    (r) =>
+      favourites.has(r.id) &&
+      !fetched.has(r.id) &&
+      r.place !== undefined &&
+      (!board.qualifiedOnly || r.place.standing !== null)
+  ).length
+}
+
+/** The line a board sorted by name shows for the favourites it leaves out. */
+export function unlistedNote(n: number, limit = ROW_LIMIT): string | null {
+  if (n === 0) return null
+  const rows = limit.toLocaleString('en-US')
+  return n === 1
+    ? `1 favourite is past the first ${rows} rows and not listed by name.`
+    : `${n} favourites are past the first ${rows} rows and not listed by name.`
 }

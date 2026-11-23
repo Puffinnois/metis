@@ -22,6 +22,8 @@ import {
   leaderboardQuery,
   boardRows,
   placesFor,
+  unlistedByName,
+  unlistedNote,
   type LeaderboardOpen,
   modeWords,
   rankWithinTab,
@@ -101,7 +103,7 @@ export function StatsLeaderboard({
   const favourites = useFavourites()
   const favSet = entity === 'player' ? favourites.players : favourites.teams
   const placesQuery = useMemo(() => {
-    const places = result && query ? placesFor(result, board, favSet) : null
+    const places = result && query ? placesFor(result, board, favSet, query.sort?.metric) : null
     return places && query ? { ...query, places } : null
   }, [result, query, board, favSet])
   const placed = useStatsQuery(placesQuery, data.version, { keepLast: false }).result
@@ -119,6 +121,13 @@ export function StatsLeaderboard({
       merged.rows.slice(result.rows.length)
     )
   }, [result, placed, placesQuery, tab, board, search, opened?.selected, favSet])
+  const unlisted = useMemo(
+    () =>
+      result && placesQuery
+        ? unlistedNote(unlistedByName(result, board, favSet, placed?.rows ?? []))
+        : null,
+    [result, placesQuery, board, favSet, placed]
+  )
   const rows = useMemo(() => ranked.map((x) => x.row), [ranked])
   const ranks = useMemo(() => ranked.map((x) => x.rank), [ranked])
   // The selected row is on screen, however far down it ranks.
@@ -400,6 +409,11 @@ export function StatsLeaderboard({
             )}
           </div>
           {notice && <div className="truncate text-fg-2">{notice}</div>}
+          {unlisted && (
+            <div className="truncate text-fg-2" data-unlisted="">
+              {unlisted}
+            </div>
+          )}
           {result?.notes.map((n) => (
             <div key={n} className="truncate">
               {n}

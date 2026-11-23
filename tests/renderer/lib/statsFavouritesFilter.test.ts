@@ -1,8 +1,21 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest'
-import { boardRows, defaultBoard, leaderboardCsv, placesFor, tabOf } from '@/lib/stats/leaderboard'
+import {
+  boardRows,
+  defaultBoard,
+  leaderboardCsv,
+  placesFor,
+  tabOf,
+  unlistedByName,
+  unlistedNote
+} from '@/lib/stats/leaderboard'
 import { chartView, DEFAULT_CHART, type ChartState } from '@/lib/stats/chart'
-import { favouriteGameTeams, favouriteRail, type RailGame } from '@/lib/stats/games'
+import {
+  favouriteGameTeams,
+  favouriteRail,
+  playerTeamQueries,
+  type RailGame
+} from '@/lib/stats/games'
 import { favouritesEmpty } from '@/lib/stats/favourites'
 import type {
   LeaderboardBoard,
@@ -154,19 +167,16 @@ describe('the leaderboard filtered to favourites', () => {
       ids: ['x'],
       standing: tabOf('player', 'ALL').qualifier
     })
-    // Nothing to ask: the filter off, every row fetched, every favourite fetched, sorted by name.
+    // Nothing to ask: the filter off, every row fetched, every favourite fetched.
     expect(placesFor(result(rows, 9000), board(), fav)).toBeNull()
     expect(placesFor(result(rows), board({ favourites: true }), fav)).toBeNull()
     expect(placesFor(result(rows, 9000), board({ favourites: true }), new Set(['b']))).toBeNull()
-    expect(
-      placesFor(
-        result(rows, 9000),
-        board({ favourites: true, sort: { by: 'name', dir: 'asc' } }),
-        fav
-      )
-    ).toBeNull()
-    // A metric with the NBA's own minimum stands by it; a games-out count lists every sample.
+    // Sorted by name, it is asked as the engine orders the board, to count who cannot be listed.
     const own = result(rows, 9000, [column('pts', { ownQualifier: true })])
+    expect(
+      placesFor(own, board({ favourites: true, sort: { by: 'name', dir: 'asc' } }), fav, 'pts')
+    ).toEqual({ ids: ['x'], standing: 'pts' })
+    // A metric with the NBA's own minimum stands by it; a games-out count lists every sample.
     expect(placesFor(own, board({ favourites: true }), fav)?.standing).toBe('pts')
     const adds = result(rows, 9000, [column('pts', { addsRows: true })])
     expect(placesFor(adds, board({ favourites: true }), fav)).toMatchObject({ orSample: true })
@@ -285,5 +295,83 @@ describe('what a filtered screen says with nothing to show', () => {
     expect(favouritesEmpty('NCAA Men', 'team', 2, 3)).toBe('No favourite team in this scope.')
     expect(favouritesEmpty('NBA', 'player', 2, 2, 'zzz')).toBe('No favourite matches.')
     expect(favouritesEmpty('NBA', 'game', 3, 3)).toBe('No game of a favourite on this day.')
+  })
+})
+
+describe('the review’s three cases (T1601.3)', () => {
+  it('ranks fetched and placed rows by one rule; a row kept below the qualifier moves none', () => {
+    const fav = new Set(['b', 'd', 'x'])
+    const fetched = result(rows, 9000)
+    const x = row('x', {
+      values: { min: value(900), pts: value(5) },
+      place: { all: 1501, standing: 1204 }
+    })
+    // c is kept (opened from the home) though it does not stand: no rank, and d stays 3rd, as the
+    // engine counts d among the standing rows.
+    expect(shown(boardRows(fetched, board(), '', 'c', fav))).toEqual([
+      ['a', 1],
+      ['b', 2],
+      ['c', null],
+      ['d', 3]
+    ])
+    expect(shown(boardRows(fetched, board({ favourites: true }), '', 'c', fav, [x]))).toEqual([
+      ['b', 2],
+      ['d', 3],
+      ['x', 1204]
+    ])
+  })
+
+  it('takes the team and the position from the engine’s answer: a placed row off the team is not answered', () => {
+    // The places query is the board's own, so its scope.teams narrows the placed rows as it narrows the
+    // fetched ones (the engine test "counts within the board's team and position"). The board adds
+    // only what was answered: on the team, x is there; off it, the engine answers nothing for y.
+    const fav = new Set(['b', 'x', 'y'])
+    const onTeam = row('x', {
+      team: 'OKC',
+      values: { min: value(900), pts: value(5) },
+      place: { all: 41, standing: 33 }
+    })
+    const okc = result([b], 300)
+    expect(
+      shown(
+        boardRows(okc, board({ favourites: true, team: '1610612760' }), '', null, fav, [onTeam])
+      )
+    ).toEqual([
+      ['b', 1],
+      ['x', 33]
+    ])
+  })
+
+  it('lists no placed favourite under a name sort, and counts them for the line it shows', () => {
+    const fav = new Set(['b', 'x', 'y'])
+    const fetched = result(rows, 9000)
+    const byName = board({ favourites: true, sort: { by: 'name', dir: 'asc' } })
+    const x = row('x', { place: { all: 1501, standing: 1204 } })
+    const y = row('y', { place: { all: 1600, standing: null } })
+    expect(shown(boardRows(fetched, byName, '', null, fav, [x, y]))).toEqual([['b', 2]])
+    // y does not stand with "Qualified only" on, so would not be listed under any sort either.
+    expect(unlistedByName(fetched, byName, fav, [x, y])).toBe(1)
+    expect(unlistedByName(fetched, { ...byName, qualifiedOnly: false }, fav, [x, y])).toBe(2)
+    expect(unlistedByName(fetched, board({ favourites: true }), fav, [x, y])).toBe(0)
+    expect(unlistedNote(1)).toBe('1 favourite is past the first 1,000 rows and not listed by name.')
+    expect(unlistedNote(2)).toBe(
+      '2 favourites are past the first 1,000 rows and not listed by name.'
+    )
+    expect(unlistedNote(0)).toBeNull()
+  })
+
+  it('reads every favourite player’s team for Games, in batches of 64, up to 500', () => {
+    const scope = { seasons: [2027] }
+    const ids = (n: number): string[] => Array.from({ length: n }, (_, i) => String(1000 + i))
+    const batches = playerTeamQueries(ids(130), scope)
+    expect(batches.map((q) => q.scope.players?.length)).toEqual([64, 64, 2])
+    expect(batches.flatMap((q) => q.scope.players)).toEqual(ids(130))
+    expect(
+      batches.every((q) => q.limit === q.scope.players?.length && q.scope.seasons[0] === 2027)
+    ).toBe(true)
+    const capped = playerTeamQueries(ids(600), scope)
+    expect(capped.flatMap((q) => q.scope.players)).toHaveLength(500)
+    expect(Math.max(...capped.map((q) => q.scope.players?.length ?? 0))).toBe(64)
+    expect(playerTeamQueries([], scope)).toEqual([])
   })
 })

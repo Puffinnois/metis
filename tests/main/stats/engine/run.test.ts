@@ -580,6 +580,24 @@ describe('places: rows by id, each with its place in the whole order (T1601.3)',
     expect(placeOf(orSample)).toEqual([['3', { all: 3, standing: 3 }]])
   })
 
+  it('counts within the board’s team and position, as its rows are: one rule for both', async () => {
+    // A team filter: only the Lakers' rows are in the order, so player 2 is first and player 1, who never
+    // played for them, has no row and no place.
+    const team = await run({
+      scope: { seasons: [2026], teams: [String(LAL)] },
+      places: { ids: ['1', '2'], standing: null }
+    })
+    expect(placeOf(team)).toEqual([['2', { all: 1, standing: 1 }]])
+    const lakers = await run({ scope: { seasons: [2026], teams: [String(LAL)] } })
+    expect(ids(lakers)[0]).toBe('2')
+    // A position: only the centers.
+    const centers = await run({
+      scope: { seasons: [2026], positions: ['C'] },
+      places: { ids: ['1', '3'], standing: null }
+    })
+    expect(placeOf(centers)).toEqual([['3', { all: 1, standing: 1 }]])
+  })
+
   it('follows the sort and its direction', async () => {
     const r = await run({
       scope: { seasons: [2026] },

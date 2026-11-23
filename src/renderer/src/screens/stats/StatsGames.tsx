@@ -18,6 +18,7 @@ import {
   periodTable,
   favouriteGameTeams,
   favouriteRail,
+  playerTeamQueries,
   railGames,
   stepDay,
   type BoxSide,
@@ -59,7 +60,6 @@ import {
   useOfficialsSeason,
   useSeasonGames,
   useStatsQueries,
-  useStatsQuery,
   type StatsData
 } from '@/lib/stats/useStats'
 import {
@@ -70,7 +70,7 @@ import {
 } from '@/lib/stats/favourites'
 import { cn } from '@/lib/utils'
 import { currentLeague, inLeague, seasonLabel } from '@/lib/stats/league'
-import type { GameType, StatsGame, StatsQuery } from '@shared/stats/types'
+import type { GameType, StatsGame } from '@shared/stats/types'
 
 /** A day's games on a date rail, and a game: its header, scores by period, comparison and box score. */
 export function StatsGames({
@@ -104,22 +104,18 @@ export function StatsGames({
   const favourites = useFavourites()
   // The favourites filter (T1601.3): a favourite team's games, and the games of the team each
   // favourite player is on (their latest game's team in scope, as the engine names it).
-  const playerTeamsQuery = useMemo((): StatsQuery | null => {
-    if (!favouritesOn || favourites.players.size === 0) return null
-    return {
-      entity: 'player',
-      metrics: ['pts'],
-      scope: { ...queryScope(scope, 'player'), players: [...favourites.players].slice(0, 64) },
-      limit: 64,
-      ranks: false
-    }
+  const playerTeamsQueries = useMemo(() => {
+    const qs = favouritesOn
+      ? playerTeamQueries(favourites.players, queryScope(scope, 'player'))
+      : []
+    return qs.length ? new Map(qs.map((q, i) => [`batch-${i}`, q])) : null
   }, [favouritesOn, favourites.players, scope])
-  const playerTeams = useStatsQuery(playerTeamsQuery, data.version, { keepLast: false }).result
+  const playerTeams = useStatsQueries(playerTeamsQueries, data.version).results
   const keptTeams = useMemo(
     () =>
       favouriteGameTeams(
         favourites.teams,
-        (playerTeams?.rows ?? []).map((r) => r.team),
+        [...(playerTeams?.values() ?? [])].flatMap((r) => r.rows.map((row) => row.team)),
         seasonOf(data.seasons, scope.season)?.teams ?? []
       ),
     [favourites.teams, playerTeams, data.seasons, scope.season]

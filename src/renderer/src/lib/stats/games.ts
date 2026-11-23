@@ -560,6 +560,34 @@ export function favouriteGameTeams(
   return out
 }
 
+/** The most favourite players the games filter reads, as `places` takes. */
+export const MAX_FAVOURITE_PLAYERS = 500
+/** A scope lists at most 64 players: the queries are batched by it. */
+const PLAYERS_A_QUERY = 64
+
+/**
+ * The queries that find each favourite player's latest team in scope (T1601.3), every favourite
+ * player in batches of 64, at most 500: one row a player, whose `team` is their latest in scope.
+ */
+export function playerTeamQueries(
+  players: Iterable<string>,
+  scope: StatsQuery['scope']
+): StatsQuery[] {
+  const ids = [...players].slice(0, MAX_FAVOURITE_PLAYERS)
+  const out: StatsQuery[] = []
+  for (let i = 0; i < ids.length; i += PLAYERS_A_QUERY) {
+    const batch = ids.slice(i, i + PLAYERS_A_QUERY)
+    out.push({
+      entity: 'player',
+      metrics: ['pts'],
+      scope: { ...scope, players: batch },
+      limit: batch.length,
+      ranks: false
+    })
+  }
+  return out
+}
+
 /** A day's games kept by the favourites filter: either team is one of `teams`. */
 export function favouriteRail(rail: readonly RailGame[], teams: ReadonlySet<string>): RailGame[] {
   return rail.filter((g) => [g.awayId, g.homeId].some((id) => id !== null && teams.has(id)))
