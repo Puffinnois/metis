@@ -66,15 +66,42 @@ describe('the stats service', () => {
     expect(noRoom?.neededBytes).toBeGreaterThan(5 * 1024 ** 3)
   })
 
-  it('names the latest game once box scores are loaded, newest season first', async () => {
+  it('names the last played game once the tables are built, newest season first', async () => {
     await service!.read(
-      `CREATE TABLE src_espn_team_box AS
-       SELECT 2026 AS season, DATE '2026-06-13' AS game_date
-       UNION ALL SELECT 2027, DATE '2026-11-04' UNION ALL SELECT 2027, DATE '2026-10-21'`
+      `CREATE TABLE game AS
+       SELECT 2026::BIGINT AS season, DATE '2026-06-13' AS game_date, true AS played
+       UNION ALL SELECT 2027, DATE '2026-11-04', true UNION ALL SELECT 2027, DATE '2026-10-21', true`
     )
     await expect(service!.status()).resolves.toMatchObject({
       through: { season: 2027, date: '2026-11-04' }
     })
+  })
+
+  it('reads the tables, not a source that runs ahead of the schedule', async () => {
+    // As on Nov 21, 2026: ESPN's box scores had the day, the NBA's schedule no score for it yet.
+    await service!.read(
+      `CREATE TABLE src_espn_team_box AS
+       SELECT 2027 AS season, DATE '2026-11-21' AS game_date UNION ALL SELECT 2027, DATE '2026-11-20'`
+    )
+    await service!.read(
+      `CREATE TABLE game AS
+       SELECT 2027::BIGINT AS season, DATE '2026-11-20' AS game_date, true AS played
+       UNION ALL SELECT 2027, DATE '2026-11-21', false UNION ALL SELECT 2027, DATE '2026-11-22', false`
+    )
+    const { through } = await service!.status()
+    expect(through).toEqual({ season: 2027, date: '2026-11-20' })
+    expect(typeof through?.season).toBe('number')
+  })
+
+  it('has no date with no table built, or no game played yet', async () => {
+    await service!.read(
+      `CREATE TABLE src_espn_team_box AS SELECT 2027 AS season, DATE '2026-11-21' AS game_date`
+    )
+    await expect(service!.status()).resolves.toMatchObject({ through: null })
+    await service!.read(
+      `CREATE TABLE game AS SELECT 2027::BIGINT AS season, DATE '2026-10-21' AS game_date, false AS played`
+    )
+    await expect(service!.status()).resolves.toMatchObject({ available: true, through: null })
   })
 
   it('answers one SQL statement on its own connection', async () => {
