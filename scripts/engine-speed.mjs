@@ -176,6 +176,36 @@ const CASES = [
       ]
     : []),
   ['The same, per game', player({}, { transform: 'perGame' })],
+  // Filters (D51), applied after the ranks: the same board narrowed by who the players are, by a
+  // metric it shows and by one it does not, over one season and every season.
+  [
+    'Filtered: age and height that season',
+    player(
+      {},
+      {
+        filters: [
+          { attribute: 'age', op: 'atMost', value: 25 },
+          { attribute: 'seasonHeight', op: 'atLeast', value: 78 }
+        ]
+      }
+    )
+  ],
+  [
+    'Filtered: per game, a metric shown',
+    player({}, { transform: 'perGame', filters: [{ metric: 'pts', op: 'atLeast', value: 10 }] })
+  ],
+  [
+    'Filtered: a metric not shown',
+    player({}, { filters: [{ metric: 'ts_pct', op: 'atLeast', value: 0.55 }] })
+  ],
+  [
+    'Filtered: every season, born outside one country',
+    player(
+      { seasons: everySeason() },
+      { filters: [{ attribute: 'birthCountry', op: 'noneOf', value: ['USA'] }] }
+    )
+  ],
+  ['Filtered: teams by arena', team({}, { filters: [{ attribute: 'arena', op: 'hasValue' }] })],
   ['40 columns', player({}, { metrics: ALL_PLAYER.slice(0, 40) })],
   ['A home board', player({ qualifiedOnly: true }, { metrics: ['pts'], transform: 'perGame' })],
   ['A team leaderboard', team({})],

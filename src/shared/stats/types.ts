@@ -338,6 +338,48 @@ export interface StatsQuery {
    * are two window functions a metric, about half of a small query's time. Not with `percentile`.
    */
   ranks?: boolean
+  /**
+   * Conditions every listed row must meet, all of them (D51): each on an attribute of who the player
+   * or team is (`src/shared/stats/attributes.ts`) or on a catalogue metric. Applied after the rows are
+   * aggregated and ranked, so a row keeps its league percentile and rank, the answer lists 1 to n of
+   * those left, `total` counts them and `limit` applies after. A row with no value for a condition's
+   * attribute or metric is left out and counted (`StatsResult.filtered`). At most 20.
+   */
+  filters?: StatsFilter[]
+}
+
+/**
+ * How a filter compares: `between`, `atLeast` and `atMost` for numbers and dates (both ends
+ * included); `anyOf` and `noneOf` for enumerations and text (letter case ignored); `contains` for text
+ * (letter case ignored); `is` and `isNot` for a flag (true or false); `hasValue` and `hasNone` for any.
+ */
+export type FilterOp =
+  | 'between'
+  | 'atLeast'
+  | 'atMost'
+  | 'anyOf'
+  | 'noneOf'
+  | 'contains'
+  | 'is'
+  | 'isNot'
+  | 'hasValue'
+  | 'hasNone'
+
+/**
+ * One condition of `StatsQuery.filters`, on an attribute or on a metric (exactly one of the two). A
+ * metric's value is compared as the query's transform shows it (`MetricValue.value`): per game under
+ * `perGame`, a percentile under `percentile`, a percentage as a fraction (0.4 is 40 %). A metric the
+ * query does not list is computed for the condition and not shown.
+ */
+export interface StatsFilter {
+  attribute?: string
+  metric?: string
+  op: FilterOp
+  /**
+   * `between`: [min, max]; `atLeast`, `atMost`: one bound. A date is YYYY-MM-DD. `anyOf`, `noneOf`: a
+   * list of texts; `contains`: a text. None for `is`, `isNot`, `hasValue` and `hasNone`.
+   */
+  value?: number | string | [number, number] | [string, string] | string[]
 }
 
 export interface MetricValue {
@@ -407,6 +449,13 @@ export interface StatsResult {
   total: number
   /** Caveats a screen should state: coverage, estimates. */
   notes: string[]
+  /**
+   * With `StatsQuery.filters`: the rows left out for having no value of a filtered attribute or
+   * metric (never guessed, policy 4), among the rows the board would list; and why no row can answer,
+   * when a condition is on an attribute or metric the league or the scope does not cover (no rows are
+   * read then).
+   */
+  filtered?: { noValue: number; reason: string | null }
   ms: number
 }
 

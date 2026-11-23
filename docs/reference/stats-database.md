@@ -442,6 +442,7 @@ Built by `src/main/stats/derived/onCourt.ts` (Plan T904) at the end of the `stat
 - **League indexes** (`MetricDef.index`, Plan T1006): an entry names the rate it indexes and copies its formula and sample; the engine replaces the value by 100 × rate / league, or 100 × (2 − rate / league) where the rate's own direction is lower (turnover percentage, the opponents' shooting), so above 100 is better and a zero stays finite; a rate with no better side (usage, three-point attempt rate) is not mirrored. They are the League indexes family (`catalogue/indexes.ts`, `leagueIndexes`), 16 for players (TS+, eFG+, FG%+, 2P%+, 3P%+, FT%+, 3PAr+, FTr+, TOV%+, AST%+, ORB%+, DRB%+, TRB%+, STL%+, BLK%+, USG%+) and 21 for teams (both sides of the nine shooting and four-factor rates, and the team's three rebound rates). Left out: ratings and pace, which are already per 100 possessions and have no conventional index, assist-to-turnover (a ratio with no bound), and counts. An index qualifies, ranks and has gaps as its rate does.
 - **Shrunk** (`StatsQuery.shrunk`, Plan T1006): each rate (`aggregation: 'ratio'`, not a state) with a measured prior `k` reads (sample × value + k × league) / (sample + k), the league as above; an index is pulled toward 100. The raw value stays in `raw`, the column says `shrunk`, and the notes say what was done and name the rates with no prior. Counts are not shrunk. A shrunk metric ranks every row with a sample (`s > 0`), not only the qualified ones, and a shrunk sort puts those rows first. Not with `percentile`, `zScore` or `vsLeague`. The priors come from `metric_stability` (below), read once and kept by the service until a refresh ends, and passed to the compiler as `CompileContext.priors`.
 - **Places** (`StatsQuery.places`, Plan T1601.3): `{ ids, standing, orSample }` answers only the rows named, each with `StatsRow.place`: `all`, its place in the whole order the other forms list (qualified for the sort first, the sort, the name), and `standing`, its place among the rows that qualify for `standing` (a metric of the query, or null for every row), or that have a sample of the sorted metric when `orSample`; null when the row itself does not stand. No limit applies, so a row past the 5,000th still has its place. It is the same SQL as a list, with `row_number()` and a filtered running `count(*)` over one window in that order, then `WHERE id IN` the ids (bound, at most 500, each an id). Not with `groupBy`. A leaderboard filtered to favourites asks it for the favourites it did not fetch, so they keep their league rank (`stats-screens.md`, "Favourites"). Measured on the four-league profile: about 65 ms for NCAA Men's 5,059 player rows, the same as the board's own query; `scripts/engine-speed.mjs` unchanged before and after, since no other query's SQL changes (`nbaSqlUnchanged.test.ts`).
+- **Filters** (`StatsQuery.filters`, D51): conditions on attributes and metrics, applied after the ranks: see "Attributes and filters".
 - **Published metrics:** see below.
 
 ### Metrics with no game behind them
@@ -512,6 +513,278 @@ Measured with `scripts/engine-speed.mjs` on the full database, in the worker, a 
 The last is over the 500 ms a screen is allowed, and no screen asks it. Trends (Plan T803) will, for one position, which is about a third of those rows. Times vary between runs: the same query read 450 ms at worst on another. What a click takes in the window is in [stats-screens.md](stats-screens.md).
 
 Lineups (Plan T710) are one more table that is not a metric: `pub_lineups`, one row per team, season, season type and set of five players, 83,277 rows from 2007-08. It is built by the `stats:published` step from the six lineup dashboards and read by its own call, `lineups`; the engine never sees it, and it has no lineup subject. The five ids are sorted ascending (`p1` to `p5`), which is the order the sources write them, so a unit's key never depends on a file's habit. Each of the 89 stored columns is read from its own dashboard, in `src/shared/stats/lineups.ts`, and the NBA's `nba_stats_lineups` is not read. The table holds every unit any dashboard lists: each file is cut to its first 2,000 regular-season rows by its own sort, so the files list different units and a measure a file does not list reads NULL (`nba-data-sources.md`). Games come from whichever file lists the unit, in the order base, advanced, misc, opponent, four factors, scoring, and minutes from `sum_time_played / 3000`. Counts are stored as published and the rates as published, since a unit is a whole season and nothing adds them up across seasons; the seven percentages of makes over attempts are worked out on read. A team-season reads in 22 ms at the median and 70 ms at most over all 5,244 reads of 2007-08 to 2025-26 (`scripts/check-lineups.mjs`).
+
+## Attributes and filters
+
+D51 (Plan T1701.1). What Metis knows about who a player or a team is, in tables of its own, and the conditions a query can put on it or on any metric.
+
+### The registry
+
+`src/shared/stats/attributes.ts` lists every attribute: id, label, a sentence, entity, type (number, text, date, enumeration, flag), unit, group, its table and column, its sources in the order they are read, and its coverage per league (a first season, a last where a source stopped, or why the league has none). 58 at first, 48 of players and 10 of teams. They are not metrics: they have no sample and no rank, are not summed over games, and are not in the catalogue.
+
+### The tables
+
+Built by `src/main/stats/derived/attributes.ts` in each league's file, by the worker alone (rule 3), at the `stats:attributes` step: after the game tables, and again after the published tables (the bio and the combine are in the published tier). The step has its own version (`ATTRIBUTES_VERSION`), so a change of rules rebuilds them with nothing downloaded, and it logs nothing before the identity tables exist. Measured on the clean four-league load: 0.43 s (NBA), 0.21 s (WNBA), 0.59 s (NCAA Men), 0.50 s (NCAA Women).
+
+| Table                      | One row per                                                            | Rows (NBA, WNBA, NCAA Men, NCAA Women) |
+| -------------------------- | ---------------------------------------------------------------------- | -------------------------------------- |
+| `player_attributes`        | Player of `player`                                                     | 3,602; 1,240; 43,481; 31,740           |
+| `player_season_attributes` | Player and season with a counted game or a line on the league's roster | 16,586; 5,067; 57,058; 45,844          |
+| `team_attributes`          | Row of `team` (a team in a season)                                     | 1,005; 380; 4,287; 3,760               |
+
+What each reads, in order (policy 5: where two sources publish one fact both are kept, `_roster` and `_espn`, and the plain column reads them in this order):
+
+- **Birth date:** the league's roster ("MAR 30, 2003"), else ESPN's athlete file or rosters ("2003-03-30T08:00Z", midnight in the United States written in UTC, so the date part is the day). They differ on 46 of the NBA's 2,645 players both hold, 19 of the WNBA's 820; the colleges have ESPN's alone.
+- **Birthplace, state and country:** ESPN's athlete file, else its rosters. **Country:** the league's bio (NBA, WNBA), the country it lists a player under, which can differ from the birth country.
+- **School:** the league's roster, else the bio's college. **Hometown and high school:** stats.ncaa.org's team rosters, through `ncaa_player_ids`.
+- **Height and weight as last published:** the league's or the college roster ("6-11", the college's inches), else ESPN ("6' 5"", "205 lbs", or its numbers). Heights differ on 274 of the NBA's 2,645 players held by both (36 by more than an inch), 48 of the WNBA's 819, 1,689 of NCAA Men's 13,795. **That season:** the same sources for the season.
+- **Draft:** the league's draft by the draft's own year (the NBA labels a file by the season after, `League.eventYear`), else ESPN's athlete file, whose pick is the overall pick and whose 0 is none: it holds the drafts before the league's files (1996 in the NBA). On the NBA's 1,609 players both hold, 61 differ in year or pick. Pick in round, team and where from are the league's alone. **Undrafted:** true where the bio says "Undrafted", or where no draft lists them though their first season comes after the draft file's first draft; NULL before it, never guessed.
+- **Combine:** the latest combine a player went to, from the anthropometric and athletic testing tables the profile reads; `-1` (several without an id) is left out. The shooting drills stay on the profile.
+- **Career:** first and last season from `player`; seasons played, the seasons with a counted game; season number, that season's place among them, NULL for a player already playing in the league's first loaded season.
+- **Season:** the last team of the season from the season table; jersey and listed position from the league's roster, else stats.ncaa.org's, else ESPN's; experience from the league's roster alone ("R" is 0), since ESPN counts it another way (LeBron James reads 21, 23, 23 over three seasons mixed) and in college its count is a class year (kept as `experience_espn` in the professional leagues); class from stats.ncaa.org ("---" is none), else ESPN's "Freshman" in the same words; how acquired from the league's roster. The roster's line is kept as published (`roster_*`, `on_roster`) for the profile.
+- **Teams:** code, name, conference and division from `team`; city from the league's crosswalk, else ESPN's location (none in college, where ESPN's location is the school's name); arena, its city, state and seats from ESPN's schedule, the venue of most home games that season with neutral sites left out; head coach from the league's coaches, several joined by " / "; first season in the data; Division I from the groups file.
+
+No source publishes handedness. Logos, headshots and team colours are left out (D31).
+
+### Age
+
+Worked out when read, never stored: whole years on a reference day in the season's final year (`AGE_REFERENCE`), January 31 in the NBA and the colleges and July 1 in the WNBA. January 31 is Basketball-Reference's glossary, "player age on January 31 of the given season" (read 2026-11-23). Its WNBA pages count a later day: on 2026-11-23, Diana Taurasi (born June 11) read 38 in 2020 and Nneka Ogwumike (born July 2) 29, which puts it from June 11 to July 1; Arike Ogunbowale, Breanna Stewart and Sabrina Ionescu agree. July 1 is taken inside that window, the exact day not proven. A row grouped by season reads its season's day; otherwise the latest season of its rows in scope. ESPN publishes few college birth dates (14 % of the men's Division I players in 2021-22, 1 % in 2026-27; 4 % and 0 % of the women's), so age answers for few college players and the rest are counted as having no value.
+
+### Filters
+
+`StatsQuery.filters`: at most 20 conditions, all of which hold, each `{ attribute | metric, op, value }`.
+
+| Type                 | Operators                                                              |
+| -------------------- | ---------------------------------------------------------------------- |
+| Number, and a metric | between, at least, at most (both ends included), has a value, has none |
+| Date                 | the same, with YYYY-MM-DD                                              |
+| Enumeration          | any of, none of (letter case ignored), has a value, has none           |
+| Text                 | any of, none of, contains (letter case ignored), has a value, has none |
+| Flag                 | is, is not, has a value, has none                                      |
+
+- **After the ranks:** the compiler (`engine/filters.ts`) adds `judged`, each ranked row with whether it passes and whether it lacks a value a condition needs, and `filtered`, the rows that pass, and every form of the answer (a list, many rows, `places`) reads from it. So a row keeps its percentile and rank among every row, the list is 1 to n of those left, `total` counts them and the limit applies after. A query with no filters reads `shaped` as before: its SQL is unchanged (`nbaSqlUnchanged.test.ts`, and a test that `filters: []` compiles to the same SQL).
+- **Attributes** are joined by the row's id: `player_attributes` by player, `player_season_attributes` and `team_attributes` by player or team and the row's season (its group's when grouped by season, else the latest season of its rows in scope).
+- **Metrics** compare the value as the transform shows it (`t<i>`, `MetricValue.value`): per game under per game, a percentile under percentile, a percentage as a fraction. A metric the query does not list is compiled after its own metrics, for the condition alone, and not shown (`Compiled.shown`).
+- **No value:** a row lacking a value a condition needs is left out. It is counted in `StatsResult.filtered.noValue` when it passes every condition it has a value for: a row the conditions cannot place, not one a condition with a value rejects (with "experience 0 and height at least 82", a veteran with no height is not counted). Counted among the rows the board would list (the qualified ones under "Qualified only"); has a value and has none count nothing. A rookie is experience 0 where the roster lists the player and has no value where it does not (LeBron James has no 2025-26 roster line), so a filter on experience leaves those players out and counts them. With no row left, the count is read on its own.
+- **No answer:** a condition on an attribute the league does not have, or has for none of the seasons in scope ("Arena capacity: published from 2001-02 to 2018-19."), or on a metric with no answer to the query (its column's reason), answers `filtered.reason` and reads nothing; so does one on a file whose attribute tables are not built yet ("Attributes are built at the next refresh of this league.").
+- **Values are bound,** never written into the SQL; text is compared lowercased.
+- **The scope filters** (`positions`, `teams`, `places`) are unchanged. `places` could later be one more condition (an id any of), but it answers a different question, a row's place in the unfiltered order, so it stays.
+
+### Checked on the real load
+
+Seven filtered answers, each recounted from the source tables with SQL that reads neither the attribute tables nor the engine (the league's rosters, ESPN's athlete file and rosters, stats.ncaa.org's rosters, the game rows), on copies of the clean load with the refresh paused, 2026-11-23. Every list and every count of rows with no value is equal.
+
+| League           | Answer                                                                          | Rows | No value |
+| ---------------- | ------------------------------------------------------------------------------- | ---: | -------: |
+| NBA 2025-26      | Rookies (the roster's "R") 6-8 and taller that season, 10 points a game or more |    8 |        5 |
+| NBA 2003-04      | The same: Carmelo Anthony, LeBron James, Chris Bosh                             |    3 |        0 |
+| NBA 2025-26      | Born outside the United States (ESPN's birth country)                           |  128 |       14 |
+| NBA 1997-98      | The same                                                                        |   22 |      340 |
+| WNBA 2025        | The same                                                                        |   30 |       13 |
+| NCAA Men 2025-26 | Freshmen with 15 points a game or more, Division I, every counted game          |   36 |        0 |
+| NCAA Men 2021-22 | The same                                                                        |   14 |        1 |
+
+The five NBA rookies of 2025-26 with no value scored 10 points a game, are 6-8 or taller or have no height, and have no line on that season's published roster (495 lines, against 582 players with a game), so their experience is unknown. The rule before review counted any row with a missing value: the same answers then left out 92, 35, 14, 340, 13, 2 and 122.
+
+Read time (`scripts/engine-speed.mjs`, 2025-26, median of five, warm): the filters cost nothing measurable, and a narrow answer ships fewer rows.
+
+| Query                                            | NBA rows | NBA ms | NCAA Men rows | NCAA Men ms |
+| ------------------------------------------------ | -------: | -----: | ------------: | ----------: |
+| A leaderboard: ten columns, one season           |      582 |    134 |         5,019 |          72 |
+| The same, per game                               |      582 |    129 |         5,019 |          67 |
+| Filtered: age and height that season             |      203 |    121 |           118 |          49 |
+| Filtered: per game, a metric shown               |      215 |    118 |         1,204 |          70 |
+| Filtered: a metric not shown                     |      373 |    124 |         2,352 |          75 |
+| Every season: one leaderboard                    |    3,037 |    216 |        12,197 |         110 |
+| Filtered: every season, born outside one country |      496 |    203 |         1,914 |         109 |
+| Filtered: teams by arena                         |       30 |     34 |           365 |          36 |
+
+### Coverage per league and season
+
+The share of the rows a board lists that hold a value, in percent: each player with a counted game that season (Division I in the colleges), each team with a season line. Measured with `scripts/attribute-coverage.mjs` on the clean load of 2026-11-22, which prints every season; a selection is shown. An attribute a league does not have is left out of its table and gives its reason in the registry. Static attributes (birth date, draft) are counted on each season's players, so their share shows which players of that season have them.
+
+**NBA, players** (rows a season: 403, 442, 441, 464, 442, 492, 530, 582)
+
+| Attribute                              | 1993-94 | 1996-97 | 2000-01 | 2004-05 | 2009-10 | 2014-15 | 2019-20 | 2025-26 |
+| -------------------------------------- | ------: | ------: | ------: | ------: | ------: | ------: | ------: | ------: |
+| Age (`age`)                            |     100 |     100 |     100 |     100 |     100 |     100 |     100 |     100 |
+| Birth date (`birthDate`)               |     100 |     100 |     100 |     100 |     100 |     100 |     100 |     100 |
+| Birthplace (`birthCity`)               |      92 |      91 |      89 |      84 |      87 |      89 |      97 |      97 |
+| Birth state (`birthState`)             |      91 |      90 |      88 |      81 |      81 |      82 |      82 |      81 |
+| Birth country (`birthCountry`)         |      17 |      21 |      30 |      37 |      43 |      60 |      94 |      98 |
+| Country (`country`)                    |      71 |     100 |     100 |     100 |     100 |     100 |     100 |     100 |
+| School (`school`)                      |      71 |     100 |     100 |     100 |     100 |     100 |     100 |     100 |
+| Height (`height`)                      |     100 |     100 |     100 |     100 |     100 |     100 |     100 |     100 |
+| Weight (`weight`)                      |     100 |     100 |     100 |     100 |     100 |     100 |     100 |     100 |
+| Height that season (`seasonHeight`)    |     100 |     100 |     100 |     100 |     100 |     100 |     100 |     100 |
+| Weight that season (`seasonWeight`)    |     100 |     100 |     100 |     100 |     100 |     100 |     100 |     100 |
+| Draft year (`draftYear`)               |      86 |      84 |      84 |      84 |      84 |      82 |      74 |      74 |
+| Draft round (`draftRound`)             |      86 |      84 |      84 |      84 |      84 |      82 |      74 |      74 |
+| Overall pick (`draftPick`)             |      86 |      84 |      84 |      84 |      84 |      82 |      74 |      74 |
+| Pick in round (`draftRoundPick`)       |       0 |       9 |      39 |      66 |      81 |      81 |      74 |      74 |
+| Drafted by (`draftTeam`)               |       0 |       9 |      39 |      66 |      81 |      81 |      74 |      74 |
+| Drafted from (`draftFrom`)             |       0 |       9 |      39 |      66 |      81 |      81 |      74 |      74 |
+| Drafted from (kind) (`draftFromType`)  |       0 |       9 |      39 |      66 |      81 |      81 |      74 |      74 |
+| Undrafted (`undrafted`)                |      95 |      99 |     100 |     100 |     100 |     100 |     100 |     100 |
+| First season (`firstSeason`)           |     100 |     100 |     100 |     100 |     100 |     100 |     100 |     100 |
+| Last season (`lastSeason`)             |     100 |     100 |     100 |     100 |     100 |     100 |     100 |     100 |
+| Seasons played (`seasonsPlayed`)       |     100 |     100 |     100 |     100 |     100 |     100 |     100 |     100 |
+| Season number (`seasonNumber`)         |       0 |      40 |      65 |      90 |     100 |     100 |     100 |     100 |
+| Experience (`experience`)              |       0 |      80 |      80 |      81 |      94 |      91 |      88 |      84 |
+| Team (`team`)                          |     100 |     100 |     100 |     100 |     100 |     100 |     100 |     100 |
+| Jersey (`jersey`)                      |      70 |      99 |     100 |      99 |     100 |     100 |      99 |      99 |
+| Listed position (`listedPosition`)     |     100 |     100 |     100 |     100 |     100 |     100 |     100 |     100 |
+| How acquired (`howAcquired`)           |       0 |       0 |       0 |       0 |       0 |       1 |       3 |      84 |
+| Combine year (`combineYear`)           |       0 |       0 |       4 |      30 |      55 |      65 |      64 |      68 |
+| Combine position (`combinePosition`)   |       0 |       0 |       4 |      30 |      54 |      65 |      64 |      68 |
+| Height without shoes (`heightNoShoes`) |       0 |       0 |       4 |      30 |      54 |      65 |      63 |      62 |
+| Height with shoes (`heightShoes`)      |       0 |       0 |       0 |       8 |      38 |      58 |      62 |      35 |
+| Combine weight (`combineWeight`)       |       0 |       0 |       4 |      30 |      54 |      65 |      63 |      62 |
+| Wingspan (`wingspan`)                  |       0 |       0 |       4 |      30 |      54 |      65 |      63 |      62 |
+| Standing reach (`standingReach`)       |       0 |       0 |       4 |      30 |      54 |      65 |      63 |      62 |
+| Body fat (`bodyFat`)                   |       0 |       0 |       0 |      21 |      41 |      58 |      62 |      35 |
+| Hand length (`handLength`)             |       0 |       0 |       0 |       0 |       0 |      35 |      54 |      59 |
+| Hand width (`handWidth`)               |       0 |       0 |       0 |       0 |       0 |      35 |      54 |      59 |
+| Standing vertical (`standingVertical`) |       0 |       0 |       4 |      28 |      52 |      60 |      51 |      51 |
+| Max vertical (`maxVertical`)           |       0 |       0 |       4 |      27 |      52 |      60 |      51 |      51 |
+| Lane agility (`laneAgility`)           |       0 |       0 |       4 |      27 |      51 |      59 |      50 |      51 |
+| Shuttle run (`shuttleRun`)             |       0 |       0 |       0 |       0 |       0 |      14 |      35 |      43 |
+| Three-quarter sprint (`sprint`)        |       0 |       0 |       3 |      27 |      52 |      59 |      51 |      51 |
+| Bench press (`benchPress`)             |       0 |       0 |       4 |      28 |      52 |      53 |      43 |      14 |
+
+**NBA, teams** (rows a season: 27, 29, 29, 30, 30, 30, 30, 30)
+
+| Attribute                        | 1993-94 | 1996-97 | 2000-01 | 2004-05 | 2009-10 | 2014-15 | 2019-20 | 2025-26 |
+| -------------------------------- | ------: | ------: | ------: | ------: | ------: | ------: | ------: | ------: |
+| Conference (`conference`)        |     100 |     100 |     100 |     100 |     100 |     100 |     100 |     100 |
+| Division (`division`)            |     100 |     100 |     100 |     100 |     100 |     100 |     100 |     100 |
+| City (`city`)                    |     100 |     100 |     100 |     100 |     100 |     100 |     100 |     100 |
+| Head coach (`headCoach`)         |       0 |      48 |      59 |     100 |     100 |      93 |      93 |      87 |
+| First season (`teamFirstSeason`) |     100 |     100 |     100 |     100 |     100 |     100 |     100 |     100 |
+| Arena (`arena`)                  |      41 |      59 |      86 |     100 |     100 |     100 |     100 |     100 |
+| Arena city (`arenaCity`)         |      41 |      59 |      86 |     100 |     100 |     100 |     100 |     100 |
+| Arena state (`arenaState`)       |      41 |      59 |      86 |     100 |     100 |     100 |     100 |     100 |
+| Arena capacity (`arenaCapacity`) |       0 |       0 |       0 |     100 |     100 |     100 |       0 |       0 |
+
+**WNBA, players** (rows a season: 97, 207, 182, 143, 159, 145, 182, 238)
+
+| Attribute                             | 1997 | 2002 | 2006 | 2010 | 2015 | 2020 | 2025 | 2026 |
+| ------------------------------------- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Age (`age`)                           |   85 |   96 |  100 |   99 |  100 |  100 |  100 |  100 |
+| Birth date (`birthDate`)              |   85 |   96 |  100 |   99 |  100 |  100 |  100 |  100 |
+| Birthplace (`birthCity`)              |    2 |    6 |    9 |   40 |   79 |   99 |   93 |   89 |
+| Birth state (`birthState`)            |    1 |    4 |    8 |   38 |   71 |   92 |   82 |   75 |
+| Birth country (`birthCountry`)        |    2 |    7 |   10 |   40 |   82 |   99 |   93 |   89 |
+| Country (`country`)                   |   39 |   68 |   91 |   86 |   80 |  100 |   98 |   99 |
+| School (`school`)                     |  100 |  100 |   99 |   99 |  100 |  100 |  100 |  100 |
+| Height (`height`)                     |   85 |   96 |  100 |   99 |  100 |  100 |  100 |  100 |
+| Weight (`weight`)                     |   85 |   96 |  100 |   99 |   99 |   99 |   82 |   70 |
+| Height that season (`seasonHeight`)   |   84 |   91 |  100 |   99 |  100 |  100 |  100 |  100 |
+| Weight that season (`seasonWeight`)   |   84 |   91 |  100 |   98 |   99 |   98 |   76 |   70 |
+| Draft year (`draftYear`)              |   64 |   74 |   79 |   87 |   84 |   95 |   83 |   77 |
+| Draft round (`draftRound`)            |   64 |   74 |   79 |   87 |   84 |   95 |   83 |   77 |
+| Overall pick (`draftPick`)            |   64 |   74 |   79 |   87 |   84 |   95 |   83 |   77 |
+| Pick in round (`draftRoundPick`)      |   64 |   74 |   79 |   87 |   84 |   95 |   83 |   77 |
+| Drafted by (`draftTeam`)              |   64 |   74 |   79 |   87 |   84 |   95 |   83 |   77 |
+| Drafted from (`draftFrom`)            |   14 |    5 |    2 |    1 |    1 |   19 |   18 |   27 |
+| Drafted from (kind) (`draftFromType`) |   14 |    5 |    2 |    1 |    1 |   19 |   18 |   27 |
+| Undrafted (`undrafted`)               |  100 |  100 |  100 |  100 |  100 |  100 |  100 |  100 |
+| First season (`firstSeason`)          |  100 |  100 |  100 |  100 |  100 |  100 |  100 |  100 |
+| Last season (`lastSeason`)            |  100 |  100 |  100 |  100 |  100 |  100 |  100 |  100 |
+| Seasons played (`seasonsPlayed`)      |  100 |  100 |  100 |  100 |  100 |  100 |  100 |  100 |
+| Season number (`seasonNumber`)        |    0 |   87 |   95 |   99 |  100 |  100 |  100 |  100 |
+| Experience (`experience`)             |   84 |   87 |   91 |   94 |   91 |   97 |   88 |   90 |
+| Team (`team`)                         |  100 |  100 |  100 |  100 |  100 |  100 |  100 |  100 |
+| Jersey (`jersey`)                     |   84 |   88 |   92 |   97 |  100 |  100 |   99 |  100 |
+| Listed position (`listedPosition`)    |   84 |   99 |  100 |  100 |  100 |  100 |  100 |  100 |
+| How acquired (`howAcquired`)          |    0 |    0 |    0 |    1 |    3 |    7 |    0 |   90 |
+
+**WNBA, teams** (rows a season: 8, 16, 14, 12, 12, 12, 13, 15)
+
+| Attribute                        | 1997 | 2002 | 2006 | 2010 | 2015 | 2020 | 2025 | 2026 |
+| -------------------------------- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Conference (`conference`)        |  100 |  100 |  100 |  100 |  100 |  100 |  100 |  100 |
+| City (`city`)                    |  100 |   94 |  100 |  100 |  100 |  100 |  100 |  100 |
+| Head coach (`headCoach`)         |   63 |   63 |   21 |  100 |  100 |   92 |  100 |   93 |
+| First season (`teamFirstSeason`) |  100 |  100 |  100 |  100 |  100 |  100 |  100 |  100 |
+| Arena (`arena`)                  |   50 |   56 |   43 |   42 |  100 |  100 |  100 |  100 |
+| Arena city (`arenaCity`)         |   50 |   56 |   43 |   42 |  100 |  100 |  100 |  100 |
+| Arena state (`arenaState`)       |   50 |   56 |   43 |   42 |  100 |  100 |  100 |  100 |
+| Arena capacity (`arenaCapacity`) |    0 |   56 |   43 |   42 |  100 |  100 |    0 |    0 |
+
+**NCAA Men, players** (rows a season: 5091, 5102, 5063, 5119, 5019, 5059)
+
+| Attribute                           | 2021-22 | 2022-23 | 2023-24 | 2024-25 | 2025-26 | 2026-27 |
+| ----------------------------------- | ------: | ------: | ------: | ------: | ------: | ------: |
+| Age (`age`)                         |      14 |      14 |      11 |       8 |       4 |       1 |
+| Birth date (`birthDate`)            |      14 |      14 |      11 |       8 |       4 |       1 |
+| Birthplace (`birthCity`)            |      97 |      98 |      99 |      99 |     100 |     100 |
+| Birth state (`birthState`)          |      87 |      88 |      87 |      87 |      86 |      83 |
+| Birth country (`birthCountry`)      |      97 |      98 |      99 |      99 |     100 |     100 |
+| Hometown (`hometown`)               |      94 |      98 |      99 |      99 |     100 |      99 |
+| High school (`highSchool`)          |      87 |      93 |      95 |      96 |      97 |      96 |
+| Height (`height`)                   |     100 |     100 |     100 |     100 |     100 |     100 |
+| Weight (`weight`)                   |      97 |      97 |      97 |      98 |      97 |      93 |
+| Height that season (`seasonHeight`) |     100 |     100 |     100 |     100 |     100 |     100 |
+| Weight that season (`seasonWeight`) |      97 |      97 |      97 |      98 |      96 |      93 |
+| First season (`firstSeason`)        |     100 |     100 |     100 |     100 |     100 |     100 |
+| Last season (`lastSeason`)          |     100 |     100 |     100 |     100 |     100 |     100 |
+| Seasons played (`seasonsPlayed`)    |     100 |     100 |     100 |     100 |     100 |     100 |
+| Season number (`seasonNumber`)      |       0 |      37 |      58 |      75 |      94 |      99 |
+| Team (`team`)                       |     100 |     100 |     100 |     100 |     100 |     100 |
+| Jersey (`jersey`)                   |     100 |     100 |     100 |     100 |     100 |     100 |
+| Listed position (`listedPosition`)  |     100 |     100 |     100 |     100 |     100 |     100 |
+| Class (`class`)                     |      98 |      97 |      98 |      99 |     100 |     100 |
+
+**NCAA Men, teams** (rows a season: 358, 363, 362, 364, 365, 365)
+
+| Attribute                        | 2021-22 | 2022-23 | 2023-24 | 2024-25 | 2025-26 | 2026-27 |
+| -------------------------------- | ------: | ------: | ------: | ------: | ------: | ------: |
+| Conference (`conference`)        |     100 |     100 |     100 |     100 |     100 |     100 |
+| Division (`division`)            |      11 |       0 |       0 |       0 |       0 |       0 |
+| First season (`teamFirstSeason`) |     100 |     100 |     100 |     100 |     100 |     100 |
+| Division I (`divisionI`)         |     100 |     100 |     100 |     100 |     100 |     100 |
+| Arena (`arena`)                  |     100 |     100 |     100 |     100 |     100 |     100 |
+| Arena city (`arenaCity`)         |     100 |     100 |     100 |     100 |     100 |     100 |
+| Arena state (`arenaState`)       |     100 |     100 |     100 |     100 |     100 |     100 |
+| Arena capacity (`arenaCapacity`) |     100 |     100 |       0 |       0 |       0 |       0 |
+
+**NCAA Women, players** (rows a season: 4806, 4713, 4684, 4738, 4694, 4496)
+
+| Attribute                           | 2021-22 | 2022-23 | 2023-24 | 2024-25 | 2025-26 | 2026-27 |
+| ----------------------------------- | ------: | ------: | ------: | ------: | ------: | ------: |
+| Age (`age`)                         |       4 |       4 |       3 |       2 |       1 |       0 |
+| Birth date (`birthDate`)            |       4 |       4 |       3 |       2 |       1 |       0 |
+| Birthplace (`birthCity`)            |     100 |      99 |      99 |     100 |     100 |     100 |
+| Birth state (`birthState`)          |      90 |      89 |      88 |      86 |      84 |      83 |
+| Birth country (`birthCountry`)      |     100 |      99 |      99 |     100 |     100 |     100 |
+| Hometown (`hometown`)               |      94 |      98 |      99 |      99 |      98 |      98 |
+| High school (`highSchool`)          |      82 |      90 |      92 |      93 |      94 |      96 |
+| Height (`height`)                   |     100 |     100 |     100 |     100 |     100 |     100 |
+| Weight (`weight`)                   |       2 |       1 |       1 |       0 |       0 |       0 |
+| Height that season (`seasonHeight`) |     100 |     100 |     100 |     100 |     100 |     100 |
+| Weight that season (`seasonWeight`) |       2 |       1 |       1 |       0 |       0 |       0 |
+| First season (`firstSeason`)        |     100 |     100 |     100 |     100 |     100 |     100 |
+| Last season (`lastSeason`)          |     100 |     100 |     100 |     100 |     100 |     100 |
+| Seasons played (`seasonsPlayed`)    |     100 |     100 |     100 |     100 |     100 |     100 |
+| Season number (`seasonNumber`)      |       0 |      33 |      54 |      73 |      94 |     100 |
+| Team (`team`)                       |     100 |     100 |     100 |     100 |     100 |     100 |
+| Jersey (`jersey`)                   |     100 |     100 |     100 |     100 |     100 |     100 |
+| Listed position (`listedPosition`)  |     100 |     100 |     100 |     100 |     100 |     100 |
+| Class (`class`)                     |      96 |      97 |      97 |      98 |     100 |     100 |
+
+**NCAA Women, teams** (rows a season: 356, 361, 360, 362, 363, 363)
+
+| Attribute                        | 2021-22 | 2022-23 | 2023-24 | 2024-25 | 2025-26 | 2026-27 |
+| -------------------------------- | ------: | ------: | ------: | ------: | ------: | ------: |
+| Conference (`conference`)        |     100 |     100 |     100 |     100 |     100 |     100 |
+| Division (`division`)            |       7 |       0 |       0 |       0 |       0 |       0 |
+| First season (`teamFirstSeason`) |     100 |     100 |     100 |     100 |     100 |     100 |
+| Division I (`divisionI`)         |     100 |     100 |     100 |     100 |     100 |     100 |
+| Arena (`arena`)                  |     100 |     100 |     100 |     100 |     100 |     100 |
+| Arena city (`arenaCity`)         |     100 |     100 |     100 |     100 |     100 |     100 |
+| Arena state (`arenaState`)       |     100 |     100 |     100 |     100 |     100 |     100 |
+| Arena capacity (`arenaCapacity`) |     100 |     100 |       0 |       0 |       0 |       0 |
 
 ## Models
 
@@ -719,19 +992,19 @@ The model code is one for every league; what differs is read from the league's r
 
 `src/main/stats/reads.ts`: plain reads a dashboard needs that are not a metric. A table not loaded yet reads as nothing, and a column a source has dropped as NULL.
 
-| Read                                             | Answers                                                                                                                                         |
-| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `player(id)`                                     | Name, seasons, latest position and team; number, size, birth date and school from the latest roster line                                        |
-| `games(season)`                                  | Every game on the schedule, played or not: its type, sides, score, whether a box score is held, overtimes                                       |
-| `game(id)`                                       | ESPN's venue, city, attendance and note, and the score by period when those add up to the final score                                           |
-| `standings(season)`                              | The published standings: `src_nba_standings`, or the dashboards' file for 1995-96                                                               |
-| `matchups(id, season)`                           | Who a defender guarded and who guarded them, from `pub_matchup_pairs`                                                                           |
-| `lineups(team, season, type, group)`             | A team's five-man units for a season and season type with one dashboard's columns, most minutes first, from `pub_lineups`; empty before 2007-08 |
-| `profile(id)`                                    | The latest roster line, the draft pick, and every combine the player went to, each measure with its percentile in its position group            |
-| `availability(ids)`                              | Each player's status on their team's newest official injury report that lists anyone, with its reason and date                                  |
-| `onCourtUnits(team, season, scope, size)`        | A team's groups of two to five players on the floor, counted from the plays, from `unit_game`: see "On court"                                   |
-| `withOrWithout(player, teammate, season, scope)` | A player's team with a teammate on and off the floor, in the games both played: see "On court"                                                  |
-| `coaches(team, season)`                          | The head coach and the assistants of a season, from `src_nba_coaches`                                                                           |
+| Read                                             | Answers                                                                                                                                                                  |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `player(id)`                                     | Name, seasons, latest position and team; number, size, birth date and school from the latest roster line, read from the attribute tables (D51)                           |
+| `games(season)`                                  | Every game on the schedule, played or not: its type, sides, score, whether a box score is held, overtimes                                                                |
+| `game(id)`                                       | ESPN's venue, city, attendance and note, and the score by period when those add up to the final score                                                                    |
+| `standings(season)`                              | The published standings: `src_nba_standings`, or the dashboards' file for 1995-96                                                                                        |
+| `matchups(id, season)`                           | Who a defender guarded and who guarded them, from `pub_matchup_pairs`                                                                                                    |
+| `lineups(team, season, type, group)`             | A team's five-man units for a season and season type with one dashboard's columns, most minutes first, from `pub_lineups`; empty before 2007-08                          |
+| `profile(id)`                                    | The latest roster line and the draft pick, from the attribute tables (D51), and every combine the player went to, each measure with its percentile in its position group |
+| `availability(ids)`                              | Each player's status on their team's newest official injury report that lists anyone, with its reason and date                                                           |
+| `onCourtUnits(team, season, scope, size)`        | A team's groups of two to five players on the floor, counted from the plays, from `unit_game`: see "On court"                                                            |
+| `withOrWithout(player, teammate, season, scope)` | A player's team with a teammate on and off the floor, in the games both played: see "On court"                                                                           |
+| `coaches(team, season)`                          | The head coach and the assistants of a season, from `src_nba_coaches`                                                                                                    |
 
 - **A side with no row in `team`** is an All-Star team or a touring club: its name comes from the NBA's schedule, then ESPN's.
 - **Overtime** is read from the team's minutes, five players over regulation (240 in the NBA) and five more per overtime minute (25 a period), from the league's `gameMinutes` and `overtimeMinutes`. It matches ESPN's period on nearly every game, and in 2001-02 ESPN's undercounts: it has 30 overtime games to the box scores' 70. Where `game` holds its own count (the WNBA's, T1301.5) it is read from there, NULL where neither the game logs nor ESPN knows it (most games of 1997 to 2001), rather than guessed from players' whole minutes.

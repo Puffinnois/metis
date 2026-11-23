@@ -40,6 +40,14 @@ import { SPLIT_PLAYER, SPLIT_PLAYER_SQL, SPLIT_TEAM, SPLIT_TEAM_SQL } from '../d
 import { PUBLISHED_GAME_TYPES } from '../derived/publishedTables'
 import { leftOutGap } from '../leftOut'
 import { modelTable, type ModelTable } from '../models/build'
+import {
+  checkFilters,
+  filterGap,
+  filterMetrics,
+  filterSql,
+  filterTables,
+  type CheckedFilter
+} from './filters'
 import { grainsOf } from './registry'
 
 /** A query the engine refuses, with a message a person can act on. */
@@ -130,6 +138,18 @@ export interface Compiled {
   /** The team games the catalogue's minimums are stated for: `League.minimumsGames`. */
   fullSeason: number
   notes: string[]
+  /** The metrics the query lists, first in `metrics`; those after are computed for its filters only. */
+  shown: number
+  /** Why no row can answer the query's filters (D51), or null; nothing is read when there is one. */
+  filterGap: string | null
+  /** The attribute tables the filters read, which the file must hold. */
+  filterTables: string[]
+  /**
+   * With filters: the count of rows left out for having no value, for an answer with no rows left
+   * (each row of an answer carries it otherwise), and its parameters.
+   */
+  noValueSql?: string
+  noValueParams?: Value[]
 }
 
 function fail(message: string): never {
@@ -181,7 +201,8 @@ const QUERY_FIELDS = [
   'sort',
   'limit',
   'ranks',
-  'places'
+  'places',
+  'filters'
 ]
 const SCOPE_FIELDS = [
   'seasons',
@@ -226,6 +247,8 @@ interface Checked {
   /** The tables whose own rows add rows to this query's result (`PublishedTable.addsRows`). */
   adds: string[]
   league: League
+  /** The query's filters, checked (D51). */
+  filters: CheckedFilter[]
 }
 
 /** The checks, with readable messages, before anything reaches SQL. */
@@ -238,7 +261,9 @@ function validate(q: StatsQuery, ctx: CompileContext): Checked {
   }
   if (new Set(q.metrics).size !== q.metrics.length) fail('metrics must not repeat')
   const league = ctx.league
-  const metrics = q.metrics.map((id) => {
+  // A metric a filter names that the query does not list is computed after the listed ones.
+  const filters = checkFilters(q, fail, knownFields)
+  const metrics = [...q.metrics, ...filterMetrics(q, filters)].map((id) => {
     // As this league reads it: its first season and gaps there, or unavailable where it has none.
     const def = metricIn(METRICS.get(id) ?? fail(`unknown metric "${id}"`), league)
     if (def.entity !== q.entity) fail(`"${id}" is a ${def.entity} metric, not a ${q.entity} one`)
@@ -395,7 +420,7 @@ function validate(q: StatsQuery, ctx: CompileContext): Checked {
       )
     )
   ]
-  return { metrics, gaps, grain, gameTypes, transform, groupBy, adds, league }
+  return { metrics, gaps, grain, gameTypes, transform, groupBy, adds, league, filters }
 }
 
 /** What a published table can leave out, for the transform that needs it. */
@@ -1289,6 +1314,37 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
     flagged AS (SELECT a.*, ${[...flags, ...pulled].join(', ')} FROM ${rowsFrom} a),${rankCtes.map((r) => `\n    ${r},`).join('')}
     ${rankedCte},
     shaped AS (SELECT *, ${shaped.join(', ')} FROM ranked)`
+  // The filters (D51), after the ranks: `judged` marks each ranked row, `filtered` keeps those that
+  // pass, and every form below lists from it. A query without filters reads `shaped` as it did.
+  const filtering = c.filters.length > 0
+  const qualifiedSort = q.scope.qualifiedOnly && c.gaps[sort] === null
+  let top = head
+  let from = 'shaped'
+  let noValue = ''
+  let noValueSql: string | undefined
+  let noValueParams: Value[] | undefined
+  if (filtering) {
+    const f = filterSql(
+      c.filters,
+      c.groupBy,
+      c.league,
+      (id) => c.metrics.findIndex((m) => m.id === id),
+      (v) => params.add(v)
+    )
+    top = `${head},
+    judged AS (
+      SELECT x.*, ${f.pass} AS f_pass, ${f.missing} AS f_missing
+      FROM shaped x
+      ${f.joins}),
+    filtered AS (SELECT * FROM judged WHERE f_pass)`
+    from = 'filtered'
+    // The rows left out for having no value, among those the board would list.
+    const counted = `(SELECT count(*) FROM judged WHERE f_missing${qualifiedSort ? ` AND q${sort}` : ''})`
+    noValue = `, ${counted} AS no_value`
+    noValueSql = `${top}
+    SELECT ${counted} AS no_value`
+    noValueParams = [...params.values]
+  }
   const nameSql = player
     ? `coalesce(pl.name, ${adding ? 'x.added_name, ' : ''}x.id::VARCHAR)`
     : 'coalesce(tm.name, x.id::VARCHAR)'
@@ -1316,12 +1372,12 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
       j >= 0 ? `q${j}` : 'true',
       ...(pl.orSample ? [`coalesce(s${sort}, 0) > 0`] : [])
     ].join(' OR ')
-    return `${head},
+    return `${top},
     placed AS (
-      SELECT x.*, ${nameSql} AS name, tm.code AS team_code, count(*) OVER () AS total,
+      SELECT x.*, ${nameSql} AS name, tm.code AS team_code, count(*) OVER () AS total${noValue},
              row_number() OVER w AS place_all,
              CASE WHEN ${stand} THEN count(*) FILTER (WHERE ${stand}) OVER w END AS place_standing
-      FROM shaped x
+      FROM ${from} x
       ${player ? 'LEFT JOIN player pl ON pl.player_id = x.id' : ''}
       LEFT JOIN team tm ON tm.team_id = x.team_id AND tm.season = x.last_season
       ${q.scope.qualifiedOnly && c.gaps[sort] === null ? `WHERE q${sort}` : ''}
@@ -1332,24 +1388,24 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
   const sql = q.places
     ? placesSql(q.places)
     : c.league.manyRows && limited
-      ? `${head},
+      ? `${top},
     listed AS (
       SELECT ${keys.map((k) => `x.${k}`).join(', ')}, ${nameSql} AS name,
-             tm.code AS team_code, count(*) OVER () AS total,
+             tm.code AS team_code, count(*) OVER () AS total${noValue},
              ${first} AS o_first, t${sort} AS o_sort
-      FROM shaped x
+      FROM ${from} x
       ${player ? 'LEFT JOIN player pl ON pl.player_id = x.id' : ''}
       LEFT JOIN team tm ON tm.team_id = x.team_id AND tm.season = x.last_season
       ${q.scope.qualifiedOnly && c.gaps[sort] === null ? `WHERE q${sort}` : ''}
       ORDER BY o_first DESC, o_sort ${dir.toUpperCase()} NULLS LAST, name
       LIMIT ${q.limit ?? DEFAULT_LIMIT})
-    SELECT ${shown.map((col) => `x.${col}`).join(', ')}, l.name, l.team_code, l.total
+    SELECT ${shown.map((col) => `x.${col}`).join(', ')}, l.name, l.team_code, l.total${filtering ? ', l.no_value' : ''}
     FROM listed l JOIN shaped x ON ${keys.map((k) => `x.${k} IS NOT DISTINCT FROM l.${k}`).join(' AND ')}
     ORDER BY l.o_first DESC, l.o_sort ${dir.toUpperCase()} NULLS LAST, l.name`
-      : `${head}
+      : `${top}
     SELECT x.*, ${nameSql} AS name,
-           tm.code AS team_code, count(*) OVER () AS total
-    FROM shaped x
+           tm.code AS team_code, count(*) OVER () AS total${noValue}
+    FROM ${from} x
     ${player ? 'LEFT JOIN player pl ON pl.player_id = x.id' : ''}
     LEFT JOIN team tm ON tm.team_id = x.team_id AND tm.season = x.last_season
     ${q.scope.qualifiedOnly && c.gaps[sort] === null ? `WHERE q${sort}` : ''}
@@ -1407,7 +1463,13 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
       if (c.groupBy.includes('month')) return (perSeason / shape.months) * span
       return perSeason * span
     },
-    notes: [...notesOf(q, c), ...shrunkNotes(q, c, shrunk)]
+    notes: [...notesOf(q, c), ...shrunkNotes(q, c, shrunk)],
+    shown: q.metrics.length,
+    filterGap: filtering
+      ? filterGap(c.filters, c.league, [...new Set(q.scope.seasons)], c.metrics, c.gaps)
+      : null,
+    filterTables: filterTables(c.filters),
+    ...(noValueSql ? { noValueSql, noValueParams } : {})
   }
 }
 

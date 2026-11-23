@@ -21,15 +21,32 @@ export async function runQuery(
 ): Promise<StatsResult> {
   const started = Date.now()
   const compiled = compileQuery(query, ctx)
+  // A filter no row can answer says why, and nothing is read (D51); so does one on an attribute
+  // table this file does not hold yet, which its next refresh builds.
+  const gap = compiled.filterGap ?? (await missingTables(db, compiled.filterTables))
+  if (gap !== null) {
+    return { ...emptyResult(compiled), filtered: { noValue: 0, reason: gap }, ms: 0 }
+  }
   let timedOut = false
   const timer = setTimeout(() => {
     timedOut = true
     db.interrupt()
   }, timeoutMs)
   let rows: Record<string, unknown>[]
+  let noValue = 0
   try {
     const factor = await qualificationFactor(db, compiled, query)
     rows = await db.all(compiled.sql.replaceAll('$factor', factor), compiled.params)
+    // Every row carries the count of rows left out for no value; with none left it is read alone.
+    if (compiled.noValueSql && rows.length === 0) {
+      const left = await db.get<{ no_value: number }>(
+        compiled.noValueSql.replaceAll('$factor', factor),
+        compiled.noValueParams
+      )
+      noValue = num(left?.no_value) ?? 0
+    } else if (compiled.noValueSql) {
+      noValue = num(rows[0]?.no_value) ?? 0
+    }
   } catch (err) {
     if (timedOut) throw new StatsQueryError(`the query took longer than ${timeoutMs / 1000} s`)
     throw err
@@ -38,16 +55,18 @@ export async function runQuery(
   }
   const groupBy: GroupBy[] = query.groupBy ?? []
   const seasons = [...new Set(query.scope.seasons)].sort((a, b) => a - b)
+  // The metrics the query lists; any after them are computed for its filters only.
+  const shown = compiled.metrics.slice(0, compiled.shown)
   // A published column with a blank row says why: the source gives no value for it (a rate over
   // nothing, or a NaN as published, which the published tables read as none).
-  const blanks = compiled.metrics.flatMap((m, i) =>
+  const blanks = shown.flatMap((m, i) =>
     m.published && compiled.gaps[i] === null && rows.some((r) => num(r[`v${i}`]) === null)
       ? [`${m.label}: not published for every row; blank where the source gives no value.`]
       : []
   )
   return {
     grain: compiled.grain,
-    columns: compiled.metrics.map((m, i) => ({
+    columns: shown.map((m, i) => ({
       id: m.id,
       label: m.label,
       short: m.short,
@@ -74,7 +93,7 @@ export async function runQuery(
       ),
       games: num(r.games) ?? 0,
       values: Object.fromEntries(
-        compiled.metrics.map((m, i): [string, MetricValue] => [
+        shown.map((m, i): [string, MetricValue] => [
           m.id,
           {
             value: num(r[`t${i}`]),
@@ -89,8 +108,42 @@ export async function runQuery(
     })),
     total: num(rows[0]?.total) ?? 0,
     notes: [...compiled.notes, ...blanks],
+    ...(compiled.noValueSql ? { filtered: { noValue, reason: null } } : {}),
     ms: Date.now() - started
   }
+}
+
+/** The columns of a query with no rows read: each says why it has none, or its own reason. */
+function emptyResult(compiled: Compiled, reason?: string): StatsResult {
+  return {
+    grain: compiled.grain,
+    columns: compiled.metrics.slice(0, compiled.shown).map((m, i) => ({
+      id: m.id,
+      label: m.label,
+      short: m.short,
+      unit: compiled.transform === 'percentile' ? 'number' : m.unit,
+      decimals: m.decimals,
+      direction: m.direction,
+      seasons: [],
+      reason: reason ?? compiled.gaps[i]
+    })),
+    rows: [],
+    total: 0,
+    notes: reason ? [reason] : compiled.notes,
+    ms: 0
+  }
+}
+
+/** Why a filter cannot be read in this file: an attribute table it does not hold yet; else null. */
+async function missingTables(db: StatsDb, tables: string[]): Promise<string | null> {
+  if (tables.length === 0) return null
+  const row = await db.get<{ n: number }>(
+    `SELECT count(*) AS n FROM duckdb_tables()
+     WHERE schema_name = 'main' AND table_name IN (${tables.map((t) => `'${t}'`).join(', ')})`
+  )
+  return Number(row?.n ?? 0) === tables.length
+    ? null
+    : 'Attributes are built at the next refresh of this league.'
 }
 
 /**
@@ -103,24 +156,7 @@ export function noDataResult(
   ctx: CompileContext,
   reason: string = ctx.league.noData
 ): StatsResult {
-  const compiled = compileQuery(query, ctx)
-  return {
-    grain: compiled.grain,
-    columns: compiled.metrics.map((m) => ({
-      id: m.id,
-      label: m.label,
-      short: m.short,
-      unit: compiled.transform === 'percentile' ? 'number' : m.unit,
-      decimals: m.decimals,
-      direction: m.direction,
-      seasons: [],
-      reason
-    })),
-    rows: [],
-    total: 0,
-    notes: [reason],
-    ms: 0
-  }
+  return emptyResult(compileQuery(query, ctx), reason)
 }
 
 /**
