@@ -96,7 +96,7 @@ export function LeaderTable({
   onSort: (by: string) => void
 }): React.JSX.Element {
   const player = board.entity === 'player'
-  const groups = columnGroups(board.columns, tab, byId)
+  const groups = columnGroups(board.columns, tab, byId, board.category ?? '')
   const resultCol = new Map(columns.map((c) => [c.id, c]))
   // A shrunk column ranks every row with a sample, the ones below the qualifier too.
   const shrunkCol = new Set(columns.filter((c) => c.shrunk).map((c) => c.id))

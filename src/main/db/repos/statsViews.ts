@@ -31,7 +31,10 @@ export function isBoard(b: unknown): b is LeaderboardBoard {
     MODES.includes(x.mode as string) &&
     typeof x.qualifiedOnly === 'boolean' &&
     (x.team === null || text(x.team)) &&
-    (x.favourites === undefined || typeof x.favourites === 'boolean')
+    (x.favourites === undefined || typeof x.favourites === 'boolean') &&
+    // The category tab and its preset (D52): absent in views saved before them, empty for Overview.
+    (x.category === undefined || x.category === '' || text(x.category)) &&
+    (x.view === undefined || x.view === '' || text(x.view))
   )
 }
 

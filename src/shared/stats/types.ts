@@ -842,6 +842,16 @@ export interface LeaderboardBoard {
    * the flag, never the ids; absent in views saved before it, which open with it off.
    */
   favourites?: boolean
+  /**
+   * The category tab (D52, `categories.ts`); absent or empty for Overview, the tab's own columns, as
+   * every view saved before categories opens.
+   */
+  category?: string
+  /**
+   * The preset of the category shown (`categoryViews`): a placement, an umbrella's heading or `key`.
+   * The columns are still the board's own, so a view keeps what the user changed.
+   */
+  view?: string
 }
 
 /** A saved view: a named leaderboard, kept in `metis.db`. */
