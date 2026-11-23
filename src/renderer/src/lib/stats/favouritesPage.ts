@@ -115,10 +115,13 @@ export function gameLines(
   return out
 }
 
-/** A line the player played (not a games-out row). */
-const played = (l: GameLine): boolean => l.out === null && !isOutOnly(l)
-const isOutOnly = (l: GameLine): boolean =>
-  (l.values.min ?? null) === null && (l.values.pts ?? null) === null
+/**
+ * A line of a game played: not a games-out row, and some value of the box score. A team's line holds
+ * `team_` columns, a player's their own, so any value counts.
+ */
+const played = (l: GameLine): boolean =>
+  l.out === null &&
+  Object.entries(l.values).some(([k, v]) => v !== null && !k.startsWith('games_out'))
 
 /**
  * The team a player is on on a day: their latest game's team on or before it, or, before their first
@@ -462,4 +465,15 @@ export function pageLeagues<L extends string>(
   return [current, ...order.filter((l) => l !== current)]
     .filter((l) => (favourites[l] ?? []).length > 0)
     .map((league) => ({ league, downloaded: hasFile(league) }))
+}
+
+/**
+ * A "Did not play" reason from the injury report's last listing before the game (T1206's source):
+ * "Listed Out: Injury/Illness - Low Back Tightness". Null with no listing: the data gives no reason.
+ */
+export function listingWords(
+  listing: { status: string; reason: string | null } | null
+): string | null {
+  if (!listing) return null
+  return listing.reason ? `Listed ${listing.status}: ${listing.reason}` : `Listed ${listing.status}`
 }

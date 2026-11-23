@@ -23,6 +23,7 @@ import type {
   GameType,
   StatsProfile,
   StatsAvailability,
+  StatsGameListing,
   StatsCoach,
   StatsIndexedPlayer,
   StatsPlayerInfo,
@@ -78,6 +79,7 @@ export interface StatsClient {
   lineups(team: string, season: number, gameType: string, group: LineupGroup): Promise<StatsLineups>
   profile(player: string): Promise<StatsProfile>
   availability(players: string[]): Promise<StatsAvailability[]>
+  gameListings(games: string[], players: string[]): Promise<StatsGameListing[]>
   coaches(team: string, season: number): Promise<StatsCoach[]>
   shots(request: StatsShotRequest): Promise<StatsShotChart>
   assists(request: StatsAssistRequest): Promise<StatsAssistNetwork>
@@ -181,6 +183,8 @@ export function startStatsWorker(
       request<StatsLineups>((id) => ({ id, kind: 'lineups', team, season, gameType, group })),
     availability: (players) =>
       request<StatsAvailability[]>((id) => ({ id, kind: 'availability', players })),
+    gameListings: (games, players) =>
+      request<StatsGameListing[]>((id) => ({ id, kind: 'gameListings', games, players })),
     coaches: (team, season) =>
       request<StatsCoach[]>((id) => ({ id, kind: 'coaches', team, season })),
     shots: (shot) => request<StatsShotChart>((id) => ({ id, kind: 'shots', request: shot })),

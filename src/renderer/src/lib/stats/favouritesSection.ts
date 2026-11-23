@@ -3,7 +3,13 @@ import { api } from '@/lib/api'
 import { errorMessage } from '@/lib/format'
 import type { Favourite } from '@shared/favourites'
 import type { LeagueId } from '@shared/leagues'
-import type { GameType, StatsGame, StatsResult, StatsSeason } from '@shared/stats/types'
+import type {
+  GameType,
+  StatsGame,
+  StatsGameListing,
+  StatsResult,
+  StatsSeason
+} from '@shared/stats/types'
 import {
   counts,
   favouriteDays,
@@ -191,4 +197,39 @@ export function useTopScorers(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key])
   return result && result.key === key ? result.value : null
+}
+
+/**
+ * The injury report's listings for the games the section's favourite players did not play on the day
+ * (T1601.4): one read of the league's report for those games and players, once the day is known.
+ */
+export function useGameListings(
+  section: SectionData,
+  dnp: readonly { game: string; player: string }[]
+): Map<string, StatsGameListing> {
+  const key = `${section.league}|${dnp.map((d) => `${d.game}:${d.player}`).join(',')}`
+  const [held, setHeld] = useState<{ key: string; value: Map<string, StatsGameListing> } | null>(
+    null
+  )
+  useEffect(() => {
+    if (!dnp.length) return
+    let alive = true
+    void api.stats
+      .gameListings(
+        section.league,
+        [...new Set(dnp.map((d) => d.game))],
+        [...new Set(dnp.map((d) => d.player))]
+      )
+      .then(
+        (rows) =>
+          alive &&
+          setHeld({ key, value: new Map(rows.map((r) => [`${r.gameId}:${r.playerId}`, r])) })
+      )
+      .catch(() => alive && setHeld({ key, value: new Map() }))
+    return () => {
+      alive = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key])
+  return held && held.key === key ? held.value : new Map()
 }

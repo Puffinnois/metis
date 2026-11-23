@@ -10,6 +10,7 @@ import {
   allDays,
   gameWords,
   MIN_GAMES,
+  listingWords,
   orderRows,
   pageDay,
   pageLeagues,
@@ -32,6 +33,7 @@ import {
 } from '@/lib/stats/favouritesPage'
 import {
   useFavouritesSection,
+  useGameListings,
   useTopScorers,
   type SectionData
 } from '@/lib/stats/favouritesSection'
@@ -480,6 +482,16 @@ function Section({
     [favourites]
   )
   const scorers = useTopScorers(section, teamIds, day)
+  // The games the favourite players did not play on the day, for their listings' reasons.
+  const dnp = useMemo(() => {
+    if (section.status !== 'ready' || day === null) return []
+    return favourites.flatMap((f) => {
+      if (f.kind !== 'player') return []
+      const st = playerState(section.players.get(f.id) ?? [], day, section.games)
+      return st.kind === 'dnp' ? [{ game: st.game.id, player: f.id }] : []
+    })
+  }, [section, day, favourites])
+  const listings = useGameListings(section, dnp)
   useEffect(() => {
     if (!downloaded) onDays(league, [])
     else if (section.status !== 'loading') onDays(league, section.days)
@@ -563,7 +575,15 @@ function Section({
       continue
     }
     const team = state.kind === 'played' ? state.line.team : state.team
-    playerRows.push({ favourite: f, state, row: { state, lines, team } })
+    // The injury report's reason for a game not played, where it lists the player.
+    const shown =
+      state.kind === 'dnp'
+        ? {
+            ...state,
+            reason: listingWords(listings.get(`${state.game.id}:${f.id}`) ?? null) ?? state.reason
+          }
+        : state
+    playerRows.push({ favourite: f, state: shown, row: { state: shown, lines, team } })
   }
   const teamRows: Ordered<null>[] = teams.map((f) => {
     const g = teamGameOn(f.id, day, section.games)

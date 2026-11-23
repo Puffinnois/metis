@@ -5,6 +5,7 @@ import {
   favouriteDays,
   gameLines,
   gameWords,
+  listingWords,
   MIN_GAMES,
   orderRows,
   pageDay,
@@ -169,6 +170,23 @@ describe('a player’s row', () => {
     ]
     expect(seasonSoFar(all, all[1]).map((l) => l.values.pts)).toEqual([10, 20])
     expect(seasonSoFar(all, all[3]).map((l) => l.values.pts)).toEqual([10, 20, 30])
+  })
+
+  it('sets a team’s line against its own played games, its columns being the team’s', () => {
+    const team = [
+      line('g1', BOS, { team_pts: 100 }),
+      line('g2', BOS, { team_pts: 90 }),
+      line('g4', BOS, { team_pts: 110 })
+    ]
+    expect(seasonSoFar(team, team[2]).map((l) => l.values.team_pts)).toEqual([100, 90, 110])
+  })
+
+  it('words a listing’s reason, the report’s own', () => {
+    expect(listingWords({ status: 'Out', reason: 'Injury/Illness - Low Back Tightness' })).toBe(
+      'Listed Out: Injury/Illness - Low Back Tightness'
+    )
+    expect(listingWords({ status: 'Out', reason: null })).toBe('Listed Out')
+    expect(listingWords(null)).toBeNull()
   })
 
   it('counts the favourites with no game in the season at the section’s foot', () => {

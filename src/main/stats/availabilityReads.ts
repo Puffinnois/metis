@@ -1,5 +1,10 @@
 import { coachRole, isInjuryReason } from '@shared/stats/availability'
-import type { StatsAvailability, StatsCoach, StatsOfficial } from '@shared/stats/types'
+import type {
+  StatsAvailability,
+  StatsCoach,
+  StatsGameListing,
+  StatsOfficial
+} from '@shared/stats/types'
 import type { StatsDb } from './db'
 import { builds, type League } from '@shared/leagues'
 import { playsRecipe } from './derived/playsRecipe'
@@ -72,6 +77,48 @@ export async function readAvailability(db: StatsDb, ids: string[]): Promise<Stat
     gameDate: r.game_date,
     gameId: r.game_id
   }))
+}
+
+/**
+ * The players' listings for these games (T1601.4): each player's status and reason on the last report
+ * before each game, as the games-out counts take it (`pub_player_availability`), but kept by game with
+ * the reason's words. Ids that are not ids name nobody; a league with no report reads as nothing.
+ */
+export async function readGameListings(
+  db: StatsDb,
+  games: string[],
+  players: string[]
+): Promise<StatsGameListing[]> {
+  const gameIds = [...new Set(games.filter((g) => /^[0-9A-Za-z_-]{1,20}$/.test(g)))].slice(0, 200)
+  const keys = [...new Set(players.filter((id) => ID.test(id)).map(Number))].slice(0, 500)
+  const have = await inspect(db)
+  const held = have.columns.get(REPORT)
+  const needs = ['game_id', 'person_id', 'report_datetime', 'current_status']
+  if (gameIds.length === 0 || keys.length === 0 || !needs.every((c) => held?.has(c))) return []
+  const rows = await db.all<{
+    game_id: string
+    player_id: number
+    status: string
+    reason: string | null
+  }>(
+    `SELECT ${trimmed(have, REPORT, 'game_id')} AS game_id, TRY_CAST(s.person_id AS BIGINT) AS player_id,
+            ${trimmed(have, REPORT, 'current_status')} AS status, ${trimmed(have, REPORT, 'reason')} AS reason
+     FROM ${REPORT} s
+     WHERE ${trimmed(have, REPORT, 'game_id')} IN (${gameIds.map(() => '?').join(', ')})
+       AND TRY_CAST(s.person_id AS BIGINT) IN (${keys.map(() => '?').join(', ')})
+       AND TRY_CAST(s.report_datetime AS TIMESTAMP) IS NOT NULL
+     QUALIFY row_number() OVER (
+       PARTITION BY game_id, player_id ORDER BY TRY_CAST(s.report_datetime AS TIMESTAMP) DESC) = 1`,
+    [...gameIds, ...keys]
+  )
+  return rows
+    .filter((r) => r.status !== null)
+    .map((r) => ({
+      gameId: String(r.game_id),
+      playerId: String(r.player_id),
+      status: r.status,
+      reason: r.reason && r.reason !== '-' ? r.reason : null
+    }))
 }
 
 /**

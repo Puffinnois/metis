@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { StatsDb } from '@main/stats/db'
-import { readAvailability, readCoaches, readOfficials } from '@main/stats/availabilityReads'
+import {
+  readAvailability,
+  readCoaches,
+  readGameListings,
+  readOfficials
+} from '@main/stats/availabilityReads'
 import { buildPublished } from '@main/stats/derived/published'
 import { openTestDb } from '../../fixtures/stats'
 
@@ -334,5 +339,33 @@ describe('the officials of a game', () => {
 
   it('is empty without the file', async () => {
     expect(await readOfficials(db, 'G1')).toEqual([])
+  })
+})
+
+describe('a player’s listing for a game (T1601.4)', () => {
+  it('keeps the last report before each game, by game and player, with its reason', async () => {
+    await db.exec(REPORT)
+    await addReports([
+      ['g1', 1, 7, '2026-01-05 13:00:00', 'Questionable', INJURY],
+      ['g1', 1, 7, '2026-01-05 17:30:00', 'Out', INJURY],
+      ['g1', 1, 8, '2026-01-05 17:30:00', 'Out', 'G League - On Assignment'],
+      ['g2', 1, 7, '2026-01-07 17:30:00', 'Available', '-'],
+      ['g3', 1, 7, '2026-01-09 17:30:00', 'Out', INJURY]
+    ])
+    const rows = await readGameListings(db, ['g1', 'g2'], ['7'])
+    expect(rows.sort((a, b) => a.gameId.localeCompare(b.gameId))).toEqual([
+      { gameId: 'g1', playerId: '7', status: 'Out', reason: INJURY },
+      { gameId: 'g2', playerId: '7', status: 'Available', reason: null }
+    ])
+    // Another player and another game are not asked for; ids that are not ids name nobody.
+    expect(await readGameListings(db, ['g1'], ['8', 'x; DROP TABLE game'])).toEqual([
+      { gameId: 'g1', playerId: '8', status: 'Out', reason: 'G League - On Assignment' }
+    ])
+  })
+
+  it('reads as nothing with no report, or nothing asked', async () => {
+    expect(await readGameListings(db, ['g1'], ['7'])).toEqual([])
+    await db.exec(REPORT)
+    expect(await readGameListings(db, [], ['7'])).toEqual([])
   })
 })
