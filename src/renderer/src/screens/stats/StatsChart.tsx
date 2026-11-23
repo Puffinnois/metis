@@ -42,7 +42,8 @@ import { RAIL_POSITIONS } from '@/lib/stats/player'
 import { leaderRuleWords } from '@/lib/stats/qualifying'
 import { seasonOf, type StatsScope } from '@/lib/stats/scope'
 import { useStatsQuery, type StatsData } from '@/lib/stats/useStats'
-import { favouriteEdge, useFavourites } from '@/lib/stats/favourites'
+import { favouriteEdge, favouritesEmpty, useFavourites } from '@/lib/stats/favourites'
+import { currentLeague } from '@/lib/stats/league'
 import { cn } from '@/lib/utils'
 import type { MetricInfo } from '@shared/stats/types'
 
@@ -96,9 +97,11 @@ export function StatsChart({
     () => seasonOf(data.seasons, scope.season)?.teams ?? [],
     [data.seasons, scope.season]
   )
+  const favourites = useFavourites()
+  const favSet = entity === 'player' ? favourites.players : favourites.teams
   const view = useMemo(
-    () => (result ? chartView(result, state, data.byId, teams) : null),
-    [result, state, data.byId, teams]
+    () => (result ? chartView(result, state, data.byId, teams, favSet) : null),
+    [result, state, data.byId, teams, favSet]
   )
   const groups = useMemo(() => chartMetrics(data.catalogue, entity), [data.catalogue, entity])
 
@@ -282,6 +285,13 @@ export function StatsChart({
                 onChange={(qualifiedOnly) => set({ qualifiedOnly })}
               >
                 Qualified only
+              </CheckToggle>
+              <CheckToggle
+                on={state.favourites ?? false}
+                onChange={(on) => set({ favourites: on })}
+                title="Only your favourites; the axes and the means stay the whole field's"
+              >
+                Favourites
               </CheckToggle>
             </div>
             <label className="flex h-7 items-center gap-1.5 rounded-[6px] border border-line bg-panel px-2 text-fg-3">
@@ -571,11 +581,23 @@ function Ready({
           label={`${Y?.label ?? axes.y} against ${X?.label ?? axes.x}`}
         />
       </div>
+      {view.favourites && view.dots.length === 0 && (
+        <p className="m-0 text-center text-[13px] text-fg-3" data-empty="favourites">
+          {favouritesEmpty(
+            currentLeague().name,
+            entity,
+            (isPlayer ? favourites.players : favourites.teams).size,
+            favourites.players.size + favourites.teams.size
+          )}
+        </p>
+      )}
       <div className="flex flex-wrap justify-between gap-3 font-mono text-[11.5px] text-fg-3">
         <span data-summary="">
           r <span className="font-semibold text-fg">{r}</span> as plotted · n{' '}
           <span className="font-semibold text-fg">{view.dots.length}</span>{' '}
-          {state.qualifiedOnly ? `qualified ${who}` : who} shown
+          {view.favourites
+            ? `favourite${view.favourites.shown === 1 ? '' : 's'} shown of ${view.favourites.of} ${state.qualifiedOnly ? `qualified ${who}` : who}`
+            : `${state.qualifiedOnly ? `qualified ${who}` : who} shown`}
         </span>
         <span>
           Dashed lines: qualified mean, {fmt(axes.x)(view.mean.x)} and {fmt(axes.y)(view.mean.y)}

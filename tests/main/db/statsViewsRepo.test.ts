@@ -76,3 +76,41 @@ describe('stats views repo', () => {
     expect(listStatsViews(db, 'nba').map((v) => v.name)).toEqual(['Good'])
   })
 })
+
+describe('a view saved with the favourites filter (T1601.3)', () => {
+  it('keeps the flag, never the ids, and reads an older view as off', () => {
+    const db = openDatabase(':memory:')
+    migrate(db)
+    const saved = saveStatsView(
+      db,
+      'nba',
+      'My favourites: shooting',
+      board({ favourites: true }),
+      't1'
+    )
+    expect(saved.board.favourites).toBe(true)
+    expect(listStatsViews(db, 'nba')[0].board.favourites).toBe(true)
+    // A view saved before the filter has no flag: it opens with the filter off.
+    saveStatsView(db, 'nba', 'Older', board(), 't2')
+    expect(
+      listStatsViews(db, 'nba').find((v) => v.name === 'Older')?.board.favourites
+    ).toBeUndefined()
+    // Only a true or false is a flag.
+    expect(() =>
+      saveStatsView(
+        db,
+        'nba',
+        'Bad',
+        { ...board(), favourites: 'yes' } as unknown as LeaderboardBoard,
+        't3'
+      )
+    ).toThrow('invalid')
+    const json = (
+      db
+        .prepare('SELECT board_json FROM stats_views WHERE name = ?')
+        .get('My favourites: shooting') as { board_json: string }
+    ).board_json
+    expect(JSON.parse(json)).toMatchObject({ favourites: true })
+    expect(json).not.toMatch(/\d{5,}/)
+  })
+})

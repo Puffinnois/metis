@@ -49,6 +49,8 @@ export const MAX_METRICS = 40
 export const DEFAULT_LIMIT = 100
 /** A grouped query has a row per player and group: a season by month has about 3,000. */
 export const MAX_LIMIT = 5000
+/** The most ids `places` takes in one query: a league's favourites. */
+export const MAX_PLACES = 500
 const TRANSFORMS: Transform[] = [
   'raw',
   'perGame',
@@ -178,7 +180,8 @@ const QUERY_FIELDS = [
   'shrunk',
   'sort',
   'limit',
-  'ranks'
+  'ranks',
+  'places'
 ]
 const SCOPE_FIELDS = [
   'seasons',
@@ -321,6 +324,25 @@ function validate(q: StatsQuery, ctx: CompileContext): Checked {
     if (q.sort.dir !== 'asc' && q.sort.dir !== 'desc') fail('sort.dir must be asc or desc')
   }
   if (q.limit !== undefined) integers([q.limit], 'limit', 1, MAX_LIMIT)
+  if (q.places !== undefined) {
+    const pl = q.places as unknown
+    if (pl === null || typeof pl !== 'object' || Array.isArray(pl)) {
+      fail('places must be { ids, standing, orSample }')
+    }
+    knownFields(pl, ['ids', 'standing', 'orSample'], 'places')
+    const { ids: want, standing, orSample } = q.places
+    if (!Array.isArray(want) || want.length === 0 || want.length > MAX_PLACES) {
+      fail(`places.ids must list 1–${MAX_PLACES} ids`)
+    }
+    for (const id of want) {
+      if (typeof id !== 'string' || !ID.test(id)) fail('places.ids must be ids')
+    }
+    if (standing !== null && !q.metrics.includes(standing)) {
+      fail('places.standing must be null or one of the metrics')
+    }
+    if (orSample !== undefined) flag(orSample, 'places.orSample')
+    if ((q.groupBy ?? []).length > 0) fail('places works on one row a player or team: no groupBy')
+  }
   if (q.ranks !== undefined && typeof q.ranks !== 'boolean') fail('ranks must be true or false')
   if (q.ranks === false && transform === 'percentile') fail('percentile needs ranks')
   if (q.shrunk !== undefined) flag(q.shrunk, 'shrunk')
@@ -1284,8 +1306,32 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
     'games',
     ...c.metrics.flatMap((_, i) => [`t${i}`, `v${i}`, `s${i}`, `q${i}`, `p${i}`, `r${i}`])
   ]
-  const sql =
-    c.league.manyRows && limited
+  // `places` (T1601.3): only the rows asked for, each with its place in the whole order the other
+  // forms list (qualified first, the sort, the name), and among the standing rows. No limit applies:
+  // the place of a row past the 5,000th is still its place.
+  const order = `${first} DESC, t${sort} ${dir.toUpperCase()} NULLS LAST, ${nameSql}`
+  const placesSql = (pl: NonNullable<StatsQuery['places']>): string => {
+    const j = pl.standing === null ? -1 : q.metrics.indexOf(pl.standing)
+    const stand = [
+      j >= 0 ? `q${j}` : 'true',
+      ...(pl.orSample ? [`coalesce(s${sort}, 0) > 0`] : [])
+    ].join(' OR ')
+    return `${head},
+    placed AS (
+      SELECT x.*, ${nameSql} AS name, tm.code AS team_code, count(*) OVER () AS total,
+             row_number() OVER w AS place_all,
+             CASE WHEN ${stand} THEN count(*) FILTER (WHERE ${stand}) OVER w END AS place_standing
+      FROM shaped x
+      ${player ? 'LEFT JOIN player pl ON pl.player_id = x.id' : ''}
+      LEFT JOIN team tm ON tm.team_id = x.team_id AND tm.season = x.last_season
+      ${q.scope.qualifiedOnly && c.gaps[sort] === null ? `WHERE q${sort}` : ''}
+      WINDOW w AS (ORDER BY ${order} ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW))
+    SELECT * FROM placed WHERE id::VARCHAR IN ${params.list(pl.ids)}
+    ORDER BY place_all`
+  }
+  const sql = q.places
+    ? placesSql(q.places)
+    : c.league.manyRows && limited
       ? `${head},
     listed AS (
       SELECT ${keys.map((k) => `x.${k}`).join(', ')}, ${nameSql} AS name,

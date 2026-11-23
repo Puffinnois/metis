@@ -315,6 +315,14 @@ export interface StatsQuery {
   /** Default 100, at most 5000. */
   limit?: number
   /**
+   * Only these rows, by id, each with its place in the whole ordered answer (`StatsRow.place`), past
+   * any limit: what a leaderboard filtered to some rows shows as their rank (T1601.3). `standing` is
+   * the metric a row must qualify for to be counted among the standing rows (the sort's own minimum,
+   * or the tab's qualifier), null to count every row; `orSample` counts a row with a sample of the
+   * sorted metric too (a count of games out). One row a player or team: not with `groupBy`.
+   */
+  places?: { ids: string[]; standing: string | null; orSample?: boolean }
+  /**
    * False leaves out each value's percentile and rank (null), for a screen that shows neither: they
    * are two window functions a metric, about half of a small query's time. Not with `percentile`.
    */
@@ -348,6 +356,11 @@ export interface StatsRow {
    * whole season or playoff run). Their box-score stats are null and they never qualify.
    */
   noLine?: true
+  /**
+   * With `StatsQuery.places`: the row's place in the whole ordered answer (1 the first), and among the
+   * standing rows (null when the row itself does not stand).
+   */
+  place?: { all: number; standing: number | null }
 }
 
 export interface StatsResultColumn {
@@ -800,6 +813,11 @@ export interface LeaderboardBoard {
    * clutch; null or absent for the whole game. Optional, so views saved before it still open.
    */
   split?: string | null
+  /**
+   * Only the league's favourites (T1601.3), each at its rank on the whole board. Saved with a view as
+   * the flag, never the ids; absent in views saved before it, which open with it off.
+   */
+  favourites?: boolean
 }
 
 /** A saved view: a named leaderboard, kept in `metis.db`. */

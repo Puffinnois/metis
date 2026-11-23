@@ -66,6 +66,9 @@ export async function runQuery(
       team: (r.team_code as string | null) ?? null,
       position: (r.position as string | null) ?? null,
       ...(r.no_line === true ? { noLine: true as const } : {}),
+      ...(r.place_all !== undefined
+        ? { place: { all: num(r.place_all) ?? 0, standing: num(r.place_standing) } }
+        : {}),
       group: Object.fromEntries(
         groupBy.map((g) => [g, (r[`g_${g}`] as string | number | null) ?? null])
       ),

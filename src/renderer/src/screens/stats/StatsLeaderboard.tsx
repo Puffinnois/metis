@@ -20,7 +20,10 @@ import {
   familyOf,
   leaderboardCsv,
   leaderboardQuery,
-  leaderRows,
+  boardRows,
+  placesFor,
+  unlistedByName,
+  unlistedNote,
   type LeaderboardOpen,
   modeWords,
   rankWithinTab,
@@ -32,7 +35,8 @@ import { rangeLabel, scopeLabel, seasonOf, type StatsScope } from '@/lib/stats/s
 import { momentsIn } from '@/lib/stats/splits'
 import { useStatsQuery, type StatsData } from '@/lib/stats/useStats'
 import { cn } from '@/lib/utils'
-import { seasonLabel } from '@/lib/stats/league'
+import { currentLeague, seasonLabel } from '@/lib/stats/league'
+import { favouritesEmpty, useFavourites } from '@/lib/stats/favourites'
 import { leaderboardQualifier } from '@/lib/stats/qualifying'
 import type { Entity, LeaderboardBoard, MetricFamily, StatsView } from '@shared/stats/types'
 
@@ -94,10 +98,38 @@ export function StatsLeaderboard({
     [board, scope, data.byId]
   )
   const { result, loading, error } = useStatsQuery(query, data.version)
-  const rows = useMemo(
-    () => (result ? leaderRows(rankWithinTab(result, tab), board, search, opened?.selected) : []),
-    [result, tab, board, search, opened?.selected]
+  // The favourites filter (T1601.3): the league's favourites at their rank on the whole board. Those
+  // the board did not fetch (past its 1,000 rows) are placed by the engine (`placesFor`).
+  const favourites = useFavourites()
+  const favSet = entity === 'player' ? favourites.players : favourites.teams
+  const placesQuery = useMemo(() => {
+    const places = result && query ? placesFor(result, board, favSet, query.sort?.metric) : null
+    return places && query ? { ...query, places } : null
+  }, [result, query, board, favSet])
+  const placed = useStatsQuery(placesQuery, data.version, { keepLast: false }).result
+  const ranked = useMemo(() => {
+    if (!result) return []
+    const extras = placesQuery ? (placed?.rows ?? []) : []
+    // One pool for the percentiles: the fetched rows, and the favourites placed past them.
+    const merged = rankWithinTab({ ...result, rows: [...result.rows, ...extras] }, tab)
+    return boardRows(
+      { ...merged, rows: merged.rows.slice(0, result.rows.length) },
+      board,
+      search,
+      opened?.selected ?? null,
+      board.favourites ? favSet : null,
+      merged.rows.slice(result.rows.length)
+    )
+  }, [result, placed, placesQuery, tab, board, search, opened?.selected, favSet])
+  const unlisted = useMemo(
+    () =>
+      result && placesQuery
+        ? unlistedNote(unlistedByName(result, board, favSet, placed?.rows ?? []))
+        : null,
+    [result, placesQuery, board, favSet, placed]
   )
+  const rows = useMemo(() => ranked.map((x) => x.row), [ranked])
+  const ranks = useMemo(() => ranked.map((x) => x.rank), [ranked])
   // The selected row is on screen, however far down it ranks.
   const shown = Math.max(limit, rows.findIndex((r) => r.id === selected) + 1)
   const families = familiesOf(data.catalogue, tab)
@@ -132,6 +164,7 @@ export function StatsLeaderboard({
       mode: board.mode,
       qualifiedOnly: board.qualifiedOnly,
       shrunk: board.shrunk ?? false,
+      favourites: board.favourites ?? false,
       team: board.team,
       split: board.split ?? null
     })
@@ -155,7 +188,7 @@ export function StatsLeaderboard({
     try {
       const path = await api.stats.exportCsv(
         csvFileName(board, scope, rangeLabel(scope, entity)),
-        leaderboardCsv(rows, board, data.byId)
+        leaderboardCsv(rows, board, data.byId, ranks)
       )
       if (path) setNotice(`Saved ${rows.length} rows to ${path}`)
     } catch (err) {
@@ -270,6 +303,13 @@ export function StatsLeaderboard({
         >
           Shrunk rates
         </CheckToggle>
+        <CheckToggle
+          on={board.favourites ?? false}
+          onChange={(on) => update({ favourites: on })}
+          title="Only your favourites, each at its rank on the whole board"
+        >
+          Favourites
+        </CheckToggle>
         {entity === 'player' && (
           <StatsSelect
             title="Team"
@@ -306,6 +346,7 @@ export function StatsLeaderboard({
         {result && (
           <LeaderTable
             rows={rows.slice(0, shown)}
+            ranks={ranks.slice(0, shown)}
             board={board}
             tab={tab}
             columns={result.columns}
@@ -320,7 +361,18 @@ export function StatsLeaderboard({
           <div className="py-16 text-center text-[13px] text-fg-3">Loading the table…</div>
         )}
         {error && <div className="py-16 text-center text-[13px] text-bad">{error}</div>}
-        {result && !loading && rows.length === 0 && (
+        {result && !loading && rows.length === 0 && board.favourites && (
+          <div className="py-16 text-center text-[13px] text-fg-3">
+            {favouritesEmpty(
+              currentLeague().name,
+              entity,
+              favSet.size,
+              favourites.players.size + favourites.teams.size,
+              search
+            )}
+          </div>
+        )}
+        {result && !loading && rows.length === 0 && !board.favourites && (
           <div className="flex flex-col items-center gap-3 py-16">
             <div className="text-[14px] font-medium text-fg-2">
               No {entity === 'player' ? 'players' : 'teams'} match.
@@ -357,6 +409,11 @@ export function StatsLeaderboard({
             )}
           </div>
           {notice && <div className="truncate text-fg-2">{notice}</div>}
+          {unlisted && (
+            <div className="truncate text-fg-2" data-unlisted="">
+              {unlisted}
+            </div>
+          )}
           {result?.notes.map((n) => (
             <div key={n} className="truncate">
               {n}

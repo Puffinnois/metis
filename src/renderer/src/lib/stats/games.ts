@@ -5,7 +5,8 @@ import type {
   StatsGameDetail,
   StatsQuery,
   StatsResult,
-  StatsRow
+  StatsRow,
+  StatsTeam
 } from '@shared/stats/types'
 import { currentLeague, seasonLabel } from '@/lib/stats/league'
 import { periodsIn } from '@shared/leagues'
@@ -26,6 +27,8 @@ export interface GamesState {
   officials?: boolean
   /** One official's seasons in place of the game; it wins over `officials`. */
   official?: string | null
+  /** Only the games of a favourite team, or of a favourite player's team (T1601.3). */
+  favourites?: boolean
 }
 
 export const DEFAULT_GAMES: GamesState = { date: null, game: null }
@@ -536,4 +539,56 @@ export function compareRows(
       missing: teams.columns.find((c) => c.id === metric)?.reason ?? null
     }
   })
+}
+
+/**
+ * The teams whose games the favourites filter keeps (T1601.3): every favourite team, and the team each
+ * favourite player is on, which is the team of their latest game in scope as the engine names it
+ * (`StatsRow.team`, a code, found in the season's teams). A traded player's old team is not kept.
+ */
+export function favouriteGameTeams(
+  favouriteTeams: ReadonlySet<string>,
+  playerTeamCodes: readonly (string | null)[],
+  seasonTeams: readonly StatsTeam[]
+): Set<string> {
+  const byCode = new Map(seasonTeams.map((t) => [t.code, t.id]))
+  const out = new Set(favouriteTeams)
+  for (const code of playerTeamCodes) {
+    const id = code === null ? undefined : byCode.get(code)
+    if (id !== undefined) out.add(id)
+  }
+  return out
+}
+
+/** The most favourite players the games filter reads, as `places` takes. */
+export const MAX_FAVOURITE_PLAYERS = 500
+/** A scope lists at most 64 players: the queries are batched by it. */
+const PLAYERS_A_QUERY = 64
+
+/**
+ * The queries that find each favourite player's latest team in scope (T1601.3), every favourite
+ * player in batches of 64, at most 500: one row a player, whose `team` is their latest in scope.
+ */
+export function playerTeamQueries(
+  players: Iterable<string>,
+  scope: StatsQuery['scope']
+): StatsQuery[] {
+  const ids = [...players].slice(0, MAX_FAVOURITE_PLAYERS)
+  const out: StatsQuery[] = []
+  for (let i = 0; i < ids.length; i += PLAYERS_A_QUERY) {
+    const batch = ids.slice(i, i + PLAYERS_A_QUERY)
+    out.push({
+      entity: 'player',
+      metrics: ['pts'],
+      scope: { ...scope, players: batch },
+      limit: batch.length,
+      ranks: false
+    })
+  }
+  return out
+}
+
+/** A day's games kept by the favourites filter: either team is one of `teams`. */
+export function favouriteRail(rail: readonly RailGame[], teams: ReadonlySet<string>): RailGame[] {
+  return rail.filter((g) => [g.awayId, g.homeId].some((id) => id !== null && teams.has(id)))
 }
