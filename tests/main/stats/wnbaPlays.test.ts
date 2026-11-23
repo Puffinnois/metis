@@ -397,6 +397,23 @@ describe('the published tables', () => {
                  FROM pub_player_darko`)
     ).toEqual({ n: 20, valued: 0 })
   })
+
+  it('read BOBAN from the WNBA’s impact file, and no box prior: it publishes none', async () => {
+    // Every regular-season row with a BOBAN value, read under BOBAN's name, value for value.
+    const src =
+      await one(`SELECT count(*)::INTEGER AS n, count(boban_filtered_skill)::INTEGER AS valued,
+        sum(boban_filtered_skill * gp) AS total
+      FROM src_wnba_impact WHERE lower(season_type) = 'regular season' AND season >= 1998`)
+    const pub =
+      await one(`SELECT count(*)::INTEGER AS n, count(boban_filtered_skill)::INTEGER AS valued,
+        sum(boban_filtered_skill) AS total FROM pub_player_boban`)
+    expect(pub.n).toBe(src.n)
+    expect(pub.valued).toBe(src.valued)
+    expect(num(pub.total)).toBeCloseTo(num(src.total), 6)
+    expect(
+      await one(`SELECT count(box_prior)::INTEGER AS valued FROM pub_player_impact_prior`)
+    ).toEqual({ valued: 0 })
+  })
 })
 
 describe('a team row against its players', () => {

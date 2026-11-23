@@ -48,12 +48,13 @@ const SAME_AS: Record<string, string> = {
 
 /**
  * Published tables the league's files hold no column for. The impact file's DARKO columns: the
- * WNBA's has none, and its `boban_*` columns are SportsDataverse's own rating, which Metis does not
- * read under DARKO's name (`nba-data-sources.md`, "The impact file's `boban_*` columns").
+ * WNBA's has none; its `boban_*` columns are read as BOBAN, under its own name. Nor does it publish
+ * the NBA file's box prior and REML RAPM.
  */
 const NOT_IN_FILE: Record<string, string> = {
   pub_player_darko:
-    "Not in the WNBA's impact file: it has no DARKO columns. Its BOBAN columns are SportsDataverse's own rating, not DARKO, and are not read yet."
+    "Not in the WNBA's impact file: it has no DARKO columns. Its BOBAN columns are SportsDataverse's own model of the same kind, not DARKO: see the BOBAN metrics.",
+  pub_player_impact_prior: "Not in the WNBA's impact file: it publishes no box prior or REML RAPM."
 }
 
 /**

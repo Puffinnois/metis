@@ -580,6 +580,7 @@ The linked BPM article contains the full coefficient specification; this catalog
 - **Offensive RAPM / defensive RAPM (`ORAPM`, `DRAPM`)** — separate offensive and defensive player coefficients. Under the common positive-is-good convention, total = offense + defense; verify signs.
 - **Non-prior-informed RAPM (`NPI RAPM`)** — shrinks toward a generic baseline, commonly zero, rather than a box-score-informed prior.
 - **Prior-informed RAPM / xRAPM family** — uses player-specific priors or extra information. Not one fixed formula beyond the regularized model structure; specify publisher/version.
+  - _In Metis (Plan T1703.2):_ SportsDataverse's own prior-informed fit, as it publishes it in `nba_player_impact` (NBA only, regular season only, 1996-97 on): the **box prior** (`sdv_box_prior`, offence and defence), the points per 100 possessions a box-score model predicts, and **REML RAPM** (`sdv_reml_rapm`, offence and defence), RAPM shrunk toward that prior instead of zero with the ridge's strength chosen by REML. Read as published; seasons together are weighted by the regular season's possessions. Labelled as SportsDataverse's, never as another publisher's xRAPM.
 - **Luck-adjusted RAPM / on-off** — adjusts outcomes for selected unstable components before or during fitting. The adjustment and its assumptions are publisher-specific, not just a universally corrected plus-minus.
 - **Statistical Plus-Minus (`SPM`)** — fitted function `β0+Σβk×stat_k` or another model predicting impact from statistical features. It is a family, not a universal set of coefficients.
 
@@ -603,6 +604,8 @@ The linked BPM article contains the full coefficient specification; this catalog
 - **LEBRON Wins Added** — playing-time-sensitive conversion to cumulative wins; use the publisher's baseline/conversion rather than assuming WS or VORP equivalence.
 
 **DARKO family — retrieve [DARKO](https://www.darko.app/), [methodology](https://www.darko.app/about).**
+
+_In Metis (Plan T1703.2):_ DARKO itself is not held: it has no free bulk source (D24), and the dataset's `darko_*` columns, dropped in November 2026, were SportsDataverse's own engine under DARKO's name (T1205), so `sdv_darko_*` read unavailable. In their place Metis shows **BOBAN** ("Bayesian Online Box-Augmented Net"), SportsDataverse's own model of the same kind, under its own name (`sdv_boban_skill`, `sdv_boban_next`, `sdv_boban_sd`; NBA and WNBA, 1997-98 on, one regular season at a time): a Kalman filter over each player's season-by-season RAPM with an aging curve, giving the end-of-season skill, a next-season projection and that projection's standard deviation, in points per 100 possessions. Its playoff rows repeat the regular season's, so the regular season is read.
 
 - **Daily Plus Minus (`DPM`)** — next-game projected impact in points per 100 possessions; zero is average.
 - **Offensive / defensive DPM (`O-DPM`, `D-DPM`)** — components; higher is better for both.
