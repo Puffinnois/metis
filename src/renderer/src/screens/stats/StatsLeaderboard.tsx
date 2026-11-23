@@ -354,7 +354,13 @@ export function StatsLeaderboard({
         {error && <div className="py-16 text-center text-[13px] text-bad">{error}</div>}
         {result && !loading && rows.length === 0 && board.favourites && (
           <div className="py-16 text-center text-[13px] text-fg-3">
-            {favouritesEmpty(currentLeague().name, entity, favSet.size, search)}
+            {favouritesEmpty(
+              currentLeague().name,
+              entity,
+              favSet.size,
+              favourites.players.size + favourites.teams.size,
+              search
+            )}
           </div>
         )}
         {result && !loading && rows.length === 0 && !board.favourites && (

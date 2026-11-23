@@ -1,0 +1,95 @@
+[
+  {
+    "size": [1500, 950]
+  },
+  {
+    "wait": 9000
+  },
+  {
+    "eval": "\nwindow.sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nwindow.until = async (fn, ms = 20000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await fn()) return true; await sleep(10) } return false };\nwindow.nav = async (name) => { const b = [...document.querySelectorAll('nav button')].find((x) => x.textContent.trim() === name); if (!b) return 'NO NAV ' + name; b.click(); await sleep(1500); return 'nav ' + name };\nwindow.trigger = () => document.querySelector('button[aria-label^=\"League: \"]');\nwindow.league = () => trigger()?.getAttribute('aria-label')?.replace('League: ', '') ?? null;\nwindow.items = () => [...document.querySelectorAll('[role=menuitemradio]')];\nwindow.openMenu = async () => { const t = trigger(); if (!t) return false; t.focus(); t.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return until(() => items().length > 0, 3000) };\nwindow.pick = async (name) => { if (!(await openMenu())) return 'NO MENU'; const item = items().find((x) => x.textContent.startsWith(name)); if (!item) return 'NO ITEM ' + name; item.click(); await until(() => league() === name, 5000); await sleep(2500); return league() };\nwindow.switchTo = async (name) => (league() === name ? name : pick(name));\nwindow.setSelect = async (title, value) => { const el = [...document.querySelectorAll('select')].find((x) => x.title === title); if (!el) return 'NO ' + title; Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(el, String(value)); el.dispatchEvent(new Event('change', { bubbles: true })); await sleep(1500); return el.value };\nwindow.toggle = (name) => [...document.querySelectorAll('button[aria-pressed]')].find((b) => b.textContent.replace('✓', '').trim() === name);\nwindow.setToggle = async (name, on) => { const t = toggle(name); if (!t) return 'NO TOGGLE ' + name; if ((t.getAttribute('aria-pressed') === 'true') !== on) t.click(); await sleep(1200); return toggle(name).getAttribute('aria-pressed') };\nwindow.errors = async () => (await window.api.dev.recentErrors()).map((e) => e.message.slice(0, 200));\nwindow.themeNow = () => (document.documentElement.classList.contains('dark') ? 'dark' : 'light');\nwindow.toTheme = async (want) => { if (themeNow() !== want) document.querySelector('button[aria-label=\"Switch theme\"]').click(); await sleep(800); return themeNow() };\nwindow.board = async () => { await nav('Leaderboards'); await sleep(1500); document.querySelector('button[title=\"Open the full board\"]').click(); await until(() => document.querySelectorAll('tbody tr').length > 5, 20000); await sleep(1000); return document.querySelectorAll('tbody tr').length };\nwindow.expand = async () => { for (let i = 0; i < 40; i++) { const more = [...document.querySelectorAll('footer button')].find((b) => /^Show \\d+ more$/.test(b.textContent.trim())); if (!more) break; more.click(); await sleep(250) } return document.querySelectorAll('tbody tr').length };\nwindow.nameOf = (tr) => tr.querySelector('td div div button[title^=\"Open\"], td div div span.truncate')?.textContent.trim();\nwindow.ranks = () => Object.fromEntries([...document.querySelectorAll('tbody tr')].map((tr) => [nameOf(tr), tr.querySelector('td div > span')?.textContent.trim()]));\nwindow.footer = () => document.querySelector('footer span')?.textContent.trim();\nwindow.sortBy = async (label) => { const th = [...document.querySelectorAll('th[data-metric-head]')].find((x) => x.textContent.trim().startsWith(label)); if (!th) return 'NO HEAD ' + label; th.click(); await until(() => document.querySelectorAll('tbody tr').length > 0, 20000); await sleep(1500); return th.getAttribute('aria-sort') };\nwindow.compare = (all, filtered) => Object.entries(filtered).map(([n, r]) => [n, r, all[n] ?? 'absent', String(all[n]) === r]);\n'helpers ready'"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { await toTheme('light'); await switchTo('NBA'); return { stored: Object.fromEntries(Object.entries(await window.api.favourites.all()).map(([l, f]) => [l, f.map((x) => x.name + (x.from ? ' (from ' + x.from + ')' : ''))])) } })()))()"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { await board(); await expand(); const tr = [...document.querySelectorAll('tbody tr')][229]; const name = nameOf(tr); const star = tr.querySelector('button[aria-pressed]'); if (star.getAttribute('aria-pressed') === 'false') star.click(); await sleep(1500); window.__deep = name; return { deep: name, rank: tr.querySelector('td div > span').textContent.trim(), starred: tr.querySelector('button[aria-pressed]').getAttribute('aria-pressed') } })()))()"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { await setToggle('Favourites', false); await sleep(800); await expand(); const all = ranks(); await setToggle('Favourites', true); await sleep(1000); const filtered = ranks(); window.__last = { all, filtered }; return { tag: 'points', rows: Object.keys(all).length, footer: footer(), compare: compare(all, filtered) } })()))()"
+  },
+  {
+    "shot": "01-players-filtered-points"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { await setToggle('Favourites', false); return sortBy('AST') })()))()"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { await setToggle('Favourites', false); await sleep(800); await expand(); const all = ranks(); await setToggle('Favourites', true); await sleep(1000); const filtered = ranks(); window.__last = { all, filtered }; return { tag: 'assists', rows: Object.keys(all).length, footer: footer(), compare: compare(all, filtered) } })()))()"
+  },
+  {
+    "shot": "02-players-filtered-assists"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { await setToggle('Qualified only', false); await sleep(1500); const r = await (async () => { await setToggle('Favourites', false); await expand(); const all = ranks(); await setToggle('Favourites', true); await sleep(800); return compare(all, ranks()) })(); await setToggle('Qualified only', true); return r })()))()"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { const g = [...document.querySelectorAll('[role=tab]')].find((t) => t.textContent.trim() === 'Guards'); g.click(); await sleep(2500); await setToggle('Favourites', true); return { guards: ranks(), footer: footer() } })()))()"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { const a = [...document.querySelectorAll('[role=tab]')].find((t) => t.textContent.trim() === 'All players'); a.click(); await sleep(2500); await setToggle('Favourites', true); await setSelect('Team', '1610612760'); const r = ranks(); await setSelect('Team', ''); return { okcOnly: r } })()))()"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { await setToggle('Favourites', true); document.querySelector('button[title=\"Saved views\"]').click(); await sleep(600); const input = document.querySelector('input[aria-label=\"View name\"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, 'My favourites: scoring'); input.dispatchEvent(new Event('input', { bubbles: true })); await sleep(300); [...document.querySelectorAll('form button')].find((b) => b.textContent.trim() === 'Save').click(); await sleep(1500); document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); const views = await window.api.stats.views('nba'); return views.map((v) => ({ name: v.name, favourites: v.board.favourites ?? null })) })()))()"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { await nav('Leaderboards'); await sleep(1500); const all = [...document.querySelectorAll('button[title=\"Open the full board\"]')]; all.at(-1).click(); await until(() => document.querySelectorAll('tbody tr').length > 5, 20000); await sleep(1000); const before = ranks(); await setToggle('Favourites', true); await sleep(800); return compare(before, ranks()) })()))()"
+  },
+  {
+    "shot": "03-teams-filtered"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { await toTheme('dark'); await board(); await setToggle('Favourites', true); await sleep(800); return ranks() })()))()"
+  },
+  {
+    "shot": "04-players-filtered-dark"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { return toTheme('light') })()))()"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { await nav('Explore'); const t = [...document.querySelectorAll('[role=tab]')].find((x) => x.textContent.trim() === 'Chart'); t.click(); await sleep(4000); await setToggle('Favourites', false); await sleep(800); const at = (id) => { const g = document.querySelector('[data-dot=\"' + id + '\"] circle:last-child'); return g ? [g.getAttribute('cx'), g.getAttribute('cy')] : null }; const before = { sga: at('1628983'), flagg: at('1642843'), dots: document.querySelectorAll('[data-dot]').length, caption: document.querySelector('[data-summary]').textContent.trim(), ticks: [...document.querySelectorAll('svg text')].map((x) => x.textContent).filter((x) => /%|^[0-9.]+$/.test(x)).join('|') }; await setToggle('Favourites', true); await sleep(1000); const after = { sga: at('1628983'), flagg: at('1642843'), dots: document.querySelectorAll('[data-dot]').length, caption: document.querySelector('[data-summary]').textContent.trim(), rows: document.querySelectorAll('[data-row]').length, ticks: [...document.querySelectorAll('svg text')].map((x) => x.textContent).filter((x) => /%|^[0-9.]+$/.test(x)).join('|') }; return { before, after, sameTicks: before.ticks === after.ticks } })()))()"
+  },
+  {
+    "shot": "05-chart-filtered"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { await setToggle('Favourites', false); return 'chart off' })()))()"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { await nav('Games'); await setSelect('Season', 2027); const games = await window.api.stats.games('nba', 2027); const played = games.filter((g) => g.played); const favTeams = ['1610612747', '1610612760', '1610612742']; const withFav = played.filter((g) => favTeams.includes(g.home.id) || favTeams.includes(g.away.id)).at(-1); const days = [...new Set(played.map((g) => g.date))]; const without = days.reverse().find((d) => !played.some((g) => g.date === d && (favTeams.includes(g.home.id) || favTeams.includes(g.away.id)))); await setSelect('Day', withFav.date); await sleep(1500); const list = () => [...document.querySelector('[aria-label=\"The day’s games\"]').querySelectorAll('button')].map((b) => b.textContent.replace(/\\s+/g, ' ').trim()); const off = list(); await setToggle('Favourites', true); await sleep(2500); const on = list(); window.__without = without; return { day: withFav.date, off, on, count: document.querySelector('aside[aria-label=Games] span.font-mono')?.textContent } })()))()"
+  },
+  {
+    "shot": "06-games-filtered"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { await setSelect('Day', window.__without); await sleep(2000); return { day: window.__without, list: document.querySelector('[aria-label=\"The day’s games\"]').querySelectorAll('button').length, empty: document.querySelector('[data-empty=favourites]')?.textContent.trim() ?? null, stepper: !document.querySelector('button[title=\"The day after\"]').disabled || !document.querySelector('button[title=\"The day before\"]').disabled } })()))()"
+  },
+  {
+    "shot": "07-games-day-without"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { await setToggle('Favourites', false); return 'games off' })()))()"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { await switchTo('NCAA Men'); const res = await window.api.stats.query('ncaam', { entity: 'player', metrics: ['pts', 'min'], scope: { seasons: [2027] }, sort: { metric: 'pts', dir: 'desc' }, limit: 5000 }); const pickRow = res.rows.filter((r) => r.values.min.qualified)[1500]; await window.api.favourites.add('ncaam', 'player', pickRow.id, pickRow.name); window.__ncaa = pickRow.name; await switchTo('NBA'); await switchTo('NCAA Men'); return { total: res.total, picked: pickRow.name, id: pickRow.id, pts: pickRow.values.pts.value } })()))()"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { await board(); await setToggle('Favourites', false); await expand(); const all = ranks(); const last = Object.entries(all).at(-1); const t0 = performance.now(); await setToggle('Favourites', true); await until(() => Object.keys(ranks()).includes(window.__ncaa), 15000); const ms = Math.round(performance.now() - t0); return { fetched: Object.keys(all).length, lastFetched: last, filtered: ranks(), placedIn: ms, deepInFetched: window.__ncaa in all } })()))()"
+  },
+  {
+    "shot": "08-ncaam-filtered-placed"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { await setToggle('Favourites', false); return { errors: await errors() } })()))()"
+  }
+]

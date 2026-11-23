@@ -586,7 +586,8 @@ function Ready({
           {favouritesEmpty(
             currentLeague().name,
             entity,
-            (isPlayer ? favourites.players : favourites.teams).size
+            (isPlayer ? favourites.players : favourites.teams).size,
+            favourites.players.size + favourites.teams.size
           )}
         </p>
       )}

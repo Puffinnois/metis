@@ -272,11 +272,18 @@ describe('the games filtered to favourites', () => {
 
 describe('what a filtered screen says with nothing to show', () => {
   it('names the league and how to add one, or says none is in scope', () => {
-    expect(favouritesEmpty('NBA', 'player', 0)).toBe(
+    expect(favouritesEmpty('NBA', 'player', 0, 0)).toBe(
       'No favourites in the NBA. Star a player or a team to keep them here.'
     )
-    expect(favouritesEmpty('NCAA Men', 'team', 2)).toBe('No favourite team in this scope.')
-    expect(favouritesEmpty('NBA', 'player', 2, 'zzz')).toBe('No favourite matches.')
-    expect(favouritesEmpty('NBA', 'game', 3)).toBe('No game of a favourite on this day.')
+    // Favourite players in the league, but no team: the Teams board says which kind is missing.
+    expect(favouritesEmpty('NCAA Men', 'team', 0, 2)).toBe(
+      'No favourite teams in the NCAA Men. Star a team to keep it here.'
+    )
+    expect(favouritesEmpty('NBA', 'player', 0, 1)).toBe(
+      'No favourite players in the NBA. Star a player to keep them here.'
+    )
+    expect(favouritesEmpty('NCAA Men', 'team', 2, 3)).toBe('No favourite team in this scope.')
+    expect(favouritesEmpty('NBA', 'player', 2, 2, 'zzz')).toBe('No favourite matches.')
+    expect(favouritesEmpty('NBA', 'game', 3, 3)).toBe('No game of a favourite on this day.')
   })
 })

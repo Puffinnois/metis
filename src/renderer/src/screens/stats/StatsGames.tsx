@@ -244,6 +244,7 @@ export function StatsGames({
             {favouritesEmpty(
               currentLeague().name,
               'game',
+              favourites.players.size + favourites.teams.size,
               favourites.players.size + favourites.teams.size
             )}
           </div>

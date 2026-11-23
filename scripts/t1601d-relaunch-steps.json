@@ -1,0 +1,26 @@
+[
+  {
+    "size": [1500, 950]
+  },
+  {
+    "wait": 9000
+  },
+  {
+    "eval": "\nwindow.sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nwindow.until = async (fn, ms = 20000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await fn()) return true; await sleep(10) } return false };\nwindow.nav = async (name) => { const b = [...document.querySelectorAll('nav button')].find((x) => x.textContent.trim() === name); if (!b) return 'NO NAV ' + name; b.click(); await sleep(1500); return 'nav ' + name };\nwindow.trigger = () => document.querySelector('button[aria-label^=\"League: \"]');\nwindow.league = () => trigger()?.getAttribute('aria-label')?.replace('League: ', '') ?? null;\nwindow.items = () => [...document.querySelectorAll('[role=menuitemradio]')];\nwindow.openMenu = async () => { const t = trigger(); if (!t) return false; t.focus(); t.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return until(() => items().length > 0, 3000) };\nwindow.pick = async (name) => { if (!(await openMenu())) return 'NO MENU'; const item = items().find((x) => x.textContent.startsWith(name)); if (!item) return 'NO ITEM ' + name; item.click(); await until(() => league() === name, 5000); await sleep(2500); return league() };\nwindow.switchTo = async (name) => (league() === name ? name : pick(name));\nwindow.setSelect = async (title, value) => { const el = [...document.querySelectorAll('select')].find((x) => x.title === title); if (!el) return 'NO ' + title; Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(el, String(value)); el.dispatchEvent(new Event('change', { bubbles: true })); await sleep(1500); return el.value };\nwindow.toggle = (name) => [...document.querySelectorAll('button[aria-pressed]')].find((b) => b.textContent.replace('✓', '').trim() === name);\nwindow.setToggle = async (name, on) => { const t = toggle(name); if (!t) return 'NO TOGGLE ' + name; if ((t.getAttribute('aria-pressed') === 'true') !== on) t.click(); await sleep(1200); return toggle(name).getAttribute('aria-pressed') };\nwindow.errors = async () => (await window.api.dev.recentErrors()).map((e) => e.message.slice(0, 200));\nwindow.themeNow = () => (document.documentElement.classList.contains('dark') ? 'dark' : 'light');\nwindow.toTheme = async (want) => { if (themeNow() !== want) document.querySelector('button[aria-label=\"Switch theme\"]').click(); await sleep(800); return themeNow() };\nwindow.board = async () => { await nav('Leaderboards'); await sleep(1500); document.querySelector('button[title=\"Open the full board\"]').click(); await until(() => document.querySelectorAll('tbody tr').length > 5, 20000); await sleep(1000); return document.querySelectorAll('tbody tr').length };\nwindow.expand = async () => { for (let i = 0; i < 40; i++) { const more = [...document.querySelectorAll('footer button')].find((b) => /^Show \\d+ more$/.test(b.textContent.trim())); if (!more) break; more.click(); await sleep(250) } return document.querySelectorAll('tbody tr').length };\nwindow.nameOf = (tr) => tr.querySelector('td div div button[title^=\"Open\"], td div div span.truncate')?.textContent.trim();\nwindow.ranks = () => Object.fromEntries([...document.querySelectorAll('tbody tr')].map((tr) => [nameOf(tr), tr.querySelector('td div > span')?.textContent.trim()]));\nwindow.footer = () => document.querySelector('footer span')?.textContent.trim();\nwindow.sortBy = async (label) => { const th = [...document.querySelectorAll('th[data-metric-head]')].find((x) => x.textContent.trim().startsWith(label)); if (!th) return 'NO HEAD ' + label; th.click(); await until(() => document.querySelectorAll('tbody tr').length > 0, 20000); await sleep(1500); return th.getAttribute('aria-sort') };\nwindow.compare = (all, filtered) => Object.entries(filtered).map(([n, r]) => [n, r, all[n] ?? 'absent', String(all[n]) === r]);\n'helpers ready'"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { await switchTo('NBA'); await board(); document.querySelector('button[title=\"Saved views\"]').click(); await sleep(600); const v = [...document.querySelectorAll('button')].find((b) => b.textContent.includes('My favourites: scoring')); v.click(); await sleep(2500); return { toggle: toggle('Favourites').getAttribute('aria-pressed'), ranks: ranks(), footer: footer() } })()))()"
+  },
+  {
+    "shot": "09-view-reopened"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { await switchTo('NCAA Men'); await nav('Leaderboards'); await sleep(1500); const all = [...document.querySelectorAll('button[title=\"Open the full board\"]')]; all.at(-1).click(); await until(() => document.querySelectorAll('tbody tr').length > 5, 20000); await setToggle('Favourites', true); await sleep(1000); return { empty: document.querySelector('main .py-16')?.textContent.trim() ?? null } })()))()"
+  },
+  {
+    "shot": "10-empty-teams"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { await setToggle('Favourites', false); return { errors: await errors() } })()))()"
+  }
+]
