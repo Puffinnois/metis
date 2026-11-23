@@ -49,6 +49,7 @@ Measured 2026-11-05. Details are in `docs/reference/nba-data-sources.md`.
 | 13 More leagues    | Switch to the WNBA and NCAA; follow a player college to pro   | 1,867 MB        | `v1.2.0`      |
 | 14 Own measures    | Read research on Metis's own impact metrics and video stats   |                 | Not set       |
 | 15 EuroLeague      | Switch the app to the EuroLeague                              |                 | Not set       |
+| 16 Favourites      | Keep favourite players and teams; read research on pictures   |                 | Not set       |
 
 **Order:** 3 → 4 → 5 → 6, then 7 and 8 in either order, then 9 → 10 → 11.
 
@@ -342,6 +343,19 @@ Set by the owner on 2026-11-17. Both tasks begin as research, and each ends its 
 Set by the owner on 2026-11-22: a later major update. T1303 moved here from Stage 13 with its number and text unchanged. The stage's gate and tag are not set yet.
 
 - [ ] **T1303 EuroLeague (L).** From `docs/reference/european-basketball-statistics.md`, which covers four competitions: the men's EuroLeague and EuroCup, and FIBA's EuroLeague Women and EuroCup Women. This league has no bulk dataset like the others: the research read box scores, plays and shots for the men's two from the league's own hosted routes with a plain client, and found no free structured source for the women's two. So the task starts with a decision for the owner, before anything is built: whether reading the league's routes directly is acceptable (D6 and D31 keep the NBA's data to the dataset's releases, and D7 refuses stats.nba.com for refusing plain clients, which these routes do not), what the league's terms say about it, how many seasons the routes hold, and which of the four competitions are in. Write that into `data-rights.md` and `decisions.md`. Then the league's shape: a 40-minute game, PIR beside the app's composites, clubs that move between the two competitions, phases (regular season, play-in, playoffs, Final Four) as season types. Check: as T1301, with PIR reconciled on every player line (the research did it on 48) and the standings against the league's.
+
+## Stage 16: Favourites and pictures
+
+Set by the owner on 2026-11-22. The stage's gate and tag are not set yet.
+
+- [ ] **T1601 Favourites (L).** A player or a team can be starred, on the player's and team's pages and their rows; favourites live in `metis.db`, one gold marks them on every screen, filters keep them, and a page follows them day by day (D49, D50). A linked player's star follows the person into the paired league (D46). No combined totals, no ranking across favourites (D4). Four parts, one worker at a time:
+  - [x] **T1601.1 The store, the star and the decisions (M).** The favourites table in `metis.db`, the IPC and the bridge; the links worker's read that follows a linked player's star; the one renderer mechanism, `useFavourites()`; the `--fav` token; the star on the player and team pages' headers, the full leaderboards' rows and the player rail's and its search's rows. D49 and D50 written. Check: tests for the store, the links read, the person-follows logic, the hook and the star; `scripts/drive.mjs`: a star from a player's page shown on the leaderboard and in search, kept over a relaunch, a linked NCAA Men player starred and found starred in the NBA and unstarred from there, a team starred, both themes, the app log free of errors.
+
+    _Done 2026-11-23_ (`stats-screens.md`, "Favourites"; `lib/stats/favourites.ts`, `src/main/favourites.ts`).
+
+  - [ ] **T1601.2 The colour on every screen (M).** The filled star and a thin gold edge on a favourite's row wherever players or teams are listed: the home boards, standings, games, the charts, Compare and Trends, as well as where .1 put the star. Read only through `useFavourites()`. Check: the drive through every screen in both themes, nothing on a row moving or changing height.
+  - [ ] **T1601.3 The filters (M).** A "Favourites" filter on the Players and Teams leaderboards, the Explore chart and Games. Filtered rows keep their league rank, as search does. Check: the drive with the filter on each screen, the ranks equal to the unfiltered board's.
+  - [ ] **T1601.4 The page (M).** "Favourites" in the nav. For the latest game day loaded, a row per favourite player and per favourite team: the day's line tinted against their season average, "Did not play", "No game"; a day stepper; one section per downloaded league, the current one first (D50); no total across favourites. The app still opens on Leaderboards. Check: the drive with favourites in two leagues, a day with each state, the stepper, the read time measured.
 
 ## Optional
 
