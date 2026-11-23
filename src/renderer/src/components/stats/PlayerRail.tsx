@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Search } from 'lucide-react'
 import { StatsSelect } from '@/components/stats/controls'
+import { FavouriteStar } from '@/components/stats/FavouriteStar'
 import type { Heat } from '@/lib/stats/format'
 import type { OtherRow } from '@/lib/stats/otherPlayers'
 import { RAIL_POSITIONS, railMetrics, type RailPosition, type RailRow } from '@/lib/stats/player'
@@ -28,6 +29,12 @@ const CHIP: Record<Heat, string> = {
   l2: 'bg-bad-s text-bad font-semibold',
   l3: 'bg-bad-s text-bad font-semibold'
 }
+
+/**
+ * A row's star (D49) sits beside its button, never inside it, over the 16 px column every row keeps
+ * for it after the rank: 12 px of padding, the 24 px rank and an 8 px gap from the row's left edge.
+ */
+const STAR_AT = 'absolute top-1/2 left-11 -translate-y-1/2'
 
 /** The row the keys rest on, short of opening it: the hover's shade, with the selection's edge. */
 const CURSOR = 'bg-hover shadow-[inset_2px_0_0_var(--cobalt)]'
@@ -247,35 +254,40 @@ export function PlayerRail({
         {shownRows.slice(0, shown).map((r) => {
           const on = r.id === selected
           return (
-            <button
-              key={r.id}
-              ref={on ? selectedRef : undefined}
-              type="button"
-              aria-current={on ? 'true' : undefined}
-              onClick={() => onSelect(r.id)}
-              className={cn(
-                'grid h-10 w-full cursor-pointer grid-cols-[24px_minmax(0,1fr)_auto] items-center gap-x-2 border-b border-line-2 pr-3.5 pl-3 text-left',
-                on ? 'bg-sel' : 'hover:bg-hover'
-              )}
-            >
-              <span className="text-right font-mono text-[11.5px] text-fg-3">{r.rank ?? 'NQ'}</span>
-              <span className="flex min-w-0 flex-col gap-[3px]">
-                <span className="truncate text-[13px] leading-[1.1] font-medium">{r.name}</span>
-                <span className="flex items-center gap-[5px] font-mono text-[11px] leading-none text-fg-3">
-                  {r.position && <span className="font-semibold text-fg-2">{r.position}</span>}
-                  {r.team}
-                </span>
-              </span>
-              <span
-                title={r.title || undefined}
+            <div key={r.id} className="group/fav relative">
+              <button
+                ref={on ? selectedRef : undefined}
+                type="button"
+                aria-current={on ? 'true' : undefined}
+                onClick={() => onSelect(r.id)}
                 className={cn(
-                  'min-w-11 rounded-[5px] px-[7px] py-1 text-right font-mono text-[12px] leading-none',
-                  CHIP[r.heat]
+                  'grid h-10 w-full cursor-pointer grid-cols-[24px_16px_minmax(0,1fr)_auto] items-center gap-x-2 border-b border-line-2 pr-3.5 pl-3 text-left',
+                  on ? 'bg-sel' : 'hover:bg-hover'
                 )}
               >
-                {r.value}
-              </span>
-            </button>
+                <span className="text-right font-mono text-[11.5px] text-fg-3">
+                  {r.rank ?? 'NQ'}
+                </span>
+                <span aria-hidden="true" />
+                <span className="flex min-w-0 flex-col gap-[3px]">
+                  <span className="truncate text-[13px] leading-[1.1] font-medium">{r.name}</span>
+                  <span className="flex items-center gap-[5px] font-mono text-[11px] leading-none text-fg-3">
+                    {r.position && <span className="font-semibold text-fg-2">{r.position}</span>}
+                    {r.team}
+                  </span>
+                </span>
+                <span
+                  title={r.title || undefined}
+                  className={cn(
+                    'min-w-11 rounded-[5px] px-[7px] py-1 text-right font-mono text-[12px] leading-none',
+                    CHIP[r.heat]
+                  )}
+                >
+                  {r.value}
+                </span>
+              </button>
+              <FavouriteStar kind="player" id={r.id} name={r.name} reveal className={STAR_AT} />
+            </div>
           )
         })}
         {shownRows.length > shown && (
@@ -310,28 +322,33 @@ export function PlayerRail({
             {found.rows.map((r) => {
               const key = `m:${r.id}`
               return (
-                <button
-                  key={key}
-                  ref={restRef(key)}
-                  type="button"
-                  title={r.title}
-                  aria-label={r.title}
-                  aria-current={r.id === selected ? 'true' : undefined}
-                  data-cursor={key === resting ? 'true' : undefined}
-                  onClick={() => more.onOpen(r)}
-                  className={cn(
-                    'grid h-10 w-full cursor-pointer grid-cols-[24px_minmax(0,1fr)] items-center gap-x-2 border-b border-line-2 pr-3.5 pl-3 text-left',
-                    r.id === selected ? 'bg-sel' : key === resting ? CURSOR : 'hover:bg-hover'
-                  )}
-                >
-                  <span aria-hidden="true" />
-                  <span className="flex min-w-0 flex-col gap-[3px]">
-                    <span className="truncate text-[13px] leading-[1.1] font-medium">{r.name}</span>
-                    <span className="truncate font-mono text-[11px] leading-none text-fg-3">
-                      {r.detail}
+                <div key={key} className="group/fav relative">
+                  <button
+                    ref={restRef(key)}
+                    type="button"
+                    title={r.title}
+                    aria-label={r.title}
+                    aria-current={r.id === selected ? 'true' : undefined}
+                    data-cursor={key === resting ? 'true' : undefined}
+                    onClick={() => more.onOpen(r)}
+                    className={cn(
+                      'grid h-10 w-full cursor-pointer grid-cols-[24px_16px_minmax(0,1fr)] items-center gap-x-2 border-b border-line-2 pr-3.5 pl-3 text-left',
+                      r.id === selected ? 'bg-sel' : key === resting ? CURSOR : 'hover:bg-hover'
+                    )}
+                  >
+                    <span aria-hidden="true" />
+                    <span aria-hidden="true" />
+                    <span className="flex min-w-0 flex-col gap-[3px]">
+                      <span className="truncate text-[13px] leading-[1.1] font-medium">
+                        {r.name}
+                      </span>
+                      <span className="truncate font-mono text-[11px] leading-none text-fg-3">
+                        {r.detail}
+                      </span>
                     </span>
-                  </span>
-                </button>
+                  </button>
+                  <FavouriteStar kind="player" id={r.id} name={r.name} reveal className={STAR_AT} />
+                </div>
               )
             })}
             {found.hidden > 0 && (
@@ -356,10 +373,13 @@ export function PlayerRail({
                 data-cursor={`o:${r.key}` === resting ? 'true' : undefined}
                 onClick={() => elsewhere.onOpen(r)}
                 className={cn(
-                  'grid h-10 w-full cursor-pointer grid-cols-[24px_minmax(0,1fr)] items-center gap-x-2 border-b border-line-2 pr-3.5 pl-3 text-left',
+                  'grid h-10 w-full cursor-pointer grid-cols-[24px_16px_minmax(0,1fr)] items-center gap-x-2 border-b border-line-2 pr-3.5 pl-3 text-left',
                   `o:${r.key}` === resting ? CURSOR : 'hover:bg-hover'
                 )}
               >
+                {/* The star's column kept, so names line up; no star, since the row is another
+                    league's player and a star is given on their own league's page. */}
+                <span aria-hidden="true" />
                 <span aria-hidden="true" />
                 <span className="flex min-w-0 flex-col gap-[3px]">
                   <span className="truncate text-[13px] leading-[1.1] font-medium">{r.name}</span>

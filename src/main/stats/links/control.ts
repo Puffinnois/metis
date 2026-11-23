@@ -41,6 +41,8 @@ export interface LinksControl {
   otherCareer(league: LeagueId, player: string): Promise<StatsOtherCareer>
   /** The paired league's linked players with no page in this league, for its search (T1304.4). */
   otherPlayers(league: LeagueId): Promise<StatsOtherPlayer[]>
+  /** A league's linked players' ids in the paired league, `[here, there]`, for favourites (D49). */
+  pairedIds(league: LeagueId, ids: string[]): Promise<[string, string][]>
   /** The paired files a league brings, for its Data panel; started only if `start` is true. */
   pairedFamilies(league: LeagueId, start: boolean): Promise<StatsFamily[]>
   /** The running worker, for scripts; null when it has not started. */
@@ -167,6 +169,9 @@ export function createLinksControl(deps: LinksControlDeps): LinksControl {
     },
     otherPlayers(league) {
       return busy(async () => (await ensure()).otherPlayers(league))
+    },
+    pairedIds(league, ids) {
+      return busy(async () => (await ensure()).pairedIds(league, ids))
     },
     async pairedFamilies(league, start) {
       const other = pairedLeague(league)

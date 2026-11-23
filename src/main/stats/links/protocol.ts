@@ -49,6 +49,7 @@ export type LinksRequest =
   | { id: number; kind: 'counts'; league: LeagueId }
   | { id: number; kind: 'otherCareer'; league: LeagueId; player: string }
   | { id: number; kind: 'otherPlayers'; league: LeagueId }
+  | { id: number; kind: 'pairedIds'; league: LeagueId; ids: string[] }
   | { id: number; kind: 'pairedFamilies'; league: LeagueId }
   | { id: number; kind: 'read'; sql: string }
   | { id: number; kind: 'ping' }
@@ -58,6 +59,7 @@ export const LINKS_AT_ONCE: ReadonlySet<LinksRequest['kind']> = new Set([
   'counts',
   'otherCareer',
   'otherPlayers',
+  'pairedIds',
   'pairedFamilies',
   'read',
   'ping'
@@ -80,6 +82,11 @@ export interface LinksClient {
   otherCareer(league: LeagueId, player: string): Promise<StatsOtherCareer>
   /** The paired league's linked players with no page in this league, for its search (T1304.4). */
   otherPlayers(league: LeagueId): Promise<StatsOtherPlayer[]>
+  /**
+   * Which of a league's players are linked, and their ids in the paired league, as `[here, there]`
+   * pairs: how a favourite follows the person (D49).
+   */
+  pairedIds(league: LeagueId, ids: string[]): Promise<[string, string][]>
   pairedFamilies(league: LeagueId): Promise<StatsFamily[]>
   read(sql: string): Promise<Record<string, unknown>[]>
   ping(): Promise<void>

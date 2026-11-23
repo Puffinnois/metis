@@ -1,5 +1,6 @@
 import { AssistNetwork } from '@/components/stats/AssistNetwork'
 import { CareerStrip } from '@/components/stats/CareerStrip'
+import { FavouriteStar } from '@/components/stats/FavouriteStar'
 import { MetricHead } from '@/components/stats/MetricCard'
 import { ShotChart } from '@/components/stats/ShotChart'
 import { useScreenState } from '@/lib/stats/session'
@@ -727,14 +728,17 @@ function Header({
               </span>
             )}
           </div>
-          <h1 className="m-0 flex flex-col gap-0.5">
-            {first && (
-              <span className="text-[20px] leading-none font-normal tracking-[-0.01em] text-fg-2">
-                {first}
-              </span>
-            )}
-            <span className="text-[40px] leading-none font-bold tracking-[-0.035em]">{last}</span>
-          </h1>
+          <div className="flex items-end gap-1.5">
+            <h1 className="m-0 flex flex-col gap-0.5">
+              {first && (
+                <span className="text-[20px] leading-none font-normal tracking-[-0.01em] text-fg-2">
+                  {first}
+                </span>
+              )}
+              <span className="text-[40px] leading-none font-bold tracking-[-0.035em]">{last}</span>
+            </h1>
+            <FavouriteStar kind="player" id={info.id} name={info.name} size="lg" />
+          </div>
           <span className="text-[12px] leading-[1.35] text-fg-3">
             {playerFacts(info).join(' · ')}
           </span>

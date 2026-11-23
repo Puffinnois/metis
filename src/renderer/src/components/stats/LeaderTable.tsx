@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { FavouriteStar } from '@/components/stats/FavouriteStar'
 import { MetricHover, StabilityMark } from '@/components/stats/MetricCard'
 import { cellTitle, fmtStat, heatOf, type Heat } from '@/lib/stats/format'
 import {
@@ -204,7 +205,10 @@ export function LeaderTable({
               ref={isSel ? selectedRef : undefined}
               aria-selected={isSel}
               onClick={() => onSelect(r.id)}
-              className={cn('cursor-default', isSel ? 'bg-sel' : 'bg-panel hover:bg-hover')}
+              className={cn(
+                'group/fav cursor-default',
+                isSel ? 'bg-sel' : 'bg-panel hover:bg-hover'
+              )}
             >
               <td className="sticky left-0 z-[1] h-[30px] border-b border-line-2 bg-inherit p-0 align-middle">
                 <div
@@ -217,6 +221,8 @@ export function LeaderTable({
                 >
                   <span className="font-mono text-[12px] leading-none text-fg-3">{i + 1}</span>
                   <div className="flex min-w-0 items-center gap-1.5">
+                    {/* Before the name, its room kept while hidden: no column moves (D49). */}
+                    <FavouriteStar kind={board.entity} id={r.id} name={r.name} reveal />
                     {onOpen ? (
                       <button
                         type="button"

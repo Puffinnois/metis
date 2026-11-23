@@ -344,3 +344,58 @@ describe('the league workers, opened for what needs them and closed when idle', 
     expect(calls.at(-1)).toBe('start ncaam')
   })
 })
+
+describe('pairedIds, for favourites (D49)', () => {
+  function linked(
+    files: string[],
+    answer: () => Promise<[string, string][]>
+  ): { leagues: LeagueControl; started: string[] } {
+    const { db, dataDir } = profile(files)
+    const started: string[] = []
+    const leagues = createLeagueControl({
+      db,
+      dataDir,
+      start: (league) => fakeClient(league, []),
+      onChanged: () => {},
+      free,
+      log: () => {},
+      startLinks: () => {
+        started.push('links')
+        return {
+          ping: async () => undefined,
+          pairedIds: answer,
+          close: async () => undefined
+        } as unknown as LinksClient
+      }
+    })
+    return { leagues, started }
+  }
+
+  it('reads the links worker where the links file is there', async () => {
+    const { leagues, started } = linked(['links.duckdb'], async () => [['4870562', '1642843']])
+    expect(await leagues.pairedIds('ncaam', ['4870562'])).toEqual(new Map([['4870562', '1642843']]))
+    expect(started).toEqual(['links'])
+    await leagues.close()
+  })
+
+  it('answers nothing, and starts no worker, with no links file', async () => {
+    const { leagues, started } = linked([], async () => [['1', '2']])
+    expect(await leagues.pairedIds('ncaam', ['1'])).toEqual(new Map())
+    expect(started).toEqual([])
+  })
+
+  it('answers nothing for no ids, and when the read fails', async () => {
+    const { leagues, started } = linked(['links.duckdb'], async () => {
+      throw new Error('the links file is not open')
+    })
+    expect(await leagues.pairedIds('nba', [])).toEqual(new Map())
+    expect(started).toEqual([])
+    expect(await leagues.pairedIds('nba', ['1'])).toEqual(new Map())
+    await leagues.close()
+  })
+
+  it('answers nothing where leagues are not linked in this build', async () => {
+    const { leagues } = control(['links.duckdb'])
+    expect(await leagues.pairedIds('nba', ['1'])).toEqual(new Map())
+  })
+})

@@ -4,7 +4,9 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { sqlString, StatsDb } from '@main/stats/db'
 import { handoverDir, openLinksService, type LinksService } from '@main/stats/links/service'
 import { writeLinkedLines, writeLinkSide } from '@main/stats/links/side'
+import { readPairedIds } from '@main/stats/links/read'
 import { COLLEGE_PLAYERS_SQL, draftSql, proPlayersSql } from '@main/stats/links/sql'
+import { PLAYER_LINK_COLUMNS } from '@main/stats/links/tables'
 import { leftOutTables } from '@main/stats/leftOut'
 import {
   NCAA_STATS_RELEASES,
@@ -225,6 +227,61 @@ describe('the links service', () => {
       { season: 2023, gameType: 'regular', games: 72, pts: 1450, teams: ['Orlando Magic'] }
     ])
     expect(await s.counts('ncaam')).toEqual({ id: 2, 'name+birth': 1, 'name+college': 1 })
+  })
+
+  it('answers which players are linked and their ids in the paired league, for favourites', async () => {
+    const s = await service()
+    // Nothing handed over yet: no links, and nothing fails (a favourite stays in its league).
+    expect(await s.pairedIds('nba', ['9001'])).toEqual([])
+    const nba = await nbaFile()
+    const ncaam = await ncaamFile()
+    await s.ingestSide((await writeLinkSide(nba, LEAGUES.nba, tempDir(), 'a'))!)
+    await s.ingestSide((await writeLinkSide(ncaam, LEAGUES.ncaam, tempDir(), 'a'))!)
+    // Paolo Banchero, linked by ESPN's id: 101 at Duke, 9001 in the NBA, both ways.
+    expect(await s.pairedIds('ncaam', ['101'])).toEqual([['101', '9001']])
+    expect(await s.pairedIds('nba', ['9001'])).toEqual([['9001', '101']])
+    // Every link of the pair, asked from each side, answers the same pairs turned round.
+    const all = await s.read(
+      "SELECT college_id::VARCHAR AS c, pro_id::VARCHAR AS p FROM player_link WHERE college = 'ncaam' AND pro_id IS NOT NULL ORDER BY 1"
+    )
+    const college = await s.pairedIds(
+      'ncaam',
+      all.map((r) => String(r.c))
+    )
+    expect(college).toEqual(all.map((r) => [String(r.c), String(r.p)]))
+    const pro = await s.pairedIds(
+      'nba',
+      all.map((r) => String(r.p))
+    )
+    expect(new Set(pro.map(([p, c]) => `${c}:${p}`))).toEqual(
+      new Set(college.map(([c, p]) => `${c}:${p}`))
+    )
+    // An unlinked id, a non-number and the other pair answer nothing.
+    expect(await s.pairedIds('nba', ['9007', 'x; DROP TABLE player_link', ''])).toEqual([])
+    expect(await s.pairedIds('wnba', ['9001'])).toEqual([])
+    expect(await s.pairedIds('ncaam', [])).toEqual([])
+  })
+
+  it('follows a link whose ids are negative, the keys D28 gives players a league does not know', async () => {
+    const db = await StatsDb.open(':memory:')
+    await db.exec(`CREATE TABLE player_link (${PLAYER_LINK_COLUMNS})`)
+    // Two NCAA Men links held a negative NBA id on the four-league profile (2026-11-23); a college
+    // player with no ESPN athlete gets the same kind of key (D40).
+    await insertRows(db, 'player_link', [
+      { college: 'ncaam', pro: 'nba', college_id: 4433, pro_id: -4433, method: 'name+birth' },
+      { college: 'ncaam', pro: 'nba', college_id: -5150, pro_id: 1630000, method: 'name+college' }
+    ])
+    expect(await readPairedIds(db, 'ncaam', ['4433', '-5150'])).toEqual([
+      ['-5150', '1630000'],
+      ['4433', '-4433']
+    ])
+    expect(await readPairedIds(db, 'nba', ['-4433', '1630000'])).toEqual([
+      ['-4433', '4433'],
+      ['1630000', '-5150']
+    ])
+    // Still only whole numbers are inlined: a minus alone or in the middle names nobody.
+    expect(await readPairedIds(db, 'nba', ['-', '4-433', '--4433', '-4433.0'])).toEqual([])
+    db.close()
   })
 
   it('lists the paired league’s linked players who have no page in this league, for its search', async () => {

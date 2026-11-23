@@ -1,0 +1,53 @@
+[
+  {
+    "size": [1500, 950]
+  },
+  {
+    "wait": 9000
+  },
+  {
+    "eval": "\nwindow.sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nwindow.until = async (fn, ms = 20000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await fn()) return true; await sleep(10) } return false };\nwindow.nav = async (name) => { const b = [...document.querySelectorAll('nav button')].find((x) => x.textContent.trim() === name); if (!b) return 'NO NAV ' + name; b.click(); await sleep(1500); return 'nav ' + name };\nwindow.trigger = () => document.querySelector('button[aria-label^=\"League: \"]');\nwindow.league = () => trigger()?.getAttribute('aria-label')?.replace('League: ', '') ?? null;\nwindow.items = () => [...document.querySelectorAll('[role=menuitemradio]')];\nwindow.openMenu = async () => { const t = trigger(); if (!t) return false; t.focus(); t.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return until(() => items().length > 0, 3000) };\nwindow.heading = () => document.querySelector('main h1')?.textContent ?? null;\nwindow.pick = async (name) => { if (!(await openMenu())) return 'NO MENU'; const item = items().find((x) => x.textContent.startsWith(name)); if (!item) return 'NO ITEM ' + name; item.click(); await until(() => league() === name, 5000); await sleep(2500); return league() };\nwindow.switchTo = async (name) => (league() === name ? name : pick(name));\nwindow.setSelect = async (title, value) => { const el = [...document.querySelectorAll('select')].find((x) => x.title === title); if (!el) return 'NO ' + title; Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(el, String(value)); el.dispatchEvent(new Event('change', { bubbles: true })); await sleep(1500); return el.value };\nwindow.rail = () => document.querySelector('aside[aria-label=Players]');\nwindow.railRow = (name) => [...(rail()?.querySelectorAll('button') ?? [])].find((b) => b.querySelector('span span')?.textContent.trim() === name);\nwindow.input = () => document.querySelector('input[aria-label=\"Search players\"]');\nwindow.typeIn = (text) => { const i = input(); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, text); i.dispatchEvent(new Event('input', { bubbles: true })) };\nwindow.searchRail = async (name) => { for (const text of [name, name.split(' ').slice(-1)[0]]) { typeIn(text); if (await until(() => railRow(name), 10000)) return true } return false };\nwindow.careerTable = () => document.querySelector('[role=table][aria-label=\"Career by season\"]');\nwindow.openPlayer = async (leagueName, season, name) => { await switchTo(leagueName); await nav('Players'); await setSelect('Season', season); await setSelect('Rank by', 'pts'); await setSelect('Team', ''); if (!(await searchRail(name))) return 'NOT IN RAIL ' + name; railRow(name).click(); const last = name.split(' ').slice(-1)[0]; await until(() => (heading() ?? '').includes(last), 20000); typeIn(''); await until(() => careerTable(), 20000); await sleep(800); return { league: league(), heading: heading() } };\nwindow.headerStar = () => document.querySelector('main header button[aria-pressed]');\nwindow.starState = (b) => b ? { label: b.getAttribute('aria-label'), pressed: b.getAttribute('aria-pressed'), opacity: getComputedStyle(b).opacity, colour: getComputedStyle(b).color, fill: b.querySelector('svg')?.getAttribute('fill') } : 'NO STAR';\nwindow.stored = async () => { const all = await window.api.favourites.all(); return Object.fromEntries(Object.entries(all).map(([l, fs]) => [l, fs.map((f) => f.kind + ':' + f.id + ':' + f.name + (f.from ? ' from ' + f.from : ''))])) };\nwindow.clickHeaderStar = async () => { const b = headerStar(); if (!b) return 'NO STAR'; const before = starState(b); b.click(); await sleep(1500); return { before, after: starState(headerStar()), stored: await stored() } };\nwindow.board = async (title) => { await nav('Leaderboards'); await sleep(1500); const all = [...document.querySelectorAll('button[title=\"Open the full board\"]')]; const i = title === 'last' ? all.length - 1 : 0; if (!all[i]) return 'NO BOARD'; all[i].click(); await until(() => document.querySelectorAll('tbody tr').length > 5, 20000); await sleep(1000); return document.querySelectorAll('tbody tr').length + ' rows' };\nwindow.rows = () => [...document.querySelectorAll('tbody tr')];\nwindow.rowOf = (name) => rows().find((tr) => tr.querySelector('button[aria-pressed]')?.getAttribute('aria-label')?.includes(name));\nwindow.tableState = () => { const rs = rows(); const heights = [...new Set(rs.map((r) => Math.round(r.getBoundingClientRect().height)))]; const on = rs.filter((r) => r.querySelector('button[aria-pressed=true]')).map((r) => r.querySelector('button[aria-pressed]').getAttribute('aria-label')); const firstOff = rs.find((r) => r.querySelector('button[aria-pressed=false]')); return { rows: rs.length, heights, on, offStar: starState(firstOff?.querySelector('button[aria-pressed]')), nameLeft: [...new Set(rs.slice(0, 20).map((r) => Math.round(r.querySelector('td div div button, td div div span')?.getBoundingClientRect().left ?? -1)))] } };\nwindow.errors = async () => (await window.api.dev.recentErrors()).map((e) => e.message.slice(0, 200));\nwindow.themeNow = () => (document.documentElement.classList.contains('dark') ? 'dark' : 'light');\nwindow.toTheme = async (want) => { if (themeNow() !== want) document.querySelector('button[aria-label=\"Switch theme\"]').click(); await sleep(800); return themeNow() };\n'helpers ready'"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { return { theme: themeNow(), stored: await stored() } })()))()"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { return openPlayer('NBA', 2027, \"Shai Gilgeous-Alexander\") })()))()"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { return starState(headerStar()) })()))()"
+  },
+  {
+    "shot": "12-relaunch-player-page"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { return board('first') })()))()"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { return tableState() })()))()"
+  },
+  {
+    "shot": "13-relaunch-leaderboard"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { return openPlayer('NBA', 2027, 'Cooper Flagg') })()))()"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { return starState(headerStar()) })()))()"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { return openPlayer('NCAA Men', 2025, 'Cooper Flagg') })()))()"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { return starState(headerStar()) })()))()"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { await openPlayer('NBA', 2027, 'Cooper Flagg'); return clickHeaderStar() })()))()"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { await nav('Teams'); await sleep(3000); return { h1: heading(), star: starState(headerStar()) } })()))()"
+  },
+  {
+    "eval": "(async () => JSON.stringify(await (async () => { return { errors: await errors() } })()))()"
+  }
+]

@@ -32,6 +32,9 @@
   --good-s: oklch(0.5 0.14 150 / 0.13);
   --bad-s: oklch(0.53 0.19 25 / 0.12);
   --warn-s: oklch(0.56 0.13 70 / 0.14);
+  /* Favourites (D49): one gold, a star's fill. Measured 3.66:1 on --panel, 3.59:1 on --paper, 3.15:1
+     on --sel (WCAG's 3:1 for a graphic); yellower than --warn (hue 88 against 70). */
+  --fav: oklch(0.62 0.14 88);
   --on-pos: oklch(0.99 0 0);
   --scrim: rgba(40, 28, 14, 0.32);
   --shadow-c: rgba(20, 30, 50, 0.12);
@@ -88,6 +91,9 @@
   --good-s: oklch(0.76 0.15 150 / 0.15);
   --bad-s: oklch(0.7 0.17 25 / 0.16);
   --warn-s: oklch(0.85 0.13 90 / 0.15);
+  /* 9.36:1 on --panel, 9.77:1 on --paper, 7.90:1 on --sel; deeper and more orange than --warn's pale
+     yellow (hue 78 against 90, chroma 0.16 against 0.13). */
+  --fav: oklch(0.79 0.16 78);
   --on-pos: oklch(0.16 0.01 60);
   --scrim: rgba(0, 0, 0, 0.55);
   --shadow-c: rgba(0, 0, 0, 0.5);
@@ -130,6 +136,7 @@
   --color-good-s: var(--good-s);
   --color-bad-s: var(--bad-s);
   --color-warn-s: var(--warn-s);
+  --color-fav: var(--fav);
   --color-on-pos: var(--on-pos);
   --color-scrim: var(--scrim);
   --color-s1: var(--s1);

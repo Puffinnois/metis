@@ -1,5 +1,6 @@
 import type { LeagueId } from './leagues'
 import type { DevNote, NewNote, NoteError, NoteStatus } from './devNotes'
+import type { FavouriteKind, FavouritesByLeague } from './favourites'
 import type { LineupGroup } from './stats/lineups'
 import type {
   StatsAssistRequest,
@@ -95,6 +96,23 @@ export interface Api {
      * addition of 2026-11-22).
      */
     onScreen(league: LeagueId): Promise<void>
+  }
+  /**
+   * Starred players and teams (D49), kept in `metis.db`. Each call answers every league's favourites
+   * as they stand after it, a linked player's star followed into the paired league through the links
+   * (D46), so the renderer holds them in one place (`lib/stats/favourites.ts`).
+   */
+  favourites: {
+    all(): Promise<FavouritesByLeague>
+    /** Stars a player or team by its id in the league's stats file, with the name it shows now. */
+    add(
+      league: LeagueId,
+      kind: FavouriteKind,
+      id: string,
+      name: string
+    ): Promise<FavouritesByLeague>
+    /** Takes the star away; a linked player's goes in both leagues of the pair. */
+    remove(league: LeagueId, kind: FavouriteKind, id: string): Promise<FavouritesByLeague>
   }
   /** Every call names its league first (D35): the renderer holds the current one in one place. */
   stats: {
@@ -255,6 +273,9 @@ export const IPC = {
   statsSaveView: 'stats:saveView',
   statsDeleteView: 'stats:deleteView',
   statsExportCsv: 'stats:exportCsv',
+  favouritesAll: 'favourites:all',
+  favouritesAdd: 'favourites:add',
+  favouritesRemove: 'favourites:remove',
   leagueDownloads: 'leagues:downloads',
   leagueSetDownloads: 'leagues:setDownloads',
   leagueDeleteFile: 'leagues:deleteFile',

@@ -26,6 +26,7 @@ function fakeLinks(calls: string[], fail?: string): LinksClient {
     counts: step('counts') as LinksClient['counts'],
     otherCareer: step('otherCareer') as LinksClient['otherCareer'],
     otherPlayers: step('otherPlayers') as LinksClient['otherPlayers'],
+    pairedIds: step('pairedIds') as LinksClient['pairedIds'],
     pairedFamilies: step('pairedFamilies') as LinksClient['pairedFamilies'],
     read: step('read') as LinksClient['read'],
     ping: async () => undefined,
