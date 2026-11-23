@@ -187,7 +187,12 @@ describe('the attribute tables of a professional league', () => {
       school: 'Duke'
     })
     const profile = await readProfile(db, '1', LEAGUES.nba)
-    expect(profile.bio).toMatchObject({ season: 2026, number: '00', height: '6-11', experience: '1' })
+    expect(profile.bio).toMatchObject({
+      season: 2026,
+      number: '00',
+      height: '6-11',
+      experience: '1'
+    })
     expect(profile.draft).toMatchObject({ year: 2023, roundPick: 5, overallPick: 5 })
     // ESPN's draft where the league's has none, as the filter reads it.
     expect((await readProfile(db, '3', LEAGUES.nba)).draft).toMatchObject({

@@ -1,4 +1,5 @@
 import { SHOT_BANDS, SHOT_TYPES, SHOT_ZONE_GROUPS, SHOT_ZONES, SHOTS_FIRST_SEASON } from '../shots'
+import { opponentsOf, type Placement } from '../categories'
 import type { MetricDef } from '../types'
 import { metric, type Opts } from './define'
 
@@ -58,6 +59,8 @@ interface Bucket {
   short: string
   /** The attempts a player needs over 82 games for a rate here to qualify. */
   min: number
+  /** Shooting's sub-group the bucket's metrics sit in. */
+  group: Placement
 }
 
 const ZONE_MIN: Record<string, number> = {
@@ -71,8 +74,26 @@ const ZONE_MIN: Record<string, number> = {
   back: 5
 }
 
+/** The shot-chart zones in four sub-groups, so none passes the 40 columns of a query. */
+const ZONE_GROUP: Record<string, Placement> = {
+  ra: 'shooting.rim_paint',
+  paint: 'shooting.rim_paint',
+  mid: 'shooting.mid_range',
+  c3: 'shooting.corner_threes',
+  c3l: 'shooting.corner_threes',
+  c3r: 'shooting.corner_threes',
+  atb3: 'shooting.above_break',
+  back: 'shooting.above_break'
+}
+
 const ZONES: Bucket[] = [...SHOT_ZONES.filter((z) => z.key !== 'unk'), ...SHOT_ZONE_GROUPS].map(
-  (z) => ({ key: z.key, label: z.label, short: HEAD[z.key], min: ZONE_MIN[z.key] })
+  (z) => ({
+    key: z.key,
+    label: z.label,
+    short: HEAD[z.key],
+    min: ZONE_MIN[z.key],
+    group: ZONE_GROUP[z.key]
+  })
 )
 // The combined corner reads beside the two corners.
 ZONES.splice(
@@ -88,7 +109,8 @@ const BANDS: Bucket[] = SHOT_BANDS.map((b) => ({
   key: b.key,
   label: b.label,
   short: HEAD[b.key],
-  min: 100
+  min: 100,
+  group: 'shooting.distances'
 }))
 
 const TYPE_MIN: Record<string, number> = {
@@ -104,7 +126,8 @@ const TYPES: Bucket[] = SHOT_TYPES.filter((t) => t.key !== 'other').map((t) => (
   key: t.key,
   label: t.label,
   short: HEAD[t.key],
-  min: TYPE_MIN[t.key]
+  min: TYPE_MIN[t.key],
+  group: 'shooting.shot_types'
 }))
 
 /** The share of all attempts a frequency needs to be read over: a season's worth of shots. */
@@ -170,6 +193,8 @@ function base(s: Side, { min, ...o }: Opts & { min?: number }): Opts {
     // Teams always qualify.
     minSample: team ? undefined : min,
     ...o,
+    // The shots a team faced are its defense (`opponentsOf`).
+    categories: s.c && o.categories ? opponentsOf(o.categories) : o.categories,
     ...(team && o.sample === 'games' ? { sample: 'box_games', perGameBy: 'box_games' } : {})
   }
 }
@@ -191,7 +216,15 @@ function bucketMetrics(s: Side, b: Bucket, what: string, measures: readonly stri
     o: Opts & { min?: number }
   ): void => {
     if (!measures.includes(m)) return
-    out.push(metric(s.id(`${b.key}_${m}`), s.label(label), s.short(short), description, base(s, o)))
+    out.push(
+      metric(
+        s.id(`${b.key}_${m}`),
+        s.label(label),
+        s.short(short),
+        description,
+        base(s, { ...o, categories: [b.group, 'offense.shooting'] })
+      )
+    )
   }
   const faced = s.c ? ' taken against the team' : ''
   add('fga', `${b.label} attempts`, `${b.short} FGA`, `Field-goal attempts ${what}${faced}.`, {
@@ -350,7 +383,8 @@ function overall(s: Side): MetricDef[] {
         min: FREQ_MIN,
         unit: 'number',
         decimals: 1,
-        direction: 'neutral'
+        direction: 'neutral',
+        categories: ['shooting.selection', 'offense.shooting']
       })
     ),
     metric(
@@ -364,7 +398,8 @@ function overall(s: Side): MetricDef[] {
         aggregation: 'sum',
         unit: 'number',
         decimals: 1,
-        direction: flip(s, 'higher')
+        direction: flip(s, 'higher'),
+        categories: ['shooting.efficiency', 'offense.shooting']
       })
     ),
     metric(
@@ -378,7 +413,8 @@ function overall(s: Side): MetricDef[] {
         min: FREQ_MIN,
         unit: 'number',
         decimals: 2,
-        direction: flip(s, 'higher')
+        direction: flip(s, 'higher'),
+        categories: ['shooting.efficiency', 'offense.shooting']
       })
     )
   ]

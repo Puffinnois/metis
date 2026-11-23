@@ -149,7 +149,7 @@ describe('compileQuery', () => {
         metrics: ['team_paint_pts'],
         ...scope({ seasons: [2017, 2018] })
       })
-    ).toEqual(['Points in the paint: not in the source for 2017-18.'])
+    ).toEqual(['Points in the paint (box score): not in the source for 2017-18.'])
     expect(notes(scope({ allStarBreak: 'before' }))).toEqual([
       'A season with no All-Star Game on the schedule has no games before or after one.'
     ])

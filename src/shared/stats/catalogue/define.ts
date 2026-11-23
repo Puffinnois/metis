@@ -1,9 +1,18 @@
+import { opponentsOf, type Placement } from '../categories'
 import { NCAA_TEAM_SPLITS } from '../ncaaSplits'
 import type { MetricDef } from '../types'
 
-/** A metric's fields beyond its words: `value` and `sample` are required, the rest have defaults. */
+/**
+ * A metric's fields beyond its words: `value` and `sample` are required, the rest have defaults.
+ * `opponents` states the opponents' categories where a helper making both sides cannot derive them
+ * from the team's (`opponentsOf`): a team's steals are Defense, its opponents' are its Offense.
+ */
 export type Opts = Partial<Omit<MetricDef, 'id' | 'label' | 'short' | 'description'>> &
-  Pick<MetricDef, 'value' | 'sample'>
+  Pick<MetricDef, 'value' | 'sample'> & { opponents?: readonly Placement[] }
+
+/** The opponents' categories of a metric whose team side states `o.categories`. */
+export const opponentCategories = (o: Partial<Opts>): readonly Placement[] | undefined =>
+  o.opponents ?? (o.categories ? opponentsOf(o.categories) : undefined)
 
 /** Box scores start here: 1993-94. */
 export const FIRST_SEASON = 1994
@@ -30,8 +39,11 @@ export function metric(
   label: string,
   short: string,
   description: string,
-  o: Opts
+  opts: Opts
 ): MetricDef {
+  // `opponents` is for the helpers that make both sides, not a field of the metric.
+  const o = { ...opts }
+  delete o.opponents
   return {
     id,
     label,
@@ -104,8 +116,9 @@ const swapName = (c: string): string =>
 export const swapSides = (sql: string): string =>
   sql.replace(TOKEN, (_, c: string) => `{${swapName(c)}}`)
 
+/** "Opponent effective field-goal percentage", but "Opponent Game Score": a name keeps its capitals. */
 const lowerFirst = (label: string): string =>
-  /^[A-Z][a-z]/.test(label) ? label[0].toLowerCase() + label.slice(1) : label
+  /^[A-Z][a-z]*\b(?! [A-Z])/.test(label) ? label[0].toLowerCase() + label.slice(1) : label
 
 const flipped = (d: MetricDef['direction']): MetricDef['direction'] =>
   d === 'higher' ? 'lower' : d === 'lower' ? 'higher' : d
@@ -143,6 +156,7 @@ export function teamSides(
       `${description} For the team's opponents.`,
       {
         ...shared,
+        categories: opponentCategories(o),
         value: swapSides(o.value),
         sample: swapName(sample),
         side: 'defense',

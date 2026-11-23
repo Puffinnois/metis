@@ -6,7 +6,8 @@ import {
   TURNOVER_KINDS
 } from '../playDetail'
 import type { MetricDef } from '../types'
-import { metric, type Opts } from './define'
+import type { Placement } from '../categories'
+import { metric, opponentCategories, type Opts } from './define'
 
 /**
  * Reference section 16 (play-derived statistics), with section 3's technicals, flagrants, ejections
@@ -104,6 +105,8 @@ function base(s: Side, o: Opts & { min?: number }): Opts {
     kind: 'derived',
     minSample: team ? undefined : min,
     ...rest,
+    // The opponents' version of the team's act sits at the other end (`opponentsOf`).
+    categories: s.flip ? opponentCategories(rest) : rest.categories,
     value: sided(s, rest.value),
     sample: sided(s, rest.sample),
     direction: flipped(s, rest.direction ?? 'higher'),
@@ -199,6 +202,23 @@ const FOUL_HEAD: Record<string, string> = {
 
 const FIRST_OF: Record<string, number> = { take: 2011, transition_take: 2023 }
 
+/** A turnover is Playmaking and Offense; one on an offensive foul is a foul committed too. */
+const turnoverCategories = (kind: string): Placement[] =>
+  kind === 'off_foul'
+    ? ['playmaking.turnovers', 'fouls.committed', 'offense.turnovers']
+    : ['playmaking.turnovers', 'offense.turnovers']
+
+/**
+ * A foul by its kind: those committed on defense are Defense too, an offensive foul is a turnover,
+ * a loose-ball foul belongs to neither end, a flagrant sits with the technicals and ejections.
+ */
+function foulCategories(kind: string): Placement[] {
+  if (kind === 'offensive') return ['fouls.committed', 'offense.turnovers']
+  if (kind === 'loose_ball') return ['fouls.committed']
+  if (kind === 'flagrant1' || kind === 'flagrant2') return ['fouls.flagrant_technical']
+  return ['fouls.committed', 'defense.fouls']
+}
+
 const ENTRIES: Entry[] = [
   // Turnovers
   ...TURNOVER_KINDS.map((k): Entry => ({
@@ -206,7 +226,7 @@ const ENTRIES: Entry[] = [
     label: `${k.label} turnovers`,
     short: TOV_HEAD[k.key],
     description: TOV_WORDS[k.key],
-    opts: countOf(`tov_${k.key}`, { direction: 'lower' })
+    opts: countOf(`tov_${k.key}`, { direction: 'lower', categories: turnoverCategories(k.key) })
   })),
   {
     key: 'tov_live',
@@ -214,36 +234,48 @@ const ENTRIES: Entry[] = [
     short: 'Live TO',
     description:
       'Turnovers with a steal credited, so the ball stays live. The rest are dead-ball turnovers.',
-    opts: countOf('tov_live', { direction: 'lower' })
+    opts: {
+      ...countOf('tov_live', { direction: 'lower' }),
+      categories: ['playmaking.turnovers', 'offense.turnovers']
+    }
   },
   {
     key: 'tov_dead',
     label: 'Dead-ball turnovers',
     short: 'Dead TO',
     description: 'Turnovers with no steal credited: play stops.',
-    opts: countOf('tov_dead', { direction: 'lower' })
+    opts: {
+      ...countOf('tov_dead', { direction: 'lower' }),
+      categories: ['playmaking.turnovers', 'offense.turnovers']
+    }
   },
   {
     key: 'tov_live_share',
     label: 'Live-ball turnover share',
     short: 'Live TO%',
     description: 'The share of turnovers that were live-ball: a steal credited.',
-    opts: shareOf('tov_live', 'tov', 50, { direction: 'lower' })
+    opts: {
+      ...shareOf('tov_live', 'tov', 50, { direction: 'lower' }),
+      categories: ['playmaking.turnovers', 'offense.turnovers']
+    }
   },
   ...['bad_pass', 'lost_ball', 'off_foul', 'travel'].map((k): Entry => ({
     key: `tov_${k}_share`,
     label: `${TURNOVER_KINDS.find((x) => x.key === k)?.label} share of turnovers`,
     short: `${TOV_HEAD[k]}%`,
     description: `The share of turnovers that were ${lowerFirst(TURNOVER_KINDS.find((x) => x.key === k)?.label ?? k)}.`,
-    opts: shareOf(`tov_${k}`, 'tov', 50)
+    opts: shareOf(`tov_${k}`, 'tov', 50, { categories: turnoverCategories(k) })
   })),
   {
     key: 'tov_team',
-    label: 'Team turnovers',
+    label: 'Turnovers charged to the team',
     short: 'Team TO',
     description:
       'Turnovers charged to the team, not a player (a shot-clock violation, five seconds): the box score leaves them out.',
-    opts: countOf('tov_team', { direction: 'lower' }),
+    opts: {
+      ...countOf('tov_team', { direction: 'lower' }),
+      categories: ['playmaking.turnovers', 'offense.turnovers']
+    },
     sides: TEAMS
   },
   // Fouls
@@ -254,6 +286,7 @@ const ENTRIES: Entry[] = [
     description: FOUL_WORDS[k.key],
     opts: countOf(`pf_${k.key}`, {
       direction: 'lower',
+      categories: foulCategories(k.key),
       ...(FIRST_OF[k.key] ? { firstSeason: FIRST_OF[k.key] } : {})
     })
   })),
@@ -262,7 +295,7 @@ const ENTRIES: Entry[] = [
     label: 'Shooting share of fouls',
     short: 'S PF%',
     description: 'The share of personal fouls that were shooting fouls.',
-    opts: shareOf('pf_shooting', 'pf', 50)
+    opts: { ...shareOf('pf_shooting', 'pf', 50), categories: ['fouls.committed'] }
   },
   {
     key: 'flagrant',
@@ -272,7 +305,8 @@ const ENTRIES: Entry[] = [
     opts: {
       ...countOf('pf_flagrant1'),
       value: '{pf_flagrant1} + {pf_flagrant2}',
-      direction: 'lower'
+      direction: 'lower',
+      categories: ['fouls.flagrant_technical']
     }
   },
   {
@@ -281,21 +315,27 @@ const ENTRIES: Entry[] = [
     short: 'Tech',
     description:
       'Technical fouls: unsportsmanlike, delay, hanging, taunting, flopping, bench and the rest, defensive three seconds apart. A double technical names one player in the feed, so the other is not credited.',
-    opts: countOf('tech', { direction: 'lower' })
+    opts: { ...countOf('tech', { direction: 'lower' }), categories: ['fouls.flagrant_technical'] }
   },
   {
     key: 'def3',
     label: 'Defensive three seconds',
     short: 'Def 3s',
     description: 'Defensive three-second technicals.',
-    opts: countOf('def3', { direction: 'lower' })
+    opts: {
+      ...countOf('def3', { direction: 'lower' }),
+      categories: ['fouls.violations', 'defense.fouls']
+    }
   },
   {
     key: 'ejections',
     label: 'Ejections',
     short: 'Ejected',
     description: 'Ejections, as the play by play records them.',
-    opts: countOf('ejections', { direction: 'lower' })
+    opts: {
+      ...countOf('ejections', { direction: 'lower' }),
+      categories: ['fouls.flagrant_technical']
+    }
   },
   {
     key: 'fd',
@@ -303,22 +343,28 @@ const ENTRIES: Entry[] = [
     short: 'PFD',
     description:
       'Personal fouls drawn, from ESPN’s play by play, which names the fouled player from 2006-07 to 2016-17 only.',
-    opts: countOf('fd', {
-      sources: ESPN_SOURCES,
-      firstSeason: FOULS_DRAWN_FIRST_SEASON,
-      missingSeasons: AFTER_FOULS_DRAWN
-    })
+    opts: {
+      ...countOf('fd', {
+        sources: ESPN_SOURCES,
+        firstSeason: FOULS_DRAWN_FIRST_SEASON,
+        missingSeasons: AFTER_FOULS_DRAWN
+      }),
+      categories: ['fouls.drawn', 'offense.fouls_drawn']
+    }
   },
   {
     key: 'fd_shooting',
     label: 'Shooting fouls drawn',
     short: 'S PFD',
     description: 'Shooting fouls drawn, from ESPN’s play by play, 2006-07 to 2016-17.',
-    opts: countOf('fd_shooting', {
-      sources: ESPN_SOURCES,
-      firstSeason: FOULS_DRAWN_FIRST_SEASON,
-      missingSeasons: AFTER_FOULS_DRAWN
-    })
+    opts: {
+      ...countOf('fd_shooting', {
+        sources: ESPN_SOURCES,
+        firstSeason: FOULS_DRAWN_FIRST_SEASON,
+        missingSeasons: AFTER_FOULS_DRAWN
+      }),
+      categories: ['fouls.drawn', 'offense.fouls_drawn']
+    }
   },
   // And-ones and free-throw trips
   {
@@ -327,42 +373,60 @@ const ENTRIES: Entry[] = [
     short: 'And1',
     description:
       'Made field goals with a shooting foul on the shot: a make, a shooting foul by the other side and one free throw by the shooter, at the same moment.',
-    opts: countOf('and1')
+    opts: {
+      ...countOf('and1'),
+      categories: ['fouls.drawn', 'shooting.free_throws', 'offense.fouls_drawn']
+    }
   },
   {
     key: 'and1_ftm',
     label: 'And-ones converted',
     short: 'And1 FTM',
     description: 'And-ones whose free throw went in.',
-    opts: countOf('and1_ftm')
+    opts: {
+      ...countOf('and1_ftm'),
+      categories: ['fouls.drawn', 'shooting.free_throws', 'offense.fouls_drawn']
+    }
   },
   {
     key: 'and1_pct',
     label: 'And-one conversion',
     short: 'And1%',
     description: 'The share of and-one free throws made.',
-    opts: shareOf('and1_ftm', 'and1', 20, { direction: 'higher' })
+    opts: {
+      ...shareOf('and1_ftm', 'and1', 20, { direction: 'higher' }),
+      categories: ['fouls.drawn', 'shooting.free_throws', 'offense.fouls_drawn']
+    }
   },
   {
     key: 'and1_rate',
     label: 'And-ones per make',
     short: 'And1/FGM',
     description: 'And-ones over field goals made (the box score’s).',
-    opts: shareOf('and1', 'fgm', 150, { direction: 'higher' })
+    opts: {
+      ...shareOf('and1', 'fgm', 150, { direction: 'higher' }),
+      categories: ['fouls.drawn', 'shooting.free_throws', 'offense.fouls_drawn']
+    }
   },
   {
     key: 'ft_trip2',
-    label: 'Two-shot fouls',
+    label: 'Two-shot fouls drawn',
     short: '2FT trips',
     description: 'Shooting-foul trips of two free throws, counted once a trip.',
-    opts: countOf('ft_trip2')
+    opts: {
+      ...countOf('ft_trip2'),
+      categories: ['fouls.drawn', 'shooting.free_throws', 'offense.fouls_drawn']
+    }
   },
   {
     key: 'ft_trip3',
-    label: 'Three-shot fouls',
+    label: 'Three-shot fouls drawn',
     short: '3FT trips',
     description: 'Shooting-foul trips of three free throws, counted once a trip.',
-    opts: countOf('ft_trip3')
+    opts: {
+      ...countOf('ft_trip3'),
+      categories: ['fouls.drawn', 'shooting.free_throws', 'offense.fouls_drawn']
+    }
   },
   {
     key: 'trip_rate',
@@ -377,7 +441,8 @@ const ENTRIES: Entry[] = [
       unit: 'pct',
       decimals: 1,
       direction: 'higher',
-      min: 300
+      min: 300,
+      categories: ['fouls.drawn', 'shooting.free_throws', 'offense.fouls_drawn']
     }
   },
   // Assisted and unassisted makes
@@ -386,28 +451,28 @@ const ENTRIES: Entry[] = [
     label: 'Assisted twos',
     short: 'Ast 2PM',
     description: 'Two-point field goals made with an assist.',
-    opts: countOf('made2_ast')
+    opts: { ...countOf('made2_ast'), categories: ['scoring.assisted', 'offense.scoring'] }
   },
   {
     key: 'made2_unast',
     label: 'Unassisted twos',
     short: 'Unast 2PM',
     description: 'Two-point field goals made with no assist.',
-    opts: countOf('made2_unast')
+    opts: { ...countOf('made2_unast'), categories: ['scoring.assisted', 'offense.scoring'] }
   },
   {
     key: 'made3_ast',
     label: 'Assisted threes',
     short: 'Ast 3PM',
     description: 'Threes made with an assist.',
-    opts: countOf('made3_ast')
+    opts: { ...countOf('made3_ast'), categories: ['scoring.assisted', 'offense.scoring'] }
   },
   {
     key: 'made3_unast',
     label: 'Unassisted threes',
     short: 'Unast 3PM',
     description: 'Threes made with no assist.',
-    opts: countOf('made3_unast')
+    opts: { ...countOf('made3_unast'), categories: ['scoring.assisted', 'offense.scoring'] }
   },
   {
     key: 'ast2_share',
@@ -416,7 +481,8 @@ const ENTRIES: Entry[] = [
     description: 'The share of two-point makes that were assisted.',
     opts: {
       ...shareOf('made2_ast', 'fgm', 100),
-      value: '{made2_ast} / nullif({made2_ast} + {made2_unast}, 0)'
+      value: '{made2_ast} / nullif({made2_ast} + {made2_unast}, 0)',
+      categories: ['scoring.assisted', 'offense.scoring']
     }
   },
   {
@@ -426,7 +492,8 @@ const ENTRIES: Entry[] = [
     description: 'The share of threes made that were assisted.',
     opts: {
       ...shareOf('made3_ast', 'fg3m', 40),
-      value: '{made3_ast} / nullif({made3_ast} + {made3_unast}, 0)'
+      value: '{made3_ast} / nullif({made3_ast} + {made3_unast}, 0)',
+      categories: ['scoring.assisted', 'offense.scoring']
     }
   },
   {
@@ -437,7 +504,8 @@ const ENTRIES: Entry[] = [
     opts: {
       ...shareOf('made2_unast', 'fgm', 150),
       value:
-        '({made2_unast} + {made3_unast}) / nullif({made2_ast} + {made2_unast} + {made3_ast} + {made3_unast}, 0)'
+        '({made2_unast} + {made3_unast}) / nullif({made2_ast} + {made2_unast} + {made3_ast} + {made3_unast}, 0)',
+      categories: ['scoring.assisted', 'offense.scoring']
     }
   },
   // Violations
@@ -446,54 +514,60 @@ const ENTRIES: Entry[] = [
     label: 'Defensive goaltending',
     short: 'GT',
     description: 'Defensive goaltending violations called.',
-    opts: countOf('goaltend', { direction: 'lower' })
+    opts: {
+      ...countOf('goaltend', { direction: 'lower' }),
+      categories: ['fouls.violations', 'defense.fouls']
+    }
   },
   {
     key: 'kicked',
     label: 'Kicked balls',
     short: 'Kick',
     description: 'Kicked-ball violations called.',
-    opts: countOf('kicked', { direction: 'lower' })
+    opts: {
+      ...countOf('kicked', { direction: 'lower' }),
+      categories: ['fouls.violations', 'defense.fouls']
+    }
   }
 ]
 
 /** The passer's side, players only: assists by the value of the make, and the points they created. */
 const PASSING: MetricDef[] = [
-  metric(
-    'pbp_ast2',
-    'Assists on twos',
-    'Ast→2',
-    'Assists on two-point makes.',
-    base(PLAYER, countOf('ast2'))
-  ),
-  metric(
-    'pbp_ast3',
-    'Assists on threes',
-    'Ast→3',
-    'Assists on threes.',
-    base(PLAYER, countOf('ast3'))
-  ),
+  metric('pbp_ast2', 'Assists on twos', 'Ast→2', 'Assists on two-point makes.', {
+    ...base(PLAYER, countOf('ast2')),
+    categories: ['playmaking.passing', 'offense.playmaking']
+  }),
+  metric('pbp_ast3', 'Assists on threes', 'Ast→3', 'Assists on threes.', {
+    ...base(PLAYER, countOf('ast3')),
+    categories: ['playmaking.passing', 'offense.playmaking']
+  }),
   metric(
     'pbp_ast_pts',
-    'Assist points',
+    'Assist points, from plays',
     'Ast PTS',
     'Points from the makes a player assisted: 2 a two, 3 a three. Free throws after a pass are not counted.',
-    base(PLAYER, { ...countOf('ast2'), value: '2 * {ast2} + 3 * {ast3}' })
+    {
+      ...base(PLAYER, { ...countOf('ast2'), value: '2 * {ast2} + 3 * {ast3}' }),
+      categories: ['playmaking.creation', 'offense.playmaking']
+    }
   ),
   metric(
     'pbp_ast_to3_share',
     'Share of assists on threes',
     '%Ast→3',
     'The share of a player’s assists that set up a three.',
-    base(PLAYER, {
-      value: '{ast3} / nullif({ast2} + {ast3}, 0)',
-      sample: 'ast2',
-      aggregation: 'ratio',
-      unit: 'pct',
-      decimals: 1,
-      direction: 'neutral',
-      min: 100
-    })
+    {
+      ...base(PLAYER, {
+        value: '{ast3} / nullif({ast2} + {ast3}, 0)',
+        sample: 'ast2',
+        aggregation: 'ratio',
+        unit: 'pct',
+        decimals: 1,
+        direction: 'neutral',
+        min: 100
+      }),
+      categories: ['playmaking.passing', 'offense.playmaking']
+    }
   )
 ]
 
@@ -501,12 +575,19 @@ const PASSING: MetricDef[] = [
 const TEAM_PASSING: MetricDef[] = TEAMS.map((s) =>
   metric(
     s.id('ast_pts'),
-    s.label('Assist points'),
+    s.label('Assist points, from plays'),
     s.short('Ast PTS'),
     'Points from assisted makes: 2 a two, 3 a three.',
-    base(s, { ...countOf('made2_ast'), value: '2 * {made2_ast} + 3 * {made3_ast}' })
+    base(s, {
+      ...countOf('made2_ast'),
+      value: '2 * {made2_ast} + 3 * {made3_ast}',
+      categories: ['playmaking.creation', 'offense.playmaking']
+    })
   )
 )
+
+/** Runs and droughts are the team's scoring, the opponents' its defense; the rest of the flow neither. */
+const FLOW_SCORING: Placement[] = ['results.game_flow', 'offense.scoring']
 
 /** The game flow, teams only: averages per game with plays, the opponents' side the team's deficit. */
 const flowAvg = (c: string, o: Partial<Opts> = {}): Opts => ({
@@ -524,28 +605,37 @@ const FLOW: MetricDef[] = [
     'Lead changes',
     'LC',
     'Lead changes a game: a score that puts a side ahead when the other led last, a tie between or not. The first lead is not a change.',
-    base(TEAM, flowAvg('lead_changes', { direction: 'neutral' }))
+    {
+      ...base(TEAM, flowAvg('lead_changes', { direction: 'neutral' })),
+      categories: ['results.game_flow']
+    }
   ),
   metric(
     'team_pbp_times_tied',
     'Times tied',
     'Tied',
     'Scores that level the game, a game. 0-0 at the tip is not a tie.',
-    base(TEAM, flowAvg('times_tied', { direction: 'neutral' }))
+    {
+      ...base(TEAM, flowAvg('times_tied', { direction: 'neutral' })),
+      categories: ['results.game_flow']
+    }
   ),
   metric(
     'team_pbp_tied_share',
     'Time tied',
     'Tied%',
     'The share of game time with the score level, 0-0 at the tip included.',
-    base(TEAM, {
-      value: '{tied_ds} / nullif({game_ds}, 0)',
-      sample: 'flow_games',
-      aggregation: 'ratio',
-      unit: 'pct',
-      decimals: 1,
-      direction: 'neutral'
-    })
+    {
+      ...base(TEAM, {
+        value: '{tied_ds} / nullif({game_ds}, 0)',
+        sample: 'flow_games',
+        aggregation: 'ratio',
+        unit: 'pct',
+        decimals: 1,
+        direction: 'neutral'
+      }),
+      categories: ['results.game_flow']
+    }
   ),
   ...TEAMS.flatMap((s) => [
     metric(
@@ -555,7 +645,11 @@ const FLOW: MetricDef[] = [
       s.flip
         ? 'The most the team trailed by, on average a game.'
         : 'The most the team led by, on average a game; 0 in a game it never led.',
-      base(s, { ...flowAvg('largest_lead'), direction: s.flip ? 'higher' : 'higher' })
+      base(s, {
+        ...flowAvg('largest_lead'),
+        direction: s.flip ? 'higher' : 'higher',
+        categories: ['results.game_flow']
+      })
     ),
     metric(
       s.id('lead_share'),
@@ -568,7 +662,8 @@ const FLOW: MetricDef[] = [
         aggregation: 'ratio',
         unit: 'pct',
         decimals: 1,
-        direction: 'higher'
+        direction: 'higher',
+        categories: ['results.game_flow']
       })
     ),
     metric(
@@ -576,7 +671,7 @@ const FLOW: MetricDef[] = [
       s.label('Best run'),
       s.short('Run'),
       'The longest run a game, on average: points scored with none by the other side between; any point ends it, a free throw included, and it carries over a period break.',
-      base(s, flowAvg('best_run'))
+      base(s, flowAvg('best_run', { categories: FLOW_SCORING }))
     ),
     metric(
       s.id('drought'),
@@ -587,7 +682,8 @@ const FLOW: MetricDef[] = [
         ...flowAvg('drought_ds'),
         value: '{drought_ds} / 600.0 / nullif({flow_games}, 0)',
         unit: 'minutes',
-        direction: 'lower'
+        direction: 'lower',
+        categories: FLOW_SCORING
       })
     ),
     metric(
@@ -599,7 +695,8 @@ const FLOW: MetricDef[] = [
         ...flowAvg('drought_fg_ds'),
         value: '{drought_fg_ds} / 600.0 / nullif({flow_games}, 0)',
         unit: 'minutes',
-        direction: 'lower'
+        direction: 'lower',
+        categories: FLOW_SCORING
       })
     )
   ])

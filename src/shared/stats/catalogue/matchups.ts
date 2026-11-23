@@ -65,123 +65,138 @@ const DEFENDER: MetricDef[] = [
     'Matchup minutes',
     'Match MIN',
     'Time the player spent assigned to an offensive player, as tracked. Not minutes played.',
-    count('matchup_minutes', { unit: 'minutes', decimals: 1, perGameOnly: true })
+    {
+      ...count('matchup_minutes', { unit: 'minutes', decimals: 1, perGameOnly: true }),
+      categories: ['defense.matchups']
+    }
   ),
   metric(
     'matchup_poss',
     'Matchup possessions',
     'Match Poss',
     'Partial possessions guarded: each possession is shared among the defenders assigned during it.',
-    count('possessions', { decimals: 1, perGameOnly: true })
+    {
+      ...count('possessions', { decimals: 1, perGameOnly: true }),
+      categories: ['defense.matchups']
+    }
   ),
   metric(
     'matchup_pts',
     'Points allowed in matchups',
     'Match PTS',
     `Points scored by the players they were assigned to, while assigned. ${CAVEAT}`,
-    count('player_pts', { direction: 'lower' })
+    { ...count('player_pts', { direction: 'lower' }), categories: ['defense.matchups'] }
   ),
   metric(
     'matchup_pts_per_100',
     'Matchup points allowed per 100',
     'Match PTS/100',
     `Points the players they guarded scored, per 100 partial possessions guarded. Derived, and not a defensive rating. ${CAVEAT}`,
-    rate(per100('player_pts', 'possessions'), 'possessions', 2000, {
-      unit: 'rating',
-      decimals: 1,
-      kind: 'derived'
-    })
+    {
+      ...rate(per100('player_pts', 'possessions'), 'possessions', 2000, {
+        unit: 'rating',
+        decimals: 1,
+        kind: 'derived'
+      }),
+      categories: ['defense.matchups']
+    }
   ),
   metric(
     'matchup_team_pts',
-    'Team points in matchups',
+    'Opponent team points in matchups',
     'Match TM PTS',
     'Points the other team scored while the player was assigned to someone: not that player’s points.',
-    count('team_pts')
+    { ...count('team_pts'), categories: ['defense.matchups'] }
   ),
   metric(
     'matchup_fgm',
     'Matchup field goals allowed',
     'Match FGM',
     'Field goals made by the players they were assigned to.',
-    count('matchup_fgm', { direction: 'lower' })
+    { ...count('matchup_fgm', { direction: 'lower' }), categories: ['defense.matchups'] }
   ),
   metric(
     'matchup_fga',
     'Matchup field-goal attempts faced',
     'Match FGA',
     'Field-goal attempts by the players they were assigned to.',
-    count('matchup_fga')
+    { ...count('matchup_fga'), categories: ['defense.matchups'] }
   ),
   metric(
     'matchup_fg_pct',
     'Matchup FG% allowed',
     'Match FG%',
     `The field-goal percentage of the players they were assigned to. ${CAVEAT}`,
-    rate(ratio('matchup_fgm', 'matchup_fga'), 'matchup_fga', 300)
+    {
+      ...rate(ratio('matchup_fgm', 'matchup_fga'), 'matchup_fga', 300),
+      categories: ['defense.matchups']
+    }
   ),
   metric(
     'matchup_fg3m',
     'Matchup threes allowed',
     'Match 3PM',
     'Threes made by the players they were assigned to.',
-    count('matchup_fg3_m', { direction: 'lower' })
+    { ...count('matchup_fg3_m', { direction: 'lower' }), categories: ['defense.matchups'] }
   ),
   metric(
     'matchup_fg3a',
     'Matchup threes faced',
     'Match 3PA',
     'Three-point attempts by the players they were assigned to.',
-    count('matchup_fg3_a')
+    { ...count('matchup_fg3_a'), categories: ['defense.matchups'] }
   ),
   metric(
     'matchup_fg3_pct',
     'Matchup 3P% allowed',
     'Match 3P%',
     `The three-point percentage of the players they were assigned to. ${CAVEAT}`,
-    rate(ratio('matchup_fg3_m', 'matchup_fg3_a'), 'matchup_fg3_a', 100)
+    {
+      ...rate(ratio('matchup_fg3_m', 'matchup_fg3_a'), 'matchup_fg3_a', 100),
+      categories: ['defense.matchups']
+    }
   ),
   metric(
     'matchup_ftm',
     'Matchup free throws allowed',
     'Match FTM',
     'Free throws made by the players they were assigned to.',
-    count('matchup_ftm', { direction: 'lower' })
+    { ...count('matchup_ftm', { direction: 'lower' }), categories: ['defense.matchups'] }
   ),
   metric(
     'matchup_fta',
     'Matchup free throws faced',
     'Match FTA',
     'Free-throw attempts by the players they were assigned to.',
-    count('matchup_fta', { direction: 'lower' })
+    { ...count('matchup_fta', { direction: 'lower' }), categories: ['defense.matchups'] }
   ),
   metric(
     'matchup_ast',
     'Matchup assists allowed',
     'Match AST',
     'Assists by the players they were assigned to.',
-    count('matchup_ast', { direction: 'lower' })
+    { ...count('matchup_ast', { direction: 'lower' }), categories: ['defense.matchups'] }
   ),
   metric(
     'matchup_tov',
     'Matchup turnovers forced',
     'Match TOV',
     'Turnovers by the players they were assigned to. Not necessarily their own steals.',
-    count('matchup_tov', { direction: 'higher' })
+    { ...count('matchup_tov', { direction: 'higher' }), categories: ['defense.matchups'] }
   ),
   metric(
     'matchup_blk',
     'Matchup blocks',
     'Match BLK',
     'Blocks of the shots of the players they were assigned to.',
-    count('matchup_blk', { direction: 'higher' })
+    { ...count('matchup_blk', { direction: 'higher' }), categories: ['defense.matchups'] }
   ),
   metric(
     'matchup_sfl',
     'Matchup shooting fouls',
     'Match SFL',
     'Shooting fouls committed on the players they were assigned to.',
-    count('sfl', { direction: 'lower' })
+    { ...count('sfl', { direction: 'lower' }), categories: ['defense.matchups'] }
   )
 ]
 
@@ -201,6 +216,7 @@ const BY_POSITION: MetricDef[] = (['g', 'f', 'c'] as const).flatMap((p) => {
       `The share of their matchup time spent guarding ${WHO[p]}, by the position the NBA lists.`,
       rate(ratio(`pos_${p}_minutes`, 'pos_all_minutes'), 'pos_all_minutes', 500, {
         published: POSITIONS,
+        categories: ['defense.matchups'],
         publishedGames: undefined,
         direction: 'neutral'
       })
@@ -212,6 +228,7 @@ const BY_POSITION: MetricDef[] = (['g', 'f', 'c'] as const).flatMap((p) => {
       `Points scored by the ${WHO[p]} they guarded, per 100 partial possessions guarding them. Derived. ${CAVEAT}`,
       rate(per100(`pos_${p}_pts`, `pos_${p}_poss`), `pos_${p}_poss`, 500, {
         published: POSITIONS,
+        categories: ['defense.matchups'],
         publishedGames: undefined,
         unit: 'rating',
         decimals: 1,
@@ -225,6 +242,7 @@ const BY_POSITION: MetricDef[] = (['g', 'f', 'c'] as const).flatMap((p) => {
       `The field-goal percentage of the ${WHO[p]} they guarded. ${CAVEAT}`,
       rate(ratio(`pos_${p}_fgm`, `pos_${p}_fga`), `pos_${p}_fga`, 100, {
         published: POSITIONS,
+        categories: ['defense.matchups'],
         publishedGames: undefined
       })
     )

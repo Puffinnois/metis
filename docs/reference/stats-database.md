@@ -548,7 +548,7 @@ No source publishes handedness. Logos, headshots and team colours are left out (
 
 ### Age
 
-Worked out when read, never stored: whole years on January 31 of the season's final year (`AGE_REFERENCE`), in every league: Basketball-Reference's glossary, "player age on January 31 of the given season" (read 2026-11-23), and its WNBA pages count the same day. A row grouped by season reads its season's day; otherwise the latest season of its rows in scope. ESPN publishes few college birth dates (14 % of the men's Division I players in 2021-22, 1 % in 2026-27; 4 % and 0 % of the women's), so age answers for few college players and the rest are counted as having no value.
+Worked out when read, never stored: whole years on a reference day in the season's final year (`AGE_REFERENCE`), January 31 in the NBA and the colleges and July 1 in the WNBA. January 31 is Basketball-Reference's glossary, "player age on January 31 of the given season" (read 2026-11-23). Its WNBA pages count a later day: on 2026-11-23, Diana Taurasi (born June 11) read 38 in 2020 and Nneka Ogwumike (born July 2) 29, which puts it from June 11 to July 1; Arike Ogunbowale, Breanna Stewart and Sabrina Ionescu agree. July 1 is taken inside that window, the exact day not proven. A row grouped by season reads its season's day; otherwise the latest season of its rows in scope. ESPN publishes few college birth dates (14 % of the men's Division I players in 2021-22, 1 % in 2026-27; 4 % and 0 % of the women's), so age answers for few college players and the rest are counted as having no value.
 
 ### Filters
 
@@ -565,7 +565,7 @@ Worked out when read, never stored: whole years on January 31 of the season's fi
 - **After the ranks:** the compiler (`engine/filters.ts`) adds `judged`, each ranked row with whether it passes and whether it lacks a value a condition needs, and `filtered`, the rows that pass, and every form of the answer (a list, many rows, `places`) reads from it. So a row keeps its percentile and rank among every row, the list is 1 to n of those left, `total` counts them and the limit applies after. A query with no filters reads `shaped` as before: its SQL is unchanged (`nbaSqlUnchanged.test.ts`, and a test that `filters: []` compiles to the same SQL).
 - **Attributes** are joined by the row's id: `player_attributes` by player, `player_season_attributes` and `team_attributes` by player or team and the row's season (its group's when grouped by season, else the latest season of its rows in scope).
 - **Metrics** compare the value as the transform shows it (`t<i>`, `MetricValue.value`): per game under per game, a percentile under percentile, a percentage as a fraction. A metric the query does not list is compiled after its own metrics, for the condition alone, and not shown (`Compiled.shown`).
-- **No value:** a row lacking a value a condition needs is left out and counted in `StatsResult.filtered.noValue`, among the rows the board would list (the qualified ones under "Qualified only"); has a value and has none count nothing. With no row left, the count is read on its own.
+- **No value:** a row lacking a value a condition needs is left out. It is counted in `StatsResult.filtered.noValue` when it passes every condition it has a value for: a row the conditions cannot place, not one a condition with a value rejects (with "experience 0 and height at least 82", a veteran with no height is not counted). Counted among the rows the board would list (the qualified ones under "Qualified only"); has a value and has none count nothing. A rookie is experience 0 where the roster lists the player and has no value where it does not (LeBron James has no 2025-26 roster line), so a filter on experience leaves those players out and counts them. With no row left, the count is read on its own.
 - **No answer:** a condition on an attribute the league does not have, or has for none of the seasons in scope ("Arena capacity: published from 2001-02 to 2018-19."), or on a metric with no answer to the query (its column's reason), answers `filtered.reason` and reads nothing; so does one on a file whose attribute tables are not built yet ("Attributes are built at the next refresh of this league.").
 - **Values are bound,** never written into the SQL; text is compared lowercased.
 - **The scope filters** (`positions`, `teams`, `places`) are unchanged. `places` could later be one more condition (an id any of), but it answers a different question, a row's place in the unfiltered order, so it stays.
@@ -576,15 +576,15 @@ Seven filtered answers, each recounted from the source tables with SQL that read
 
 | League           | Answer                                                                          | Rows | No value |
 | ---------------- | ------------------------------------------------------------------------------- | ---: | -------: |
-| NBA 2025-26      | Rookies (the roster's "R") 6-8 and taller that season, 10 points a game or more |    8 |       92 |
-| NBA 2003-04      | The same: Carmelo Anthony, LeBron James, Chris Bosh                             |    3 |       35 |
+| NBA 2025-26      | Rookies (the roster's "R") 6-8 and taller that season, 10 points a game or more |    8 |        5 |
+| NBA 2003-04      | The same: Carmelo Anthony, LeBron James, Chris Bosh                             |    3 |        0 |
 | NBA 2025-26      | Born outside the United States (ESPN's birth country)                           |  128 |       14 |
 | NBA 1997-98      | The same                                                                        |   22 |      340 |
 | WNBA 2025        | The same                                                                        |   30 |       13 |
-| NCAA Men 2025-26 | Freshmen with 15 points a game or more, Division I, every counted game          |   36 |        2 |
-| NCAA Men 2021-22 | The same                                                                        |   14 |      122 |
+| NCAA Men 2025-26 | Freshmen with 15 points a game or more, Division I, every counted game          |   36 |        0 |
+| NCAA Men 2021-22 | The same                                                                        |   14 |        1 |
 
-The NBA's 2025-26 rookies with no value are the players with no line on that season's published roster (495 lines, against 582 players with a game).
+The five NBA rookies of 2025-26 with no value scored 10 points a game, are 6-8 or taller or have no height, and have no line on that season's published roster (495 lines, against 582 players with a game), so their experience is unknown. The rule before review counted any row with a missing value: the same answers then left out 92, 35, 14, 340, 13, 2 and 122.
 
 Read time (`scripts/engine-speed.mjs`, 2025-26, median of five, warm): the filters cost nothing measurable, and a narrow answer ships fewer rows.
 
@@ -994,7 +994,7 @@ The model code is one for every league; what differs is read from the league's r
 
 | Read                                             | Answers                                                                                                                                                                  |
 | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `player(id)`                                     | Name, seasons, latest position and team; number, size, birth date and school from the latest roster line                                                                 |
+| `player(id)`                                     | Name, seasons, latest position and team; number, size, birth date and school from the latest roster line, read from the attribute tables (D51)                           |
 | `games(season)`                                  | Every game on the schedule, played or not: its type, sides, score, whether a box score is held, overtimes                                                                |
 | `game(id)`                                       | ESPN's venue, city, attendance and note, and the score by period when those add up to the final score                                                                    |
 | `standings(season)`                              | The published standings: `src_nba_standings`, or the dashboards' file for 1995-96                                                                                        |

@@ -274,7 +274,7 @@ A player or a team can be starred (D49, Plan T1601). Built: the store, the star 
 
 ## Glossary
 
-Every metric, players or teams, by family or search, with the same entry as the column hover, its stability included. A stability filter (any, high, medium, low, not measured) and an order (by name, or most stable first, not measured last) sit beside the family (Plan T1006).
+Every metric, players or teams, by category (D52, `stat-categories.md`) or search, with the same entry as the column hover, its stability included. The metrics are in sections, one a sub-group, in the registry's order ("Shooting › Threes", with the sub-group's sentence). With every category, each metric is described once, under its primary category. With one category chosen (only those with metrics for players, or for teams, are offered), each of its sub-groups describes the metrics whose primary category it is, and names the others it holds with a link, "Also here, described under their own category", which opens that category on the metric. Each entry says where it sits ("In: Rebounding › Defensive, Defense › Rebounding") and its source as the tag (the family: Tracking, Play by play, "Box-score rates" for `shooting`, "Splits and shares" for `scoring`). A source filter (the family), a stability filter (any, high, medium, low, not measured) and an order (by name, or most stable first, not measured last) sit beside the category (Plan T1006).
 
 ## Speed
 

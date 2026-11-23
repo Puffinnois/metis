@@ -325,7 +325,7 @@ describe('compareView', () => {
     view.groups.flatMap((g) => g.rows).find((r) => r.metric === id)!
 
   it('groups the rows by family in the leaderboard order', () => {
-    expect(view.groups.map((g) => g.label)).toEqual(['Traditional', 'Shooting', 'Tracking'])
+    expect(view.groups.map((g) => g.label)).toEqual(['Traditional', 'Box-score rates', 'Tracking'])
   })
 
   it('marks the best value the metric’s way, both of a tie for best', () => {
