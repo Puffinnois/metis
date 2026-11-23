@@ -10,7 +10,7 @@ import { INTERRUPTED_MESSAGE } from '../schema'
 import { PAIRED_SOURCES_BY_LEAGUE } from '../sources'
 import { refreshStats } from '../sync'
 import type { LinkLinesFiles, LinkSideFiles, LinksWorkerInit } from './protocol'
-import { readOtherCareer, readOtherPlayers } from './read'
+import { readOtherCareer, readOtherPlayers, readPairedIds } from './read'
 import { matchSql, NAME_MACRO } from './sql'
 import {
   keptSeasonTable,
@@ -36,6 +36,7 @@ export interface LinksService {
   counts(league: LeagueId): Promise<Record<string, number>>
   otherCareer(league: LeagueId, player: string): Promise<StatsOtherCareer>
   otherPlayers(league: LeagueId): Promise<StatsOtherPlayer[]>
+  pairedIds(league: LeagueId, ids: string[]): Promise<[string, string][]>
   pairedFamilies(league: LeagueId): Promise<StatsFamily[]>
   read(sql: string): Promise<Row[]>
   cancel(): void
@@ -220,6 +221,7 @@ export async function openLinksService(
     counts: (league) => read((conn) => countsOf(conn, league)),
     otherCareer: (league, player) => read((conn) => readOtherCareer(conn, league, player)),
     otherPlayers: (league) => read((conn) => readOtherPlayers(conn, league)),
+    pairedIds: (league, ids) => read((conn) => readPairedIds(conn, league, ids)),
     pairedFamilies: (league) =>
       read(async (conn) => {
         const other = pairedLeague(league)

@@ -33,6 +33,8 @@ async function handle(request: LinksRequest): Promise<unknown> {
       return service.otherCareer(request.league, request.player)
     case 'otherPlayers':
       return service.otherPlayers(request.league)
+    case 'pairedIds':
+      return service.pairedIds(request.league, request.ids)
     case 'pairedFamilies':
       return service.pairedFamilies(request.league)
     case 'read':

@@ -362,3 +362,29 @@ export async function readOtherCareer(
     reason: null
   }
 }
+
+/**
+ * Which of a league's players are linked to the paired league, and their ids there, as `[here, there]`
+ * (D49: a favourite follows the person). A link from a college player to a draftee with no
+ * professional id has no player there to star, so it is left out. Ids that are not whole numbers name
+ * nobody in the links and are dropped before the query. Reads only the links file.
+ */
+export async function readPairedIds(
+  db: StatsDb,
+  league: LeagueId,
+  ids: string[]
+): Promise<[string, string][]> {
+  const pair = pairOf(league)
+  const wanted = [...new Set(ids.filter((id) => /^\d{1,18}$/.test(id)))]
+  if (!pair || wanted.length === 0) return []
+  const isCollege = pair.college === league
+  const [here, there] = isCollege ? ['college_id', 'pro_id'] : ['pro_id', 'college_id']
+  const rows = await db.all<{ here: string; there: string }>(
+    `SELECT DISTINCT ${here}::VARCHAR AS here, ${there}::VARCHAR AS there FROM player_link
+     WHERE ${isCollege ? 'college' : 'pro'} = ? AND ${here} IN (${wanted.join(', ')})
+       AND ${there} IS NOT NULL
+     ORDER BY 1, 2`,
+    [league]
+  )
+  return rows.map((r) => [r.here, r.there])
+}

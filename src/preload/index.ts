@@ -49,6 +49,11 @@ const api: Api = {
     deleteFile: (league) => ipcRenderer.invoke(IPC.leagueDeleteFile, league),
     onScreen: (league) => ipcRenderer.invoke(IPC.leagueOnScreen, league)
   },
+  favourites: {
+    all: () => ipcRenderer.invoke(IPC.favouritesAll),
+    add: (league, kind, id, name) => ipcRenderer.invoke(IPC.favouritesAdd, league, kind, id, name),
+    remove: (league, kind, id) => ipcRenderer.invoke(IPC.favouritesRemove, league, kind, id)
+  },
   stats: {
     status: (league) => ipcRenderer.invoke(IPC.statsStatus, league),
     data: (league) => ipcRenderer.invoke(IPC.statsData, league),

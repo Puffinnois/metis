@@ -1,7 +1,7 @@
-import { rmSync } from 'node:fs'
+import { existsSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Db } from '@main/db/connection'
-import { LEAGUES, leagueOf, pairOf, type LeagueId } from '@shared/leagues'
+import { LEAGUES, LINKS_FILE, leagueOf, pairOf, type LeagueId } from '@shared/leagues'
 import type {
   LeagueDownload,
   LeagueDownloads,
@@ -62,6 +62,12 @@ export interface LeagueControl {
   otherCareer(league: LeagueId, player: string): Promise<StatsOtherCareer>
   /** The paired league's linked players with no page in this league, from the links file (T1304.4). */
   otherPlayers(league: LeagueId): Promise<StatsOtherPlayer[]>
+  /**
+   * Which of a league's players are linked, id here → id in the paired league (D49: a favourite
+   * follows the person). Empty, never an error, where leagues are not linked, the links file is not
+   * there yet, or its read fails: the star is then the league's alone.
+   */
+  pairedIds(league: LeagueId, ids: string[]): Promise<Map<string, string>>
   /** The links worker's control, for scripts and tests; null when leagues are not linked. */
   links: LinksControl | null
   close(): Promise<unknown>
@@ -248,6 +254,17 @@ export function createLeagueControl(deps: LeagueControlDeps): LeagueControl {
     otherPlayers(league) {
       if (!links) return Promise.reject(new Error('players are not linked in this build'))
       return links.otherPlayers(leagueOf(league).id)
+    },
+    async pairedIds(league, ids) {
+      // The worker would make an empty links file to answer; with none there is nothing to read.
+      if (!links || !pairOf(league) || ids.length === 0) return new Map()
+      if (!existsSync(join(deps.dataDir, LINKS_FILE))) return new Map()
+      try {
+        return new Map(await links.pairedIds(leagueOf(league).id, ids))
+      } catch (err) {
+        log('favourites: the links could not be read; stars stay in their own league', err)
+        return new Map()
+      }
     },
     links,
     close: () => {

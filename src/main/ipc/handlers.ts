@@ -3,9 +3,11 @@ import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { Db } from '@main/db/connection'
 import { deleteStatsView, listStatsViews, saveStatsView } from '@main/db/repos/statsViews'
+import { readFavourites, starFavourite, unstarFavourite, type PairedIds } from '@main/favourites'
 import type { LeagueControl } from '@main/stats/leagueControl'
 import type { StatsReads } from '@main/stats/offline'
 import type { installAutoUpdater } from '@main/updater'
+import type { FavouriteKind, FavouritesByLeague } from '@shared/favourites'
 import { IPC } from '@shared/ipc'
 import { leagueOf, type LeagueId } from '@shared/leagues'
 import type { LineupGroup } from '@shared/stats/lineups'
@@ -221,6 +223,30 @@ export function registerIpcHandlers(ctx: AppContext): void {
   )
   ipcMain.handle(IPC.statsDeleteView, (_e, league: LeagueId, id: number): void =>
     deleteStatsView(ctx.db, leagueOf(league).id, id)
+  )
+  // Favourites are kept in `metis.db` (D49); a linked player's star is followed through the links
+  // file's own worker (D47), never a file the main process opens.
+  const paired: PairedIds = (league, ids) => ctx.leagues.pairedIds(league, ids)
+  ipcMain.handle(IPC.favouritesAll, (): Promise<FavouritesByLeague> => readFavourites(ctx.db, paired))
+  ipcMain.handle(
+    IPC.favouritesAdd,
+    (
+      _e,
+      league: LeagueId,
+      kind: FavouriteKind,
+      id: string,
+      name: string
+    ): Promise<FavouritesByLeague> => {
+      starFavourite(ctx.db, leagueOf(league).id, kind, id, name, new Date().toISOString())
+      return readFavourites(ctx.db, paired)
+    }
+  )
+  ipcMain.handle(
+    IPC.favouritesRemove,
+    async (_e, league: LeagueId, kind: FavouriteKind, id: string): Promise<FavouritesByLeague> => {
+      await unstarFavourite(ctx.db, paired, leagueOf(league).id, kind, id)
+      return readFavourites(ctx.db, paired)
+    }
   )
   ipcMain.handle(
     IPC.statsExportCsv,
