@@ -24,9 +24,12 @@ vi.mock('@main/stats/derived/publishedTables', async (actual) => {
       // The defenders' matchups: the rollup, with the pair file taking over where it is out.
       real.PUBLISHED_TABLES.find((t) => t.table === 'pub_player_matchups')!,
       real.PUBLISHED_TABLES.find((t) => t.table === 'pub_player_matchup_positions')!,
-      // SportsDataverse's impact models, and DARKO from the regular season alone.
+      // SportsDataverse's impact models; DARKO, BOBAN, the box prior and REML RAPM from the regular
+      // season alone.
       real.PUBLISHED_TABLES.find((t) => t.table === 'pub_player_impact')!,
       real.PUBLISHED_TABLES.find((t) => t.table === 'pub_player_darko')!,
+      real.PUBLISHED_TABLES.find((t) => t.table === 'pub_player_boban')!,
+      real.PUBLISHED_TABLES.find((t) => t.table === 'pub_player_impact_prior')!,
       {
         table: 'published_test_widgets',
         entity: 'player',
@@ -356,14 +359,18 @@ describe('the published tables', () => {
         dspm DOUBLE, spm DOUBLE, min DOUBLE, gp BIGINT, obpm DOUBLE, dbpm DOUBLE, bpm DOUBLE,
         war DOUBLE, darko_filtered_skill DOUBLE, darko_projected_rating DOUBLE,
         darko_projected_sd DOUBLE, boban_filtered_skill DOUBLE, boban_projected_rating DOUBLE,
-        boban_projected_sd DOUBLE)`)
+        boban_projected_sd DOUBLE, o_box_prior DOUBLE, d_box_prior DOUBLE, box_prior DOUBLE,
+        o_reml_rapm DOUBLE, d_reml_rapm DOUBLE, reml_rapm DOUBLE)`)
       // LeBron James's 2025-26, rounded from the source. DARKO's playoff row repeats the regular
-      // season's, as on every player.
+      // season's, as on every player. The box prior and REML RAPM are published on regular-season rows
+      // only (2024-25's values, as the current season's file has them).
       await db.exec(`INSERT INTO src_nba_impact VALUES
         (2544, 2026, 'Regular Season', -0.24, 0.97, 0.74, 4105, 4101, 10.85, -10.11, 0.74,
-         1.24, 0.04, 1.28, 1988, 60, 1.07, 4.18, 5.24, 5.93, 2.1, 1.9, 1.94, NULL, NULL, NULL),
+         1.24, 0.04, 1.28, 1988, 60, 1.07, 4.18, 5.24, 5.93, 2.1, 1.9, 1.94, NULL, NULL, NULL,
+         0.82, -0.42, 0.40, 1.31, 0.04, 1.35),
         (2544, 2026, 'Playoffs', -0.33, -0.13, -0.46, 732, 732, 10.73, -10.02, 0.71,
-         1.0, -0.15, 0.86, 382, 10, -5.04, 3.73, -1.31, 0.59, 2.1, 1.9, 1.94, NULL, NULL, NULL)`)
+         1.0, -0.15, 0.86, 382, 10, -5.04, 3.73, -1.31, 0.59, 2.1, 1.9, 1.94, NULL, NULL, NULL,
+         NULL, NULL, NULL, NULL, NULL, NULL)`)
     })
 
     it('store each model value times what it was fitted on', async () => {
@@ -399,6 +406,35 @@ describe('the published tables', () => {
           darko_projected_rating / games AS next, darko_projected_sd / games AS sd
           FROM pub_player_darko`)
       ).toEqual([{ games: 60, skill: null, next: null, sd: null }])
+    })
+
+    it('read BOBAN under its own name, from the regular season only', async () => {
+      // BOBAN's playoff rows repeat the regular season's, as DARKO's did (T1205).
+      await db.exec(`UPDATE src_nba_impact SET boban_filtered_skill = 2.2,
+        boban_projected_rating = 1.9, boban_projected_sd = 1.94`)
+      await buildPublished(db)
+      expect(
+        await db.all(`SELECT game_type, games, boban_filtered_skill / games AS skill,
+          boban_projected_rating / games AS next, boban_projected_sd / games AS sd
+          FROM pub_player_boban`)
+      ).toEqual([{ game_type: 'regular', games: 60, skill: 2.2, next: 1.9, sd: 1.94 }])
+    })
+
+    it('weight the box prior and REML RAPM by the regular season’s possessions alone', async () => {
+      await buildPublished(db)
+      const rows = await db.all<Record<string, number | string>>(
+        `SELECT game_type, box_prior / prior_poss AS prior, o_box_prior / prior_off_poss AS o_prior,
+           d_reml_rapm / prior_def_poss AS d_reml, reml_rapm / prior_poss AS reml, prior_poss
+         FROM pub_player_impact_prior`
+      )
+      expect(rows).toHaveLength(1)
+      const [r] = rows
+      expect(r.game_type).toBe('regular')
+      expect(r.prior_poss).toBe(8206)
+      expect(r.prior as number).toBeCloseTo(0.4, 9)
+      expect(r.o_prior as number).toBeCloseTo(0.82, 9)
+      expect(r.d_reml as number).toBeCloseTo(0.04, 9)
+      expect(r.reml as number).toBeCloseTo(1.35, 9)
     })
 
     it('read DARKO from the regular season only', async () => {
