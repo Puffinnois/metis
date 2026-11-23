@@ -414,6 +414,7 @@ describe('the game log', () => {
     expect(gameFacts(game(), 'BOS')).toEqual({
       date: 'Jan 5',
       opponent: 'vs LAL',
+      opponentId: '2',
       score: 'W 110–102',
       result: 'W',
       type: null
@@ -421,6 +422,7 @@ describe('the game log', () => {
     expect(gameFacts(game({ overtimes: 2, type: 'playoffs' }), 'LAL')).toEqual({
       date: 'Jan 5',
       opponent: '@ BOS',
+      opponentId: '1',
       score: 'L 102–110 2OT',
       result: 'L',
       type: 'Playoffs'
@@ -541,6 +543,9 @@ describe('the splits', () => {
     expect(groups[1].rows[0].games).toBe('3')
     expect(groups[2].rows.map((r) => r.label)).toEqual(['November', 'January'])
     expect(groups[3].rows.map((r) => r.label)).toEqual(['BOS', 'SAS'])
+    // A row by opponent carries the team's id, for the favourite mark (T1601.2); others carry none.
+    expect(groups[3].rows.map((r) => r.team)).toEqual(['1', '2'])
+    expect(groups[1].rows[0].team).toBeUndefined()
   })
 
   it('states what the answers depend on, once', () => {

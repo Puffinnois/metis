@@ -1,5 +1,6 @@
 import { useId, useState } from 'react'
 import { Segmented } from '@/components/stats/controls'
+import { FavouriteMark } from '@/components/stats/FavouriteStar'
 import { Loading } from '@/components/stats/parts'
 import { TrendChart } from '@/components/stats/TrendChart'
 import { dashboardModes } from '@/lib/stats/dashboard'
@@ -244,6 +245,8 @@ export function StatsTrends({
         <>
           <div className="flex min-w-0 flex-col gap-[5px]">
             <div className="flex items-baseline gap-3">
+              {/* The picker is the system's own list, with no room for the mark: it is here. */}
+              <FavouriteMark kind={entity} id={id} className="self-center [&_svg]:size-4" />
               <h1 className="m-0 truncate text-[24px] leading-none font-bold tracking-[-0.03em]">
                 {name}
               </h1>

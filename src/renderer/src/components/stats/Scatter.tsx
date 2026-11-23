@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { FavouriteMark } from '@/components/stats/FavouriteStar'
 import {
   categoryColour,
   dotRadius,
@@ -10,6 +11,7 @@ import {
   type Scales
 } from '@/lib/stats/chart'
 import { heatColor } from '@/lib/stats/format'
+import { favouritesLast, useFavourites } from '@/lib/stats/favourites'
 import type { Entity } from '@shared/stats/types'
 
 const SERIES = ['var(--s1)', 'var(--s2)', 'var(--s3)']
@@ -68,18 +70,32 @@ export function Scatter({
   })
   const labels = placeLabels(labelItems(entity, dots, at), entity === 'team' ? 6.6 : 6.3)
   const hovered = dots.find((d) => d.id === hover) ?? null
+  // A favourite is drawn in the gold with a gold ring (T1601.2); a pick's or the hover's ring wins.
+  const favourites = useFavourites()
+  const isFav = (d: ChartDot): boolean => favourites.isFavourite(entity, d.id)
   const ring = (d: ChartDot): string | null =>
-    d.pick >= 0 ? SERIES[d.pick] : d.id === hover ? 'var(--cobalt)' : d.matched ? 'var(--fg)' : null
+    d.pick >= 0
+      ? SERIES[d.pick]
+      : d.id === hover
+        ? 'var(--cobalt)'
+        : isFav(d)
+          ? 'var(--fav)'
+          : d.matched
+            ? 'var(--fg)'
+            : null
   const fill = (d: ChartDot): string =>
-    colour === null
-      ? 'var(--cobalt)'
-      : isCategory(colour)
-        ? categoryColour(colour, d.category)
-        : d.percentiles[colour] === null || d.percentiles[colour] === undefined
-          ? 'var(--fg-3)'
-          : heatColor((d.percentiles[colour] ?? 50) / 100, false)
-  // Hovered last, over every other dot.
-  const order = hovered ? [...dots.filter((d) => d.id !== hover), hovered] : dots
+    isFav(d)
+      ? 'var(--fav)'
+      : colour === null
+        ? 'var(--cobalt)'
+        : isCategory(colour)
+          ? categoryColour(colour, d.category)
+          : d.percentiles[colour] === null || d.percentiles[colour] === undefined
+            ? 'var(--fg-3)'
+            : heatColor((d.percentiles[colour] ?? 50) / 100, false)
+  // Favourites over the crowd, and the hovered last, over every other dot.
+  const layered = favouritesLast(dots, isFav)
+  const order = hovered ? [...layered.filter((d) => d.id !== hover), hovered] : layered
   const corner = 'fill-fg-3 text-[11px]'
   const info = hovered ? card(hovered) : null
   const hx = hovered ? s.x(hovered.x) : 0
@@ -209,7 +225,10 @@ export function Scatter({
               : { left: `${((hx + 16) / W) * 100}%` })
           }}
         >
-          <span className="text-[13px] font-semibold text-fg">{info.title}</span>
+          <span className="flex items-center gap-1.5 text-[13px] font-semibold text-fg">
+            <FavouriteMark kind={entity} id={hovered?.id} />
+            {info.title}
+          </span>
           <span className="font-mono text-[11px] text-fg-3">{info.sub}</span>
           {info.lines.map((x) => (
             <span key={x.label} className="flex items-center justify-between gap-2 text-fg-2">

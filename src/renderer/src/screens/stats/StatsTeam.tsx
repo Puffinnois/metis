@@ -479,8 +479,11 @@ function Overview({
                 onClick={() => onOpenGame(next.id)}
                 className="flex cursor-pointer items-baseline justify-between gap-3 rounded-[10px] bg-panel p-4 text-left shadow-[0_0_0_1px_var(--line)] hover:bg-hover"
               >
-                <span className="text-[15px] leading-none font-semibold">
-                  Next: {next.home ? 'vs' : '@'} {next.opponent.code}
+                <span className="flex items-center gap-1 text-[15px] leading-none font-semibold">
+                  Next: {next.home ? 'vs' : '@'}
+                  <FavouriteName kind="team" id={next.opponent.id}>
+                    {next.opponent.code}
+                  </FavouriteName>
                 </span>
                 <span className="text-[12px] leading-none text-fg-3">
                   {shortDay(next.date)} · {next.home ? 'Home' : 'Away'}
