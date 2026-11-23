@@ -243,17 +243,16 @@ export function StatsLeaderboard({
     }
   }
 
-  // A category names itself: the guard shooting leaderboard, the opponents' scoring leaderboard.
+  // A category names what is on screen: '2026-27 guard shooting leaderboard', '2026-27 team
+  // shooting leaderboard · opponents'; Overview keeps the tab's own title.
   const categoryLabel = categories.find((c) => c.id === category)?.label.toLowerCase()
-  const whose =
-    entity === 'player'
-      ? tab.title
-      : category && hasSides(tab, category) && tab.id === 'defense'
-        ? "opponents'"
-        : 'team'
-  const title = categoryLabel
-    ? `${seasonLabel(scope.season)} ${whose} ${categoryLabel} leaderboard`
-    : `${seasonLabel(scope.season)} ${tab.title} leaderboard`
+  const title = !categoryLabel
+    ? `${seasonLabel(scope.season)} ${tab.title} leaderboard`
+    : entity === 'player'
+      ? `${seasonLabel(scope.season)} ${tab.title} ${categoryLabel} leaderboard`
+      : `${seasonLabel(scope.season)} team ${categoryLabel} leaderboard${
+          hasSides(tab, category) && tab.id === 'defense' ? ' · opponents' : ''
+        }`
   const qualifyNote = tab.qualifier ? leaderboardQualifier() : 'Every team qualifies'
   const sortLabel =
     board.sort.by === 'name' ? 'name' : (data.byId.get(board.sort.by)?.label ?? board.sort.by)

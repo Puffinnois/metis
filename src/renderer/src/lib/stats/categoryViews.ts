@@ -31,13 +31,33 @@ export const KEY_VIEW = 'key'
 
 const ALL = CATEGORIES as readonly Category[]
 
-/** Whether a team metric is its opponents' (`opp_`), the other side of a team's category tab. */
+/** Whether a team metric is its opponents' (`opp_`): whose box score its columns come from. */
 export const isOpponents = (m: Pick<MetricInfo, 'id'>): boolean => m.id.startsWith('opp_')
+
+/** The categories about what a side does with the ball, whose team switch follows the end. */
+const WITH_THE_BALL = new Set(['scoring', 'shooting', 'playmaking'])
+
+/**
+ * The side of a team's category a metric shows on: `offense` for the Team side, `defense` for the
+ * Opponents side. In Scoring, Shooting and Playmaking it is the metric's end of the floor, so the
+ * team's shots blocked (`opp_blk`) and its turnovers lost to steals (`opp_stl`) read beside its own
+ * field goals and turnovers; in the categories whose acts happen at both ends (Rebounding, Fouls and
+ * the rest) it is whose box score the columns come from.
+ */
+export function teamSide(
+  m: Pick<MetricInfo, 'id' | 'categories'>,
+  category: string
+): 'offense' | 'defense' {
+  const end = m.categories?.find(isUmbrella)
+  if (WITH_THE_BALL.has(category) && end) return end.startsWith('offense.') ? 'offense' : 'defense'
+  return isOpponents(m) ? 'defense' : 'offense'
+}
 
 /**
  * The metrics a tab offers, in the catalogue's order. A team's specific category shows one side at a
- * time, the team's own (the `offense` tab) or its opponents' (`defense`); an umbrella shows its end,
- * whoever's columns hold it, so Defense holds the team's steals and the opponents' scoring together.
+ * time, the Team side (the `offense` tab) or the Opponents side (`defense`, `teamSide`); an umbrella
+ * shows its end, whoever's columns hold it, so Defense holds the team's steals and the opponents'
+ * scoring together.
  */
 function offered(
   catalogue: readonly MetricInfo[],
@@ -50,7 +70,7 @@ function offered(
     (m): m is MetricInfo & { categories: readonly Placement[] } =>
       ok.has(m.id) &&
       (m.categories ?? []).some((p) => p.startsWith(`${category}.`)) &&
-      (tab.entity !== 'team' || umbrella || isOpponents(m) === (tab.id === 'defense'))
+      (tab.entity !== 'team' || umbrella || teamSide(m, category) === tab.id)
   )
 }
 
@@ -98,6 +118,74 @@ function headline(
     .map(({ m }) => m.id)
 }
 
+/**
+ * The headings an umbrella's headline draws on, in turn: what a reader looks for first at that end.
+ * Fouls, hustle on offense, play types, matchups and the opponents' passing stay in their own chips.
+ */
+const HEADLINE_GROUPS: Readonly<Record<string, readonly string[]>> = {
+  offense: [
+    'scoring',
+    'shooting',
+    'playmaking',
+    'turnovers',
+    'rebounding',
+    'usage',
+    'ratings',
+    'impact'
+  ],
+  defense: [
+    'steals_blocks',
+    'defended_shots',
+    'rebounding',
+    'hustle',
+    'ratings',
+    'impact',
+    'scoring_allowed',
+    'shooting_allowed',
+    'turnovers_forced'
+  ]
+}
+
+/**
+ * An umbrella's headline: its core metrics first, one from each of its headline headings a round, then
+ * the rest the same way (those read from games first), so Defense opens on steals,
+ * blocks, rim defence, defensive rebounds, deflections and the defensive ratings and models rather
+ * than twelve of one kind: 12 at most, read in sub-group order.
+ */
+function umbrellaHeadline(
+  metrics: readonly (MetricInfo & { categories: readonly Placement[] })[],
+  category: Category
+): string[] {
+  const picked: string[] = []
+  // Core metrics first, one from each heading a round; then the rest the same way, those read from
+  // games before the published dashboards.
+  for (const pass of [
+    (m: MetricInfo): boolean => m.tier === 'core',
+    (m: MetricInfo): boolean => m.tier !== 'core'
+  ]) {
+    const queues = (HEADLINE_GROUPS[category.id] ?? []).map((g) =>
+      metrics
+        .filter((m) => pass(m) && within(m, category.id)?.group.id === g)
+        .map((m, i) => ({ m, i }))
+        .sort(
+          (x, y) =>
+            Number(!x.m.grains.includes('game')) - Number(!y.m.grains.includes('game')) || x.i - y.i
+        )
+        .map(({ m }) => m.id)
+    )
+    for (let round = 0; picked.length < 12 && queues.some((q) => q.length > round); round++)
+      for (const q of queues) if (q[round] && picked.length < 12) picked.push(q[round])
+  }
+  const order = (id: string): number => {
+    const m = metrics.find((x) => x.id === id)
+    return m ? category.groups.findIndex((g) => g.id === within(m, category.id)?.group.id) : 0
+  }
+  return picked
+    .map((id, i) => ({ id, i }))
+    .sort((x, y) => order(x.id) - order(y.id) || x.i - y.i)
+    .map((x) => x.id)
+}
+
 /** The placement a metric has in a category, and that placement's parts. */
 function within(
   m: { categories: readonly Placement[] },
@@ -124,7 +212,8 @@ function byGroup(
 
 /**
  * A category's presets on a tab. A specific category: its headline, then each sub-group. An umbrella:
- * each of its headings; one over 40 metrics holds the specific sub-groups of that end as children, so
+ * its headline across its sub-groups (`umbrellaHeadline`), then each of its headings; one over 40
+ * metrics holds the specific sub-groups of that end as children, so
  * Offense › Shooting › Corner threes is Shooting's corner threes on offense. Every view is at most 40
  * metrics (the tests hold it in every league).
  */
@@ -143,7 +232,12 @@ export function categoryViews(
       ? [{ key: KEY_VIEW, label: 'Key stats', metrics: headline(metrics, category) }, ...groups]
       : groups
   }
-  return byGroup(metrics, category).map((view) => {
+  const key: CategoryView = {
+    key: KEY_VIEW,
+    label: 'Key stats',
+    metrics: umbrellaHeadline(metrics, category)
+  }
+  const headings = byGroup(metrics, category).map((view) => {
     if (view.metrics.length <= MAX_COLUMNS) return view
     const ids = new Set(view.metrics)
     const inHeading = metrics.filter((m) => ids.has(m.id))
@@ -164,6 +258,7 @@ export function categoryViews(
     )
     return { ...view, children }
   })
+  return key.metrics.length > 0 ? [key, ...headings] : headings
 }
 
 /** The view a board shows: its saved one, else the first; a parent with children shows its first. */

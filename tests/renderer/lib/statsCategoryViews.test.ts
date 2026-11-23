@@ -6,6 +6,7 @@ import {
   KEY_VIEW,
   parentOf,
   pickerGroups,
+  teamSide,
   viewOf
 } from '@/lib/stats/categoryViews'
 import { MAX_COLUMNS, tabOf } from '@/lib/stats/leaderboard'
@@ -68,7 +69,8 @@ describe("a board's category tabs (D52)", () => {
     expect(hasSides(players, 'shooting')).toBe(false)
     const own = categoryViews(NBA, team, 'shooting').flatMap((v) => v.metrics)
     const theirs = categoryViews(NBA, opponents, 'shooting').flatMap((v) => v.metrics)
-    expect(own.every((id) => !id.startsWith('opp_'))).toBe(true)
+    // The team's own, and the opponents' acts that are the team's offense (its shots blocked).
+    expect([...new Set(own.filter((id) => id.startsWith('opp_')))]).toEqual(['opp_blk'])
     expect(theirs.length).toBeGreaterThan(0)
     expect(theirs.every((id) => id.startsWith('opp_'))).toBe(true)
     // Defense holds the team's steals and the opponents' scoring together, on either tab.
@@ -79,6 +81,18 @@ describe("a board's category tabs (D52)", () => {
     expect(defense).toContain('team_stl')
     expect(defense).toContain('opp_pts')
     expect(defense).not.toContain('opp_stl')
+  })
+
+  it('opens Offense and Defense on their key stats across the sub-groups', () => {
+    const defense = categoryViews(NBA, players, 'defense')
+    expect(defense[0].key).toBe(KEY_VIEW)
+    expect(defense[0].metrics.length).toBeLessThanOrEqual(12)
+    expect(defense[0].metrics).toEqual(
+      expect.arrayContaining(['stl', 'blk', 'def_rim_fg_pct', 'dreb', 'deflections', 'onc_drtg'])
+    )
+    const offense = categoryViews(NBA, players, 'offense')
+    expect(offense[0].key).toBe(KEY_VIEW)
+    expect(offense[0].metrics).toEqual(expect.arrayContaining(['pts', 'ast', 'tov']))
   })
 
   it('leads a specific category with its key stats, then each sub-group in order', () => {
@@ -134,13 +148,48 @@ describe("a board's category tabs (D52)", () => {
         const listed = pickerGroups(NBA, tab, c.id).flatMap((g) =>
           g.metrics
             // A team's specific category shows the side on screen.
-            .filter(
-              (m) => !hasSides(tab, c.id) || m.id.startsWith('opp_') === (tab.id === 'defense')
-            )
+            .filter((m) => !hasSides(tab, c.id) || teamSide(m, c.id) === tab.id)
             .map((m) => m.id)
         )
         for (const m of listed) expect(reached.has(m), `${tab.id} ${c.id} ${m}`).toBe(true)
       }
+  })
+})
+
+describe("a team metric's side (the review of T1702.3)", () => {
+  const side = (id: string, category: string): string =>
+    teamSide(
+      NBA.find((m) => m.id === id)!,
+      category
+    )
+  const shown = (tab: ReturnType<typeof tabOf>, category: string): string[] =>
+    categoryViews(NBA, tab, category).flatMap((v) => v.metrics)
+  const sub = (category: string, group: string, tab: ReturnType<typeof tabOf>): string[] =>
+    categoryViews(NBA, tab, category).find((v) => v.key === `${category}.${group}`)?.metrics ?? []
+
+  it('follows the end in the categories about the ball: Scoring, Shooting, Playmaking', () => {
+    // The team's own shots blocked and turnovers lost to steals read beside its field goals and turnovers.
+    expect(side('opp_blk', 'shooting')).toBe('offense')
+    expect(side('opp_stl', 'playmaking')).toBe('offense')
+    expect(side('opp_tov', 'playmaking')).toBe('defense')
+    expect(side('opp_fg_pct', 'shooting')).toBe('defense')
+    expect(sub('shooting', 'field_goals', team)).toEqual(
+      expect.arrayContaining(['team_fg_pct', 'opp_blk'])
+    )
+    expect(sub('shooting', 'field_goals', opponents)).toContain('opp_fg_pct')
+    expect(shown(opponents, 'shooting')).not.toContain('opp_blk')
+    expect(sub('playmaking', 'turnovers', team)).toEqual(
+      expect.arrayContaining(['team_tov', 'opp_stl'])
+    )
+    expect(sub('playmaking', 'turnovers', opponents)).toContain('opp_tov')
+    expect(shown(opponents, 'playmaking')).not.toContain('opp_stl')
+  })
+
+  it('stays whose box score it is where the acts happen at both ends', () => {
+    expect(side('opp_dreb', 'rebounding')).toBe('defense')
+    expect(side('team_dreb', 'rebounding')).toBe('offense')
+    expect(side('opp_pf', 'fouls')).toBe('defense')
+    expect(side('team_stl', 'defense')).toBe('offense')
   })
 })
 

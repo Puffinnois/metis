@@ -381,9 +381,14 @@ describe('the leaderboard', () => {
     // A specific category reads the team's own or its opponents'; Defense holds both together.
     fireEvent.click(screen.getByRole('tab', { name: 'Shooting' }))
     fireEvent.click(await screen.findByRole('radio', { name: 'Team' }))
-    await waitFor(() => expect(lastQuery().metrics.every((m) => !m.startsWith('opp_'))).toBe(true))
+    await waitFor(() => expect(lastQuery().metrics).toContain('team_fg_pct'))
+    expect(screen.getByRole('heading', { name: /team shooting leaderboard$/ })).toBeTruthy()
     fireEvent.click(screen.getByRole('radio', { name: 'Opponents' }))
     await waitFor(() => expect(lastQuery().metrics.every((m) => m.startsWith('opp_'))).toBe(true))
+    expect(lastQuery().metrics).not.toContain('opp_blk')
+    expect(
+      screen.getByRole('heading', { name: /team shooting leaderboard · opponents/ })
+    ).toBeTruthy()
     fireEvent.click(screen.getByRole('tab', { name: 'Defense' }))
     await waitFor(() => expect(lastQuery().metrics).toContain('team_stl'))
   })
