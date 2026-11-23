@@ -1,7 +1,7 @@
 import { GameFlowChart } from '@/components/stats/GameFlowChart'
 import { useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { StatsSelect } from '@/components/stats/controls'
+import { CheckToggle, StatsSelect } from '@/components/stats/controls'
 import { FavouriteMark, FavouriteName } from '@/components/stats/FavouriteStar'
 import { Loading, MiniTable, NavButton, SectionHead, TABLE_SCROLL } from '@/components/stats/parts'
 import { useNoteContext } from '@/lib/dev/noteContext'
@@ -16,6 +16,8 @@ import {
   gameHeader,
   noBoxNote,
   periodTable,
+  favouriteGameTeams,
+  favouriteRail,
   railGames,
   stepDay,
   type BoxSide,
@@ -57,12 +59,18 @@ import {
   useOfficialsSeason,
   useSeasonGames,
   useStatsQueries,
+  useStatsQuery,
   type StatsData
 } from '@/lib/stats/useStats'
-import { favouriteEdge, gameHasFavourite, useFavourites } from '@/lib/stats/favourites'
+import {
+  favouriteEdge,
+  favouritesEmpty,
+  gameHasFavourite,
+  useFavourites
+} from '@/lib/stats/favourites'
 import { cn } from '@/lib/utils'
 import { currentLeague, inLeague, seasonLabel } from '@/lib/stats/league'
-import type { GameType, StatsGame } from '@shared/stats/types'
+import type { GameType, StatsGame, StatsQuery } from '@shared/stats/types'
 
 /** A day's games on a date rail, and a game: its header, scores by period, comparison and box score. */
 export function StatsGames({
@@ -90,9 +98,36 @@ export function StatsGames({
     state.date !== null && days.includes(state.date)
       ? state.date
       : (named?.date ?? (games ? defaultDay(games) : null))
-  const rail = games ? railGames(games, date, through) : []
+  // Every change keeps the favourites filter, the screen's own.
+  const put = (next: GamesState): void => onState({ ...next, favourites: state.favourites })
+  const favouritesOn = state.favourites === true
+  const favourites = useFavourites()
+  // The favourites filter (T1601.3): a favourite team's games, and the games of the team each
+  // favourite player is on (their latest game's team in scope, as the engine names it).
+  const playerTeamsQuery = useMemo((): StatsQuery | null => {
+    if (!favouritesOn || favourites.players.size === 0) return null
+    return {
+      entity: 'player',
+      metrics: ['pts'],
+      scope: { ...queryScope(scope, 'player'), players: [...favourites.players].slice(0, 64) },
+      limit: 64,
+      ranks: false
+    }
+  }, [favouritesOn, favourites.players, scope])
+  const playerTeams = useStatsQuery(playerTeamsQuery, data.version, { keepLast: false }).result
+  const keptTeams = useMemo(
+    () =>
+      favouriteGameTeams(
+        favourites.teams,
+        (playerTeams?.rows ?? []).map((r) => r.team),
+        seasonOf(data.seasons, scope.season)?.teams ?? []
+      ),
+    [favourites.teams, playerTeams, data.seasons, scope.season]
+  )
+  const day = games ? railGames(games, date, through) : []
+  const rail = favouritesOn ? favouriteRail(day, keptTeams) : day
   const game: StatsGame | null =
-    named && named.date === date
+    named && named.date === date && rail.some((r) => r.id === named.id)
       ? named
       : (games?.find((g) => g.id === rail[0]?.id && g.date === date) ?? null)
   useNoteContext(
@@ -101,7 +136,7 @@ export function StatsGames({
   )
 
   const goDay = (d: string | null): void => {
-    if (d !== null) onState({ date: d, game: null })
+    if (d !== null) put({ date: d, game: null })
   }
   const officialsOn = state.officials === true && !state.official
   const gameTypes = queryScope(scope, 'player').gameTypes ?? ['regular']
@@ -118,7 +153,7 @@ export function StatsGames({
             options={data.seasons.map((s) => ({ value: s.season, label: seasonLabel(s.season) }))}
             onChange={(s) => {
               onScope(moveToSeason(scope, s, data.seasons))
-              onState({ date: null, game: null })
+              put({ date: null, game: null })
             }}
             className="w-full"
           />
@@ -149,12 +184,17 @@ export function StatsGames({
             {rail.length} {rail.length === 1 ? 'GAME' : 'GAMES'}
             {date ? ` · ${fullDay(date).toUpperCase()}` : ''}
           </span>
+          <CheckToggle
+            on={favouritesOn}
+            onChange={(on) => onState({ ...state, date, favourites: on })}
+            title="Only the games of your favourite teams, and of your favourite players' teams"
+          >
+            Favourites
+          </CheckToggle>
           <button
             type="button"
             aria-pressed={officialsOn}
-            onClick={() =>
-              onState({ date, game: state.game, officials: !officialsOn, official: null })
-            }
+            onClick={() => put({ date, game: state.game, officials: !officialsOn, official: null })}
             className={cn(
               'cursor-pointer self-start text-[12px] font-medium hover:text-cobalt',
               officialsOn ? 'text-cobalt' : 'text-fg-2'
@@ -173,7 +213,7 @@ export function StatsGames({
               key={r.id}
               game={r}
               on={r.id === game?.id}
-              onClick={() => onState({ date, game: r.id })}
+              onClick={() => put({ date, game: r.id })}
             />
           ))}
         </div>
@@ -199,6 +239,14 @@ export function StatsGames({
           />
         ) : error || !games ? (
           <Loading error={error} />
+        ) : favouritesOn && !game ? (
+          <div className="py-20 text-center text-[13px] text-fg-3" data-empty="favourites">
+            {favouritesEmpty(
+              currentLeague().name,
+              'game',
+              favourites.players.size + favourites.teams.size
+            )}
+          </div>
         ) : !game ? (
           <div className="py-20 text-center text-[13px] text-fg-3">
             No games on the schedule for {seasonLabel(scope.season)}.
@@ -212,7 +260,7 @@ export function StatsGames({
             through={through}
             onOpenTeam={onOpenTeam}
             onOpenPlayer={onOpenPlayer}
-            onOpenOfficial={(id) => onState({ date, game: game.id, official: id })}
+            onOpenOfficial={(id) => put({ date, game: game.id, official: id })}
           />
         )}
       </div>

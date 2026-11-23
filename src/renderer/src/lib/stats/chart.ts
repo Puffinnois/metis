@@ -43,6 +43,11 @@ export interface ChartState {
   /** Only this team's dots (team code for players, NBA id for teams); the axes stay the pool's. */
   team: string | null
   qualifiedOnly: boolean
+  /**
+   * Only the favourites' dots and rows (T1601.3); the axes, the means and the percentiles stay the
+   * whole field's, so a dot does not move when it is turned on. Absent in a state from before it.
+   */
+  favourites?: boolean
   search: string
   /** Shift-clicked, up to `MAX_PICKS`: sent to Compare. */
   picks: string[]
@@ -60,6 +65,7 @@ export const DEFAULT_CHART: ChartState = {
   colour: null,
   team: null,
   qualifiedOnly: true,
+  favourites: false,
   search: '',
   picks: [],
   sort: { by: 'y', dir: 1 }
@@ -257,6 +263,8 @@ export type ChartView =
       picks: { id: string; name: string }[]
       /** The engine stopped at its row limit: some rows are not plotted. */
       truncated: { shown: number; total: number } | null
+      /** With the favourites filter on: the favourites shown, of the rows the filters would show. */
+      favourites: { shown: number; of: number } | null
     }
 
 const valueOf = (r: StatsRow, id: string): number | null => r.values[id]?.value ?? null
@@ -276,7 +284,9 @@ export function chartView(
   result: StatsResult,
   state: ChartState,
   byId: ReadonlyMap<string, MetricInfo>,
-  teams: readonly StatsTeam[] = []
+  teams: readonly StatsTeam[] = [],
+  /** The league's favourite players or teams, for `state.favourites` (T1601.3). */
+  favourites: ReadonlySet<string> = new Set()
 ): ChartView {
   const axes = chartAxes(state)
   const missing = missingAxis(result, [axes.x, axes.y], byId)
@@ -326,7 +336,9 @@ export function chartView(
   })
   const special = (d: ChartDot): boolean => d.matched || d.pick >= 0
   const inTeam = (r: StatsRow): boolean => !state.team || (isPlayer ? r.team : r.id) === state.team
-  const shown = plotted.filter(inTeam).map(dot)
+  const field = plotted.filter(inTeam)
+  // The favourites filter keeps only their dots; the domain and means below stay the field's.
+  const shown = (state.favourites ? field.filter((r) => favourites.has(r.id)) : field).map(dot)
   const span = (vs: number[]): [number, number] => [Math.min(...vs), Math.max(...vs)]
   const mean = (vs: number[]): number => vs.reduce((t, v) => t + v, 0) / vs.length
   const sign = (id: string): number => (byId.get(id)?.direction === 'lower' ? -1 : 1)
@@ -349,7 +361,8 @@ export function chartView(
     qualified: pool.length,
     picks: picked.map((r) => ({ id: r.id, name: r.name })),
     truncated:
-      result.total > result.rows.length ? { shown: result.rows.length, total: result.total } : null
+      result.total > result.rows.length ? { shown: result.rows.length, total: result.total } : null,
+    favourites: state.favourites ? { shown: shown.length, of: field.length } : null
   }
 }
 
