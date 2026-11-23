@@ -2,6 +2,7 @@ import { GameFlowChart } from '@/components/stats/GameFlowChart'
 import { useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { StatsSelect } from '@/components/stats/controls'
+import { FavouriteMark, FavouriteName } from '@/components/stats/FavouriteStar'
 import { Loading, MiniTable, NavButton, SectionHead } from '@/components/stats/parts'
 import { useNoteContext } from '@/lib/dev/noteContext'
 import {
@@ -58,6 +59,7 @@ import {
   useStatsQueries,
   type StatsData
 } from '@/lib/stats/useStats'
+import { favouriteEdge, gameHasFavourite, useFavourites } from '@/lib/stats/favourites'
 import { cn } from '@/lib/utils'
 import { currentLeague, inLeague, seasonLabel } from '@/lib/stats/league'
 import type { GameType, StatsGame } from '@shared/stats/types'
@@ -227,7 +229,14 @@ function RailItem({
   on: boolean
   onClick: () => void
 }): React.JSX.Element {
-  const line = (team: string, score: string, won: boolean, lost: boolean): React.JSX.Element => (
+  const { teams } = useFavourites()
+  const line = (
+    team: string,
+    id: string | null,
+    score: string,
+    won: boolean,
+    lost: boolean
+  ): React.JSX.Element => (
     <span
       className={cn(
         'flex justify-between gap-2 font-mono text-[12.5px] leading-none tabular-nums',
@@ -235,7 +244,9 @@ function RailItem({
         lost && 'text-fg-3'
       )}
     >
-      <span>{team}</span>
+      <FavouriteName kind="team" id={id}>
+        {team}
+      </FavouriteName>
       <span>{score}</span>
     </span>
   )
@@ -247,11 +258,18 @@ function RailItem({
       onClick={onClick}
       className={cn(
         'flex w-full cursor-pointer flex-col gap-[5px] border-b border-line-2 py-[9px] pr-3.5 pl-4 text-left',
+        // The card is edged when either team is a favourite; a selected one keeps bg-sel too.
+        favouriteEdge(
+          gameHasFavourite(
+            teams,
+            [g.awayId, g.homeId].filter((t) => t !== null)
+          )
+        ),
         on ? 'bg-sel' : 'hover:bg-hover'
       )}
     >
-      {line(g.away, g.awayScore, g.awayWon, g.played && !g.awayWon)}
-      {line(g.home, g.homeScore, g.homeWon, g.played && !g.homeWon)}
+      {line(g.away, g.awayId, g.awayScore, g.awayWon, g.played && !g.awayWon)}
+      {line(g.home, g.homeId, g.homeScore, g.homeWon, g.played && !g.homeWon)}
       {(g.tag || g.note) && (
         <span className="font-mono text-[10.5px] leading-none text-fg-3">
           {[g.tag, g.note].filter(Boolean).join(' · ')}
@@ -278,6 +296,7 @@ function GameBody({
   onOpenPlayer: (id: string) => void
   onOpenOfficial: (id: string) => void
 }): React.JSX.Element {
+  const favourites = useFavourites()
   const { value: detail } = useGameDetail(game.id, data.version)
   const queries = useMemo(() => (game.hasBox ? boxQueries(game) : null), [game])
   const { results, error } = useStatsQueries(queries, data.version)
@@ -322,14 +341,15 @@ function GameBody({
             columns={`56px ${periods.head.map(() => '34px').join(' ')}`}
             head={['', ...periods.head]}
             rows={[
-              { key: 'away', code: game.away.code, cells: periods.away },
-              { key: 'home', code: game.home.code, cells: periods.home }
+              { key: 'away', id: game.away.id, code: game.away.code, cells: periods.away },
+              { key: 'home', id: game.home.id, code: game.home.code, cells: periods.home }
             ].map((r) => ({
               key: r.key,
+              favourite: r.id !== null && favourites.isFavourite('team', r.id),
               cells: [
-                <span key="c" className="font-semibold">
+                <FavouriteName key="c" kind="team" id={r.id} className="font-semibold">
                   {r.code}
-                </span>,
+                </FavouriteName>,
                 ...r.cells.map((c, i) => (
                   <span key={i} className={cn(i === r.cells.length - 1 && 'font-semibold')}>
                     {c}
@@ -480,7 +500,9 @@ function GamePairs({
       onClick={() => onOpenPlayer(id)}
       className="flex min-w-0 cursor-pointer items-center gap-1.5 text-left font-sans text-[13px] font-medium hover:text-cobalt"
     >
-      <span className="truncate">{name}</span>
+      <FavouriteName kind="player" id={id}>
+        {name}
+      </FavouriteName>
       {extra && <span className="shrink-0 font-mono text-[10.5px] text-fg-3">{extra}</span>}
     </button>
   )
@@ -688,7 +710,15 @@ function Header({
     const body = (
       <>
         <span className={cn('flex flex-col gap-[7px]', home ? 'items-start' : 'items-end')}>
-          <span className="text-[34px] leading-[0.9] font-bold tracking-[-0.04em]">{s.code}</span>
+          <span
+            className={cn(
+              'flex items-center gap-1.5 text-[34px] leading-[0.9] font-bold tracking-[-0.04em]',
+              home ? 'flex-row' : 'flex-row-reverse'
+            )}
+          >
+            {s.code}
+            <FavouriteMark kind="team" id={s.id} className="[&_svg]:size-4" />
+          </span>
           <span className="text-[12.5px] leading-none text-fg-2">{s.name}</span>
           {s.record && (
             <span className="font-mono text-[11px] leading-none text-fg-3">
@@ -770,15 +800,19 @@ function Box({
   onOpenPlayer: (id: string) => void
   onOpenTeam: (team: string) => void
 }): React.JSX.Element {
+  const favourites = useFavourites()
   const player = (
     r: BoxSide['starters'][number]
   ): React.ComponentProps<typeof MiniTable>['rows'][number] => ({
     key: r.id,
     title: `Open ${r.name}’s dashboard`,
     onOpen: () => onOpenPlayer(r.id),
+    favourite: favourites.isFavourite('player', r.id),
     cells: [
       <span key="n" className="flex min-w-0 items-center gap-2 font-sans text-[13px] font-medium">
-        <span className="truncate">{r.name}</span>
+        <FavouriteName kind="player" id={r.id}>
+          {r.name}
+        </FavouriteName>
         {r.position && (
           <span className="shrink-0 font-mono text-[10.5px] font-normal text-fg-3">
             {r.position}
@@ -815,7 +849,9 @@ function Box({
             onClick={() => side.id && onOpenTeam(side.id)}
             className="cursor-pointer text-[15px] leading-none font-semibold tracking-[-0.01em] hover:text-cobalt"
           >
-            {side.name}
+            <FavouriteName kind="team" id={side.id}>
+              {side.name}
+            </FavouriteName>
           </button>
         ) : (
           <span className="text-[15px] leading-none font-semibold">{side.name}</span>

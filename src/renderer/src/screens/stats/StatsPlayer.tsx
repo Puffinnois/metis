@@ -1,6 +1,6 @@
 import { AssistNetwork } from '@/components/stats/AssistNetwork'
 import { CareerStrip } from '@/components/stats/CareerStrip'
-import { FavouriteStar } from '@/components/stats/FavouriteStar'
+import { FavouriteName, FavouriteStar } from '@/components/stats/FavouriteStar'
 import { MetricHead } from '@/components/stats/MetricCard'
 import { ShotChart } from '@/components/stats/ShotChart'
 import { useScreenState } from '@/lib/stats/session'
@@ -108,6 +108,7 @@ import {
   type StatsData
 } from '@/lib/stats/useStats'
 import { stripHint, type StripHint } from '@/lib/stats/careerStrip'
+import { useFavourites } from '@/lib/stats/favourites'
 import { cn } from '@/lib/utils'
 import { WithOrWithout } from './StatsOnCourt'
 import type {
@@ -599,6 +600,7 @@ function PairTable({
   empty: string
   onOpenPlayer: (player: string) => void
 }): React.JSX.Element {
+  const favourites = useFavourites()
   const [all, setAll] = useState(false)
   const rows = pairRows(pairs, all ? null : PAIR_LIMIT)
   return (
@@ -617,10 +619,16 @@ function PairTable({
               key: r.key,
               title: `Open ${r.name}’s dashboard`,
               onOpen: () => onOpenPlayer(r.key),
+              favourite: favourites.isFavourite('player', r.key),
               cells: [
-                <span key="n" className="font-sans text-[13px] font-medium">
+                <FavouriteName
+                  key="n"
+                  kind="player"
+                  id={r.key}
+                  className="font-sans text-[13px] font-medium"
+                >
                   {r.name}
-                </span>,
+                </FavouriteName>,
                 ...r.cells
               ]
             }))}
@@ -1033,7 +1041,9 @@ function GameLog({ data, scope, player, onOpenGame }: TabProps): React.JSX.Eleme
                   {r.date}
                 </span>,
                 <span key="o" className="font-semibold whitespace-nowrap">
-                  {r.opponent}
+                  <FavouriteName kind="team" id={r.opponentId}>
+                    {r.opponent}
+                  </FavouriteName>
                   {!r.started && <span className="ml-1 font-normal text-fg-3">·</span>}
                 </span>,
                 <span key="t" className="text-fg-2">

@@ -1,4 +1,5 @@
-import { favouriteEdge } from '@/lib/stats/favourites'
+import { FavouriteName } from '@/components/stats/FavouriteStar'
+import { favouriteEdge, useFavourites } from '@/lib/stats/favourites'
 import { cn } from '@/lib/utils'
 
 /** The dashboards' small pieces: loading lines, section heads, mono tables. */
@@ -248,10 +249,11 @@ export function SplitTables({
   groups: {
     title: string
     note?: string
-    rows: { key: string; label: string; games: string; cells: string[] }[]
+    rows: { key: string; label: string; games: string; cells: string[]; team?: string }[]
   }[]
   head: React.ReactNode[]
 }): React.JSX.Element {
+  const favourites = useFavourites()
   const columns = `minmax(150px,1.4fr) 36px ${head.map(() => 'minmax(52px,1fr)').join(' ')}`
   return (
     <>
@@ -267,10 +269,17 @@ export function SplitTables({
               head={['Split', 'G', ...head]}
               rows={g.rows.map((r) => ({
                 key: r.key,
+                // A row by opponent is a team: a favourite one is edged and marked (T1601.2).
+                favourite: r.team !== undefined && favourites.isFavourite('team', r.team),
                 cells: [
-                  <span key="l" className="font-sans text-[13px] font-medium">
+                  <FavouriteName
+                    key="l"
+                    kind="team"
+                    id={r.team}
+                    className="font-sans text-[13px] font-medium"
+                  >
                     {r.label}
-                  </span>,
+                  </FavouriteName>,
                   <span key="g" className="text-fg-2">
                     {r.games}
                   </span>,

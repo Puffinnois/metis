@@ -11,8 +11,10 @@ import {
   type AssistRow
 } from '@/lib/stats/assists'
 import type { StatsScope } from '@/lib/stats/scope'
+import { useFavourites } from '@/lib/stats/favourites'
 import { useAssists } from '@/lib/stats/useStats'
 import { Loading, MiniTable, SectionHead } from './parts'
+import { FavouriteName } from './FavouriteStar'
 
 /**
  * Who assisted whom, from the play by play: a team's passers and scorers, or the players a player
@@ -90,6 +92,7 @@ function PairList({
   empty: string
   onOpenPlayer: (player: string) => void
 }): React.JSX.Element {
+  const favourites = useFavourites()
   const [all, setAll] = useState(false)
   const shown = all ? rows : rows.slice(0, ASSIST_LIMIT)
   const head = team ? TEAM_ASSIST_HEAD : PLAYER_ASSIST_HEAD
@@ -98,9 +101,11 @@ function PairList({
       type="button"
       title={`Open ${label}’s dashboard`}
       onClick={() => onOpenPlayer(who)}
-      className="cursor-pointer truncate font-sans text-[13px] font-medium hover:text-cobalt"
+      className="flex max-w-full min-w-0 cursor-pointer font-sans text-[13px] font-medium hover:text-cobalt"
     >
-      {label}
+      <FavouriteName kind="player" id={who}>
+        {label}
+      </FavouriteName>
     </button>
   )
   return (
@@ -122,6 +127,9 @@ function PairList({
             head={head}
             rows={shown.map((r) => ({
               key: r.key,
+              // A pair of the team's players is no one favourite: its names are marked, not the row.
+              favourite:
+                !team && favourites.isFavourite('player', side === 'scorer' ? r.scorer : r.passer),
               cells: [
                 ...(team
                   ? [name(r.passer, r.passerName), name(r.scorer, r.scorerName)]

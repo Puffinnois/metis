@@ -920,6 +920,8 @@ export interface GameFacts {
   date: string
   /** "vs BOS" or "@ BOS". */
   opponent: string
+  /** The opponent's id, for the favourite mark (T1601.2); null where the data has none. */
+  opponentId: string | null
   /** "W 110–102", with overtime: "W 110–102 OT". */
   score: string | null
   result: 'W' | 'L' | null
@@ -958,6 +960,7 @@ export function gameFacts(g: StatsGame, code: string | null): GameFacts {
   return {
     date: shortDay(g.date),
     opponent: `${home ? 'vs' : '@'} ${them.code}`,
+    opponentId: them.id,
     score: won === null ? null : `${won ? 'W' : 'L'} ${us.score}–${them.score}${ot}`,
     result: won === null ? null : won ? 'W' : 'L',
     type: typeTag(g.type)
@@ -984,7 +987,7 @@ export function logRows(
     const g = byGame.get(id)
     const facts: GameFacts = g
       ? gameFacts(g, r.team)
-      : { date: '', opponent: '', score: null, result: null, type: null }
+      : { date: '', opponent: '', opponentId: null, score: null, result: null, type: null }
     const row: LogRow = {
       ...facts,
       key: id,
@@ -1154,6 +1157,8 @@ export interface SplitRow {
   label: string
   games: string
   cells: string[]
+  /** A row by opponent: the team's id, for the favourite mark (T1601.2). */
+  team?: string
 }
 
 export interface SplitGroup {
@@ -1230,7 +1235,7 @@ export function splitTable(
   const opponents = (results.get('opponents')?.rows ?? [])
     .map((r) => {
       const id = String(r.group.opponent)
-      return splitRow(`opp-${id}`, codes.get(id) ?? id, r, byId, mode, metrics)
+      return { ...splitRow(`opp-${id}`, codes.get(id) ?? id, r, byId, mode, metrics), team: id }
     })
     .sort((a, b) => a.label.localeCompare(b.label))
   if (opponents.length) groups.set('By opponent', opponents)

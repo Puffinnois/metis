@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { ArrowDown, ArrowUp } from 'lucide-react'
 import { Segmented, StatsSelect } from '@/components/stats/controls'
+import { FavouriteName } from '@/components/stats/FavouriteStar'
 import { Loading, MiniTable, Notes, SectionHead } from '@/components/stats/parts'
 import { shortName } from '@/lib/stats/lineups'
 import {
@@ -27,6 +28,7 @@ import {
   useWithOrWithout,
   type StatsData
 } from '@/lib/stats/useStats'
+import { useFavourites } from '@/lib/stats/favourites'
 import { cn } from '@/lib/utils'
 
 const UNIT_LIMIT = 15
@@ -261,6 +263,7 @@ export function TeamOnOff({
   team: string
   onOpenPlayer: (id: string) => void
 }): React.JSX.Element {
+  const favourites = useFavourites()
   const gap = onCourtGap(scope)
   const q = useMemo(() => teamOnOffQuery(team, scope), [team, scope])
   const { result, error } = useStatsQuery(gap ? null : q, data.version)
@@ -293,10 +296,16 @@ export function TeamOnOff({
                   key: r.id,
                   title: `Open ${r.name}’s dashboard`,
                   onOpen: () => onOpenPlayer(r.id),
+                  favourite: favourites.isFavourite('player', r.id),
                   cells: [
-                    <span key="n" className="font-sans text-[13px] font-medium">
+                    <FavouriteName
+                      key="n"
+                      kind="player"
+                      id={r.id}
+                      className="font-sans text-[13px] font-medium"
+                    >
                       {r.name}
-                    </span>,
+                    </FavouriteName>,
                     ...columns.map((c) => {
                       const v = r.values[c.id]?.value ?? null
                       if (c.id === 'onc_min')

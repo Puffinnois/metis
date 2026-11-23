@@ -1,5 +1,5 @@
 import { AssistNetwork } from '@/components/stats/AssistNetwork'
-import { FavouriteStar } from '@/components/stats/FavouriteStar'
+import { FavouriteName, FavouriteStar } from '@/components/stats/FavouriteStar'
 import { MetricHead } from '@/components/stats/MetricCard'
 import { ShotChart } from '@/components/stats/ShotChart'
 import { useScreenState } from '@/lib/stats/session'
@@ -85,6 +85,7 @@ import {
 } from '@/lib/stats/splits'
 import { StatusChip } from '@/components/stats/StatusChip'
 import { coachLines, tagsById } from '@/lib/stats/availability'
+import { useFavourites } from '@/lib/stats/favourites'
 import { cn } from '@/lib/utils'
 import type { BoardMode } from '@shared/stats/types'
 
@@ -424,6 +425,7 @@ function Overview({
   const views = ratings.result
     ? sectionViews([RATINGS_SECTION, STRENGTH_SECTION], ratings.result, team, data.byId, mode, null)
     : null
+  const favourites = useFavourites()
   const rows = scorerRows(scorers.result, data.byId)
   const tq = useMemo(
     () => (anyPlayed ? forecastTrendQuery(team, scope) : null),
@@ -445,10 +447,16 @@ function Overview({
                   key: r.id,
                   title: `Open ${r.name}’s dashboard`,
                   onOpen: () => onOpenPlayer(r.id),
+                  favourite: favourites.isFavourite('player', r.id),
                   cells: [
-                    <span key="n" className="font-sans text-[13px] font-medium">
+                    <FavouriteName
+                      key="n"
+                      kind="player"
+                      id={r.id}
+                      className="font-sans text-[13px] font-medium"
+                    >
                       {r.name}
-                    </span>,
+                    </FavouriteName>,
                     <span key="g" className="text-fg-2">
                       {r.games}
                     </span>,
@@ -637,6 +645,7 @@ function Players({ data, scope, team, mode, onOpenPlayer }: TabProps): React.JSX
   const { result, error } = useStatsQuery(q, data.version, FRESH)
   const ids = useMemo(() => (result?.rows ?? []).map((r) => r.id), [result])
   // The latest report is about now, so only the newest season carries it.
+  const favourites = useFavourites()
   const current = scope.season === data.seasons[0]?.season
   const { value: listed } = useAvailability(current ? ids : [], data.version)
   const tags = tagsById(listed)
@@ -656,9 +665,12 @@ function Players({ data, scope, team, mode, onOpenPlayer }: TabProps): React.JSX
             key: r.id,
             title: `Open ${r.name}’s dashboard`,
             onOpen: () => onOpenPlayer(r.id),
+            favourite: favourites.isFavourite('player', r.id),
             cells: [
               <span key="n" className="flex items-center gap-2 font-sans text-[13px] font-medium">
-                {r.name}
+                <FavouriteName kind="player" id={r.id}>
+                  {r.name}
+                </FavouriteName>
                 {tags.get(r.id) && tags.get(r.id)?.status !== 'Available' && (
                   <StatusChip tag={tags.get(r.id)!} compact />
                 )}
@@ -727,9 +739,15 @@ function Schedule({ data, scope, games, onOpenGame }: TabProps): React.JSX.Eleme
             <span key="d" className="text-fg-3">
               {r.date}
             </span>,
-            <span key="o" className="font-semibold whitespace-nowrap">
+            // The row is a game, not a favourite: the opponent is marked, the row not edged.
+            <FavouriteName
+              key="o"
+              kind="team"
+              id={r.opponentId}
+              className="font-semibold whitespace-nowrap"
+            >
               {r.opponent}
-            </span>,
+            </FavouriteName>,
             <span key="t" className="text-fg-3">
               {r.type ?? ''}
             </span>,
