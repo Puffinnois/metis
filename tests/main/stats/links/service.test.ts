@@ -4,7 +4,9 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { sqlString, StatsDb } from '@main/stats/db'
 import { handoverDir, openLinksService, type LinksService } from '@main/stats/links/service'
 import { writeLinkedLines, writeLinkSide } from '@main/stats/links/side'
+import { readPairedIds } from '@main/stats/links/read'
 import { COLLEGE_PLAYERS_SQL, draftSql, proPlayersSql } from '@main/stats/links/sql'
+import { PLAYER_LINK_COLUMNS } from '@main/stats/links/tables'
 import { leftOutTables } from '@main/stats/leftOut'
 import {
   NCAA_STATS_RELEASES,
@@ -258,6 +260,28 @@ describe('the links service', () => {
     expect(await s.pairedIds('nba', ['9007', 'x; DROP TABLE player_link', ''])).toEqual([])
     expect(await s.pairedIds('wnba', ['9001'])).toEqual([])
     expect(await s.pairedIds('ncaam', [])).toEqual([])
+  })
+
+  it('follows a link whose ids are negative, the keys D28 gives players a league does not know', async () => {
+    const db = await StatsDb.open(':memory:')
+    await db.exec(`CREATE TABLE player_link (${PLAYER_LINK_COLUMNS})`)
+    // Two NCAA Men links held a negative NBA id on the four-league profile (2026-11-23); a college
+    // player with no ESPN athlete gets the same kind of key (D40).
+    await insertRows(db, 'player_link', [
+      { college: 'ncaam', pro: 'nba', college_id: 4433, pro_id: -4433, method: 'name+birth' },
+      { college: 'ncaam', pro: 'nba', college_id: -5150, pro_id: 1630000, method: 'name+college' }
+    ])
+    expect(await readPairedIds(db, 'ncaam', ['4433', '-5150'])).toEqual([
+      ['-5150', '1630000'],
+      ['4433', '-4433']
+    ])
+    expect(await readPairedIds(db, 'nba', ['-4433', '1630000'])).toEqual([
+      ['-4433', '4433'],
+      ['1630000', '-5150']
+    ])
+    // Still only whole numbers are inlined: a minus alone or in the middle names nobody.
+    expect(await readPairedIds(db, 'nba', ['-', '4-433', '--4433', '-4433.0'])).toEqual([])
+    db.close()
   })
 
   it('lists the paired league’s linked players who have no page in this league, for its search', async () => {
