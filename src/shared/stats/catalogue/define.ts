@@ -116,8 +116,9 @@ const swapName = (c: string): string =>
 export const swapSides = (sql: string): string =>
   sql.replace(TOKEN, (_, c: string) => `{${swapName(c)}}`)
 
+/** "Opponent effective field-goal percentage", but "Opponent Game Score": a name keeps its capitals. */
 const lowerFirst = (label: string): string =>
-  /^[A-Z][a-z]/.test(label) ? label[0].toLowerCase() + label.slice(1) : label
+  /^[A-Z][a-z]*\b(?! [A-Z])/.test(label) ? label[0].toLowerCase() + label.slice(1) : label
 
 const flipped = (d: MetricDef['direction']): MetricDef['direction'] =>
   d === 'higher' ? 'lower' : d === 'lower' ? 'higher' : d

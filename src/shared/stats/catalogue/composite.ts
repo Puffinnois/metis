@@ -10,7 +10,7 @@ const PIE = `({pts} + {fgm} + {ftm} - {fga} - {fta} + {dreb} + 0.5 * {oreb} + {a
 export const COMPOSITE: MetricDef[] = [
   ...allSides(
     'eff',
-    'Efficiency',
+    'Efficiency (EFF)',
     'EFF',
     'Points, rebounds, assists, steals and blocks, minus missed shots, missed free throws and turnovers. It has no adjustment for pace or opponent, and it is not PER.',
     {

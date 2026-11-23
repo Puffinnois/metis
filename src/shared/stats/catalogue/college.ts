@@ -149,7 +149,7 @@ export const COLLEGE: MetricDef[] = [
     'ncaa_rim_blocks',
     'Blocks at the rim',
     'BLK rim',
-    `Blocked shots taken at the rim.${OWN}`,
+    `Blocks made on shots at the rim.${OWN}`,
     {
       ...splitCount('ncaa_blk_rim'),
       family: 'scoring',

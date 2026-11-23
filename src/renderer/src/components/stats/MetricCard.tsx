@@ -1,5 +1,6 @@
 import { HoverCard } from 'radix-ui'
 import { familyLabel, kindLabel, sinceText } from '@/lib/stats/format'
+import { placementsWords } from '@/lib/stats/glossary'
 import {
   STABILITY_BARS,
   STABILITY_WORDS,
@@ -134,6 +135,14 @@ export function MetricCardBody({
       <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-[11.5px]">
         <dt className="text-fg-3">For</dt>
         <dd className="m-0">{whoWords(info)}</dd>
+        {info.categories?.length ? (
+          <>
+            <dt className="text-fg-3">In</dt>
+            <dd className="m-0" data-testid="metric-categories">
+              {placementsWords(info)}
+            </dd>
+          </>
+        ) : null}
         <dt className="text-fg-3">Kind</dt>
         <dd className="m-0">{kindLabel(info.kind)}</dd>
         <dt className="text-fg-3">Sample</dt>

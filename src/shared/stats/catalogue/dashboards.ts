@@ -225,7 +225,8 @@ function advanced(entity: 'player' | 'team'): MetricDef[] {
     rate(table, 'ast_pct', {
       id: id('ast_pct'),
       categories: ['playmaking.passing', 'offense.playmaking'],
-      label: 'Assist percentage (NBA)',
+      label:
+        entity === 'player' ? 'Assist percentage (NBA)' : 'Share of field goals assisted (NBA)',
       short: 'AST% NBA',
       description:
         entity === 'player'
@@ -239,7 +240,7 @@ function advanced(entity: 'player' | 'team'): MetricDef[] {
       {
         id: id('ast_to'),
         categories: ['playmaking.passing', 'offense.playmaking'],
-        label: 'Assists per turnover (NBA)',
+        label: 'Assist-to-turnover ratio (NBA)',
         short: 'AST/TO NBA',
         description: `Assists per turnover, as the NBA publishes it. ${WEIGHTED}`,
         family: 'shooting'
@@ -278,7 +279,7 @@ function advanced(entity: 'player' | 'team'): MetricDef[] {
     rate(table, 'reb_pct', {
       id: id('reb_pct'),
       categories: ['rebounding.all'],
-      label: 'Rebound percentage (NBA)',
+      label: 'Total rebound percentage (NBA)',
       short: 'REB% NBA',
       description: `The share of all available rebounds taken${entity === 'player' ? ' while on the floor' : ''}, as the NBA publishes it. ${WEIGHTED}`,
       family: 'shooting'
@@ -513,7 +514,7 @@ const MISC: MetricDef[] = [
   total('pub_player_misc', 'blka', {
     id: 'nba_blka',
     categories: ['shooting.field_goals', 'offense.shooting'],
-    label: 'Shots blocked (NBA)',
+    label: 'Own shots blocked (NBA)',
     short: 'BLKA',
     description: "The player's attempts blocked by a defender.",
     family: 'traditional'

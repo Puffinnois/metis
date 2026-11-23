@@ -73,7 +73,7 @@ export const SHOOTING: MetricDef[] = [
   ),
   ...allSides(
     'fg_pts_per_fga',
-    'Field-goal points per attempt',
+    'Points per shot, field goals only',
     'FGP/FGA',
     'Points from field goals per attempt: twice effective field-goal percentage. Free throws do not count.',
     {
@@ -87,7 +87,7 @@ export const SHOOTING: MetricDef[] = [
   ),
   ...allSides(
     'pts_per_fga',
-    'Points per field-goal attempt',
+    'Points per shot, free throws included',
     'PTS/FGA',
     'All points per field-goal attempt: free-throw points count, free-throw attempts do not.',
     {
@@ -289,7 +289,7 @@ export const SHOOTING: MetricDef[] = [
 
   ...teamSides(
     'ast_share',
-    'Assisted field goals',
+    'Share of field goals assisted',
     'AST%',
     'The share of field goals made that were assisted.',
     {

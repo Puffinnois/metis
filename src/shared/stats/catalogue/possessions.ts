@@ -31,7 +31,7 @@ export const POSSESSIONS: MetricDef[] = [
   ),
   metric(
     'team_poss_sym',
-    'Possessions per team',
+    "Possessions, both teams' mean",
     'Poss (sym)',
     `The mean of both teams' simple estimates: what the ratings and pace here divide by. ${ESTIMATE}`,
     {

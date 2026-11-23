@@ -268,7 +268,7 @@ const ENTRIES: Entry[] = [
   })),
   {
     key: 'tov_team',
-    label: 'Team turnovers',
+    label: 'Turnovers charged to the team',
     short: 'Team TO',
     description:
       'Turnovers charged to the team, not a player (a shot-clock violation, five seconds): the box score leaves them out.',
@@ -410,7 +410,7 @@ const ENTRIES: Entry[] = [
   },
   {
     key: 'ft_trip2',
-    label: 'Two-shot fouls',
+    label: 'Two-shot fouls drawn',
     short: '2FT trips',
     description: 'Shooting-foul trips of two free throws, counted once a trip.',
     opts: {
@@ -420,7 +420,7 @@ const ENTRIES: Entry[] = [
   },
   {
     key: 'ft_trip3',
-    label: 'Three-shot fouls',
+    label: 'Three-shot fouls drawn',
     short: '3FT trips',
     description: 'Shooting-foul trips of three free throws, counted once a trip.',
     opts: {
@@ -543,7 +543,7 @@ const PASSING: MetricDef[] = [
   }),
   metric(
     'pbp_ast_pts',
-    'Assist points',
+    'Assist points, from plays',
     'Ast PTS',
     'Points from the makes a player assisted: 2 a two, 3 a three. Free throws after a pass are not counted.',
     {
@@ -575,7 +575,7 @@ const PASSING: MetricDef[] = [
 const TEAM_PASSING: MetricDef[] = TEAMS.map((s) =>
   metric(
     s.id('ast_pts'),
-    s.label('Assist points'),
+    s.label('Assist points, from plays'),
     s.short('Ast PTS'),
     'Points from assisted makes: 2 a two, 3 a three.',
     base(s, {

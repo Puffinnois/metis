@@ -81,7 +81,7 @@ export const SCORING: MetricDef[] = [
 
   ...teamSides(
     'paint_pts',
-    'Points in the paint',
+    'Points in the paint (box score)',
     'PITP',
     'Field-goal points from inside the paint.',
     {
@@ -91,7 +91,7 @@ export const SCORING: MetricDef[] = [
   ),
   ...teamSides(
     'fast_break_pts',
-    'Fast-break points',
+    'Fast-break points (box score)',
     'FBP',
     'Points tagged as fast-break scoring. They read low before 2004-05: about 5 a game, against 11 to 15 after.',
     {
@@ -101,7 +101,7 @@ export const SCORING: MetricDef[] = [
   ),
   ...teamSides(
     'turnover_pts',
-    'Points off turnovers',
+    'Points off turnovers (box score)',
     'PTOV',
     'Points on chances that follow an opponent’s turnover.',
     {

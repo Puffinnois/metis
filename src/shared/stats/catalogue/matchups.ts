@@ -103,7 +103,7 @@ const DEFENDER: MetricDef[] = [
   ),
   metric(
     'matchup_team_pts',
-    'Team points in matchups',
+    'Opponent team points in matchups',
     'Match TM PTS',
     'Points the other team scored while the player was assigned to someone: not that player’s points.',
     { ...count('team_pts'), categories: ['defense.matchups'] }

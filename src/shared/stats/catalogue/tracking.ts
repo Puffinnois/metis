@@ -365,7 +365,7 @@ const PASSING: MetricDef[] = [
   ),
   metric(
     'ast_pts_created',
-    'Assist points created',
+    'Assist points (tracking)',
     'AST PTS',
     'Points scored from the player’s assists, as tracking credits them.',
     {
@@ -731,14 +731,14 @@ const TRACKING_EFFICIENCY: MetricDef[] = [
   ...SHOT_TYPES.flatMap(([p, label, short]) => [
     metric(
       `eff_${p}_pts`,
-      `${label} points (efficiency dashboard)`,
+      `${label} points (tracking efficiency)`,
       `${short} PTS Eff`,
-      `${label} points as the NBA's tracking efficiency dashboard publishes them. They differ from the ${lower(label)} dashboard's on a third to a half of players.`,
+      `Differs from the ${lower(label)} dashboard's points on a third to a half of players: ${lower(label)} points as the NBA's tracking efficiency dashboard publishes them.`,
       { ...count(EFFICIENCY, `${p}_pts`), categories: ['scoring.by_situation', 'offense.scoring'] }
     ),
     metric(
       `eff_${p}_fg_pct`,
-      `${label} FG% (efficiency dashboard)`,
+      `${label} FG% (tracking efficiency)`,
       `${short} FG% Eff`,
       `${label} field-goal percentage as the efficiency dashboard publishes it, without its makes and attempts. ${WEIGHTED_MINUTES}`,
       {
