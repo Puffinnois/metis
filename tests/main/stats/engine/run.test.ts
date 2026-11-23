@@ -528,3 +528,80 @@ describe('a query that takes too long', () => {
     await expect(answer).rejects.toThrow('the query took longer than')
   })
 })
+
+describe('places: rows by id, each with its place in the whole order (T1601.3)', () => {
+  const placeOf = (r: StatsResult): [string, StatsRow['place']][] =>
+    r.rows.map((x) => [x.id, x.place])
+
+  it('answers only the rows asked for, in order, placed as the full answer lists them', async () => {
+    // 2025-26 points: player 1 has 100, player 2 41, player 3 11.
+    const full = await run({ scope: { seasons: [2026] } })
+    expect(ids(full)).toEqual(['1', '2', '3'])
+    const r = await run({ scope: { seasons: [2026] }, places: { ids: ['3', '1'], standing: null } })
+    expect(placeOf(r)).toEqual([
+      ['1', { all: 1, standing: 1 }],
+      ['3', { all: 3, standing: 3 }]
+    ])
+    // The values are the rows' own, as in the full answer.
+    expect(value(r, '3')).toBe(value(full, '3'))
+    expect(r.total).toBe(3)
+  })
+
+  it('places a row past the limit: the place is the full order’s, not the page’s', async () => {
+    const page = await run({ scope: { seasons: [2026] }, limit: 1 })
+    expect(ids(page)).toEqual(['1'])
+    const r = await run({
+      scope: { seasons: [2026] },
+      limit: 1,
+      places: { ids: ['3'], standing: null }
+    })
+    expect(placeOf(r)).toEqual([['3', { all: 3, standing: 3 }]])
+  })
+
+  it('counts among the standing rows only, and gives none to a row that does not stand', async () => {
+    // Player 3 made 3 of 11 free throws: too few makes for the NBA's minimum, so not qualified.
+    await db.exec(`UPDATE player_season SET ftm = 3 WHERE player_id = 3`)
+    const r = await run({
+      metrics: ['pts', 'ft_pct'],
+      scope: { seasons: [2026] },
+      places: { ids: ['1', '2', '3'], standing: 'ft_pct' }
+    })
+    expect(placeOf(r)).toEqual([
+      ['1', { all: 1, standing: 1 }],
+      ['2', { all: 2, standing: 2 }],
+      ['3', { all: 3, standing: null }]
+    ])
+    // With a sample of the sorted metric counting too, player 3 stands.
+    const orSample = await run({
+      metrics: ['pts', 'ft_pct'],
+      scope: { seasons: [2026] },
+      places: { ids: ['3'], standing: 'ft_pct', orSample: true }
+    })
+    expect(placeOf(orSample)).toEqual([['3', { all: 3, standing: 3 }]])
+  })
+
+  it('follows the sort and its direction', async () => {
+    const r = await run({
+      scope: { seasons: [2026] },
+      sort: { metric: 'pts', dir: 'asc' },
+      places: { ids: ['1'], standing: null }
+    })
+    expect(placeOf(r)).toEqual([['1', { all: 3, standing: 3 }]])
+  })
+
+  it('answers no row for an id with none in scope, and refuses a malformed request', async () => {
+    const none = await run({ scope: { seasons: [2026] }, places: { ids: ['99'], standing: null } })
+    expect(none.rows).toEqual([])
+    const bad = (places: unknown, extra: Partial<StatsQuery> = {}): Promise<StatsResult> =>
+      run({ scope: { seasons: [2026] }, places: places as StatsQuery['places'], ...extra })
+    await expect(bad({ ids: [], standing: null })).rejects.toThrow(StatsQueryError)
+    await expect(bad({ ids: ['1; DROP TABLE player'], standing: null })).rejects.toThrow(
+      'places.ids must be ids'
+    )
+    await expect(bad({ ids: ['1'], standing: 'ast' })).rejects.toThrow('places.standing')
+    await expect(bad({ ids: ['1'], standing: null, extra: 1 })).rejects.toThrow(StatsQueryError)
+    await expect(bad({ ids: ['1'], standing: null }, { groupBy: ['season'] })).rejects.toThrow(
+      'no groupBy'
+    )
+  })
+})

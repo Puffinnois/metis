@@ -64,6 +64,23 @@ export function toggled(
   return { ...all, [league]: next }
 }
 
+/**
+ * What a screen filtered to favourites says when it has none to show (T1601.3): the league has no
+ * favourite of the kind, or none is in the scope (or matches the search).
+ */
+export function favouritesEmpty(
+  league: string,
+  kind: FavouriteKind | 'game',
+  count: number,
+  search = ''
+): string {
+  if (count === 0)
+    return `No favourites in the ${league}. Star a player or a team to keep them here.`
+  if (search.trim()) return 'No favourite matches.'
+  if (kind === 'game') return 'No game of a favourite on this day.'
+  return `No favourite ${kind} in this scope.`
+}
+
 /** The star's label, which names who it is for. */
 export function favouriteLabel(name: string, on: boolean): string {
   return on ? `Remove ${name} from favourites` : `Add ${name} to favourites`

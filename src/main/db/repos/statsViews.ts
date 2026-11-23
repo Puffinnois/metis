@@ -30,7 +30,8 @@ export function isBoard(b: unknown): b is LeaderboardBoard {
     (sort.dir === 'asc' || sort.dir === 'desc') &&
     MODES.includes(x.mode as string) &&
     typeof x.qualifiedOnly === 'boolean' &&
-    (x.team === null || text(x.team))
+    (x.team === null || text(x.team)) &&
+    (x.favourites === undefined || typeof x.favourites === 'boolean')
   )
 }
 

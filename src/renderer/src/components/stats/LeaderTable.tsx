@@ -65,6 +65,7 @@ const arrow = (dir: 'asc' | 'desc'): string => (dir === 'asc' ? '▲' : '▼')
  */
 export function LeaderTable({
   rows,
+  ranks,
   board,
   tab,
   columns,
@@ -75,6 +76,11 @@ export function LeaderTable({
   onSort
 }: {
   rows: StatsRow[]
+  /**
+   * Each row's rank, its place on the unfiltered board (`boardRows`), kept under a search or the
+   * favourites filter; null shows none. Absent, the row's place in `rows`.
+   */
+  ranks?: readonly (number | null)[]
   board: LeaderboardBoard
   tab: TabDef
   /** The result's columns: why a metric has nothing in this scope, if it has not. */
@@ -227,7 +233,9 @@ export function LeaderTable({
                       : 'w-[240px] grid-cols-[34px_minmax(0,1fr)]'
                   )}
                 >
-                  <span className="font-mono text-[12px] leading-none text-fg-3">{i + 1}</span>
+                  <span className="font-mono text-[12px] leading-none text-fg-3">
+                    {ranks ? (ranks[i] ?? '—') : i + 1}
+                  </span>
                   <div className="flex min-w-0 items-center gap-1.5">
                     {/* Before the name, its room kept while hidden: no column moves (D49). */}
                     <FavouriteStar kind={board.entity} id={r.id} name={r.name} reveal />
