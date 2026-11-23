@@ -179,24 +179,33 @@ export async function readProfile(db: StatsDb, id: string, league?: League): Pro
   return { ...none, bio, ...draft, ...combine }
 }
 
+/**
+ * The roster line the profile shows: the attribute table's (D51) where the file holds it, so the
+ * profile and a filter read one fact; else the roster itself, as before the table existed.
+ */
 async function readBio(db: StatsDb, have: Have, key: number): Promise<StatsBio | null> {
   const r = first(have, ROSTERS)
   if (!r) return null
   const named = have.tables.has('team')
-  const row = await db.get<{
-    season: number
-    team_id: number | null
-    code: string | null
-    number: string | null
-    position: string | null
-    height: string | null
-    weight: string | null
-    birth_date: string | null
-    age: number | null
-    exp: string | null
-    school: string | null
-    how_acquired: string | null
-  }>(
+  if (have.columns.get('player_season_attributes')?.has('on_roster')) {
+    return bioOf(
+      await db.get<BioRow>(
+        `SELECT a.season,
+                ${named ? 'coalesce(t.team_id, a.roster_team_id)' : 'a.roster_team_id'} AS team_id,
+                ${named ? 't.code' : 'NULL::VARCHAR'} AS code,
+                a.roster_number AS number, a.roster_position AS position,
+                a.roster_height AS height, a.roster_weight AS weight,
+                a.roster_birth_date AS birth_date, a.roster_age AS age,
+                a.roster_experience AS exp, a.roster_school AS school, a.how_acquired
+         FROM player_season_attributes a
+         ${named ? 'LEFT JOIN team t ON abs(t.team_id) = a.roster_team_id AND t.season = a.season' : ''}
+         WHERE a.player_id = ? AND a.on_roster
+         ORDER BY a.season DESC LIMIT 1`,
+        [key]
+      )
+    )
+  }
+  const row = await db.get<BioRow>(
     `SELECT r.season,
             ${named ? `coalesce(t.team_id, ${column(have, r, 'r', 'team_id', 'BIGINT')})` : column(have, r, 'r', 'team_id', 'BIGINT')} AS team_id,
             ${named ? 't.code' : 'NULL::VARCHAR'} AS code,
@@ -212,6 +221,25 @@ async function readBio(db: StatsDb, have: Have, key: number): Promise<StatsBio |
      ORDER BY r.season DESC LIMIT 1`,
     [key]
   )
+  return bioOf(row)
+}
+
+interface BioRow {
+  season: number
+  team_id: number | null
+  code: string | null
+  number: string | null
+  position: string | null
+  height: string | null
+  weight: string | null
+  birth_date: string | null
+  age: number | null
+  exp: string | null
+  school: string | null
+  how_acquired: string | null
+}
+
+function bioOf(row: BioRow | null | undefined): StatsBio | null {
   if (!row) return null
   return {
     season: row.season,
@@ -240,6 +268,44 @@ async function readDraft(
   const years = await db.get<{ first: number | null; last: number | null }>(
     `SELECT min(season) AS first, max(season) AS last FROM ${d}`
   )
+  const draftYears =
+    years?.first && years.last ? { first: year(years.first), last: year(years.last) } : null
+  // The attribute table's draft (D51) where the file holds it, so the profile and a filter read one
+  // fact: the league's draft, else ESPN's athlete file for a draft before the league's files.
+  if (have.columns.get('player_attributes')?.has('draft_overall_pick')) {
+    const a = await db.get<{
+      year: number
+      round: number | null
+      round_pick: number | null
+      overall_pick: number | null
+      team_id: number | null
+      code: string | null
+      team_name: string | null
+      organization: string | null
+      organization_type: string | null
+    }>(
+      `SELECT draft_year AS year, draft_round AS round, draft_round_pick AS round_pick,
+              draft_overall_pick AS overall_pick, draft_team_id AS team_id, draft_team_code AS code,
+              draft_team_name AS team_name, draft_organization AS organization,
+              draft_organization_type AS organization_type
+       FROM player_attributes WHERE player_id = ? AND draft_year IS NOT NULL`,
+      [key]
+    )
+    return {
+      draftYears,
+      draft: a
+        ? {
+            year: a.year,
+            round: a.round,
+            roundPick: a.round_pick,
+            overallPick: a.overall_pick,
+            team: a.team_id ? { id: String(a.team_id), code: a.code, name: a.team_name } : null,
+            organization: a.organization,
+            organizationType: a.organization_type
+          }
+        : null
+    }
+  }
   const row = await db.get<{
     season: number
     round: number | null
@@ -265,8 +331,7 @@ async function readDraft(
     [key]
   )
   return {
-    draftYears:
-      years?.first && years.last ? { first: year(years.first), last: year(years.last) } : null,
+    draftYears,
     draft: row
       ? {
           year: year(row.season),

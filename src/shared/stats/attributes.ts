@@ -660,8 +660,9 @@ export const ATTRIBUTES: readonly AttributeDef[] = [
     leagues: {
       nba: { firstSeason: LEAGUES.nba.firstSeason },
       wnba: { unavailable: 'The WNBA plays in conferences, without divisions.' },
-      ncaam: { unavailable: 'College conferences have no divisions in the loaded seasons.' },
-      ncaaw: { unavailable: 'College conferences have no divisions in the loaded seasons.' }
+      // A few conferences still had divisions in 2021-22 (11 % of the men's teams, 7 % of the women's).
+      ncaam: { firstSeason: 2022, lastSeason: 2022 },
+      ncaaw: { firstSeason: 2022, lastSeason: 2022 }
     }
   }),
   team({

@@ -264,17 +264,30 @@ function draft(have: Have, league: League): string {
   if (!d) return none(columns)
   // The NBA labels a draft by the season after it, the WNBA by its own year (`League.eventYear`).
   const lag = 2000 - eventYear(2000, league)
-  return `SELECT d.person_id AS player_id, d.season - ${lag} AS draft_year,
-                 ${column(have, d, 'd', 'round_number')} AS draft_round,
-                 ${column(have, d, 'd', 'round_pick')} AS draft_round_pick,
-                 ${column(have, d, 'd', 'overall_pick')} AS draft_overall_pick,
-                 ${column(have, d, 'd', 'team_id', 'BIGINT')} AS draft_team_id,
-                 ${text(have, d, 'd', 'team_abbreviation')} AS draft_team_code,
-                 nullif(trim(concat_ws(' ', ${text(have, d, 'd', 'team_city')}, ${text(have, d, 'd', 'team_name')})), '') AS draft_team_name,
-                 ${text(have, d, 'd', 'organization')} AS draft_organization,
-                 ${text(have, d, 'd', 'organization_type')} AS draft_organization_type
-          FROM ${d} d WHERE d.person_id IS NOT NULL
-          QUALIFY row_number() OVER (PARTITION BY d.person_id ORDER BY d.season DESC, ${column(have, d, 'd', 'overall_pick')} NULLS LAST) = 1`
+  // A file can list one pick more than once, the rows differing only in the team (the WNBA's 2024:
+  // Caitlin Clark with no team and with Indiana, Celeste Taylor under three teams). The team is the
+  // one the rows with a team agree on, and none where they disagree: which drafted them is not known.
+  const agreed = (x: string): string =>
+    `CASE WHEN count(DISTINCT team_id) FILTER (WHERE team_id IS NOT NULL) = 1
+          THEN max(${x}) FILTER (WHERE team_id IS NOT NULL) END`
+  return `SELECT player_id, draft_year, min(draft_round) AS draft_round,
+                 min(draft_round_pick) AS draft_round_pick, min(draft_overall_pick) AS draft_overall_pick,
+                 ${agreed('team_id')} AS draft_team_id, ${agreed('code')} AS draft_team_code,
+                 ${agreed('team_name')} AS draft_team_name,
+                 max(organization) AS draft_organization,
+                 max(organization_type) AS draft_organization_type
+          FROM (SELECT d.person_id AS player_id, d.season - ${lag} AS draft_year,
+                       ${column(have, d, 'd', 'round_number')} AS draft_round,
+                       ${column(have, d, 'd', 'round_pick')} AS draft_round_pick,
+                       ${column(have, d, 'd', 'overall_pick')} AS draft_overall_pick,
+                       ${column(have, d, 'd', 'team_id', 'BIGINT')} AS team_id,
+                       ${text(have, d, 'd', 'team_abbreviation')} AS code,
+                       nullif(trim(concat_ws(' ', ${text(have, d, 'd', 'team_city')}, ${text(have, d, 'd', 'team_name')})), '') AS team_name,
+                       ${text(have, d, 'd', 'organization')} AS organization,
+                       ${text(have, d, 'd', 'organization_type')} AS organization_type
+                FROM ${d} d WHERE d.person_id IS NOT NULL)
+          GROUP BY player_id, draft_year
+          QUALIFY row_number() OVER (PARTITION BY player_id ORDER BY draft_year DESC) = 1`
 }
 
 /** The draft file's first draft year, by the draft's own year; NULL without one. */
@@ -488,7 +501,8 @@ export function playerSeasonAttributesSql(have: Have, league: League): string {
          coalesce(${positive(pounds('r.weight'))}, er.weight_lb, c.weight_lb) AS weight_lb,
          r.how_acquired,
          nb.season_number,
-         r.team_id AS roster_team_id, r.num AS roster_number, r.position AS roster_position,
+         -- The league's roster line as published, which the profile shows (T708).
+         r.player_id IS NOT NULL AS on_roster, r.team_id AS roster_team_id, r.num AS roster_number, r.position AS roster_position,
          r.height AS roster_height, r.weight AS roster_weight, r.birth_date AS roster_birth_date,
          r.age AS roster_age, r.exp AS roster_experience, r.school AS roster_school
   FROM rows w
