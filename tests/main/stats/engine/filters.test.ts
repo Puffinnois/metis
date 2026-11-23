@@ -214,6 +214,24 @@ describe('the answer after the filters', () => {
     expect(none.filtered).toEqual({ noValue: 1, reason: null })
   })
 
+  it('counts only the rows it cannot place, not a row a condition with a value rejects', async () => {
+    // Player 3 is 84 inches, so "at most 80" rejects them whatever their unknown country: they are
+    // not left out for no value. Players 1 and 2 have both values.
+    const r = await run([
+      { attribute: 'height', op: 'atMost', value: 80 },
+      { attribute: 'birthCountry', op: 'anyOf', value: ['usa'] }
+    ])
+    expect(ids(r)).toEqual(['2'])
+    expect(r.filtered?.noValue).toBe(0)
+    // With a condition player 3 passes, the unknown country is what keeps them out.
+    const tall = await run([
+      { attribute: 'height', op: 'atLeast', value: 80 },
+      { attribute: 'birthCountry', op: 'anyOf', value: ['usa'] }
+    ])
+    expect(ids(tall)).toEqual([])
+    expect(tall.filtered?.noValue).toBe(1)
+  })
+
   it('counts the rows left out among those the board would list: qualified only', async () => {
     // Player 4, with no attributes at all, plays one game: short of the two that 58 in 82 asks.
     await db.exec(`INSERT INTO player VALUES (4, 'Dee Once')`)

@@ -69,22 +69,24 @@ export interface AttributeDef {
 }
 
 /**
- * The day a season's age is counted on: January 31 of the season's final year, in every league.
- * Basketball-Reference's glossary, the record keeper the app's other conventions are checked
- * against, gives its Age as "player age on January 31 of the given season" (read 2026-11-23), and its
- * WNBA pages count the same day (Caitlin Clark 22 in 2024, born January 22, 2002). For the NBA and the
- * colleges that is mid-season (2025-26: January 31, 2026); for the WNBA, whose season is the summer,
- * the months before it opens. Sports-Reference's college pages give a class, not an age, so the
- * colleges take the same day.
+ * The day a season's age is counted on, in the season's final year: January 31 in the NBA and the
+ * colleges, July 1 in the WNBA. Basketball-Reference's glossary, the record keeper the app's other
+ * conventions are checked against, gives its Age as "player age on January 31 of the given season"
+ * (read 2026-11-23): mid-season for the NBA (2025-26: January 31, 2026). Its WNBA pages count a later
+ * day, read on five players' pages the same day: Diana Taurasi (born June 11) is 38 in 2020 and Nneka
+ * Ogwumike (born July 2) 29, so the day falls from June 11 to July 1; Arike Ogunbowale (March 2, 23
+ * in 2020), Breanna Stewart (August 27, 25) and Sabrina Ionescu (December 6, 22) agree. July 1 is
+ * taken, inside that window; which day of it is not proven. Sports-Reference's college pages give a
+ * class, not an age, so the colleges take the NBA's day, mid-season as theirs is.
  */
 export const AGE_REFERENCE: Record<LeagueId, { month: number; day: number }> = {
   nba: { month: 1, day: 31 },
-  wnba: { month: 1, day: 31 },
+  wnba: { month: 7, day: 1 },
   ncaam: { month: 1, day: 31 },
   ncaaw: { month: 1, day: 31 }
 }
 
-/** A season's reference day for age, YYYY-MM-DD: January 31 of its final year. */
+/** A season's reference day for age, YYYY-MM-DD, in its final year. */
 export function ageReferenceDay(league: LeagueId, season: number): string {
   const r = AGE_REFERENCE[league]
   return `${season}-${String(r.month).padStart(2, '0')}-${String(r.day).padStart(2, '0')}`
@@ -184,7 +186,8 @@ export const ATTRIBUTES: readonly AttributeDef[] = [
   player({
     id: 'age',
     label: 'Age',
-    description: 'Age in whole years on January 31 of the season, from the birth date.',
+    description:
+      'Age in whole years on the season’s reference day (January 31; July 1 in the WNBA), from the birth date.',
     type: 'number',
     unit: 'years',
     group: 'Personal',

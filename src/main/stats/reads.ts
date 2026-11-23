@@ -82,22 +82,39 @@ export async function readPlayer(db: StatsDb, id: string): Promise<StatsPlayerIn
       )
     : []
   const r = first(have, ROSTERS)
-  const roster = r
-    ? await db.get<{
-        number: string | null
-        height: string | null
-        weight: string | null
-        birth_date: string | null
-        school: string | null
-      }>(
-        `SELECT ${text(have, r, 'r', 'num')} AS number, ${text(have, r, 'r', 'height')} AS height,
+  // The latest roster line: from the attribute table (D51) where the file holds it, so the header,
+  // the profile and a filter read one fact; else from the roster, as before the table existed.
+  const fromAttributes = have.columns.get('player_season_attributes')?.has('on_roster')
+  const roster = !r
+    ? null
+    : fromAttributes
+      ? await db.get<{
+          number: string | null
+          height: string | null
+          weight: string | null
+          birth_date: string | null
+          school: string | null
+        }>(
+          `SELECT roster_number AS number, roster_height AS height, roster_weight AS weight,
+                  roster_birth_date AS birth_date, roster_school AS school
+           FROM player_season_attributes WHERE player_id = ? AND on_roster
+           ORDER BY season DESC LIMIT 1`,
+          [key]
+        )
+      : await db.get<{
+          number: string | null
+          height: string | null
+          weight: string | null
+          birth_date: string | null
+          school: string | null
+        }>(
+          `SELECT ${text(have, r, 'r', 'num')} AS number, ${text(have, r, 'r', 'height')} AS height,
                 ${text(have, r, 'r', 'weight')} AS weight,
                 ${text(have, r, 'r', 'birth_date')} AS birth_date,
                 ${text(have, r, 'r', 'school')} AS school
          FROM ${r} r WHERE r.player_id = ? ORDER BY r.season DESC LIMIT 1`,
-        [key]
-      )
-    : null
+          [key]
+        )
   const latest = seasons.at(-1)
   return {
     id,

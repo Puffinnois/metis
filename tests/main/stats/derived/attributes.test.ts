@@ -6,8 +6,9 @@ import {
   buildAttributes,
   canBuildAttributes
 } from '@main/stats/derived/attributes'
+import { readPlayer, readProfile } from '@main/stats/reads'
 import { LEAGUES } from '@shared/leagues'
-import { ATTRIBUTES } from '@shared/stats/attributes'
+import { ageReferenceDay, ATTRIBUTES } from '@shared/stats/attributes'
 import { seedCollegeLeague, seedProLeague } from '../../../fixtures/attributes'
 import { openTestDb } from '../../../fixtures/stats'
 
@@ -174,6 +175,30 @@ describe('the attribute tables of a professional league', () => {
     expect(b).toMatchObject({ arena: null, head_coach: null, city: null })
   })
 
+  it('is what the player page’s header and profile read, not the roster again', async () => {
+    await db.exec(`ALTER TABLE player_season ADD COLUMN position VARCHAR DEFAULT 'G'`)
+    // A roster changed after the build is not read: the page shows the table's line.
+    await db.exec(`UPDATE src_nba_rosters SET num = '99', height = '7-7' WHERE player_id = 1`)
+    expect(await readPlayer(db, '1')).toMatchObject({
+      number: '00',
+      height: '6-11',
+      weight: '220',
+      birthDate: 'MAR 30, 2003',
+      school: 'Duke'
+    })
+    const profile = await readProfile(db, '1', LEAGUES.nba)
+    expect(profile.bio).toMatchObject({ season: 2026, number: '00', height: '6-11', experience: '1' })
+    expect(profile.draft).toMatchObject({ year: 2023, roundPick: 5, overallPick: 5 })
+    // ESPN's draft where the league's has none, as the filter reads it.
+    expect((await readProfile(db, '3', LEAGUES.nba)).draft).toMatchObject({
+      year: 2021,
+      round: 2,
+      roundPick: null,
+      overallPick: 40,
+      team: null
+    })
+  })
+
   it('records its version, so the next refresh builds it only when the rules change', async () => {
     expect(await attributesStale(db)).toBe(false)
     const v = await db.get<{ version: number }>(
@@ -257,6 +282,12 @@ describe('the registry', () => {
       )
       expect(Number(row?.n), `${a.id}: ${tables[a.table]}.${a.column}`).toBe(1)
     }
+  })
+
+  it('counts age on January 31, and on July 1 in the WNBA, of the season’s final year', () => {
+    expect(ageReferenceDay('nba', 2026)).toBe('2026-01-31')
+    expect(ageReferenceDay('ncaaw', 2026)).toBe('2026-01-31')
+    expect(ageReferenceDay('wnba', 2020)).toBe('2020-07-01')
   })
 
   it('has unique ids, a description and a coverage in every league', () => {

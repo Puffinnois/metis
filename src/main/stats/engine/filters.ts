@@ -177,7 +177,10 @@ export function filterTables(checked: CheckedFilter[]): string[] {
 
 /**
  * The conditions in SQL over the ranked rows `x`: the joins to the attribute tables, whether a row
- * passes every condition, and whether it lacks a value one of them needs. A row's season, for an
+ * passes every condition, and whether it is a row the conditions cannot place: one that lacks a
+ * value a condition needs and passes every condition it has a value for. A row that fails a
+ * condition it has a value for is known to fail, so it is not counted as left out for no value
+ * ("experience 0 and height at least 82": a veteran with no height is not counted). A row's season, for an
  * attribute that changes by season and for age, is its group's season when the query groups by
  * season, else the latest season of its rows in scope. `metricIndex` gives a metric's compiled place
  * (its `t<i>` column, the value as the transform shows it); `add` binds a value.
@@ -201,19 +204,25 @@ export function filterSql(
     })
     .join('\n      ')
   const passes: string[] = []
+  const unknownOrPass: string[] = []
   const missing: string[] = []
   for (const c of checked) {
     const subject = c.attribute
       ? attributeSql(c.attribute, league, season)
       : `x.t${metricIndex(c.metric as string)}`
     const type = c.attribute?.type ?? 'number'
-    passes.push(`coalesce(${condition(c.filter, subject, type, add)}, false)`)
+    const cond = condition(c.filter, subject, type, add)
+    passes.push(`coalesce(${cond}, false)`)
+    unknownOrPass.push(`coalesce(${cond}, true)`)
     if (c.filter.op !== 'hasValue' && c.filter.op !== 'hasNone') missing.push(`${subject} IS NULL`)
   }
   return {
     joins,
     pass: passes.join(' AND ') || 'true',
-    missing: missing.length > 0 ? `(${missing.join(' OR ')})` : 'false'
+    missing:
+      missing.length > 0
+        ? `(${unknownOrPass.join(' AND ')} AND (${missing.join(' OR ')}))`
+        : 'false'
   }
 }
 
