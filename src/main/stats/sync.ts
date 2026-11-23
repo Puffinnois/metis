@@ -1,5 +1,6 @@
 import { builds, seasonEnd, type BuiltTables, type League } from '@shared/leagues'
 import type { StatsDb } from './db'
+import { attributesStale, buildAttributes, canBuildAttributes } from './derived/attributes'
 import { buildDerived, canDerive, derivedStale, markDerivedStale } from './derived/build'
 import {
   buildPublished,
@@ -60,6 +61,8 @@ export const STATS_IDENTITY_STEP = `${STATS_LOG_PREFIX}identity`
 /** Builds `player_game`, `team_game`, `player_season` and `team_season` from the identity tables. */
 export const STATS_DERIVED_STEP = `${STATS_LOG_PREFIX}derived`
 export const STATS_PUBLISHED_STEP = `${STATS_LOG_PREFIX}published`
+/** Builds the attribute tables (D51) from the identity, roster, draft, bio and combine files. */
+export const STATS_ATTRIBUTES_STEP = `${STATS_LOG_PREFIX}attributes`
 export const STATS_PLAYS_STEP = `${STATS_LOG_PREFIX}plays`
 /** Computes the models (Plan Stage 10) from the game tables, last of all. */
 export const STATS_MODELS_STEP = `${STATS_LOG_PREFIX}models`
@@ -474,13 +477,32 @@ export async function refreshStats(
     }
     if (!runs('derived')) return
     const derivedDue = await derivedStale(db, league)
+    let derivedBuilt = false
     if ((coreWrote || identityBuilt || derivedDue) && (await canDerive(db, league))) {
       const entry = await runLogged(deps, STATS_DERIVED_STEP, async () => ({
         rows: await buildDerived(db, league),
         message: null
       }))
       log.push(entry)
+      derivedBuilt = entry.status === 'ok'
       if ((recipeChanged || derivedDue) && entry.status === 'ok') await markModelSeason(db, 0)
+    }
+    await runAttributesBuild(derivedBuilt)
+  }
+
+  // The attribute tables (D51) read the identity and season tables, the rosters and drafts of the
+  // core tier and the bio and combine of the published tier: built after the game tables and again
+  // after the published tables, or alone when a new version of their rules made them stale. Small
+  // tables, built in well under a second.
+  const runAttributesBuild = async (force: boolean): Promise<void> => {
+    if (!runs('derived')) return
+    if ((force || (await attributesStale(db))) && (await canBuildAttributes(db))) {
+      log.push(
+        await runLogged(deps, STATS_ATTRIBUTES_STEP, async () => ({
+          rows: await buildAttributes(db, league),
+          message: null
+        }))
+      )
     }
   }
 
@@ -495,6 +517,7 @@ export async function refreshStats(
           message: null
         }))
       )
+      await runAttributesBuild(true)
     }
   }
 
