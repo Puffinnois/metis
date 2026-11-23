@@ -12,6 +12,7 @@ import {
 import { POSTSEASON_EVENT_SQL } from '@main/stats/identityCollege'
 import { LEAGUES, type League } from '@shared/leagues'
 import { openTestDb } from '../../fixtures/stats'
+import { slow } from '../../fixtures/timeouts'
 
 /**
  * The college identity recipe on fixtures cut from the first loads of T1302.3 (every column kept),
@@ -59,7 +60,7 @@ beforeAll(async () => {
   w = await openTestDb()
   await load(w, women)
   await buildIdentity(w, women)
-}, 60_000)
+}, slow(60_000))
 
 type Row = Record<string, unknown>
 const game = (db: StatsDb, id: string): Promise<Row | null> =>

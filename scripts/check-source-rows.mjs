@@ -12,13 +12,11 @@
 // A release left out of the build (`LEFT_OUT_RELEASES`) is not counted. A file of every season is
 // counted from its `fromSeason` on, as the loader keeps it.
 import { existsSync, readFileSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { join, resolve } from 'node:path'
 import { DuckDBInstance } from '@duckdb/node-api'
-import ts from 'typescript'
 import { leagueArg, openStatsWorker } from './lib/stats-worker.mjs'
+import { loadSourceRegistry } from './lib/source-registry.mjs'
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const args = process.argv.slice(2)
 const [folder, rawDir] = args.filter((a) => !a.startsWith('--')).map((p) => resolve(p))
 const through = Number(args.find((a) => a.startsWith('--through='))?.split('=')[1] ?? 2026)
@@ -35,13 +33,8 @@ if (!folder || !rawDir) {
   process.exit(2)
 }
 
-// The registry has no imports, so it can be read here without bundling.
-const registry = ts.transpileModule(readFileSync(join(ROOT, 'src/main/stats/sources.ts'), 'utf8'), {
-  compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 }
-}).outputText
-const { SOURCES_BY_LEAGUE, LEFT_OUT_RELEASES, fileName, seasonSql, seasonsOf } = await import(
-  `data:text/javascript,${encodeURIComponent(registry)}`
-)
+const { SOURCES_BY_LEAGUE, LEFT_OUT_RELEASES, fileName, seasonSql, seasonsOf } =
+  await loadSourceRegistry()
 const sources = SOURCES_BY_LEAGUE[league].filter((s) => !LEFT_OUT_RELEASES.includes(s.release))
 
 const raw = await (await DuckDBInstance.create(':memory:')).connect()

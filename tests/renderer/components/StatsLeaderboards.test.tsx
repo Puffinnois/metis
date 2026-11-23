@@ -5,11 +5,13 @@ import { api } from '@/lib/api'
 import { StatsApp } from '@/screens/stats/StatsApp'
 import type { StatsQuery, StatsResult, StatsSeason } from '@shared/stats/types'
 import { catalogueFixture } from '../../fixtures/catalogue'
+import { slow } from '../../fixtures/timeouts'
 
 vi.mock('@/lib/api', () => ({
   api: {
     // An existing profile: the first run's question has its answer.
     leagues: {
+      onScreen: vi.fn(async () => undefined),
       downloads: vi.fn().mockResolvedValue({ decided: true, leagues: [], freeBytes: null })
     },
     stats: {
@@ -419,7 +421,7 @@ describe('re-reading', () => {
 // These two render a card for every metric in the catalogue, several times, and jsdom lays out
 // every card: it ignores the content-visibility that spares the real window the off-screen ones.
 // On GitHub's Windows runner the first took 3.4 to 6.8 s (4.3 s at v0.8.0), past the 5 s default.
-describe('the glossary', { timeout: 20_000 }, () => {
+describe('the glossary', { timeout: slow(20_000) }, () => {
   it('lists the metrics, by entity, family and search', async () => {
     renderApp()
     fireEvent.click(await screen.findByRole('button', { name: 'Glossary' }))

@@ -250,6 +250,9 @@ export function registerIpcHandlers(ctx: AppContext): void {
   })
   // Which leagues download (D35): read through one call, for the first run and the Data panel.
   ipcMain.handle(IPC.leagueDownloads, (): LeagueDownloads => ctx.leagues.downloads())
+  ipcMain.handle(IPC.leagueOnScreen, (_e, league: LeagueId): void =>
+    ctx.leagues.onScreen(leagueOf(league).id)
+  )
   ipcMain.handle(
     IPC.leagueSetDownloads,
     (_e, choice: Partial<Record<LeagueId, boolean>>): Promise<LeagueDownloads> => {

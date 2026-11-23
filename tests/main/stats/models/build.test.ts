@@ -17,6 +17,7 @@ import { addNbaTeam, BOS, emptySources, LAL, MIA, type Stats } from '../../../fi
 import { addLeague } from '../../../fixtures/models'
 import { openTestDb } from '../../../fixtures/stats'
 import { LEAGUES } from '@shared/leagues'
+import { slow } from '../../../fixtures/timeouts'
 
 let db: StatsDb
 
@@ -129,7 +130,7 @@ describe('the models step', () => {
   it(
     'leaves a game never played out of a past season’s schedule: it was cancelled',
     {
-      timeout: 30_000
+      timeout: slow(30_000)
     },
     async () => {
       await buildModels(db, 2027, LEAGUES.nba)

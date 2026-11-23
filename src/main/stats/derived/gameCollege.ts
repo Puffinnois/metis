@@ -10,7 +10,8 @@ import { bestPlayerSql, column, modeSql, type Have } from './sql'
  * - the counts are ESPN's box scores (D40): its `athlete_id` is the key, and it has the starters and
  *   who did not play. A team-game ESPN has no line for reads stats.ncaa.org's instead: the women's 334
  *   games of 2024-25 ESPN lacks, and a handful of others a season (1 to 6). The two are never added
- *   together in one count: a team-game's lines are all one source's (`source`);
+ *   together in one count: a game's lines are all one source's (`source`), stats.ncaa.org's when ESPN
+ *   lacks a side it has;
  * - stats.ncaa.org's shot zones, putbacks, blocks by zone, transition and assisted splits and
  *   possessions sit beside ESPN's counts under their own names (`ncaa_*`, `ncaaSplits.ts`), on the
  *   player's line wherever stats.ncaa.org has one for the same player (`ncaa_player_ids`), and on the
@@ -30,8 +31,9 @@ import { bestPlayerSql, column, modeSql, type Have } from './sql'
 
 /** Bump when these tables change, so the next refresh builds them with nothing downloaded. */
 // 2: the tables' 128-bit counts narrowed to BIGINT (`narrowCounts`, T1302.9). 3: every pick by a
-// total order, so the same files always give the same rows (T1302.9).
-const VERSION = 3
+// total order, so the same files always give the same rows (T1302.9). 4: a game's lines from one
+// source, not a team-game's (the Stage 13 gate).
+const VERSION = 4
 
 const NCAA_BOX = 'src_ncaa_player_box'
 const NCAA_TEAM_BOX = 'src_ncaa_team_box'
@@ -152,24 +154,34 @@ function ncaaLines(have: Have): string {
 }
 
 /**
- * One line per player per game they appeared in: ESPN's (`espnLines`), and stats.ncaa.org's for a
- * team-game ESPN has no line for. Who started is ESPN's flag; unless a team has exactly five, its
- * game reads as unknown, as for the NBA, and stats.ncaa.org's lines have none. Each line carries
- * stats.ncaa.org's splits for the same player in the same game.
+ * One line per player per game they appeared in, every line of a game from one source: ESPN's
+ * (`espnLines`) where it has lines for every side stats.ncaa.org has, else stats.ncaa.org's for the
+ * whole game. Taken a team-game at a time, a game ESPN covers on one side only would read ESPN there
+ * and stats.ncaa.org on the other, and ESPN can file the other side's players under the side it has:
+ * NCAA Women's Lamar against Texas College of 2023-11-08 listed all 25 players as Lamar's, so 12 of
+ * them were read twice, under both teams (the Stage 13 gate). Who started is ESPN's flag; unless a team
+ * has exactly five, its game reads as unknown, as for the NBA, and stats.ncaa.org's lines have none.
+ * Each line carries stats.ncaa.org's splits for the same player in the same game.
  */
 const LINES = `CREATE OR REPLACE TEMP TABLE lines AS
-  WITH espn AS (
+  WITH espn_all AS (
     SELECT * FROM espn_lines WHERE team_id IS NOT NULL
   ), espn_sides AS (
-    SELECT DISTINCT game_id, team_id FROM espn
-  ), ncaa AS (
+    SELECT DISTINCT game_id, team_id FROM espn_all
+  ), ncaa_all AS (
     SELECT l.game_id, l.player_id, l.team_id, 'ncaa' AS source, l.ncaa_seconds AS seconds,
            ${BOX_COUNTS.map((c) => `l.${c}`).join(', ')}, NULL::INTEGER AS plus_minus,
            NULL::BOOLEAN AS starter
     FROM ncaa_lines l
-    ANTI JOIN espn_sides e ON e.game_id = l.game_id AND e.team_id = l.team_id
     WHERE l.appeared AND l.player_id IS NOT NULL AND l.team_id IS NOT NULL
     QUALIFY row_number() OVER (PARTITION BY l.game_id, l.player_id ORDER BY l.ncaa_seconds DESC NULLS LAST, l::VARCHAR) = 1
+  ), ncaa_games AS (
+    SELECT DISTINCT n.game_id FROM ncaa_all n
+    ANTI JOIN espn_sides e ON e.game_id = n.game_id AND e.team_id = n.team_id
+  ), espn AS (
+    SELECT e.* FROM espn_all e ANTI JOIN ncaa_games g ON g.game_id = e.game_id
+  ), ncaa AS (
+    SELECT n.* FROM ncaa_all n SEMI JOIN ncaa_games g ON g.game_id = n.game_id
   ), together AS (
     SELECT * FROM espn UNION ALL BY NAME SELECT * FROM ncaa
   ), splits AS (

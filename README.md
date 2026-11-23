@@ -1,8 +1,8 @@
 # Metis
 
-Metis is a desktop app for basketball statistics that runs on your own computer, for the NBA, the WNBA and NCAA Division I men's and women's basketball. It downloads public data into a database per league on your machine, then lets you rank, filter, sort and compare players and teams across every season, from 1993-94 in the NBA, 1997 in the WNBA and 2021-22 in the college leagues to today. A menu beside the name switches every screen between the leagues. The stats are read from those databases, and Metis shares nothing.
+Metis is a desktop app for basketball statistics that runs on your own computer, for the NBA, the WNBA and NCAA Division I men's and women's basketball. It downloads public data into a database per league on your machine, then lets you rank, filter, sort and compare players and teams across every season, from 1993-94 in the NBA, 1997 in the WNBA and 2021-22 in the college leagues to today. A menu beside the name switches every screen between the leagues, and a player who went from college to the NBA or the WNBA has both careers on their page. The stats are read from those databases, and Metis shares nothing.
 
-**Status: version 1.1, for Windows.** [Download the latest release](https://github.com/Puffinnois/metis/releases/latest). The stages are in [Plan.md](Plan.md), the reasoning in [decisions.md](decisions.md).
+**Status: version 1.2, for Windows.** [Download the latest release](https://github.com/Puffinnois/metis/releases/latest). The stages are in [Plan.md](Plan.md), the reasoning in [decisions.md](decisions.md).
 
 ## What it has
 
@@ -24,11 +24,24 @@ The **Data panel**, opened from the status line, shows what is loaded, lets you 
 
 **In NCAA Division I**, men's and women's, from 2021-22 (nothing older is loaded): ESPN's box scores, schedules, rosters, season stats and standings, with stats.ncaa.org's beside them for the rim, mid-range, putback, transition and assisted splits, possessions and the games ESPN lacks; stats.ncaa.org's play by play, shots, lineups and stints, so splits by half (men) and quarter (women), clutch, on/off, units and game flow; SportsDataverse's team ratings, BPM and RAPM under its name; and Metis's SRS, Elo, adjusted ratings, PER and Win Shares fitted to each league on games between Division I teams (rates per 40 minutes). Conferences, non-Division I opponents and the postseason tournaments are part of the season; the leaderboards rank Division I players by the NCAA's 75 % games rule and its makes per game. No release publishes college tracking, play types, matchups or a draft combine, and the NCAA tournament has no forecast since its field is chosen by a committee: each says why.
 
+**One player, college and pro.** A player linked between NCAA Men and the NBA, or NCAA Women and the WNBA, has a "College and pro career" strip on their Overview: the college seasons, the draft, then the professional seasons, a row each. A hint above the name leads to it, the league menu opens the same player's page in the other league, and searching the NBA or the WNBA also lists drafted college players with no professional game yet. Players are linked by ESPN's athlete id, or by name with birth date or with college where the ids differ, and none is linked on a guess: with all four leagues, 389 NBA players and 190 WNBA players ([player-links.md](docs/reference/player-links.md)). Each league's download brings the paired league's season lines (under 7 MB), so the strip shows the other career even when that league is not downloaded.
+
+**Not included:** college seasons before 2021-22, other NCAA divisions, the EuroLeague (a later stage), live or in-game stats, and stats with no free bulk source, such as KenPom, Torvik, Synergy's play types for the colleges, the NET and player tracking outside the NBA.
+
 A stat outside its seasons reads blank with the reason, such as "Recorded from 2013-14.", never zero. Each screen is described in [docs/reference/stats-screens.md](docs/reference/stats-screens.md).
 
 ## The first run
 
-The installer holds no data. On first launch Metis asks which leagues to download, with each one's size and the free space it needs. The WNBA alone takes about 6 minutes, a 294 MB download and an 850 MB database (Stage 13, 2026-11-18). Each college league takes about 17 minutes, an 800 MB download and a 4.4 GB (men) or 4.2 GB (women) database, at a peak of about 3.3 GB of memory (2026-11-20). The NBA, measured on the development machine (Stage 10 gate, 2026-11-14; 27 minutes again on 2026-11-18; [what was measured](docs/reference/what-was-measured.md)):
+The installer holds no data. On first launch Metis asks which leagues to download, with each one's size and the free space it needs. All four, loaded one after the other through the app on the development machine (Stage 13 gate, 2026-11-22; [what was measured](docs/reference/what-was-measured.md)):
+
+| League     | Time       | Download | Database |
+| ---------- | ---------- | -------- | -------- |
+| NBA        | 26 minutes | 1.66 GB  | 5.3 GB   |
+| WNBA       | 6 minutes  | 308 MB   | 851 MB   |
+| NCAA Men   | 18 minutes | 805 MB   | 4.3 GB   |
+| NCAA Women | 17 minutes | 754 MB   | 4.1 GB   |
+
+All four take about 15 GB of disk. Memory, summed over the app's processes, peaked at 3.1 GB, while NCAA Men's tables were built, when all four were loaded one after the other in one session: a league's stats are closed once nothing uses them and reopen when needed, in under a second. The NBA in more detail, from the Stage 10 gate (2026-11-14):
 
 - **Time:** about 34 minutes, mostly the download, so it depends on your connection. Earlier loads on a faster connection took 12 to 21 minutes. The leaderboards are usable about 3 to 5 minutes in, while the rest loads.
 - **Disk:** a first load needs 6 GB free. The database ends at 5.3 GB, in `%APPDATA%\Metis`. The download is about 1.6 GB, and each file is deleted once loaded.

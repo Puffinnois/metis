@@ -21,6 +21,9 @@ Where to look, by question. The project's rules are in [CLAUDE.md](../CLAUDE.md)
 | [nba-coverage.md](reference/nba-coverage.md)               | The first season each table really holds values; column by column in [nba-coverage.tsv](reference/nba-coverage.tsv). Written by `scripts/coverage-report.mjs` |
 | [wnba-data-sources.md](reference/wnba-data-sources.md)     | The WNBA's releases: their tables, seasons and sizes, the first load, every family's checks per season, the playoff format and the traps                      |
 | [wnba-agreement.md](reference/wnba-agreement.md)           | The WNBA's box scores, season tables, published tables, plays and models against the sources, per season                                                      |
+| [ncaa-data-sources.md](reference/ncaa-data-sources.md)     | NCAA Division I, men's and women's, from 2021-22: the two source families, their tables and sizes, the first load, the checks per season and the traps        |
+| [ncaa-agreement.md](reference/ncaa-agreement.md)           | Both college leagues' box scores, season tables, published tables, plays and models against the sources, per season                                           |
+| [player-links.md](reference/player-links.md)               | How a player's college and professional careers are linked (NCAA Men with the NBA, NCAA Women with the WNBA), the links by method, and every state measured   |
 
 ## Shipping
 
@@ -30,9 +33,9 @@ Where to look, by question. The project's rules are in [CLAUDE.md](../CLAUDE.md)
 | [windows-install-check.md](reference/windows-install-check.md) | The install and update checklist, what was run on Windows on 2026-11-16 and what was not    |
 | [icon/](icon/README.md)                                        | The app icon and how it is drawn                                                            |
 
-## Research for other leagues
+## Research for leagues
 
-Metis covers the NBA and the WNBA (D34, which replaced D15 on 2026-11-17). These two catalogue statistics for competitions it does not load yet, as research for Plan T1302 and T1303; they change nothing in the app.
+Metis covers four leagues: the NBA, the WNBA and NCAA Division I men's and women's (D34, which replaced D15 on 2026-11-17). These two catalogue the statistics of competitions as research. The NCAA one came before Plan T1302, which loads the college leagues from 2021-22 (what is loaded is in [ncaa-data-sources.md](reference/ncaa-data-sources.md)); the European one is research for Plan T1303, a later stage, and changes nothing in the app.
 
 | Document                                                                         | For                                   |
 | -------------------------------------------------------------------------------- | ------------------------------------- |

@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { sqlHashes } from '../../../fixtures/sqlShapes'
+import { slow } from '../../../fixtures/timeouts'
 
 /**
  * The college leagues' rules (T1302.5: Division I alone, the 75 % rule on the row's own team games and
@@ -16,12 +17,16 @@ const BEFORE: Record<string, string> = JSON.parse(
 )
 
 describe("the NBA's and the WNBA's SQL", () => {
-  it('is as main compiled it before the college leagues’ rules', async () => {
-    const now = await sqlHashes()
-    const changed = Object.keys(BEFORE).filter((k) => k in now && now[k] !== BEFORE[k])
-    expect(changed).toEqual([])
-    // Every shape the fixture holds is still asked: a metric gone would hide a change.
-    expect(Object.keys(BEFORE).filter((k) => !(k in now))).toEqual([])
-    expect(Object.keys(BEFORE).length).toBeGreaterThan(2500)
-  }, 60_000)
+  it(
+    'is as main compiled it before the college leagues’ rules',
+    async () => {
+      const now = await sqlHashes()
+      const changed = Object.keys(BEFORE).filter((k) => k in now && now[k] !== BEFORE[k])
+      expect(changed).toEqual([])
+      // Every shape the fixture holds is still asked: a metric gone would hide a change.
+      expect(Object.keys(BEFORE).filter((k) => !(k in now))).toEqual([])
+      expect(Object.keys(BEFORE).length).toBeGreaterThan(2500)
+    },
+    slow(60_000)
+  )
 })

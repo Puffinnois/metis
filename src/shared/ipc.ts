@@ -90,6 +90,11 @@ export interface Api {
     setDownloads(choice: Partial<Record<LeagueId, boolean>>): Promise<LeagueDownloads>
     /** Deletes a league's stats file; refused while it is on. */
     deleteFile(league: LeagueId): Promise<LeagueDownloads>
+    /**
+     * The league on screen: its stats worker stays open, and the others close once idle (D22's
+     * addition of 2026-11-22).
+     */
+    onScreen(league: LeagueId): Promise<void>
   }
   /** Every call names its league first (D35): the renderer holds the current one in one place. */
   stats: {
@@ -252,5 +257,6 @@ export const IPC = {
   statsExportCsv: 'stats:exportCsv',
   leagueDownloads: 'leagues:downloads',
   leagueSetDownloads: 'leagues:setDownloads',
-  leagueDeleteFile: 'leagues:deleteFile'
+  leagueDeleteFile: 'leagues:deleteFile',
+  leagueOnScreen: 'leagues:onScreen'
 } as const

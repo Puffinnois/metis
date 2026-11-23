@@ -21,7 +21,12 @@ vi.mock('@/lib/api', () => ({
       resume: vi.fn(),
       onChanged: vi.fn(() => () => {})
     },
-    leagues: { downloads: vi.fn(), setDownloads: vi.fn(), deleteFile: vi.fn() }
+    leagues: {
+      onScreen: vi.fn(async () => undefined),
+      downloads: vi.fn(),
+      setDownloads: vi.fn(),
+      deleteFile: vi.fn()
+    }
   }
 }))
 

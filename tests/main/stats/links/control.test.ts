@@ -117,6 +117,52 @@ describe('the links control', () => {
     expect(calls).toContain('linkSide:wnba')
   })
 
+  it('logs a step the app’s close interrupts as a plain line, records no failure, and errors otherwise', async () => {
+    // The Stage 13 gate: closing the app during a links step wrote "the NCAA Women's links step
+    // failed … INTERRUPT" as an error, though the close itself interrupted it.
+    const calls: string[] = []
+    const logged: { message: string; err: unknown }[] = []
+    const log = (message: string, err?: unknown): void => void logged.push({ message, err })
+    const interrupted = (control: () => ReturnType<typeof createLinksControl>): StatsClient =>
+      ({
+        linkSide: async () => {
+          control().closing()
+          throw new Error('INTERRUPT Error: Interrupted!')
+        },
+        linkLines: async () => null
+      }) as unknown as StatsClient
+    let control: ReturnType<typeof createLinksControl> | null = null
+    control = createLinksControl({
+      tempDir: '/tmp/links',
+      start: () => fakeLinks(calls),
+      client: (l) => (l === 'ncaaw' ? interrupted(() => control!) : null),
+      log
+    })
+    expect(await control.afterRefresh('ncaaw')).toBeNull()
+    expect(logged).toEqual([
+      {
+        message: "the NCAA Women's links step stopped as the app closed; the next launch runs it",
+        err: undefined
+      }
+    ])
+    expect(calls.some((c) => c.startsWith('failed:'))).toBe(false)
+
+    // A real failure, with the app open, still logs its error and records it.
+    const realCalls: string[] = []
+    const realLogged: { message: string; err: unknown }[] = []
+    const open = createLinksControl({
+      tempDir: '/tmp/links',
+      start: () => fakeLinks(realCalls, 'ingestSide'),
+      client: (l) => (l === 'wnba' ? fakeLeague('wnba', realCalls) : null),
+      log: (message, err) => void realLogged.push({ message, err })
+    })
+    expect(await open.afterRefresh('wnba')).toBeNull()
+    expect(realLogged).toHaveLength(1)
+    expect(realLogged[0].message).toBe("the WNBA's links step failed; the next refresh tries again")
+    expect(realLogged[0].err).toBeInstanceOf(Error)
+    expect(realCalls.some((c) => c.startsWith('failed:"wnba"'))).toBe(true)
+  })
+
   it('runs the steps of two leagues one after the other, in the order asked', async () => {
     const calls: string[] = []
     const workers: Partial<Record<LeagueId, StatsClient>> = {

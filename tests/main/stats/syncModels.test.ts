@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as models from '@main/stats/models/build'
+import * as derived from '@main/stats/derived/build'
+import * as identity from '@main/stats/identity'
 import * as plays from '@main/stats/derived/playBuilders'
 import type { Downloads } from '@main/stats/download'
 import type { SourceFile } from '@main/stats/sources'
@@ -71,6 +73,9 @@ beforeEach(() => {
   vi.mocked(models.markModelSeason).mockClear()
   vi.mocked(models.buildModels).mockClear()
   vi.mocked(plays.playsDue).mockResolvedValue(false)
+  vi.mocked(derived.derivedStale).mockResolvedValue(false)
+  vi.mocked(identity.identityStale).mockResolvedValue(false)
+  vi.mocked(derived.buildDerived).mockResolvedValue(11)
   // A season is due once any file wrote rows.
   vi.mocked(models.markModelSeason).mockImplementation(async () => {
     vi.mocked(models.modelsDue).mockResolvedValue(true)
@@ -144,5 +149,36 @@ describe('the models step', () => {
       `${STATS_PLAYS_STEP} ok`,
       `${STATS_MODELS_STEP} error`
     ])
+  })
+
+  // The Stage 13 gate: a new version of the college recipe rebuilt every season of NCAA Women's game
+  // tables with nothing downloaded, and the models kept what the earlier tables had given them.
+  it('recomputes every season after a new recipe version rebuilds the game tables', async () => {
+    vi.mocked(derived.derivedStale).mockResolvedValue(true)
+    expect(await run([])).toEqual(['stats:derived ok', `${STATS_MODELS_STEP} ok`])
+    expect(vi.mocked(models.markModelSeason).mock.calls.map(([, season]) => season)).toEqual([0])
+  })
+
+  it('recomputes every season after a new identity version rebuilds them', async () => {
+    vi.mocked(identity.identityStale).mockResolvedValue(true)
+    expect(await run([])).toEqual([
+      'stats:identity ok',
+      'stats:derived ok',
+      `${STATS_MODELS_STEP} ok`
+    ])
+    expect(vi.mocked(models.markModelSeason).mock.calls.map(([, season]) => season)).toEqual([0])
+  })
+
+  it('keeps to the seasons of new files when the recipes stand, and marks nothing on a failed build', async () => {
+    await run([CORE])
+    expect(vi.mocked(models.markModelSeason).mock.calls.map(([, season]) => season)).toEqual([
+      CURRENT
+    ])
+    vi.mocked(models.markModelSeason).mockClear()
+    vi.mocked(derived.derivedStale).mockResolvedValue(true)
+    vi.mocked(derived.buildDerived).mockRejectedValueOnce(new Error('out of memory'))
+    // (The plays and models steps that follow are due from the run before, through the mocks.)
+    expect((await run([]))[0]).toBe('stats:derived error')
+    expect(models.markModelSeason).not.toHaveBeenCalled()
   })
 })

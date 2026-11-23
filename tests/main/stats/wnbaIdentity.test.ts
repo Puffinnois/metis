@@ -10,6 +10,7 @@ import {
 } from '@main/stats/identity'
 import { LEAGUES } from '@shared/leagues'
 import { openTestDb } from '../../fixtures/stats'
+import { slow } from '../../fixtures/timeouts'
 
 /**
  * The WNBA's identity recipe on fixtures cut from the real load of 2026-11-17 (the tables as loaded
@@ -59,7 +60,7 @@ beforeAll(async () => {
   db = await openTestDb()
   await loadFixtures(db)
   await buildIdentity(db, wnba)
-}, 30_000)
+}, slow(30_000))
 
 const game = (id: string): Promise<Record<string, unknown> | null> =>
   db.get<Record<string, unknown>>(`SELECT * FROM game WHERE game_id = ?`, [id])

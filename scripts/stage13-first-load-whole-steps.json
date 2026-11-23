@@ -1,0 +1,74 @@
+[
+  {
+    "size": [1500, 950]
+  },
+  {
+    "wait": 6000
+  },
+  {
+    "eval": "\nwindow.sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nwindow.until = async (fn, ms = 15000) => { const t0 = performance.now(); while (performance.now() - t0 < ms) { if (await fn()) return true; await sleep(250) } return false };\nwindow.button = (name, within) => [...(within ?? document).querySelectorAll('button')].find((x) => x.textContent.trim() === name);\nwindow.section = (name) => document.querySelector('section[aria-label=\"' + name + '\"]');\nwindow.dl = async (league) => (await window.api.leagues.downloads()).leagues.find((l) => l.league === league);\nwindow.check = (label, ok, got) => (ok ? 'OK ' : 'MISMATCH ') + label + ' got ' + JSON.stringify(got);\nwindow.families = async (league) => { const d = await window.api.stats.data(league); const f = Array.isArray(d) ? d : (d.families ?? []); const own = f.filter((x) => !x.seasonsOf); const sum = (k, xs) => xs.reduce((a, x) => a + (x[k] ?? 0), 0); return { releases: own.length, loaded: sum('filesLoaded', own), expected: sum('filesExpected', own), bytes: sum('bytes', own), failed: own.filter((x) => x.state === 'failed' || x.lastError).map((x) => [x.release, x.lastError]), paired: f.filter((x) => x.seasonsOf).map((x) => [x.release, x.filesLoaded, x.filesExpected, x.bytes]) } };\nwindow.settle = async (league, capMin, stopAtFiles) => { const t0 = performance.now(); let quietSince = null; const log = []; let last = ''; let maxTotal = 0; while (performance.now() - t0 < capMin * 60000) { const s = await window.api.stats.status(league); if (s.progress) maxTotal = Math.max(maxTotal, s.progress.total); if (stopAtFiles && s.progress && s.progress.done >= stopAtFiles) return { stopped: true, minutes: Math.round((performance.now() - t0) / 6000) / 10, progress: s.progress, log }; const line = s.busy ? (s.progress ? 'files' : 'building') : 'idle'; if (line !== last) log.push(Math.round((performance.now() - t0) / 1000) + 's ' + line + (s.progress ? ' ' + s.progress.done + '/' + s.progress.total : '')); last = line; if (!s.busy && !s.progress && s.builtAt) { quietSince ??= performance.now(); if (performance.now() - quietSince > 90000) return { minutes: Math.round((quietSince - t0) / 6000) / 10, maxTotal, status: s, log }; } else quietSince = null; await sleep(5000) } return { minutes: null, timedOut: true, log } };\n'helpers ready'\n"
+  },
+  {
+    "eval": "(async () => { const d = await window.api.leagues.downloads(); const dialog = document.querySelector('[role=dialog]')?.innerText ?? ''; return check('a clean profile asks which leagues to download, and nothing has started', !d.decided && d.leagues.every((l) => !l.on && !l.hasFile) && /Which leagues should Metis download/.test(dialog), { leagues: d.leagues.map((l) => [l.league, l.sizeBytes ?? l.size]), dialog: dialog.slice(0, 600) }) })()"
+  },
+  {
+    "shot": "load-01-first-run"
+  },
+  {
+    "eval": "(async () => { const labels = [...document.querySelectorAll('[role=dialog] label')]; const box = (name) => labels.find((l) => l.innerText.split('\\n')[0].trim().split(' · ')[0] === name)?.querySelector('input[type=checkbox]'); for (const l of labels) { const b = l.querySelector('input[type=checkbox]'); if (b && b.checked) b.click() } await sleep(200); box('NBA').click(); await sleep(300); const ticked = labels.filter((l) => l.querySelector('input[type=checkbox]')?.checked).map((l) => l.innerText.split('\\n')[0]); return check('the NBA alone is ticked', ticked.length === 1 && /^NBA/.test(ticked[0]), ticked) })()"
+  },
+  {
+    "eval": "(async () => { button('Download').click(); window.started_nba = performance.now(); const started = await until(async () => (await window.api.stats.status('nba')).busy, 60000); const d = await window.api.leagues.downloads(); return check('the NBA alone starts loading', started && d.decided && d.leagues.filter((l) => l.on).map((l) => l.league).join() === 'nba', d.leagues.map((l) => [l.league, l.on])) })()"
+  },
+  {
+    "eval": "(async () => { const r = await settle('nba', 150); window.load_nba = r; const d = await dl('nba'); const f = await families('nba'); return check('NBA loaded and built from nothing', r.minutes !== null && d.hasFile && f.failed.length === 0, { minutes: r.minutes, maxTotal: r.maxTotal, fileBytes: d.fileBytes, through: r.status?.through, builtAt: r.status?.builtAt, families: f, log: r.log }) })()"
+  },
+  {
+    "eval": "(async () => { document.querySelector('[title=\"See what is loaded\"]').click(); await until(() => section('NBA'), 20000); await sleep(1500); const t = section('NBA')?.innerText ?? ''; return check('the Data panel shows the NBA loaded, with no failure', /On ·/.test(t) && !/[Ff]ailed/.test(t), t.split('\\n').filter(Boolean).slice(0, 12)) })()"
+  },
+  {
+    "shot": "load-02-nba-data"
+  },
+  {
+    "eval": "(async () => { document.querySelector('[title=\"See what is loaded\"]').click(); await until(() => button('Turn the WNBA on'), 20000); const b = button('Turn the WNBA on'); if (!b) return 'NO BUTTON'; b.click(); window.started_wnba = performance.now(); const started = await until(async () => (await window.api.stats.status('wnba')).busy, 60000); return check('turning the WNBA on in the Data panel starts its load', started && (await dl('wnba')).on, await window.api.stats.status('wnba')) })()"
+  },
+  {
+    "eval": "(async () => { const r = await settle('wnba', 150); window.load_wnba = r; const d = await dl('wnba'); const f = await families('wnba'); return check('WNBA loaded and built from nothing', r.minutes !== null && d.hasFile && f.failed.length === 0, { minutes: r.minutes, maxTotal: r.maxTotal, fileBytes: d.fileBytes, through: r.status?.through, builtAt: r.status?.builtAt, families: f, log: r.log }) })()"
+  },
+  {
+    "eval": "(async () => { document.querySelector('[title=\"See what is loaded\"]').click(); await until(() => section('WNBA'), 20000); await sleep(1500); const t = section('WNBA')?.innerText ?? ''; return check('the Data panel shows the WNBA loaded, with no failure', /On ·/.test(t) && !/[Ff]ailed/.test(t), t.split('\\n').filter(Boolean).slice(0, 12)) })()"
+  },
+  {
+    "shot": "load-03-wnba-data"
+  },
+  {
+    "eval": "(async () => { document.querySelector('[title=\"See what is loaded\"]').click(); await until(() => button('Turn the NCAA Men on'), 20000); const b = button('Turn the NCAA Men on'); if (!b) return 'NO BUTTON'; b.click(); window.started_ncaam = performance.now(); const started = await until(async () => (await window.api.stats.status('ncaam')).busy, 60000); return check('turning the NCAA Men on in the Data panel starts its load', started && (await dl('ncaam')).on, await window.api.stats.status('ncaam')) })()"
+  },
+  {
+    "eval": "(async () => { const r = await settle('ncaam', 150); window.load_ncaam = r; const d = await dl('ncaam'); const f = await families('ncaam'); return check('NCAA Men loaded and built from nothing', r.minutes !== null && d.hasFile && f.failed.length === 0, { minutes: r.minutes, maxTotal: r.maxTotal, fileBytes: d.fileBytes, through: r.status?.through, builtAt: r.status?.builtAt, families: f, log: r.log }) })()"
+  },
+  {
+    "eval": "(async () => { document.querySelector('[title=\"See what is loaded\"]').click(); await until(() => section('NCAA Men'), 20000); await sleep(1500); const t = section('NCAA Men')?.innerText ?? ''; return check('the Data panel shows the NCAA Men loaded, with no failure', /On ·/.test(t) && !/[Ff]ailed/.test(t), t.split('\\n').filter(Boolean).slice(0, 12)) })()"
+  },
+  {
+    "shot": "load-04-ncaam-data"
+  },
+  {
+    "eval": "(async () => { document.querySelector('[title=\"See what is loaded\"]').click(); await until(() => button('Turn the NCAA Women on'), 20000); const b = button('Turn the NCAA Women on'); if (!b) return 'NO BUTTON'; b.click(); window.started_ncaaw = performance.now(); const started = await until(async () => (await window.api.stats.status('ncaaw')).busy, 60000); return check('turning the NCAA Women on in the Data panel starts its load', started && (await dl('ncaaw')).on, await window.api.stats.status('ncaaw')) })()"
+  },
+  {
+    "eval": "(async () => { const r = await settle('ncaaw', 150); window.load_ncaaw = r; const d = await dl('ncaaw'); const f = await families('ncaaw'); return check('NCAA Women loaded and built from nothing', r.minutes !== null && d.hasFile && f.failed.length === 0, { minutes: r.minutes, maxTotal: r.maxTotal, fileBytes: d.fileBytes, through: r.status?.through, builtAt: r.status?.builtAt, families: f, log: r.log }) })()"
+  },
+  {
+    "eval": "(async () => { document.querySelector('[title=\"See what is loaded\"]').click(); await until(() => section('NCAA Women'), 20000); await sleep(1500); const t = section('NCAA Women')?.innerText ?? ''; return check('the Data panel shows the NCAA Women loaded, with no failure', /On ·/.test(t) && !/[Ff]ailed/.test(t), t.split('\\n').filter(Boolean).slice(0, 12)) })()"
+  },
+  {
+    "shot": "load-05-ncaaw-data"
+  },
+  {
+    "eval": "(async () => { const out = {}; for (const l of ['nba', 'wnba', 'ncaam', 'ncaaw']) { const season = l === 'wnba' ? 2026 : l === 'nba' ? 2027 : 2026; const q = await window.api.stats.query(l, { entity: 'player', metrics: ['pts', 'reb', 'ast'], transform: 'perGame', scope: { seasons: [season] } }); out[l] = { season, rows: q.rows.length, top: q.rows[0]?.name } } return check('every league answers a leaderboard after a four-league first load in one session', Object.values(out).every((x) => x.rows > 20), out) })()"
+  },
+  {
+    "wait": 90000
+  }
+]
