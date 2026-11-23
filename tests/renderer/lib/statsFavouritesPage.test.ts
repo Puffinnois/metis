@@ -16,6 +16,7 @@ import {
   playerState,
   recordAfter,
   sectionQueries,
+  sectionSeason,
   seasonSoFar,
   shotTint,
   stepFavouriteDay,
@@ -25,6 +26,7 @@ import {
   topScorer,
   type GameLine
 } from '@/lib/stats/favouritesPage'
+import { currentLeague, seasonLabel, setLeague } from '@/lib/stats/league'
 import type { Favourite } from '@shared/favourites'
 import type { MetricValue, StatsGame, StatsResult, StatsRow } from '@shared/stats/types'
 
@@ -193,9 +195,28 @@ describe('a player’s row', () => {
   })
 
   it('counts the favourites with no game in the season at the section’s foot', () => {
-    expect(absentNote(0, '2026-27')).toBeNull()
-    expect(absentNote(1, '2026-27')).toBe('1 favourite has no game in 2026-27')
-    expect(absentNote(3, '2026-27')).toBe('3 favourites have no game in 2026-27')
+    expect(absentNote(0, 'nba', 2027)).toBeNull()
+    expect(absentNote(1, 'nba', 2027)).toBe('1 favourite has no game in 2026-27')
+    expect(absentNote(3, 'nba', 2027)).toBe('3 favourites have no game in 2026-27')
+  })
+
+  it('words a section’s season in its own league, not the league on screen', () => {
+    const was = currentLeague().id
+    try {
+      // The NBA on screen: its label would write the WNBA's 2026 as "2025-26", which the page showed.
+      setLeague('nba')
+      expect(seasonLabel(2026)).toBe('2025-26')
+      expect(sectionSeason('wnba', 2026)).toBe('2026')
+      expect(sectionSeason('nba', 2026)).toBe('2025-26')
+      expect(absentNote(2, 'wnba', 2026)).toBe('2 favourites have no game in 2026')
+      // And the other way round, the WNBA on screen.
+      setLeague('wnba')
+      expect(sectionSeason('nba', 2027)).toBe('2026-27')
+      expect(sectionSeason('ncaaw', 2026)).toBe('2025-26')
+      expect(absentNote(1, 'nba', 2027)).toBe('1 favourite has no game in 2026-27')
+    } finally {
+      setLeague(was)
+    }
   })
 })
 
