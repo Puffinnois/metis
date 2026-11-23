@@ -243,7 +243,17 @@ export function StatsLeaderboard({
     }
   }
 
-  const title = `${seasonLabel(scope.season)} ${tab.title} leaderboard`
+  // A category names itself: the guard shooting leaderboard, the opponents' scoring leaderboard.
+  const categoryLabel = categories.find((c) => c.id === category)?.label.toLowerCase()
+  const whose =
+    entity === 'player'
+      ? tab.title
+      : category && hasSides(tab, category) && tab.id === 'defense'
+        ? "opponents'"
+        : 'team'
+  const title = categoryLabel
+    ? `${seasonLabel(scope.season)} ${whose} ${categoryLabel} leaderboard`
+    : `${seasonLabel(scope.season)} ${tab.title} leaderboard`
   const qualifyNote = tab.qualifier ? leaderboardQualifier() : 'Every team qualifies'
   const sortLabel =
     board.sort.by === 'name' ? 'name' : (data.byId.get(board.sort.by)?.label ?? board.sort.by)

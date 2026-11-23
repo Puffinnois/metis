@@ -287,11 +287,11 @@ describe('the leaderboard', () => {
     }
   })
 
-  it('moves to a position tab, keeping the mode', async () => {
+  it('moves to a position, keeping the mode', async () => {
     await openPlayers()
     fireEvent.click(screen.getByRole('radio', { name: 'Per 36' }))
     await waitFor(() => expect(lastQuery().transform).toBe('per36'))
-    fireEvent.click(screen.getByRole('tab', { name: 'Centers' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Centers' }))
     await waitFor(() =>
       expect(lastQuery()).toMatchObject({ transform: 'per36', scope: { positions: ['C'] } })
     )
@@ -321,13 +321,28 @@ describe('the leaderboard', () => {
     expect(await screen.findByText('Jayson Tatum')).toBeTruthy()
   })
 
-  it('shows a preset of a family', async () => {
+  it('shows a category by its presets, a position keeping them (D52)', async () => {
     await openPlayers()
-    fireEvent.change(screen.getByRole('combobox', { name: 'Metric family' }), {
-      target: { value: 'composite' }
-    })
+    fireEvent.click(screen.getByRole('tab', { name: 'Impact' }))
+    await waitFor(() => expect(lastQuery().metrics).toContain('gmsc'))
+    fireEvent.click(screen.getByRole('button', { name: 'Box-score composites' }))
     await waitFor(() => expect(lastQuery().metrics).toContain('eff'))
     expect(screen.getByRole('columnheader', { name: 'GmSc' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('radio', { name: 'Guards' }))
+    await waitFor(() => expect(lastQuery().scope.positions).toEqual(['G']))
+    expect(lastQuery().metrics).toContain('eff')
+    // Overview is the tab's own columns again.
+    fireEvent.click(screen.getByRole('tab', { name: 'Overview' }))
+    await waitFor(() => expect(lastQuery().metrics).toContain('plus_minus'))
+  })
+
+  it('opens an umbrella heading over 40 metrics on its specific sub-groups', async () => {
+    await openPlayers()
+    fireEvent.click(screen.getByRole('tab', { name: 'Offense' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Shooting' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Threes' }))
+    await waitFor(() => expect(lastQuery().metrics).toContain('fg3_pct'))
+    expect(lastQuery().metrics.length).toBeLessThanOrEqual(41)
   })
 
   it('reads a gap as a dash with its reason, not an error', async () => {
@@ -360,8 +375,17 @@ describe('the leaderboard', () => {
     expect(screen.queryByRole('button', { name: /Qualified only/ })).toBeNull()
     expect(screen.queryByRole('combobox', { name: 'Team' })).toBeNull()
     expect(lastQuery().entity).toBe('team')
-    fireEvent.click(screen.getByRole('tab', { name: 'Defense' }))
+    // Overview keeps the two ends it always had.
+    fireEvent.click(screen.getByRole('radio', { name: 'Defense' }))
     await waitFor(() => expect(lastQuery().sort).toEqual({ metric: 'team_drtg', dir: 'asc' }))
+    // A specific category reads the team's own or its opponents'; Defense holds both together.
+    fireEvent.click(screen.getByRole('tab', { name: 'Shooting' }))
+    fireEvent.click(await screen.findByRole('radio', { name: 'Team' }))
+    await waitFor(() => expect(lastQuery().metrics.every((m) => !m.startsWith('opp_'))).toBe(true))
+    fireEvent.click(screen.getByRole('radio', { name: 'Opponents' }))
+    await waitFor(() => expect(lastQuery().metrics.every((m) => m.startsWith('opp_'))).toBe(true))
+    fireEvent.click(screen.getByRole('tab', { name: 'Defense' }))
+    await waitFor(() => expect(lastQuery().metrics).toContain('team_stl'))
   })
 
   it('shows the engine’s error, and its notes', async () => {
