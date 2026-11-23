@@ -113,4 +113,45 @@ describe('a view saved with the favourites filter (T1601.3)', () => {
     expect(JSON.parse(json)).toMatchObject({ favourites: true })
     expect(json).not.toMatch(/\d{5,}/)
   })
+
+  it('keeps a board’s filters (T1701.2), and opens a board saved before them', () => {
+    const db = openDatabase(':memory:')
+    migrate(db)
+    const filters: LeaderboardBoard['filters'] = [
+      { attribute: 'age', op: 'atMost', value: 25 },
+      { attribute: 'birthCountry', op: 'noneOf', value: ['USA'] },
+      { metric: 'ts_pct', op: 'between', value: [0.55, 0.7] },
+      { attribute: 'undrafted', op: 'is' },
+      // Not finished yet: kept as it was left.
+      { attribute: 'height', op: 'atLeast' }
+    ]
+    saveStatsView(db, 'nba', 'Young', board({ filters }), 't1')
+    saveStatsView(db, 'nba', 'Before filters', board(), 't1')
+    const views = listStatsViews(db, 'nba')
+    expect(views.find((v) => v.name === 'Young')?.board.filters).toEqual(filters)
+    expect(views.find((v) => v.name === 'Before filters')?.board.filters).toBeUndefined()
+  })
+
+  it('refuses filters of another shape', () => {
+    const db = openDatabase(':memory:')
+    migrate(db)
+    const bad: unknown[] = [
+      [{ op: 'atLeast', value: 1 }],
+      [{ attribute: 'age', metric: 'pts', op: 'atLeast', value: 1 }],
+      [{ attribute: 'age', op: 'roughly', value: 1 }],
+      [{ attribute: 'age', op: 'anyOf', value: [{}] }],
+      Array.from({ length: 21 }, () => ({ attribute: 'age', op: 'hasValue' }))
+    ]
+    for (const filters of bad) {
+      expect(() =>
+        saveStatsView(
+          db,
+          'nba',
+          'Bad',
+          board({ filters: filters as LeaderboardBoard['filters'] }),
+          't1'
+        )
+      ).toThrow(/invalid/)
+    }
+  })
 })
