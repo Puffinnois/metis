@@ -1,8 +1,10 @@
 import { useMemo } from 'react'
 import { Segmented, StatsSelect } from '@/components/stats/controls'
 import { MetricHead } from '@/components/stats/MetricCard'
+import { FavouriteName } from '@/components/stats/FavouriteStar'
 import { Loading, MiniTable, Notes, SectionHead } from '@/components/stats/parts'
 import { useScreenState } from '@/lib/stats/session'
+import { useFavourites } from '@/lib/stats/favourites'
 import { moveToSeason, type StatsScope } from '@/lib/stats/scope'
 import {
   forecastCells,
@@ -37,6 +39,7 @@ export function StatsStandings({
   const [view, setView] = useScreenState<StandingsView>('standings', 'view', 'conference')
   const { value: rows, error } = useStandings(scope.season, data.version)
   // Metis's own columns, beside the published ones; blank until they answer.
+  const favourites = useFavourites()
   const sq = useMemo(() => strengthQuery(scope.season), [scope.season])
   const strength = strengthCells(useStatsQuery(sq, data.version, { keepLast: false }).result)
   // The season forecast, for the season in progress only (`forecastQuery` says why): not one the
@@ -107,13 +110,19 @@ export function StatsStandings({
                     key: r.key,
                     title: `Open the ${r.name}`,
                     onOpen: () => onOpenTeam(r.teamId),
+                    favourite: favourites.isFavourite('team', r.teamId),
                     cells: [
                       <span key="r" className="text-fg-3">
                         {r.rank}
                       </span>,
-                      <span key="n" className="font-sans text-[13px] font-medium">
+                      <FavouriteName
+                        key="n"
+                        kind="team"
+                        id={r.teamId}
+                        className="font-sans text-[13px] font-medium"
+                      >
                         {r.name}
-                      </span>,
+                      </FavouriteName>,
                       ...r.cells
                     ]
                   }))}

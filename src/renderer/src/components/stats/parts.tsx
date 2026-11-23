@@ -1,3 +1,4 @@
+import { favouriteEdge } from '@/lib/stats/favourites'
 import { cn } from '@/lib/utils'
 
 /** The dashboards' small pieces: loading lines, section heads, mono tables. */
@@ -29,6 +30,8 @@ export interface MiniRow {
   strong?: boolean
   /** Its text runs on over the empty cells after it instead of being cut: a season missed whole. */
   spill?: boolean
+  /** A favourite player or team: the gold edge on its left (T1601.2). */
+  favourite?: boolean
 }
 
 /** A small mono table: a header under a rule, then rows. Numbers align right. */
@@ -72,7 +75,8 @@ export function MiniTable({
       {rows.map((r) => {
         const style = cn(
           'grid h-[34px] items-center gap-x-3 border-b border-line-2',
-          r.strong && 'border-t border-fg-3 font-semibold'
+          r.strong && 'border-t border-fg-3 font-semibold',
+          favouriteEdge(!!r.favourite)
         )
         const cells = r.cells.map((c, i) => (
           <span

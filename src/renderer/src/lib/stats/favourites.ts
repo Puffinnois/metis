@@ -166,3 +166,25 @@ export function useFavouritesState(
     [sets, toggle, all, ready]
   )
 }
+
+/**
+ * A favourite row's gold edge (T1601.2): 2 px of `--fav` inset on its left, a shadow, so the row keeps
+ * its width and height. A row's own inset edge, such as the rail's keyboard cursor, is given after it
+ * and wins while it rests there (`cn` keeps the last shadow).
+ */
+export const FAV_EDGE = 'shadow-[inset_2px_0_0_var(--fav)]'
+
+/** The edge's class for a row, or nothing for a row that is not a favourite. */
+export const favouriteEdge = (on: boolean): string => (on ? FAV_EDGE : '')
+
+/** Whether either of a game's teams is a favourite: its card gets the edge. */
+export const gameHasFavourite = (teams: ReadonlySet<string>, ids: readonly string[]): boolean =>
+  ids.some((id) => teams.has(id))
+
+/**
+ * Points in drawing order with the favourites last, so they sit above the others; the order among the
+ * rest, and among the favourites, is kept.
+ */
+export function favouritesLast<T>(points: readonly T[], isFavourite: (p: T) => boolean): T[] {
+  return [...points.filter((p) => !isFavourite(p)), ...points.filter(isFavourite)]
+}

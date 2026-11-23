@@ -1,4 +1,7 @@
 import { Segmented } from '@/components/stats/controls'
+import { FavouriteMark } from '@/components/stats/FavouriteStar'
+import { favouriteEdge, useFavourites } from '@/lib/stats/favourites'
+import type { FavouriteKind } from '@shared/favourites'
 import { ScopeBar } from '@/components/stats/ScopeBar'
 import {
   BOARD_ROWS,
@@ -27,12 +30,25 @@ function Bar({ fraction, lead }: { fraction: number; lead: boolean }): React.JSX
   )
 }
 
-function Row({ row, onOpen }: { row: BoardRow; onOpen: () => void }): React.JSX.Element {
+function Row({
+  row,
+  entity,
+  onOpen
+}: {
+  row: BoardRow
+  entity: FavouriteKind
+  onOpen: () => void
+}): React.JSX.Element {
+  // A favourite keeps the leader's cobalt rank and bar; the gold is the edge and the mark (T1601.2).
+  const favourite = useFavourites().isFavourite(entity, row.id)
   return (
     <button
       type="button"
       onClick={onOpen}
-      className="grid h-[38px] w-full cursor-pointer grid-cols-[22px_minmax(0,1fr)_auto] items-center gap-x-2.5 pr-3.5 pl-2.5 text-left hover:bg-hover"
+      className={cn(
+        'grid h-[38px] w-full cursor-pointer grid-cols-[22px_minmax(0,1fr)_auto] items-center gap-x-2.5 pr-3.5 pl-2.5 text-left hover:bg-hover',
+        favouriteEdge(favourite)
+      )}
     >
       <span
         className={cn(
@@ -46,6 +62,7 @@ function Row({ row, onOpen }: { row: BoardRow; onOpen: () => void }): React.JSX.
       </span>
       <div className="flex min-w-0 flex-col gap-[5px]">
         <div className="flex min-w-0 items-baseline gap-1.5 whitespace-nowrap">
+          <FavouriteMark kind={entity} id={row.id} on={favourite} className="self-center" />
           <span className="truncate text-[13px] leading-[1.1] font-medium">{row.name}</span>
           {row.team && row.team !== row.name && (
             <span className="shrink-0 font-mono text-[10.5px] leading-none text-fg-3">
@@ -132,7 +149,9 @@ function Board({
         ) : view.rows.length === 0 ? (
           <div className="px-3.5 py-6 text-center text-[12.5px] text-fg-3">Nobody qualifies</div>
         ) : (
-          view.rows.map((r) => <Row key={r.id} row={r} onOpen={() => onOpen(board, r.id)} />)
+          view.rows.map((r) => (
+            <Row key={r.id} row={r} entity={board.entity} onOpen={() => onOpen(board, r.id)} />
+          ))
         )}
       </div>
     </section>
