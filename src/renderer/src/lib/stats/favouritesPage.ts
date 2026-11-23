@@ -146,7 +146,8 @@ export function teamGameOn(
 
 /**
  * The days a league's favourites had a game: a favourite team's, or the team a favourite player was
- * on that day. Dates as the schedule writes them, in order.
+ * on that day. Only games played, the days loaded: a game still to come is no day of the page (D31).
+ * Dates as the schedule writes them, in order.
  */
 export function favouriteDays(
   playerLogs: ReadonlyMap<string, GameLine[]>,
@@ -156,12 +157,12 @@ export function favouriteDays(
   const days = new Set<string>()
   const teams = new Set(teamIds)
   for (const g of games) {
-    if (!counts(g)) continue
+    if (!counts(g) || !g.played) continue
     if (teams.has(g.home.id ?? '') || teams.has(g.away.id ?? '')) days.add(g.date)
   }
   for (const lines of playerLogs.values()) {
     for (const g of games) {
-      if (!counts(g) || days.has(g.date)) continue
+      if (!counts(g) || !g.played || days.has(g.date)) continue
       const team = teamOn(lines, g.date)
       if (team !== null && (g.home.id === team || g.away.id === team)) days.add(g.date)
     }
@@ -259,6 +260,8 @@ export function shotTint(
 export type PlayerState =
   | { kind: 'played'; line: GameLine; game: StatsGame }
   | { kind: 'dnp'; game: StatsGame; reason: string | null; team: string | null }
+  /** The team's game that day is on the schedule but not played in the data loaded (D31). */
+  | { kind: 'pending'; game: StatsGame; team: string | null }
   | { kind: 'nogame'; team: string | null }
   /** No game in the league in the season of the page's day: counted at the section's foot. */
   | { kind: 'absent' }
@@ -276,6 +279,7 @@ export function playerState(
     ? (games.find((g) => g.id === today.game) ?? null)
     : teamGameOn(team, day, games)
   if (today && game) return { kind: 'played', line: today, game }
+  if (game && !game.played) return { kind: 'pending', game, team }
   if (game) {
     const out = lines.find((l) => l.game === game.id && l.out !== null)
     const reason =
@@ -323,8 +327,11 @@ export function recordAfter(team: string, game: StatsGame, games: readonly Stats
   return `${w}-${l}`
 }
 
-/** The order of a section's rows (D49): players then teams; played, then did not play, then no game. */
-const STATE_ORDER: Record<string, number> = { played: 0, dnp: 1, nogame: 2 }
+/**
+ * The order of a section's rows (D49): players then teams; played, then did not play, then a game not
+ * in the data yet, then no game.
+ */
+const STATE_ORDER: Record<string, number> = { played: 0, dnp: 1, pending: 2, nogame: 3 }
 
 export interface Ordered<T> {
   favourite: Favourite
@@ -439,4 +446,20 @@ export function topScorer(
       (b.values.pts?.value ?? 0) - (a.values.pts?.value ?? 0) || a.name.localeCompare(b.name)
   )[0]
   return { name: best.name, pts: best.values.pts?.value ?? 0 }
+}
+
+/**
+ * The page's sections (D50): the leagues with favourites, the league on screen first, then the others
+ * in the league menu's order; each with whether its stats file is there to read. A league whose file
+ * is not downloaded lists its favourites by their stored names.
+ */
+export function pageLeagues<L extends string>(
+  current: L,
+  order: readonly L[],
+  favourites: Partial<Record<L, readonly unknown[]>>,
+  hasFile: (league: L) => boolean
+): { league: L; downloaded: boolean }[] {
+  return [current, ...order.filter((l) => l !== current)]
+    .filter((l) => (favourites[l] ?? []).length > 0)
+    .map((league) => ({ league, downloaded: hasFile(league) }))
 }

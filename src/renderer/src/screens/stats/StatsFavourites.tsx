@@ -12,6 +12,7 @@ import {
   MIN_GAMES,
   orderRows,
   pageDay,
+  pageLeagues,
   PLAYER_COUNTS,
   PLAYER_PAIRS,
   playerState,
@@ -68,6 +69,8 @@ const WORDS: Record<string, string> = {
   team_tov: 'turnovers'
 }
 const LOWER = new Set(['tov', 'opp_pts', 'team_tov'])
+/** A game on the schedule that day with no result in the data loaded (D31: no live data). */
+const PENDING = 'Not played in the data loaded'
 
 const PLAYER_GRID =
   'grid grid-cols-[minmax(170px,1.5fr)_minmax(150px,1fr)_repeat(7,44px)_repeat(3,58px)_44px] items-center gap-x-2'
@@ -186,7 +189,7 @@ function PlayerRow({
   const s = data.state
   const teamId = data.team
   const code = teams.find((t) => t.id === teamId)?.code ?? ''
-  const game = s.kind === 'played' || s.kind === 'dnp' ? s.game : null
+  const game = s.kind === 'played' || s.kind === 'dnp' || s.kind === 'pending' ? s.game : null
   const base = { league: section.league, team: null, player: null } as const
   const name = (
     <span className="flex min-w-0 items-center gap-1.5">
@@ -237,7 +240,11 @@ function PlayerRow({
           className="col-span-11 text-[12.5px] text-fg-3"
           title={s.kind === 'dnp' ? (s.reason ?? undefined) : undefined}
         >
-          {s.kind === 'dnp' ? `Did not play${s.reason ? ` · ${s.reason}` : ''}` : 'No game'}
+          {s.kind === 'dnp'
+            ? `Did not play${s.reason ? ` · ${s.reason}` : ''}`
+            : s.kind === 'pending'
+              ? PENDING
+              : 'No game'}
         </span>
       </div>
     )
@@ -350,8 +357,8 @@ function TeamRow({
       >
         {name}
         {gameCell}
-        <span role="cell" className="col-span-11 text-[12.5px] text-fg-3">
-          {game ? 'No box score for this game' : 'No game'}
+        <span role="cell" className="col-span-10 text-[12.5px] text-fg-3">
+          {game ? (game.played ? 'No box score for this game' : PENDING) : 'No game'}
         </span>
       </div>
     )
@@ -560,7 +567,11 @@ function Section({
   }
   const teamRows: Ordered<null>[] = teams.map((f) => {
     const g = teamGameOn(f.id, day, section.games)
-    return { favourite: f, state: { kind: g ? 'played' : 'nogame' }, row: null }
+    return {
+      favourite: f,
+      state: { kind: g ? (g.played ? 'played' : 'pending') : 'nogame' },
+      row: null
+    }
   })
   const through = throughNote(L, section.through, day, fullDay)
   const foot = section.season ? absentNote(absent, seasonLabel(section.season.season)) : null
@@ -673,16 +684,18 @@ export function StatsFavourites({
       setDays((was) => (JSON.stringify(was[l]) === JSON.stringify(d) ? was : { ...was, [l]: d })),
     []
   )
-  const leagues = [league, ...LEAGUE_IDS.filter((l) => l !== league)].filter(
-    (l) => (all[l] ?? []).length > 0
+  const sections = pageLeagues(
+    league,
+    LEAGUE_IDS,
+    all,
+    (l) => downloads?.leagues.find((d) => d.league === l)?.hasFile ?? true
   )
+  const leagues = sections.map((x) => x.league)
   const sectionDays = leagues.map((l) => days[l] ?? []).filter((d) => d.length)
   const every = allDays(sectionDays)
   const day = pageDay(chosen, sectionDays)
   const loaded = leagues.every((l) => days[l] !== undefined)
   const open = (to: NavLocation): void => onOpenPage?.(to)
-  const hasFile = (l: LeagueId): boolean =>
-    downloads?.leagues.find((d) => d.league === l)?.hasFile ?? true
 
   const empty = (text: string): React.JSX.Element => (
     <div className="flex flex-col gap-5 px-8 pt-[22px] pb-8">
@@ -742,7 +755,7 @@ export function StatsFavourites({
           </NavButton>
         </div>
       </header>
-      {loaded && every.length === 0 && leagues.some(hasFile) && (
+      {loaded && every.length === 0 && sections.some((x) => x.downloaded) && (
         <div className="py-6 text-center text-[13px] text-fg-3" data-empty="">
           No favourite has a game on any day loaded.
         </div>
@@ -752,7 +765,7 @@ export function StatsFavourites({
           key={l}
           league={l}
           favourites={all[l] ?? []}
-          downloaded={hasFile(l)}
+          downloaded={sections[i].downloaded}
           first={i === 0 && l === league}
           day={day}
           onDays={onDays}
