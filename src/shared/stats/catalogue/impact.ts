@@ -171,8 +171,9 @@ const darko = (column: string, o: Partial<Opts> = {}): Opts => ({
   ...o
 })
 
-const GONE = 'The dataset no longer publishes DARKO.'
-const DARKO_NOTE = `It reads for one regular season at a time. ${GONE} Its file has had no \`darko_*\` columns since the November 2026 load; the \`boban_*\` columns it has instead hold other values, so they are not read.`
+const GONE =
+  'The dataset dropped its DARKO columns in November 2026. BOBAN, in their place, is SportsDataverse’s own model of the same kind, not DARKO: see the BOBAN metrics.'
+const DARKO_NOTE = `It reads for one regular season at a time. ${GONE}`
 
 const DARKO_METRICS: MetricDef[] = [
   metric(
@@ -205,8 +206,131 @@ const DARKO_METRICS: MetricDef[] = [
 ]
 
 /**
- * The family's preset leads with these, so RAPM, BPM, SPM, WAR and DARKO show before the adjusted
- * RAPM and the parts of SPM, which a label sort would put first.
+ * BOBAN ("Bayesian Online Box-Augmented Net"): SportsDataverse's own Kalman filter over each player's
+ * season-by-season RAPM, with an aging curve (`nba-data-sources.md`, "The impact file's `boban_*`
+ * columns"). SportsDataverse is its maker, so it is shown as theirs and under its own name. It is one
+ * regular season's state, read as DARKO was: its playoff rows repeat the regular season's.
+ */
+const BOBAN_OWN =
+  'SportsDataverse’s own model, of the same kind as DARKO but not DARKO, published in the dataset’s impact file.'
+const BOBAN_NOTE = `It reads for one regular season at a time, and from the season after a player’s first: the filter needs a season behind it. ${BOBAN_OWN}`
+
+const boban = (column: string, o: Partial<Opts> = {}): Opts => ({
+  value: ratio(column, 'games'),
+  sample: 'games',
+  family: 'impact',
+  kind: 'model',
+  unit: 'rating',
+  decimals: 1,
+  sources: SOURCES,
+  firstSeason: DARKO_FIRST,
+  published: 'pub_player_boban',
+  oneSeason: true,
+  ...o
+})
+
+const BOBAN_METRICS: MetricDef[] = [
+  metric(
+    'sdv_boban_skill',
+    sdv('BOBAN skill'),
+    head('BOBAN'),
+    `BOBAN’s estimate of the player’s impact at the end of the season, in points per 100 possessions against an average player: a Kalman filter over their RAPM season by season, each season weighted by its possessions. ${BOBAN_NOTE}`,
+    { ...boban('boban_filtered_skill'), categories: ['impact.pm_models'] }
+  ),
+  metric(
+    'sdv_boban_next',
+    sdv('BOBAN next-season projection'),
+    head('BOBAN Next'),
+    `BOBAN’s projection of the player’s impact next season, in points per 100 possessions: the end-of-season skill plus the aging curve’s drift at their age. A published model value, not a prediction from Metis. ${BOBAN_NOTE}`,
+    { ...boban('boban_projected_rating'), categories: ['predictive.player_projections'] }
+  ),
+  metric(
+    'sdv_boban_sd',
+    sdv('BOBAN projection spread'),
+    head('BOBAN SD'),
+    `The standard deviation of BOBAN’s next-season projection: how unsure it is. One value a season for most players, 1.3 to 1.9, and about 10 in a player’s first season in the file. ${BOBAN_NOTE}`,
+    {
+      ...boban('boban_projected_sd', { direction: 'neutral', firstSeason: 1999 }),
+      categories: ['predictive.player_projections']
+    }
+  )
+]
+
+/**
+ * SportsDataverse's box-score prior, and the RAPM fitted toward it with the ridge's strength chosen
+ * by REML. Published for the regular season alone, in the NBA's file only (`wnba.ts` says so there).
+ */
+const PRIOR_TABLE = 'pub_player_impact_prior'
+const PRIOR_OWN = 'SportsDataverse’s own fit, published in the dataset’s impact file.'
+const REGULAR_ONLY = 'Published for the regular season only.'
+const prior = (column: string, sample: string, minSample: number, o: Partial<Opts> = {}): Opts => ({
+  ...model(column, sample, minSample),
+  published: PRIOR_TABLE,
+  ...o
+})
+
+const PRIOR_METRICS: MetricDef[] = [
+  metric(
+    'sdv_box_prior',
+    sdv('Box prior'),
+    head('BoxPrior'),
+    `The points per 100 possessions the player’s box score predicts, which SportsDataverse’s REML RAPM is pulled toward instead of zero. ${PRIOR_OWN} ${REGULAR_ONLY} ${BY_POSS}`,
+    { ...prior('box_prior', 'prior_poss', 4000), categories: ['impact.box_models'] }
+  ),
+  metric(
+    'sdv_o_box_prior',
+    sdv('Offensive box prior'),
+    head('OBoxPrior'),
+    `The offensive part of the box prior. ${PRIOR_OWN} ${REGULAR_ONLY} ${BY_POSS}`,
+    {
+      ...prior('o_box_prior', 'prior_off_poss', 2000),
+      categories: ['impact.box_models', 'offense.impact']
+    }
+  ),
+  metric(
+    'sdv_d_box_prior',
+    sdv('Defensive box prior'),
+    head('DBoxPrior'),
+    `The defensive part of the box prior. ${PRIOR_OWN} ${REGULAR_ONLY} ${BY_POSS}`,
+    {
+      ...prior('d_box_prior', 'prior_def_poss', 2000),
+      categories: ['impact.box_models', 'defense.impact']
+    }
+  ),
+  metric(
+    'sdv_reml_rapm',
+    sdv('REML RAPM'),
+    head('rRAPM'),
+    `RAPM pulled toward each player’s box prior rather than toward zero, with how hard it pulls estimated from the data (REML): points per 100 possessions the player added. ${PRIOR_OWN} ${REGULAR_ONLY} ${BY_POSS}`,
+    { ...prior('reml_rapm', 'prior_poss', 4000), categories: ['impact.pm_models'] }
+  ),
+  metric(
+    'sdv_o_reml_rapm',
+    sdv('Offensive REML RAPM'),
+    head('OrRAPM'),
+    `The offensive part of REML RAPM. ${PRIOR_OWN} ${REGULAR_ONLY} ${BY_POSS}`,
+    {
+      ...prior('o_reml_rapm', 'prior_off_poss', 2000),
+      categories: ['impact.pm_models', 'offense.impact']
+    }
+  ),
+  metric(
+    'sdv_d_reml_rapm',
+    sdv('Defensive REML RAPM'),
+    head('DrRAPM'),
+    `The defensive part of REML RAPM. ${PRIOR_OWN} ${REGULAR_ONLY} ${BY_POSS}`,
+    {
+      ...prior('d_reml_rapm', 'prior_def_poss', 2000),
+      categories: ['impact.pm_models', 'defense.impact']
+    }
+  )
+]
+
+/**
+ * The family's preset leads with these, so RAPM, BPM, SPM, WAR and BOBAN show before the adjusted
+ * RAPM and the parts of SPM, which a label sort would put first. BOBAN's projection is not among them:
+ * the preset's first column by label sorts the board, and a board of ratings should not rank by a
+ * forecast. It stays one click away in the column picker.
  */
 const CORE = new Set([
   'sdv_rapm',
@@ -217,17 +341,23 @@ const CORE = new Set([
   'sdv_dbpm',
   'sdv_spm',
   'sdv_war',
-  'sdv_darko_skill',
-  'sdv_darko_next'
+  'sdv_boban_skill'
 ])
 
-export const IMPACT: MetricDef[] = [...RAPM, ...BOX, ...DARKO_METRICS].map((m) =>
-  CORE.has(m.id) ? { ...m, tier: 'core' } : m
-)
+export const IMPACT: MetricDef[] = [
+  ...RAPM,
+  ...BOX,
+  ...BOBAN_METRICS,
+  ...PRIOR_METRICS,
+  ...DARKO_METRICS
+].map((m) => (CORE.has(m.id) ? { ...m, tier: 'core' } : m))
 
 /** What the impact samples count, in words. */
 export const IMPACT_SAMPLE_LABELS: Readonly<Record<string, string>> = {
   impact_poss: 'possessions on offense and defense',
   off_poss: 'offensive possessions',
-  def_poss: 'defensive possessions'
+  def_poss: 'defensive possessions',
+  prior_poss: 'regular-season possessions on offense and defense',
+  prior_off_poss: 'regular-season offensive possessions',
+  prior_def_poss: 'regular-season defensive possessions'
 }
