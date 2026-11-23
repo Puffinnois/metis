@@ -14,6 +14,9 @@ import {
   orderRows,
   pageDay,
   pageLeagues,
+  pageSubtitle,
+  PLAIN,
+  plainTint,
   PLAYER_COUNTS,
   PLAYER_PAIRS,
   playerState,
@@ -72,7 +75,8 @@ const WORDS: Record<string, string> = {
 }
 const LOWER = new Set(['tov', 'opp_pts', 'team_tov'])
 /** A game on the schedule that day with no result in the data loaded (D31: no live data). */
-const PENDING = 'Not played in the data loaded'
+const PENDING = 'Not loaded yet'
+const PENDING_TITLE = 'The game is on the schedule for this day and not in the data yet'
 
 const PLAYER_GRID =
   'grid grid-cols-[minmax(170px,1.5fr)_minmax(150px,1fr)_repeat(7,44px)_repeat(3,58px)_44px] items-center gap-x-2'
@@ -106,7 +110,7 @@ function Cell({
     ? `Not in the ${league} data`
     : value === null
       ? 'Not recorded for this game'
-      : `${fmt(value, id)} ${WORDS[id] ?? id}${avgWords(tint)}${tint.place ? ` · ${tint.place}` : ` · fewer than ${MIN_GAMES} games to set it against`}`
+      : `${fmt(value, id)} ${WORDS[id] ?? id}${avgWords(tint)}${tint.place ? ` · ${tint.place}` : PLAIN.has(id) ? ' · not tinted' : ` · fewer than ${MIN_GAMES} games to set it against`}`
   return (
     <span
       role="cell"
@@ -240,7 +244,13 @@ function PlayerRow({
         <span
           role="cell"
           className="col-span-11 text-[12.5px] text-fg-3"
-          title={s.kind === 'dnp' ? (s.reason ?? undefined) : undefined}
+          title={
+            s.kind === 'dnp'
+              ? (s.reason ?? undefined)
+              : s.kind === 'pending'
+                ? PENDING_TITLE
+                : undefined
+          }
         >
           {s.kind === 'dnp'
             ? `Did not play${s.reason ? ` · ${s.reason}` : ''}`
@@ -268,11 +278,15 @@ function PlayerRow({
           value={v[id] ?? null}
           known={section.known.has(id)}
           league={L}
-          tint={tintOf(
-            v[id] ?? null,
-            so.map((l) => l.values[id] ?? null),
-            LOWER.has(id) ? 'lower' : 'higher'
-          )}
+          tint={
+            PLAIN.has(id)
+              ? plainTint(so.map((l) => l.values[id] ?? null))
+              : tintOf(
+                  v[id] ?? null,
+                  so.map((l) => l.values[id] ?? null),
+                  LOWER.has(id) ? 'lower' : 'higher'
+                )
+          }
         />
       ))}
       {PLAYER_PAIRS.map(([label, m, a]) => (
@@ -297,7 +311,7 @@ function PlayerRow({
         value={v.plus_minus ?? null}
         known={section.known.has('plus_minus')}
         league={L}
-        tint={{ heat: 'n', percentile: null, place: null, average: null }}
+        tint={plainTint(so.map((l) => l.values.plus_minus ?? null))}
       />
     </div>
   )
@@ -359,7 +373,11 @@ function TeamRow({
       >
         {name}
         {gameCell}
-        <span role="cell" className="col-span-10 text-[12.5px] text-fg-3">
+        <span
+          role="cell"
+          className="col-span-10 text-[12.5px] text-fg-3"
+          title={game && !game.played ? PENDING_TITLE : undefined}
+        >
           {game ? (game.played ? 'No box score for this game' : PENDING) : 'No game'}
         </span>
       </div>
@@ -682,10 +700,13 @@ function Section({
  */
 export function StatsFavourites({
   league,
+  through,
   onOpenPage,
   onOpenData
 }: {
   league: LeagueId
+  /** Through when the league on screen's data runs, for the line under the title. */
+  through: string | null
   onOpenPage?: (to: NavLocation) => void
   onOpenData: (league: LeagueId) => void
 }): React.JSX.Element {
@@ -740,12 +761,7 @@ export function StatsFavourites({
             Favourites
           </h1>
           <div className="text-[13px] text-fg-3" data-day={day ?? ''}>
-            {day
-              ? fullDay(day)
-              : loaded
-                ? 'No day with a favourite’s game'
-                : 'Finding the latest day…'}
-            {' · the latest data loaded, never live'}
+            {pageSubtitle(day, through, loaded, fullDay)}
           </div>
         </div>
         <div className="flex items-center gap-1.5">

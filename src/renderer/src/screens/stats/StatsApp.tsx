@@ -421,7 +421,12 @@ export function StatsApp({
               onOpenPlayer={openPlayer}
             />
           ) : screen === 'favourites' ? (
-            <StatsFavourites league={league} onOpenPage={onOpenPage} onOpenData={openData} />
+            <StatsFavourites
+              league={league}
+              through={data.status?.through?.date ?? null}
+              onOpenPage={onOpenPage}
+              onOpenData={openData}
+            />
           ) : screen === 'standings' ? (
             <StatsStandings data={data} scope={scope} onScope={setChosen} onOpenTeam={openTeam} />
           ) : playerBoard || teamBoard ? (

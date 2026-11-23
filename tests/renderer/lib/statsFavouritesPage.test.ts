@@ -10,6 +10,9 @@ import {
   orderRows,
   pageDay,
   pageLeagues,
+  pageSubtitle,
+  PLAIN,
+  plainTint,
   playerState,
   recordAfter,
   sectionQueries,
@@ -265,6 +268,27 @@ describe('the rows’ words and order', () => {
       { favourite: fav('p5', 'player', '6'), state: { kind: 'pending' }, row: 6 }
     ]
     expect(orderRows(rows).map((r) => r.favourite.id)).toEqual(['p4', 'p2', 'p1', 'p5', 'p3', 't1'])
+  })
+
+  it('says the day shown and, apart, through when the data runs', () => {
+    const words = (d: string): string => d
+    expect(pageSubtitle('2026-11-08', '2026-11-21', true, words)).toBe(
+      'Games of 2026-11-08 · data through 2026-11-21, not live'
+    )
+    expect(pageSubtitle(null, '2026-11-21', false, words)).toBe(
+      'Finding the latest day… · data through 2026-11-21, not live'
+    )
+    expect(pageSubtitle(null, null, true, words)).toBe('No day with a favourite’s game · not live')
+  })
+
+  it('shows minutes and +/− plain, with the season average for the title', () => {
+    expect([...PLAIN].sort()).toEqual(['min', 'plus_minus'])
+    expect(plainTint([30, 34, null, 38])).toEqual({
+      heat: 'n',
+      percentile: null,
+      place: null,
+      average: 34
+    })
   })
 
   it('says a section’s data stops before the page’s day', () => {

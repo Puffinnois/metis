@@ -477,3 +477,36 @@ export function listingWords(
   if (!listing) return null
   return listing.reason ? `Listed ${listing.status}: ${listing.reason}` : `Listed ${listing.status}`
 }
+
+/**
+ * The page's line under its title: the day shown and, apart, through when the league on screen's data
+ * runs, so a day stepped back never reads as the latest. "Games of Nov 8, 2026 · data through Nov 21,
+ * 2026, not live".
+ */
+export function pageSubtitle(
+  day: string | null,
+  through: string | null,
+  loaded: boolean,
+  words: (d: string) => string
+): string {
+  const first = day
+    ? `Games of ${words(day)}`
+    : loaded
+      ? 'No day with a favourite’s game'
+      : 'Finding the latest day…'
+  return `${first} · ${through ? `data through ${words(through)}, ` : ''}not live`
+}
+
+/** The cells shown plain, never tinted: more minutes is no better game, and +/− is the team's. */
+export const PLAIN = new Set(['min', 'plus_minus'])
+
+/** A plain cell's tint: none, with the season average for its title. */
+export function plainTint(values: readonly (number | null)[]): Tint {
+  const all = values.filter((v): v is number => v !== null)
+  return {
+    heat: 'n',
+    percentile: null,
+    place: null,
+    average: all.length ? all.reduce((t, v) => t + v, 0) / all.length : null
+  }
+}

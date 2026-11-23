@@ -99,6 +99,31 @@ const empty = [
   run(`return { errors: await errors() }`)
 ]
 
+// The page re-shot after review: the opening day and a day stepped back, in both themes, with the
+// line under the title, the MIN cells (plain) and the row of a game not loaded yet.
+const facts = run(
+  `const sub = document.querySelector('[data-day]')?.textContent.trim(); const minCells = [...document.querySelectorAll('[role=row][data-state=played]')].map((r) => r.querySelectorAll('[role=cell]')[0]).filter(Boolean).map((c) => ({ text: c.textContent.trim(), heat: c.dataset.heat, title: c.title })); const pending = [...document.querySelectorAll('[role=row][data-state=pending] [role=cell]')].map((c) => ({ text: c.textContent.trim(), title: c.title })); return { day: day(), sub, minCells, pending }`
+)
+const shots = [
+  { size: [1500, 950] },
+  { wait: 9000 },
+  ev(HELPERS),
+  run(`await toTheme('light'); await pick('NBA'); return openPage()`),
+  facts,
+  shot('11-opening-light'),
+  run(`return toTheme('dark')`),
+  shot('12-opening-dark'),
+  run(
+    `const sel = [...document.querySelectorAll('select')].find((x) => x.title === 'Day'); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(sel, '2026-11-08'); sel.dispatchEvent(new Event('change', { bubbles: true })); await sleep(1500); return day()`
+  ),
+  facts,
+  shot('13-stepped-back-dark'),
+  run(`return toTheme('light')`),
+  shot('14-stepped-back-light'),
+  run(`return { errors: await errors() }`)
+]
+
+writeFileSync(join(out, 't1601e-shots-steps.json'), JSON.stringify(shots, null, 2) + '\n')
 writeFileSync(join(out, 't1601e-page-steps.json'), JSON.stringify(pageSteps, null, 2) + '\n')
 writeFileSync(join(out, 't1601e-nofile-steps.json'), JSON.stringify(nofile, null, 2) + '\n')
 writeFileSync(join(out, 't1601e-empty-steps.json'), JSON.stringify(empty, null, 2) + '\n')
