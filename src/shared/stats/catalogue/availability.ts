@@ -44,13 +44,13 @@ export const AVAILABILITY: MetricDef[] = [
     'Games out, injury or illness',
     'Out INJ',
     `Games the player was listed Out for an injury or an illness. ${LAST_REPORT} ${WHOLE_SEASONS}`,
-    games('games_out_injury')
+    { ...games('games_out_injury'), categories: ['playing_time.games_missed'] }
   ),
   metric(
     'games_out_other',
     'Games out, other reasons',
     'Out OTH',
     `Games the player was listed Out for any other reason: a G League assignment, rest, a suspension, personal reasons, health and safety protocols, a trade pending, or none given. ${LAST_REPORT} ${WHOLE_SEASONS}`,
-    games('games_out_other')
+    { ...games('games_out_other'), categories: ['playing_time.games_missed'] }
   )
 ]

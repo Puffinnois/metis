@@ -1,3 +1,4 @@
+import { opponentsOf, type Placement } from '../categories'
 import type { MetricDef, MetricFamily } from '../types'
 import { metric, NBA_FIRST_SEASON, ratio, type Opts } from './define'
 
@@ -23,6 +24,7 @@ interface Published {
   short: string
   description: string
   family: MetricFamily
+  categories: readonly Placement[]
 }
 
 /** A published rate stored times its minutes: read back over the minutes. */
@@ -32,6 +34,7 @@ function rate(table: string, column: string, p: Published, o: Partial<Opts> = {}
     value: ratio(column, 'minutes'),
     sample: 'minutes',
     family: p.family,
+    categories: p.categories,
     entity: team ? 'team' : 'player',
     kind: 'derived',
     unit: 'pct',
@@ -55,6 +58,7 @@ function total(table: string, column: string, p: Published, o: Partial<Opts> = {
     value: `{${column}}`,
     sample: 'games',
     family: p.family,
+    categories: p.categories,
     entity: team ? 'team' : 'player',
     kind: 'recorded',
     aggregation: 'sum',
@@ -85,6 +89,10 @@ function advanced(entity: 'player' | 'team'): MetricDef[] {
     rating(table, 'off_rating', {
       ...possessions(`${whose} points per 100 possessions, as the NBA counts them.`),
       id: id('ortg'),
+      categories:
+        entity === 'player'
+          ? ['impact.on_court', 'offense.impact']
+          : ['results.ratings', 'offense.ratings'],
       label: entity === 'player' ? 'On-court offensive rating (NBA)' : 'Offensive rating (NBA)',
       short: 'ORtg NBA'
     }),
@@ -94,6 +102,10 @@ function advanced(entity: 'player' | 'team'): MetricDef[] {
       {
         ...possessions(`Points allowed per 100 possessions, as the NBA counts them.`),
         id: id('drtg'),
+        categories:
+          entity === 'player'
+            ? ['impact.on_court', 'defense.impact']
+            : ['results.ratings', 'defense.ratings'],
         label: entity === 'player' ? 'On-court defensive rating (NBA)' : 'Defensive rating (NBA)',
         short: 'DRtg NBA'
       },
@@ -102,6 +114,7 @@ function advanced(entity: 'player' | 'team'): MetricDef[] {
     rating(table, 'net_rating', {
       ...possessions('Offensive rating minus defensive rating, as the NBA publishes them.'),
       id: id('nrtg'),
+      categories: entity === 'player' ? ['impact.on_court'] : ['results.ratings'],
       label: entity === 'player' ? 'On-court net rating (NBA)' : 'Net rating (NBA)',
       short: 'NRtg NBA'
     }),
@@ -111,6 +124,10 @@ function advanced(entity: 'player' | 'team'): MetricDef[] {
       {
         ...possessions("The NBA's offensive rating over its own estimate of possessions."),
         id: id('e_ortg'),
+        categories:
+          entity === 'player'
+            ? ['impact.on_court', 'offense.impact']
+            : ['results.ratings', 'offense.ratings'],
         label: 'Estimated offensive rating (NBA)',
         short: 'E ORtg NBA'
       },
@@ -122,6 +139,10 @@ function advanced(entity: 'player' | 'team'): MetricDef[] {
       {
         ...possessions("The NBA's defensive rating over its own estimate of possessions."),
         id: id('e_drtg'),
+        categories:
+          entity === 'player'
+            ? ['impact.on_court', 'defense.impact']
+            : ['results.ratings', 'defense.ratings'],
         label: 'Estimated defensive rating (NBA)',
         short: 'E DRtg NBA'
       },
@@ -133,6 +154,7 @@ function advanced(entity: 'player' | 'team'): MetricDef[] {
       {
         ...possessions('Estimated offensive rating minus estimated defensive rating.'),
         id: id('e_nrtg'),
+        categories: entity === 'player' ? ['impact.on_court'] : ['results.ratings'],
         label: 'Estimated net rating (NBA)',
         short: 'E NRtg NBA'
       },
@@ -143,6 +165,7 @@ function advanced(entity: 'player' | 'team'): MetricDef[] {
       'pace',
       {
         id: id('pace'),
+        categories: entity === 'player' ? ['impact.on_court'] : ['results.pace'],
         label: 'Pace (NBA)',
         short: 'Pace NBA',
         description: `Possessions per 48 minutes, as the NBA counts them.${court} ${WEIGHTED}`,
@@ -157,6 +180,7 @@ function advanced(entity: 'player' | 'team'): MetricDef[] {
       'pace',
       {
         id: id('pace40'),
+        categories: entity === 'player' ? ['impact.on_court'] : ['results.pace'],
         label: 'Pace per 40 (NBA)',
         short: 'Pace40 NBA',
         description: `The NBA's pace scaled to 40 minutes.${court} ${WEIGHTED}`,
@@ -174,6 +198,7 @@ function advanced(entity: 'player' | 'team'): MetricDef[] {
       'e_pace',
       {
         id: id('e_pace'),
+        categories: entity === 'player' ? ['impact.on_court'] : ['results.pace'],
         label: 'Estimated pace (NBA)',
         short: 'E Pace NBA',
         description: `Pace over the NBA's own estimate of possessions.${court} ${WEIGHTED}`,
@@ -186,6 +211,7 @@ function advanced(entity: 'player' | 'team'): MetricDef[] {
       'possessions',
       {
         id: id('poss'),
+        categories: entity === 'player' ? ['playing_time.possessions'] : ['results.pace'],
         label: entity === 'player' ? 'Possessions played (NBA)' : 'Possessions (NBA)',
         short: 'Poss NBA',
         description:
@@ -198,7 +224,9 @@ function advanced(entity: 'player' | 'team'): MetricDef[] {
     ),
     rate(table, 'ast_pct', {
       id: id('ast_pct'),
-      label: 'Assist percentage (NBA)',
+      categories: ['playmaking.passing', 'offense.playmaking'],
+      label:
+        entity === 'player' ? 'Assist percentage (NBA)' : 'Share of field goals assisted (NBA)',
       short: 'AST% NBA',
       description:
         entity === 'player'
@@ -211,7 +239,8 @@ function advanced(entity: 'player' | 'team'): MetricDef[] {
       'ast_to',
       {
         id: id('ast_to'),
-        label: 'Assists per turnover (NBA)',
+        categories: ['playmaking.passing', 'offense.playmaking'],
+        label: 'Assist-to-turnover ratio (NBA)',
         short: 'AST/TO NBA',
         description: `Assists per turnover, as the NBA publishes it. ${WEIGHTED}`,
         family: 'shooting'
@@ -223,6 +252,7 @@ function advanced(entity: 'player' | 'team'): MetricDef[] {
       'ast_ratio',
       {
         id: id('ast_ratio'),
+        categories: ['playmaking.passing', 'offense.playmaking'],
         label: 'Assist ratio (NBA)',
         short: 'AST Ratio',
         description: `Assists per 100 plays used, as the NBA publishes it. ${WEIGHTED}`,
@@ -232,6 +262,7 @@ function advanced(entity: 'player' | 'team'): MetricDef[] {
     ),
     rate(table, 'oreb_pct', {
       id: id('oreb_pct'),
+      categories: ['rebounding.offensive', 'offense.rebounding'],
       label: 'Offensive rebound percentage (NBA)',
       short: 'OREB% NBA',
       description: `The share of available offensive rebounds taken${entity === 'player' ? ' while on the floor' : ''}, as the NBA publishes it. ${WEIGHTED}`,
@@ -239,6 +270,7 @@ function advanced(entity: 'player' | 'team'): MetricDef[] {
     }),
     rate(table, 'dreb_pct', {
       id: id('dreb_pct'),
+      categories: ['rebounding.defensive', 'defense.rebounding'],
       label: 'Defensive rebound percentage (NBA)',
       short: 'DREB% NBA',
       description: `The share of available defensive rebounds taken${entity === 'player' ? ' while on the floor' : ''}, as the NBA publishes it. ${WEIGHTED}`,
@@ -246,13 +278,15 @@ function advanced(entity: 'player' | 'team'): MetricDef[] {
     }),
     rate(table, 'reb_pct', {
       id: id('reb_pct'),
-      label: 'Rebound percentage (NBA)',
+      categories: ['rebounding.all'],
+      label: 'Total rebound percentage (NBA)',
       short: 'REB% NBA',
       description: `The share of all available rebounds taken${entity === 'player' ? ' while on the floor' : ''}, as the NBA publishes it. ${WEIGHTED}`,
       family: 'shooting'
     }),
     rate(table, 'efg_pct', {
       id: id('efg_pct'),
+      categories: ['shooting.efficiency', 'offense.shooting'],
       label: 'Effective field-goal percentage (NBA)',
       short: 'eFG% NBA',
       description: `Field-goal percentage with a three counted as one and a half makes, as the NBA publishes it. ${WEIGHTED}`,
@@ -260,6 +294,7 @@ function advanced(entity: 'player' | 'team'): MetricDef[] {
     }),
     rate(table, 'ts_pct', {
       id: id('ts_pct'),
+      categories: ['shooting.efficiency', 'offense.shooting'],
       label: 'True shooting percentage (NBA)',
       short: 'TS% NBA',
       description: `Points per two shooting attempts, free throws counted at 0.44 of a trip, as the NBA publishes it. ${WEIGHTED}`,
@@ -270,6 +305,7 @@ function advanced(entity: 'player' | 'team'): MetricDef[] {
       'pie',
       {
         id: id('pie'),
+        categories: ['impact.composites'],
         label: entity === 'player' ? 'Player Impact Estimate (NBA)' : 'Team Impact Estimate (NBA)',
         short: 'PIE NBA',
         description:
@@ -286,6 +322,7 @@ function advanced(entity: 'player' | 'team'): MetricDef[] {
           'tm_tov_pct',
           {
             id: id('tov_ratio'),
+            categories: ['playmaking.turnovers', 'offense.turnovers'],
             label: 'Turnover ratio (NBA)',
             short: 'TO Ratio',
             description: `Turnovers per 100 plays the player used, as the NBA publishes it. ${WEIGHTED}`,
@@ -298,6 +335,7 @@ function advanced(entity: 'player' | 'team'): MetricDef[] {
           'tm_tov_pct',
           {
             id: id('tov_pct'),
+            categories: ['playmaking.turnovers', 'offense.turnovers'],
             label: 'Turnover percentage (NBA)',
             short: 'TOV% NBA',
             description: `Turnovers per possession, as the NBA publishes it. ${WEIGHTED}`,
@@ -315,6 +353,7 @@ const PLAYER_ADVANCED: MetricDef[] = [
     'e_tov_pct',
     {
       id: 'nba_e_tov_ratio',
+      categories: ['playmaking.turnovers', 'offense.turnovers'],
       label: 'Estimated turnover ratio (NBA)',
       short: 'E TO Ratio',
       description: `The NBA's turnover ratio over its own estimate of plays. ${WEIGHTED}`,
@@ -327,6 +366,7 @@ const PLAYER_ADVANCED: MetricDef[] = [
     'usg_pct',
     {
       id: 'nba_usg_pct',
+      categories: ['offense.usage'],
       label: 'Usage percentage (NBA)',
       short: 'USG% NBA',
       description: `The share of the team's plays the player used while on the floor, as the NBA publishes it. ${WEIGHTED}`,
@@ -339,6 +379,7 @@ const PLAYER_ADVANCED: MetricDef[] = [
     'e_usg_pct',
     {
       id: 'nba_e_usg_pct',
+      categories: ['offense.usage'],
       label: 'Estimated usage percentage (NBA)',
       short: 'E USG% NBA',
       description: `The NBA's usage over its own estimate of plays. ${WEIGHTED}`,
@@ -353,6 +394,7 @@ const FF = 'pub_team_four_factors'
 const TEAM_FOUR_FACTORS: MetricDef[] = [
   rate(FF, 'fta_rate', {
     id: 'team_nba_fta_rate',
+    categories: ['shooting.free_throws', 'fouls.drawn', 'offense.fouls_drawn'],
     label: 'Free-throw attempt rate (NBA)',
     short: 'FTr NBA',
     description: `Free-throw attempts per field-goal attempt, as the NBA publishes it. ${WEIGHTED}`,
@@ -360,17 +402,42 @@ const TEAM_FOUR_FACTORS: MetricDef[] = [
   }),
   ...(
     [
-      ['efg_pct', 'effective field-goal percentage', 'eFG%', 'lower'],
-      ['fta_rate', 'free-throw attempt rate', 'FTr', 'lower'],
-      ['tov_pct', 'turnover percentage', 'TOV%', 'higher'],
-      ['oreb_pct', 'offensive rebound percentage', 'OREB%', 'lower']
+      [
+        'efg_pct',
+        'effective field-goal percentage',
+        'eFG%',
+        'lower',
+        ['shooting.efficiency', 'offense.shooting']
+      ],
+      [
+        'fta_rate',
+        'free-throw attempt rate',
+        'FTr',
+        'lower',
+        ['shooting.free_throws', 'fouls.drawn', 'offense.fouls_drawn']
+      ],
+      [
+        'tov_pct',
+        'turnover percentage',
+        'TOV%',
+        'higher',
+        ['playmaking.turnovers', 'offense.turnovers']
+      ],
+      [
+        'oreb_pct',
+        'offensive rebound percentage',
+        'OREB%',
+        'lower',
+        ['rebounding.offensive', 'offense.rebounding']
+      ]
     ] as const
-  ).map(([c, words, short, direction]) =>
+  ).map(([c, words, short, direction, own]) =>
     rate(
       FF,
       `opp_${c}`,
       {
         id: `opp_nba_${c}`,
+        categories: opponentsOf(own),
         label: `Opponent ${words} (NBA)`,
         short: `Opp ${short}`,
         description: `The team's opponents' ${words}, one of the four factors, as the NBA publishes it. ${WEIGHTED}`,
@@ -383,18 +450,27 @@ const TEAM_FOUR_FACTORS: MetricDef[] = [
 
 /** Points by kind, from the misc dashboards. */
 const KINDS = [
-  ['pts_off_tov', 'Points off turnovers', 'PTS OffTO'],
-  ['pts_2_nd_chance', 'Second-chance points', '2nd PTS'],
-  ['pts_fb', 'Fast-break points', 'FB PTS'],
-  ['pts_paint', 'Points in the paint', 'PITP']
-] as const
+  ['pts_off_tov', 'Points off turnovers', 'PTS OffTO', ['scoring.by_situation', 'offense.scoring']],
+  [
+    'pts_2_nd_chance',
+    'Second-chance points',
+    '2nd PTS',
+    ['scoring.by_situation', 'rebounding.offensive', 'offense.scoring']
+  ],
+  ['pts_fb', 'Fast-break points', 'FB PTS', ['scoring.by_situation', 'offense.scoring']],
+  ['pts_paint', 'Points in the paint', 'PITP', ['scoring.by_situation', 'offense.scoring']]
+] as const satisfies readonly (readonly [string, string, string, readonly Placement[]])[]
+
+/** The opponents' points with a player on the floor: the team's defense with them, not theirs alone. */
+const ON_COURT_ALLOWED: Placement[] = ['impact.on_court', 'defense.impact']
 
 const lower = (s: string): string => s[0].toLowerCase() + s.slice(1)
 
 const MISC: MetricDef[] = [
-  ...KINDS.flatMap(([c, label, short]) => [
+  ...KINDS.flatMap(([c, label, short, own]) => [
     total('pub_player_misc', c, {
       id: `nba_${c}`,
+      categories: own,
       label: `${label} (NBA)`,
       short: `${short} NBA`.slice(0, 14),
       description: `The player's ${lower(label)}, as the NBA classifies them.`,
@@ -405,6 +481,7 @@ const MISC: MetricDef[] = [
       `opp_${c}`,
       {
         id: `nba_on_opp_${c}`,
+        categories: ON_COURT_ALLOWED,
         label: `Opponent ${lower(label)} on court (NBA)`,
         short: `Opp ${short}`,
         description: `Opponents' ${lower(label)} while the player was on the floor, as the NBA classifies them. Not points the player gave up alone.`,
@@ -414,6 +491,7 @@ const MISC: MetricDef[] = [
     ),
     total('pub_team_misc', c, {
       id: `team_nba_${c}`,
+      categories: own,
       label: `${label} (NBA)`,
       short: `${short} NBA`.slice(0, 14),
       description: `The team's ${lower(label)}, as the NBA classifies them.`,
@@ -424,6 +502,7 @@ const MISC: MetricDef[] = [
       `opp_${c}`,
       {
         id: `opp_nba_${c}`,
+        categories: opponentsOf(own),
         label: `Opponent ${lower(label)} (NBA)`,
         short: `Opp ${short}`,
         description: `The team's opponents' ${lower(label)}, as the NBA classifies them.`,
@@ -434,7 +513,8 @@ const MISC: MetricDef[] = [
   ]),
   total('pub_player_misc', 'blka', {
     id: 'nba_blka',
-    label: 'Shots blocked (NBA)',
+    categories: ['shooting.field_goals', 'offense.shooting'],
+    label: 'Own shots blocked (NBA)',
     short: 'BLKA',
     description: "The player's attempts blocked by a defender.",
     family: 'traditional'
@@ -444,6 +524,7 @@ const MISC: MetricDef[] = [
     'pfd',
     {
       id: 'nba_pfd',
+      categories: ['fouls.drawn', 'offense.fouls_drawn'],
       label: 'Fouls drawn (NBA)',
       short: 'PFD',
       description: 'Fouls committed against the player.',
@@ -550,12 +631,22 @@ const SHARES = [
   ]
 ] as const
 
+/** Where a scoring share sits: shot selection, points by shot or situation, assisted makes. */
+function scoringShare(id: (typeof SHARES)[number][1]): Placement[] {
+  if (id === 'fga_2pt' || id === 'fga_3pt') return ['shooting.selection', 'offense.shooting']
+  if (id === 'pts_fb' || id === 'pts_off_tov' || id === 'pts_paint')
+    return ['scoring.by_situation', 'offense.scoring']
+  if (id.startsWith('pts_')) return ['scoring.by_shot', 'offense.scoring']
+  return ['scoring.assisted', 'offense.scoring']
+}
+
 const SCORING_SHARES: MetricDef[] = SHARES.flatMap(([c, id, label, short, words]) => [
   rate(
     'pub_player_scoring',
     c,
     {
       id: `nba_share_${id}`,
+      categories: scoringShare(id),
       label: `${label} (NBA)`,
       short,
       description: `The share of the player's ${words.replace(/^of /, '')}, as the NBA classifies them. ${WEIGHTED}`,
@@ -568,6 +659,7 @@ const SCORING_SHARES: MetricDef[] = SHARES.flatMap(([c, id, label, short, words]
     c,
     {
       id: `team_nba_share_${id}`,
+      categories: scoringShare(id),
       label: `${label} (NBA)`,
       short,
       description: `The share of the team's ${words.replace(/^of /, '')}, as the NBA classifies them. ${WEIGHTED}`,
@@ -579,31 +671,50 @@ const SCORING_SHARES: MetricDef[] = SHARES.flatMap(([c, id, label, short, words]
 
 /** The usage dashboard: a player's share of the team's events while on the floor. */
 const USAGE = [
-  ['pct_fgm', 'fgm', 'field goals made', '%FGM'],
-  ['pct_fga', 'fga', 'field-goal attempts', '%FGA'],
-  ['pct_fg3_m', 'fg3m', 'threes made', '%3PM'],
-  ['pct_fg3_a', 'fg3a', 'three-point attempts', '%3PA'],
-  ['pct_ftm', 'ftm', 'free throws made', '%FTM'],
-  ['pct_fta', 'fta', 'free-throw attempts', '%FTA'],
-  ['pct_oreb', 'oreb', 'offensive rebounds', '%OREB'],
-  ['pct_dreb', 'dreb', 'defensive rebounds', '%DREB'],
-  ['pct_reb', 'reb', 'rebounds', '%REB'],
-  ['pct_ast', 'ast', 'assists', '%AST'],
-  ['pct_tov', 'tov', 'turnovers', '%TOV'],
-  ['pct_stl', 'stl', 'steals', '%STL'],
-  ['pct_blk', 'blk', 'blocks', '%BLK'],
-  ['pct_blka', 'blka', 'shots blocked', '%BLKA'],
-  ['pct_pf', 'pf', 'fouls', '%PF'],
-  ['pct_pfd', 'pfd', 'fouls drawn', '%PFD'],
-  ['pct_pts', 'pts', 'points', '%PTS']
-] as const
+  ['pct_fgm', 'fgm', 'field goals made', '%FGM', ['shooting.team_share', 'offense.shooting']],
+  ['pct_fga', 'fga', 'field-goal attempts', '%FGA', ['shooting.team_share', 'offense.shooting']],
+  ['pct_fg3_m', 'fg3m', 'threes made', '%3PM', ['shooting.team_share', 'offense.shooting']],
+  [
+    'pct_fg3_a',
+    'fg3a',
+    'three-point attempts',
+    '%3PA',
+    ['shooting.team_share', 'offense.shooting']
+  ],
+  ['pct_ftm', 'ftm', 'free throws made', '%FTM', ['shooting.team_share', 'offense.shooting']],
+  ['pct_fta', 'fta', 'free-throw attempts', '%FTA', ['shooting.team_share', 'offense.shooting']],
+  [
+    'pct_oreb',
+    'oreb',
+    'offensive rebounds',
+    '%OREB',
+    ['rebounding.offensive', 'offense.rebounding']
+  ],
+  [
+    'pct_dreb',
+    'dreb',
+    'defensive rebounds',
+    '%DREB',
+    ['rebounding.defensive', 'defense.rebounding']
+  ],
+  ['pct_reb', 'reb', 'rebounds', '%REB', ['rebounding.all']],
+  ['pct_ast', 'ast', 'assists', '%AST', ['playmaking.passing', 'offense.playmaking']],
+  ['pct_tov', 'tov', 'turnovers', '%TOV', ['playmaking.turnovers', 'offense.turnovers']],
+  ['pct_stl', 'stl', 'steals', '%STL', ['defense.steals_blocks']],
+  ['pct_blk', 'blk', 'blocks', '%BLK', ['defense.steals_blocks']],
+  ['pct_blka', 'blka', 'shots blocked', '%BLKA', ['shooting.team_share', 'offense.shooting']],
+  ['pct_pf', 'pf', 'fouls', '%PF', ['fouls.committed', 'defense.fouls']],
+  ['pct_pfd', 'pfd', 'fouls drawn', '%PFD', ['fouls.drawn', 'offense.fouls_drawn']],
+  ['pct_pts', 'pts', 'points', '%PTS', ['scoring.team_share', 'offense.scoring']]
+] as const satisfies readonly (readonly [string, string, string, string, readonly Placement[]])[]
 
-const USAGE_SHARES: MetricDef[] = USAGE.map(([c, id, words, short]) =>
+const USAGE_SHARES: MetricDef[] = USAGE.map(([c, id, words, short, categories]) =>
   rate(
     'pub_player_usage',
     c,
     {
       id: `nba_share_${id}`,
+      categories,
       label: `Share of team ${words} on court (NBA)`,
       short: `${short} NBA`,
       description: `The player's share of the team's ${words} while they were on the floor, as the NBA publishes it. Not the same as a percentage of what was available. ${WEIGHTED}`,
@@ -619,6 +730,7 @@ const DEFENSE: MetricDef[] = [
     'def_ws',
     {
       id: 'nba_def_ws',
+      categories: ['impact.box_models', 'defense.impact'],
       label: 'Defensive win shares (NBA)',
       short: 'DWS NBA',
       description:

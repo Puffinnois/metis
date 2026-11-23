@@ -1,3 +1,4 @@
+import type { Placement } from '../categories'
 import type { MetricDef } from '../types'
 import { metric, ratio, type Opts } from './define'
 
@@ -10,6 +11,11 @@ import { metric, ratio, type Opts } from './define'
  * file's percentages) is stored times what it was measured over (`derived/publishedTables.ts`).
  */
 const SOURCES = ["The NBA's player tracking"]
+
+/** What a drive led to: a pass, a turnover or a foul drawn. */
+const ON_PASS: Placement[] = ['playmaking.passing', 'offense.playmaking']
+const ON_TURNOVER: Placement[] = ['playmaking.turnovers', 'offense.turnovers']
+const ON_FOUL: Placement[] = ['fouls.drawn', 'offense.fouls_drawn']
 const FIRST = 2014
 
 const WEIGHTED_MINUTES =
@@ -79,21 +85,30 @@ const SPEED: MetricDef[] = [
     'Distance run',
     'Dist',
     'Miles the player covered on the floor, as tracked.',
-    count('speed', 'dist_miles', { unit: 'number', decimals: 2, direction: 'neutral' })
+    {
+      ...count('speed', 'dist_miles', { unit: 'number', decimals: 2, direction: 'neutral' }),
+      categories: ['hustle.movement']
+    }
   ),
   metric(
     'dist_miles_off',
     'Distance run on offense',
     'Dist Off',
     'Miles covered while their team had the ball.',
-    count('speed', 'dist_miles_off', { unit: 'number', decimals: 2, direction: 'neutral' })
+    {
+      ...count('speed', 'dist_miles_off', { unit: 'number', decimals: 2, direction: 'neutral' }),
+      categories: ['hustle.movement']
+    }
   ),
   metric(
     'dist_miles_def',
     'Distance run on defense',
     'Dist Def',
     'Miles covered while the other team had the ball.',
-    count('speed', 'dist_miles_def', { unit: 'number', decimals: 2, direction: 'neutral' })
+    {
+      ...count('speed', 'dist_miles_def', { unit: 'number', decimals: 2, direction: 'neutral' }),
+      categories: ['hustle.movement']
+    }
   ),
   ...(
     [
@@ -107,7 +122,11 @@ const SPEED: MetricDef[] = [
       label,
       short,
       `Miles per hour ${when}, as tracked. ${WEIGHTED_MINUTES}`,
-      weighted('speed', c, 'minutes', 1000, { decimals: 2, direction: 'neutral' })
+      weighted('speed', c, 'minutes', 1000, {
+        decimals: 2,
+        direction: 'neutral',
+        categories: ['hustle.movement']
+      })
     )
   )
 ]
@@ -118,45 +137,66 @@ const TOUCHES: MetricDef[] = [
     'Touches',
     'Touches',
     'Times the player had the ball. One possession can hold several.',
-    count('touches', 'touches', { direction: 'neutral' })
+    {
+      ...count('touches', 'touches', { direction: 'neutral' }),
+      categories: ['playmaking.ball_handling', 'offense.playmaking']
+    }
   ),
   metric(
     'front_ct_touches',
     'Frontcourt touches',
     'FC Touches',
     'Touches in the half the team attacks.',
-    count('touches', 'front_ct_touches', { direction: 'neutral' })
+    {
+      ...count('touches', 'front_ct_touches', { direction: 'neutral' }),
+      categories: ['playmaking.ball_handling', 'offense.playmaking']
+    }
   ),
   metric(
     'time_of_poss',
     'Time of possession',
     'Time Poss',
     'Minutes the player held the ball, as tracked.',
-    count('touches', 'time_of_poss', { unit: 'minutes', decimals: 1, direction: 'neutral' })
+    {
+      ...count('touches', 'time_of_poss', { unit: 'minutes', decimals: 1, direction: 'neutral' }),
+      categories: ['playmaking.ball_handling', 'offense.playmaking']
+    }
   ),
   metric(
     'sec_per_touch',
     'Seconds per touch',
     'Sec/Touch',
     'Average seconds the player held the ball on a touch, as published. Over more than one season, weighted by touches.',
-    weighted('touches', 'avg_sec_per_touch', 'touches', 500, { decimals: 2, direction: 'neutral' })
+    {
+      ...weighted('touches', 'avg_sec_per_touch', 'touches', 500, {
+        decimals: 2,
+        direction: 'neutral'
+      }),
+      categories: ['playmaking.ball_handling', 'offense.playmaking']
+    }
   ),
   metric(
     'drib_per_touch',
     'Dribbles per touch',
     'Drib/Touch',
     'Average dribbles on a touch, as published. Over more than one season, weighted by touches.',
-    weighted('touches', 'avg_drib_per_touch', 'touches', 500, {
-      decimals: 2,
-      direction: 'neutral'
-    })
+    {
+      ...weighted('touches', 'avg_drib_per_touch', 'touches', 500, {
+        decimals: 2,
+        direction: 'neutral'
+      }),
+      categories: ['playmaking.ball_handling', 'offense.playmaking']
+    }
   ),
   metric(
     'pts_per_touch',
     'Points per touch',
     'PTS/Touch',
     'Points scored per touch: a measure of workload, not points per possession.',
-    weighted('touches', 'points', 'touches', 500, { decimals: 3 })
+    {
+      ...weighted('touches', 'points', 'touches', 500, { decimals: 3 }),
+      categories: ['scoring.by_situation', 'offense.scoring']
+    }
   )
 ]
 
@@ -166,204 +206,267 @@ const DRIVES: MetricDef[] = [
     'Drives',
     'Drives',
     'Dribbles toward the basket from 20 feet or more out to within 10 feet, fast breaks excluded.',
-    count('drives', 'drives')
+    { ...count('drives', 'drives'), categories: ['playmaking.creation', 'offense.playmaking'] }
   ),
-  metric(
-    'drive_fgm',
-    'Drive field goals made',
-    'Drive FGM',
-    'Field goals made on drives.',
-    count('drives', 'drive_fgm')
-  ),
-  metric(
-    'drive_fga',
-    'Drive field-goal attempts',
-    'Drive FGA',
-    'Field-goal attempts on drives.',
-    count('drives', 'drive_fga', { direction: 'neutral' })
-  ),
+  metric('drive_fgm', 'Drive field goals made', 'Drive FGM', 'Field goals made on drives.', {
+    ...count('drives', 'drive_fgm'),
+    categories: ['shooting.drives_touches', 'offense.shooting']
+  }),
+  metric('drive_fga', 'Drive field-goal attempts', 'Drive FGA', 'Field-goal attempts on drives.', {
+    ...count('drives', 'drive_fga', { direction: 'neutral' }),
+    categories: ['shooting.drives_touches', 'offense.shooting']
+  }),
   metric(
     'drive_fg_pct',
     'Drive field-goal percentage',
     'Drive FG%',
     'Field goals made per attempt on drives.',
-    pct('drives', 'drive_fgm', 'drive_fga', 100)
+    {
+      ...pct('drives', 'drive_fgm', 'drive_fga', 100),
+      categories: ['shooting.drives_touches', 'offense.shooting']
+    }
   ),
-  metric(
-    'drive_ftm',
-    'Drive free throws made',
-    'Drive FTM',
-    'Free throws made from drives.',
-    count('drives', 'drive_ftm')
-  ),
+  metric('drive_ftm', 'Drive free throws made', 'Drive FTM', 'Free throws made from drives.', {
+    ...count('drives', 'drive_ftm'),
+    categories: ['shooting.drives_touches', 'offense.shooting']
+  }),
   metric(
     'drive_fta',
     'Drive free-throw attempts',
     'Drive FTA',
     'Free-throw attempts from drives.',
-    count('drives', 'drive_fta')
+    { ...count('drives', 'drive_fta'), categories: ['shooting.drives_touches', 'offense.shooting'] }
   ),
   metric(
     'drive_ft_pct',
     'Drive free-throw percentage',
     'Drive FT%',
     'Free throws made per attempt from drives.',
-    pct('drives', 'drive_ftm', 'drive_fta', 50)
+    {
+      ...pct('drives', 'drive_ftm', 'drive_fta', 50),
+      categories: ['shooting.drives_touches', 'offense.shooting']
+    }
   ),
   metric(
     'drive_pts',
     'Drive points',
     'Drive PTS',
     'Points the player scored on drives, free throws included.',
-    count('drives', 'drive_pts')
+    { ...count('drives', 'drive_pts'), categories: ['scoring.by_situation', 'offense.scoring'] }
   ),
   metric(
     'drive_pts_per_drive',
     'Points per drive',
     'PTS/Drive',
     "The player's own points per drive. The NBA shows it as a percentage; it can pass 100.",
-    weighted('drives', 'drive_pts', 'drives', 200, { decimals: 2 })
+    {
+      ...weighted('drives', 'drive_pts', 'drives', 200, { decimals: 2 }),
+      categories: ['scoring.by_situation', 'offense.scoring']
+    }
   ),
   ...(
     [
-      ['passes', 'Drive passes', 'Drive Pass', 'Passes out of drives.', 'Drive Pass%', 'neutral'],
-      ['ast', 'Drive assists', 'Drive AST', 'Assists out of drives.', 'Drive AST%', 'higher'],
-      ['tov', 'Drive turnovers', 'Drive TOV', 'Turnovers on drives.', 'Drive TOV%', 'lower'],
-      ['pf', 'Drive fouls drawn', 'Drive PF', 'Fouls drawn on drives.', 'Drive PF%', 'higher']
+      [
+        'passes',
+        'Drive passes',
+        'Drive Pass',
+        'Passes out of drives.',
+        'Drive Pass%',
+        'neutral',
+        ON_PASS
+      ],
+      [
+        'ast',
+        'Drive assists',
+        'Drive AST',
+        'Assists out of drives.',
+        'Drive AST%',
+        'higher',
+        ON_PASS
+      ],
+      [
+        'tov',
+        'Drive turnovers',
+        'Drive TOV',
+        'Turnovers on drives.',
+        'Drive TOV%',
+        'lower',
+        ON_TURNOVER
+      ],
+      [
+        'pf',
+        'Drive fouls drawn',
+        'Drive PF',
+        'Fouls drawn on drives.',
+        'Drive PF%',
+        'higher',
+        ON_FOUL
+      ]
     ] as const
-  ).flatMap(([c, label, short, description, pctShort, direction]) => [
-    metric(`drive_${c}`, label, short, description, count('drives', `drive_${c}`, { direction })),
+  ).flatMap(([c, label, short, description, pctShort, direction, categories]) => [
+    metric(
+      `drive_${c}`,
+      label,
+      short,
+      description,
+      count('drives', `drive_${c}`, { direction, categories })
+    ),
     metric(
       `drive_${c}_pct`,
       `${label} per drive`,
       pctShort,
       `${description.slice(0, -1)}, per drive.`,
-      pct('drives', `drive_${c}`, 'drives', 200, { direction })
+      pct('drives', `drive_${c}`, 'drives', 200, { direction, categories })
     )
   ])
 ]
 
 const PASSING: MetricDef[] = [
-  metric(
-    'passes_made',
-    'Passes made',
-    'Passes',
-    'Passes the player made, as tracked.',
-    count('passing', 'passes_made', { direction: 'neutral' })
-  ),
+  metric('passes_made', 'Passes made', 'Passes', 'Passes the player made, as tracked.', {
+    ...count('passing', 'passes_made', { direction: 'neutral' }),
+    categories: ['playmaking.passing', 'offense.playmaking']
+  }),
   metric(
     'passes_received',
     'Passes received',
     'Pass Rec',
     'Passes the player received, as tracked.',
-    count('passing', 'passes_received', { direction: 'neutral' })
+    {
+      ...count('passing', 'passes_received', { direction: 'neutral' }),
+      categories: ['playmaking.ball_handling', 'offense.playmaking']
+    }
   ),
   metric(
     'potential_ast',
     'Potential assists',
     'Pot AST',
     'Passes that led to a shot, made or missed, within the tracking rules.',
-    count('passing', 'potential_ast')
+    {
+      ...count('passing', 'potential_ast'),
+      categories: ['playmaking.creation', 'offense.playmaking']
+    }
   ),
   metric(
     'secondary_ast',
     'Secondary assists',
     '2nd AST',
     'Passes to the teammate who then made the assist.',
-    count('passing', 'secondary_ast')
+    {
+      ...count('passing', 'secondary_ast'),
+      categories: ['playmaking.creation', 'offense.playmaking']
+    }
   ),
   metric(
     'ft_ast',
     'Free-throw assists',
     'FT AST',
     'Passes to a teammate who was then fouled shooting and made a free throw. Not an official assist.',
-    count('passing', 'ft_ast')
+    { ...count('passing', 'ft_ast'), categories: ['playmaking.passing', 'offense.playmaking'] }
   ),
   metric(
     'ast_pts_created',
-    'Assist points created',
+    'Assist points (tracking)',
     'AST PTS',
     'Points scored from the player’s assists, as tracking credits them.',
-    count('passing', 'ast_pts_created')
+    {
+      ...count('passing', 'ast_pts_created'),
+      categories: ['playmaking.creation', 'offense.playmaking']
+    }
   ),
   metric(
     'ast_adj',
     'Adjusted assists',
     'Adj AST',
     'Assists, secondary assists and free-throw assists together, as the NBA publishes them. On many seasons the parts do not add up to it exactly.',
-    count('passing', 'ast_adj')
+    { ...count('passing', 'ast_adj'), categories: ['playmaking.passing', 'offense.playmaking'] }
   ),
-  metric(
-    'ast_per_pass',
-    'Assists per pass',
-    'AST/Pass',
-    'Tracked assists per pass made.',
-    pct('passing', 'ast', 'passes_made', 500)
-  ),
+  metric('ast_per_pass', 'Assists per pass', 'AST/Pass', 'Tracked assists per pass made.', {
+    ...pct('passing', 'ast', 'passes_made', 500),
+    categories: ['playmaking.passing', 'offense.playmaking']
+  }),
   metric(
     'ast_adj_per_pass',
     'Adjusted assists per pass',
     'Adj AST/Pass',
     'Adjusted assists per pass made.',
-    pct('passing', 'ast_adj', 'passes_made', 500)
+    {
+      ...pct('passing', 'ast_adj', 'passes_made', 500),
+      categories: ['playmaking.passing', 'offense.playmaking']
+    }
   ),
   metric(
     'potential_ast_conv',
     'Potential assists converted',
     'Pot AST Conv',
     'Tracked assists per potential assist: how often a pass that led to a shot became an assist. Worked out here, not published.',
-    pct('passing', 'ast', 'potential_ast', 100)
+    {
+      ...pct('passing', 'ast', 'potential_ast', 100),
+      categories: ['playmaking.creation', 'offense.playmaking']
+    }
   )
 ]
 
+/** Each rebounding dashboard sits with its end: total rebounds belong to neither. */
 const REBOUNDS = [
-  ['reb', 'Rebound', 'REB', ''],
-  ['oreb', 'Offensive rebound', 'OREB', 'offensive '],
-  ['dreb', 'Defensive rebound', 'DREB', 'defensive ']
-] as const
+  ['reb', 'Rebound', 'REB', '', ['rebounding.all']],
+  [
+    'oreb',
+    'Offensive rebound',
+    'OREB',
+    'offensive ',
+    ['rebounding.offensive', 'offense.rebounding']
+  ],
+  [
+    'dreb',
+    'Defensive rebound',
+    'DREB',
+    'defensive ',
+    ['rebounding.defensive', 'defense.rebounding']
+  ]
+] as const satisfies readonly (readonly [string, string, string, string, readonly Placement[]])[]
 
-const REBOUNDING: MetricDef[] = REBOUNDS.flatMap(([r, label, short, kind]) => [
+const REBOUNDING: MetricDef[] = REBOUNDS.flatMap(([r, label, short, kind, categories]) => [
   metric(
     `${r}_contest`,
     `Contested ${kind}rebounds`,
     `C ${short}`,
     `${kind ? `${label}s` : 'Rebounds'} taken with an opponent close by, as tracked.`,
-    count('rebounding', `${r}_contest`)
+    count('rebounding', `${r}_contest`, { categories })
   ),
   metric(
     `${r}_uncontest`,
     `Uncontested ${kind}rebounds`,
     `UC ${short}`,
     `${kind ? `${label}s` : 'Rebounds'} taken with no opponent close by, as tracked.`,
-    count('rebounding', `${r}_uncontest`, { direction: 'neutral' })
+    count('rebounding', `${r}_uncontest`, { direction: 'neutral', categories })
   ),
   metric(
     `${r}_chances`,
     `${label} chances`,
     `${short} Chances`,
     `Times the player was close enough to a missed shot to take the ${kind}rebound. Several players can have a chance on one miss.`,
-    count('rebounding', `${r}_chances`)
+    count('rebounding', `${r}_chances`, { categories })
   ),
   metric(
     `${r}_chance_defer`,
     `Deferred ${kind}rebound chances`,
     `${short} Defer`,
     `Chances the player left to a teammate.`,
-    count('rebounding', `${r}_chance_defer`, { direction: 'neutral' })
+    count('rebounding', `${r}_chance_defer`, { direction: 'neutral', categories })
   ),
   metric(
     `${r}_contest_pct`,
     `Contested ${kind}rebound share`,
     `C ${short}%`,
     `The share of the player's ${kind}rebounds that were contested.`,
-    pct('rebounding', `${r}_contest`, r, 100, { direction: 'neutral' })
+    pct('rebounding', `${r}_contest`, r, 100, { direction: 'neutral', categories })
   ),
   metric(
     `${r}_chance_pct`,
     `${label} chance percentage`,
     `${short} Chance%`,
     `${label}s taken per chance.`,
-    pct('rebounding', r, `${r}_chances`, 200)
+    pct('rebounding', r, `${r}_chances`, 200, { categories })
   ),
   metric(
     `${r}_chance_pct_adj`,
@@ -371,7 +474,7 @@ const REBOUNDING: MetricDef[] = REBOUNDS.flatMap(([r, label, short, kind]) => [
     `Adj ${short} Ch%`,
     `${label}s taken per chance, leaving out the chances deferred to a teammate.`,
     {
-      ...pct('rebounding', r, `${r}_chances`, 200),
+      ...pct('rebounding', r, `${r}_chances`, 200, { categories }),
       value: `{${r}} / nullif({${r}_chances} - {${r}_chance_defer}, 0)`
     }
   ),
@@ -380,7 +483,7 @@ const REBOUNDING: MetricDef[] = REBOUNDS.flatMap(([r, label, short, kind]) => [
     `Average ${kind}rebound distance`,
     `${short} Dist`,
     `Feet from the basket where the player took their ${kind}rebounds, on average. Over more than one season, weighted by rebounds.`,
-    weighted('rebounding', `avg_${r}_dist`, r, 100, { direction: 'neutral' })
+    weighted('rebounding', `avg_${r}_dist`, r, 100, { direction: 'neutral', categories })
   )
 ])
 
@@ -398,57 +501,63 @@ const SHOOTING: MetricDef[] = SHOT_TYPES.flatMap(([p, label, short, what]) => {
       `${label} field goals made`,
       `${short} FGM`,
       `Field goals made on ${what}.`,
-      count(table, `${p}_fgm`)
+      { ...count(table, `${p}_fgm`), categories: ['shooting.catch_pull', 'offense.shooting'] }
     ),
     metric(
       `${p}_fga`,
       `${label} field-goal attempts`,
       `${short} FGA`,
       `Field-goal attempts on ${what}.`,
-      count(table, `${p}_fga`, { direction: 'neutral' })
+      {
+        ...count(table, `${p}_fga`, { direction: 'neutral' }),
+        categories: ['shooting.catch_pull', 'offense.shooting']
+      }
     ),
     metric(
       `${p}_fg_pct`,
       `${label} field-goal percentage`,
       `${short} FG%`,
       `Field goals made per attempt on ${what}.`,
-      pct(table, `${p}_fgm`, `${p}_fga`, 100)
+      {
+        ...pct(table, `${p}_fgm`, `${p}_fga`, 100),
+        categories: ['shooting.catch_pull', 'offense.shooting']
+      }
     ),
-    metric(
-      `${p}_fg3m`,
-      `${label} threes made`,
-      `${short} 3PM`,
-      `Threes made on ${what}.`,
-      count(table, `${p}_fg3_m`)
-    ),
+    metric(`${p}_fg3m`, `${label} threes made`, `${short} 3PM`, `Threes made on ${what}.`, {
+      ...count(table, `${p}_fg3_m`),
+      categories: ['shooting.catch_pull', 'offense.shooting']
+    }),
     metric(
       `${p}_fg3a`,
       `${label} three-point attempts`,
       `${short} 3PA`,
       `Three-point attempts on ${what}.`,
-      count(table, `${p}_fg3_a`, { direction: 'neutral' })
+      {
+        ...count(table, `${p}_fg3_a`, { direction: 'neutral' }),
+        categories: ['shooting.catch_pull', 'offense.shooting']
+      }
     ),
     metric(
       `${p}_fg3_pct`,
       `${label} three-point percentage`,
       `${short} 3P%`,
       `Threes made per attempt on ${what}.`,
-      pct(table, `${p}_fg3_m`, `${p}_fg3_a`, 50)
+      {
+        ...pct(table, `${p}_fg3_m`, `${p}_fg3_a`, 50),
+        categories: ['shooting.catch_pull', 'offense.shooting']
+      }
     ),
     metric(
       `${p}_efg_pct`,
       `${label} effective field-goal percentage`,
       `${short} eFG%`,
       `Field-goal percentage on ${what}, with a three counted as one and a half makes.`,
-      efg(table, p)
+      { ...efg(table, p), categories: ['shooting.catch_pull', 'offense.shooting'] }
     ),
-    metric(
-      `${p}_pts`,
-      `${label} points`,
-      `${short} PTS`,
-      `Points scored on ${what}.`,
-      count(table, `${p}_pts`)
-    )
+    metric(`${p}_pts`, `${label} points`, `${short} PTS`, `Points scored on ${what}.`, {
+      ...count(table, `${p}_pts`),
+      categories: ['scoring.by_situation', 'offense.scoring']
+    })
   ]
 })
 
@@ -468,90 +577,102 @@ const TOUCH_AREAS: MetricDef[] = AREAS.flatMap(([a, label, short, where]) => {
   const c = (x: string): string => `${a}_touch_${x}`
   const astBy = a === 'elbow' ? c('passes') : t
   return [
-    metric(
-      t,
-      `${label} touches`,
-      `${short} Touch`,
-      `Touches that started ${where}.`,
-      count(table, t, { direction: 'neutral' })
-    ),
+    metric(t, `${label} touches`, `${short} Touch`, `Touches that started ${where}.`, {
+      ...count(table, t, { direction: 'neutral' }),
+      categories: ['playmaking.ball_handling', 'offense.playmaking']
+    }),
     metric(
       c('fgm'),
       `${label} touch field goals made`,
       `${short} FGM`,
       `Field goals made after a touch ${where}.`,
-      count(table, c('fgm'))
+      { ...count(table, c('fgm')), categories: ['shooting.drives_touches', 'offense.shooting'] }
     ),
     metric(
       c('fga'),
       `${label} touch field-goal attempts`,
       `${short} FGA`,
       `Field-goal attempts after a touch ${where}.`,
-      count(table, c('fga'), { direction: 'neutral' })
+      {
+        ...count(table, c('fga'), { direction: 'neutral' }),
+        categories: ['shooting.drives_touches', 'offense.shooting']
+      }
     ),
     metric(
       c('fg_pct'),
       `${label} touch field-goal percentage`,
       `${short} FG%`,
       `Field goals made per attempt after a touch ${where}.`,
-      pct(table, c('fgm'), c('fga'), 25)
+      {
+        ...pct(table, c('fgm'), c('fga'), 25),
+        categories: ['shooting.drives_touches', 'offense.shooting']
+      }
     ),
     metric(
       c('ftm'),
       `${label} touch free throws made`,
       `${short} FTM`,
       `Free throws made after a touch ${where}.`,
-      count(table, c('ftm'))
+      { ...count(table, c('ftm')), categories: ['shooting.drives_touches', 'offense.shooting'] }
     ),
     metric(
       c('fta'),
       `${label} touch free-throw attempts`,
       `${short} FTA`,
       `Free-throw attempts after a touch ${where}.`,
-      count(table, c('fta'))
+      { ...count(table, c('fta')), categories: ['shooting.drives_touches', 'offense.shooting'] }
     ),
     metric(
       c('ft_pct'),
       `${label} touch free-throw percentage`,
       `${short} FT%`,
       `Free throws made per attempt after a touch ${where}.`,
-      pct(table, c('ftm'), c('fta'), 25)
+      {
+        ...pct(table, c('ftm'), c('fta'), 25),
+        categories: ['shooting.drives_touches', 'offense.shooting']
+      }
     ),
     metric(
       c('pts'),
       `${label} touch points`,
       `${short} PTS`,
       `Points the player scored after a touch ${where}.`,
-      count(table, c('pts'))
+      { ...count(table, c('pts')), categories: ['scoring.by_situation', 'offense.scoring'] }
     ),
     metric(
       c('pts_per_touch'),
       `Points per ${a} touch`,
       `PTS/${short}`,
       `Points the player scored per touch ${where}.`,
-      weighted(table, c('pts'), t, 50, { decimals: 3 })
+      {
+        ...weighted(table, c('pts'), t, 50, { decimals: 3 }),
+        categories: ['scoring.by_situation', 'offense.scoring']
+      }
     ),
     metric(
       c('passes'),
       `${label} touch passes`,
       `${short} Pass`,
       `Passes after a touch ${where}.`,
-      count(table, c('passes'), { direction: 'neutral' })
+      {
+        ...count(table, c('passes'), { direction: 'neutral' }),
+        categories: ['playmaking.passing', 'offense.playmaking']
+      }
     ),
     metric(
       c('pass_pct'),
       `${label} touch pass rate`,
       `${short} Pass%`,
       `Passes per touch ${where}.`,
-      pct(table, c('passes'), t, 50, { direction: 'neutral' })
+      {
+        ...pct(table, c('passes'), t, 50, { direction: 'neutral' }),
+        categories: ['playmaking.passing', 'offense.playmaking']
+      }
     ),
-    metric(
-      c('ast'),
-      `${label} touch assists`,
-      `${short} AST`,
-      `Assists after a touch ${where}.`,
-      count(table, c('ast'))
-    ),
+    metric(c('ast'), `${label} touch assists`, `${short} AST`, `Assists after a touch ${where}.`, {
+      ...count(table, c('ast')),
+      categories: ['playmaking.passing', 'offense.playmaking']
+    }),
     metric(
       c('ast_pct'),
       `${label} touch assist rate`,
@@ -559,35 +680,44 @@ const TOUCH_AREAS: MetricDef[] = AREAS.flatMap(([a, label, short, where]) => {
       a === 'elbow'
         ? `Assists per pass after a touch ${where}. The NBA divides by passes here, and by touches in the post and the paint.`
         : `Assists per touch ${where}.`,
-      pct(table, c('ast'), astBy, 50)
+      {
+        ...pct(table, c('ast'), astBy, 50),
+        categories: ['playmaking.passing', 'offense.playmaking']
+      }
     ),
     metric(
       c('tov'),
       `${label} touch turnovers`,
       `${short} TOV`,
       `Turnovers after a touch ${where}.`,
-      count(table, c('tov'), { direction: 'lower' })
+      {
+        ...count(table, c('tov'), { direction: 'lower' }),
+        categories: ['playmaking.turnovers', 'offense.turnovers']
+      }
     ),
     metric(
       c('tov_pct'),
       `${label} touch turnover rate`,
       `${short} TOV%`,
       `Turnovers per touch ${where}.`,
-      pct(table, c('tov'), t, 50, { direction: 'lower' })
+      {
+        ...pct(table, c('tov'), t, 50, { direction: 'lower' }),
+        categories: ['playmaking.turnovers', 'offense.turnovers']
+      }
     ),
     metric(
       c('fouls'),
       `${label} touch fouls drawn`,
       `${short} PF`,
       `Fouls drawn after a touch ${where}.`,
-      count(table, c('fouls'))
+      { ...count(table, c('fouls')), categories: ['fouls.drawn', 'offense.fouls_drawn'] }
     ),
     metric(
       c('foul_pct'),
       `${label} touch foul rate`,
       `${short} PF%`,
       `Fouls drawn per touch ${where}.`,
-      pct(table, c('fouls'), t, 50)
+      { ...pct(table, c('fouls'), t, 50), categories: ['fouls.drawn', 'offense.fouls_drawn'] }
     )
   ]
 })
@@ -601,17 +731,20 @@ const TRACKING_EFFICIENCY: MetricDef[] = [
   ...SHOT_TYPES.flatMap(([p, label, short]) => [
     metric(
       `eff_${p}_pts`,
-      `${label} points (efficiency dashboard)`,
+      `${label} points (tracking efficiency)`,
       `${short} PTS Eff`,
-      `${label} points as the NBA's tracking efficiency dashboard publishes them. They differ from the ${lower(label)} dashboard's on a third to a half of players.`,
-      count(EFFICIENCY, `${p}_pts`)
+      `Differs from the ${lower(label)} dashboard's points on a third to a half of players: ${lower(label)} points as the NBA's tracking efficiency dashboard publishes them.`,
+      { ...count(EFFICIENCY, `${p}_pts`), categories: ['scoring.by_situation', 'offense.scoring'] }
     ),
     metric(
       `eff_${p}_fg_pct`,
-      `${label} FG% (efficiency dashboard)`,
+      `${label} FG% (tracking efficiency)`,
       `${short} FG% Eff`,
       `${label} field-goal percentage as the efficiency dashboard publishes it, without its makes and attempts. ${WEIGHTED_MINUTES}`,
-      weighted(EFFICIENCY, `${p}_fg_pct`, 'minutes', 1000, { unit: 'pct', kind: 'derived' })
+      {
+        ...weighted(EFFICIENCY, `${p}_fg_pct`, 'minutes', 1000, { unit: 'pct', kind: 'derived' }),
+        categories: ['shooting.catch_pull', 'offense.shooting']
+      }
     )
   ]),
   metric(
@@ -619,7 +752,10 @@ const TRACKING_EFFICIENCY: MetricDef[] = [
     'Effective field-goal percentage (tracking)',
     'eFG% Trk',
     `The player's effective field-goal percentage on the tracking efficiency dashboard. ${WEIGHTED_MINUTES}`,
-    weighted(EFFICIENCY, 'eff_fg_pct', 'minutes', 1000, { unit: 'pct' })
+    {
+      ...weighted(EFFICIENCY, 'eff_fg_pct', 'minutes', 1000, { unit: 'pct' }),
+      categories: ['shooting.efficiency', 'offense.shooting']
+    }
   )
 ]
 
@@ -629,21 +765,30 @@ const RIM_DEFENSE: MetricDef[] = [
     'Rim field goals allowed',
     'DFGM Rim',
     'Shots made at the rim while the player defended it, as tracked.',
-    count('rim_defense', 'def_rim_fgm', { direction: 'lower' })
+    {
+      ...count('rim_defense', 'def_rim_fgm', { direction: 'lower' }),
+      categories: ['defense.defended_shots']
+    }
   ),
   metric(
     'def_rim_fga',
     'Rim attempts defended',
     'DFGA Rim',
     'Shots at the rim while the player defended it, as tracked.',
-    count('rim_defense', 'def_rim_fga', { direction: 'neutral' })
+    {
+      ...count('rim_defense', 'def_rim_fga', { direction: 'neutral' }),
+      categories: ['defense.defended_shots']
+    }
   ),
   metric(
     'def_rim_fg_pct',
     'Rim field-goal percentage allowed',
     'DFG% Rim',
     'Shots made per attempt at the rim while the player defended it.',
-    pct('rim_defense', 'def_rim_fgm', 'def_rim_fga', 100, { direction: 'lower' })
+    {
+      ...pct('rim_defense', 'def_rim_fgm', 'def_rim_fga', 100, { direction: 'lower' }),
+      categories: ['defense.defended_shots']
+    }
   )
 ]
 

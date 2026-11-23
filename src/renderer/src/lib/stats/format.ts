@@ -98,13 +98,18 @@ export function cellTitle(
   return lines.join('\n')
 }
 
+/**
+ * The family is the source (D52): where a metric comes from, not what it measures, which the
+ * categories say. `shooting` holds the box-score rates (AST%, TOV%, rebound percentages, usage),
+ * `scoring` the splits and shares of the box score.
+ */
 const FAMILY_LABELS: Record<MetricInfo['family'], string> = {
   traditional: 'Traditional',
-  shooting: 'Shooting',
+  shooting: 'Box-score rates',
   shots: 'Shot zones',
   plays: 'Play by play',
   possessions: 'Possessions',
-  scoring: 'Scoring',
+  scoring: 'Splits and shares',
   composite: 'Composite',
   ratings: 'Ratings',
   box_composites: 'Box-score ratings',

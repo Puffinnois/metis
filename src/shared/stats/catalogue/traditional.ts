@@ -31,14 +31,15 @@ const nbaPct = (made: 'fgm' | 'fg3m' | 'ftm', attempts: string): Opts => ({
 
 export const TRADITIONAL: MetricDef[] = [
   metric('gp', 'Games played', 'G', 'Games the player appeared in. Being listed does not count.', {
-    ...count('games', { ...f, totalOnly: true })
+    ...count('games', { ...f, totalOnly: true }),
+    categories: ['playing_time.games_minutes']
   }),
   metric(
     'gs',
     'Games started',
     'GS',
     "Games started. ESPN's flag is the only source before 2017-18, and it is missing for some games, mostly in 2001-02, 2004-05 and 2005-06.",
-    count('starts', { ...f, totalOnly: true })
+    { ...count('starts', { ...f, totalOnly: true }), categories: ['playing_time.games_minutes'] }
   ),
   metric(
     'min',
@@ -54,27 +55,33 @@ export const TRADITIONAL: MetricDef[] = [
         unit: 'minutes',
         perGameOnly: true,
         tier: 'core'
-      })
+      }),
+      categories: ['playing_time.games_minutes']
     }
   ),
   metric('w', 'Wins', 'W', 'Team wins in games the player appeared in.', {
-    ...count('wins', { ...f, totalOnly: true })
+    ...count('wins', { ...f, totalOnly: true }),
+    categories: ['results.record']
   }),
   metric('l', 'Losses', 'L', 'Team losses in games the player appeared in.', {
-    ...count('losses', { ...f, direction: 'lower', totalOnly: true })
+    ...count('losses', { ...f, direction: 'lower', totalOnly: true }),
+    categories: ['results.record']
   }),
   metric('win_pct', 'Win percentage', 'W%', 'Team wins per game the player appeared in.', {
     value: '{wins} / nullif({wins} + {losses}, 0)',
     sample: 'games',
     unit: 'pct',
-    ...f
+    ...f,
+    categories: ['results.record']
   }),
 
   metric('team_gp', 'Games played', 'G', 'Games played, with or without a box score.', {
-    ...count('games', { ...f, entity: 'team', side: 'offense', totalOnly: true })
+    ...count('games', { ...f, entity: 'team', side: 'offense', totalOnly: true }),
+    categories: ['playing_time.games_minutes']
   }),
   metric('team_w', 'Wins', 'W', 'Games won.', {
-    ...count('wins', { ...f, entity: 'team', side: 'offense', tier: 'core', totalOnly: true })
+    ...count('wins', { ...f, entity: 'team', side: 'offense', tier: 'core', totalOnly: true }),
+    categories: ['results.record']
   }),
   metric('team_l', 'Losses', 'L', 'Games lost.', {
     ...count('losses', {
@@ -84,7 +91,8 @@ export const TRADITIONAL: MetricDef[] = [
       direction: 'lower',
       tier: 'core',
       totalOnly: true
-    })
+    }),
+    categories: ['results.record']
   }),
   metric('team_win_pct', 'Win percentage', 'W%', 'Wins per game.', {
     value: '{wins} / nullif({wins} + {losses}, 0)',
@@ -93,10 +101,12 @@ export const TRADITIONAL: MetricDef[] = [
     entity: 'team',
     side: 'offense',
     tier: 'core',
-    ...f
+    ...f,
+    categories: ['results.record']
   }),
   metric('team_pts', 'Points', 'PTS', 'Points scored, from the final score.', {
-    ...count('points_for', { ...f, entity: 'team', side: 'offense', tier: 'core' })
+    ...count('points_for', { ...f, entity: 'team', side: 'offense', tier: 'core' }),
+    categories: ['scoring.points', 'offense.scoring']
   }),
   metric('opp_pts', 'Points allowed', 'Opp PTS', 'Points allowed, from the final score.', {
     ...count('points_against', {
@@ -105,56 +115,50 @@ export const TRADITIONAL: MetricDef[] = [
       side: 'defense',
       direction: 'lower',
       tier: 'core'
-    })
+    }),
+    categories: ['defense.scoring_allowed', 'scoring.points']
   }),
   metric(
     'team_point_diff',
     'Point differential',
     '+/-',
     'Points scored minus points allowed, from the final score. In one game it is the margin.',
-    count('points_for', {
-      ...f,
-      value: '{points_for} - {points_against}',
-      kind: 'derived',
-      entity: 'team',
-      side: 'offense',
-      tier: 'core'
-    })
+    {
+      ...count('points_for', {
+        ...f,
+        value: '{points_for} - {points_against}',
+        kind: 'derived',
+        entity: 'team',
+        side: 'offense',
+        tier: 'core'
+      }),
+      categories: ['results.margin']
+    }
   ),
 
-  metric(
-    'pts',
-    'Points',
-    'PTS',
-    'Points scored.',
-    count('pts', { ...f, ...nbaPerGame, tier: 'core' })
-  ),
-  ...allSides(
-    'fgm',
-    'Field goals made',
-    'FGM',
-    'Made twos and threes, not free throws.',
-    count('fgm', f)
-  ),
-  ...allSides(
-    'fga',
-    'Field-goal attempts',
-    'FGA',
-    'Two- and three-point attempts.',
-    count('fga', f)
-  ),
-  ...allSides(
-    'fg_pct',
-    'Field-goal percentage',
-    'FG%',
-    'Field goals made per attempt.',
-    nbaPct('fgm', 'fga')
-  ),
+  metric('pts', 'Points', 'PTS', 'Points scored.', {
+    ...count('pts', { ...f, ...nbaPerGame, tier: 'core' }),
+    categories: ['scoring.points', 'offense.scoring']
+  }),
+  ...allSides('fgm', 'Field goals made', 'FGM', 'Made twos and threes, not free throws.', {
+    ...count('fgm', f),
+    categories: ['shooting.field_goals', 'offense.shooting']
+  }),
+  ...allSides('fga', 'Field-goal attempts', 'FGA', 'Two- and three-point attempts.', {
+    ...count('fga', f),
+    categories: ['shooting.field_goals', 'offense.shooting']
+  }),
+  ...allSides('fg_pct', 'Field-goal percentage', 'FG%', 'Field goals made per attempt.', {
+    ...nbaPct('fgm', 'fga'),
+    categories: ['shooting.field_goals', 'offense.shooting']
+  }),
   ...allSides('fg_miss', 'Missed field goals', 'FGMX', 'Field-goal attempts minus makes.', {
-    ...count('fga', { ...f, value: '{fga} - {fgm}', kind: 'derived', direction: 'neutral' })
+    ...count('fga', { ...f, value: '{fga} - {fgm}', kind: 'derived', direction: 'neutral' }),
+    categories: ['shooting.field_goals', 'offense.shooting']
   }),
   ...allSides('fg2m', 'Twos made', '2PM', 'Field goals made minus threes made.', {
-    ...count('fgm', { ...f, value: '{fgm} - {fg3m}', kind: 'derived' })
+    ...count('fgm', { ...f, value: '{fgm} - {fg3m}', kind: 'derived' }),
+    categories: ['shooting.twos', 'offense.shooting']
   }),
   ...allSides(
     'fg2a',
@@ -162,7 +166,8 @@ export const TRADITIONAL: MetricDef[] = [
     '2PA',
     'Field-goal attempts minus three-point attempts.',
     {
-      ...count('fga', { ...f, value: '{fga} - {fg3a}', kind: 'derived', direction: 'neutral' })
+      ...count('fga', { ...f, value: '{fga} - {fg3a}', kind: 'derived', direction: 'neutral' }),
+      categories: ['shooting.twos', 'offense.shooting']
     }
   ),
   ...allSides('fg2_pct', 'Two-point percentage', '2P%', 'Twos made per two-point attempt.', {
@@ -170,60 +175,58 @@ export const TRADITIONAL: MetricDef[] = [
     sample: 'fga',
     unit: 'pct',
     minSample: 400,
-    ...f
+    ...f,
+    categories: ['shooting.twos', 'offense.shooting']
   }),
-  ...allSides(
-    'fg3m',
-    'Threes made',
-    '3PM',
-    'Three-pointers made.',
-    count('fg3m', { ...f, tier: 'core' })
-  ),
-  ...allSides('fg3a', 'Three-point attempts', '3PA', 'Three-point attempts.', count('fg3a', f)),
-  ...allSides(
-    'fg3_pct',
-    'Three-point percentage',
-    '3P%',
-    'Threes made per attempt.',
-    nbaPct('fg3m', 'fg3a')
-  ),
-  ...allSides('ftm', 'Free throws made', 'FTM', 'Free throws made.', count('ftm', f)),
-  ...allSides('fta', 'Free-throw attempts', 'FTA', 'Free-throw attempts.', count('fta', f)),
-  ...allSides(
-    'ft_pct',
-    'Free-throw percentage',
-    'FT%',
-    'Free throws made per attempt.',
-    nbaPct('ftm', 'fta')
-  ),
+  ...allSides('fg3m', 'Threes made', '3PM', 'Three-pointers made.', {
+    ...count('fg3m', { ...f, tier: 'core' }),
+    categories: ['shooting.threes', 'offense.shooting']
+  }),
+  ...allSides('fg3a', 'Three-point attempts', '3PA', 'Three-point attempts.', {
+    ...count('fg3a', f),
+    categories: ['shooting.threes', 'offense.shooting']
+  }),
+  ...allSides('fg3_pct', 'Three-point percentage', '3P%', 'Threes made per attempt.', {
+    ...nbaPct('fg3m', 'fg3a'),
+    categories: ['shooting.threes', 'offense.shooting']
+  }),
+  ...allSides('ftm', 'Free throws made', 'FTM', 'Free throws made.', {
+    ...count('ftm', f),
+    categories: ['shooting.free_throws', 'offense.shooting']
+  }),
+  ...allSides('fta', 'Free-throw attempts', 'FTA', 'Free-throw attempts.', {
+    ...count('fta', f),
+    categories: ['shooting.free_throws', 'offense.shooting']
+  }),
+  ...allSides('ft_pct', 'Free-throw percentage', 'FT%', 'Free throws made per attempt.', {
+    ...nbaPct('ftm', 'fta'),
+    categories: ['shooting.free_throws', 'offense.shooting']
+  }),
   ...allSides('ft_miss', 'Missed free throws', 'FTMX', 'Free-throw attempts minus makes.', {
-    ...count('fta', { ...f, value: '{fta} - {ftm}', kind: 'derived', direction: 'lower' })
+    ...count('fta', { ...f, value: '{fta} - {ftm}', kind: 'derived', direction: 'lower' }),
+    categories: ['shooting.free_throws', 'offense.shooting']
   }),
-  ...allSides(
-    'oreb',
-    'Offensive rebounds',
-    'OREB',
-    'Rebounds of their own side’s misses.',
-    count('oreb', f)
-  ),
-  ...allSides(
-    'dreb',
-    'Defensive rebounds',
-    'DREB',
-    'Rebounds of the other side’s misses.',
-    count('dreb', f)
-  ),
+  ...allSides('oreb', 'Offensive rebounds', 'OREB', 'Rebounds of their own side’s misses.', {
+    ...count('oreb', f),
+    categories: ['rebounding.offensive', 'offense.rebounding']
+  }),
+  ...allSides('dreb', 'Defensive rebounds', 'DREB', 'Rebounds of the other side’s misses.', {
+    ...count('dreb', f),
+    categories: ['rebounding.defensive', 'defense.rebounding']
+  }),
   ...allSides(
     'reb',
     'Rebounds',
     'REB',
     'Offensive and defensive rebounds. Team rebounds are not in this box score.',
     {
-      ...count('reb', { ...f, ...nbaPerGame, tier: 'core' })
+      ...count('reb', { ...f, ...nbaPerGame, tier: 'core' }),
+      categories: ['rebounding.all']
     }
   ),
   ...allSides('ast', 'Assists', 'AST', 'Passes credited as leading to a made field goal.', {
-    ...count('ast', { ...f, ...nbaPerGame, tier: 'core' })
+    ...count('ast', { ...f, ...nbaPerGame, tier: 'core' }),
+    categories: ['playmaking.passing', 'offense.playmaking']
   }),
   ...allSides(
     'tov',
@@ -231,59 +234,65 @@ export const TRADITIONAL: MetricDef[] = [
     'TOV',
     'Turnovers charged to players. Team turnovers are not in this box score.',
     {
-      ...count('tov', { ...f, direction: 'lower', tier: 'core' })
+      ...count('tov', { ...f, direction: 'lower', tier: 'core' }),
+      categories: ['playmaking.turnovers', 'offense.turnovers']
     }
   ),
-  ...allSides(
-    'stl',
-    'Steals',
-    'STL',
-    'Steals.',
-    count('stl', { ...f, ...nbaPerGame, tier: 'core' })
-  ),
-  ...allSides(
-    'blk',
-    'Blocks',
-    'BLK',
-    'Blocked shots.',
-    count('blk', { ...f, ...nbaPerGame, tier: 'core' })
-  ),
+  ...allSides('stl', 'Steals', 'STL', 'Steals.', {
+    ...count('stl', { ...f, ...nbaPerGame, tier: 'core' }),
+    categories: ['defense.steals_blocks'],
+    opponents: ['offense.turnovers', 'playmaking.turnovers']
+  }),
+  ...allSides('blk', 'Blocks', 'BLK', 'Blocked shots.', {
+    ...count('blk', { ...f, ...nbaPerGame, tier: 'core' }),
+    categories: ['defense.steals_blocks'],
+    opponents: ['offense.shooting', 'shooting.field_goals']
+  }),
   ...allSides('pf', 'Personal fouls', 'PF', 'Personal fouls charged.', {
-    ...count('pf', { ...f, direction: 'lower' })
+    ...count('pf', { ...f, direction: 'lower' }),
+    categories: ['fouls.committed', 'defense.fouls']
   }),
   metric(
     'plus_minus',
     'Plus-minus',
     '+/-',
     "The team's points minus the opponent's while the player was on the floor. It does not isolate what the player caused.",
-    count('plus_minus', { ...f, sources: NBA_SOURCES, firstSeason: NBA_FIRST_SEASON, tier: 'core' })
+    {
+      ...count('plus_minus', {
+        ...f,
+        sources: NBA_SOURCES,
+        firstSeason: NBA_FIRST_SEASON,
+        tier: 'core'
+      }),
+      categories: ['impact.on_court']
+    }
   ),
   metric(
     'dd2',
     'Double-doubles',
     'DD2',
     'Games with at least 10 in two or more of points, rebounds, assists, steals and blocks.',
-    count('dd2', { ...f, kind: 'derived' })
+    { ...count('dd2', { ...f, kind: 'derived' }), categories: ['impact.all_around'] }
   ),
   metric(
     'td3',
     'Triple-doubles',
     'TD3',
     'Games with at least 10 in three or more of points, rebounds, assists, steals and blocks.',
-    count('td3', { ...f, kind: 'derived' })
+    { ...count('td3', { ...f, kind: 'derived' }), categories: ['impact.all_around'] }
   ),
   metric(
     'qd4',
     'Quadruple-doubles',
     'QD',
     'Games with at least 10 in four or more of points, rebounds, assists, steals and blocks.',
-    count('qd4', { ...f, kind: 'derived' })
+    { ...count('qd4', { ...f, kind: 'derived' }), categories: ['impact.all_around'] }
   ),
   metric(
     'five_by_five',
     'Five-by-fives',
     '5x5',
     'Games with at least 5 in each of points, rebounds, assists, steals and blocks.',
-    count('five_by_five', { ...f, kind: 'derived' })
+    { ...count('five_by_five', { ...f, kind: 'derived' }), categories: ['impact.all_around'] }
   )
 ]

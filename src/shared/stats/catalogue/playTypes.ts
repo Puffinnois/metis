@@ -247,6 +247,11 @@ function metricsOf(type: PlayType, side: PlayTypeSide, key: string): MetricDef[]
         sources: SOURCES,
         firstSeason: PLAY_TYPES_FIRST_SEASON,
         published: `pub_player_pt_${key}`,
+        // A play type stays whole: its own sub-group, and the end it is played at.
+        categories: [
+          `play_types.${key}`,
+          side === 'offense' ? 'offense.play_types' : 'defense.play_types'
+        ],
         ...m.opts(key, side)
       }
     )

@@ -55,217 +55,279 @@ export const ON_COURT: MetricDef[] = [
     'Minutes on court, from plays',
     'MIN (plays)',
     `Minutes on the floor as the play by play's lineups count them, beside the box score's minutes. ${DERIVED}`,
-    base({
-      value: '{minutes}',
-      sample: 'games',
-      aggregation: 'sum',
-      unit: 'count',
-      direction: 'neutral'
-    })
+    {
+      ...base({
+        value: '{minutes}',
+        sample: 'games',
+        aggregation: 'sum',
+        unit: 'count',
+        direction: 'neutral'
+      }),
+      categories: ['playing_time.games_minutes', 'impact.on_court']
+    }
   ),
   metric(
     'onc_poss',
     'Possessions on court',
     'Poss (on)',
     `The team's possessions with the player on the floor, as SportsDataverse counts them: actual possessions, not an estimate. ${DERIVED}`,
-    base({
-      value: '{on_poss}',
-      sample: 'games',
-      aggregation: 'sum',
-      unit: 'count',
-      decimals: 0,
-      direction: 'neutral'
-    })
+    {
+      ...base({
+        value: '{on_poss}',
+        sample: 'games',
+        aggregation: 'sum',
+        unit: 'count',
+        decimals: 0,
+        direction: 'neutral'
+      }),
+      categories: ['playing_time.possessions', 'impact.on_court']
+    }
   ),
   metric(
     'onc_plus_minus',
     'Plus-minus, from plays',
     '+/- (plays)',
     `Points scored less points allowed with the player on the floor, counted from the plays. Free throws count for the players on the floor at the foul, as the box score's plus-minus counts them. ${DERIVED}`,
-    base({
-      value: '{on_pts} - {on_opp_pts}',
-      sample: 'games',
-      aggregation: 'sum',
-      unit: 'count',
-      decimals: 0
-    })
+    {
+      ...base({
+        value: '{on_pts} - {on_opp_pts}',
+        sample: 'games',
+        aggregation: 'sum',
+        unit: 'count',
+        decimals: 0
+      }),
+      categories: ['impact.on_court']
+    }
   ),
   metric(
     'onc_ortg',
     'Offensive rating, on court',
     'ORtg on',
     `Points the team scored per 100 of its possessions with the player on the floor. ${DERIVED}`,
-    rating(ortg('on'), 'on_poss', { tier: 'core' })
+    {
+      ...rating(ortg('on'), 'on_poss', { tier: 'core' }),
+      categories: ['impact.on_court', 'offense.impact']
+    }
   ),
   metric(
     'onc_drtg',
     'Defensive rating, on court',
     'DRtg on',
     `Points the opponents scored per 100 of their possessions with the player on the floor. Lower is better. ${DERIVED}`,
-    rating(drtg('on'), 'on_opp_poss', { direction: 'lower', tier: 'core' })
+    {
+      ...rating(drtg('on'), 'on_opp_poss', { direction: 'lower', tier: 'core' }),
+      categories: ['impact.on_court', 'defense.impact']
+    }
   ),
   metric(
     'onc_net',
     'Net rating, on court',
     'Net on',
     `Offensive less defensive rating with the player on the floor. ${DERIVED}`,
-    rating(net('on'), 'on_poss', { tier: 'core' })
+    { ...rating(net('on'), 'on_poss', { tier: 'core' }), categories: ['impact.on_court'] }
   ),
   metric(
     'offc_ortg',
     'Offensive rating, off court',
     'ORtg off',
     `Points the team scored per 100 possessions with the player on the bench. ${OFF_GAMES} ${DERIVED}`,
-    rating(ortg('off'), 'off_poss')
+    { ...rating(ortg('off'), 'off_poss'), categories: ['impact.on_court', 'offense.impact'] }
   ),
   metric(
     'offc_drtg',
     'Defensive rating, off court',
     'DRtg off',
     `Points the opponents scored per 100 possessions with the player on the bench. ${OFF_GAMES} ${DERIVED}`,
-    rating(drtg('off'), 'off_opp_poss', { direction: 'lower' })
+    {
+      ...rating(drtg('off'), 'off_opp_poss', { direction: 'lower' }),
+      categories: ['impact.on_court', 'defense.impact']
+    }
   ),
   metric(
     'offc_net',
     'Net rating, off court',
     'Net off',
     `Offensive less defensive rating with the player on the bench. ${OFF_GAMES} ${DERIVED}`,
-    rating(net('off'), 'off_poss')
+    { ...rating(net('off'), 'off_poss'), categories: ['impact.on_court'] }
   ),
   metric(
     'onoff_ortg',
     'Offensive rating, on less off',
     'ORtg on-off',
     `Offensive rating on court less off court: above zero, the team scored better with the player on the floor. Not adjusted for teammates or opponents. ${OFF_GAMES} ${DERIVED}`,
-    rating(diff(ortg('on'), ortg('off')), 'on_poss')
+    {
+      ...rating(diff(ortg('on'), ortg('off')), 'on_poss'),
+      categories: ['impact.on_court', 'offense.impact']
+    }
   ),
   metric(
     'onoff_drtg',
     'Defensive rating, on less off',
     'DRtg on-off',
     `Defensive rating on court less off court: below zero, the opponents scored less with the player on the floor. ${OFF_GAMES} ${DERIVED}`,
-    rating(diff(drtg('on'), drtg('off')), 'on_opp_poss', { direction: 'lower' })
+    {
+      ...rating(diff(drtg('on'), drtg('off')), 'on_opp_poss', { direction: 'lower' }),
+      categories: ['impact.on_court', 'defense.impact']
+    }
   ),
   metric(
     'onoff_net',
     'Net rating, on less off',
     'Net on-off',
     `Net rating on court less off court. Not adjusted for teammates or opponents. ${OFF_GAMES} ${DERIVED}`,
-    rating(diff(net('on'), net('off')), 'on_poss', { tier: 'core' })
+    {
+      ...rating(diff(net('on'), net('off')), 'on_poss', { tier: 'core' }),
+      categories: ['impact.on_court']
+    }
   ),
   metric(
     'onc_pace',
     'Pace, on court',
     'Pace on',
     `Possessions per 48 minutes with the player on the floor, both teams' averaged: actual possessions over the time on the floor. ${DERIVED}`,
-    base({
-      value: '2880 * ({on_poss} + {on_opp_poss}) / 2.0 / nullif({on_secs}, 0)',
-      gameLength: true,
-      sample: 'on_poss',
-      minSample: MIN_POSS,
-      direction: 'neutral'
-    })
+    {
+      ...base({
+        value: '2880 * ({on_poss} + {on_opp_poss}) / 2.0 / nullif({on_secs}, 0)',
+        gameLength: true,
+        sample: 'on_poss',
+        minSample: MIN_POSS,
+        direction: 'neutral'
+      }),
+      categories: ['impact.on_court']
+    }
   ),
   metric(
     'onc_efg_pct',
     'Effective field-goal percentage, on court',
     'eFG% on',
     `The team's effective field-goal percentage with the player on the floor. ${DERIVED}`,
-    base({
-      value: '({on_fgm} + 0.5 * {on_fg3m}) / nullif({on_fga}, 0)',
-      sample: 'on_fga',
-      minSample: 1500,
-      unit: 'pct'
-    })
+    {
+      ...base({
+        value: '({on_fgm} + 0.5 * {on_fg3m}) / nullif({on_fga}, 0)',
+        sample: 'on_fga',
+        minSample: 1500,
+        unit: 'pct'
+      }),
+      categories: ['impact.on_court', 'offense.impact']
+    }
   ),
   metric(
     'onc_opp_efg_pct',
     'Opponent effective field-goal percentage, on court',
     'Opp eFG% on',
     `The opponents' effective field-goal percentage with the player on the floor. Lower is better. ${DERIVED}`,
-    base({
-      value: '({on_opp_fgm} + 0.5 * {on_opp_fg3m}) / nullif({on_opp_fga}, 0)',
-      sample: 'on_opp_fga',
-      minSample: 1500,
-      unit: 'pct',
-      direction: 'lower'
-    })
+    {
+      ...base({
+        value: '({on_opp_fgm} + 0.5 * {on_opp_fg3m}) / nullif({on_opp_fga}, 0)',
+        sample: 'on_opp_fga',
+        minSample: 1500,
+        unit: 'pct',
+        direction: 'lower'
+      }),
+      categories: ['impact.on_court', 'defense.impact']
+    }
   ),
   metric(
     'onc_tm_tov_pct',
     'Team turnover percentage, on court',
     'TM TOV% on',
     `The team's turnovers per possession with the player on the floor; a player's turnovers, as in the box score. ${DERIVED}`,
-    base({
-      value: ratio('on_tov', 'on_poss'),
-      sample: 'on_poss',
-      minSample: MIN_POSS,
-      unit: 'pct',
-      direction: 'lower'
-    })
+    {
+      ...base({
+        value: ratio('on_tov', 'on_poss'),
+        sample: 'on_poss',
+        minSample: MIN_POSS,
+        unit: 'pct',
+        direction: 'lower'
+      }),
+      categories: ['impact.on_court', 'offense.impact']
+    }
   ),
   metric(
     'onc_tm_orb_pct',
     'Team offensive rebound percentage, on court',
     'TM ORB% on',
     `The share of the team's missed shots it rebounded with the player on the floor; a player's rebounds, as in the box score. ${DERIVED}`,
-    base({
-      value: '{on_oreb} / nullif({on_oreb} + {on_opp_dreb}, 0)',
-      sample: 'on_poss',
-      minSample: MIN_POSS,
-      unit: 'pct'
-    })
+    {
+      ...base({
+        value: '{on_oreb} / nullif({on_oreb} + {on_opp_dreb}, 0)',
+        sample: 'on_poss',
+        minSample: MIN_POSS,
+        unit: 'pct'
+      }),
+      categories: ['impact.on_court', 'offense.impact']
+    }
   ),
   metric(
     'onc_usg_pct',
     'Usage, on court',
     'USG% on',
     `The share of the team's plays the player finished while on the floor: their field-goal attempts, 0.44 of their free-throw attempts and their turnovers over the team's on the floor. The actual count of what the usage percentage estimates from minutes. ${DERIVED}`,
-    share('({p_fga} + 0.44 * {p_fta} + {p_tov}) / nullif({on_fga} + 0.44 * {on_fta} + {on_tov}, 0)')
+    {
+      ...share(
+        '({p_fga} + 0.44 * {p_fta} + {p_tov}) / nullif({on_fga} + 0.44 * {on_fta} + {on_tov}, 0)'
+      ),
+      categories: ['offense.usage']
+    }
   ),
   metric(
     'onc_ast_pct',
     'Assist percentage, on court',
     'AST% on',
     `The share of teammates' made shots the player assisted while on the floor: the actual count of what the assist percentage estimates. ${DERIVED}`,
-    share('{p_ast} / nullif({on_fgm} - {p_fgm}, 0)')
+    {
+      ...share('{p_ast} / nullif({on_fgm} - {p_fgm}, 0)'),
+      categories: ['playmaking.passing', 'offense.playmaking']
+    }
   ),
   metric(
     'onc_orb_pct',
     'Offensive rebound percentage, on court',
     'ORB% on',
     `The share of the team's missed shots the player rebounded while on the floor: the actual count of what the offensive rebound percentage estimates. ${DERIVED}`,
-    share('{p_oreb} / nullif({on_oreb} + {on_opp_dreb}, 0)')
+    {
+      ...share('{p_oreb} / nullif({on_oreb} + {on_opp_dreb}, 0)'),
+      categories: ['rebounding.offensive', 'offense.rebounding']
+    }
   ),
   metric(
     'onc_drb_pct',
     'Defensive rebound percentage, on court',
     'DRB% on',
     `The share of the opponents' missed shots the player rebounded while on the floor. ${DERIVED}`,
-    share('{p_dreb} / nullif({on_dreb} + {on_opp_oreb}, 0)')
+    {
+      ...share('{p_dreb} / nullif({on_dreb} + {on_opp_oreb}, 0)'),
+      categories: ['rebounding.defensive', 'defense.rebounding']
+    }
   ),
   metric(
     'onc_trb_pct',
     'Total rebound percentage, on court',
     'TRB% on',
     `The share of all rebounds the player took while on the floor. ${DERIVED}`,
-    share(
-      '({p_oreb} + {p_dreb}) / nullif({on_oreb} + {on_dreb} + {on_opp_oreb} + {on_opp_dreb}, 0)'
-    )
+    {
+      ...share(
+        '({p_oreb} + {p_dreb}) / nullif({on_oreb} + {on_dreb} + {on_opp_oreb} + {on_opp_dreb}, 0)'
+      ),
+      categories: ['rebounding.all']
+    }
   ),
   metric(
     'onc_stl_pct',
     'Steal percentage, on court',
     'STL% on',
     `The player's steals per opponent possession while on the floor: the actual count of what the steal percentage estimates. ${DERIVED}`,
-    share(ratio('p_stl', 'on_opp_poss'))
+    { ...share(ratio('p_stl', 'on_opp_poss')), categories: ['defense.steals_blocks'] }
   ),
   metric(
     'onc_blk_pct',
     'Block percentage, on court',
     'BLK% on',
     `The share of the opponents' two-point attempts the player blocked while on the floor. ${DERIVED}`,
-    share('{p_blk} / nullif({on_opp_fga} - {on_opp_fg3a}, 0)')
+    {
+      ...share('{p_blk} / nullif({on_opp_fga} - {on_opp_fg3a}, 0)'),
+      categories: ['defense.steals_blocks']
+    }
   )
 ]
 

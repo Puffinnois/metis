@@ -74,49 +74,58 @@ const TEAM_RATINGS: MetricDef[] = [
     sdv('Adjusted offensive rating'),
     head('AdjO'),
     `Points scored per 100 possessions against an average Division I defense, adjusted for opponents and venue. ${WHOSE} ${EVERY_GAME} games.`,
-    team('sdv_adj_o_w', { tier: 'core' })
+    {
+      ...team('sdv_adj_o_w', { tier: 'core' }),
+      categories: ['results.adjusted', 'offense.ratings']
+    }
   ),
   metric(
     'sdv_adj_d',
     sdv('Adjusted defensive rating'),
     head('AdjD'),
     `Points allowed per 100 possessions against an average Division I offense, adjusted for opponents and venue: lower is better. ${WHOSE} ${EVERY_GAME} games.`,
-    team('sdv_adj_d_w', { direction: 'lower', side: 'defense', tier: 'core' })
+    {
+      ...team('sdv_adj_d_w', { direction: 'lower', side: 'defense', tier: 'core' }),
+      categories: ['results.adjusted', 'defense.ratings']
+    }
   ),
   metric(
     'sdv_adj_em',
     sdv('Adjusted efficiency margin'),
     head('AdjEM'),
     `Adjusted offensive rating minus adjusted defensive rating: how many points per 100 possessions better than an average Division I team. ${WHOSE} ${EVERY_GAME} games.`,
-    team('sdv_adj_em_w', { tier: 'core' })
+    { ...team('sdv_adj_em_w', { tier: 'core' }), categories: ['results.adjusted'] }
   ),
   metric(
     'sdv_adj_tempo',
     sdv('Adjusted tempo'),
     head('AdjT'),
     `Possessions per 40 minutes against an average Division I opponent. ${WHOSE} ${EVERY_GAME} games.`,
-    team('sdv_adj_tempo_w', { direction: 'neutral' })
+    { ...team('sdv_adj_tempo_w', { direction: 'neutral' }), categories: ['results.adjusted'] }
   ),
   metric(
     'sdv_raw_o',
     sdv('Offensive rating, unadjusted'),
     head('RawO'),
     `Points scored per 100 possessions, before the adjustment for opponents. ${WHOSE} ${EVERY_GAME} games.`,
-    team('sdv_raw_o_w')
+    { ...team('sdv_raw_o_w'), categories: ['results.adjusted', 'offense.ratings'] }
   ),
   metric(
     'sdv_raw_d',
     sdv('Defensive rating, unadjusted'),
     head('RawD'),
     `Points allowed per 100 possessions, before the adjustment for opponents: lower is better. ${WHOSE} ${EVERY_GAME} games.`,
-    team('sdv_raw_d_w', { direction: 'lower', side: 'defense' })
+    {
+      ...team('sdv_raw_d_w', { direction: 'lower', side: 'defense' }),
+      categories: ['results.adjusted', 'defense.ratings']
+    }
   ),
   metric(
     'sdv_adj_em_blend',
     sdv('Adjusted efficiency margin, blended with the preseason'),
     head('AdjEMb'),
     `The adjusted efficiency margin blended with a preseason prior, which weighs less as games are played. ${WHOSE} ${EVERY_GAME} games.`,
-    team('sdv_adj_em_blend_w')
+    { ...team('sdv_adj_em_blend_w'), categories: ['results.adjusted'] }
   )
 ]
 
@@ -130,21 +139,21 @@ const BOX_BPM: MetricDef[] = [
     sdv('Box Plus/Minus'),
     head('BPM'),
     `Points per 100 possessions the player added over an average Division I player, estimated from the box score and constrained so a team's players add up to its adjusted efficiency margin. ${WHOSE} ${EVERY_GAME} minutes.`,
-    bpm('sdv_box_bpm_w', { tier: 'core' })
+    { ...bpm('sdv_box_bpm_w', { tier: 'core' }), categories: ['impact.box_models'] }
   ),
   metric(
     'sdv_box_obpm',
     sdv('Offensive Box Plus/Minus'),
     head('OBPM'),
     `The offensive part of Box Plus/Minus. ${WHOSE} ${EVERY_GAME} minutes.`,
-    bpm('sdv_box_obpm_w')
+    { ...bpm('sdv_box_obpm_w'), categories: ['impact.box_models', 'offense.impact'] }
   ),
   metric(
     'sdv_box_dbpm',
     sdv('Defensive Box Plus/Minus'),
     head('DBPM'),
     `The defensive part of Box Plus/Minus. ${WHOSE} ${EVERY_GAME} minutes.`,
-    bpm('sdv_box_dbpm_w')
+    { ...bpm('sdv_box_dbpm_w'), categories: ['impact.box_models', 'defense.impact'] }
   )
 ]
 
@@ -165,42 +174,54 @@ const RAPMS: MetricDef[] = [
     sdv('RAPM'),
     head('RAPM'),
     `Regularized adjusted plus-minus: points per 100 possessions the player added, from the scores of every possession they played, each estimate pulled toward zero. ${LEAGUE_FIT} ${WHOSE} No value yet for a season in progress. Over several seasons the values are weighted by possessions.`,
-    rapm('ncaa_rapm_w', 'possessions', 2000, { tier: 'core' })
+    {
+      ...rapm('ncaa_rapm_w', 'possessions', 2000, { tier: 'core' }),
+      categories: ['impact.pm_models']
+    }
   ),
   metric(
     'sdv_ncaa_orapm',
     sdv('Offensive RAPM'),
     head('ORAPM'),
     `The offensive part of RAPM: points per 100 possessions the player added at that end. ${LEAGUE_FIT} ${WHOSE}`,
-    rapm('ncaa_orapm_w', 'ncaa_rapm_off_poss', 1000)
+    {
+      ...rapm('ncaa_orapm_w', 'ncaa_rapm_off_poss', 1000),
+      categories: ['impact.pm_models', 'offense.impact']
+    }
   ),
   metric(
     'sdv_ncaa_drapm',
     sdv('Defensive RAPM'),
     head('DRAPM'),
     `The defensive part of RAPM: points per 100 possessions the player saved at that end, so higher is better. ${LEAGUE_FIT} ${WHOSE}`,
-    rapm('ncaa_drapm_w', 'ncaa_rapm_def_poss', 1000)
+    {
+      ...rapm('ncaa_drapm_w', 'ncaa_rapm_def_poss', 1000),
+      categories: ['impact.pm_models', 'defense.impact']
+    }
   ),
   metric(
     'sdv_ncaa_team_rapm',
     sdv('RAPM within team'),
     head('tRAPM'),
     `Points per 100 possessions the player added relative to their teammates: the offensive part less the defensive. ${TEAM_FIT} ${WHOSE}`,
-    teamRapm('ncaa_trapm_w')
+    { ...teamRapm('ncaa_trapm_w'), categories: ['impact.pm_models'] }
   ),
   metric(
     'sdv_ncaa_team_orapm',
     sdv('Offensive RAPM within team'),
     head('tORAPM'),
     `The offensive part of RAPM within team: points per 100 possessions added at that end, relative to teammates. ${TEAM_FIT} ${WHOSE}`,
-    teamRapm('ncaa_trapm_off_w')
+    { ...teamRapm('ncaa_trapm_off_w'), categories: ['impact.pm_models', 'offense.impact'] }
   ),
   metric(
     'sdv_ncaa_team_drapm',
     sdv('Defensive RAPM within team'),
     head('tDRAPM'),
     `The defensive part of RAPM within team: points per 100 possessions the opponents added with the player on the floor, relative to teammates, so lower is better (RAPM's defensive part has the other sign). ${TEAM_FIT} ${WHOSE}`,
-    teamRapm('ncaa_trapm_def_w', { direction: 'lower' })
+    {
+      ...teamRapm('ncaa_trapm_def_w', { direction: 'lower' }),
+      categories: ['impact.pm_models', 'defense.impact']
+    }
   )
 ]
 
@@ -231,22 +252,25 @@ const NOT_PUBLISHED: MetricDef[] = [
     'NET ranking',
     'NET',
     "The NCAA Evaluation Tool's ranking, which the selection committee reads.",
-    gone(U.net)
+    { ...gone(U.net), categories: ['results.rankings'] }
   ),
   metric(
     'team_quadrant1',
     'Quadrant 1 record',
     'Q1',
     'Games against the strongest opponents by the NET and the venue.',
-    gone(U.quadrants)
+    { ...gone(U.quadrants), categories: ['results.rankings'] }
   ),
-  metric('team_poll_rank', 'Poll ranking', 'Poll', 'The AP and coaches polls.', gone(U.polls)),
+  metric('team_poll_rank', 'Poll ranking', 'Poll', 'The AP and coaches polls.', {
+    ...gone(U.polls),
+    categories: ['results.rankings']
+  }),
   metric(
     'team_tournament_seed',
     'NCAA tournament seed',
     'Seed',
     "The selection committee's seed for the NCAA tournament.",
-    gone(U.seeds)
+    { ...gone(U.seeds), categories: ['results.rankings'] }
   )
 ]
 
