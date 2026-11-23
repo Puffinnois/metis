@@ -1,0 +1,35 @@
+[
+  {
+    "size": [1500, 950]
+  },
+  {
+    "wait": 6000
+  },
+  {
+    "eval": "\nwindow.sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nwindow.until = async (fn, ms = 15000) => { const t0 = performance.now(); while (performance.now() - t0 < ms) { if (await fn()) return true; await sleep(250) } return false };\nwindow.button = (name, within) => [...(within ?? document).querySelectorAll('button')].find((x) => x.textContent.trim() === name);\nwindow.section = (name) => document.querySelector('section[aria-label=\"' + name + '\"]');\nwindow.dl = async (league) => (await window.api.leagues.downloads()).leagues.find((l) => l.league === league);\nwindow.check = (label, ok, got) => (ok ? 'OK ' : 'MISMATCH ') + label + ' got ' + JSON.stringify(got);\nwindow.families = async (league) => { const d = await window.api.stats.data(league); const f = Array.isArray(d) ? d : (d.families ?? []); const own = f.filter((x) => !x.seasonsOf); const sum = (k, xs) => xs.reduce((a, x) => a + (x[k] ?? 0), 0); return { releases: own.length, loaded: sum('filesLoaded', own), expected: sum('filesExpected', own), bytes: sum('bytes', own), failed: own.filter((x) => x.state === 'failed' || x.lastError).map((x) => [x.release, x.lastError]), paired: f.filter((x) => x.seasonsOf).map((x) => [x.release, x.filesLoaded, x.filesExpected, x.bytes]) } };\nwindow.settle = async (league, capMin, stopAtFiles) => { const t0 = performance.now(); let quietSince = null; const log = []; let last = ''; let maxTotal = 0; while (performance.now() - t0 < capMin * 60000) { const s = await window.api.stats.status(league); if (s.progress) maxTotal = Math.max(maxTotal, s.progress.total); if (stopAtFiles && s.progress && s.progress.done >= stopAtFiles) return { stopped: true, minutes: Math.round((performance.now() - t0) / 6000) / 10, progress: s.progress, log }; const line = s.busy ? (s.progress ? 'files' : 'building') : 'idle'; if (line !== last) log.push(Math.round((performance.now() - t0) / 1000) + 's ' + line + (s.progress ? ' ' + s.progress.done + '/' + s.progress.total : '')); last = line; if (!s.busy && !s.progress && s.builtAt) { quietSince ??= performance.now(); if (performance.now() - quietSince > 90000) return { minutes: Math.round((quietSince - t0) / 6000) / 10, maxTotal, status: s, log }; } else quietSince = null; await sleep(5000) } return { minutes: null, timedOut: true, log } };\n'helpers ready'\n"
+  },
+  {
+    "eval": "(async () => { const d = await window.api.leagues.downloads(); const dialog = document.querySelector('[role=dialog]')?.innerText ?? ''; return check('a clean profile asks which leagues to download, and nothing has started', !d.decided && d.leagues.every((l) => !l.on && !l.hasFile) && /Which leagues should Metis download/.test(dialog), { dialog: dialog.slice(0, 400) }) })()"
+  },
+  {
+    "shot": "wnba-01-first-run"
+  },
+  {
+    "eval": "(async () => { const labels = [...document.querySelectorAll('[role=dialog] label')]; const box = (name) => labels.find((l) => l.innerText.split('\\n')[0].trim().split(' · ')[0] === name)?.querySelector('input[type=checkbox]'); for (const l of labels) { const b = l.querySelector('input[type=checkbox]'); if (b && b.checked) b.click() } await sleep(200); box('WNBA').click(); await sleep(300); const ticked = labels.filter((l) => l.querySelector('input[type=checkbox]')?.checked).map((l) => l.innerText.split('\\n')[0]); return check('the WNBA alone is ticked', ticked.length === 1 && /^WNBA/.test(ticked[0]), ticked) })()"
+  },
+  {
+    "eval": "(async () => { button('Download').click(); window.started = performance.now(); const started = await until(async () => (await window.api.stats.status('wnba')).busy, 60000); const d = await window.api.leagues.downloads(); return check('the WNBA alone starts loading', started && d.decided && d.leagues.filter((l) => l.on).map((l) => l.league).join() === 'wnba', d.leagues.map((l) => [l.league, l.on])) })()"
+  },
+  {
+    "eval": "(async () => { const r = await settle('wnba', 40); const d = await dl('wnba'); const f = await families('wnba'); return check('WNBA loaded and built from nothing', r.minutes !== null && d.hasFile && f.failed.length === 0, { minutes: r.minutes, maxTotal: r.maxTotal, fileBytes: d.fileBytes, through: r.status?.through, builtAt: r.status?.builtAt, families: f, log: r.log }) })()"
+  },
+  {
+    "eval": "(async () => { document.querySelector('[title=\"See what is loaded\"]').click(); await until(() => section('WNBA'), 20000); await sleep(1500); const t = section('WNBA')?.innerText ?? ''; return check('the Data panel shows the WNBA loaded, with no failure', /On ·/.test(t) && !/[Ff]ailed/.test(t), t.split('\\n').filter(Boolean).slice(0, 10)) })()"
+  },
+  {
+    "shot": "wnba-02-data"
+  },
+  {
+    "eval": "(async () => JSON.stringify((await window.api.dev.recentErrors()).map((e) => e.message.slice(0, 200))))()"
+  }
+]

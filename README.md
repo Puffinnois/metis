@@ -2,7 +2,7 @@
 
 Metis is a desktop app for basketball statistics that runs on your own computer, for the NBA, the WNBA and NCAA Division I men's and women's basketball. It downloads public data into a database per league on your machine, then lets you rank, filter, sort and compare players and teams across every season, from 1993-94 in the NBA, 1997 in the WNBA and 2021-22 in the college leagues to today. A menu beside the name switches every screen between the leagues, and a player who went from college to the NBA or the WNBA has both careers on their page. The stats are read from those databases, and Metis shares nothing.
 
-**Status: version 1.2, for Windows.** [Download the latest release](https://github.com/Puffinnois/metis/releases/latest). The stages are in [Plan.md](Plan.md), the reasoning in [decisions.md](decisions.md).
+**Status: version 1.3, for Windows.** [Download the latest release](https://github.com/Puffinnois/metis/releases/latest). The stages are in [Plan.md](Plan.md), the reasoning in [decisions.md](decisions.md).
 
 ## What it has
 
@@ -14,7 +14,10 @@ Metis is a desktop app for basketball statistics that runs on your own computer,
 | **Standings**    | The published standings by conference or division, with Metis's SRS, Elo and, for the season in progress, a forecast of playoff and title odds                                                           |
 | **Explore**      | Chart any stat against another, compare three players or teams, and follow a stat across a career against the league each season                                                                         |
 | **Games**        | Any day's games: box scores, score by period, a game-flow chart, Elo before and after, officials, and who guarded whom                                                                                   |
+| **Favourites**   | The players and teams you starred, on one day: each one's line tinted against their own season, "Did not play" with the injury report's reason, a section a league                                       |
 | **Glossary**     | Every metric: what it means, how it is computed, which seasons it covers and how stable it is from one season to the next                                                                                |
+
+**Favourites.** A star on a player's or team's page, or on their row, keeps them: a gold mark and edge on their rows on every screen, a "Favourites" filter on the leaderboards, Explore's chart and Games (each favourite at their rank on the whole board), and the Favourites page. A player linked between college and pro is a favourite in both leagues. Favourites are kept in the app's settings file, so deleting a league's stats keeps them; nothing is summed or ranked across them.
 
 The **Data panel**, opened from the status line, shows what is loaded, lets you pause a load, and gives the data's credit.
 
