@@ -453,8 +453,18 @@ function CategoryTab(props: TabProps & { category: string }): React.JSX.Element 
     [position, scope, mode]
   )
   const view = useCallback(
-    (section: PageSection, result: StatsResult) =>
-      sectionViews([section], rankedPool(result, position), player, data.byId, mode, position),
+    (section: PageSection, result: StatsResult) => {
+      const ranked = rankedPool(result, position)
+      return sectionViews(
+        [section],
+        ranked,
+        player,
+        data.byId,
+        mode,
+        position,
+        poolSize(ranked, position)
+      )
+    },
     [position, player, data.byId, mode]
   )
   const note = useCallback(
@@ -845,9 +855,9 @@ function Overview({
   const { value: games } = useSeasonGames(scope.season, data.version)
   const ranked = result ? rankedPool(result, position) : null
   const pool = ranked ? poolSize(ranked, position) : 0
-  const tiles = ranked ? tileViews(ranked, player, data.byId, mode, position) : []
+  const tiles = ranked ? tileViews(ranked, player, data.byId, mode, position, pool) : []
   const view = ranked
-    ? sectionViews([OVERVIEW_SECTION], ranked, player, data.byId, mode, position)[0]
+    ? sectionViews([OVERVIEW_SECTION], ranked, player, data.byId, mode, position, pool)[0]
     : null
   const series = gameSeries(byGame, games, 'pts', 'Points')
   const fmt = (x: number): string => fmtStat(x, { unit: 'number', decimals: 1 })
@@ -1041,7 +1051,17 @@ function LinesTab({
   const ranked = rankedPool(result, position)
   return (
     <div className="flex flex-col gap-5">
-      <StatSections sections={sectionViews(sections, ranked, player, data.byId, mode, position)} />
+      <StatSections
+        sections={sectionViews(
+          sections,
+          ranked,
+          player,
+          data.byId,
+          mode,
+          position,
+          poolSize(ranked, position)
+        )}
+      />
       <Notes
         notes={[
           `Percentiles and ranks among ${poolSize(ranked, position)} qualified ${amongWords(position)}.`,

@@ -121,6 +121,18 @@ describe('cellTitle', () => {
     expect(cellTitle(v, info, null)).toContain('Rank 12\n')
   })
 
+  it('gives a metric’s own pool where it differs from the page’s line, and its minimum', () => {
+    const own = { ...info, qualifyBy: 'games', qualifyLabel: 'games' }
+    const pooled = { ...v, rank: 359, pool: 2049 }
+    expect(cellTitle(pooled, own, 'G', 1838)).toContain(
+      'Rank 359 of 2,049 guards, on the games minimum'
+    )
+    expect(cellTitle(pooled, info, 'G', 1838)).toContain('Rank 359 of 2,049 guards\n')
+    // The same pool as the line, or no line: as before.
+    expect(cellTitle({ ...pooled, pool: 1838 }, own, 'G', 1838)).toContain('Rank 359 among guards')
+    expect(cellTitle(pooled, own, 'G')).toContain('Rank 359 among guards')
+  })
+
   it('leaves out a percentile with no better side, and says when it does not qualify', () => {
     expect(cellTitle(v, { ...info, direction: 'neutral' }, 'F')).not.toContain('percentile')
     const low = { ...v, qualified: false, percentile: null, rank: null }

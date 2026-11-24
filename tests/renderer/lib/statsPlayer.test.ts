@@ -1,5 +1,7 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
+import { setLeague } from '@/lib/stats/league'
 import { sectionMetrics, sectionViews, statLine } from '@/lib/stats/dashboard'
+import { heatOf } from '@/lib/stats/format'
 import {
   careerQuery,
   careerRows,
@@ -159,6 +161,7 @@ describe('a stat line', () => {
 })
 
 describe('the pool', () => {
+  afterEach(() => setLeague('nba'))
   const pool = result([
     row('1', { pts: value(30), min: value(2000) }),
     row('2', { pts: value(20), min: value(1500) }),
@@ -178,6 +181,42 @@ describe('the pool', () => {
     expect(q).toMatchObject({ metrics: ['pts', 'min'], transform: 'perGame' })
     expect(q.scope.positions).toEqual(['G'])
     expect(positionQuery(['min'], null, SCOPE, 'raw').scope.positions).toBeUndefined()
+    // The NBA ranks the rows it holds: no engine pool, no count.
+    expect(q.rankAmong).toBeUndefined()
+    expect(q.poolSizes).toBeUndefined()
+  })
+
+  it('asks the engine to rank a college season among every qualified row, and to count the pool', () => {
+    setLeague('ncaam')
+    expect(positionQuery(['pts'], 'G', SCOPE, 'perGame')).toMatchObject({
+      rankAmong: 'min',
+      poolSizes: true
+    })
+  })
+
+  it('keeps the engine’s figures in a league of many rows, and counts the line from its pool', () => {
+    setLeague('ncaam')
+    // The fetch holds two guards; the engine ranked among 1,838 who qualify on minutes.
+    const engine = result([
+      row('1', {
+        pts: value(13.3, { rank: 359, percentile: 82, pool: 2049 }),
+        min: value(29.3, { rank: 346, percentile: 81, pool: 1838 })
+      }),
+      row('2', {
+        pts: value(2, { rank: null, percentile: null, pool: null }),
+        min: value(3, { qualified: false, rank: null, percentile: null, pool: null })
+      })
+    ])
+    const ranked = rankedPool(engine, 'G')
+    expect(ranked.rows[0].values.pts).toMatchObject({ rank: 359, percentile: 82 })
+    expect(poolSize(ranked, 'G')).toBe(1838)
+    // Nobody of the position ranked: no pool.
+    expect(poolSize(result([engine.rows[1]]), 'G')).toBe(0)
+    // A metric with its own pool says so in its rank's hover; the minutes read the line's.
+    const [tile] = tileViews(ranked, '1', byId, 'perGame', 'G', 1838)
+    expect(tile.title).toContain('Rank 359 of 2,049 guards')
+    const line = statLine('min', ranked, ranked.rows[0], byId, 'perGame', 'G', 1838)
+    expect(line.title).toContain('Rank 346 among guards')
   })
 
   it('reads the tiles, with a percentile chip only when qualified', () => {
@@ -236,6 +275,25 @@ describe('the rail', () => {
     const all = railQuery('ALL', null, 'min', SCOPE, 'perGame', byId)
     expect(all.metrics).toEqual(['min'])
     expect(all.scope.positions).toBeUndefined()
+  })
+
+  it('shades a college season by the engine’s percentiles, and numbers the listed rows itself', () => {
+    setLeague('ncaam')
+    try {
+      expect(railQuery('G', null, 'pts', SCOPE, 'perGame', byId).rankAmong).toBe('min')
+      const engine = result([
+        row('1', { pts: value(30, { percentile: 99, rank: 4 }), min: value(2000) }),
+        row('2', { pts: value(20, { percentile: 90, rank: 40 }), min: value(1500) })
+      ])
+      const rows = railRows(engine, 'pts', byId, 'perGame', '', null)
+      expect(rows.map((r) => [r.rank, r.heat])).toEqual([
+        [1, heatOf(99, 'higher')],
+        [2, heatOf(90, 'higher')]
+      ])
+    } finally {
+      setLeague('nba')
+    }
+    expect(railQuery('G', null, 'pts', SCOPE, 'perGame', byId).rankAmong).toBeUndefined()
   })
 
   it('offers metrics the catalogue has', () => {
