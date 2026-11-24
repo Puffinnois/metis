@@ -172,7 +172,8 @@ describe('the attribute tables of a professional league', () => {
     const b = await db.get<Row>(
       'SELECT * FROM team_attributes WHERE team_id = 20 AND season = 2026'
     )
-    expect(b).toMatchObject({ arena: null, head_coach: null, city: null })
+    // An interim head coach is the season's head coach.
+    expect(b).toMatchObject({ arena: null, head_coach: 'Stand In', city: null })
   })
 
   it('is what the player page’s header and profile read, not the roster again', async () => {

@@ -43,8 +43,11 @@ export function FiltersControl({
   byId,
   mode,
   seasons,
+  align = 'end',
   onChange
 }: {
+  /** Where the panel opens: the board's toolbar is at the right, the chart's at the left. */
+  align?: 'start' | 'end'
   items: readonly FilterItem[]
   filters: readonly StatsFilter[]
   byId: ReadonlyMap<string, MetricInfo>
@@ -77,7 +80,7 @@ export function FiltersControl({
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Content
-          align="end"
+          align={align}
           sideOffset={6}
           collisionPadding={12}
           aria-label="Filters"

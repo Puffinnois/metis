@@ -42,6 +42,15 @@ import { RAIL_POSITIONS } from '@/lib/stats/player'
 import { leaderRuleWords } from '@/lib/stats/qualifying'
 import { seasonOf, type StatsScope } from '@/lib/stats/scope'
 import { useStatsQuery, type StatsData } from '@/lib/stats/useStats'
+import { FilterChips, FiltersControl } from '@/components/stats/FiltersControl'
+import {
+  attributeItems,
+  filteredQuery,
+  filterNote,
+  itemsByKey,
+  metricItems
+} from '@/lib/stats/filters'
+import { useLeague } from '@/lib/stats/league'
 import { favouriteEdge, favouritesEmpty, useFavourites } from '@/lib/stats/favourites'
 import { currentLeague } from '@/lib/stats/league'
 import { cn } from '@/lib/utils'
@@ -99,10 +108,29 @@ export function StatsChart({
   )
   const favourites = useFavourites()
   const favSet = entity === 'player' ? favourites.players : favourites.teams
-  const view = useMemo(
-    () => (result ? chartView(result, state, data.byId, teams, favSet) : null),
-    [result, state, data.byId, teams, favSet]
+  // The conditions (D51): the engine answers which rows pass; the chart keeps their dots, its axes,
+  // means and percentiles staying the whole field's, as for the favourites.
+  const league = useLeague()
+  const tabNow = chartTab(state)
+  const filterItems = useMemo(
+    () => [...attributeItems(league, entity), ...metricItems(data.catalogue, tabNow)],
+    [league, entity, data.catalogue, tabNow]
   )
+  const itemOf = useMemo(() => itemsByKey(filterItems), [filterItems])
+  const fq = useMemo(() => filteredQuery(q, state, itemOf), [q, state, itemOf])
+  const filtered = useStatsQuery(fq, data.version, FRESH)
+  const passing = useMemo(
+    () => (fq && filtered.result ? new Set(filtered.result.rows.map((r) => r.id)) : null),
+    [fq, filtered.result]
+  )
+  const view = useMemo(
+    () =>
+      result && (!fq || passing)
+        ? chartView(result, state, data.byId, teams, favSet, passing)
+        : null,
+    [result, state, data.byId, teams, favSet, fq, passing]
+  )
+  const note = fq ? filterNote(filtered.result, state.filters ?? [], itemOf, entity) : null
   const groups = useMemo(() => chartMetrics(data.catalogue, entity), [data.catalogue, entity])
 
   const set = (next: Partial<ChartState>): void => onState((s) => ({ ...s, ...next }))
@@ -293,7 +321,28 @@ export function StatsChart({
               >
                 Favourites
               </CheckToggle>
+              <FiltersControl
+                items={filterItems}
+                filters={state.filters ?? []}
+                byId={data.byId}
+                mode={mode}
+                seasons={q.scope.seasons}
+                align="start"
+                onChange={(filters) => set({ filters, picks: [] })}
+              />
             </div>
+            <FilterChips
+              filters={state.filters ?? []}
+              items={filterItems}
+              byId={data.byId}
+              mode={mode}
+              onChange={(filters) => set({ filters, picks: [] })}
+            />
+            {note && (
+              <p className="m-0 text-[11.5px] leading-[1.45] text-fg-2" data-filter-note="">
+                {note}
+              </p>
+            )}
             <label className="flex h-7 items-center gap-1.5 rounded-[6px] border border-line bg-panel px-2 text-fg-3">
               <Search className="size-3.5 shrink-0" />
               <input
@@ -326,8 +375,8 @@ export function StatsChart({
               onCompare={() => onCompare(compareSubjects(entity, live))}
             />
           </div>
-          {error ? (
-            <Loading error={error} />
+          {error || filtered.error ? (
+            <Loading error={error ?? filtered.error ?? undefined} />
           ) : !view ? (
             <Loading />
           ) : view.kind === 'missing' ? (
@@ -597,7 +646,9 @@ function Ready({
           <span className="font-semibold text-fg">{view.dots.length}</span>{' '}
           {view.favourites
             ? `favourite${view.favourites.shown === 1 ? '' : 's'} shown of ${view.favourites.of} ${state.qualifiedOnly ? `qualified ${who}` : who}`
-            : `${state.qualifiedOnly ? `qualified ${who}` : who} shown`}
+            : view.filtered
+              ? `shown of ${view.filtered.of} ${state.qualifiedOnly ? `qualified ${who}` : who}, passing the filters`
+              : `${state.qualifiedOnly ? `qualified ${who}` : who} shown`}
         </span>
         <span>
           Dashed lines: qualified mean, {fmt(axes.x)(view.mean.x)} and {fmt(axes.y)(view.mean.y)}
