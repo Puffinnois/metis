@@ -1,4 +1,4 @@
-import type { MetricInfo } from '@shared/stats/types'
+import type { MetricInfo, StatsResult } from '@shared/stats/types'
 import type { SectionDef } from './dashboard'
 import { categoryViews } from './categoryViews'
 import type { TabDef } from './leaderboard'
@@ -71,4 +71,13 @@ export const OLD_TEAM_TABS: Readonly<Record<string, CategoryTab>> = {
   defense: 'cat:defense',
   shots: 'cat:shooting',
   plays: 'cat:playmaking'
+}
+
+/** How many of a section's metrics hold a value for the page's player or team in this scope. */
+export function valuedCount(section: PageSection, result: StatsResult, subject: string): number {
+  const row = result.rows.find((r) => r.id === subject)
+  return section.metrics.filter((id) => {
+    const v = row?.values[id]?.value
+    return v !== null && v !== undefined
+  }).length
 }

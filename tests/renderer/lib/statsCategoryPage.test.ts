@@ -6,7 +6,8 @@ import {
   OLD_PLAYER_TABS,
   OLD_TEAM_TABS,
   openAtFirst,
-  pageSections
+  pageSections,
+  valuedCount
 } from '@/lib/stats/categoryPage'
 import {
   boardCategories,
@@ -117,5 +118,16 @@ describe('a select or list shows each metric once', () => {
     expect(groups.find((g) => g.metrics.some((m) => m.id === 'dreb'))?.label).toBe(
       'Rebounding › Defensive'
     )
+  })
+})
+
+describe("a section's count of values", () => {
+  it('counts the metrics that hold a value for the page’s player or team', () => {
+    const section = { key: 'k', title: 'Key stats', metrics: ['a', 'b', 'c'] }
+    const result = {
+      rows: [{ id: 'p', values: { a: { value: 1 }, b: { value: null } } }]
+    } as unknown as Parameters<typeof valuedCount>[1]
+    expect(valuedCount(section, result, 'p')).toBe(1)
+    expect(valuedCount(section, result, 'someone else')).toBe(0)
   })
 })

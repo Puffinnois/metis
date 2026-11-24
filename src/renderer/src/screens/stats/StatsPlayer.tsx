@@ -469,6 +469,7 @@ function CategoryTab(props: TabProps & { category: string }): React.JSX.Element 
       <CategorySections
         key={category}
         sections={sections}
+        subject={player}
         query={query}
         view={view}
         note={note}

@@ -246,7 +246,12 @@ export const TRADITIONAL: MetricDef[] = [
   ...allSides('blk', 'Blocks', 'BLK', 'Blocked shots.', {
     ...count('blk', { ...f, ...nbaPerGame, tier: 'core' }),
     categories: ['defense.steals_blocks'],
-    opponents: ['offense.shooting', 'shooting.field_goals']
+    opponents: ['offense.shooting', 'shooting.field_goals'],
+    // The opponents' blocks are the team's shots blocked, shown on its own side of Shooting.
+    opponentsWords: {
+      label: 'Shots blocked by opponents',
+      description: "The team's shots its opponents blocked."
+    }
   }),
   ...allSides('pf', 'Personal fouls', 'PF', 'Personal fouls charged.', {
     ...count('pf', { ...f, direction: 'lower' }),

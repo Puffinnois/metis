@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { Loading, Notes } from '@/components/stats/parts'
 import { StatSections } from '@/components/stats/StatLines'
-import { openAtFirst, type PageSection } from '@/lib/stats/categoryPage'
+import { openAtFirst, valuedCount, type PageSection } from '@/lib/stats/categoryPage'
 import type { SectionView } from '@/lib/stats/dashboard'
 import { useStatsQuery } from '@/lib/stats/useStats'
 import type { StatsQuery, StatsResult } from '@shared/stats/types'
@@ -16,12 +16,15 @@ const FRESH = { keepLast: false }
  */
 export function CategorySections({
   sections,
+  subject,
   query,
   view,
   note,
   version
 }: {
   sections: PageSection[]
+  /** The player or team the page is about: the row whose values a section counts. */
+  subject: string
   /** The query a section's metrics are read with: the player's position pool, the league's teams. */
   query: (metrics: string[]) => StatsQuery
   /** The section's lines from the pool's answer. */
@@ -61,7 +64,14 @@ export function CategorySections({
             </span>
           </button>
           {open.has(s.key) && (
-            <SectionBody section={s} query={query} view={view} note={note} version={version} />
+            <SectionBody
+              section={s}
+              subject={subject}
+              query={query}
+              view={view}
+              note={note}
+              version={version}
+            />
           )}
         </section>
       ))}
@@ -71,12 +81,14 @@ export function CategorySections({
 
 function SectionBody({
   section,
+  subject,
   query,
   view,
   note,
   version
 }: {
   section: PageSection
+  subject: string
   query: (metrics: string[]) => StatsQuery
   view: (section: PageSection, result: StatsResult) => SectionView[]
   note: (result: StatsResult) => string
@@ -85,8 +97,15 @@ function SectionBody({
   const q = useMemo(() => query(section.metrics), [query, section.metrics])
   const { result, error } = useStatsQuery(q, version, FRESH)
   if (!result) return <Loading error={error} />
+  const valued = valuedCount(section, result, subject)
   return (
     <div className="flex flex-col gap-3">
+      {valued < section.metrics.length && (
+        <p className="m-0 text-[12px] text-fg-3" data-section-valued={valued}>
+          {valued} of {section.metrics.length} have a value here; the rest are not recorded for this
+          league or scope, each with its reason.
+        </p>
+      )}
       {/* The section's head is the fold's button above, so its lines go untitled. */}
       <StatSections sections={view(section, result).map((v) => ({ ...v, title: '' }))} />
       <Notes notes={[note(result), ...result.notes]} />
