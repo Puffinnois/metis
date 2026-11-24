@@ -125,9 +125,10 @@ export type KeyKind = 'player' | 'team' | 'opponents'
  * Key stats chosen, not derived (the manager's reviews of T1702.3 and T1702.4), in this order: how a
  * reader reads that category. A metric the league lacks is skipped and the next taken, 12 at most. A
  * category or kind that states none keeps the derived list (`headline`). Offense's and Defense's are
- * stated for both kinds: a team's rating and four factors lead at both ends.
+ * stated for both kinds: a team's rating and four factors lead at both ends. An entry that is a list
+ * takes the first of its metrics the league has: one place, several sources.
  */
-export const KEY_STATS: Readonly<Record<string, Partial<Record<KeyKind, readonly string[]>>>> = {
+export const KEY_STATS: Readonly<Record<string, Partial<Record<KeyKind, readonly KeyEntry[]>>>> = {
   offense: {
     team: [
       'team_ortg',
@@ -155,10 +156,11 @@ export const KEY_STATS: Readonly<Record<string, Partial<Record<KeyKind, readonly
       'ast_pct',
       'tov_pct',
       'usg_pct',
-      // Then the offensive on-court rating or model the league has.
-      'onc_ortg',
+      // Then the offensive model the league has, before the on-court rating, so the twelfth is a
+      // model where there is one.
       'sdv_o_rapm',
-      'sdv_ncaa_orapm'
+      'sdv_ncaa_orapm',
+      'onc_ortg'
     ]
   },
   defense: {
@@ -186,12 +188,34 @@ export const KEY_STATS: Readonly<Record<string, Partial<Record<KeyKind, readonly
       'def_rim_fg_pct',
       'deflections',
       'contested_shots',
-      // Then the defensive on-court rating and the models the league has.
-      'onc_drtg',
+      // Then the defensive models the league has, and the on-court rating last, as for Offense.
       'sdv_d_rapm',
-      'sdv_dbpm',
       'sdv_ncaa_drapm',
-      'sdv_box_dbpm'
+      'sdv_dbpm',
+      'sdv_box_dbpm',
+      'onc_drtg'
+    ]
+  },
+  // A player's overall value: the plus-minus model, the box-score models and their totals, then the
+  // on-court numbers, BOBAN and the composites. SportsDataverse's BPM comes before Metis's own.
+  impact: {
+    player: [
+      'sdv_rapm',
+      'sdv_ncaa_rapm',
+      'sdv_bpm',
+      'sdv_box_bpm',
+      'bpm',
+      'per',
+      'ws',
+      'ws_48',
+      'vorp',
+      'onoff_net',
+      'onc_net',
+      // The colleges have plus-minus from play by play only.
+      ['plus_minus', 'onc_plus_minus'],
+      'sdv_boban_skill',
+      'gmsc',
+      'pie'
     ]
   },
   // What a reader means by fouls first: committed, then drawn, then technicals and flagrants. The
@@ -270,6 +294,9 @@ export const KEY_STATS: Readonly<Record<string, Partial<Record<KeyKind, readonly
   }
 }
 
+/** A Key stats entry: a metric, or several for one place of which the first the league has is taken. */
+export type KeyEntry = string | readonly string[]
+
 /** The kind a tab's Key stats are stated for. */
 export const keyKind = (tab: TabDef, category: string): KeyKind =>
   tab.entity === 'player'
@@ -286,7 +313,11 @@ function chosenKeyStats(
 ): string[] | null {
   const list = KEY_STATS[category]?.[keyKind(tab, category)]
   if (!list) return null
-  const ids = list.filter((id) => metrics.some((m) => m.id === id)).slice(0, 12)
+  const offered = (id: string): boolean => metrics.some((m) => m.id === id)
+  const ids = list
+    .map((e) => (typeof e === 'string' ? (offered(e) ? e : null) : (e.find(offered) ?? null)))
+    .filter((id): id is string => id !== null)
+    .slice(0, 12)
   return ids.length > 0 ? ids : null
 }
 
