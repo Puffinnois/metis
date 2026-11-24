@@ -13,6 +13,12 @@ import type { Entity } from './types'
 
 export type AttributeType = 'number' | 'text' | 'date' | 'enum' | 'flag'
 
+/**
+ * The most values a text attribute's list offers the Filters control (T1701.2), the most held first:
+ * a college's hometowns over every season run past it, and "contains" finds any.
+ */
+export const ATTRIBUTE_VALUES_MAX = 3000
+
 /** How a number reads: a length in inches, pounds, years, seconds, repetitions, a season, seats. */
 export type AttributeUnit =
   'inches' | 'pounds' | 'years' | 'seconds' | 'percent' | 'reps' | 'season' | 'seats' | 'count'

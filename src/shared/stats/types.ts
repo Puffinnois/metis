@@ -382,6 +382,12 @@ export interface StatsFilter {
   value?: number | string | [number, number] | [string, string] | string[]
 }
 
+/** A value an attribute holds in scope, and how many rows hold it (T1701.2). */
+export interface StatsAttributeValue {
+  value: string
+  rows: number
+}
+
 export interface MetricValue {
   /** After the transform. */
   value: number | null

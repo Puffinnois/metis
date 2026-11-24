@@ -28,6 +28,7 @@ import type {
   StatsOtherPlayer,
   StatsAvailability,
   StatsGameListing,
+  StatsAttributeValue,
   StatsCoach,
   StatsIndexedPlayer,
   StatsPlayerInfo,
@@ -202,6 +203,15 @@ export interface Api {
     availability(league: LeagueId, players: string[]): Promise<StatsAvailability[]>
     /** The players' listings on the injury report for these games, the last before each (T1601.4). */
     gameListings(league: LeagueId, games: string[], players: string[]): Promise<StatsGameListing[]>
+    /**
+     * The values a text attribute holds for these seasons, most held first (T1701.2): what the
+     * Filters control offers for "any of" and "none of".
+     */
+    attributeValues(
+      league: LeagueId,
+      attribute: string,
+      seasons: number[]
+    ): Promise<StatsAttributeValue[]>
     /** A team's head and assistant coaches for a season; empty when the file has none. */
     coaches(league: LeagueId, team: string, season: number): Promise<StatsCoach[]>
     /** The shots a chart draws for a player or team in a scope, or why there are none. */
@@ -269,6 +279,7 @@ export const IPC = {
   statsOtherPlayers: 'stats:other-players',
   statsAvailability: 'stats:availability',
   statsGameListings: 'stats:game-listings',
+  statsAttributeValues: 'stats:attribute-values',
   statsCoaches: 'stats:coaches',
   statsShots: 'stats:shots',
   statsAssists: 'stats:assists',
