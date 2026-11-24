@@ -274,7 +274,7 @@ const PRIOR_METRICS: MetricDef[] = [
     'sdv_box_prior',
     sdv('Box prior'),
     head('BoxPrior'),
-    `The points per 100 possessions the player’s box score predicts, which SportsDataverse’s REML RAPM is pulled toward instead of zero. ${PRIOR_OWN} ${REGULAR_ONLY} ${BY_POSS}`,
+    `The points per 100 possessions the player’s box score predicts over the whole regular season, which SportsDataverse’s REML RAPM is pulled toward instead of zero. It differs from the box prior of the latest expected impact, which is as of a date within the season. ${PRIOR_OWN} ${REGULAR_ONLY} ${BY_POSS}`,
     { ...prior('box_prior', 'prior_poss', 4000), categories: ['impact.box_models'] }
   ),
   metric(
@@ -358,16 +358,16 @@ const current = (
 const LAST = 'pub_player_current_impact'
 const OPENING = 'pub_player_expected_impact'
 const LAST_WORDS =
-  'its last weekly estimate of the regular season, made in early April from every game before it'
+  'its latest weekly estimate of the season, from every game before its date: early April for a finished season, the latest week for the season under way'
 const OPENING_WORDS =
   'its estimate on opening night, made before the season’s first game from earlier seasons alone'
 
 const CURRENT_METRICS: MetricDef[] = [
   metric(
     'sdv_current_impact',
-    sdv('Current impact'),
-    head('CurImp'),
-    `The points per 100 possessions SportsDataverse expects the player to add, offence and defence together: ${LAST_WORDS}. ${CURRENT_OWN} ${ONE_STATE}`,
+    sdv('Expected impact, latest estimate'),
+    head('ExpLast'),
+    `The points per 100 possessions SportsDataverse expects the player to add, offence and defence together, as of ${LAST_WORDS}. ${CURRENT_OWN} ${ONE_STATE}`,
     {
       ...current('ci_total', 'ci_rows', LAST),
       categories: ['impact.pm_models', 'predictive.player_projections']
@@ -375,9 +375,9 @@ const CURRENT_METRICS: MetricDef[] = [
   ),
   metric(
     'sdv_o_current_impact',
-    sdv('Offensive current impact'),
-    head('OCurImp'),
-    `The offensive part of current impact: ${LAST_WORDS}. ${CURRENT_OWN} ${ONE_STATE}`,
+    sdv('Offensive expected impact, latest estimate'),
+    head('OExpLast'),
+    `The offensive part of the latest expected impact, as of ${LAST_WORDS}. ${CURRENT_OWN} ${ONE_STATE}`,
     {
       ...current('ci_off', 'ci_rows', LAST),
       categories: ['impact.pm_models', 'offense.impact']
@@ -385,9 +385,9 @@ const CURRENT_METRICS: MetricDef[] = [
   ),
   metric(
     'sdv_d_current_impact',
-    sdv('Defensive current impact'),
-    head('DCurImp'),
-    `The defensive part of current impact: ${LAST_WORDS}. ${CURRENT_OWN} ${ONE_STATE}`,
+    sdv('Defensive expected impact, latest estimate'),
+    head('DExpLast'),
+    `The defensive part of the latest expected impact, as of ${LAST_WORDS}. ${CURRENT_OWN} ${ONE_STATE}`,
     {
       ...current('ci_def', 'ci_rows', LAST),
       categories: ['impact.pm_models', 'defense.impact']
@@ -395,37 +395,37 @@ const CURRENT_METRICS: MetricDef[] = [
   ),
   metric(
     'sdv_expected_impact',
-    sdv('Expected impact entering the season'),
-    head('ExpImp'),
+    sdv('Expected impact, opening night'),
+    head('ExpOpen'),
     `The points per 100 possessions SportsDataverse expected the player to add before the season began: ${OPENING_WORDS}. A published forecast, not a prediction from Metis. ${CURRENT_OWN} ${ONE_STATE}`,
     { ...current('ce_total', 'ce_rows', OPENING), categories: ['predictive.player_projections'] }
   ),
   metric(
     'sdv_o_expected_impact',
-    sdv('Offensive expected impact entering the season'),
-    head('OExpImp'),
-    `The offensive part of the expected impact entering the season: ${OPENING_WORDS}. ${CURRENT_OWN} ${ONE_STATE}`,
+    sdv('Offensive expected impact, opening night'),
+    head('OExpOpen'),
+    `The offensive part of the opening-night expected impact: ${OPENING_WORDS}. ${CURRENT_OWN} ${ONE_STATE}`,
     { ...current('ce_off', 'ce_rows', OPENING), categories: ['predictive.player_projections'] }
   ),
   metric(
     'sdv_d_expected_impact',
-    sdv('Defensive expected impact entering the season'),
-    head('DExpImp'),
-    `The defensive part of the expected impact entering the season: ${OPENING_WORDS}. ${CURRENT_OWN} ${ONE_STATE}`,
+    sdv('Defensive expected impact, opening night'),
+    head('DExpOpen'),
+    `The defensive part of the opening-night expected impact: ${OPENING_WORDS}. ${CURRENT_OWN} ${ONE_STATE}`,
     { ...current('ce_def', 'ce_rows', OPENING), categories: ['predictive.player_projections'] }
   ),
   metric(
     'sdv_current_prior',
-    sdv('Current-impact box prior'),
-    head('CurPrior'),
-    `The points per 100 possessions the box score predicts, which current impact starts from and moves away from as the games come in: ${LAST_WORDS}. ${CURRENT_OWN} ${ONE_STATE}`,
+    sdv('Box prior of the latest estimate'),
+    head('LastPrior'),
+    `The points per 100 possessions the box score predicts, which the expected impact starts from and moves away from as the games come in, as of ${LAST_WORDS}. It differs from the impact file's Box prior (SportsDataverse), which is fitted once on the whole regular season. ${CURRENT_OWN} ${ONE_STATE}`,
     { ...current('ci_prior', 'ci_rows', LAST), categories: ['impact.box_models'] }
   ),
   metric(
     'sdv_o_current_prior',
-    sdv('Offensive current-impact box prior'),
-    head('OCurPrior'),
-    `The offensive part of the current-impact box prior: ${LAST_WORDS}. ${CURRENT_OWN} ${ONE_STATE}`,
+    sdv('Offensive box prior of the latest estimate'),
+    head('OLastPrior'),
+    `The offensive part of the latest estimate's box prior, as of ${LAST_WORDS}. ${CURRENT_OWN} ${ONE_STATE}`,
     {
       ...current('ci_o_prior', 'ci_rows', LAST),
       categories: ['impact.box_models', 'offense.impact']
@@ -433,9 +433,9 @@ const CURRENT_METRICS: MetricDef[] = [
   ),
   metric(
     'sdv_d_current_prior',
-    sdv('Defensive current-impact box prior'),
-    head('DCurPrior'),
-    `The defensive part of the current-impact box prior: ${LAST_WORDS}. ${CURRENT_OWN} ${ONE_STATE}`,
+    sdv('Defensive box prior of the latest estimate'),
+    head('DLastPrior'),
+    `The defensive part of the latest estimate's box prior, as of ${LAST_WORDS}. ${CURRENT_OWN} ${ONE_STATE}`,
     {
       ...current('ci_d_prior', 'ci_rows', LAST),
       categories: ['impact.box_models', 'defense.impact']

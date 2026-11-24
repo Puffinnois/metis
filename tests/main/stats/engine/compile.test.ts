@@ -245,3 +245,36 @@ describe('the on-court table, read through built', () => {
     expect(c.gaps[2]).toBeNull()
   })
 })
+
+describe('a published metric before its source has a file of the season', () => {
+  const held = (seasons: number[]): NonNullable<Parameters<typeof compileQuery>[1]['held']> => ({
+    seasons: new Map([['src_nba_current_impact', new Set(seasons)]]),
+    checked: '2026-11-24T05:10:00Z'
+  })
+  const ask = (season: number, have: number[]): (string | null)[] =>
+    compileQuery(
+      {
+        entity: 'player',
+        metrics: ['sdv_current_impact', 'pts'],
+        scope: { seasons: [season] }
+      } as StatsQuery,
+      { ...CTX, held: held(have) }
+    ).gaps
+
+  it('says it is not published yet, and when the refresh last looked, for that metric alone', () => {
+    expect(ask(2027, [2025, 2026])).toEqual([
+      'Not published yet for 2026-27 (last looked for on 2026-11-24).',
+      null
+    ])
+  })
+
+  it('answers once the file is held, and gives no such reason without what the file holds', () => {
+    expect(ask(2026, [2025, 2026])).toEqual([null, null])
+    expect(
+      compileQuery(
+        { ...base, metrics: ['sdv_current_impact'], scope: { seasons: [2027] } } as StatsQuery,
+        CTX
+      ).gaps
+    ).toEqual([null])
+  })
+})

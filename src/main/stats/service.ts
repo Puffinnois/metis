@@ -40,7 +40,7 @@ import { sqlString, StatsDb, type Row } from './db'
 import { databaseBytes, freeBytes, roomNeeded } from './disk'
 import { createDownloads } from './download'
 import { adoptFormerStatsFile, statsFilePath } from './files'
-import { StatsQueryError } from './engine/compile'
+import { StatsQueryError, type HeldSources } from './engine/compile'
 import { catalogueInfo } from './engine/registry'
 import { runQuery } from './engine/run'
 import { priorsOf, readStability } from './models/metricStability'
@@ -243,6 +243,16 @@ export async function openStatsService(
     )
     return run
   }
+  // The seasons of each source the file holds, and when the refresh last looked: read once and kept
+  // until a refresh ends, for the reason a published metric gives before its source's first file.
+  let held: Promise<HeldSources> | null = null
+  const heldOf = (conn: StatsDb): Promise<HeldSources> => {
+    held ??= sourceSeasons(conn).catch((err) => {
+      held = null
+      throw err
+    })
+    return held
+  }
   // Every metric's stability (Plan T1006), read once and kept until a refresh ends: it rides with the
   // catalogue, and its priors with each shrunk query, at no cost to either.
   let stability: Promise<Map<string, MetricStability>> | null = null
@@ -307,8 +317,9 @@ export async function openStatsService(
       } finally {
         busy = false
         progress = null
-        // The models may have measured stability again.
+        // The models may have measured stability again, and new files may have arrived.
         stability = null
+        held = null
       }
     },
     status: async () => {
@@ -418,7 +429,8 @@ export async function openStatsService(
         return runQuery(reader, query, {
           league,
           currentSeason: league.currentSeason(new Date()),
-          priors
+          priors,
+          held: await heldOf(reader)
         })
       }),
     catalogue: () => read(async (reader) => catalogueInfo(league, await stabilityOf(reader))),
@@ -616,5 +628,22 @@ export async function openStatsService(
     assists: none.assists,
     gameFlow: none.gameFlow,
     status: async () => ({ ...(await service.status()), noData: league.notBuilt })
+  }
+}
+
+/**
+ * The seasons of each source table the file holds a file of (`source_state`, keyed by source id), and
+ * when a refresh last finished a step: what a published metric's "not published yet" reason reads.
+ */
+async function sourceSeasons(db: StatsDb): Promise<HeldSources> {
+  const rows = await db.all<{ source: string; seasons: number[] }>(
+    'SELECT source, list(season) AS seasons FROM source_state GROUP BY 1'
+  )
+  const last = await db.get<{ at: string | null }>(
+    'SELECT max(finished_at) AS at FROM sync_log WHERE finished_at IS NOT NULL'
+  )
+  return {
+    seasons: new Map(rows.map((r) => [`src_${r.source}`, new Set(r.seasons.map(Number))])),
+    checked: last?.at ?? null
   }
 }

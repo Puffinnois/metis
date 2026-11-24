@@ -297,6 +297,24 @@ describe('refreshStats', () => {
     ])
   })
 
+  it('asks again the next day for a season’s file not published yet, and loads it once it is', async () => {
+    // The season under way before its source's first file (`nba_current_impact`, T1703.2): a 404 is a
+    // skip, never a failure, and the next day's refresh asks again with nothing new in Metis.
+    const db = await openTestDb()
+    const dir = tempDir()
+    const weekly = source('w', { firstSeason: 2027 })
+    const file = await writeFixture(db, dir, 'w.parquet', 'SELECT 1 AS x')
+    const today = await sync(db, fakeDownloads({}), [weekly])
+    expect(today.steps.map((st) => [st.source, st.status, st.message])).toEqual([
+      ['stats:w:2027', 'skipped', 'not published yet']
+    ])
+    const later = fakeDownloads({ [fileUrl(weekly, 2027)]: { file, etag: '"w"' } })
+    const tomorrow = await sync(db, later, [weekly], { now: new Date(NOW.getTime() + 25 * HOUR) })
+    expect(later.asked.map(([url]) => url)).toEqual([fileUrl(weekly, 2027)])
+    expect(tomorrow.steps.map((st) => [st.source, st.status])).toEqual([['stats:w:2027', 'ok']])
+    expect(await db.all('SELECT season, x FROM src_w')).toEqual([{ season: 2027, x: 1 }])
+  })
+
   it('does not run a step again within the day', async () => {
     const db = await openTestDb()
     const t = source('t')
