@@ -338,6 +338,38 @@ describe('compareView', () => {
     ])
   })
 
+  it('reads the default rows as a reader reads a player, rows the user chose as before', () => {
+    const cols = defaultColumns('player', catalogue)
+    const cats = (reader: boolean): string[] => [
+      ...new Set(
+        compareView(
+          null,
+          ['a', null, null],
+          cols,
+          byId,
+          'perGame',
+          'player',
+          [],
+          reader
+        ).groups.map((g) => g.label.split(' › ')[0])
+      )
+    ]
+    const order = cats(true)
+    const at = (c: string): number => order.indexOf(c)
+    expect(order.slice(0, 5)).toEqual([
+      'Scoring',
+      'Shooting',
+      'Playmaking',
+      'Rebounding',
+      'Defense'
+    ])
+    expect(at('Offense')).toBeGreaterThan(at('Defense'))
+    expect(at('Impact')).toBeGreaterThan(at('Offense'))
+    // The same metrics either way; a saved comparison keeps the registry's order.
+    expect(cats(false)[0]).toBe('Offense')
+    expect(cats(false).sort()).toEqual([...order].sort())
+  })
+
   it('marks the best value the metric’s way, both of a tie for best', () => {
     // 25.04 and 25.01 both read 25.0: a tie at the shown precision.
     expect(line('pts').cells.map((c) => c?.lead)).toEqual([true, true, false])

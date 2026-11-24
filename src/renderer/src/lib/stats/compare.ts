@@ -140,6 +140,31 @@ export const DEFAULT_FAMILIES: Record<Entity, MetricFamily[]> = {
 /** The registry's order of sub-groups, for grouping the rows. */
 const GROUP_ORDER: string[] = CATEGORIES.flatMap((c) => c.groups.map((g) => `${c.id}.${g.id}`))
 
+/**
+ * The order a reader reads the default rows in: scoring, shooting, playmaking, rebounding, defence,
+ * usage, impact (a team's results first). The umbrellas' other sub-groups sit before Defense's; what
+ * is not named keeps the registry's order after them.
+ */
+const READER_ORDER = [
+  'results',
+  'scoring',
+  'shooting',
+  'playmaking',
+  'rebounding',
+  'offense',
+  'defense',
+  'offense.usage',
+  'impact'
+]
+
+/** A group's place in the reader's order: its sub-group if named, else its category. */
+function readerRank(group: string): number {
+  const at = READER_ORDER.indexOf(group)
+  if (at >= 0) return at
+  const cat = READER_ORDER.indexOf(group.split('.')[0])
+  return cat >= 0 ? cat : READER_ORDER.length
+}
+
 /** Players are qualified on minutes, so the minutes row always stays. */
 const QUALIFIER = 'min'
 
@@ -404,7 +429,9 @@ export function compareView(
   mode: BoardMode,
   entity: Entity,
   /** Each slot's seasons in scope, for coverage over several seasons; null when unknown or one season. */
-  slotSeasons: readonly (readonly number[] | null)[] = []
+  slotSeasons: readonly (readonly number[] | null)[] = [],
+  /** The default rows read in the reader's order; rows the user chose keep the registry's. */
+  readerOrder = false
 ): CompareView {
   const leads = slots.map(() => 0)
   let counted = 0
@@ -491,8 +518,9 @@ export function compareView(
     ])
   }
   const order = (p: string): number => (p === 'other' ? Infinity : GROUP_ORDER.indexOf(p))
+  const rank = (p: string): number => (readerOrder && p !== 'other' ? readerRank(p) : 0)
   const groups = [...byFamily]
-    .sort(([a], [b]) => order(a) - order(b))
+    .sort(([a], [b]) => rank(a) - rank(b) || order(a) - order(b))
     .map(([group, list]) => ({
       label: group === 'other' ? 'Other' : (primaryLabel(list[0]?.info ?? undefined) ?? group),
       rows: list

@@ -117,7 +117,16 @@ export function StatsCompare({
     const own = infos[k].value?.seasons
     return own ? own.filter((s) => list.includes(s)) : null
   })
-  const view = compareView(ranked, slots, columns, data.byId, mode, entity, slotSeasons)
+  const view = compareView(
+    ranked,
+    slots,
+    columns,
+    data.byId,
+    mode,
+    entity,
+    slotSeasons,
+    state.columns[entity] === null
+  )
   const filled = slots.filter((s) => s !== null).length
 
   const [searching, setSearching] = useState(false)

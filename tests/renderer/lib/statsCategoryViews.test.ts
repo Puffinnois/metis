@@ -93,7 +93,7 @@ describe("a board's category tabs (D52)", () => {
     const ids = new Set(CATALOGUE.map((m) => m.id))
     for (const end of Object.values(KEY_STATS))
       for (const list of Object.values(end))
-        for (const id of list) expect(ids.has(id), id).toBe(true)
+        for (const id of list.flat()) expect(ids.has(id), id).toBe(true)
     const first = {
       'team offense': [
         'team_ortg',
@@ -124,15 +124,26 @@ describe("a board's category tabs (D52)", () => {
         expect(key.metrics.length).toBeLessThanOrEqual(12)
       }
     }
-    // The NBA players' defence: rim FG% allowed, deflections and contests, then the rating and models.
+    // The NBA players' defence: rim FG% allowed, deflections and contests, then the models and rating.
     expect(categoryViews(NBA, players, 'defense')[0].metrics.slice(6)).toEqual([
       'def_rim_fg_pct',
       'deflections',
       'contested_shots',
-      'onc_drtg',
       'sdv_d_rapm',
-      'sdv_dbpm'
+      'sdv_dbpm',
+      'onc_drtg'
     ])
+    // Offense's twelfth is the league's offensive model where it has one.
+    for (const [id, model] of [
+      ['nba', 'sdv_o_rapm'],
+      ['wnba', 'sdv_o_rapm'],
+      ['ncaam', 'sdv_ncaa_orapm'],
+      ['ncaaw', 'sdv_ncaa_orapm']
+    ] as const) {
+      const key = categoryViews(catalogueInfo(LEAGUES[id]), players, 'offense')[0].metrics
+      expect(key[11], id).toBe(model)
+      expect(key, id).not.toContain('onc_ortg')
+    }
     // A league without tracking takes the next: the colleges' defensive RAPM and box model.
     const ncaam = categoryViews(catalogueInfo(LEAGUES.ncaam), players, 'defense')[0].metrics
     expect(ncaam).not.toContain('def_rim_fg_pct')
@@ -140,6 +151,51 @@ describe("a board's category tabs (D52)", () => {
     expect(categoryViews(catalogueInfo(LEAGUES.ncaam), team, 'offense')[0].metrics).toContain(
       'sdv_adj_o'
     )
+  })
+
+  it('opens a player’s Impact on the models, then on-court numbers, BOBAN and composites', () => {
+    const impact = (id: (typeof LEAGUE_IDS)[number]): string[] =>
+      categoryViews(catalogueInfo(LEAGUES[id]), players, 'impact')[0].metrics
+    expect(impact('nba')).toEqual([
+      'sdv_rapm',
+      'sdv_bpm',
+      'bpm',
+      'per',
+      'ws',
+      'ws_48',
+      'vorp',
+      'onoff_net',
+      'onc_net',
+      'plus_minus',
+      'sdv_boban_skill',
+      'gmsc'
+    ])
+    expect(impact('wnba').slice(0, 6)).toEqual([
+      'sdv_rapm',
+      'sdv_bpm',
+      'per',
+      'ws',
+      'ws_48',
+      'onoff_net'
+    ])
+    expect(impact('wnba')).toContain('sdv_boban_skill')
+    for (const id of ['ncaam', 'ncaaw'] as const) {
+      // No box-score plus-minus in the colleges: the one from play by play takes its place.
+      expect(impact(id), id).toEqual([
+        'sdv_ncaa_rapm',
+        'sdv_box_bpm',
+        'per',
+        'ws',
+        'ws_48',
+        'onoff_net',
+        'onc_net',
+        'onc_plus_minus',
+        'gmsc',
+        'pie'
+      ])
+    }
+    // A team's Impact keeps its three sections, with no Key stats repeating them.
+    expect(categoryViews(NBA, team, 'impact').map((v) => v.key)).not.toContain(KEY_VIEW)
   })
 
   it('opens Fouls, Scoring and a team’s Shooting on their chosen key stats (T1702.4)', () => {

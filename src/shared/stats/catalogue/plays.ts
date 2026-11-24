@@ -340,7 +340,8 @@ const ENTRIES: Entry[] = [
   {
     key: 'fd',
     label: 'Fouls drawn',
-    short: 'PFD',
+    // "pbp" tells it from the NBA box score's fouls drawn, which covers other seasons.
+    short: 'PFD pbp',
     description:
       'Personal fouls drawn, from ESPN’s play by play, which names the fouled player from 2006-07 to 2016-17 only.',
     opts: {
@@ -355,7 +356,7 @@ const ENTRIES: Entry[] = [
   {
     key: 'fd_shooting',
     label: 'Shooting fouls drawn',
-    short: 'S PFD',
+    short: 'S PFD pbp',
     description: 'Shooting fouls drawn, from ESPN’s play by play, 2006-07 to 2016-17.',
     opts: {
       ...countOf('fd_shooting', {
