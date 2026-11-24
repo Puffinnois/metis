@@ -547,7 +547,7 @@ A metric that fails reads null with "Built at this league's next refresh." for t
 - **The published sources only:** the last two are for published metrics. A source the file holds no season of has its own reason (left out, or not loaded yet). A source of one file for every season, and a league with no published tables, get neither.
 - **A release of many files** into one table (play types, hustle, matchup rollups) keeps a `source_state` row per file. Its table holds a season when any of its files does.
 - **A scope of several seasons:** when some seasons hold a file, the metric answers for those, and the query's notes name the others in the same words.
-- **On the real load** (the NBA and the WNBA refreshed on 2026-11-23, `~/.cache/metis-dev/t1703-boban`), every published metric's source matched: 604 NBA metrics and 155 WNBA metrics. No metric has a finished season without a file. Only `nba_current_impact` has no file yet for 2026-27 (9 metrics).
+- **On the real load** (the NBA and the WNBA refreshed on 2026-11-24, `~/.cache/metis-dev/t1703-boban`), every published metric's source matched: 604 NBA metrics and 155 WNBA metrics. No metric has a finished season without a file. Only `nba_current_impact` has no file yet for 2026-27 (9 metrics).
 
 ## Attributes and filters
 
@@ -858,7 +858,7 @@ The last step of a refresh, after `stats:plays` (`runModelsBuild` in `sync.ts`),
 - the last run failed: the `models:<season>` rows are cleared only when a run finishes, so the next refresh runs it again with nothing downloaded;
 - the game tables were rebuilt because their recipe or the identity changed (`derivedStale` in `sync.ts`): every builder recomputes every season.
 
-**After a recipe change that only adds columns.** The last rule recomputes the models even when the new recipe only adds columns no model reads. Measured on the upgrade from 1.3.0 (2026-11-24, below): the college game recipe went from version 4 to 6 for the half and transition splits and the seconds per possession, and the models then took 301 s for the men and 263 s for the women, against 167 s and 113 s for the game tables themselves. It is left as it is. The step cannot tell which columns a builder reads (a builder reads the game tables through its own SQL, with `have` for what is present), and a recipe change may also change the values of columns that are there already. Recomputing every season is the one rule that is right for both. It costs one long refresh per recipe change, and the screens answer from the file throughout, since each read has its own connection.
+**After a recipe change that only adds columns.** The last rule recomputes the models even when the new recipe only adds columns no model reads. Measured on the upgrade from 1.3.0 (2026-11-24, below): the college game recipe went from version 4 to 6 for the half and transition splits and the seconds per possession, and the models then took 213 s for the men and 201 s for the women, against 159 s and 95 s for the game tables themselves. It is left as it is. The step cannot tell which columns a builder reads (a builder reads the game tables through its own SQL, with `have` for what is present), and a recipe change may also change the values of columns that are there already. Recomputing every season is the one rule that is right for both. It costs one long refresh per recipe change, and the screens answer from the file throughout, since each read has its own connection.
 
 It waits until `game`, `team`, `team_game` and `player_game` exist. A sealed season whose files did not change is never recomputed, so a daily refresh computes the current season (and any season whose files changed) only.
 
@@ -1128,3 +1128,29 @@ node scripts/check-source-rows.mjs /tmp/metis-load ~/.cache/metis-dev/wnba-raw -
 ```bash
 node scripts/stats-sql.mjs /tmp/metis-load statements.sql
 ```
+
+### The first refresh after the upgrade from 1.3.0
+
+A 1.3.0 file's first refresh on a later build rebuilds what that build's recipes changed. Measured on 2026-11-24 at commit `f2ae113` (the `fix/missing-built-column` branch on `main` at `1e3ef3c`):
+
+- each league's file of the four-league 1.3.0 load (`~/.cache/metis-dev/gate13c`) was copied with its refresh paused;
+- each copy had the real refresh run on it with every download answering "unchanged", so only the rebuilds a new version forces ran;
+- peak memory is the process's maximum resident size (`/usr/bin/time`).
+
+| League     | Steps rebuilt (seconds)                                    | In all | Peak memory | File before → after |
+| ---------- | ---------------------------------------------------------- | ------ | ----------- | ------------------- |
+| NCAA Men   | game tables 158.5, attributes 1.0, models 212.8            | 375 s  | 2.24 GB     | 4.31 GB → 4.44 GB   |
+| NCAA Women | game tables 95.4, attributes 0.5, models 201.1             | 298 s  | 2.35 GB     | 4.09 GB → 4.11 GB   |
+| WNBA       | attributes 0.1, published 2.0, attributes 0.1, models 13.3 | 16 s   | 1.15 GB     | 852 MB → 870 MB     |
+| NBA        | attributes 0.3, published 6.8, attributes 0.2, models 41.4 | 53 s   | 2.07 GB     | 5.34 GB → 5.41 GB   |
+
+What forces each step:
+
+- the colleges' game tables: the college game recipe went from version 4 to 6 (the half-court and transition splits, the seconds per possession);
+- the attributes: new since 1.3.0 (D51), and built again after the published tables;
+- the professional leagues' published tables: the published recipes changed (NBA 18, WNBA 5);
+- the models: in the colleges, the rebuilt game tables (see "The `stats:models` step"); in every league, `metric_stability`'s version follows the catalogue.
+
+A real refresh adds the downloads on top: the NBA's new `nba_current_impact` release, which this measurement does not fetch, and any file changed since the load. Through it all the screens read the file. A metric whose table or column is not built yet reads "Built at this league's next refresh." until the step that builds it ends (see "A file older than the build").
+
+**A trap when measuring on a copy:** an app launched on a profile whose `metis.db` lists a league with no stats file creates an empty file for it and starts a first load. Copy every league's file a profile lists, or remove the league from the copy's settings.
