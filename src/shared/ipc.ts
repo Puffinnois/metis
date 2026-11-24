@@ -26,6 +26,7 @@ import type {
   StatsProfile,
   StatsOtherCareer,
   StatsOtherPlayer,
+  RatingHistory,
   StatsAvailability,
   StatsGameListing,
   StatsAttributeValue,
@@ -201,6 +202,8 @@ export interface Api {
     otherPlayers(league: LeagueId): Promise<StatsOtherPlayer[]>
     /** Players' status on the latest official injury report; those it does not list are left out. */
     availability(league: LeagueId, players: string[]): Promise<StatsAvailability[]>
+    /** A player's ratings over time, each series named with its maker (Plan T1704). */
+    ratingHistory(league: LeagueId, player: string): Promise<RatingHistory>
     /** The players' listings on the injury report for these games, the last before each (T1601.4). */
     gameListings(league: LeagueId, games: string[], players: string[]): Promise<StatsGameListing[]>
     /**
@@ -278,6 +281,7 @@ export const IPC = {
   statsOtherCareer: 'stats:other-career',
   statsOtherPlayers: 'stats:other-players',
   statsAvailability: 'stats:availability',
+  statsRatingHistory: 'stats:rating-history',
   statsGameListings: 'stats:game-listings',
   statsAttributeValues: 'stats:attribute-values',
   statsCoaches: 'stats:coaches',

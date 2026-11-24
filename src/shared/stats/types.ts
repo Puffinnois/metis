@@ -599,6 +599,54 @@ export interface StatsAvailability {
   gameId: string | null
 }
 
+/**
+ * How often a rating series has a point (Plan T1704): a snapshot when an import brings one (DARKO's
+ * files, D55), a week (SportsDataverse's expected impact), or a game (Metis's own estimate, T1703.4).
+ */
+export type RatingGrain = 'snapshot' | 'weekly' | 'game'
+
+/** One point of a rating series: the rating as its maker gave it on a date. */
+export interface RatingPoint {
+  /** The day the rating is as of, YYYY-MM-DD: from the games before it, where the maker says so. */
+  date: string
+  /** The season it belongs to, by final year (2026 = 2025-26). */
+  season: number
+  /** In the series' unit; null where the source has none that day. */
+  total: number | null
+  offense: number | null
+  defense: number | null
+  /** What the point was computed from, where the source says: possessions played to that date. */
+  possessions: number | null
+  /** The last game before the point, YYYY-MM-DD, where the source says. */
+  lastGame: string | null
+}
+
+/** One maker's rating of one player over time, every point the file holds, oldest first. */
+export interface RatingSeries {
+  /** Stable across releases: `sdv_expected_impact`, `darko_dpm`, `metis_estimate`. */
+  id: string
+  /** As a screen names it: "Expected impact (SportsDataverse)". */
+  label: string
+  /** Whose rating it is, always named: "SportsDataverse", "Kostya Medvedovsky (DARKO)". */
+  maker: string
+  unit: MetricUnit
+  grain: RatingGrain
+  points: RatingPoint[]
+  /** What the series covers and what it lacks, each a sentence ("Weekly from 2006-07 to 2025-26."). */
+  notes: string[]
+}
+
+/**
+ * A player's ratings over time, for the chart on the player page (Plan T1704): every series the file
+ * holds for them, each named with its maker. An empty list says why (`reason`), never an error.
+ */
+export interface RatingHistory {
+  playerId: string
+  series: RatingSeries[]
+  /** Why there is no series, or none of a kind: "Built at this league's next refresh." */
+  reason: string | null
+}
+
 /** One member of a team's staff for a season, from the NBA's coach file. */
 export interface StatsCoach {
   id: string
