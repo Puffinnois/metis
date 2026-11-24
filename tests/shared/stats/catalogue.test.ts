@@ -140,21 +140,35 @@ interface NcaaSide {
   rimm_ast: number
   pts: number
   poss: number
+  /** The half-court and the rest of the transition splits (T1703.2), worked out by `halfAndTrans`. */
+  [split: string]: number
 }
+
+/** A side's half-court counts and the rest of its transition counts, distinct for each side by `k`. */
+const halfAndTrans = (k: number): Record<string, number> => ({
+  ...{ ast_trans: 2 * k, orb_trans: k, drb_trans: 3 * k, stl_trans: k + 1, blk_trans: k + 2 },
+  ...{ midm_trans: k, mida_trans: 3 * k, pts_half: 16 * k, fgm_half: 6 * k, fga_half: 15 * k },
+  ...{ fg3m_half: k + 1, fg3a_half: 4 * k, ftm_half: 3 * k, fta_half: 4 * k, rimm_half: 3 * k },
+  ...{ rima_half: 5 * k, midm_half: 2 * k, mida_half: 5 * k, ast_half: 4 * k, tov_half: 2 * k },
+  ...{ orb_half: k + 3, drb_half: 5 * k, stl_half: k + 4, blk_half: k + 5 }
+})
 const NCAA_PLAYER: NcaaSide = {
   ...{ fgm: 9, fga: 20, fg3m: 2, rimm: 5, rima: 8, midm: 2, mida: 6, pbackm: 2, pbacka: 3 },
   ...{ blk_rim: 2, fgm_trans: 3, fga_trans: 5, fg3m_trans: 1, pts_trans: 8, fgm_ast: 4 },
-  ...{ fg3m_ast: 2, rimm_ast: 3, pts: 24, poss: 60 }
+  ...{ fg3m_ast: 2, rimm_ast: 3, pts: 24, poss: 60 },
+  ...halfAndTrans(1)
 }
 const NCAA_TEAM: NcaaSide = {
   ...{ fgm: 60, fga: 130, fg3m: 18, rimm: 30, rima: 50, midm: 12, mida: 30, pbackm: 9 },
   ...{ pbacka: 14, blk_rim: 7, fgm_trans: 16, fga_trans: 28, fg3m_trans: 5, pts_trans: 40 },
-  ...{ fgm_ast: 38, fg3m_ast: 15, rimm_ast: 17, pts: 160, poss: 140 }
+  ...{ fgm_ast: 38, fg3m_ast: 15, rimm_ast: 17, pts: 160, poss: 140 },
+  ...halfAndTrans(7)
 }
 const NCAA_OPP: NcaaSide = {
   ...{ fgm: 55, fga: 128, fg3m: 15, rimm: 26, rima: 47, midm: 14, mida: 33, pbackm: 7 },
   ...{ pbacka: 12, blk_rim: 5, fgm_trans: 12, fga_trans: 22, fg3m_trans: 3, pts_trans: 30 },
-  ...{ fgm_ast: 30, fg3m_ast: 12, rimm_ast: 15, pts: 150, poss: 139 }
+  ...{ fgm_ast: 30, fg3m_ast: 12, rimm_ast: 15, pts: 150, poss: 139 },
+  ...halfAndTrans(6)
 }
 const ncaaColumns = (s: NcaaSide, prefix: string, games: number): Record<string, number> => ({
   ...Object.fromEntries(Object.entries(s).map(([k, v]) => [`${prefix}ncaa_${k}`, v])),
@@ -175,7 +189,25 @@ const NCAA_SHARED: Record<string, (s: NcaaSide) => number> = {
   ncaa_trans_efg_pct: (s) => (s.fgm_trans + 0.5 * s.fg3m_trans) / s.fga_trans,
   ncaa_assisted_pct: (s) => s.fgm_ast / s.fgm,
   ncaa_assisted_3pm_pct: (s) => s.fg3m_ast / s.fg3m,
-  ncaa_assisted_rim_pct: (s) => s.rimm_ast / s.rimm
+  ncaa_assisted_rim_pct: (s) => s.rimm_ast / s.rimm,
+  ncaa_trans_ast: (s) => s.ast_trans,
+  ncaa_trans_orb: (s) => s.orb_trans,
+  ncaa_trans_drb: (s) => s.drb_trans,
+  ncaa_trans_stl: (s) => s.stl_trans,
+  ncaa_trans_blk: (s) => s.blk_trans,
+  ncaa_trans_mid_pct: (s) => s.midm_trans / s.mida_trans,
+  ncaa_half_pts: (s) => s.pts_half,
+  ncaa_half_efg_pct: (s) => (s.fgm_half + 0.5 * s.fg3m_half) / s.fga_half,
+  ncaa_half_rim_pct: (s) => s.rimm_half / s.rima_half,
+  ncaa_half_mid_pct: (s) => s.midm_half / s.mida_half,
+  ncaa_half_fg3_pct: (s) => s.fg3m_half / s.fg3a_half,
+  ncaa_half_ft_pct: (s) => s.ftm_half / s.fta_half,
+  ncaa_half_ast: (s) => s.ast_half,
+  ncaa_half_tov: (s) => s.tov_half,
+  ncaa_half_orb: (s) => s.orb_half,
+  ncaa_half_drb: (s) => s.drb_half,
+  ncaa_half_stl: (s) => s.stl_half,
+  ncaa_half_blk: (s) => s.blk_half
 }
 /** A team's own: its possessions and points per 100 of them, both stats.ncaa.org's. */
 const NCAA_TEAM_ONLY: Record<string, (s: NcaaSide) => number> = {

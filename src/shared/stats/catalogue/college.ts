@@ -232,6 +232,214 @@ export const COLLEGE: MetricDef[] = [
       categories: ['scoring.assisted', 'offense.scoring']
     }
   ),
+  // The rest of the transition splits and the half-court ones (T1703.2, D53).
+  ...sides(
+    'ncaa_trans_ast',
+    'Assists in transition',
+    'Trans AST',
+    `Assists on plays in transition. stats.ncaa.org tags a play as in transition from its play by play.${OWN}`,
+    {
+      ...splitCount('ncaa_ast_trans'),
+      family: 'scoring',
+      categories: ['playmaking.passing', 'offense.playmaking']
+    }
+  ),
+  ...sides(
+    'ncaa_trans_orb',
+    'Offensive rebounds in transition',
+    'Trans OREB',
+    `Offensive rebounds on plays in transition. stats.ncaa.org tags a play as in transition from its play by play.${OWN}`,
+    {
+      ...splitCount('ncaa_orb_trans'),
+      family: 'scoring',
+      categories: ['rebounding.offensive', 'offense.rebounding']
+    }
+  ),
+  ...sides(
+    'ncaa_trans_drb',
+    'Defensive rebounds in transition',
+    'Trans DREB',
+    `Defensive rebounds on plays in transition. stats.ncaa.org tags a play as in transition from its play by play.${OWN}`,
+    {
+      ...splitCount('ncaa_drb_trans'),
+      family: 'scoring',
+      categories: ['rebounding.defensive', 'defense.rebounding']
+    }
+  ),
+  ...sides(
+    'ncaa_trans_stl',
+    'Steals in transition',
+    'Trans STL',
+    `Steals on plays in transition. stats.ncaa.org tags a play as in transition from its play by play.${OWN}`,
+    {
+      ...splitCount('ncaa_stl_trans'),
+      family: 'scoring',
+      categories: ['defense.steals_blocks'],
+      opponents: ['offense.turnovers', 'playmaking.turnovers']
+    }
+  ),
+  ...sides(
+    'ncaa_trans_blk',
+    'Blocks in transition',
+    'Trans BLK',
+    `Blocks on plays in transition. stats.ncaa.org tags a play as in transition from its play by play.${OWN}`,
+    {
+      ...splitCount('ncaa_blk_trans'),
+      family: 'scoring',
+      categories: ['defense.steals_blocks'],
+      opponents: ['offense.shooting', 'shooting.field_goals']
+    }
+  ),
+  ...sides(
+    'ncaa_trans_mid_pct',
+    'Mid-range field-goal percentage in transition',
+    'Trans mid%',
+    `Two-point shots away from the rim made in transition over those taken. stats.ncaa.org tags a play as in transition from its play by play.${OWN}`,
+    {
+      ...splitShare('ncaa_midm_trans', 'ncaa_mida_trans', 30),
+      family: 'shooting',
+      categories: ['shooting.transition_putbacks', 'offense.shooting']
+    }
+  ),
+  ...sides(
+    'ncaa_half_pts',
+    'Points in the half court',
+    'Half PTS',
+    `Points scored in the half court. The half court is every play stats.ncaa.org does not tag as transition.${OWN}`,
+    {
+      ...splitCount('ncaa_pts_half'),
+      family: 'scoring',
+      categories: ['scoring.by_situation', 'offense.scoring']
+    }
+  ),
+  ...sides(
+    'ncaa_half_efg_pct',
+    'Effective field-goal percentage in the half court',
+    'Half eFG%',
+    `Half-court field goals with a made three worth one and a half, over half-court attempts. The half court is every play stats.ncaa.org does not tag as transition.${OWN}`,
+    {
+      ...split({
+        value: '({ncaa_fgm_half} + 0.5 * {ncaa_fg3m_half}) / nullif({ncaa_fga_half}, 0)',
+        sample: 'ncaa_fga_half',
+        unit: 'pct',
+        minSample: 300
+      }),
+      family: 'shooting',
+      categories: ['shooting.field_goals', 'offense.shooting']
+    }
+  ),
+  ...sides(
+    'ncaa_half_rim_pct',
+    'Field-goal percentage at the rim in the half court',
+    'Half rim%',
+    `Shots made at the rim in the half court over those taken there. The half court is every play stats.ncaa.org does not tag as transition.${OWN}`,
+    {
+      ...splitShare('ncaa_rimm_half', 'ncaa_rima_half', 150),
+      family: 'shooting',
+      categories: ['shooting.rim_paint', 'offense.shooting']
+    }
+  ),
+  ...sides(
+    'ncaa_half_mid_pct',
+    'Mid-range field-goal percentage in the half court',
+    'Half mid%',
+    `Two-point shots away from the rim made in the half court over those taken. The half court is every play stats.ncaa.org does not tag as transition.${OWN}`,
+    {
+      ...splitShare('ncaa_midm_half', 'ncaa_mida_half', 150),
+      family: 'shooting',
+      categories: ['shooting.mid_range', 'offense.shooting']
+    }
+  ),
+  ...sides(
+    'ncaa_half_fg3_pct',
+    'Three-point percentage in the half court',
+    'Half 3P%',
+    `Threes made in the half court over those taken. The half court is every play stats.ncaa.org does not tag as transition.${OWN}`,
+    {
+      ...splitShare('ncaa_fg3m_half', 'ncaa_fg3a_half', 82),
+      family: 'shooting',
+      categories: ['shooting.threes', 'offense.shooting']
+    }
+  ),
+  ...sides(
+    'ncaa_half_ft_pct',
+    'Free-throw percentage in the half court',
+    'Half FT%',
+    `Free throws made from half-court fouls over those taken. The half court is every play stats.ncaa.org does not tag as transition.${OWN}`,
+    {
+      ...splitShare('ncaa_ftm_half', 'ncaa_fta_half', 50),
+      family: 'shooting',
+      categories: ['shooting.field_goals', 'offense.shooting']
+    }
+  ),
+  ...sides(
+    'ncaa_half_ast',
+    'Assists in the half court',
+    'Half AST',
+    `Assists on half-court plays. The half court is every play stats.ncaa.org does not tag as transition.${OWN}`,
+    {
+      ...splitCount('ncaa_ast_half'),
+      family: 'scoring',
+      categories: ['playmaking.passing', 'offense.playmaking']
+    }
+  ),
+  ...sides(
+    'ncaa_half_tov',
+    'Turnovers in the half court',
+    'Half TOV',
+    `Turnovers on half-court plays. The half court is every play stats.ncaa.org does not tag as transition.${OWN}`,
+    {
+      ...splitCount('ncaa_tov_half', { direction: 'lower' }),
+      family: 'scoring',
+      categories: ['playmaking.turnovers', 'offense.turnovers']
+    }
+  ),
+  ...sides(
+    'ncaa_half_orb',
+    'Offensive rebounds in the half court',
+    'Half OREB',
+    `Offensive rebounds on half-court plays. The half court is every play stats.ncaa.org does not tag as transition.${OWN}`,
+    {
+      ...splitCount('ncaa_orb_half'),
+      family: 'scoring',
+      categories: ['rebounding.offensive', 'offense.rebounding']
+    }
+  ),
+  ...sides(
+    'ncaa_half_drb',
+    'Defensive rebounds in the half court',
+    'Half DREB',
+    `Defensive rebounds on half-court plays. The half court is every play stats.ncaa.org does not tag as transition.${OWN}`,
+    {
+      ...splitCount('ncaa_drb_half'),
+      family: 'scoring',
+      categories: ['rebounding.defensive', 'defense.rebounding']
+    }
+  ),
+  ...sides(
+    'ncaa_half_stl',
+    'Steals in the half court',
+    'Half STL',
+    `Steals on half-court plays. The half court is every play stats.ncaa.org does not tag as transition.${OWN}`,
+    {
+      ...splitCount('ncaa_stl_half'),
+      family: 'scoring',
+      categories: ['defense.steals_blocks'],
+      opponents: ['offense.turnovers', 'playmaking.turnovers']
+    }
+  ),
+  ...sides(
+    'ncaa_half_blk',
+    'Blocks in the half court',
+    'Half BLK',
+    `Blocks on half-court plays. The half court is every play stats.ncaa.org does not tag as transition.${OWN}`,
+    {
+      ...splitCount('ncaa_blk_half'),
+      family: 'scoring',
+      categories: ['defense.steals_blocks'],
+      opponents: ['offense.shooting', 'shooting.field_goals']
+    }
+  ),
   // Possessions are the team box's, estimated by stats.ncaa.org from its play by play.
   ...teamSides(
     'ncaa_poss',
