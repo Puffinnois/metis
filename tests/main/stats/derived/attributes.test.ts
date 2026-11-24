@@ -297,7 +297,8 @@ describe('the registry', () => {
   })
 
   it('tells apart the attributes it holds from two sources or times, by label and byline', () => {
-    const of = (id: string) => ATTRIBUTES.find((a) => a.id === id)
+    const of = (id: string): (typeof ATTRIBUTES)[number] | undefined =>
+      ATTRIBUTES.find((a) => a.id === id)
     const pairs = [
       ['country', 'birthCountry'],
       ['height', 'seasonHeight'],
