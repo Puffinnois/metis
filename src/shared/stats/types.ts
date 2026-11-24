@@ -406,6 +406,11 @@ export interface MetricValue {
   /** 0–100 among the qualified rows of the same position (players) and group; null otherwise. */
   percentile: number | null
   rank: number | null
+  /**
+   * With `StatsQuery.rankAmong`: how many rows the percentile and rank are among (the metric's pool of
+   * the row's position and group); null when the row is not ranked. Absent otherwise.
+   */
+  pool?: number | null
 }
 
 export interface StatsRow {

@@ -101,7 +101,8 @@ export async function runQuery(
             sample: num(r[`s${i}`]),
             qualified: r[`q${i}`] === true,
             percentile: num(r[`p${i}`]),
-            rank: num(r[`r${i}`])
+            rank: num(r[`r${i}`]),
+            ...(compiled.pools ? { pool: num(r[`n${i}`]) } : {})
           }
         ])
       )

@@ -14,6 +14,7 @@ import type {
 import { cellTitle, familyLabel, fmtStat, isRescaled, ordinal } from './format'
 import {
   bestFirst,
+  engineRanksFor,
   familyColumns,
   MAX_COLUMNS,
   modeWords,
@@ -291,7 +292,12 @@ export function compareQuery(
       : base,
     transform: state.mode,
     sort: { metric: lead, dir: 'desc' },
-    limit: many ? 3 : entity === 'player' ? ROW_LIMIT : 40
+    limit: many ? 3 : entity === 'player' ? ROW_LIMIT : 40,
+    // A college season fetches 1,000 of about 5,000 players: the engine ranks among every row the
+    // tab qualifies (`rankAmong`), as the boards do; the NBA's and WNBA's ask as before.
+    ...(!many && entity === 'player' && engineRanksFor(compareTab('player'))
+      ? { rankAmong: QUALIFIER }
+      : {})
   }
 }
 
@@ -326,6 +332,8 @@ export function rankedResult(result: StatsResult, entity: Entity, many: boolean)
       }))
     }
   }
+  // Where the engine ranked among the tab's qualified rows (the colleges), its figures stand.
+  if (entity === 'player' && engineRanksFor(compareTab('player'))) return result
   return entity === 'player' ? rankWithinTab(result, compareTab('player')) : result
 }
 

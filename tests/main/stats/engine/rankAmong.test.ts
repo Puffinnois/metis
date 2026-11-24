@@ -100,7 +100,22 @@ describe('rankAmong: the rank pool of a board’s tab qualifier', () => {
     expect(of(among, '2', 'ftm')?.percentile).toBeNull()
     expect(of(among, '1', 'ftm')).toMatchObject({ rank: 1 })
     // Points (the NBA's per-game leader, D33) qualifies on games alone: the same either way.
-    expect(of(among, '2', 'pts')).toEqual(of(own, '2', 'pts'))
+    expect(of(among, '2', 'pts')).toMatchObject({
+      percentile: of(own, '2', 'pts')?.percentile,
+      rank: of(own, '2', 'pts')?.rank
+    })
+  })
+
+  it('gives each ranked value the size of its pool, and none without the option', async () => {
+    const among = await runQuery(db, query({ rankAmong: 'min' }), CTX)
+    const pool = (id: string, m: string): number | null | undefined =>
+      among.rows.find((x) => x.id === id)?.values[m].pool
+    // Free throws among the three with enough minutes; points (own minimum) among all six.
+    expect(pool('1', 'ftm')).toBe(3)
+    expect(pool('2', 'ftm')).toBeNull()
+    expect(pool('2', 'pts')).toBe(6)
+    const own = await runQuery(db, query(), CTX)
+    expect('pool' in own.rows[0].values.ftm).toBe(false)
   })
 
   it('leaves a query without it as it was, and refuses one it cannot read', () => {
