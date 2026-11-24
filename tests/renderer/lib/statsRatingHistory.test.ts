@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   emptyLine,
   fmtRating,
+  importsNote,
+  labelsPoints,
+  marksPoints,
   monthTicks,
   nearestPoint,
   offeredParts,
@@ -13,7 +16,8 @@ import {
   seriesSeasons,
   showsPoints,
   shownSeries,
-  stopNote
+  stopNote,
+  valueDomain
 } from '@/lib/stats/ratingHistory'
 import { DARKO, EXPECTED, LONG_CAREER, NONE_IN_LEAGUE } from './ratingHistoryFixture'
 
@@ -134,5 +138,41 @@ describe('a player’s ratings over time', () => {
       'No Expected impact (SportsDataverse), DPM (DARKO) value for 2004-05; the career shows every season there is.'
     )
     expect(emptyLine(null, 'career', 2027)).toBe('No ratings over time for this player.')
+  })
+})
+
+describe('the chart’s honesty', () => {
+  it('keeps zero, the average player, in view when the values come near it', () => {
+    expect(valueDomain([1.2, 3.4]).zero).toBe(true)
+    expect(valueDomain([1.2, 3.4]).lo).toBeLessThan(0)
+    expect(valueDomain([-2, 1]).zero).toBe(true)
+    const far = valueDomain([6, 8])
+    expect(far.zero).toBe(false)
+    expect(far.lo).toBeGreaterThan(5)
+    expect(valueDomain([2]).zero).toBe(true)
+    // Two imports three tenths apart: the axis spans at least two points, and zero comes in view.
+    const two = valueDomain([2.1, 2.4])
+    expect(two.hi - two.lo).toBeGreaterThanOrEqual(2)
+    expect(two.zero).toBe(true)
+  })
+
+  it('marks every point in a season, a snapshot’s always, none of a weekly line across a career', () => {
+    expect(marksPoints(EXPECTED, 'season')).toBe(true)
+    expect(marksPoints(EXPECTED, 'career')).toBe(false)
+    expect(marksPoints(DARKO, 'career')).toBe(true)
+  })
+
+  it('names one or two imports by their dates, and counts more', () => {
+    const [a, b, c] = DARKO.points
+    expect(importsNote(DARKO, [a])).toBe('imported Nov 3, 2026')
+    expect(importsNote(DARKO, [a, b])).toBe('imported Nov 3 and Nov 12, 2026')
+    expect(importsNote(DARKO, [{ ...a, date: '2025-12-30' }, b])).toBe(
+      'imported Dec 30, 2025 and Nov 12, 2026'
+    )
+    expect(importsNote(DARKO, [a, b, c])).toBe('3 imports, Nov 3, 2026 to Nov 24, 2026')
+    expect(importsNote(EXPECTED, EXPECTED.points)).toBeNull()
+    expect(labelsPoints(DARKO, [a, b])).toBe(true)
+    expect(labelsPoints(DARKO, [a, b, c])).toBe(false)
+    expect(labelsPoints(EXPECTED, EXPECTED.points.slice(0, 1))).toBe(false)
   })
 })

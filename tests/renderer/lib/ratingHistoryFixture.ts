@@ -3,25 +3,42 @@ import type { RatingHistory, RatingPoint, RatingSeries } from '@/lib/stats/ratin
 /**
  * A long career's ratings, made up but shaped like the read: SportsDataverse's weekly expected
  * impact from 2006-07 to 2025-26 (opening night, then every 7 days to early April), and three DARKO
- * snapshots imported in 2026-27. Values follow a smooth arc so a test can reason about them.
+ * snapshots imported in 2026-27. Values walk week to week around an arc over the career.
  */
 const iso = (t: number): string => new Date(t).toISOString().slice(0, 10)
 
+/** A repeatable pseudo-random step in [-0.5, 0.5). */
+function stepper(seed: number): () => number {
+  let s = seed
+  return () => {
+    s = (s * 48271) % 2147483647
+    return s / 2147483647 - 0.5
+  }
+}
+
 function weekly(first: number, last: number): RatingPoint[] {
   const out: RatingPoint[] = []
+  const step = stepper(23)
   for (let season = first; season <= last; season++) {
     const open = Date.UTC(season - 1, 9, 24)
     const arc = 6 - Math.abs(season - 2013) * 0.4
+    let off = arc * 0.7
+    let def = arc * 0.3
     for (let w = 0; w < 24; w++) {
-      const off = arc * 0.7 + Math.sin((season * 31 + w) / 4) * 0.5
-      const def = arc * 0.3 + Math.cos((season * 17 + w) / 5) * 0.4
+      // Early weeks move most: fewer games behind each estimate.
+      const size = w < 6 ? 0.5 : 0.18
+      off += step() * size
+      def += step() * size * 0.6
       out.push({
         date: iso(open + w * 7 * 86_400_000),
         season,
         total: Math.round((off + def) * 100) / 100,
         off: Math.round(off * 100) / 100,
         def: Math.round(def * 100) / 100,
-        basis: w === 0 ? 'Opening night: the seasons before only' : `Games before this date`
+        basis:
+          w === 0
+            ? 'Opening night: the seasons before only'
+            : `From games through ${iso(open + (w * 7 - 1) * 86_400_000)}`
       })
     }
   }

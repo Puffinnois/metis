@@ -261,3 +261,57 @@ export function monthTicks(season: AxisSeason | undefined): { date: string; labe
   }
   return out
 }
+
+/** The least the value axis spans, in points per 100 possessions: ratings move by points, not tenths. */
+export const MIN_SPAN = 2
+
+/**
+ * The value axis' bounds. Zero is the league's average player, so it stays in view whenever the
+ * values come near it: no further from it than their own spread. Far from it (a career all between +6 and +8), the
+ * axis keeps to the values rather than flattening them against a distant zero.
+ */
+export function valueDomain(values: readonly number[]): { lo: number; hi: number; zero: boolean } {
+  let lo = Math.min(...values)
+  let hi = Math.max(...values)
+  // At least MIN_SPAN points tall, so two imports a few tenths apart do not read as a climb.
+  if (hi - lo < MIN_SPAN) {
+    const mid = (lo + hi) / 2
+    lo = mid - MIN_SPAN / 2
+    hi = mid + MIN_SPAN / 2
+  }
+  const spread = hi - lo || Math.max(Math.abs(hi), 1)
+  const zero = lo - spread <= 0 && hi + spread >= 0
+  if (zero) {
+    lo = Math.min(lo, 0)
+    hi = Math.max(hi, 0)
+  }
+  const pad = (hi - lo || 1) * 0.08
+  return { lo: lo - pad, hi: hi + pad, zero }
+}
+
+/**
+ * Whether a series' points are marked: a snapshot's always, so a few imports read as a few points;
+ * every series' in a single season, so a reader sees the grain; across a career the straight segments
+ * alone, where a mark a week would crowd.
+ */
+export const marksPoints = (series: RatingSeries, range: RatingRange): boolean =>
+  series.grain === 'snapshot' || range === 'season'
+
+/**
+ * A snapshot series' legend words: one or two imports named by their dates, so a series that short
+ * reads as what it is ("imported Nov 3, 2026"); more, counted.
+ */
+export function importsNote(series: RatingSeries, points: readonly RatingPoint[]): string | null {
+  if (series.grain !== 'snapshot' || points.length === 0) return null
+  if (points.length === 1) return `imported ${fmtDate(points[0].date)}`
+  if (points.length === 2) {
+    const [a, b] = points.map((p) => fmtDate(p.date))
+    const sameYear = a.slice(-4) === b.slice(-4)
+    return `imported ${sameYear ? a.slice(0, -6) : a} and ${b}`
+  }
+  return `${points.length} imports, ${fmtDate(points[0].date)} to ${fmtDate(points[points.length - 1].date)}`
+}
+
+/** A snapshot series of one or two points labels each with its value and date where it stands. */
+export const labelsPoints = (series: RatingSeries, points: readonly RatingPoint[]): boolean =>
+  series.grain === 'snapshot' && points.length > 0 && points.length <= 2

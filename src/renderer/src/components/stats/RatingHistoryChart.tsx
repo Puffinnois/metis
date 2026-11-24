@@ -4,6 +4,7 @@ import { Loading, SectionHead } from '@/components/stats/parts'
 import { seasonLabel } from '@/lib/stats/league'
 import {
   emptyLine,
+  fmtDate,
   fmtRating,
   monthTicks,
   nearestPoint,
@@ -14,7 +15,11 @@ import {
   ratingAxis,
   seasonRuns,
   seriesName,
+  importsNote,
+  labelsPoints,
+  marksPoints,
   showsPoints,
+  valueDomain,
   shownSeries,
   stopNote,
   type RatingHistory,
@@ -105,11 +110,8 @@ export function RatingHistoryChart({
   const H = 320
   const [L, R, T, B] = [56, 20, 18, 40]
   const values = shown.flatMap((s) => s.points.map((p) => p[part] as number))
-  let lo = Math.min(0, ...values)
-  let hi = Math.max(0, ...values)
-  const pad = (hi - lo || 1) * 0.08
-  lo -= pad
-  hi += pad
+  const domain = valueDomain(values)
+  let { lo, hi } = domain
   const ys = axisTicks(lo, hi)
   lo = Math.min(lo, ys[0])
   hi = Math.max(hi, ys[ys.length - 1])
@@ -155,7 +157,9 @@ export function RatingHistoryChart({
                   style={{ background: colorOf(i) }}
                 />
                 <span className="text-fg-2">{seriesName(s.series)}</span>
-                {showsPoints(s.series) && <span>· {s.points.length} imports</span>}
+                {importsNote(s.series, s.points) && (
+                  <span data-series-imports="">· {importsNote(s.series, s.points)}</span>
+                )}
                 {stop && <span data-series-stop="">· {stop}</span>}
               </span>
             )
@@ -179,7 +183,7 @@ export function RatingHistoryChart({
                   x2={W - R}
                   y1={y(v)}
                   y2={y(v)}
-                  stroke={v === 0 ? 'var(--line)' : 'var(--line-2)'}
+                  stroke="var(--line-2)"
                   strokeWidth={1}
                 />
                 <text
@@ -192,6 +196,27 @@ export function RatingHistoryChart({
                 </text>
               </g>
             ))}
+            {domain.zero && (
+              // Zero is the league's average player: a little stronger than the grid, named once.
+              <g data-average="">
+                <line
+                  x1={L}
+                  x2={W - R}
+                  y1={y(0)}
+                  y2={y(0)}
+                  stroke="var(--fg-3)"
+                  strokeWidth={1.25}
+                />
+                <text
+                  x={W - R}
+                  y={y(0) - 5}
+                  textAnchor="end"
+                  className="fill-fg-3 text-[10.5px] font-medium"
+                >
+                  average
+                </text>
+              </g>
+            )}
             {range === 'career'
               ? axis.seasons.map((s, i) => (
                   <g key={s.season} data-axis-season={s.season}>
@@ -233,6 +258,7 @@ export function RatingHistoryChart({
             )}
             {shown.map((s, i) => {
               const dots = showsPoints(s.series)
+              const marks = marksPoints(s.series, range)
               return (
                 <g key={s.series.id} data-series-line={s.series.id}>
                   {seasonRuns(s.points).map((run) => (
@@ -248,16 +274,16 @@ export function RatingHistoryChart({
                       stroke={colorOf(i)}
                       strokeWidth={dots ? 1.5 : 2}
                       strokeDasharray={dots ? '3 3' : undefined}
-                      strokeLinejoin="round"
+                      strokeLinejoin="miter"
                     />
                   ))}
                   {s.points.map((p) =>
-                    dots || near.some((n) => n.i === i && n.p === p) ? (
+                    marks || near.some((n) => n.i === i && n.p === p) ? (
                       <circle
                         key={p.date}
                         cx={x(p.date, p.season)}
                         cy={y(p[part] as number)}
-                        r={dots ? 4.5 : 4}
+                        r={dots ? 4.5 : near.some((n) => n.p === p) ? 4 : 2.5}
                         fill={colorOf(i)}
                         stroke="var(--panel)"
                         strokeWidth={1.5}
@@ -265,6 +291,21 @@ export function RatingHistoryChart({
                       />
                     ) : null
                   )}
+                  {/* One or two imports are labelled where they stand, so they read as dated values. */}
+                  {labelsPoints(s.series, s.points) &&
+                    s.points.map((p) => (
+                      <text
+                        key={`label-${p.date}`}
+                        x={x(p.date, p.season) + (x(p.date, p.season) > W * 0.7 ? -9 : 9)}
+                        y={y(p[part] as number) - 8}
+                        textAnchor={x(p.date, p.season) > W * 0.7 ? 'end' : 'start'}
+                        className="text-[11px] font-medium"
+                        style={{ fill: colorOf(i) }}
+                        data-point-label={p.date}
+                      >
+                        {fmtRating(p[part] as number)} · {fmtDate(p.date)}
+                      </text>
+                    ))}
                 </g>
               )
             })}
