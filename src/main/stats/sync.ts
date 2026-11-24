@@ -197,8 +197,9 @@ export function isDue(input: DueInput): boolean {
   const attempted = attempt !== null && now - Date.parse(attempt.startedAt) < wait
   if (attempted && !(input.force && recent)) return false
   if (!state || state.version < input.version) return true
-  if (season === 0) return true
+  // Before the daily rule for files of all seasons: a file fetched once (D54) is sealed when loaded.
   if (state.sealed) return false
+  if (season === 0) return true
   if (season === current && !input.ended) return true
   if (season >= current - 1) return now - Date.parse(state.fetchedAt) >= PRIOR_SEASON_FRESHNESS_MS
   return true
@@ -211,16 +212,20 @@ export interface SealInput {
   now: number
   /** When the file last changed, ISO time; null when not known. */
   modifiedAt: string | null
+  /** A file its publisher no longer updates, fetched once (`SourceFile.once`, D54). */
+  once?: boolean
 }
 
 /**
- * Whether a file is never fetched again. Two seasons back and older: sealed when loaded, as always. A
- * season that has ended (the WNBA's in November, the NBA's in July): sealed once the file has not
- * changed for `SETTLED_MS`, by its Last-Modified as published, else by when Metis last saw its content
- * change. A season still being played, and a file of all seasons: never.
+ * Whether a file is never fetched again. A file fetched once: sealed when loaded. Two seasons back and
+ * older: sealed when loaded, as always. A season that has ended (the WNBA's in November, the NBA's in
+ * July): sealed once the file has not changed for `SETTLED_MS`, by its Last-Modified as published,
+ * else by when Metis last saw its content change. A season still being played, and any other file of
+ * all seasons: never.
  */
 export function isSealed(input: SealInput): boolean {
   const { season, current, ended, now, modifiedAt } = input
+  if (input.once) return true
   if (season === 0) return false
   if (season <= current - 2) return true
   return ended && modifiedAt !== null && now - Date.parse(modifiedAt) >= SETTLED_MS
@@ -439,7 +444,8 @@ export async function refreshStats(
           current,
           ended: ended(step.season),
           now: at.getTime(),
-          modifiedAt
+          modifiedAt,
+          once: step.source.once
         }),
         etag,
         bytes,

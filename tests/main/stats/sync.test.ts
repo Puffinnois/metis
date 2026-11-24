@@ -92,8 +92,17 @@ describe('isDue', () => {
     expect(due({ ended: true, state: state(ago(PRIOR_SEASON_FRESHNESS_MS)) })).toBe(true)
     expect(due({ ended: true, state: state(ago(PRIOR_SEASON_FRESHNESS_MS), true) })).toBe(false)
     expect(due({ season: 2026, state: state(ago(PRIOR_SEASON_FRESHNESS_MS), true) })).toBe(false)
-    // A file of all seasons is never sealed.
-    expect(due({ season: 0, ended: false, state: state(recent, true) })).toBe(true)
+    // A file of all seasons is checked daily; one sealed when loaded, fetched once (D54), never again.
+    expect(due({ season: 0, ended: false, state: state(recent) })).toBe(true)
+    expect(due({ season: 0, ended: false, state: state(recent, true) })).toBe(false)
+  })
+
+  it('seals a file fetched once when it loads, and no other file of all seasons', () => {
+    const at = { season: 0, current: 2027, ended: false, now: Date.now(), modifiedAt: null }
+    expect(isSealed({ ...at, once: true })).toBe(true)
+    expect(isSealed(at)).toBe(false)
+    // A new version of how it is stored asks for it again.
+    expect(due({ season: 0, version: 2, state: state(ago(HOUR), true) })).toBe(true)
   })
 })
 

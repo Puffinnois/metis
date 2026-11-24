@@ -672,7 +672,14 @@ const IMPACT_COLUMNS = `
   sdv_d_current_impact ci_def ci_rows; sdv_expected_impact ce_total ce_rows
   sdv_o_expected_impact ce_off ce_rows; sdv_d_expected_impact ce_def ce_rows
   sdv_current_prior ci_prior ci_rows; sdv_o_current_prior ci_o_prior ci_rows
-  sdv_d_current_prior ci_d_prior ci_rows`
+  sdv_d_current_prior ci_d_prior ci_rows
+  raptor_total rp_total rp_poss; raptor_offense rp_off rp_poss; raptor_defense rp_def rp_poss
+  raptor_box_total rp_box_total rp_mposs; raptor_box_offense rp_box_off rp_mposs
+  raptor_box_defense rp_box_def rp_mposs; raptor_onoff_total rp_onoff_total rp_mposs
+  raptor_onoff_offense rp_onoff_off rp_mposs; raptor_onoff_defense rp_onoff_def rp_mposs
+  raptor_war rp_war -; raptor_predator rp_pred_total rp_poss
+  raptor_predator_offense rp_pred_off rp_poss; raptor_predator_defense rp_pred_def rp_poss
+  raptor_pace_impact rp_pace rp_poss`
   .split(/[;\n]/)
   .map((line) => line.trim().split(/\s+/))
   .filter((parts) => parts.length === 3)
@@ -1201,8 +1208,30 @@ describe('the metric catalogue', () => {
     expect(m('team_bench_pts').perGameBy).toBe('starts_known')
   })
 
+  it('says on every RAPTOR column head and label that it is FiveThirtyEight’s (D54)', () => {
+    const raptor = CATALOGUE.filter((m) => m.published === 'pub_player_raptor')
+    // The total and its ends, the box and on/off parts and their ends, WAR, PREDATOR and its ends,
+    // and the pace impact.
+    expect(raptor).toHaveLength(14)
+    for (const m of raptor) {
+      expect(m.id, m.id).toMatch(/^raptor_/)
+      expect(m.family, m.id).toBe('impact')
+      expect(m.short, m.id).toMatch(/ 538$/)
+      expect(m.label, m.id).toMatch(/\(FiveThirtyEight\)$/)
+      expect(m.description, m.id).toContain('FiveThirtyEight’s published value')
+      expect(m.sources, m.id).toEqual(['FiveThirtyEight’s RAPTOR (CC BY 4.0)'])
+      // Through 2021-22, then the reason; the box and on/off parts from 2013-14, when tracking began.
+      expect(m.missingSeasons?.[0], m.id).toBe(2023)
+      expect(m.missingReason, m.id).toMatch(/^Published through 2021-22/)
+      expect(m.firstSeason, m.id).toBe(/_(box|onoff)_/.test(m.id) ? 2014 : 1994)
+      expect(m.leagues?.wnba?.unavailable, m.id).toMatch(/covers the NBA alone/)
+    }
+  })
+
   it('says on every impact model’s column head and label that it is SportsDataverse’s', () => {
-    const impact = CATALOGUE.filter((m) => m.family === 'impact')
+    const impact = CATALOGUE.filter(
+      (m) => m.family === 'impact' && m.published !== 'pub_player_raptor'
+    )
     // The NBA's and WNBA's sixteen, BOBAN's three and the NBA's box prior and REML RAPM (T1703.2),
     // and the college leagues' BPM and two RAPM fits (T1302.6).
     // And the current impact's nine (T1703.2).

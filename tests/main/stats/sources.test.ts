@@ -8,6 +8,7 @@ import {
   LOAD_TIERS,
   NCAA_STATS_LEFT_OUT,
   NCAA_STATS_RELEASES,
+  RELEASES_URL,
   seasonsOf,
   seasonSql,
   SOURCES,
@@ -107,7 +108,8 @@ const LISTINGS: Listing[] = [
 
 for (const listing of LISTINGS) {
   const inventory = inventoryOf(listing.league)
-  const sources = SOURCES_BY_LEAGUE[listing.league]
+  // The release listing knows SportsDataverse's releases; a file read by its own address is not one.
+  const sources = SOURCES_BY_LEAGUE[listing.league].filter((s) => s.url === undefined)
   const generated = sources.flatMap((source) =>
     seasonsOf(source, listing.through).map((season) => ({
       source,
@@ -300,5 +302,33 @@ describe('the college sources', () => {
     expect(seasonSql(span)).toMatch(/^CASE WHEN regexp_full_match/)
     expect(seasonSql(SOURCES_BY_LEAGUE.ncaam[0])).toBe('TRY_CAST(season AS INTEGER)')
     expect(NCAA_STATS_RELEASES).toHaveLength(26)
+  })
+})
+
+describe('FiveThirtyEight’s RAPTOR files (D54)', () => {
+  const raptor = SOURCES.filter((s) => s.url !== undefined)
+
+  it('are the NBA’s four, read by their own address from the publisher’s repository', () => {
+    expect(raptor.map((s) => s.table)).toEqual([
+      'src_raptor_historical_player',
+      'src_raptor_historical_team',
+      'src_raptor_modern_player',
+      'src_raptor_modern_team'
+    ])
+    for (const s of raptor) {
+      expect(fileUrl(s, 0)).toBe(
+        `https://raw.githubusercontent.com/fivethirtyeight/data/master/nba-raptor/${s.stem}.csv`
+      )
+      expect(fileName(s, 0)).toBe(`${s.stem}.csv`)
+      expect(s).toMatchObject({ release: 'fivethirtyeight_nba_raptor', format: 'csv', once: true })
+      expect(s).toMatchObject({ allSeasons: true, fromSeason: 1994, tier: 'published' })
+    }
+    // Every other file is a SportsDataverse release's, in every league.
+    for (const id of LEAGUE_IDS) {
+      const others = SOURCES_BY_LEAGUE[id].filter((s) => !raptor.includes(s))
+      expect(
+        others.every((s) => s.url === undefined && fileUrl(s, 2026).startsWith(RELEASES_URL))
+      ).toBe(true)
+    }
   })
 })

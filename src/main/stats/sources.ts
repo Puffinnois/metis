@@ -2,12 +2,21 @@
  * Every file Metis loads from the sportsdataverse-data releases. The file names follow a rule, so
  * the app generates them and never lists a release: GitHub's API allows 60 anonymous calls an hour.
  * `scripts/inventory-sources.mjs` lists the releases at development time, and a test compares that
- * list with this one.
+ * list with this one. The one exception is FiveThirtyEight's RAPTOR (D54): four CSV files read from
+ * its own repository by their address (`SourceFile.url`), once.
  */
 import { LEAGUES, pairOf, type LeagueId } from '@shared/leagues'
 
 export const RELEASES_URL =
   'https://github.com/sportsdataverse/sportsdataverse-data/releases/download'
+
+/**
+ * FiveThirtyEight's archived RAPTOR files (D54): CC BY 4.0, no longer updated since 2021-22. Read
+ * from GitHub's raw file host, the address its repository's own links give.
+ */
+export const RAPTOR_URL = 'https://raw.githubusercontent.com/fivethirtyeight/data/master/nba-raptor'
+/** The release name the RAPTOR files are listed and left out under; not a SportsDataverse tag. */
+export const RAPTOR_RELEASE = 'fivethirtyeight_nba_raptor'
 
 /** The first load runs in this order (D21), so the app is usable long before the last file. */
 export const LOAD_TIERS = ['core', 'published', 'events', 'plays'] as const
@@ -51,6 +60,18 @@ export interface SourceFile {
    * (T1302.9). Absent: any order.
    */
   ordered?: boolean
+  /**
+   * The file's own address, for a source that is not a SportsDataverse release (D54). Absent: the
+   * release's file by the naming rule (`fileUrl`).
+   */
+  url?: string
+  /** The file is a CSV with a header row, read with every row scanned for its types. Absent: Parquet. */
+  format?: 'csv'
+  /**
+   * Fetched once and sealed: the publisher stopped updating it, so a refresh asks for it again only
+   * when Metis holds no copy, or a new `version` asks for it to be read again (D54).
+   */
+  once?: boolean
 }
 
 type Options = Partial<
@@ -406,10 +427,34 @@ const NBA_LABELS: Record<string, string> = {
   nba_stats_possessions: 'Possessions (SportsDataverse)',
   nba_stats_game_lineups: 'Lineups on court (SportsDataverse)',
   nba_crosswalk: 'Id crosswalks (SportsDataverse)',
-  nba_groups: 'Aliases and divisions (SportsDataverse)'
+  nba_groups: 'Aliases and divisions (SportsDataverse)',
+  [RAPTOR_RELEASE]: 'RAPTOR (FiveThirtyEight)'
 }
 
-export const SOURCES: SourceFile[] = [...IDS, ...ESPN, ...NBA, ...DASHBOARDS, ...SHARED]
+/**
+ * FiveThirtyEight's four RAPTOR files (D54), each a file of every season from 1976-77 to 2021-22, kept
+ * from 1993-94 on, Metis's first season (D9). Every column as published, in tables of their own
+ * (`nba-data-sources.md`, "RAPTOR"). The by-team files are what the published table reads, since their
+ * rows add up to any scope; the by-player files are kept as published, and checked against it.
+ */
+const raptor = (name: string, stem: string, grain: string): SourceFile => ({
+  ...source(`src_raptor_${name}`, RAPTOR_RELEASE, stem, 'published', grain, 1994, {
+    allSeasons: true,
+    fromSeason: 1994
+  }),
+  url: `${RAPTOR_URL}/${stem}.csv`,
+  format: 'csv',
+  once: true
+})
+
+const RAPTOR: SourceFile[] = [
+  raptor('historical_player', 'historical_RAPTOR_by_player', 'player-season'),
+  raptor('historical_team', 'historical_RAPTOR_by_team', 'player, season, season type and team'),
+  raptor('modern_player', 'modern_RAPTOR_by_player', 'player-season'),
+  raptor('modern_team', 'modern_RAPTOR_by_team', 'player, season, season type and team')
+]
+
+export const SOURCES: SourceFile[] = [...IDS, ...ESPN, ...NBA, ...DASHBOARDS, ...SHARED, ...RAPTOR]
 
 /**
  * The WNBA's files, as `docs/reference/wnba-data-sources.md` measured them on 2026-11-17: 37 releases,
@@ -958,11 +1003,12 @@ export function seasonSql(source: SourceFile): string {
 
 /** The file of one season (0 for a file of all seasons). */
 export function fileName(source: SourceFile, season: number): string {
-  return source.allSeasons ? `${source.stem}.parquet` : `${source.stem}_${season}.parquet`
+  const extension = source.format ?? 'parquet'
+  return source.allSeasons ? `${source.stem}.${extension}` : `${source.stem}_${season}.${extension}`
 }
 
 export function fileUrl(source: SourceFile, season: number): string {
-  return `${RELEASES_URL}/${source.release}/${fileName(source, season)}`
+  return source.url ?? `${RELEASES_URL}/${source.release}/${fileName(source, season)}`
 }
 
 /** The seasons a source can have up to `current`; `[0]` for a file of all seasons. */

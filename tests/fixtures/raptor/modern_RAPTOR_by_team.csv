@@ -1,0 +1,4 @@
+player_name,player_id,season,season_type,team,poss,mp,raptor_box_offense,raptor_box_defense,raptor_box_total,raptor_onoff_offense,raptor_onoff_defense,raptor_onoff_total,raptor_offense,raptor_defense,raptor_total,war_total,war_reg_season,war_playoffs,predator_offense,predator_defense,predator_total,pace_impact
+Ann Able,aaaa01,2015,RS,TMA,1000,500,0.75,0.25,1.0,3.0,1.0,4.0,1.5,0.5,2.0,1.2,1.2,0,1.0,0.4,1.4,0.5
+Ann Able,aaaa01,2015,RS,TMB,500,250,-0.5,-0.5,-1.0,-0.5,-0.5,-1.0,-0.5,-0.5,-1.0,0.1,0.1,0,-0.2,-0.3,-0.5,-1.0
+Ann Able,aaaa01,2015,PO,TMB,100,50,2.0,1.0,3.0,5.0,1.0,6.0,3.0,1.0,4.0,0.3,0,0.3,2.0,0.5,2.5,2.0

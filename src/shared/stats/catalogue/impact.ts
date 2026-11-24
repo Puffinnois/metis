@@ -444,6 +444,170 @@ const CURRENT_METRICS: MetricDef[] = [
 ]
 
 /**
+ * FiveThirtyEight's RAPTOR (D54), as published in its archived files: the maker's own values, read,
+ * not computed. Rates per 100 possessions, weighted by possessions over teams, season types and
+ * seasons (`derived/raptor.ts`). The total and its ends from 1993-94, the box-score and on/off parts
+ * from 2013-14, all through 2021-22, when FiveThirtyEight stopped.
+ */
+const RAPTOR_SOURCES = ['FiveThirtyEight’s RAPTOR (CC BY 4.0)']
+const RAPTOR_TABLE = 'pub_player_raptor'
+const RAPTOR_FIRST = 1994
+const RAPTOR_MODERN_FIRST = 2014
+const RAPTOR_LAST = 2022
+const RAPTOR_AFTER = Array.from({ length: 2040 - RAPTOR_LAST }, (_, i) => RAPTOR_LAST + 1 + i)
+const RAPTOR_THROUGH =
+  'Published through 2021-22: FiveThirtyEight stopped updating RAPTOR after that season.'
+const RAPTOR_WHOSE =
+  'FiveThirtyEight’s published value, from its archived files; Metis did not compute it.'
+const RAPTOR_ERAS =
+  'Its inputs grow with the seasons: the box score alone to 2000-01, with single-year plus-minus to 2012-13, with player tracking from 2013-14.'
+const RAPTOR_BY_POSS =
+  'Over more than one team, season type or season, the published values are weighted by possessions.'
+const p538 = (label: string): string => `${label} (FiveThirtyEight)`
+const h538 = (short: string): string => `${short} 538`
+
+/** A RAPTOR rate per 100 possessions, stored times the possessions it was measured over. */
+const raptor = (column: string, modern: boolean, o: Partial<Opts> = {}): Opts => {
+  const sample = modern ? 'rp_mposs' : 'rp_poss'
+  return {
+    value: ratio(column, sample),
+    sample,
+    minSample: 2000,
+    family: 'impact',
+    kind: 'model',
+    unit: 'rating',
+    decimals: 1,
+    sources: RAPTOR_SOURCES,
+    firstSeason: modern ? RAPTOR_MODERN_FIRST : RAPTOR_FIRST,
+    missingSeasons: RAPTOR_AFTER,
+    missingReason: RAPTOR_THROUGH,
+    published: RAPTOR_TABLE,
+    ...o
+  }
+}
+
+const RAPTOR_METRICS: MetricDef[] = [
+  metric(
+    'raptor_total',
+    p538('RAPTOR'),
+    h538('RAPTOR'),
+    `Points per 100 possessions the player added above an average player, offence and defence together, from the box score and the team’s margin with them on and off the floor. ${RAPTOR_ERAS} ${RAPTOR_WHOSE} ${RAPTOR_BY_POSS}`,
+    { ...raptor('rp_total', false), categories: ['impact.pm_models'] }
+  ),
+  metric(
+    'raptor_offense',
+    p538('Offensive RAPTOR'),
+    h538('ORAPTOR'),
+    `The offensive part of RAPTOR: points per 100 possessions the player added at that end. ${RAPTOR_WHOSE} ${RAPTOR_BY_POSS}`,
+    { ...raptor('rp_off', false), categories: ['impact.pm_models', 'offense.impact'] }
+  ),
+  metric(
+    'raptor_defense',
+    p538('Defensive RAPTOR'),
+    h538('DRAPTOR'),
+    `The defensive part of RAPTOR: points per 100 possessions the player saved at that end. ${RAPTOR_WHOSE} ${RAPTOR_BY_POSS}`,
+    { ...raptor('rp_def', false), categories: ['impact.pm_models', 'defense.impact'] }
+  ),
+  metric(
+    'raptor_box_total',
+    p538('Box RAPTOR'),
+    h538('BoxRAP'),
+    `The part of RAPTOR from the box score and player tracking alone. From 2013-14, when tracking began. ${RAPTOR_WHOSE} ${RAPTOR_BY_POSS}`,
+    { ...raptor('rp_box_total', true), categories: ['impact.box_models'] }
+  ),
+  metric(
+    'raptor_box_offense',
+    p538('Offensive box RAPTOR'),
+    h538('OBoxRAP'),
+    `The offensive part of box RAPTOR. From 2013-14. ${RAPTOR_WHOSE} ${RAPTOR_BY_POSS}`,
+    { ...raptor('rp_box_off', true), categories: ['impact.box_models', 'offense.impact'] }
+  ),
+  metric(
+    'raptor_box_defense',
+    p538('Defensive box RAPTOR'),
+    h538('DBoxRAP'),
+    `The defensive part of box RAPTOR. From 2013-14. ${RAPTOR_WHOSE} ${RAPTOR_BY_POSS}`,
+    { ...raptor('rp_box_def', true), categories: ['impact.box_models', 'defense.impact'] }
+  ),
+  metric(
+    'raptor_onoff_total',
+    p538('On/off RAPTOR'),
+    h538('OnOffRAP'),
+    `The part of RAPTOR from the team’s margin with the player on the floor and off it. From 2013-14. ${RAPTOR_WHOSE} ${RAPTOR_BY_POSS}`,
+    { ...raptor('rp_onoff_total', true), categories: ['impact.pm_models'] }
+  ),
+  metric(
+    'raptor_onoff_offense',
+    p538('Offensive on/off RAPTOR'),
+    h538('OOnOffRAP'),
+    `The offensive part of on/off RAPTOR. From 2013-14. ${RAPTOR_WHOSE} ${RAPTOR_BY_POSS}`,
+    { ...raptor('rp_onoff_off', true), categories: ['impact.pm_models', 'offense.impact'] }
+  ),
+  metric(
+    'raptor_onoff_defense',
+    p538('Defensive on/off RAPTOR'),
+    h538('DOnOffRAP'),
+    `The defensive part of on/off RAPTOR. From 2013-14. ${RAPTOR_WHOSE} ${RAPTOR_BY_POSS}`,
+    { ...raptor('rp_onoff_def', true), categories: ['impact.pm_models', 'defense.impact'] }
+  ),
+  metric(
+    'raptor_war',
+    p538('RAPTOR WAR'),
+    h538('WAR'),
+    `Wins above replacement from RAPTOR: the wins the player added over a replacement-level player in the minutes they played. Its scale is FiveThirtyEight’s own. Added up over seasons and season types. ${RAPTOR_WHOSE}`,
+    {
+      value: '{rp_war}',
+      sample: 'rp_poss',
+      family: 'impact',
+      kind: 'model',
+      aggregation: 'sum',
+      totalOnly: true,
+      unit: 'number',
+      decimals: 1,
+      sources: RAPTOR_SOURCES,
+      firstSeason: RAPTOR_FIRST,
+      missingSeasons: RAPTOR_AFTER,
+      missingReason: RAPTOR_THROUGH,
+      published: RAPTOR_TABLE,
+      categories: ['impact.box_models']
+    }
+  ),
+  metric(
+    'raptor_predator',
+    p538('PREDATOR'),
+    h538('PRED'),
+    `Predictive RAPTOR: points per 100 possessions above average, with the parts weighted to predict a player’s future rather than describe the season. ${RAPTOR_WHOSE} ${RAPTOR_BY_POSS}`,
+    { ...raptor('rp_pred_total', false), categories: ['predictive.player_projections'] }
+  ),
+  metric(
+    'raptor_predator_offense',
+    p538('Offensive PREDATOR'),
+    h538('OPRED'),
+    `The offensive part of PREDATOR. ${RAPTOR_WHOSE} ${RAPTOR_BY_POSS}`,
+    { ...raptor('rp_pred_off', false), categories: ['predictive.player_projections'] }
+  ),
+  metric(
+    'raptor_predator_defense',
+    p538('Defensive PREDATOR'),
+    h538('DPRED'),
+    `The defensive part of PREDATOR. ${RAPTOR_WHOSE} ${RAPTOR_BY_POSS}`,
+    { ...raptor('rp_pred_def', false), categories: ['predictive.player_projections'] }
+  ),
+  metric(
+    'raptor_pace_impact',
+    p538('RAPTOR pace impact'),
+    h538('PaceImp'),
+    `The player’s effect on the team’s possessions per 48 minutes with them on the floor. Neither good nor bad in itself. ${RAPTOR_WHOSE} ${RAPTOR_BY_POSS}`,
+    {
+      ...raptor('rp_pace', false),
+      unit: 'number',
+      direction: 'neutral',
+      categories: ['impact.on_court']
+    }
+  )
+]
+
+/**
  * The family's preset leads with these, so RAPM, BPM, SPM, WAR and BOBAN show before the adjusted
  * RAPM and the parts of SPM, which a label sort would put first. BOBAN's projection is not among them:
  * the preset's first column by label sorts the board, and a board of ratings should not rank by a
@@ -467,11 +631,14 @@ export const IMPACT: MetricDef[] = [
   ...BOBAN_METRICS,
   ...PRIOR_METRICS,
   ...CURRENT_METRICS,
-  ...DARKO_METRICS
+  ...DARKO_METRICS,
+  ...RAPTOR_METRICS
 ].map((m) => (CORE.has(m.id) ? { ...m, tier: 'core' } : m))
 
 /** What the impact samples count, in words. */
 export const IMPACT_SAMPLE_LABELS: Readonly<Record<string, string>> = {
+  rp_poss: 'possessions (RAPTOR)',
+  rp_mposs: 'possessions with RAPTOR’s parts, from 2013-14',
   impact_poss: 'possessions on offense and defense',
   off_poss: 'offensive possessions',
   def_poss: 'defensive possessions',
