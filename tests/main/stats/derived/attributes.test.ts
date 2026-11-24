@@ -296,6 +296,24 @@ describe('the registry', () => {
     expect(ageReferenceDay('wnba', 2020)).toBe('2020-07-01')
   })
 
+  it('tells apart the attributes it holds from two sources or times, by label and byline', () => {
+    const of = (id: string) => ATTRIBUTES.find((a) => a.id === id)
+    const pairs = [
+      ['country', 'birthCountry'],
+      ['height', 'seasonHeight'],
+      ['height', 'heightNoShoes'],
+      ['weight', 'seasonWeight'],
+      ['weight', 'combineWeight'],
+      ['city', 'arenaCity']
+    ]
+    for (const [a, b] of pairs) {
+      expect(of(a)?.label, a).not.toBe(of(b)?.label)
+      expect(of(a)?.byline, a).toBeTruthy()
+      expect(of(b)?.byline, b).toBeTruthy()
+      expect(of(a)?.byline).not.toBe(of(b)?.byline)
+    }
+  })
+
   it('has unique ids, a description and a coverage in every league', () => {
     expect(new Set(ATTRIBUTES.map((a) => a.id)).size).toBe(ATTRIBUTES.length)
     for (const a of ATTRIBUTES) {

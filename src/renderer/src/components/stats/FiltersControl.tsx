@@ -137,6 +137,9 @@ export function FiltersControl({
                       className="flex flex-col px-3 py-1 text-[12.5px] text-fg-3"
                     >
                       <span className="truncate">{item.label}</span>
+                      {item.byline && (
+                        <span className="text-[11px] leading-snug">{item.byline}</span>
+                      )}
                       <span className="text-[11px] leading-snug">{item.reason}</span>
                     </div>
                   ) : (
@@ -155,7 +158,14 @@ export function FiltersControl({
                         'text-fg'
                       )}
                     >
-                      <span className="truncate">{item.label}</span>
+                      <span className="flex min-w-0 flex-col">
+                        <span className="truncate">{item.label}</span>
+                        {item.byline && (
+                          <span className="truncate text-[11px] text-fg-3" data-byline="">
+                            {item.byline}
+                          </span>
+                        )}
+                      </span>
                       <span className="ml-auto shrink-0 truncate text-[11px] text-fg-3">
                         {item.subgroup ?? ''}
                       </span>
@@ -219,6 +229,7 @@ function ConditionEditor({
         <span className="truncate text-[12.5px] font-semibold text-fg">
           {item?.label ?? conditionId(filter)}
         </span>
+        {item?.byline && <span className="truncate text-[11px] text-fg-3">{item.byline}</span>}
         {item?.reason && <span className="truncate text-[11px] text-bad">{item.reason}</span>}
         <button
           type="button"
