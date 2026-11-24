@@ -72,9 +72,12 @@ export type NcaaSplit = (typeof NCAA_PLAYER_SPLITS)[number]
  * The team's own: its players' summed, but the possessions are the team box's and the seconds are not
  * kept. `team_game` holds each for the opponent too (`opp_`).
  */
-export const NCAA_TEAM_SPLITS: readonly NcaaSplit[] = NCAA_PLAYER_SPLITS.filter(
-  (c) => c !== 'ncaa_seconds'
-)
+export const NCAA_TEAM_SPLITS: readonly string[] = [
+  ...NCAA_PLAYER_SPLITS.filter((c) => c !== 'ncaa_seconds'),
+  // The team box's own: the offence's time on the ball, in seconds (T1703.2). The opponent's is the
+  // team's on defence, which the box also publishes (`d_mins`, equal on every game).
+  'ncaa_off_seconds'
+]
 
 /** The source tables they come from, for a build that leaves the `ncaa_*` releases out (D41). */
 export const NCAA_PLAYER_BOX = 'src_ncaa_player_box'

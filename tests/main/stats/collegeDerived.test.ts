@@ -279,7 +279,7 @@ describe('stats.ncaa.org beside ESPN (D40)', () => {
     }
   })
 
-  it('sums every stats.ncaa.org line of a team, linked to ESPN or not, and its team box’s possessions', async () => {
+  it('sums every stats.ncaa.org line of a team, linked to ESPN or not, and its team box’s possessions and seconds', async () => {
     for (const db of [m, w]) {
       const r = await one(
         db,
@@ -291,7 +291,9 @@ describe('stats.ncaa.org beside ESPN (D40)', () => {
          )
          SELECT count(*)::INTEGER AS n,
                 count(*) FILTER (WHERE t.ncaa_fga = l.fga AND t.ncaa_pts_trans = l.pts_trans)::INTEGER AS same,
-                count(*) FILTER (WHERE t.ncaa_poss = n.o_poss AND o.ncaa_poss = t.opp_ncaa_poss)::INTEGER AS poss
+                count(*) FILTER (WHERE t.ncaa_poss = n.o_poss AND o.ncaa_poss = t.opp_ncaa_poss)::INTEGER AS poss,
+                count(*) FILTER (WHERE abs(t.ncaa_off_seconds - n.o_mins * 60) < 1e-6
+                  AND o.ncaa_off_seconds = t.opp_ncaa_off_seconds)::INTEGER AS seconds
          FROM team_game t JOIN lines l USING (game_id, team_id)
          JOIN game g USING (game_id)
          JOIN src_ncaa_team_box n ON n.contest_id = g.ncaa_game_id AND TRY_CAST(n.team_espn_team_id AS INTEGER) = t.team_id
@@ -300,6 +302,8 @@ describe('stats.ncaa.org beside ESPN (D40)', () => {
       expect(r.n).toBeGreaterThan(10)
       expect(r.same).toBe(r.n)
       expect(r.poss).toBe(r.n)
+      // The offence's time on the ball, the team box's minutes in seconds, and the opponent's beside it.
+      expect(r.seconds).toBe(r.n)
     }
   })
 
