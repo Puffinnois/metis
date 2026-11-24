@@ -6,7 +6,6 @@ import {
   type AttributeType,
   type AttributeUnit
 } from '@shared/stats/attributes'
-import { CATEGORIES, placementParts, type Placement } from '@shared/stats/categories'
 import type {
   BoardMode,
   Entity,
@@ -19,7 +18,8 @@ import type {
   StatsResult
 } from '@shared/stats/types'
 import { isRescaled } from './format'
-import { pickable, rankWithinTab, searchKey, type TabDef } from './leaderboard'
+import { pickerGroups } from './categoryViews'
+import { rankWithinTab, searchKey, type TabDef } from './leaderboard'
 
 /**
  * The Filters control of the Players and Teams leaderboards (T1701.2, D51): what can be filtered on,
@@ -74,38 +74,26 @@ function attributeItem(a: AttributeDef, league: League): FilterItem {
 }
 
 /**
- * The metrics a board's tab offers, each under its primary category (D52), its first placement, as the
- * Glossary lists it. Ordered by the categories' order, then the sub-group's, then the label.
+ * The metrics a board's tab offers, as the column picker lists them (`pickerGroups`, D52): under each
+ * category and sub-group a metric sits in, in the registry's order, a team's own side first. A metric
+ * placed in two sub-groups is listed under both, each heading "Category › Sub-group".
  */
 export function metricItems(catalogue: readonly MetricInfo[], tab: TabDef): FilterItem[] {
-  const order = new Map<string, number>()
-  CATEGORIES.forEach((c, i) =>
-    c.groups.forEach((g, j) => order.set(`${c.id}.${g.id}`, i * 100 + j))
+  return pickerGroups(catalogue, tab).flatMap(({ category, group, metrics }) =>
+    metrics.map((m) => ({
+      kind: 'metric' as const,
+      id: m.id,
+      label: m.label,
+      group: `${category.label} › ${group.label}`,
+      byline: null,
+      subgroup: null,
+      description: m.description,
+      type: 'number' as const,
+      unit: m.unit === 'pct' ? ('pct' as const) : null,
+      values: null,
+      reason: null
+    }))
   )
-  const primary = (m: MetricInfo): Placement | null => m.categories?.[0] ?? null
-  return pickable(catalogue, tab)
-    .map((m) => {
-      const p = primary(m)
-      const parts = p ? placementParts(p) : null
-      return {
-        item: {
-          kind: 'metric' as const,
-          id: m.id,
-          label: m.label,
-          group: parts?.category.label ?? 'Other',
-          byline: null,
-          subgroup: parts?.group.label ?? null,
-          description: m.description,
-          type: 'number' as const,
-          unit: m.unit === 'pct' ? ('pct' as const) : null,
-          values: null,
-          reason: null
-        },
-        rank: p ? (order.get(p) ?? 99_999) : 99_999
-      }
-    })
-    .sort((a, b) => a.rank - b.rank || a.item.label.localeCompare(b.item.label))
-    .map((x) => x.item)
 }
 
 /** The items by heading, attributes first in their groups' order, narrowed by a search. */
@@ -308,8 +296,11 @@ export function filteredQuery(
 export function rankFiltered(
   filtered: StatsResult,
   board: StatsResult | null,
-  tab: TabDef
+  tab: TabDef,
+  /** The engine ranked among the tab's qualified rows (`rankAmong`): its figures stand, one pool. */
+  engineRanks = false
 ): StatsResult {
+  if (engineRanks) return filtered
   const key = (r: StatsResult['rows'][number]): string => `${r.id}|${JSON.stringify(r.group)}`
   const ranked = board ? rankWithinTab(board, tab) : null
   const byKey = new Map((ranked?.rows ?? []).map((r) => [key(r), r]))

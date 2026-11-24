@@ -202,7 +202,8 @@ const QUERY_FIELDS = [
   'limit',
   'ranks',
   'places',
-  'filters'
+  'filters',
+  'rankAmong'
 ]
 const SCOPE_FIELDS = [
   'seasons',
@@ -369,6 +370,9 @@ function validate(q: StatsQuery, ctx: CompileContext): Checked {
     if ((q.groupBy ?? []).length > 0) fail('places works on one row a player or team: no groupBy')
   }
   if (q.ranks !== undefined && typeof q.ranks !== 'boolean') fail('ranks must be true or false')
+  if (q.rankAmong !== undefined && !q.metrics.includes(q.rankAmong)) {
+    fail('rankAmong must be one of the metrics')
+  }
   if (q.ranks === false && transform === 'percentile') fail('percentile needs ranks')
   if (q.shrunk !== undefined) flag(q.shrunk, 'shrunk')
   if (
@@ -1194,8 +1198,14 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
   // The value a metric is ranked and shown by, and the rows it ranks among: a shrunk rate ranks every
   // row with a sample, since that is what shrinking is for.
   const val = (i: number): string => (shrunk[i] ? `u${i}` : `v${i}`)
+  // `rankAmong` (a board's tab qualifier): a metric that does not qualify by its own minimum alone
+  // ranks among the rows that also qualify on it, as a board does on the client when it holds every
+  // row (`rankWithinTab`). Without it the SQL is as it was.
+  const poolOn = q.rankAmong !== undefined ? q.metrics.indexOf(q.rankAmong) : -1
+  const amongOf = (i: number): string =>
+    poolOn >= 0 && c.metrics[i].qualifyBy === undefined ? ` AND q${poolOn}` : ''
   const okOf = (i: number): string =>
-    shrunk[i] ? `s${i} > 0 AND u${i} IS NOT NULL` : `q${i} AND v${i} IS NOT NULL`
+    shrunk[i] ? `s${i} > 0 AND u${i} IS NOT NULL` : `q${i} AND v${i} IS NOT NULL${amongOf(i)}`
   // Percentiles and ranks among qualified rows of the same position (players) and group.
   const group = [...(q.entity === 'player' ? ['position'] : []), ...dims.map((d) => `g_${d}`)]
   const over = (i: number, order: string): string =>

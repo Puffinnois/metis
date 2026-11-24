@@ -32,7 +32,7 @@ import {
   unlistedNote,
   type LeaderboardOpen,
   modeWords,
-  rankWithinTab,
+  rankedForBoard,
   shrunkPatch,
   tabOf,
   tabsOf
@@ -143,7 +143,10 @@ export function StatsLeaderboard({
     const extras = placesQuery ? (placed?.rows ?? []) : []
     // One pool for the percentiles: the fetched rows, and the favourites placed past them.
     const all = { ...result, rows: [...result.rows, ...extras] }
-    const merged = fquery ? rankFiltered(all, unfiltered.result, tab) : rankWithinTab(all, tab)
+    const engineRanks = query?.rankAmong !== undefined
+    const merged = fquery
+      ? rankFiltered(all, unfiltered.result, tab, engineRanks)
+      : rankedForBoard(all, tab, query)
     return boardRows(
       { ...merged, rows: merged.rows.slice(0, result.rows.length) },
       board,
@@ -162,7 +165,8 @@ export function StatsLeaderboard({
     opened?.selected,
     favSet,
     fquery,
-    unfiltered.result
+    unfiltered.result,
+    query
   ])
   const unlisted = useMemo(
     () =>
