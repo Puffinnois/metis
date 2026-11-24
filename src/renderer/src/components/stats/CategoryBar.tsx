@@ -17,7 +17,7 @@ export function CategoryTabs({
 }): React.JSX.Element {
   const tabs = [{ id: '', label: 'Overview' }, ...categories]
   return (
-    <div role="tablist" aria-label="Categories" className="flex flex-wrap gap-x-[18px]">
+    <div role="tablist" aria-label="Categories" className="flex flex-wrap gap-x-[14px]">
       {tabs.map((t) => (
         <button
           key={t.id || 'overview'}
