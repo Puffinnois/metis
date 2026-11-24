@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Download, Search } from 'lucide-react'
+import { CategoryTabs, ViewChips } from '@/components/stats/CategoryBar'
 import { ColumnPicker } from '@/components/stats/ColumnPicker'
 import { FilterChips, FiltersControl } from '@/components/stats/FiltersControl'
 import { CheckToggle, Segmented, StatsButton, StatsSelect } from '@/components/stats/controls'
@@ -9,16 +10,20 @@ import { ViewsMenu } from '@/components/stats/ViewsMenu'
 import { api } from '@/lib/api'
 import { errorMessage } from '@/lib/format'
 import { useScreenState } from '@/lib/stats/session'
-import { familyLabel } from '@/lib/stats/format'
+import {
+  boardCategories,
+  categoryViews,
+  hasSides,
+  parentOf,
+  viewOf,
+  type CategoryView
+} from '@/lib/stats/categoryViews'
 import {
   bestFirst,
   boardModes,
   csvFileName,
   defaultBoard,
   engineSort,
-  familiesOf,
-  familyColumns,
-  familyOf,
   leaderboardCsv,
   leaderboardQuery,
   boardRows,
@@ -27,7 +32,7 @@ import {
   unlistedNote,
   type LeaderboardOpen,
   modeWords,
-  rankWithinTab,
+  rankedForBoard,
   shrunkPatch,
   tabOf,
   tabsOf
@@ -47,14 +52,17 @@ import {
 } from '@/lib/stats/filters'
 import { favouritesEmpty, useFavourites } from '@/lib/stats/favourites'
 import { leaderboardQualifier } from '@/lib/stats/qualifying'
-import type { Entity, LeaderboardBoard, MetricFamily, StatsView } from '@shared/stats/types'
+import type { Entity, LeaderboardBoard, StatsView } from '@shared/stats/types'
 
 /** Rows rendered at a time; "Show more" adds as many. */
 const PAGE = 50
 
 export type { LeaderboardOpen }
 
-/** A tab per position group or end of the floor, filters, column presets, saved views and CSV. */
+/**
+ * A tab per category (D52) over the position groups or a team's side, a category's presets as chips,
+ * the column picker, saved views and CSV.
+ */
 export function StatsLeaderboard({
   entity,
   data,
@@ -135,7 +143,10 @@ export function StatsLeaderboard({
     const extras = placesQuery ? (placed?.rows ?? []) : []
     // One pool for the percentiles: the fetched rows, and the favourites placed past them.
     const all = { ...result, rows: [...result.rows, ...extras] }
-    const merged = fquery ? rankFiltered(all, unfiltered.result, tab) : rankWithinTab(all, tab)
+    const engineRanks = query?.rankAmong !== undefined
+    const merged = fquery
+      ? rankFiltered(all, unfiltered.result, tab, engineRanks)
+      : rankedForBoard(all, tab, query)
     return boardRows(
       { ...merged, rows: merged.rows.slice(0, result.rows.length) },
       board,
@@ -154,7 +165,8 @@ export function StatsLeaderboard({
     opened?.selected,
     favSet,
     fquery,
-    unfiltered.result
+    unfiltered.result,
+    query
   ])
   const unlisted = useMemo(
     () =>
@@ -167,8 +179,18 @@ export function StatsLeaderboard({
   const ranks = useMemo(() => ranked.map((x) => x.rank), [ranked])
   // The selected row is on screen, however far down it ranks.
   const shown = Math.max(limit, rows.findIndex((r) => r.id === selected) + 1)
-  const families = familiesOf(data.catalogue, tab)
-  const preset = familyOf(board, data.catalogue, data.byId)
+  // The category tab: one the league has for this kind of row, else Overview (every view saved
+  // before categories, and a category the league switched to lacks).
+  const categories = boardCategories(data.catalogue, tab)
+  const category = categories.some((c) => c.id === board.category) ? (board.category ?? '') : ''
+  const presets = category ? categoryViews(data.catalogue, tab, category) : []
+  const view = category ? viewOf(presets, board.view) : null
+  const parent = view ? (parentOf(presets, view.key)?.key ?? null) : null
+  const same = (ids: readonly string[]): boolean =>
+    ids.length === board.columns.length && ids.every((id, i) => board.columns[i] === id)
+  const custom = view
+    ? !same(view.metrics)
+    : !same(defaultBoard(entity, board.tab, data.byId).columns)
   const teams = seasonOf(data.seasons, scope.season)?.teams ?? []
 
   const update = (patch: Partial<LeaderboardBoard>): void => {
@@ -202,21 +224,50 @@ export function StatsLeaderboard({
       favourites: board.favourites ?? false,
       team: board.team,
       split: board.split ?? null,
-      ...(board.filters ? { filters: board.filters } : {})
+      ...(board.filters ? { filters: board.filters } : {}),
+      category: '',
+      view: ''
     })
   }
-  const setFamily = (family: MetricFamily | 'default' | 'custom'): void => {
-    if (family === 'custom') return
-    if (family === 'default') {
-      update({ columns: defaultBoard(entity, board.tab, data.byId).columns })
+  /** A preset's columns, keeping the sort when its column stays, else best first by the first. */
+  const showView = (
+    v: CategoryView | null,
+    patch: Partial<LeaderboardBoard> & { category: string }
+  ): void => {
+    if (!v) {
+      switchTab(patch.tab ?? board.tab)
       return
     }
-    const columns = familyColumns(data.catalogue, tab, family)
-    const keep = columns.includes(board.sort.by)
+    const keep = v.metrics.includes(board.sort.by)
     update({
-      columns,
-      sort: keep ? board.sort : { by: columns[0], dir: bestFirst(data.byId.get(columns[0])) }
+      ...patch,
+      view: v.key,
+      columns: v.metrics,
+      sort: keep ? board.sort : { by: v.metrics[0], dir: bestFirst(data.byId.get(v.metrics[0])) }
     })
+  }
+  const pickCategory = (id: string): void => {
+    if (!id) {
+      switchTab(board.tab)
+      return
+    }
+    showView(viewOf(categoryViews(data.catalogue, tab, id), undefined), { category: id })
+  }
+  const pickView = (key: string): void => showView(viewOf(presets, key), { category })
+  /** A position keeps the columns; a team's side shows the same preset from the other side. */
+  const pickTab = (id: string): void => {
+    if (entity === 'player') {
+      update({ tab: id })
+      return
+    }
+    if (!category) {
+      switchTab(id)
+      return
+    }
+    const next = categoryViews(data.catalogue, tabOf(entity, id), category)
+    // A side with nothing in the category keeps the columns and says so under the tabs.
+    if (next.length === 0) update({ tab: id })
+    else showView(viewOf(next, view?.key), { category, tab: id })
   }
 
   async function exportCsv(): Promise<void> {
@@ -232,7 +283,16 @@ export function StatsLeaderboard({
     }
   }
 
-  const title = `${seasonLabel(scope.season)} ${tab.title} leaderboard`
+  // A category names what is on screen: '2026-27 guard shooting leaderboard', '2026-27 team
+  // shooting leaderboard · opponents'; Overview keeps the tab's own title.
+  const categoryLabel = categories.find((c) => c.id === category)?.label.toLowerCase()
+  const title = !categoryLabel
+    ? `${seasonLabel(scope.season)} ${tab.title} leaderboard`
+    : entity === 'player'
+      ? `${seasonLabel(scope.season)} ${tab.title} ${categoryLabel} leaderboard`
+      : `${seasonLabel(scope.season)} team ${categoryLabel} leaderboard${
+          hasSides(tab, category) && tab.id === 'defense' ? ' · opponents' : ''
+        }`
   const qualifyNote = tab.qualifier ? leaderboardQualifier() : 'Every team qualifies'
   const sortLabel =
     board.sort.by === 'name' ? 'name' : (data.byId.get(board.sort.by)?.label ?? board.sort.by)
@@ -253,69 +313,82 @@ export function StatsLeaderboard({
         <ScopeBar scope={scope} seasons={data.seasons} entity={entity} onChange={onScope} />
       </header>
 
-      <div className="flex items-end justify-between gap-4 border-b border-line">
-        <div role="tablist" className="flex gap-[22px]">
-          {tabsOf(entity).map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              role="tab"
-              aria-selected={t.id === tab.id}
-              onClick={() => switchTab(t.id)}
-              className={cn(
-                'h-8 cursor-pointer text-[13.5px] leading-none',
-                t.id === tab.id
-                  ? 'font-semibold text-fg shadow-[inset_0_-2px_0_var(--fg)]'
-                  : 'font-medium text-fg-3 hover:text-fg'
-              )}
+      <div className="flex flex-col gap-2.5">
+        <div className="border-b border-line">
+          <CategoryTabs categories={categories} value={category} onChange={pickCategory} />
+        </div>
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-3">
+            {(entity === 'player' || !category || hasSides(tab, category)) && (
+              <Segmented
+                label={entity === 'player' ? 'Position' : 'Team or opponents'}
+                value={tab.id}
+                options={tabsOf(entity).map((t) => ({
+                  value: t.id,
+                  // A team's category reads its own columns or its opponents'; Overview keeps the
+                  // ends it always had.
+                  label:
+                    entity === 'team' && category
+                      ? t.id === 'offense'
+                        ? 'Team'
+                        : 'Opponents'
+                      : t.label
+                }))}
+                onChange={pickTab}
+              />
+            )}
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            {/* T1701's Filters control, first of the board's tools (D51). */}
+            <FiltersControl
+              items={filterItems}
+              filters={board.filters ?? []}
+              byId={data.byId}
+              mode={board.mode}
+              seasons={query?.scope.seasons ?? []}
+              onChange={(filters) => update({ filters })}
+            />
+            <ColumnPicker
+              tab={tab}
+              catalogue={data.catalogue}
+              columns={board.columns}
+              onChange={(columns) => update({ columns })}
+              onReset={() =>
+                update({
+                  columns: view ? view.metrics : defaultBoard(entity, board.tab, data.byId).columns
+                })
+              }
+              category={category}
+            />
+            <ViewsMenu
+              views={views}
+              onOpen={onOpenView}
+              onSave={(name) => onSaveView(name, board)}
+              onDelete={onDeleteView}
+            />
+            <StatsButton
+              title="Save this table as CSV"
+              onClick={() => void exportCsv()}
+              disabled={!rows.length}
             >
-              {t.label}
-            </button>
-          ))}
+              <Download className="size-3.5" />
+              CSV
+            </StatsButton>
+          </div>
         </div>
-        <div className="flex items-center gap-2 pb-1.5">
-          <StatsSelect
-            title="Metric family"
-            value={preset}
-            options={[
-              { value: 'default' as const, label: 'Columns: this tab' },
-              ...families.map((f) => ({ value: f, label: `Columns: ${familyLabel(f)}` })),
-              ...(preset === 'custom'
-                ? [{ value: 'custom' as const, label: 'Columns: your own' }]
-                : [])
-            ]}
-            onChange={setFamily}
-          />
-          <FiltersControl
-            items={filterItems}
-            filters={board.filters ?? []}
-            byId={data.byId}
-            mode={board.mode}
-            seasons={query?.scope.seasons ?? []}
-            onChange={(filters) => update({ filters })}
-          />
-          <ColumnPicker
-            tab={tab}
-            catalogue={data.catalogue}
-            columns={board.columns}
-            onChange={(columns) => update({ columns })}
-            onReset={() => update({ columns: defaultBoard(entity, board.tab, data.byId).columns })}
-          />
-          <ViewsMenu
-            views={views}
-            onOpen={onOpenView}
-            onSave={(name) => onSaveView(name, board)}
-            onDelete={onDeleteView}
-          />
-          <StatsButton
-            title="Save this table as CSV"
-            onClick={() => void exportCsv()}
-            disabled={!rows.length}
-          >
-            <Download className="size-3.5" />
-            CSV
-          </StatsButton>
-        </div>
+        {category && presets.length === 0 && (
+          <div className="text-[12.5px] text-fg-3" data-view-empty="">
+            No {tab.id === 'defense' ? "opponents'" : "team's own"} metrics in{' '}
+            {categories.find((c) => c.id === category)?.label}.
+          </div>
+        )}
+        <ViewChips
+          views={presets}
+          active={view?.key ?? null}
+          parent={parent}
+          custom={custom}
+          onPick={pickView}
+        />
       </div>
 
       <div className="flex items-center gap-2">

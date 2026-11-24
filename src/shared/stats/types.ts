@@ -346,6 +346,15 @@ export interface StatsQuery {
    * attribute or metric is left out and counted (`StatsResult.filtered`). At most 20.
    */
   filters?: StatsFilter[]
+  /**
+   * A metric of the query whose qualification every other metric's rank pool requires: a leaderboard
+   * tab's qualifier (`min`). A row then counts in a metric's percentile and rank only when it also
+   * qualifies on this one, unless the metric qualifies by its own minimum alone (D33) or is shrunk:
+   * the rule a board applies on the client when it holds every row (`rankWithinTab`), asked of the
+   * engine where it does not (the college boards, 5,000 players against a fetch of 1,000). Absent:
+   * each metric ranks among its own qualified rows, as before.
+   */
+  rankAmong?: string
 }
 
 /**
@@ -897,6 +906,16 @@ export interface LeaderboardBoard {
    * the flag, never the ids; absent in views saved before it, which open with it off.
    */
   favourites?: boolean
+  /**
+   * The category tab (D52, `categories.ts`); absent or empty for Overview, the tab's own columns, as
+   * every view saved before categories opens.
+   */
+  category?: string
+  /**
+   * The preset of the category shown (`categoryViews`): a placement, an umbrella's heading or `key`.
+   * The columns are still the board's own, so a view keeps what the user changed.
+   */
+  view?: string
   /**
    * Conditions on attributes and metrics (T1701.2, D51), as the engine reads them: a percentage as a
    * fraction, a metric compared in the board's mode. One not yet finished is kept and not asked for.

@@ -176,6 +176,16 @@ const CASES = [
       ]
     : []),
   ['The same, per game', player({}, { transform: 'perGame' })],
+  // The college boards' pool (fix of 1.2.0): each metric ranked among the rows the tab's qualifier
+  // admits (`rankAmong`), as a board asks it where it fetches 1,000 of about 5,000 players.
+  [
+    'The same, ranked among the tab’s qualified rows',
+    player({}, { transform: 'perGame', rankAmong: 'min' })
+  ],
+  [
+    '40 columns, ranked among the tab’s qualified rows',
+    player({}, { metrics: ALL_PLAYER.slice(0, 40), rankAmong: 'min' })
+  ],
   // Filters (D51), applied after the ranks: the same board narrowed by who the players are, by a
   // metric it shows and by one it does not, over one season and every season.
   [

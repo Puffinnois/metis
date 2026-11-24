@@ -336,6 +336,9 @@ export function placementParts(p: Placement): { category: Category; group: Categ
 const UMBRELLAS = new Set<string>(['offense', 'defense'])
 export const isUmbrella = (p: Placement): boolean => UMBRELLAS.has(p.split('.')[0])
 
+/** Offense and Defense: a category over every statistic of one end. */
+export const isUmbrellaCategory = (id: string): boolean => UMBRELLAS.has(id)
+
 /**
  * The same act seen from the other team: what a team's opponents did with the ball is the team's
  * Defense, and what they did on defense is its Offense. The umbrella moves to the other end and leads,

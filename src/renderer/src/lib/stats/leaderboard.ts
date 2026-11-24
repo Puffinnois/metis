@@ -1,4 +1,4 @@
-import { perMinuteModes, seasonLabel } from '@/lib/stats/league'
+import { currentLeague, perMinuteModes, seasonLabel } from '@/lib/stats/league'
 import type {
   BoardMode,
   Entity,
@@ -10,6 +10,7 @@ import type {
   StatsResult,
   StatsRow
 } from '@shared/stats/types'
+import { isUmbrella, isUmbrellaCategory, placementParts } from '@shared/stats/categories'
 import { familyLabel, isRescaled } from './format'
 import { queryScope, type StatsScope } from './scope'
 import { shrinkable } from './stability'
@@ -260,17 +261,35 @@ export function familyOf(
   return familiesOf(catalogue, tab).find((f) => same(familyColumns(catalogue, tab, f))) ?? 'custom'
 }
 
-/** The header groups over the columns: the tab's group names, a family for an added column. */
+/** A metric's sub-group in a category, else in its primary one; the family if it has none. */
+function groupLabel(info: MetricInfo, category: string): string {
+  const placed = info.categories ?? []
+  // In an umbrella a column reads its specific sub-group (Threes), the umbrella's heading being the tab.
+  const p =
+    (isUmbrellaCategory(category) ? placed.find((x) => !isUmbrella(x)) : undefined) ??
+    placed.find((x) => category && x.startsWith(`${category}.`)) ??
+    placed[0]
+  return (p && placementParts(p)?.group.label) || familyLabel(info.family)
+}
+
+/**
+ * The header groups over the columns: the tab's group names on Overview's own columns, else each
+ * column's sub-group (D52), in the board's category where it sits there, else its primary one.
+ */
 export function columnGroups(
   columns: readonly string[],
   tab: TabDef,
-  catalogue: ReadonlyMap<string, MetricInfo>
+  catalogue: ReadonlyMap<string, MetricInfo>,
+  category = ''
 ): { label: string; span: number }[] {
-  const named = new Map(tab.groups.flatMap(([label, ids]) => ids.map((id) => [id, label] as const)))
+  // Overview's own columns read the tab's group names; a category's read their sub-groups.
+  const named = new Map(
+    category ? [] : tab.groups.flatMap(([label, ids]) => ids.map((id) => [id, label] as const))
+  )
   const out: { label: string; span: number }[] = []
   for (const id of columns) {
     const info = catalogue.get(id)
-    const label = named.get(id) ?? (info ? familyLabel(info.family) : '')
+    const label = named.get(id) ?? (info ? groupLabel(info, category) : '')
     const last = out[out.length - 1]
     if (last && last.label === label) last.span++
     else out.push({ label, span: 1 })
@@ -332,8 +351,29 @@ export function leaderboardQuery(
     transform: board.mode,
     ...(board.shrunk ? { shrunk: true } : {}),
     sort: engineSort(fixed, catalogue),
-    limit: ROW_LIMIT
+    limit: ROW_LIMIT,
+    // A league of thousands of rows a season (the colleges, `manyRows`): the board fetches 1,000 of
+    // about 5,000, too few to rank among on the client, so the engine ranks among the rows the tab's
+    // qualifier admits (`engineRanks`). The NBA's and WNBA's boards hold every row and ask as before.
+    ...(engineRanksFor(tab) ? { rankAmong: tab.qualifier } : {})
   }
+}
+
+/** Whether a board's percentiles and ranks are the engine's: a tab with a qualifier in a league of many rows. */
+export function engineRanksFor(tab: TabDef): tab is TabDef & { qualifier: string } {
+  return !!currentLeague().manyRows && tab.qualifier !== null && tab.qualifier !== undefined
+}
+
+/**
+ * The board's rows with the percentiles and ranks it shows: the engine's where it ranked among the
+ * tab's qualified rows (`rankAmong`, the colleges), else the board's own over the rows it holds.
+ */
+export function rankedForBoard(
+  result: StatsResult,
+  tab: TabDef,
+  query: StatsQuery | null
+): StatsResult {
+  return query?.rankAmong !== undefined ? result : rankWithinTab(result, tab)
 }
 
 /**
