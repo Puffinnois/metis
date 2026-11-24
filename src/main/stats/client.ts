@@ -22,6 +22,7 @@ import type {
   StatsOfficialsSeason,
   GameType,
   StatsProfile,
+  RatingHistory,
   StatsAvailability,
   StatsGameListing,
   StatsAttributeValue,
@@ -80,6 +81,8 @@ export interface StatsClient {
   lineups(team: string, season: number, gameType: string, group: LineupGroup): Promise<StatsLineups>
   profile(player: string): Promise<StatsProfile>
   availability(players: string[]): Promise<StatsAvailability[]>
+  /** A player's ratings over time, each series named with its maker (Plan T1704). */
+  ratingHistory(player: string): Promise<RatingHistory>
   gameListings(games: string[], players: string[]): Promise<StatsGameListing[]>
   attributeValues(attribute: string, seasons: number[]): Promise<StatsAttributeValue[]>
   coaches(team: string, season: number): Promise<StatsCoach[]>
@@ -185,6 +188,8 @@ export function startStatsWorker(
       request<StatsLineups>((id) => ({ id, kind: 'lineups', team, season, gameType, group })),
     availability: (players) =>
       request<StatsAvailability[]>((id) => ({ id, kind: 'availability', players })),
+    ratingHistory: (player) =>
+      request<RatingHistory>((id) => ({ id, kind: 'ratingHistory', player })),
     gameListings: (games, players) =>
       request<StatsGameListing[]>((id) => ({ id, kind: 'gameListings', games, players })),
     attributeValues: (attribute, seasons) =>

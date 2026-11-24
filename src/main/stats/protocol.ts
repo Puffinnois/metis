@@ -116,6 +116,7 @@ export type StatsRequest =
       group: LineupGroup
     }
   | { id: number; kind: 'availability'; players: string[] }
+  | { id: number; kind: 'ratingHistory'; player: string }
   | { id: number; kind: 'gameListings'; games: string[]; players: string[] }
   | { id: number; kind: 'attributeValues'; attribute: string; seasons: number[] }
   | { id: number; kind: 'coaches'; team: string; season: number }
@@ -154,6 +155,7 @@ export const AT_ONCE_REQUESTS: ReadonlySet<StatsRequest['kind']> = new Set([
   'profile',
   'lineups',
   'availability',
+  'ratingHistory',
   'gameListings',
   'attributeValues',
   'coaches',

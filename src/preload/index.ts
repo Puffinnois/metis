@@ -84,6 +84,7 @@ const api: Api = {
     lineups: (league, team, season, gameType, group) =>
       ipcRenderer.invoke(IPC.statsLineups, league, team, season, gameType, group),
     availability: (league, players) => ipcRenderer.invoke(IPC.statsAvailability, league, players),
+    ratingHistory: (league, player) => ipcRenderer.invoke(IPC.statsRatingHistory, league, player),
     gameListings: (league, games, players) =>
       ipcRenderer.invoke(IPC.statsGameListings, league, games, players),
     attributeValues: (league, attribute, seasons) =>
