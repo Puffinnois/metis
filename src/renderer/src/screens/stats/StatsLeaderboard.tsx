@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Download, Search } from 'lucide-react'
 import { CategoryTabs, ViewChips } from '@/components/stats/CategoryBar'
 import { ColumnPicker } from '@/components/stats/ColumnPicker'
+import { FilterChips, FiltersControl } from '@/components/stats/FiltersControl'
 import { CheckToggle, Segmented, StatsButton, StatsSelect } from '@/components/stats/controls'
 import { HeatLegend, LeaderTable } from '@/components/stats/LeaderTable'
 import { ScopeBar } from '@/components/stats/ScopeBar'
@@ -40,7 +41,15 @@ import { rangeLabel, scopeLabel, seasonOf, type StatsScope } from '@/lib/stats/s
 import { momentsIn } from '@/lib/stats/splits'
 import { useStatsQuery, type StatsData } from '@/lib/stats/useStats'
 import { cn } from '@/lib/utils'
-import { currentLeague, seasonLabel } from '@/lib/stats/league'
+import { currentLeague, seasonLabel, useLeague } from '@/lib/stats/league'
+import {
+  attributeItems,
+  filteredQuery,
+  filterNote,
+  itemsByKey,
+  metricItems,
+  rankFiltered
+} from '@/lib/stats/filters'
 import { favouritesEmpty, useFavourites } from '@/lib/stats/favourites'
 import { leaderboardQualifier } from '@/lib/stats/qualifying'
 import type { Entity, LeaderboardBoard, StatsView } from '@shared/stats/types'
@@ -105,21 +114,36 @@ export function StatsLeaderboard({
         : null,
     [board, scope, data.byId]
   )
-  const { result, loading, error } = useStatsQuery(query, data.version)
+  // The filters (T1701.2, D51): the engine answers the rows that pass; the board's own rows stay the
+  // pool their shading is read against, so a filtered row keeps its league percentile.
+  const league = useLeague()
+  const filterItems = useMemo(
+    () => [...attributeItems(league, entity), ...metricItems(data.catalogue, tab)],
+    [league, entity, data.catalogue, tab]
+  )
+  const itemOf = useMemo(() => itemsByKey(filterItems), [filterItems])
+  const fquery = useMemo(() => filteredQuery(query, board, itemOf), [query, board, itemOf])
+  const unfiltered = useStatsQuery(query, data.version)
+  const filtered = useStatsQuery(fquery, data.version)
+  const result = fquery ? filtered.result : unfiltered.result
+  const loading = unfiltered.loading || (fquery !== null && filtered.loading)
+  const error = unfiltered.error ?? (fquery ? filtered.error : null)
   // The favourites filter (T1601.3): the league's favourites at their rank on the whole board. Those
   // the board did not fetch (past its 1,000 rows) are placed by the engine (`placesFor`).
   const favourites = useFavourites()
   const favSet = entity === 'player' ? favourites.players : favourites.teams
   const placesQuery = useMemo(() => {
-    const places = result && query ? placesFor(result, board, favSet, query.sort?.metric) : null
-    return places && query ? { ...query, places } : null
-  }, [result, query, board, favSet])
+    const asked = fquery ?? query
+    const places = result && asked ? placesFor(result, board, favSet, asked.sort?.metric) : null
+    return places && asked ? { ...asked, places } : null
+  }, [result, query, fquery, board, favSet])
   const placed = useStatsQuery(placesQuery, data.version, { keepLast: false }).result
   const ranked = useMemo(() => {
     if (!result) return []
     const extras = placesQuery ? (placed?.rows ?? []) : []
     // One pool for the percentiles: the fetched rows, and the favourites placed past them.
-    const merged = rankWithinTab({ ...result, rows: [...result.rows, ...extras] }, tab)
+    const all = { ...result, rows: [...result.rows, ...extras] }
+    const merged = fquery ? rankFiltered(all, unfiltered.result, tab) : rankWithinTab(all, tab)
     return boardRows(
       { ...merged, rows: merged.rows.slice(0, result.rows.length) },
       board,
@@ -128,7 +152,18 @@ export function StatsLeaderboard({
       board.favourites ? favSet : null,
       merged.rows.slice(result.rows.length)
     )
-  }, [result, placed, placesQuery, tab, board, search, opened?.selected, favSet])
+  }, [
+    result,
+    placed,
+    placesQuery,
+    tab,
+    board,
+    search,
+    opened?.selected,
+    favSet,
+    fquery,
+    unfiltered.result
+  ])
   const unlisted = useMemo(
     () =>
       result && placesQuery
@@ -185,6 +220,7 @@ export function StatsLeaderboard({
       favourites: board.favourites ?? false,
       team: board.team,
       split: board.split ?? null,
+      ...(board.filters ? { filters: board.filters } : {}),
       category: '',
       view: ''
     })
@@ -299,7 +335,14 @@ export function StatsLeaderboard({
             )}
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            {/* T1701's Filters control sits here, first of the board's tools (D51). */}
+            {/* T1701's Filters control, first of the board's tools (D51). */}
+            <FiltersControl
+              items={filterItems}
+              filters={board.filters ?? []}
+              byId={data.byId}
+              mode={board.mode}
+              onChange={(filters) => update({ filters })}
+            />
             <ColumnPicker
               tab={tab}
               catalogue={data.catalogue}
@@ -406,6 +449,14 @@ export function StatsLeaderboard({
         </label>
       </div>
 
+      <FilterChips
+        filters={board.filters ?? []}
+        items={filterItems}
+        byId={data.byId}
+        mode={board.mode}
+        onChange={(filters) => update({ filters })}
+      />
+
       <div
         className={cn(
           'relative min-h-0 flex-1 overflow-auto rounded-[8px] border border-line bg-panel transition-opacity duration-150',
@@ -450,7 +501,7 @@ export function StatsLeaderboard({
               type="button"
               onClick={() => {
                 setSearch('')
-                update({ team: null, qualifiedOnly: false })
+                update({ team: null, qualifiedOnly: false, filters: [] })
               }}
               className="h-7 cursor-pointer rounded-[6px] bg-cobalt px-3 text-[12.5px] font-semibold text-on-cobalt"
             >
@@ -478,6 +529,11 @@ export function StatsLeaderboard({
             )}
           </div>
           {notice && <div className="truncate text-fg-2">{notice}</div>}
+          {fquery && filterNote(result, board.filters ?? [], itemOf, entity) && (
+            <div className="truncate text-fg-2" data-filter-note="">
+              {filterNote(result, board.filters ?? [], itemOf, entity)}
+            </div>
+          )}
           {unlisted && (
             <div className="truncate text-fg-2" data-unlisted="">
               {unlisted}

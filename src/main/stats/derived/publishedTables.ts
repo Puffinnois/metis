@@ -505,12 +505,32 @@ export const DARKO_COLUMNS = [
   'darko_projected_rating',
   'darko_projected_sd'
 ] as const
+/** BOBAN, SportsDataverse's own Kalman rating over RAPM, which took the DARKO columns' place (T1205). */
+export const BOBAN_FIRST_SEASON = 1998
+export const BOBAN_COLUMNS = [
+  'boban_filtered_skill',
+  'boban_projected_rating',
+  'boban_projected_sd'
+] as const
+/**
+ * SportsDataverse's box-score prior and the RAPM fitted toward it with a ridge chosen by REML. They
+ * are published on regular-season rows only, so they are read from those, each part weighted by the
+ * possessions of the same rows: a playoff row's possessions would otherwise water the average down.
+ */
+export const IMPACT_PRIOR_BY_POSSESSIONS = [
+  ['o_box_prior', '{off_poss}'],
+  ['d_box_prior', '{def_poss}'],
+  ['box_prior', '({off_poss} + {def_poss})'],
+  ['o_reml_rapm', '{off_poss}'],
+  ['d_reml_rapm', '{def_poss}'],
+  ['reml_rapm', '({off_poss} + {def_poss})']
+] as const
 
 /**
  * Reference section 14: the dataset's own impact models, not the original publishers' values. It
  * leaves out play-in games. Each model value is stored times what it was fitted on, so a season reads
- * as published and seasons together are weighted. A fresh download has no `darko_*` columns and fills
- * `boban_*` with other values (measured against the old file: none equal), so DARKO reads blank.
+ * as published and seasons together are weighted. A fresh download has no `darko_*` columns, so DARKO
+ * reads blank; `boban_*` is read as BOBAN, under its own name, never as DARKO.
  */
 const IMPACT_TABLES: PublishedTable[] = [
   {
@@ -540,6 +560,33 @@ const IMPACT_TABLES: PublishedTable[] = [
     games: 'gp',
     minutes: 'min',
     columns: DARKO_COLUMNS.map((c) => times(c, '{gp}'))
+  },
+  {
+    // BOBAN is, as DARKO was, the player's state at the season's end and a projection of the next.
+    // Its playoff rows repeat the regular season's (6,079 of 6,079 with a value, T1205).
+    table: 'pub_player_boban',
+    entity: 'player',
+    source: 'src_nba_impact',
+    firstSeason: BOBAN_FIRST_SEASON,
+    match: { season_type: 'regular season' },
+    games: 'gp',
+    minutes: 'min',
+    columns: BOBAN_COLUMNS.map((c) => times(c, '{gp}'))
+  },
+  {
+    table: 'pub_player_impact_prior',
+    entity: 'player',
+    source: 'src_nba_impact',
+    firstSeason: IMPACT_FIRST_SEASON,
+    match: { season_type: 'regular season' },
+    games: 'gp',
+    minutes: 'min',
+    columns: [
+      ...IMPACT_PRIOR_BY_POSSESSIONS.map(([c, by]) => times(c, by)),
+      { name: 'prior_off_poss', sql: '{off_poss}' },
+      { name: 'prior_def_poss', sql: '{def_poss}' },
+      { name: 'prior_poss', sql: '{off_poss} + {def_poss}' }
+    ]
   }
 ]
 

@@ -34,8 +34,39 @@ export function isBoard(b: unknown): b is LeaderboardBoard {
     (x.favourites === undefined || typeof x.favourites === 'boolean') &&
     // The category tab and its preset (D52): absent in views saved before them, empty for Overview.
     (x.category === undefined || x.category === '' || text(x.category)) &&
-    (x.view === undefined || x.view === '' || text(x.view))
+    (x.view === undefined || x.view === '' || text(x.view)) &&
+    (x.filters === undefined || isFilterList(x.filters))
   )
+}
+
+const OPS = [
+  'between',
+  'atLeast',
+  'atMost',
+  'anyOf',
+  'noneOf',
+  'contains',
+  'is',
+  'isNot',
+  'hasValue',
+  'hasNone'
+]
+
+/** A board's filters (D51): at most 20 conditions of the engine's shape; the engine checks the rest. */
+function isFilterList(v: unknown): boolean {
+  if (!Array.isArray(v) || v.length > 20) return false
+  const scalar = (y: unknown): boolean =>
+    (typeof y === 'number' && Number.isFinite(y)) || (typeof y === 'string' && y.length <= 80)
+  return v.every((f) => {
+    if (!f || typeof f !== 'object') return false
+    const c = f as Record<string, unknown>
+    const on = [c.attribute, c.metric].filter((x) => x !== undefined)
+    const value =
+      c.value === undefined ||
+      scalar(c.value) ||
+      (Array.isArray(c.value) && c.value.length <= 64 && c.value.every(scalar))
+    return on.length === 1 && text(on[0]) && OPS.includes(c.op as string) && value
+  })
 }
 
 /** A row's view, or null when its board does not parse (never the whole list's failure). */

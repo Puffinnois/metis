@@ -52,10 +52,12 @@ describe("a board's category tabs (D52)", () => {
       'hustle',
       'play_types',
       'impact',
+      // BOBAN's projections (T1703.2) are the NBA's and the WNBA's first player metrics here.
+      'predictive',
       'results',
       'playing_time'
     ])
-    // No hustle, play types or predictive player metric in the WNBA; teams have no playing time.
+    // No hustle or play types in the WNBA; teams have no playing time.
     const wnba = ids(boardCategories(WNBA, players))
     expect(wnba).not.toContain('hustle')
     expect(wnba).not.toContain('play_types')
