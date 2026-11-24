@@ -28,6 +28,7 @@ import type {
   StatsWithOrWithout,
   StatsOfficialsSeason,
   StatsProfile,
+  RatingHistory,
   StatsAvailability,
   StatsGameListing,
   StatsAttributeValue,
@@ -55,6 +56,7 @@ import type {
 } from './protocol'
 import { readAttributeValues } from './attributeReads'
 import { readAvailability, readCoaches, readGameListings } from './availabilityReads'
+import { readRatingHistory } from './ratingReads'
 import { readShotChart } from './shotReads'
 import { readAssistNetwork, readGameFlow } from './playReads'
 import type { LineupGroup } from '@shared/stats/lineups'
@@ -175,6 +177,8 @@ export interface StatsService {
   /** A player's bio, draft and combines, each combine measure ranked within its position group. */
   profile(player: string): Promise<StatsProfile>
   availability(players: string[]): Promise<StatsAvailability[]>
+  /** A player's ratings over time, each series named with its maker (Plan T1704). */
+  ratingHistory(player: string): Promise<RatingHistory>
   /** The players' listings on the injury report for these games (T1601.4). */
   gameListings(games: string[], players: string[]): Promise<StatsGameListing[]>
   /** The values a text attribute holds for the seasons in scope, most held first (T1701.2). */
@@ -533,6 +537,7 @@ export async function openStatsService(
     lineups: (team, season, gameType, group) =>
       read((reader) => readLineups(reader, team, season, gameType, group)),
     availability: (players) => read((reader) => readAvailability(reader, players)),
+    ratingHistory: (player) => read((reader) => readRatingHistory(reader, player, league)),
     gameListings: (games, players) => read((reader) => readGameListings(reader, games, players)),
     attributeValues: (attribute, seasons) =>
       read((reader) => readAttributeValues(reader, attribute, seasons, league)),
@@ -641,6 +646,7 @@ export async function openStatsService(
     lineups: none.lineups,
     profile: none.profile,
     availability: none.availability,
+    ratingHistory: none.ratingHistory,
     gameListings: none.gameListings,
     attributeValues: none.attributeValues,
     coaches: none.coaches,
