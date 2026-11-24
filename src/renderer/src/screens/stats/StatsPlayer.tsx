@@ -133,6 +133,9 @@ import type {
 import { leagueOf, pairedLeague, type LeagueId } from '@shared/leagues'
 import type { NavLocation } from '@/lib/navHistory'
 
+/** A pool's size as the page's line writes it: "1,838". */
+const count = (n: number): string => fmtStat(n, { unit: 'count', decimals: 0 })
+
 /** The dashboard is about one player: never another player's answers while their own load. */
 const FRESH = { keepLast: false }
 
@@ -469,7 +472,7 @@ function CategoryTab(props: TabProps & { category: string }): React.JSX.Element 
   )
   const note = useCallback(
     (result: StatsResult) =>
-      `Percentiles and ranks among ${poolSize(rankedPool(result, position), position)} qualified ${amongWords(position)}.`,
+      `Percentiles and ranks among ${count(poolSize(rankedPool(result, position), position))} qualified ${amongWords(position)}.`,
     [position]
   )
   const shots = useMemo(() => shotRequest('player', player, scope), [player, scope])
@@ -897,7 +900,10 @@ function Overview({
           <div className="grid grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] items-start gap-8">
             {view ? (
               <StatSection
-                section={{ ...view, note: `Among ${pool} qualified ${amongWords(position)}` }}
+                section={{
+                  ...view,
+                  note: `Among ${count(pool)} qualified ${amongWords(position)}`
+                }}
               />
             ) : (
               <span />
@@ -1064,7 +1070,7 @@ function LinesTab({
       />
       <Notes
         notes={[
-          `Percentiles and ranks among ${poolSize(ranked, position)} qualified ${amongWords(position)}.`,
+          `Percentiles and ranks among ${count(poolSize(ranked, position))} qualified ${amongWords(position)}.`,
           ...result.notes
         ]}
       />
