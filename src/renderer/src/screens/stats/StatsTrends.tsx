@@ -4,7 +4,7 @@ import { FavouriteMark } from '@/components/stats/FavouriteStar'
 import { Loading } from '@/components/stats/parts'
 import { TrendChart } from '@/components/stats/TrendChart'
 import { dashboardModes } from '@/lib/stats/dashboard'
-import { familyLabel, fmtStat, isRescaled } from '@/lib/stats/format'
+import { fmtStat, isRescaled } from '@/lib/stats/format'
 import { typeLabel, type StatsScope } from '@/lib/stats/scope'
 import {
   careerSpan,
@@ -212,7 +212,7 @@ export function StatsTrends({
           className="h-7 max-w-[280px] cursor-pointer rounded-[6px] border border-line bg-panel px-1.5 text-[12.5px] font-medium text-fg"
         >
           {groups.map((g) => (
-            <optgroup key={g.family} label={familyLabel(g.family)}>
+            <optgroup key={g.key} label={g.label}>
               {g.metrics.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.label}

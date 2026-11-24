@@ -11,28 +11,26 @@ import type {
 import type { ChartSeries, SectionDef } from './dashboard'
 import { fmtStat } from './format'
 import { typeTag } from './player'
+import { OLD_TEAM_TABS, type CategoryTab } from './categoryPage'
 import { queryScope, scopeLabel, shortDay, type StatsScope } from './scope'
 
 /** The team dashboard: a header with the record and the standing, and tabs. */
 
+/**
+ * A tab of the team page: Overview, a category (`cat:shooting`, D52), or one of the views of the team
+ * that are no category: its players, lineups, splits, schedule and on/off.
+ */
 export type TeamTab =
-  | 'overview'
-  | 'offense'
-  | 'defense'
-  | 'shots'
-  | 'plays'
-  | 'players'
-  | 'lineups'
-  | 'splits'
-  | 'schedule'
-  | 'on_off'
+  'overview' | 'players' | 'lineups' | 'splits' | 'schedule' | 'on_off' | CategoryTab
+
+/** A tab as asked for: a category's, or one of the page's own; an old tab id reads as its category. */
+export function teamTabOf(asked: string): TeamTab {
+  if (asked.startsWith('cat:')) return asked as CategoryTab
+  return OLD_TEAM_TABS[asked] ?? (asked as TeamTab)
+}
 
 export const TEAM_DASH_TABS: { id: TeamTab; label: string }[] = [
   { id: 'overview', label: 'Overview' },
-  { id: 'offense', label: 'Offense' },
-  { id: 'defense', label: 'Defense' },
-  { id: 'shots', label: 'Shots' },
-  { id: 'plays', label: 'Play by play' },
   { id: 'players', label: 'Players' },
   { id: 'lineups', label: 'Lineups' },
   { id: 'splits', label: 'Splits' },
@@ -77,258 +75,6 @@ export const STRENGTH_SECTION: SectionDef = {
 
 /** The two sections of the Overview, read by one query. */
 export const OVERVIEW_METRICS = [...RATINGS_SECTION.metrics, ...STRENGTH_SECTION.metrics]
-
-export const TEAM_SECTIONS: Record<
-  'offense' | 'defense' | 'shots_offense' | 'shots_defense' | 'plays',
-  SectionDef[]
-> = {
-  // Plan T905: counted from the NBA's play by play, 1996-97 on.
-  plays: [
-    {
-      title: 'Game flow',
-      note: 'Averages a game',
-      metrics: [
-        'team_pbp_lead_changes',
-        'team_pbp_largest_lead',
-        'opp_pbp_largest_lead',
-        'team_pbp_lead_share',
-        'team_pbp_best_run',
-        'opp_pbp_best_run',
-        'team_pbp_drought',
-        'team_pbp_drought_fg'
-      ]
-    },
-    {
-      title: 'Turnovers',
-      note: 'Team turnovers: no player charged',
-      metrics: [
-        'team_pbp_tov_bad_pass',
-        'team_pbp_tov_lost_ball',
-        'team_pbp_tov_off_foul',
-        'team_pbp_tov_travel',
-        'team_pbp_tov_shot_clock',
-        'team_pbp_tov_team',
-        'team_pbp_tov_live_share',
-        'opp_pbp_tov_live'
-      ]
-    },
-    {
-      title: 'Fouls',
-      metrics: [
-        'team_pbp_pf_shooting',
-        'team_pbp_pf_personal',
-        'team_pbp_pf_offensive',
-        'team_pbp_tech',
-        'team_pbp_flagrant',
-        'opp_pbp_pf_shooting'
-      ]
-    },
-    {
-      title: 'Scoring',
-      metrics: [
-        'team_pbp_and1',
-        'team_pbp_and1_pct',
-        'opp_pbp_and1',
-        'team_pbp_ast_pts',
-        'team_pbp_ast2_share',
-        'team_pbp_ast3_share'
-      ]
-    }
-  ],
-  // Shots by zone, band and type: the team's own, and those taken against it.
-  shots_offense: [
-    {
-      title: 'Profile',
-      note: 'From the {league}’s shot chart file, {shotsFrom}',
-      metrics: [
-        'team_shot_avg_dist',
-        'team_shot_ra_freq',
-        'team_shot_paint_freq',
-        'team_shot_mid_freq',
-        'team_shot_c3_freq',
-        'team_shot_atb3_freq'
-      ]
-    },
-    {
-      title: 'Against the league',
-      note: 'FG% above the league’s rate in each zone that season',
-      metrics: [
-        'team_shot_ra_fg_rel',
-        'team_shot_paint_fg_rel',
-        'team_shot_mid_fg_rel',
-        'team_shot_c3_fg_rel',
-        'team_shot_atb3_fg_rel',
-        'team_shot_pps_above',
-        'team_shot_pts_above'
-      ]
-    },
-    {
-      title: 'By distance',
-      metrics: [
-        'team_shot_lt8_fg_pct',
-        'team_shot_d8_16_fg_pct',
-        'team_shot_d16_24_fg_pct',
-        'team_shot_d24p_fg_pct',
-        'team_shot_lt8_freq',
-        'team_shot_d24p_freq'
-      ]
-    },
-    {
-      title: 'Shot types',
-      metrics: [
-        'team_shot_dunk_fga',
-        'team_shot_layup_fg_pct',
-        'team_shot_hook_fg_pct',
-        'team_shot_floater_fg_pct',
-        'team_shot_jumper_fg_pct',
-        'team_shot_jumper_freq'
-      ]
-    },
-    {
-      title: 'Assisted',
-      note: 'The share of makes assisted, by the play by play',
-      metrics: [
-        'team_shot_ra_ast_pct',
-        'team_shot_mid_ast_pct',
-        'team_shot_c3_ast_pct',
-        'team_shot_atb3_ast_pct'
-      ]
-    }
-  ],
-  shots_defense: [
-    {
-      title: 'Profile',
-      note: 'From the {league}’s shot chart file, {shotsFrom}',
-      metrics: [
-        'opp_shot_avg_dist',
-        'opp_shot_ra_freq',
-        'opp_shot_paint_freq',
-        'opp_shot_mid_freq',
-        'opp_shot_c3_freq',
-        'opp_shot_atb3_freq'
-      ]
-    },
-    {
-      title: 'Against the league',
-      note: 'FG% above the league’s rate in each zone that season',
-      metrics: [
-        'opp_shot_ra_fg_rel',
-        'opp_shot_paint_fg_rel',
-        'opp_shot_mid_fg_rel',
-        'opp_shot_c3_fg_rel',
-        'opp_shot_atb3_fg_rel',
-        'opp_shot_pps_above',
-        'opp_shot_pts_above'
-      ]
-    },
-    {
-      title: 'By distance',
-      metrics: [
-        'opp_shot_lt8_fg_pct',
-        'opp_shot_d8_16_fg_pct',
-        'opp_shot_d16_24_fg_pct',
-        'opp_shot_d24p_fg_pct',
-        'opp_shot_lt8_freq',
-        'opp_shot_d24p_freq'
-      ]
-    },
-    {
-      title: 'Shot types',
-      metrics: [
-        'opp_shot_dunk_fga',
-        'opp_shot_layup_fg_pct',
-        'opp_shot_hook_fg_pct',
-        'opp_shot_floater_fg_pct',
-        'opp_shot_jumper_fg_pct',
-        'opp_shot_jumper_freq'
-      ]
-    },
-    {
-      title: 'Assisted',
-      note: 'The share of makes assisted, by the play by play',
-      metrics: [
-        'opp_shot_ra_ast_pct',
-        'opp_shot_mid_ast_pct',
-        'opp_shot_c3_ast_pct',
-        'opp_shot_atb3_ast_pct'
-      ]
-    }
-  ],
-  offense: [
-    {
-      title: 'Scoring',
-      metrics: ['team_pts', 'team_ortg', 'team_ppp', 'team_pace', 'team_poss_sym']
-    },
-    {
-      title: 'Shooting',
-      metrics: [
-        'team_ts_pct',
-        'team_efg_pct',
-        'team_fg_pct',
-        'team_fg2_pct',
-        'team_fg3_pct',
-        'team_ft_pct'
-      ]
-    },
-    {
-      title: 'Four factors',
-      note: 'As the {league} counts them',
-      metrics: ['team_efg_pct', 'team_tov_pct', 'team_orb_pct', 'team_fta_rate']
-    },
-    {
-      title: 'Shot profile',
-      metrics: ['team_fga', 'team_fg3a', 'team_fta', 'team_fg3a_rate', 'team_fg2a_rate']
-    },
-    {
-      title: 'Where the points come from',
-      metrics: [
-        'team_paint_pts',
-        'team_fast_break_pts',
-        'team_turnover_pts',
-        'team_starter_pts',
-        'team_bench_pts',
-        'team_share_pts_3pt'
-      ]
-    },
-    {
-      title: 'Playmaking',
-      metrics: ['team_ast', 'team_ast_share', 'team_ast_ratio', 'team_tov', 'team_ast_tov']
-    },
-    { title: 'Rebounding', metrics: ['team_oreb', 'team_reb', 'team_trb_pct'] }
-  ],
-  defense: [
-    { title: 'Scoring allowed', metrics: ['opp_pts', 'team_drtg', 'opp_ppp'] },
-    {
-      title: 'Shooting allowed',
-      metrics: [
-        'opp_ts_pct',
-        'opp_efg_pct',
-        'opp_fg_pct',
-        'opp_fg2_pct',
-        'opp_fg3_pct',
-        'opp_ft_pct'
-      ]
-    },
-    {
-      title: 'Four factors',
-      note: 'As the {league} counts them',
-      metrics: ['opp_efg_pct', 'opp_tov_pct', 'team_drb_pct', 'opp_fta_rate']
-    },
-    {
-      title: 'Shots allowed',
-      metrics: ['opp_fga', 'opp_fg3a', 'opp_fta', 'opp_fg3a_rate', 'opp_fg2a_rate']
-    },
-    {
-      title: 'Where they scored',
-      metrics: ['opp_paint_pts', 'opp_fast_break_pts', 'opp_turnover_pts']
-    },
-    {
-      title: 'Plays',
-      note: 'From the box score',
-      metrics: ['team_stl', 'team_blk', 'team_dreb', 'opp_tov', 'opp_ast', 'team_pf']
-    }
-  ]
-}
 
 /**
  * Every team, for ranks: the engine ranks them among themselves. The page reads its team's row, so

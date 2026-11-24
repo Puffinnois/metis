@@ -135,9 +135,9 @@ describe('which metrics can be charted', () => {
     expect(trendable({ ...info('pts'), grains: ['game'] }, 'player')).toBe(false)
   })
 
-  it('groups the select by family and finds the shown metric', () => {
+  it('groups the select by category and finds the shown metric', () => {
     const groups = trendMetrics('player', catalogue)
-    expect(groups[0].family).toBe('traditional')
+    expect(groups[0].category.id).toBe('offense')
     expect(groups.flatMap((g) => g.metrics).every((m) => m.entity === 'player')).toBe(true)
     expect(trendMetric('drives', 'player', byId, catalogue)).toBe('drives')
     expect(trendMetric('team_nrtg', 'player', byId, catalogue)).toBe('pts')

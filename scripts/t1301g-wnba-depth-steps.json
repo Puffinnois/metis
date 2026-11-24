@@ -33,7 +33,7 @@
     "eval": "(async () => {\n    await nav('Players')\n    await chooseSelect('Season', 2026)\n    const o = await openPlayer(\"A'ja Wilson\")\n    return check(\"A'ja Wilson's 2026 dashboard opens\", /opened/.test(o) && /Wilson/.test(main()), { o, head: main().slice(0, 160) })\n  })()"
   },
   {
-    "eval": "(async () => {\n    await tab('Shots')\n    await until(() => document.querySelector('section[data-shot-total]'), 15000)\n    const s = document.querySelector('section[data-shot-total]')\n    return check('her 2026 shot chart draws every shot, none without a location', s && Number(s.dataset.shotTotal) > 300 && s.dataset.shotTotal === s.dataset.shotDrawn && !/no location/.test(main()), { total: s?.dataset.shotTotal, drawn: s?.dataset.shotDrawn })\n  })()"
+    "eval": "(async () => {\n    await tab('Shooting')\n    await until(() => document.querySelector('section[data-shot-total]'), 15000)\n    const s = document.querySelector('section[data-shot-total]')\n    return check('her 2026 shot chart draws every shot, none without a location', s && Number(s.dataset.shotTotal) > 300 && s.dataset.shotTotal === s.dataset.shotDrawn && !/no location/.test(main()), { total: s?.dataset.shotTotal, drawn: s?.dataset.shotDrawn })\n  })()"
   },
   {
     "shot": "t1301g-01-wilson-shots-2026"
@@ -45,13 +45,13 @@
     "shot": "t1301g-02-wilson-onoff"
   },
   {
-    "eval": "(async () => {\n    await tab('Matchups')\n    await sleep(1500)\n    return check('the Matchups tab reads its reason', has('Not published for the WNBA: no release holds matchups.'), main().slice(0, 300))\n  })()"
+    "eval": "(async () => {\n    await tab('Defense')\n    await sleep(1500)\n    return check('the Matchups tab reads its reason', has('Not published for the WNBA: no release holds matchups.'), main().slice(0, 300))\n  })()"
   },
   {
     "shot": "t1301g-03-wilson-matchups"
   },
   {
-    "eval": "(async () => {\n    await tab('Tracking')\n    await sleep(1500)\n    return check('the Tracking tab reads its reason', has('Not published for the WNBA: no release holds player tracking.'), main().slice(0, 200))\n  })()"
+    "eval": "(async () => {\n    await tab('Hustle and movement')\n    await sleep(1500)\n    return check('the Tracking tab reads its reason', has('Not published for the WNBA: no release holds player tracking.'), main().slice(0, 200))\n  })()"
   },
   {
     "eval": "(async () => {\n    await tab('Profile')\n    await sleep(2500)\n    return check('the profile says the WNBA has no combine', has('Not published for the WNBA: no release holds a draft combine.'), main().slice(0, 300))\n  })()"
@@ -60,7 +60,7 @@
     "eval": "(async () => {\n    const req = { entity: 'team', id: '1611661320', seasons: [2005], scope: { gameTypes: ['regular'] } }\n    const c = await window.api.stats.shots('wnba', req)\n    return check('Los Angeles 2005 shots: 2,042 attempts, 873 made, 589 with no location (raw shot file)', c.total === 2042 && c.made === 873 && c.unlocated === 589 && c.shots.length === 2042 - 589, { total: c.total, made: c.made, unlocated: c.unlocated, drawn: c.shots.length })\n  })()"
   },
   {
-    "eval": "(async () => {\n    await nav('Teams')\n    await chooseSelect('Season', 2005)\n    const o = await openTeam('1611661320')\n    await tab('Shots')\n    await until(() => document.querySelector('section[data-shot-total]'), 15000)\n    return check('a 2005 team chart states the share with no location', /589 \\(28\\.8%\\) with no location, not drawn/.test(main()), { o, text: main().match(/[0-9,]+ attempts[^\\n]*/)?.[0] })\n  })()"
+    "eval": "(async () => {\n    await nav('Teams')\n    await chooseSelect('Season', 2005)\n    const o = await openTeam('1611661320')\n    await tab('Shooting')\n    await until(() => document.querySelector('section[data-shot-total]'), 15000)\n    return check('a 2005 team chart states the share with no location', /589 \\(28\\.8%\\) with no location, not drawn/.test(main()), { o, text: main().match(/[0-9,]+ attempts[^\\n]*/)?.[0] })\n  })()"
   },
   {
     "shot": "t1301g-04-sparks-shots-2005"
@@ -111,7 +111,7 @@
     "eval": "(async () => {\n    const n = await switchTo('NBA')\n    const q = await window.api.stats.query('nba', { entity: 'player', metrics: ['pts', 'nba_ortg', 'shot_ra_fga', 'onc_net'], scope: { seasons: [2026] }, sort: { metric: 'pts', dir: 'desc' }, limit: 3 })\n    const f = await window.api.stats.gameFlow('nba', q.rows.length ? (await window.api.stats.games('nba', 2026)).find((g) => g.score)?.id ?? '' : '')\n    const c = await window.api.stats.catalogue('nba')\n    return check('back on the NBA: its boards, shots, on court, flow and published pace as before', n === 'NBA' && q.rows.length === 3 && q.columns.every((x) => !x.reason) && f.periods >= 4 && /per 48 minutes/.test(c.find((x) => x.id === 'team_nba_pace').description), { top: q.rows.map((r) => [r.name, r.values.pts.value]), periods: f.periods })\n  })()"
   },
   {
-    "eval": "(async () => {\n    await nav('Players')\n    await chooseSelect('Season', 2026)\n    await openPlayer('Nikola Jok')\n    await tab('Shots')\n    await until(() => document.querySelector('section[data-shot-total]'), 15000)\n    const s = document.querySelector('section[data-shot-total]')\n    return check(\"the NBA's shot chart as before\", s && Number(s.dataset.shotTotal) > 300, { total: s?.dataset.shotTotal })\n  })()"
+    "eval": "(async () => {\n    await nav('Players')\n    await chooseSelect('Season', 2026)\n    await openPlayer('Nikola Jok')\n    await tab('Shooting')\n    await until(() => document.querySelector('section[data-shot-total]'), 15000)\n    const s = document.querySelector('section[data-shot-total]')\n    return check(\"the NBA's shot chart as before\", s && Number(s.dataset.shotTotal) > 300, { total: s?.dataset.shotTotal })\n  })()"
   },
   {
     "shot": "t1301g-09-nba-shots"

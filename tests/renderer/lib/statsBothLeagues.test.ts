@@ -4,6 +4,7 @@ import { sinceText } from '@/lib/stats/format'
 import { presetsIn } from '@/lib/stats/chart'
 import { defaultColumns } from '@/lib/stats/compare'
 import { sectionNote, shownTab, shownTabs } from '@/lib/stats/dashboard'
+import { boardCategories } from '@/lib/stats/categoryViews'
 import { defaultBoard, familiesOf, familyColumns, pickable, tabOf } from '@/lib/stats/leaderboard'
 import { inLeague, setLeague } from '@/lib/stats/league'
 import { playSplitNotes } from '@/lib/stats/splits'
@@ -128,20 +129,19 @@ describe('Trends’ search, in the league’s own season types', () => {
 })
 
 describe('what a league does not have is not offered', () => {
-  it('hides the WNBA’s Tracking, Play types and Matchups tabs, and keeps the NBA’s', () => {
-    const wnba = shownTabs(PLAYER_DASH_TABS, TAB_SECTIONS, byId(WNBA)).map((t) => t.id)
-    expect(wnba).not.toContain('tracking')
+  it('offers the WNBA no Hustle or Play types category on the page, and keeps the NBA’s', () => {
+    const players = tabOf('player', 'ALL')
+    const wnba = boardCategories(WNBA, players).map((c) => c.id)
+    expect(wnba).not.toContain('hustle')
     expect(wnba).not.toContain('play_types')
-    expect(wnba).not.toContain('matchups')
-    expect(wnba).toContain('shots')
-    expect(wnba).toContain('profile')
-    expect(shownTabs(PLAYER_DASH_TABS, TAB_SECTIONS, byId(NBA))).toEqual(PLAYER_DASH_TABS)
-    // Before the catalogue answers, every tab.
+    expect(wnba).toContain('shooting')
+    const nba = boardCategories(NBA, players).map((c) => c.id)
+    expect(nba).toContain('hustle')
+    expect(nba).toContain('play_types')
+    // The page's own tabs are the same in both leagues.
+    expect(shownTabs(PLAYER_DASH_TABS, TAB_SECTIONS, byId(WNBA))).toEqual(PLAYER_DASH_TABS)
     expect(shownTabs(PLAYER_DASH_TABS, TAB_SECTIONS, new Map())).toEqual(PLAYER_DASH_TABS)
-    // A tab asked for that the league does not show opens the first.
-    const tabs = shownTabs(PLAYER_DASH_TABS, TAB_SECTIONS, byId(WNBA))
-    expect(shownTab('tracking', tabs)).toBe('overview')
-    expect(shownTab('shots', tabs)).toBe('shots')
+    expect(shownTab('profile', PLAYER_DASH_TABS)).toBe('profile')
   })
 
   it('never opens a preset or a default on a metric the league does not show', () => {

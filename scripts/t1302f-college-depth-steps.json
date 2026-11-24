@@ -18,7 +18,7 @@
     "eval": "(async () => {\n  await nav('Players')\n  await switchTo('NCAA Men')\n  await chooseSelect('Season', 2026)\n  const o = await openPlayer('AJ Dybantsa')\n  return check(\"AJ Dybantsa's 2025-26 dashboard opens on NCAA Men\", /opened/.test(o) && !bad(main()), { o, head: main().slice(0, 160) })\n})()"
   },
   {
-    "eval": "(async () => {\n  await tab('Shots')\n  await until(() => document.querySelector('section[data-shot-total]'), 15000)\n  const s = document.querySelector('section[data-shot-total]')\n  return check(\"the shot chart draws every stats.ncaa.org shot of the season, none without a location\", s && Number(s.dataset.shotTotal) > 200 && s.dataset.shotTotal === s.dataset.shotDrawn && !/no location/.test(main()), { total: s?.dataset.shotTotal, drawn: s?.dataset.shotDrawn })\n})()"
+    "eval": "(async () => {\n  await tab('Shooting')\n  await until(() => document.querySelector('section[data-shot-total]'), 15000)\n  const s = document.querySelector('section[data-shot-total]')\n  return check(\"the shot chart draws every stats.ncaa.org shot of the season, none without a location\", s && Number(s.dataset.shotTotal) > 200 && s.dataset.shotTotal === s.dataset.shotDrawn && !/no location/.test(main()), { total: s?.dataset.shotTotal, drawn: s?.dataset.shotDrawn })\n})()"
   },
   {
     "shot": "t1302f-01-ncaam-shots"
@@ -69,7 +69,7 @@
     "eval": "(async () => {\n  await nav('Players')\n  await switchTo('NCAA Women')\n  await chooseSelect('Season', 2026)\n  const o = await openPlayer('Mikayla Blakes')\n  return check(\"Mikayla Blakes's 2025-26 dashboard opens on NCAA Women\", /opened/.test(o) && !bad(main()), { o, head: main().slice(0, 160) })\n})()"
   },
   {
-    "eval": "(async () => {\n  await tab('Shots')\n  await until(() => document.querySelector('section[data-shot-total]'), 15000)\n  const s = document.querySelector('section[data-shot-total]')\n  return check(\"the shot chart draws every stats.ncaa.org shot of the season, none without a location\", s && Number(s.dataset.shotTotal) > 200 && s.dataset.shotTotal === s.dataset.shotDrawn && !/no location/.test(main()), { total: s?.dataset.shotTotal, drawn: s?.dataset.shotDrawn })\n})()"
+    "eval": "(async () => {\n  await tab('Shooting')\n  await until(() => document.querySelector('section[data-shot-total]'), 15000)\n  const s = document.querySelector('section[data-shot-total]')\n  return check(\"the shot chart draws every stats.ncaa.org shot of the season, none without a location\", s && Number(s.dataset.shotTotal) > 200 && s.dataset.shotTotal === s.dataset.shotDrawn && !/no location/.test(main()), { total: s?.dataset.shotTotal, drawn: s?.dataset.shotDrawn })\n})()"
   },
   {
     "shot": "t1302f-01-ncaaw-shots"
@@ -126,7 +126,7 @@
     "eval": "(async () => {\n  const n = await switchTo('WNBA')\n  const c = await window.api.stats.shots('wnba', { entity: 'team', id: '1611661320', seasons: [2005], scope: { gameTypes: ['regular'] } })\n  return check('the WNBA unchanged: Los Angeles 2005 shots, 2,042 attempts, 589 with no location', n === 'WNBA' && c.total === 2042 && c.unlocated === 589, { total: c.total, unlocated: c.unlocated })\n})()"
   },
   {
-    "eval": "(async () => {\n  const n = await switchTo('NBA')\n  await nav('Players')\n  await chooseSelect('Season', 2026)\n  await openPlayer('Nikola Jok')\n  await tab('Shots')\n  await until(() => document.querySelector('section[data-shot-total]'), 15000)\n  const s = document.querySelector('section[data-shot-total]')\n  return check(\"the NBA's shot chart as before\", n === 'NBA' && s && Number(s.dataset.shotTotal) > 300, { total: s?.dataset.shotTotal })\n})()"
+    "eval": "(async () => {\n  const n = await switchTo('NBA')\n  await nav('Players')\n  await chooseSelect('Season', 2026)\n  await openPlayer('Nikola Jok')\n  await tab('Shooting')\n  await until(() => document.querySelector('section[data-shot-total]'), 15000)\n  const s = document.querySelector('section[data-shot-total]')\n  return check(\"the NBA's shot chart as before\", n === 'NBA' && s && Number(s.dataset.shotTotal) > 300, { total: s?.dataset.shotTotal })\n})()"
   },
   {
     "shot": "t1302f-06-nba-shots"

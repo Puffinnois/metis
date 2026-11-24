@@ -4,7 +4,7 @@ import {
   categoryViews,
   hasSides,
   KEY_VIEW,
-  UMBRELLA_KEY_STATS,
+  KEY_STATS,
   parentOf,
   pickerGroups,
   teamSide,
@@ -91,7 +91,7 @@ describe("a board's category tabs (D52)", () => {
   it('opens Offense and Defense on their chosen key stats, as each league has them', () => {
     // Every id of the lists exists in the catalogue, so none is silently skipped.
     const ids = new Set(CATALOGUE.map((m) => m.id))
-    for (const end of Object.values(UMBRELLA_KEY_STATS))
+    for (const end of Object.values(KEY_STATS))
       for (const list of Object.values(end))
         for (const id of list) expect(ids.has(id), id).toBe(true)
     const first = {
@@ -140,6 +140,62 @@ describe("a board's category tabs (D52)", () => {
     expect(categoryViews(catalogueInfo(LEAGUES.ncaam), team, 'offense')[0].metrics).toContain(
       'sdv_adj_o'
     )
+  })
+
+  it('opens Fouls, Scoring and a team’s Shooting on their chosen key stats (T1702.4)', () => {
+    const college = new Set(['ncaam', 'ncaaw'])
+    for (const id of LEAGUE_IDS) {
+      const catalogue = catalogueInfo(LEAGUES[id])
+      const key = (tab: ReturnType<typeof tabOf>, c: string): string[] =>
+        categoryViews(catalogue, tab, c)[0].metrics
+      expect(key(players, 'fouls').slice(0, 6), `${id} player fouls`).toEqual(
+        college.has(id)
+          ? ['pf', 'pbp_pf_shooting', 'pbp_pf_offensive', 'pbp_fd', 'pbp_fd_shooting', 'pbp_and1']
+          : ['pf', 'pbp_pf_shooting', 'pbp_pf_offensive', 'nba_pfd', 'pbp_fd', 'pbp_fd_shooting']
+      )
+      expect(key(team, 'fouls').slice(0, 6), `${id} team fouls`).toEqual([
+        'team_pf',
+        'team_pbp_pf_shooting',
+        'team_pbp_pf_offensive',
+        'team_pbp_fd',
+        'team_pbp_fd_shooting',
+        'team_pbp_and1'
+      ])
+      expect(key(opponents, 'fouls').slice(0, 6), `${id} opponents' fouls`).toEqual([
+        'opp_pf',
+        'opp_pbp_pf_shooting',
+        'opp_pbp_pf_offensive',
+        'opp_pbp_fd',
+        'opp_pbp_fd_shooting',
+        'opp_pbp_and1'
+      ])
+      expect(key(players, 'scoring').slice(0, 6), `${id} player scoring`).toEqual(
+        college.has(id)
+          ? ['pts', 'pts_2pt', 'pts_3pt', 'pts_ft', 'ncaa_trans_pts', 'ncaa_putbacks']
+          : ['pts', 'pts_2pt', 'pts_3pt', 'pts_ft', 'nba_pts_paint', 'nba_pts_fb']
+      )
+      expect(key(team, 'shooting').slice(0, 6), `${id} team shooting`).toEqual([
+        'team_fg_pct',
+        'team_fg3m',
+        'team_fg3_pct',
+        'team_ft_pct',
+        'team_fta_rate',
+        'team_efg_pct'
+      ])
+      // The offensive-foul turnovers and the team's shots blocked stay in their sub-groups.
+      expect(key(players, 'fouls')).not.toContain('pbp_tov_off_foul')
+      expect(key(team, 'shooting')).not.toContain('opp_blk')
+      expect(
+        categoryViews(catalogue, team, 'shooting').find((v) => v.key === 'shooting.field_goals')
+          ?.metrics
+      ).toContain('opp_blk')
+    }
+    expect(NBA.find((m) => m.id === 'opp_blk')?.label).toBe('Shots blocked by opponents')
+  })
+
+  it('opens a category on one section when a headline would repeat it whole', () => {
+    expect(categoryViews(NBA, players, 'results').map((v) => v.key)).toEqual(['results.record'])
+    expect(categoryViews(NBA, players, 'playing_time').some((v) => v.key === KEY_VIEW)).toBe(false)
   })
 
   it('leads a specific category with its key stats, then each sub-group in order', () => {

@@ -301,11 +301,14 @@ describe('the team dashboard', () => {
 
   it('reads a stat tab, and says why one is empty', async () => {
     await openTeams()
+    // Offense and Defense are category tabs now (D52), their Key stats open first.
     fireEvent.click(screen.getByRole('tab', { name: 'Offense' }))
-    expect(await screen.findByText('Four factors')).toBeTruthy()
-    expect(screen.getByText(/among the 1 teams/)).toBeTruthy()
+    expect(await screen.findByRole('button', { name: /Key stats/ })).toBeTruthy()
+    expect((await screen.findAllByText(/among the 1 teams/)).length).toBeGreaterThan(0)
     fireEvent.click(screen.getByRole('tab', { name: 'Defense' }))
-    expect(await screen.findByText('Shooting allowed')).toBeTruthy()
+    expect(
+      (await screen.findAllByRole('button', { name: /Shooting allowed/ })).length
+    ).toBeGreaterThan(0)
   })
 
   it('lists the players, and opens one', async () => {

@@ -1,8 +1,8 @@
 import type { ExploreSubject } from '@/lib/stats/explore'
-import { familyLabel, fmtStat, heatColor } from '@/lib/stats/format'
+import { primaryGroups, type MetricGroup } from './categoryViews'
+import { fmtStat, heatColor } from '@/lib/stats/format'
 import {
   ownQualifiers,
-  pickable,
   qualifiesFor,
   rankWithinTab,
   searchKey,
@@ -16,7 +16,6 @@ import { leaderRuleWords } from '@/lib/stats/qualifying'
 import type {
   BoardMode,
   Entity,
-  MetricFamily,
   MetricInfo,
   StatsFilter,
   StatsQuery,
@@ -157,18 +156,9 @@ export function chartTab(state: Pick<ChartState, 'entity' | 'position'>): TabDef
   return state.entity === 'player' ? tabOf('player', state.position) : tabOf('team', 'offense')
 }
 
-/** The metrics the selectors offer, by family: the leaderboards' column picker's. */
-export function chartMetrics(
-  catalogue: readonly MetricInfo[],
-  entity: Entity
-): { family: MetricFamily; label: string; metrics: MetricInfo[] }[] {
-  const all = pickable(catalogue, tabOf(entity, entity === 'player' ? 'ALL' : 'offense'))
-  const families = [...new Set(all.map((m) => m.family))]
-  return families.map((family) => ({
-    family,
-    label: familyLabel(family),
-    metrics: all.filter((m) => m.family === family)
-  }))
+/** The metrics the selectors offer, by category and sub-group (D52), each under its primary one. */
+export function chartMetrics(catalogue: readonly MetricInfo[], entity: Entity): MetricGroup[] {
+  return primaryGroups(catalogue, tabOf(entity, entity === 'player' ? 'ALL' : 'offense'))
 }
 
 /** Size and colour read a percentile: metrics with a better side only. */

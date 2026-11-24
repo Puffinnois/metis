@@ -196,7 +196,10 @@ describe('the home', () => {
   it('opens the full board, sorted by that metric, in the same mode', async () => {
     renderApp()
     fireEvent.click(await screen.findByRole('button', { name: 'Open the full Assists board' }))
-    expect(await screen.findByRole('heading', { name: /player leaderboard/ })).toBeTruthy()
+    // On the metric's primary category (D52): assists are Playmaking's.
+    expect(
+      await screen.findByRole('heading', { name: /player playmaking leaderboard/ })
+    ).toBeTruthy()
     await waitFor(() =>
       expect(lastQuery()).toMatchObject({
         sort: { metric: 'ast', dir: 'desc' },
@@ -208,7 +211,9 @@ describe('the home', () => {
   it('opens a team board on the team leaderboard', async () => {
     renderApp()
     fireEvent.click(await screen.findByRole('button', { name: 'Open the full Net rating board' }))
-    expect(await screen.findByRole('heading', { name: /team offense leaderboard/ })).toBeTruthy()
+    expect(
+      await screen.findByRole('heading', { name: /team results and strength leaderboard/ })
+    ).toBeTruthy()
   })
 })
 

@@ -8,7 +8,7 @@ import { Loading, Notes } from '@/components/stats/parts'
 import { ScopeBar } from '@/components/stats/ScopeBar'
 import { PercentileBar } from '@/components/stats/StatLines'
 import {
-  addFamily,
+  addCategory,
   candidatesQuery,
   compareColumns,
   compareQuery,
@@ -35,12 +35,11 @@ import {
   type CompareState
 } from '@/lib/stats/compare'
 import { dashboardModes } from '@/lib/stats/dashboard'
-import { familyLabel } from '@/lib/stats/format'
-import { familiesOf } from '@/lib/stats/leaderboard'
+import { boardCategories } from '@/lib/stats/categoryViews'
 import type { StatsScope } from '@/lib/stats/scope'
 import { usePlayerInfo, useStatsQuery, type StatsData } from '@/lib/stats/useStats'
 import { cn } from '@/lib/utils'
-import type { Entity, MetricFamily, StatsResult } from '@shared/stats/types'
+import type { Entity, StatsResult } from '@shared/stats/types'
 
 /** A comparison is about these three: never another set's numbers while their own load. */
 const FRESH = { keepLast: false }
@@ -136,7 +135,7 @@ export function StatsCompare({
   )
 
   const tab = compareTab(entity)
-  const families = familiesOf(data.catalogue, tab)
+  const categories = boardCategories(data.catalogue, tab)
   const update = (f: (s: CompareState) => CompareState): void => onState(f)
   const what = entity === 'team' ? 'team' : 'player'
 
@@ -169,17 +168,14 @@ export function StatsCompare({
         />
         <div className="ml-auto flex items-center gap-2">
           <StatsSelect
-            title="Add a family of rows"
+            title="Add a category's key stats"
             value=""
             options={[
-              { value: '', label: 'Add a family…' },
-              ...families.map((f) => ({ value: f, label: familyLabel(f) }))
+              { value: '', label: 'Add a category…' },
+              ...categories.map((c) => ({ value: c.id, label: c.label }))
             ]}
-            onChange={(f) =>
-              f &&
-              update((s) =>
-                setColumns(s, addFamily(columns, f as MetricFamily, entity, data.catalogue))
-              )
+            onChange={(c) =>
+              c && update((s) => setColumns(s, addCategory(columns, c, entity, data.catalogue)))
             }
           />
           <ColumnPicker

@@ -111,7 +111,7 @@
     "wait": 2500
   },
   {
-    "eval": "(async () => [await chooseSelect('Season', 2026), await chooseSelect('Season type', 'regular'), await chooseSelect('Range', 'season'), await openPlayer('Stephen Curry'), await tab('Shots')].join(' · '))()"
+    "eval": "(async () => [await chooseSelect('Season', 2026), await chooseSelect('Season type', 'regular'), await chooseSelect('Range', 'season'), await openPlayer('Stephen Curry'), await tab('Shooting')].join(' · '))()"
   },
   {
     "eval": "(async () => { const c = await waitChart(); const z = Object.fromEntries(c.zones.map((r) => [r[0], [Number(r[1]), Number(r[2])]])); return [check('Curry 2025-26 attempts (SQL on src_nba_shots: 799)', c.total, 799), check('restricted area FGM/FGA (SQL 84/122)', z['Restricted area'], [84, 122]), check('paint (SQL 52/99)', z['Paint outside the restricted area'], [52, 99]), check('mid-range (SQL 48/94)', z['Mid-range'], [48, 94]), check('left corner (SQL 11/20)', z['Left corner three'], [11, 20]), check('right corner (SQL 7/13)', z['Right corner three'], [7, 13]), check('above the break (SQL 172/451)', z['Above-the-break three'], [172, 451]), 'head: ' + c.head].join('\\n') })()"
@@ -138,7 +138,7 @@
     "eval": "(async () => chooseSelect('Range', 'season'))()"
   },
   {
-    "eval": "(async () => [await chooseSelect('Season', 1996), await openPlayer('Michael Jordan'), await tab('Shots')].join(' · '))()"
+    "eval": "(async () => [await chooseSelect('Season', 1996), await openPlayer('Michael Jordan'), await tab('Shooting')].join(' · '))()"
   },
   {
     "eval": "(async () => { const c = await waitChart(); return check('1995-96 reads its reason', c.status, 'Recorded from 1996-97.') })()"
@@ -156,7 +156,7 @@
     "wait": 2500
   },
   {
-    "eval": "(async () => [await chooseSelect('Team', '1610612738'), await tab('Shots')].join(' · '))()"
+    "eval": "(async () => [await chooseSelect('Team', '1610612738'), await tab('Shooting')].join(' · '))()"
   },
   {
     "eval": "(async () => { const c = await waitChart(); return [check('Boston 2025-26 own attempts (SQL: 7,398)', c.total, 7398), 'head: ' + c.head].join('\\n') })()"
@@ -423,7 +423,7 @@
     "wait": 2000
   },
   {
-    "eval": "(async () => [await chooseSelect('Season', 2026), await openPlayer('LeBron James'), await tab('Matchups')].join(' · '))()"
+    "eval": "(async () => [await chooseSelect('Season', 2026), await openPlayer('LeBron James'), await tab('Defense')].join(' · '))()"
   },
   {
     "wait": 1500
@@ -444,7 +444,7 @@
     "eval": "(async () => { const r = await chooseSelect('Range', 'last'); await sleep(2500); return r + ' ' + JSON.stringify({ min: M('matchup_min'), pts: M('matchup_pts'), guarded: pairTable('Who they guarded most') }) })()"
   },
   {
-    "eval": "(async () => [await chooseSelect('Range', 'season'), await openPlayer('Devin Vassell'), await chooseSelect('Season type', 'playoffs'), await tab('Matchups')].join(' · '))()"
+    "eval": "(async () => [await chooseSelect('Range', 'season'), await openPlayer('Devin Vassell'), await chooseSelect('Season type', 'playoffs'), await tab('Defense')].join(' · '))()"
   },
   {
     "wait": 2000
@@ -477,7 +477,7 @@
     "wait": 2500
   },
   {
-    "eval": "(async () => [await chooseSelect('Season', 2026), await chooseSelect('Season type', 'regular'), await chooseSelect('Range', 'season'), await openPlayer('Stephen Curry'), await tab('Play by play')].join(' · '))()"
+    "eval": "(async () => [await chooseSelect('Season', 2026), await chooseSelect('Season type', 'regular'), await chooseSelect('Range', 'season'), await openPlayer('Stephen Curry'), await tab('Playmaking')].join(' · '))()"
   },
   {
     "eval": "(async () => { await until(() => document.querySelector('[data-metric=pbp_tov_bad_pass]')); const r = await q(['pbp_tov_bad_pass', 'pbp_tov_lost_ball', 'pbp_tov_off_foul', 'pbp_tov_travel', 'pbp_tov_out_of_bounds', 'pbp_tov_violation', 'pbp_and1', 'pbp_and1_ftm'], { seasons: [2026], players: ['201939'] }); const v = (m) => val(r, '201939', m); return [check('Curry bad passes (SQL on src_nba_pbp: 49 + 16 out of bounds)', v('pbp_tov_bad_pass'), 65), check('lost balls (SQL 26 + 8)', v('pbp_tov_lost_ball'), 34), check('offensive-foul turnovers (SQL 10)', v('pbp_tov_off_foul'), 10), check('travels (SQL 2)', v('pbp_tov_travel'), 2), check('stepped out (SQL 7)', v('pbp_tov_out_of_bounds'), 7), check('other violations (SQL 3 backcourt)', v('pbp_tov_violation'), 3), check('and-ones (SQL 24)', v('pbp_and1'), 24), check('and-ones converted (SQL 23)', v('pbp_and1_ftm'), 23), 'cards: ' + card('pbp_tov_bad_pass') + ' || ' + card('pbp_and1')].join('\\n') })()"
@@ -501,7 +501,7 @@
     "eval": "(async () => chooseSelect('Range', 'season'))()"
   },
   {
-    "eval": "(async () => [await chooseSelect('Season', 1996), await openPlayer('Michael Jordan'), await tab('Play by play')].join(' · '))()"
+    "eval": "(async () => [await chooseSelect('Season', 1996), await openPlayer('Michael Jordan'), await tab('Playmaking')].join(' · '))()"
   },
   {
     "eval": "(async () => { await until(() => [...document.querySelectorAll('section')].some((s) => s.innerText.includes('Recorded from 1996-97.'))); const r = await q(['pbp_and1'], { seasons: [1996] }); return [check('1995-96 reads its reason', reason(r, 'pbp_and1'), 'Recorded from 1996-97.'), check('the assist network says so too', [...document.querySelectorAll('section')].some((s) => s.innerText.startsWith('Who they feed') || s.innerText.includes('Recorded from 1996-97.')), true)].join('\\n') })()"
@@ -522,7 +522,7 @@
     "wait": 2500
   },
   {
-    "eval": "(async () => [await chooseSelect('Team', '1610612738'), await tab('Play by play')].join(' · '))()"
+    "eval": "(async () => [await chooseSelect('Team', '1610612738'), await tab('Playmaking')].join(' · '))()"
   },
   {
     "eval": "(async () => { await until(() => table('Assist network')); const t = table('Assist network'); const head = document.querySelector('section[aria-label=\"Assist network\"] h2')?.parentElement?.innerText.replace(/\\n/g, ' | '); return [check('Boston top pair (SQL: Pritchard to Brown, 78 makes, 15 threes, 171 points)', t?.[0]?.slice(0, 5), ['Payton Pritchard', 'Jaylen Brown', '78', '15', '171']), check('second (SQL: White to Brown, 72, 17, 161)', t?.[1]?.slice(0, 5), ['Derrick White', 'Jaylen Brown', '72', '17', '161']), check('third (SQL: Pritchard to Queta, 68, 0, 136)', t?.[2]?.slice(0, 5), ['Payton Pritchard', 'Neemias Queta', '68', '0', '136']), 'head: ' + head, 'flow card: ' + card('team_pbp_lead_changes')].join('\\n') })()"
@@ -633,7 +633,7 @@
     "wait": 300
   },
   {
-    "eval": "timed('Player: Shots tab', tab('Shots'), () => has('section[aria-label=\"Shot chart\"] [role=table][aria-label=\"Shots by zone\"]'))"
+    "eval": "timed('Player: Shots tab', tab('Shooting'), () => has('section[aria-label=\"Shot chart\"] [role=table][aria-label=\"Shots by zone\"]'))"
   },
   {
     "wait": 300
@@ -651,7 +651,7 @@
     "wait": 300
   },
   {
-    "eval": "timed('Player: Play by play tab', tab('Play by play'), () => has('[data-metric=pbp_tov_bad_pass]') && table('Who they feed')())"
+    "eval": "timed('Player: Play by play tab', tab('Playmaking'), () => has('[data-metric=pbp_tov_bad_pass]') && table('Who they feed')())"
   },
   {
     "wait": 300
@@ -684,7 +684,7 @@
     "wait": 300
   },
   {
-    "eval": "timed('Team: Shots tab', tab('Shots'), () => has('section[aria-label=\"Shot chart\"]'))"
+    "eval": "timed('Team: Shots tab', tab('Shooting'), () => has('section[aria-label=\"Shot chart\"]'))"
   },
   {
     "wait": 300
@@ -702,7 +702,7 @@
     "wait": 300
   },
   {
-    "eval": "timed('Team: Play by play tab', tab('Play by play'), table('Assist network'))"
+    "eval": "timed('Team: Play by play tab', tab('Playmaking'), table('Assist network'))"
   },
   {
     "wait": 300

@@ -367,12 +367,10 @@ describe('the player dashboard', () => {
     fireEvent.change(screen.getByRole('combobox', { name: 'Season' }), {
       target: { value: '1995' }
     })
+    // Defense is a category tab now (D52): its Key stats open, deflections and contests among them.
     fireEvent.click(await screen.findByRole('tab', { name: 'Defense' }))
-    expect((await screen.findAllByText('Recorded from 1996-97.')).length).toBeGreaterThan(0)
-    expect(screen.getByText('Plus-minus: starts in 1996-97.')).toBeTruthy()
-    // The Hustle section is tagged from 2016-17, and its box outs from 2017-18.
-    expect(screen.getAllByText('Recorded from 2016-17.')).toHaveLength(5)
-    expect(screen.getAllByText('Recorded from 2017-18.')).toHaveLength(1)
+    expect(await screen.findByRole('button', { name: /Key stats/ })).toBeTruthy()
+    expect((await screen.findAllByText('Recorded from 2016-17.')).length).toBeGreaterThan(0)
   })
 
   it('says so when the player did not play in the scope, and keeps their career', async () => {

@@ -118,14 +118,16 @@ function headline(
     .map(({ m }) => m.id)
 }
 
+/** Whose Key stats a tab reads: a player's, a team's own (and an umbrella's), or its opponents'. */
+export type KeyKind = 'player' | 'team' | 'opponents'
+
 /**
- * Offense's and Defense's Key stats, chosen, not derived (the manager's review of T1702.3): how a
- * team's or a player's end is read, in this order. A metric the league lacks is skipped and the next
- * taken, 12 at most. A team's rating and four factors lead at both ends.
+ * Key stats chosen, not derived (the manager's reviews of T1702.3 and T1702.4), in this order: how a
+ * reader reads that category. A metric the league lacks is skipped and the next taken, 12 at most. A
+ * category or kind that states none keeps the derived list (`headline`). Offense's and Defense's are
+ * stated for both kinds: a team's rating and four factors lead at both ends.
  */
-export const UMBRELLA_KEY_STATS: Readonly<
-  Record<'offense' | 'defense', Readonly<Record<'player' | 'team', readonly string[]>>>
-> = {
+export const KEY_STATS: Readonly<Record<string, Partial<Record<KeyKind, readonly string[]>>>> = {
   offense: {
     team: [
       'team_ortg',
@@ -191,7 +193,101 @@ export const UMBRELLA_KEY_STATS: Readonly<
       'sdv_ncaa_drapm',
       'sdv_box_dbpm'
     ]
+  },
+  // What a reader means by fouls first: committed, then drawn, then technicals and flagrants. The
+  // offensive-foul turnovers and their share stay in their sub-group.
+  fouls: {
+    player: [
+      'pf',
+      'pbp_pf_shooting',
+      'pbp_pf_offensive',
+      'nba_pfd',
+      'pbp_fd',
+      'pbp_fd_shooting',
+      'pbp_and1',
+      'fta_rate',
+      'pbp_tech',
+      'pbp_flagrant'
+    ],
+    team: [
+      'team_pf',
+      'team_pbp_pf_shooting',
+      'team_pbp_pf_offensive',
+      'team_pbp_fd',
+      'team_pbp_fd_shooting',
+      'team_pbp_and1',
+      'team_fta_rate',
+      'team_pbp_tech',
+      'team_pbp_flagrant'
+    ],
+    opponents: [
+      'opp_pf',
+      'opp_pbp_pf_shooting',
+      'opp_pbp_pf_offensive',
+      'opp_pbp_fd',
+      'opp_pbp_fd_shooting',
+      'opp_pbp_and1',
+      'opp_fta_rate',
+      'opp_pbp_tech',
+      'opp_pbp_flagrant'
+    ]
+  },
+  // Points, by shot, by situation (the NBA's dashboards, the colleges' transition and putbacks), the
+  // share of the team's points, and one assisted share last.
+  scoring: {
+    player: [
+      'pts',
+      'pts_2pt',
+      'pts_3pt',
+      'pts_ft',
+      'nba_pts_paint',
+      'nba_pts_fb',
+      'ncaa_trans_pts',
+      'nba_pts_off_tov',
+      'nba_pts_2_nd_chance',
+      'ncaa_putbacks',
+      'share_pts',
+      'nba_share_ast_fgm',
+      'ncaa_assisted_pct'
+    ]
+  },
+  // A team's own shooting, then the shot chart's rim and mid-range percentages (the colleges' box
+  // splits of the same zones would read as a second "Mid FG%"). The shots blocked by its opponents
+  // stay in Field goals.
+  shooting: {
+    team: [
+      'team_fg_pct',
+      'team_fg3m',
+      'team_fg3_pct',
+      'team_ft_pct',
+      'team_fta_rate',
+      'team_efg_pct',
+      'team_ts_pct',
+      'team_fg3a_rate',
+      'team_shot_ra_fg_pct',
+      'team_shot_mid_fg_pct'
+    ]
   }
+}
+
+/** The kind a tab's Key stats are stated for. */
+export const keyKind = (tab: TabDef, category: string): KeyKind =>
+  tab.entity === 'player'
+    ? 'player'
+    : isUmbrellaCategory(category) || tab.id !== 'defense'
+      ? 'team'
+      : 'opponents'
+
+/** The chosen Key stats a tab offers, 12 at most, or null where the category states none. */
+function chosenKeyStats(
+  metrics: readonly MetricInfo[],
+  tab: TabDef,
+  category: string
+): string[] | null {
+  const list = KEY_STATS[category]?.[keyKind(tab, category)]
+  if (!list) return null
+  const ids = list.filter((id) => metrics.some((m) => m.id === id)).slice(0, 12)
+  return ids.length > 0 ? ids : null
 }
 
 /** The placement a metric has in a category, and that placement's parts. */
@@ -220,7 +316,7 @@ function byGroup(
 
 /**
  * A category's presets on a tab. A specific category: its headline, then each sub-group. An umbrella:
- * its chosen Key stats (`UMBRELLA_KEY_STATS`), then each of its headings; one over 40
+ * its chosen Key stats (`KEY_STATS`), then each of its headings; one over 40
  * metrics holds the specific sub-groups of that end as children, so
  * Offense › Shooting › Corner threes is Shooting's corner threes on offense. Every view is at most 40
  * metrics (the tests hold it in every league).
@@ -235,17 +331,17 @@ export function categoryViews(
   const metrics = offered(catalogue, tab, categoryId)
   if (!isUmbrellaCategory(categoryId)) {
     const groups = byGroup(metrics, category)
-    // One sub-group needs no headline beside it.
-    return groups.length > 1
-      ? [{ key: KEY_VIEW, label: 'Key stats', metrics: headline(metrics, category) }, ...groups]
+    const key = chosenKeyStats(metrics, tab, categoryId) ?? headline(metrics, category)
+    // One sub-group needs no headline beside it, nor does a category the headline would hold whole
+    // (a player's Playing time in the colleges): one section of each metric, not two.
+    return groups.length > 1 && key.length < metrics.length
+      ? [{ key: KEY_VIEW, label: 'Key stats', metrics: key }, ...groups]
       : groups
   }
   const key: CategoryView = {
     key: KEY_VIEW,
     label: 'Key stats',
-    metrics: (UMBRELLA_KEY_STATS[categoryId as 'offense' | 'defense']?.[tab.entity] ?? [])
-      .filter((id) => metrics.some((m) => m.id === id))
-      .slice(0, 12)
+    metrics: chosenKeyStats(metrics, tab, categoryId) ?? []
   }
   const headings = byGroup(metrics, category).map((view) => {
     if (view.metrics.length <= MAX_COLUMNS) return view
@@ -317,4 +413,65 @@ export function pickerGroups(
     }
   }
   return out
+}
+
+/** A select's or list's group: "Shooting › Threes" and the metrics listed there. */
+export interface MetricGroup {
+  key: string
+  label: string
+  category: Category
+  group: CategoryGroup
+  metrics: MetricInfo[]
+}
+
+/**
+ * `pickerGroups` for a select or a list that shows each metric once (Explore's axes, Trends'
+ * metric, Compare's rows, T1701's filters): every metric under its primary placement only, in the
+ * registry's order, those `keep` turns down left out.
+ */
+export function primaryGroups(
+  catalogue: readonly MetricInfo[],
+  tab: TabDef,
+  keep: (m: MetricInfo) => boolean = () => true
+): MetricGroup[] {
+  return pickerGroups(catalogue, tab)
+    .map((g) => ({
+      key: `${g.category.id}.${g.group.id}`,
+      label: `${g.category.label} › ${g.group.label}`,
+      category: g.category,
+      group: g.group,
+      metrics: g.metrics.filter(
+        (m) => m.categories?.[0] === `${g.category.id}.${g.group.id}` && keep(m)
+      )
+    }))
+    .filter((g) => g.metrics.length > 0)
+}
+
+/** The group a metric is listed under in `primaryGroups`: "Shooting › Threes". */
+export function primaryLabel(info: Pick<MetricInfo, 'categories'> | undefined): string | null {
+  const p = info?.categories?.[0]
+  const parts = p ? placementParts(p) : null
+  return parts ? `${parts.category.label} › ${parts.group.label}` : null
+}
+
+/**
+ * Where a board opens on one metric (the home's "All →"): its primary category, the side of a team's
+ * category it shows on (`teamSide`), and the first view of that category holding it, Key stats when
+ * they do. Null when the metric has no category the tab offers.
+ */
+export function boardForMetric(
+  catalogue: readonly MetricInfo[],
+  tab: TabDef,
+  metric: string
+): { category: string; tab: string; view: CategoryView } | null {
+  const info = catalogue.find((m) => m.id === metric)
+  const category = info?.categories?.[0]?.split('.')[0]
+  if (!info || !category) return null
+  const side =
+    tab.entity === 'team' && !isUmbrellaCategory(category) ? teamSide(info, category) : tab.id
+  const on: TabDef = { ...tab, id: side }
+  for (const v of categoryViews(catalogue, on, category))
+    for (const shown of v.children ?? [v])
+      if (shown.metrics.includes(metric)) return { category, tab: side, view: shown }
+  return null
 }

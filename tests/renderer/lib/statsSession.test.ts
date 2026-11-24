@@ -67,9 +67,9 @@ describe('each league keeps its own session', () => {
       seasonType: 'playoffs' as const,
       range: { kind: 'dates' as const, from: '2016-05-01', to: '2016-06-01' }
     }
-    keepSession(store, 'nba', { ...freshSession(), chosen: scope, playerTab: 'shooting' })
+    keepSession(store, 'nba', { ...freshSession(), chosen: scope, playerTab: 'cat:shooting' })
     keepSession(store, 'wnba', freshSession())
-    expect(sessionOf(store, 'nba')).toMatchObject({ chosen: scope, playerTab: 'shooting' })
+    expect(sessionOf(store, 'nba')).toMatchObject({ chosen: scope, playerTab: 'cat:shooting' })
     expect(sessionOf(store, 'wnba')?.chosen).toBeNull()
   })
 
