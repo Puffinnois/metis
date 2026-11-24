@@ -98,5 +98,6 @@ export const NCAA_TEAM_SUMS: readonly string[] = [
   ...NCAA_TEAM_OWN.map((c) => `opp_${c}`)
 ]
 
-/** A count kept as a whole number; the possessions are an estimate with decimals. */
-export const isNcaaWhole = (column: string): boolean => column !== 'ncaa_poss'
+/** A count kept as a whole number; the possessions are an estimate, the seconds published to a hundredth. */
+export const isNcaaWhole = (column: string): boolean =>
+  column !== 'ncaa_poss' && column !== 'ncaa_off_seconds'
