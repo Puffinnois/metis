@@ -291,6 +291,7 @@ export function StatsLeaderboard({
             filters={board.filters ?? []}
             byId={data.byId}
             mode={board.mode}
+            seasons={query?.scope.seasons ?? []}
             onChange={(filters) => update({ filters })}
           />
           <ColumnPicker
