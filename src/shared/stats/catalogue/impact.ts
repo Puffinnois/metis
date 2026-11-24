@@ -473,7 +473,7 @@ const raptor = (column: string, modern: boolean, o: Partial<Opts> = {}): Opts =>
     value: ratio(column, sample),
     sample,
     minSample: 2000,
-    family: 'impact',
+    family: 'raptor',
     kind: 'model',
     unit: 'rating',
     decimals: 1,
@@ -558,7 +558,7 @@ const RAPTOR_METRICS: MetricDef[] = [
     {
       value: '{rp_war}',
       sample: 'rp_poss',
-      family: 'impact',
+      family: 'raptor',
       kind: 'model',
       aggregation: 'sum',
       totalOnly: true,
@@ -600,6 +600,8 @@ const RAPTOR_METRICS: MetricDef[] = [
     `The player’s effect on the team’s possessions per 48 minutes with them on the floor. Neither good nor bad in itself. ${RAPTOR_WHOSE} ${RAPTOR_BY_POSS}`,
     {
       ...raptor('rp_pace', false),
+      // Over the possessions that have a pace impact: two rows of the file have RAPTOR without one.
+      value: ratio('rp_pace', 'rp_pace_poss'),
       unit: 'number',
       direction: 'neutral',
       categories: ['impact.on_court']

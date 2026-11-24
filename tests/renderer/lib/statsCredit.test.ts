@@ -9,6 +9,7 @@ import {
   ESPN_WNBA_URL,
   NBA_STATS_URL,
   NCAA_STATS_URL,
+  RAPTOR_DATA_URL,
   WNBA_STATS_URL,
   creditText
 } from '@/lib/stats/credit'
@@ -46,6 +47,18 @@ describe('the data credit', () => {
     )
   })
 
+  it('credits FiveThirtyEight as RAPTOR’s publisher, with the licence its data sets carry (D54)', () => {
+    expect(links).toContainEqual({ text: 'FiveThirtyEight', url: RAPTOR_DATA_URL })
+    expect(RAPTOR_DATA_URL).toBe('https://github.com/fivethirtyeight/data/tree/master/nba-raptor')
+    expect(creditText()).toContain(
+      'The NBA’s RAPTOR is published by FiveThirtyEight under CC BY 4.0.'
+    )
+    // Every RAPTOR metric carries the maker's name the credit points at.
+    const raptor = CATALOGUE.filter((m) => m.published === 'pub_player_raptor')
+    expect(raptor.length).toBeGreaterThan(0)
+    for (const m of raptor) expect(m.label).toMatch(/\(FiveThirtyEight\)$/)
+  })
+
   it('names the upstreams and says what Metis changed', () => {
     const text = creditText()
     expect(text).toContain('from ESPN and NBA.com.')
@@ -57,7 +70,7 @@ describe('the data credit', () => {
   it('disclaims any affiliation and leaves the names with their owners', () => {
     const text = creditText()
     expect(text).toContain(
-      'Metis is not affiliated with or endorsed by the NBA, the WNBA, the NCAA, ESPN or SportsDataverse.'
+      'Metis is not affiliated with or endorsed by the NBA, the WNBA, the NCAA, ESPN, SportsDataverse or FiveThirtyEight.'
     )
     expect(text).toContain(
       'Team, school and player names, and the NBA, WNBA, NCAA and ESPN names, belong to their owners.'
@@ -74,6 +87,7 @@ describe('the data credit', () => {
     expect(CREDIT_WHOSE.map((w) => w.label)).toEqual([
       'As published',
       'SportsDataverse’s calculations',
+      'FiveThirtyEight’s calculations',
       'Computed by Metis'
     ])
   })

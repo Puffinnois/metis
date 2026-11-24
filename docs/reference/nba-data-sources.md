@@ -125,6 +125,8 @@ Seasons are the labels in the file names (see "Traps" for what a label means). A
 | `nba_crosswalk`                 | 2002–2027 | 78    | 1.9   | Player, team and **game** ids across ESPN, NBA, Fox and Yahoo, per season                                                                                                                               |
 | `nba_groups`                    | 1971–2027 | 63    | 0.4   | Player and team aliases, conference and division by season                                                                                                                                              |
 
+One more release is not SportsDataverse's: FiveThirtyEight's RAPTOR (D54), four CSVs read from its own repository, 1977–2022, 11.0 MB. Metis keeps them from 1993-94 on. See "RAPTOR" below.
+
 ### Inside `nba_stats_leaguedash`
 
 | Family                                                                                                                     | Files      | Notes                                                                                  |
@@ -1249,6 +1251,80 @@ So the old and new columns are one engine run on two RAPM fits.
 3. **The DARKO metrics' copy.** They read "The dataset no longer publishes DARKO." True of the name, but the dataset never published Kostya Medvedovsky's DARKO: the old columns were this engine.
 4. **`data-rights.md` and the credit.** No new maker is named: BOBAN is SportsDataverse's, under the licence and credit already recorded. If it becomes metrics, the record needs a line saying so.
 5. **The republished seasons.** The producer rebuilt 2015-16 to 2025-26 on 2026-11-15, after this load sealed them. The data policy fetches old seasons once; whether the impact file's sealed seasons are fetched again is a question of its own.
+
+## RAPTOR (D54)
+
+FiveThirtyEight's archived RAPTOR files, the one source that is not a SportsDataverse release. Read from `raw.githubusercontent.com/fivethirtyeight/data/master/nba-raptor` on 2026-11-24; the folder's last commit is of 2022-11-29.
+
+| File                              | Rows (all) | From 1993-94 | Seasons   | One row is                                   | Columns |
+| --------------------------------- | ---------: | -----------: | --------- | -------------------------------------------- | ------: |
+| `historical_RAPTOR_by_player.csv` |     19,159 |       13,554 | 1977–2022 | a player-season, regular season and playoffs |      15 |
+| `historical_RAPTOR_by_team.csv`   |     29,976 |       21,031 | 1977–2022 | a player, season, season type and team       |      17 |
+| `modern_RAPTOR_by_player.csv`     |      4,685 |        4,685 | 2014–2022 | a player-season                              |      21 |
+| `modern_RAPTOR_by_team.csv`       |      7,289 |        7,289 | 2014–2022 | a player, season, season type and team       |      23 |
+
+**What the columns hold** (the folder's README): possessions and minutes; offensive, defensive and total RAPTOR per 100 possessions; in the modern files their box-score and on/off parts; WAR for the regular season, the playoffs and both; PREDATOR, the predictive version; and pace impact, the player's effect on the team's possessions per 48 minutes. Each column is stored as published, in `src_raptor_historical_player`, `src_raptor_historical_team`, `src_raptor_modern_player` and `src_raptor_modern_team`, typed from every row (`season` an integer, `poss` and `mp` integers, the values doubles).
+
+**How the rows add up (measured on every row):**
+
+- A player-season of the by-player files is its by-team rows weighted by possessions: RAPTOR, its ends and PREDATOR on 19,159 of 19,159. Pace impact matches on 19,157: two by-team rows have RAPTOR but no pace impact, and the by-player file leaves their possessions out of it. WAR adds up on 19,158; two by-team rows have an empty WAR.
+- The modern files' totals, WAR and PREDATOR equal the historical files' on all 7,289 rows from 2014.
+- So `pub_player_raptor` (`derived/raptor.ts`) takes the historical by-team file for the totals, WAR, PREDATOR and pace impact, and the modern one for the box and on/off parts, each rate stored times its possessions. The engine reads any season type, traded player or run of seasons exactly. A rate is divided by the possessions of the rows that have it, as the by-player files weigh it: two rows of the modern file have no box or on/off values (one of them Tyson Chandler's single playoff possession of 2019-20), and two of the historical file no pace impact, which has its own possessions for that reason.
+
+**The eras.** FiveThirtyEight's README: full player-tracking RAPTOR from 2013-14; box score and single-year regularized plus-minus from 2000-01 to 2012-13; the box score alone before. The modern files exist only from 2013-14, so the box and on/off parts start there. The metrics' descriptions say so.
+
+**Linking the players.** The files key players by Basketball-Reference id (`abdelal01`) and name, and no crosswalk of the dataset holds Basketball-Reference ids: the aliases are ESPN's, the NBA's, Fox's and Yahoo's. So each player is linked to an NBA id as D46 links people, with no wrong link tolerated:
+
+1. the same name in the same season, compared without accents, case, punctuation or a suffix, with one candidate on each side, confirmed by minutes within 6 % or 10 minutes of Metis's own line, regular season and playoffs together. Metis's whole-season row is read, never the team rows, which would count a player twice;
+2. for those left, the same last name in the same season, one candidate on each side, minutes within 1 % or 2 minutes: a first name or nickname written differently;
+3. a Basketball-Reference id linked to two NBA ids, or an NBA id to two Basketball-Reference ids, is dropped both ways;
+4. a linked id carries to the player's other seasons with a line in Metis, whatever the name or minutes that season.
+
+Measured on the four-league load refreshed on 2026-11-24 (`scripts/check-raptor.mjs`):
+
+- **Linked:** 13,536 of the 13,554 player-seasons of 1993-94 to 2021-22, 99.9 %: 13,408 by name, 102 by last name and minutes, 26 carried.
+- **No wrong link:** no Basketball-Reference id is linked to two NBA ids, and no NBA id to two Basketball-Reference ids.
+
+| Season  | Player-seasons | Linked | %    | Minutes not linked |
+| ------- | -------------: | -----: | ---- | -----------------: |
+| 1993-94 |            403 |    400 | 99.3 |              2,359 |
+| 1994-95 |            407 |    406 | 99.8 |                803 |
+| 1996-97 |            441 |    440 | 99.8 |                101 |
+| 1997-98 |            440 |    439 | 99.8 |                 42 |
+| 2004-05 |            464 |    462 | 99.6 |                162 |
+| 2005-06 |            458 |    456 | 99.6 |                474 |
+| 2006-07 |            458 |    457 | 99.8 |                 79 |
+| 2007-08 |            451 |    450 | 99.8 |                356 |
+| 2008-09 |            445 |    443 | 99.6 |                225 |
+| 2009-10 |            442 |    441 | 99.8 |                367 |
+| 2010-11 |            452 |    451 | 99.8 |                356 |
+| 2016-17 |            486 |    485 | 99.8 |                304 |
+| 2017-18 |            541 |    540 | 99.8 |                122 |
+
+Every other season links all its players (1995-96, 1998-99 to 2003-04, 2011-12 to 2015-16, 2018-19 to 2021-22).
+
+**Who is not linked** (18 player-seasons, 5,750 minutes):
+
+- Fat Lever, Randy White and Luther Wright in 1993-94: Metis counts 6 to 14 % fewer minutes than RAPTOR (Fat Lever 1,825 against 1,947), and they have no other season in Metis to carry them;
+- Darrick Martin in 1994-95: Metis has no line for him that season, so there is nothing to link;
+- names Metis writes otherwise, with no season matched to carry them:
+  - Didier Ilunga-Mbenga, seven seasons ("DJ Mbenga" in Metis);
+  - Ha Seung-Jin, two ("Seung-Jin Ha");
+  - Horacio Llamas Grey, two ("Horacio Llamas");
+  - Sun Yue ("Yue Sun");
+  - Sheldon McClellan ("Sheldon Mac");
+  - Nigel Hayes ("Nigel Hayes-Davis").
+
+None is guessed at: a link by a different first and last name would need a rule the other links cannot check.
+
+**Checked by hand** (the check prints a sample of each kind): all correct, among them Enes Kanter as Enes Freedom (carried), Steve Smith as Steven Smith, Isaac Austin as Ike Austin, Ronald Murray as Flip Murray and Bill Walker as Henry Walker (last name and minutes), and Lorenzo Williams, Eric Mobley and Lionel Simmons in seasons where Metis counts fewer minutes (carried).
+
+**Each metric against its source, through the engine** (the same check): every linked player-season of 1993-94 to 2021-22, regular season and playoffs together, against the by-player files' value:
+
+- **Equal to its printed precision:** the files print about 10 significant digits, and every value equals its source to 1e-8 of it, apart from three small values printed with fewer digits, which differ by at most 4e-8. That is 13,534 of 13,536 for RAPTOR, its ends and PREDATOR, and 4,682 of 4,682 for the box and on/off parts.
+- **The two others:** Bobby Hurley's and Corliss Williamson's 1995-96 playoff possessions (4 each) have no playoff line in Metis's box scores. The engine starts from the lines, so those two seasons read their regular season alone.
+
+**Size (D22):** the NBA file went from 5,497,958,400 bytes before the real load to 5,469,908,992 after it, and 5,479,870,464 after the published tables were rebuilt twice. The file shrinks and grows with the blocks a refresh frees. The four source tables and the published table together add about 1.6 MB: the same 1.3.0 file after its first refresh is 5,405,683,712 bytes without RAPTOR and 5,407,256,576 with it. Well under 5.8 GB.
 
 ## Old seasons
 

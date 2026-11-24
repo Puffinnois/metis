@@ -57,10 +57,15 @@ const MODERN_RATES = {
   rp_onoff_total: 'raptor_onoff_total'
 } as const
 
-/** The table's components: possessions, the rates times possessions and WAR. */
+/**
+ * The table's components: possessions, the rates times possessions and WAR. Pace impact has its own
+ * possessions: two rows of the historical file have RAPTOR but no pace impact, and the by-player
+ * file leaves their possessions out of it.
+ */
 export const RAPTOR_COLUMNS = [
   'rp_poss',
   ...Object.keys(HISTORICAL_RATES),
+  'rp_pace_poss',
   'rp_war',
   'rp_mposs',
   ...Object.keys(MODERN_RATES)
@@ -81,11 +86,15 @@ function byType(
   table: string,
   rates: Readonly<Record<string, string>>,
   poss: string,
+  marker: string,
   extra = ''
 ): string {
   const c = (n: string, type = 'DOUBLE'): string => column(have, table, 's', n, type)
+  // A row with no values (Tyson Chandler's one playoff possession of 2019-20) adds nothing to the
+  // possessions a rate is divided by, as the by-player files weigh it; it still counts as played.
   return `SELECT ${c('player_id', 'VARCHAR')} AS bref, ${c('season', 'INTEGER')} AS season,
-      ${typeSql(c('season_type', 'VARCHAR'))} AS game_type, sum(${c('poss')}) AS ${poss},
+      ${typeSql(c('season_type', 'VARCHAR'))} AS game_type, sum(${c('poss')}) AS poss_all,
+      sum(${c('poss')}) FILTER (WHERE ${c(marker)} IS NOT NULL) AS ${poss},
       sum(${c('mp')}) AS mp,
       ${Object.entries(rates)
         .map(([name, src]) => `sum(${c(src)} * ${c('poss')}) AS ${name}`)
@@ -169,15 +178,15 @@ export function raptorSql(have: Have): string {
       LEFT JOIN p1 ON p1.bref = r.bref AND p1.season = r.season
       LEFT JOIN p2 ON p2.bref = r.bref AND p2.season = r.season
     ),
-    h AS (${byType(have, RAPTOR_SOURCES.historicalTeam, HISTORICAL_RATES, 'poss', `, sum(${column(have, RAPTOR_SOURCES.historicalTeam, 's', 'war_total', 'DOUBLE')}) AS war`)}),
-    mo AS (${byType(have, RAPTOR_SOURCES.modernTeam, MODERN_RATES, 'mposs')})
+    h AS (${byType(have, RAPTOR_SOURCES.historicalTeam, HISTORICAL_RATES, 'poss', 'raptor_total', `, sum(${column(have, RAPTOR_SOURCES.historicalTeam, 's', 'war_total', 'DOUBLE')}) AS war, sum(${column(have, RAPTOR_SOURCES.historicalTeam, 's', 'poss', 'DOUBLE')}) FILTER (WHERE ${column(have, RAPTOR_SOURCES.historicalTeam, 's', 'pace_impact', 'DOUBLE')} IS NOT NULL) AS pace_poss`)}),
+    mo AS (${byType(have, RAPTOR_SOURCES.modernTeam, MODERN_RATES, 'mposs', 'raptor_box_total')})
     SELECT l.player_id::BIGINT AS player_id, h.season, h.game_type,
-           NULL::DOUBLE AS games, h.mp::DOUBLE AS minutes, h.poss::DOUBLE AS possessions,
+           NULL::DOUBLE AS games, h.mp::DOUBLE AS minutes, h.poss_all::DOUBLE AS possessions,
            h.poss::DOUBLE AS rp_poss,
            ${Object.keys(HISTORICAL_RATES)
              .map((n) => `h.${n}`)
              .join(', ')},
-           h.war AS rp_war, mo.mposs::DOUBLE AS rp_mposs,
+           h.pace_poss AS rp_pace_poss, h.war AS rp_war, mo.mposs::DOUBLE AS rp_mposs,
            ${Object.keys(MODERN_RATES)
              .map((n) => `mo.${n}`)
              .join(', ')},

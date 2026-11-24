@@ -408,11 +408,11 @@ Set by the owner on 2026-11-23, as three requests: filter on every attribute of 
   - [x] **T1703.1 The audit (M, a document).** `docs/reference/stats-gap-audit.md`: the statistics published by the league, the reference sites and the model makers, each one in Metis, or not, and then how it could be had: a loaded column no metric reads (every such column listed, per league), a formula over loaded data, a free bulk source with its terms, or none. No request to stats.nba.com and nothing scraped (D7, D24). Check: the document, with the counts, and the list of sources that would need the owner's word (D6, D31).
         Done (#128, 2026-11-23): every loaded column traced against the code, the reference's 443 entries placed, the statistics beyond it found on the pages read, each missing one routed, a build order, and the sources for the owner.
   - [ ] **T1703.2 Published columns no metric reads (M).** BOBAN, shown as SportsDataverse's (the owner's word of 2026-11-23 answers T1205's question), fantasy points as ordinary metrics (T1201, D4), and the rest the audit lists. Check: each new metric against its source column on a real load.
-        Merged so far: #130 BOBAN, the box prior and REML RAPM; #133 fantasy points and the combined counts; #135 team records by situation; #137 the colleges' half-court and transition splits; #139 the colleges' seconds per possession.
+        Merged so far: #130 BOBAN, the box prior and REML RAPM; #133 fantasy points and the combined counts; #135 team records by situation; #137 the colleges' half-court and transition splits; #139 the colleges' seconds per possession; #143 and #144 SportsDataverse's current impact; #145 a metric whose column or table the open file lacks answers with a reason. In review: FiveThirtyEight's RAPTOR, from a source of its own (D54).
   - [ ] **T1703.3 Statistics Metis computes (L, several PRs).** The audit's formulas, a family a PR, each with its test, its category and its agreement where a published figure exists (policy 6).
   - [ ] **T1703.4 The predictive and impact metrics with no published formula.** T1401, taken up here with its text unchanged. The owner's word of 2026-11-23 answers its first question: they are built and shown, each named as Metis's estimate.
 
-  A source outside the dataset's releases is the owner's decision (D6, D31): the audit names the candidates and nothing is fetched from one before the owner says so.
+  A source outside the dataset's releases is the owner's decision (D6, D31): the audit names the candidates and nothing is fetched from one before the owner says so. The owner allowed FiveThirtyEight's RAPTOR files on 2026-11-23 (D54); DARKO's CSV is D55, after a look at darko.app.
 
 ## Optional
 

@@ -74,7 +74,7 @@ describe('the RAPTOR table', () => {
       `SELECT player_id, season, game_type, bref_id, link, rp_poss, rp_total / rp_poss AS total,
               rp_off / rp_poss AS off, rp_war AS war, rp_box_total / rp_mposs AS box,
               rp_onoff_total / rp_mposs AS onoff, rp_pred_total / rp_poss AS pred,
-              rp_pace / rp_poss AS pace, minutes
+              rp_pace / rp_pace_poss AS pace, minutes
        FROM ${RAPTOR_TABLE} ORDER BY player_id, season, game_type`
     )
 
@@ -84,6 +84,7 @@ describe('the RAPTOR table', () => {
       ['aaaa01', 1, 2015, 'playoffs', 'name'],
       ['aaaa01', 1, 2015, 'regular', 'name'],
       ['aaaa01', 1, 2016, 'regular', 'carried'],
+      ['bbbb01', 2, 2015, 'playoffs', 'last name and minutes'],
       ['bbbb01', 2, 2015, 'regular', 'last name and minutes'],
       ['cccc01', 3, 2015, 'regular', 'name'],
       ['cccc02', 4, 2015, 'regular', 'name']
@@ -116,6 +117,23 @@ describe('the RAPTOR table', () => {
     expect(back).toHaveLength(1)
     expect(back[0].total).toBeCloseTo(back[0].published, 12)
     expect(back[0].box).toBeCloseTo(back[0].pbox, 12)
+  })
+
+  it('divides by the possessions that have a value, as the by-player files do', async () => {
+    // Steve Bell's two playoff possessions have no values: played, and counted as possessions, but
+    // not in what a rate is divided by, so the season reads the by-player file's 0.5, not 600 / 1,202.
+    const bell = await db.all<{ game_type: string; possessions: number; rp_poss: number | null }>(
+      `SELECT game_type, possessions, rp_poss FROM ${RAPTOR_TABLE} WHERE bref_id = 'bbbb01'
+       ORDER BY game_type`
+    )
+    expect(bell).toEqual([
+      { game_type: 'playoffs', possessions: 2, rp_poss: null },
+      { game_type: 'regular', possessions: 1200, rp_poss: 1200 }
+    ])
+    const season = await db.get<{ total: number }>(
+      `SELECT sum(rp_total) / sum(rp_poss) AS total FROM ${RAPTOR_TABLE} WHERE bref_id = 'bbbb01'`
+    )
+    expect(season?.total).toBeCloseTo(0.5, 12)
   })
 
   it('is built empty, never failing, when the files are not there', async () => {

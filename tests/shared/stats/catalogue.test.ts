@@ -679,7 +679,7 @@ const IMPACT_COLUMNS = `
   raptor_onoff_offense rp_onoff_off rp_mposs; raptor_onoff_defense rp_onoff_def rp_mposs
   raptor_war rp_war -; raptor_predator rp_pred_total rp_poss
   raptor_predator_offense rp_pred_off rp_poss; raptor_predator_defense rp_pred_def rp_poss
-  raptor_pace_impact rp_pace rp_poss`
+  raptor_pace_impact rp_pace rp_pace_poss`
   .split(/[;\n]/)
   .map((line) => line.trim().split(/\s+/))
   .filter((parts) => parts.length === 3)
@@ -1215,7 +1215,8 @@ describe('the metric catalogue', () => {
     expect(raptor).toHaveLength(14)
     for (const m of raptor) {
       expect(m.id, m.id).toMatch(/^raptor_/)
-      expect(m.family, m.id).toBe('impact')
+      // Its own family, so no screen tags it with SportsDataverse's name.
+      expect(m.family, m.id).toBe('raptor')
       expect(m.short, m.id).toMatch(/ 538$/)
       expect(m.label, m.id).toMatch(/\(FiveThirtyEight\)$/)
       expect(m.description, m.id).toContain('FiveThirtyEight’s published value')
@@ -1225,13 +1226,12 @@ describe('the metric catalogue', () => {
       expect(m.missingReason, m.id).toMatch(/^Published through 2021-22/)
       expect(m.firstSeason, m.id).toBe(/_(box|onoff)_/.test(m.id) ? 2014 : 1994)
       expect(m.leagues?.wnba?.unavailable, m.id).toMatch(/covers the NBA alone/)
+      expect(m.leagues?.ncaam?.unavailable, m.id).toMatch(/RAPTOR covers the NBA alone/)
     }
   })
 
   it('says on every impact model’s column head and label that it is SportsDataverse’s', () => {
-    const impact = CATALOGUE.filter(
-      (m) => m.family === 'impact' && m.published !== 'pub_player_raptor'
-    )
+    const impact = CATALOGUE.filter((m) => m.family === 'impact')
     // The NBA's and WNBA's sixteen, BOBAN's three and the NBA's box prior and REML RAPM (T1703.2),
     // and the college leagues' BPM and two RAPM fits (T1302.6).
     // And the current impact's nine (T1703.2).

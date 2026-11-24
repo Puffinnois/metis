@@ -629,6 +629,8 @@ const NBA_PUBLISHED =
   'Not published for college basketball: no release holds the league dashboards this comes from.'
 const NBA_IMPACT =
   "Not published for college basketball: SportsDataverse's college models are listed under their own names (its RAPM, BPM and team ratings)."
+const RAPTOR_NBA_ONLY =
+  "Not published for college basketball: FiveThirtyEight's RAPTOR covers the NBA alone."
 
 /**
  * stats.ncaa.org's shot file gives no shot type: every shot would read "other", so the counts by type
@@ -689,7 +691,13 @@ export function collegeCoverage(
   const family = NOT_PUBLISHED[def.family]
   if (family) return { firstSeason: FIRST, unavailable: family }
   if (def.published && !COLLEGE_PUBLISHED.has(def.published)) {
-    return { firstSeason: FIRST, unavailable: def.family === 'impact' ? NBA_IMPACT : NBA_PUBLISHED }
+    const unavailable =
+      def.family === 'raptor'
+        ? RAPTOR_NBA_ONLY
+        : def.family === 'impact'
+          ? NBA_IMPACT
+          : NBA_PUBLISHED
+    return { firstSeason: FIRST, unavailable }
   }
   if (def.family === 'shots' || def.built?.startsWith('shot_')) {
     if (parts.some((p) => TYPE_PARTS.test(p)))
