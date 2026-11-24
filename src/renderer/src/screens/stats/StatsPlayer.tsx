@@ -4,6 +4,7 @@ import { CategorySections } from '@/components/stats/CategorySections'
 import { CareerStrip } from '@/components/stats/CareerStrip'
 import { FavouriteName, FavouriteStar } from '@/components/stats/FavouriteStar'
 import { MetricHead } from '@/components/stats/MetricCard'
+import { RatingHistoryChart } from '@/components/stats/RatingHistoryChart'
 import { ShotChart } from '@/components/stats/ShotChart'
 import { useScreenState } from '@/lib/stats/session'
 import { shotRequest } from '@/lib/stats/shotChart'
@@ -40,6 +41,7 @@ import {
   categoryOfTab,
   categoryTab,
   pageSections,
+  rescalesAny,
   type PageSection
 } from '@/lib/stats/categoryPage'
 import { boardCategories } from '@/lib/stats/categoryViews'
@@ -109,6 +111,7 @@ import {
   useMatchups,
   usePlayerInfo,
   useProfile,
+  useRatingHistory,
   useSeasonGames,
   useOtherCareer,
   useOtherPlayers,
@@ -157,6 +160,8 @@ interface TabProps {
   seekStrip: number
   /** The page's own reads are done (the career table is in): the other career may be read. */
   onSettled: () => void
+  /** Opens another of the page's tabs: Impact's link to the ratings over time. */
+  onTab: (tab: PlayerTab) => void
 }
 
 /** Rail, header, and one set of tabs for every position. */
@@ -388,16 +393,19 @@ export function StatsPlayer({
                 {info.name} played no games in {scopeLabel(scope)}.
               </div>
             )}
-            {tab !== 'log' && tab !== 'profile' && (row !== null || tab === 'overview') && (
-              <div className="self-start">
-                <Segmented
-                  label="Totals or rates"
-                  value={mode}
-                  options={dashboardModes()}
-                  onChange={setMode}
-                />
-              </div>
-            )}
+            {tab !== 'log' &&
+              tab !== 'profile' &&
+              (row !== null || tab === 'overview') &&
+              rescalesOn(data, tab) && (
+                <div className="self-start">
+                  <Segmented
+                    label="Totals or rates"
+                    value={mode}
+                    options={dashboardModes()}
+                    onChange={setMode}
+                  />
+                </div>
+              )}
             <TabBody
               key={`${player}:${tab}`}
               tab={tab}
@@ -415,6 +423,7 @@ export function StatsPlayer({
               career={career}
               seekStrip={seekStrip}
               onSettled={settle}
+              onTab={onTab}
             />
           </div>
         )}
@@ -476,9 +485,25 @@ function CategoryTab(props: TabProps & { category: string }): React.JSX.Element 
     [position]
   )
   const shots = useMemo(() => shotRequest('player', player, scope), [player, scope])
+  const predictive = useMemo(
+    () =>
+      boardCategories(data.catalogue, tabOf('player', 'ALL')).some((c) => c.id === 'predictive'),
+    [data.catalogue]
+  )
   return (
     <div className="flex flex-col gap-7">
       {category === 'shooting' && <ShotChart request={shots} version={data.version} />}
+      {category === 'predictive' && <RatingHistory {...props} />}
+      {category === 'impact' && predictive && (
+        <button
+          type="button"
+          onClick={() => props.onTab(categoryTab('predictive'))}
+          className="-mb-3 cursor-pointer self-start border-0 bg-transparent p-0 text-[12.5px] font-medium text-accent hover:underline"
+          data-rating-history-link=""
+        >
+          Ratings over time, season by season and game by game, on Predictive →
+        </button>
+      )}
       <CategorySections
         key={category}
         sections={sections}
@@ -502,6 +527,19 @@ function CategoryTab(props: TabProps & { category: string }): React.JSX.Element 
       )}
     </div>
   )
+}
+
+/** Whether the page's mode control changes anything on a tab: a category's of published values does not. */
+function rescalesOn(data: StatsData, tab: PlayerTab): boolean {
+  const category = categoryOfTab(tab)
+  return category === null || rescalesAny(data.catalogue, tabOf('player', 'ALL'), category)
+}
+
+/** The player's ratings over time, heading the Predictive tab as the shot chart heads Shooting. */
+function RatingHistory({ data, scope, player }: TabProps): React.JSX.Element {
+  const { value, error } = useRatingHistory(player, data.version)
+  const latest = data.seasons.length ? Math.max(...data.seasons.map((s) => s.season)) : null
+  return <RatingHistoryChart history={value} error={error} season={scope.season} latest={latest} />
 }
 
 /** Bio, draft and combine, side by side, then the combine's sections with their percentiles. */

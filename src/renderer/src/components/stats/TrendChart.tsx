@@ -1,23 +1,8 @@
 import { useState } from 'react'
-import type { BandPoint, TrendPoint } from '@/lib/stats/trends'
+import { axisTicks as ticks, labelEvery, type BandPoint, type TrendPoint } from '@/lib/stats/trends'
 import { seasonLabel } from '@/lib/stats/league'
 
 const COLOR = 'var(--s1)'
-
-/** Round tick steps: 1, 2, 2.5, 5 × a power of ten. */
-function ticks(lo: number, hi: number, n = 4): number[] {
-  const raw = (hi - lo || 1) / n
-  const mag = Math.pow(10, Math.floor(Math.log10(raw)))
-  const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= raw) ?? mag * 10
-  const out: number[] = []
-  for (let v = Math.ceil(lo / step) * step; v <= hi + step * 1e-6; v += step) {
-    out.push(Number(v.toFixed(6)))
-  }
-  return out
-}
-
-/** The axis has room for about sixteen season labels. */
-const labelEvery = (seasons: number): number => Math.max(1, Math.ceil(seasons / 16))
 
 /**
  * Trends' chart: a metric by season. Behind the line, the league that season: its qualified pool's

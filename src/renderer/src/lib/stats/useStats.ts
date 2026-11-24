@@ -5,6 +5,7 @@ import { useLeague } from '@/lib/stats/league'
 import { pairedLeague, type LeagueId } from '@shared/leagues'
 import type { LineupGroup } from '@shared/stats/lineups'
 import type {
+  RatingHistory,
   StatsAssistRequest,
   StatsAssistNetwork,
   StatsGameFlow,
@@ -353,6 +354,16 @@ export const useCoaches = (
   version: string | null
 ): ReadState<StatsCoach[]> =>
   useRead(`${version}|${team}|${season}`, (league) => api.stats.coaches(league, team, season))
+
+/**
+ * A player's ratings over time (Plan T1704): every dated series the league holds for them, each named
+ * with its maker; none, with the reason, never an error.
+ */
+export const useRatingHistory = (
+  player: string,
+  version: string | null
+): ReadState<RatingHistory> =>
+  useRead(`${version}|${player}`, (league) => api.stats.ratingHistory(league, player))
 
 /** A player's bio, draft and combines. */
 export const useProfile = (player: string, version: string | null): ReadState<StatsProfile> =>

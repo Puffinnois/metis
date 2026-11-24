@@ -1,6 +1,7 @@
 import type { MetricInfo, StatsResult } from '@shared/stats/types'
 import type { SectionDef } from './dashboard'
 import { categoryViews } from './categoryViews'
+import { isRescaled } from './format'
 import type { TabDef } from './leaderboard'
 
 /**
@@ -80,4 +81,23 @@ export function valuedCount(section: PageSection, result: StatsResult, subject: 
     const v = row?.values[id]?.value
     return v !== null && v !== undefined
   }).length
+}
+
+/**
+ * Whether a mode (per game, per 36 …) changes anything on a category's tab: a tab of published
+ * values only (a player's Predictive: projections and ratings as their makers state them) has nothing
+ * to rescale, so the page leaves the control out rather than show one that does nothing.
+ */
+export function rescalesAny(
+  catalogue: readonly MetricInfo[],
+  tab: TabDef,
+  category: string
+): boolean {
+  const byId = new Map(catalogue.map((m) => [m.id, m]))
+  return pageSections(catalogue, tab, category).some((s) =>
+    s.metrics.some((id) => {
+      const info = byId.get(id)
+      return !!info && isRescaled(info, 'perGame')
+    })
+  )
 }

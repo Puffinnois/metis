@@ -7,6 +7,7 @@ import {
   OLD_TEAM_TABS,
   openAtFirst,
   pageSections,
+  rescalesAny,
   valuedCount
 } from '@/lib/stats/categoryPage'
 import {
@@ -129,5 +130,15 @@ describe("a section's count of values", () => {
     } as unknown as Parameters<typeof valuedCount>[1]
     expect(valuedCount(section, result, 'p')).toBe(1)
     expect(valuedCount(section, result, 'someone else')).toBe(0)
+  })
+})
+
+describe('the mode control', () => {
+  it('is left out of a tab of published values only, a player’s Predictive', () => {
+    const nba = catalogueInfo(LEAGUES.nba)
+    const players = tabOf('player', 'ALL')
+    expect(rescalesAny(nba, players, 'predictive')).toBe(false)
+    expect(rescalesAny(nba, players, 'scoring')).toBe(true)
+    expect(rescalesAny(catalogueInfo(LEAGUES.wnba), players, 'predictive')).toBe(false)
   })
 })
