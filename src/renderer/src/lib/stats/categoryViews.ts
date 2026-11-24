@@ -318,3 +318,64 @@ export function pickerGroups(
   }
   return out
 }
+
+/** A select's or list's group: "Shooting › Threes" and the metrics listed there. */
+export interface MetricGroup {
+  key: string
+  label: string
+  category: Category
+  group: CategoryGroup
+  metrics: MetricInfo[]
+}
+
+/**
+ * `pickerGroups` for a select or a list that shows each metric once (Explore's axes, Trends'
+ * metric, Compare's rows, T1701's filters): every metric under its primary placement only, in the
+ * registry's order, those `keep` turns down left out.
+ */
+export function primaryGroups(
+  catalogue: readonly MetricInfo[],
+  tab: TabDef,
+  keep: (m: MetricInfo) => boolean = () => true
+): MetricGroup[] {
+  return pickerGroups(catalogue, tab)
+    .map((g) => ({
+      key: `${g.category.id}.${g.group.id}`,
+      label: `${g.category.label} › ${g.group.label}`,
+      category: g.category,
+      group: g.group,
+      metrics: g.metrics.filter(
+        (m) => m.categories?.[0] === `${g.category.id}.${g.group.id}` && keep(m)
+      )
+    }))
+    .filter((g) => g.metrics.length > 0)
+}
+
+/** The group a metric is listed under in `primaryGroups`: "Shooting › Threes". */
+export function primaryLabel(info: Pick<MetricInfo, 'categories'> | undefined): string | null {
+  const p = info?.categories?.[0]
+  const parts = p ? placementParts(p) : null
+  return parts ? `${parts.category.label} › ${parts.group.label}` : null
+}
+
+/**
+ * Where a board opens on one metric (the home's "All →"): its primary category, the side of a team's
+ * category it shows on (`teamSide`), and the first view of that category holding it, Key stats when
+ * they do. Null when the metric has no category the tab offers.
+ */
+export function boardForMetric(
+  catalogue: readonly MetricInfo[],
+  tab: TabDef,
+  metric: string
+): { category: string; tab: string; view: CategoryView } | null {
+  const info = catalogue.find((m) => m.id === metric)
+  const category = info?.categories?.[0]?.split('.')[0]
+  if (!info || !category) return null
+  const side =
+    tab.entity === 'team' && !isUmbrellaCategory(category) ? teamSide(info, category) : tab.id
+  const on: TabDef = { ...tab, id: side }
+  for (const v of categoryViews(catalogue, on, category))
+    for (const shown of v.children ?? [v])
+      if (shown.metrics.includes(metric)) return { category, tab: side, view: shown }
+  return null
+}

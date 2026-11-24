@@ -161,7 +161,7 @@ export function StatsChart({
 
   const metricOptions = (only?: (m: MetricInfo) => boolean): React.JSX.Element[] =>
     groups.map((g) => (
-      <optgroup key={g.family} label={g.label}>
+      <optgroup key={g.key} label={g.label}>
         {g.metrics
           .filter((m) => !only || only(m))
           .map((m) => (

@@ -1,4 +1,6 @@
 import type { ExploreSubject } from '@/lib/stats/explore'
+import { CATEGORIES } from '@shared/stats/categories'
+import { categoryViews, primaryLabel } from './categoryViews'
 import { covers } from '@shared/stats/coverage'
 import { seasonLabel } from '@/lib/stats/league'
 import type {
@@ -11,10 +13,9 @@ import type {
   StatsRow,
   StatsSeason
 } from '@shared/stats/types'
-import { cellTitle, familyLabel, fmtStat, isRescaled, ordinal } from './format'
+import { cellTitle, fmtStat, isRescaled, ordinal } from './format'
 import {
   bestFirst,
-  familyColumns,
   MAX_COLUMNS,
   modeWords,
   qualifies,
@@ -136,25 +137,8 @@ export const DEFAULT_FAMILIES: Record<Entity, MetricFamily[]> = {
   team: ['traditional', 'shooting', 'possessions']
 }
 
-/** The leaderboards' family order, for grouping the rows. */
-const FAMILY_ORDER: MetricFamily[] = [
-  'traditional',
-  'shooting',
-  'shots',
-  'plays',
-  'possessions',
-  'on_court',
-  'scoring',
-  'composite',
-  'box_composites',
-  'ratings',
-  'tracking',
-  'hustle',
-  'play_types',
-  'matchups',
-  'impact',
-  'availability'
-]
+/** The registry's order of sub-groups, for grouping the rows. */
+const GROUP_ORDER: string[] = CATEGORIES.flatMap((c) => c.groups.map((g) => `${c.id}.${g.id}`))
 
 /** Players are qualified on minutes, so the minutes row always stays. */
 const QUALIFIER = 'min'
@@ -190,14 +174,14 @@ export function setColumns(state: CompareState, columns: readonly string[]): Com
   }
 }
 
-/** A family's rows added at the end, as many as fit under 40. */
-export function addFamily(
+/** A category's Key stats added at the end (D52), as many as fit under 40. */
+export function addCategory(
   columns: readonly string[],
-  family: MetricFamily,
+  category: string,
   entity: Entity,
   catalogue: readonly MetricInfo[]
 ): string[] {
-  const more = familyColumns(catalogue, compareTab(entity), family).filter(
+  const more = (categoryViews(catalogue, compareTab(entity), category)[0]?.metrics ?? []).filter(
     (id) => !columns.includes(id)
   )
   return [...columns, ...more].slice(0, MAX_COLUMNS)
@@ -428,7 +412,7 @@ export function compareView(
   const rowOf = (id: string | null): StatsRow | undefined =>
     id ? result?.rows.find((r) => r.id === id) : undefined
   const rows = slots.map(rowOf)
-  const byFamily = new Map<MetricFamily | 'other', CompareRow[]>()
+  const byFamily = new Map<string, CompareRow[]>()
 
   for (const metric of columns) {
     const info = byId.get(metric) ?? null
@@ -492,9 +476,10 @@ export function compareView(
         title: from ? `${from} only.${hover ? `\n${hover}` : ''}` : hover
       }
     })
-    const family = info?.family ?? 'other'
-    byFamily.set(family, [
-      ...(byFamily.get(family) ?? []),
+    // Rows group by their primary category's sub-group (D52), as the Glossary lists them.
+    const group = info?.categories?.[0] ?? 'other'
+    byFamily.set(group, [
+      ...(byFamily.get(group) ?? []),
       {
         metric,
         label: info?.label ?? metric,
@@ -505,12 +490,11 @@ export function compareView(
       }
     ])
   }
-  const order = (f: MetricFamily | 'other'): number =>
-    f === 'other' ? FAMILY_ORDER.length : FAMILY_ORDER.indexOf(f)
+  const order = (p: string): number => (p === 'other' ? Infinity : GROUP_ORDER.indexOf(p))
   const groups = [...byFamily]
     .sort(([a], [b]) => order(a) - order(b))
-    .map(([family, list]) => ({
-      label: family === 'other' ? 'Other' : familyLabel(family),
+    .map(([group, list]) => ({
+      label: group === 'other' ? 'Other' : (primaryLabel(list[0]?.info ?? undefined) ?? group),
       rows: list
     }))
   return { groups, leads, counted }

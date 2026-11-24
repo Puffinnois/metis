@@ -1,10 +1,11 @@
 import { covers, coverageReason } from '@shared/stats/coverage'
+import { primaryGroups, type MetricGroup } from './categoryViews'
+import { tabOf } from './leaderboard'
 import { currentLeague, seasonLabel } from '@/lib/stats/league'
 import { seasonEnd, type League } from '@shared/leagues'
 import type {
   BoardMode,
   Entity,
-  MetricFamily,
   MetricInfo,
   StatsQuery,
   StatsResult,
@@ -70,25 +71,6 @@ export const POOL_CHUNK = 14
 
 const ROW_LIMIT = 5000
 
-const FAMILIES: MetricFamily[] = [
-  'traditional',
-  'shooting',
-  'shots',
-  'plays',
-  'possessions',
-  'on_court',
-  'scoring',
-  'composite',
-  'box_composites',
-  'ratings',
-  'tracking',
-  'hustle',
-  'play_types',
-  'matchups',
-  'impact',
-  'availability'
-]
-
 /** A count of games is the row's own column. */
 const GAMES = new Set(['gp', 'team_gp'])
 
@@ -108,15 +90,11 @@ export function trendable(info: MetricInfo | undefined, entity: TrendEntity): bo
   )
 }
 
-/** The metric select: every metric for the entity, grouped by family, in the catalogue's order. */
-export function trendMetrics(
-  entity: TrendEntity,
-  catalogue: readonly MetricInfo[]
-): { family: MetricFamily; metrics: MetricInfo[] }[] {
-  return FAMILIES.map((family) => ({
-    family,
-    metrics: catalogue.filter((m) => m.family === family && trendable(m, entity))
-  })).filter((g) => g.metrics.length > 0)
+/** The metric select: every metric the entity can chart, by category and sub-group (D52). */
+export function trendMetrics(entity: TrendEntity, catalogue: readonly MetricInfo[]): MetricGroup[] {
+  return primaryGroups(catalogue, tabOf(entity, entity === 'player' ? 'ALL' : 'offense'), (m) =>
+    trendable(m, entity)
+  )
 }
 
 /** The metric shown: the one picked if it can be charted, else the default, else the first offered. */

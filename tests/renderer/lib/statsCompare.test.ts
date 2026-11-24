@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  addFamily,
+  addCategory,
   addSubjects,
   blankReason,
   candidatesQuery,
@@ -180,13 +180,17 @@ describe('rows', () => {
     expect(compareColumns(t, catalogue)).toEqual(defaultColumns('team', catalogue))
   })
 
-  it('adds a family at the end, without repeats, up to 40', () => {
-    const cols = addFamily(['min', 'pts'], 'tracking', 'player', catalogue)
+  it("adds a category's key stats at the end, without repeats, up to 40", () => {
+    const cols = addCategory(['min', 'pts'], 'rebounding', 'player', catalogue)
     expect(cols.slice(0, 2)).toEqual(['min', 'pts'])
     expect(cols.length).toBeGreaterThan(2)
-    expect(cols.slice(2).every((id) => byId.get(id)?.family === 'tracking')).toBe(true)
+    expect(
+      cols
+        .slice(2)
+        .every((id) => byId.get(id)?.categories?.some((p) => p.startsWith('rebounding.')))
+    ).toBe(true)
     const many = Array.from({ length: 39 }, (_, i) => `x${i}`)
-    expect(addFamily(many, 'tracking', 'player', catalogue)).toHaveLength(40)
+    expect(addCategory(many, 'rebounding', 'player', catalogue)).toHaveLength(40)
   })
 })
 
@@ -324,8 +328,14 @@ describe('compareView', () => {
   const line = (id: string): CompareRow =>
     view.groups.flatMap((g) => g.rows).find((r) => r.metric === id)!
 
-  it('groups the rows by family in the leaderboard order', () => {
-    expect(view.groups.map((g) => g.label)).toEqual(['Traditional', 'Box-score rates', 'Tracking'])
+  it('groups the rows by their primary category, in the registry order (D52)', () => {
+    expect(view.groups.map((g) => g.label)).toEqual([
+      'Offense › Usage',
+      'Scoring › Points',
+      'Shooting › Threes',
+      'Playmaking › Turnovers',
+      'Hustle and movement › Movement'
+    ])
   })
 
   it('marks the best value the metric’s way, both of a tie for best', () => {
