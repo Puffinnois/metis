@@ -437,6 +437,7 @@ Built by `src/main/stats/derived/onCourt.ts` (Plan T904) at the end of the `stat
 - **Minimums:** 500 field-goal attempts for field-goal rates, 400 for two-point percentage, 200 three-point attempts, 125 free-throw attempts, 100 turnovers for assist-to-turnover, 1,000 minutes for the rest.
 - **Ranks and percentiles:** among qualified rows of the same position group, and of the same group when grouped.
 - **Coverage:** a metric with no season in scope reads null, and its column says why ("Recorded from 1996-97."). A query never fails over a gap, and a gap is never a zero. Sorted on such a column with only the qualified asked for, a table still lists its rows, since nothing could qualify.
+- **What the open file holds** (`CompileContext.schema`, the fix of a 1.3.0 file opened by a later build): a metric whose component column or table the file does not have yet reads null with "Built at this league's next refresh.", for that metric alone, and the rest of the query answers. See "A file older than the build" below.
 - **Grouping:** by season, team, opponent, month or game.
 - **The league in the same scope** (Plan T1006): a query with an index or a shrunk rate adds a second aggregate (`leagueCte`, its CTEs prefixed `l_`) over every player or team in the same seasons, season types and games (dates, opponents, home or road, a split, every game filter), whatever narrows the rows (a position, a team, the players asked for, a starter filter, the last N games). It is grouped by the query's season and month, so a row by season reads its own season's league. Each metric that needs it reads its own formula on the league's sums (`lv<i>`), the league's totals divided (data policy 3), never an average of players' rates.
 - **League indexes** (`MetricDef.index`, Plan T1006): an entry names the rate it indexes and copies its formula and sample; the engine replaces the value by 100 × rate / league, or 100 × (2 − rate / league) where the rate's own direction is lower (turnover percentage, the opponents' shooting), so above 100 is better and a zero stays finite; a rate with no better side (usage, three-point attempt rate) is not mirrored. They are the League indexes family (`catalogue/indexes.ts`, `leagueIndexes`), 16 for players (TS+, eFG+, FG%+, 2P%+, 3P%+, FT%+, 3PAr+, FTr+, TOV%+, AST%+, ORB%+, DRB%+, TRB%+, STL%+, BLK%+, USG%+) and 21 for teams (both sides of the nine shooting and four-factor rates, and the team's three rebound rates). Left out: ratings and pace, which are already per 100 possessions and have no conventional index, assist-to-turnover (a ratio with no bound), and counts. An index qualifies, ranks and has gaps as its rate does.
@@ -514,6 +515,39 @@ Measured with `scripts/engine-speed.mjs` on the full database, in the worker, a 
 The last is over the 500 ms a screen is allowed, and no screen asks it. Trends (Plan T803) will, for one position, which is about a third of those rows. Times vary between runs: the same query read 450 ms at worst on another. What a click takes in the window is in [stats-screens.md](stats-screens.md).
 
 Lineups (Plan T710) are one more table that is not a metric: `pub_lineups`, one row per team, season, season type and set of five players, 83,277 rows from 2007-08. It is built by the `stats:published` step from the six lineup dashboards and read by its own call, `lineups`; the engine never sees it, and it has no lineup subject. The five ids are sorted ascending (`p1` to `p5`), which is the order the sources write them, so a unit's key never depends on a file's habit. Each of the 89 stored columns is read from its own dashboard, in `src/shared/stats/lineups.ts`, and the NBA's `nba_stats_lineups` is not read. The table holds every unit any dashboard lists: each file is cut to its first 2,000 regular-season rows by its own sort, so the files list different units and a measure a file does not list reads NULL (`nba-data-sources.md`). Games come from whichever file lists the unit, in the order base, advanced, misc, opponent, four factors, scoring, and minutes from `sum_time_played / 3000`. Counts are stored as published and the rates as published, since a unit is a whole season and nothing adds them up across seasons; the seven percentages of makes over attempts are worked out on read. A team-season reads in 22 ms at the median and 70 ms at most over all 5,244 reads of 2007-08 to 2025-26 (`scripts/check-lineups.mjs`).
+
+### A file older than the build
+
+A new build can add a column to a game or season table, or a new published or model table, before the league's file has been refreshed. The next refresh builds it, which for a college file takes minutes (the upgrade from 1.3.0, under "Measuring a real load"). Until then the screens read the file as it is.
+
+**What was checked against the file, and what was assumed.** Before this rule, every gap the compiler gave (`gapOf`) was decided without looking at the file:
+
+- `m.unavailable` and the coverage reasons come from the catalogue and the league's registry;
+- `leftOutGap` comes from the releases this build leaves out (`leftOut.ts`);
+- `notBuiltYet` comes from the steps a league's refresh has (`League.builds`), not from what a file holds.
+
+The one check against the file was at run time, and only for the attribute tables (`missingTables` in `run.ts`). `Have` (`inspect` in `derived/sql.ts`) is the builders' view of the file. It lets a build read a source column that is missing as NULL, and the engine never saw it. So the compiler assumed that every component column of `player_game`, `player_season`, `team_game` and `team_season`, and every published and model table with its columns, was in the file. A 1.3.0 college file asked for the half splits made DuckDB fail on the missing column, and the whole query failed with it.
+
+**The rule.** The service reads the file's tables and columns once per worker, and again after each build step of a refresh, so a new metric answers as soon as its table is built (`readFileSchema` in `run.ts`, from `duckdb_columns()` and `duckdb_tables()`). The compiler checks each metric's components and its divisor against that, after the gaps above:
+
+- a component of the metric's own table (its model table, its built game table or its published table) must be a column of that table;
+- every other component must be a column of the entity's box table at the query's grain;
+- an own table with no rows is not built yet either, since opening a file creates the published, play and model tables empty. The league's coverage is checked first, so an empty table never hides a season the league does not have.
+
+A metric that fails reads null with "Built at this league's next refresh." for that metric alone; the rest of the query answers and sorts as before. An attribute filter whose column the file lacks reads "Age: Attributes are built at the next refresh of this league." and answers no rows, like any other filter gap (D51). The components are the physical column names, so the check needs no list of its own. On files built by the current recipe it gives no reason: none of a college file's components is missing, and a WNBA file lacks only the college-only components, which have coverage reasons already.
+
+**Three reasons of one family.** Each is given for the metric alone, after the catalogue's own gaps:
+
+| Reason                                                           | What it means                                                                       | Read from                                        |
+| ---------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------ |
+| "Built at this league's next refresh."                           | The file holds the source, but the table or column a metric reads is not built yet  | The file's tables and columns (`readFileSchema`) |
+| "Not published yet for 2026-27 (last looked for on 2026-11-24)." | The season under way has no file of the metric's source yet; the refresh asks daily | `source_state` and `sync_log` (`sourceSeasons`)  |
+| "No file published for 2019-20."                                 | A finished season in the metric's stated coverage has no file: none will come       | The same                                         |
+
+- **The published sources only:** the last two are for published metrics. A source the file holds no season of has its own reason (left out, or not loaded yet). A source of one file for every season, and a league with no published tables, get neither.
+- **A release of many files** into one table (play types, hustle, matchup rollups) keeps a `source_state` row per file. Its table holds a season when any of its files does.
+- **A scope of several seasons:** when some seasons hold a file, the metric answers for those, and the query's notes name the others in the same words.
+- **On the real load** (the NBA and the WNBA refreshed on 2026-11-24, `~/.cache/metis-dev/t1703-boban`), every published metric's source matched: 604 NBA metrics and 155 WNBA metrics. No metric has a finished season without a file. Only `nba_current_impact` has no file yet for 2026-27 (9 metrics).
 
 ## Attributes and filters
 
@@ -821,7 +855,10 @@ The last step of a refresh, after `stats:plays` (`runModelsBuild` in `sync.ts`),
 - a file of any tier wrote rows: `markModelSeason(season)` records `models:<season>` in `derived_state` as it loads, before anything can stop the build. A file of every season (season 0) marks the season in progress, not every season: of the eight such files, `espn_games_in_repo` and `espn_schedule_master` changed twice in a week of loads (between Nov 7 and 10 and between Nov 11 and 13, 2026) and `player_aliases` once, the other five never, and what they add is this season's games and players. Marked as every season they would recompute every model each time (`markModelSeason(db, 0)` still means every season, for code that needs it);
 - `MODELS_VERSION` changed (`derived_state` row `models`): every builder recomputes every season;
 - a builder is new, its `version` changed (`model:<name>`) or one of its tables has another shape: that builder recomputes every season;
-- the last run failed: the `models:<season>` rows are cleared only when a run finishes, so the next refresh runs it again with nothing downloaded.
+- the last run failed: the `models:<season>` rows are cleared only when a run finishes, so the next refresh runs it again with nothing downloaded;
+- the game tables were rebuilt because their recipe or the identity changed (`derivedStale` in `sync.ts`): every builder recomputes every season.
+
+**After a recipe change that only adds columns.** The last rule recomputes the models even when the new recipe only adds columns no model reads. Measured on the upgrade from 1.3.0 (2026-11-24, below): the college game recipe went from version 4 to 6 for the half and transition splits and the seconds per possession, and the models then took 213 s for the men and 201 s for the women, against 159 s and 95 s for the game tables themselves. It is left as it is. The step cannot tell which columns a builder reads (a builder reads the game tables through its own SQL, with `have` for what is present), and a recipe change may also change the values of columns that are there already. Recomputing every season is the one rule that is right for both. It costs one long refresh per recipe change, and the screens answer from the file throughout, since each read has its own connection.
 
 It waits until `game`, `team`, `team_game` and `player_game` exist. A sealed season whose files did not change is never recomputed, so a daily refresh computes the current season (and any season whose files changed) only.
 
@@ -1091,3 +1128,29 @@ node scripts/check-source-rows.mjs /tmp/metis-load ~/.cache/metis-dev/wnba-raw -
 ```bash
 node scripts/stats-sql.mjs /tmp/metis-load statements.sql
 ```
+
+### The first refresh after the upgrade from 1.3.0
+
+A 1.3.0 file's first refresh on a later build rebuilds what that build's recipes changed. Measured on 2026-11-24 at commit `f2ae113` (the `fix/missing-built-column` branch on `main` at `1e3ef3c`):
+
+- each league's file of the four-league 1.3.0 load (`~/.cache/metis-dev/gate13c`) was copied with its refresh paused;
+- each copy had the real refresh run on it with every download answering "unchanged", so only the rebuilds a new version forces ran;
+- peak memory is the process's maximum resident size (`/usr/bin/time`).
+
+| League     | Steps rebuilt (seconds)                                    | In all | Peak memory | File before → after |
+| ---------- | ---------------------------------------------------------- | ------ | ----------- | ------------------- |
+| NCAA Men   | game tables 158.5, attributes 1.0, models 212.8            | 375 s  | 2.24 GB     | 4.31 GB → 4.44 GB   |
+| NCAA Women | game tables 95.4, attributes 0.5, models 201.1             | 298 s  | 2.35 GB     | 4.09 GB → 4.11 GB   |
+| WNBA       | attributes 0.1, published 2.0, attributes 0.1, models 13.3 | 16 s   | 1.15 GB     | 852 MB → 870 MB     |
+| NBA        | attributes 0.3, published 6.8, attributes 0.2, models 41.4 | 53 s   | 2.07 GB     | 5.34 GB → 5.41 GB   |
+
+What forces each step:
+
+- the colleges' game tables: the college game recipe went from version 4 to 6 (the half-court and transition splits, the seconds per possession);
+- the attributes: new since 1.3.0 (D51), and built again after the published tables;
+- the professional leagues' published tables: the published recipes changed (NBA 18, WNBA 5);
+- the models: in the colleges, the rebuilt game tables (see "The `stats:models` step"); in every league, `metric_stability`'s version follows the catalogue.
+
+A real refresh adds the downloads on top: the NBA's new `nba_current_impact` release, which this measurement does not fetch, and any file changed since the load. Through it all the screens read the file. A metric whose table or column is not built yet reads "Built at this league's next refresh." until the step that builds it ends (see "A file older than the build").
+
+**A trap when measuring on a copy:** an app launched on a profile whose `metis.db` lists a league with no stats file creates an empty file for it and starts a first load. Copy every league's file a profile lists, or remove the league from the copy's settings.

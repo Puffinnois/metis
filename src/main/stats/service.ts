@@ -40,9 +40,9 @@ import { sqlString, StatsDb, type Row } from './db'
 import { databaseBytes, freeBytes, roomNeeded } from './disk'
 import { createDownloads } from './download'
 import { adoptFormerStatsFile, statsFilePath } from './files'
-import { StatsQueryError, type HeldSources } from './engine/compile'
+import { StatsQueryError, type FileSchema, type HeldSources } from './engine/compile'
 import { catalogueInfo } from './engine/registry'
-import { runQuery } from './engine/run'
+import { readFileSchema, runQuery } from './engine/run'
 import { priorsOf, readStability } from './models/metricStability'
 import { summariseFamilies, type FileAttempt, type HeldFile } from './families'
 import type {
@@ -243,6 +243,17 @@ export async function openStatsService(
     )
     return run
   }
+  // The file's tables and columns, read once and kept until a build step or the refresh ends: a
+  // metric whose table or column the file does not hold yet answers no value with a reason
+  // (`CompileContext.schema`).
+  let schema: Promise<FileSchema> | null = null
+  const schemaOf = (conn: StatsDb): Promise<FileSchema> => {
+    schema ??= readFileSchema(conn).catch((err) => {
+      schema = null
+      throw err
+    })
+    return schema
+  }
   // The seasons of each source the file holds, and when the refresh last looked: read once and kept
   // until a refresh ends, for the reason a published metric gives before its source's first file.
   let held: Promise<HeldSources> | null = null
@@ -303,7 +314,13 @@ export async function openStatsService(
             db,
             league,
             downloads: createDownloads({ dir: init.tempDir, signal: abort.signal }),
-            onStep,
+            onStep: (entry) => {
+              // A build step may have added a column or filled a table: the next query reads the
+              // file's shape again, so a new metric answers once its table is built, not only when
+              // the whole refresh ends.
+              if (!entry.source.startsWith('src_')) schema = null
+              onStep(entry)
+            },
             onProgress: (p) => {
               progress = p
             },
@@ -317,8 +334,10 @@ export async function openStatsService(
       } finally {
         busy = false
         progress = null
-        // The models may have measured stability again, and new files may have arrived.
+        // The models may have measured stability again, the builds changed the tables, and new
+        // files may have arrived.
         stability = null
+        schema = null
         held = null
       }
     },
@@ -430,6 +449,7 @@ export async function openStatsService(
           league,
           currentSeason: league.currentSeason(new Date()),
           priors,
+          schema: await schemaOf(reader),
           held: await heldOf(reader)
         })
       }),
@@ -634,16 +654,23 @@ export async function openStatsService(
 /**
  * The seasons of each source table the file holds a file of (`source_state`, keyed by source id), and
  * when a refresh last finished a step: what a published metric's "not published yet" reason reads.
+ * A release of many files into one table (the play types, hustle, matchup rollups) keeps a row per
+ * file, `nba_play_types/<file>`: its table holds a season when any of its files does.
  */
-async function sourceSeasons(db: StatsDb): Promise<HeldSources> {
+export async function sourceSeasons(db: StatsDb): Promise<HeldSources> {
   const rows = await db.all<{ source: string; seasons: number[] }>(
     'SELECT source, list(season) AS seasons FROM source_state GROUP BY 1'
   )
   const last = await db.get<{ at: string | null }>(
     'SELECT max(finished_at) AS at FROM sync_log WHERE finished_at IS NOT NULL'
   )
-  return {
-    seasons: new Map(rows.map((r) => [`src_${r.source}`, new Set(r.seasons.map(Number))])),
-    checked: last?.at ?? null
+  const seasons = new Map<string, Set<number>>()
+  for (const r of rows) {
+    for (const id of new Set([r.source, r.source.split('/')[0]])) {
+      const held = seasons.get(`src_${id}`) ?? new Set<number>()
+      for (const s of r.seasons) held.add(Number(s))
+      seasons.set(`src_${id}`, held)
+    }
   }
+  return { seasons, checked: last?.at ?? null }
 }

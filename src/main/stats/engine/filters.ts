@@ -40,6 +40,9 @@ const OPS_BY_TYPE: Record<AttributeDef['type'], FilterOp[]> = {
   flag: ['is', 'isNot', 'hasValue', 'hasNone']
 }
 
+/** Why a filter on an attribute this file does not hold yet has no answer. */
+export const ATTRIBUTES_NOT_BUILT = 'Attributes are built at the next refresh of this league.'
+
 /** The tables an attribute is read from, as the filters join them. */
 export const ATTRIBUTE_TABLE_NAMES: Record<AttributeTable, string> = {
   player: 'player_attributes',
@@ -150,13 +153,19 @@ export function filterGap(
   league: League,
   seasons: number[],
   metrics: MetricDef[],
-  gaps: (string | null)[]
+  gaps: (string | null)[],
+  schema?: ReadonlyMap<string, ReadonlySet<string>>
 ): string | null {
   for (const c of checked) {
     if (c.attribute) {
       const gap = attributeGap(c.attribute, league.id, seasons)
       if (gap !== null) {
         return gap.startsWith(`${c.attribute.label}:`) ? gap : `${c.attribute.label}: ${gap}`
+      }
+      // A file built before the attribute's table or column: its next refresh builds it.
+      const table = schema?.get(ATTRIBUTE_TABLE_NAMES[c.attribute.table])
+      if (schema && !table?.has(c.attribute.column)) {
+        return `${c.attribute.label}: ${ATTRIBUTES_NOT_BUILT}`
       }
       continue
     }
