@@ -27,6 +27,11 @@ export const ESPN_WNBA_URL = 'https://www.espn.com/wnba/'
  */
 export const ESPN_NCAA_URL = 'https://www.espn.com/mens-college-basketball/'
 export const NCAA_STATS_URL = 'https://stats.ncaa.org'
+/**
+ * FiveThirtyEight's archived RAPTOR files (D54): its data sets are under CC BY 4.0
+ * (data-rights.md, "FiveThirtyEight's RAPTOR files"). Read once from this repository.
+ */
+export const RAPTOR_DATA_URL = 'https://github.com/fivethirtyeight/data/tree/master/nba-raptor'
 
 export const CREDIT_TITLE = 'Data and credit'
 
@@ -39,6 +44,10 @@ export const CREDIT_LEAD: CreditSegment[] = [
   { text: 'ESPN', url: ESPN_NBA_URL },
   ' and ',
   { text: 'NBA.com', url: NBA_STATS_URL },
+  '. The NBA’s RAPTOR is published by ',
+  { text: 'FiveThirtyEight', url: RAPTOR_DATA_URL },
+  ' under ',
+  { text: 'CC BY 4.0', url: CC_BY_URL },
   '. WNBA data is published by ',
   { text: 'SportsDataverse', url: DATASET_URL },
   ' under ',
@@ -69,13 +78,17 @@ export const CREDIT_WHOSE: { label: string; text: string }[] = [
     text: 'Possessions and who was on the floor, from the play by play, and the impact models (RAPM, SPM, BPM, WAR), labelled “(SportsDataverse)”.'
   },
   {
+    label: 'FiveThirtyEight’s calculations',
+    text: 'RAPTOR, its parts, its WAR, PREDATOR and pace impact, from FiveThirtyEight’s archived files through 2021-22, labelled “(FiveThirtyEight)”.'
+  },
+  {
     label: 'Computed by Metis',
     text: 'Formulas over the box scores, SRS, Elo, the adjusted ratings, the season forecast, PER, Win Shares, BPM, VORP, Oliver’s ratings, the league indexes (TS+) and stability, from published methods. Each says so in its description.'
   }
 ]
 
 export const CREDIT_NOTES: string[] = [
-  'Metis is not affiliated with or endorsed by the NBA, the WNBA, the NCAA, ESPN or SportsDataverse. Team, school and player names, and the NBA, WNBA, NCAA and ESPN names, belong to their owners.',
+  'Metis is not affiliated with or endorsed by the NBA, the WNBA, the NCAA, ESPN, SportsDataverse or FiveThirtyEight. Team, school and player names, and the NBA, WNBA, NCAA and ESPN names, belong to their owners.',
   'Metis is open source under the Apache License 2.0. That covers the app, not the data, which keeps its own terms.'
 ]
 

@@ -45,6 +45,7 @@ export type MetricFamily =
   | 'play_types'
   | 'matchups'
   | 'impact'
+  | 'raptor'
   | 'availability'
   | 'shots'
   | 'plays'

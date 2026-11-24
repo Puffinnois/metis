@@ -1077,13 +1077,13 @@ The model code is one for every league; what differs is read from the league's r
 - **Order (D21):** tier by tier: core, published, events, play by play. Inside a tier, files of all seasons first, then the newest season back. So the app is usable after the first tier, and a load cut short keeps the seasons people look at most.
 - **What is due:**
   - A step that finished is not tried again within a day; a failed one after an hour.
-  - Files of all seasons are checked daily.
+  - Files of all seasons are checked daily, except a file fetched once (`SourceFile.once`): FiveThirtyEight's four RAPTOR files (D54), which stopped in 2022. Such a file is sealed when it loads and never asked for again, unless Metis holds no copy of it or its source's `version` is bumped.
   - The current season is checked daily until its last month is over (`seasonEnd(league, season)`: the first day after `seasonMonths.last` in the year of its label, 1 July for the NBA, 1 November for the WNBA), then weekly, as the prior season is.
   - A season that has ended is sealed once a file has not changed for two weeks (`SETTLED_MS`): by its Last-Modified as published, kept in `source_state.modified_at`, else by when Metis last saw its content change. A season two back and older is sealed when loaded, as before. A sealed season is never fetched again; a source's `version` bump fetches it again.
   - So the WNBA's season, played May to October, is refreshed daily through October; in November it is checked weekly until its files have stood two weeks, then sealed. The NBA's is daily until 1 July, and its label turns to the next season in August, which is checked daily before it starts.
 - **Freshness:** each request carries the file's `etag`. A file that has not changed downloads nothing, and logs `unchanged`.
 - **Downloads:** up to 4 at once, ahead of the file being loaded, with 3 retries and growing waits on throttling, server errors and dropped connections. The client calls itself `Metis`. Files go to `<userData>/stats-tmp` and are deleted once loaded.
-- **Loading:** one file at a time, each in one transaction, so a failed load keeps the old rows. A file not published (404) is `skipped` and tried the next day.
+- **Loading:** one file at a time, each in one transaction, so a failed load keeps the old rows. A file not published (404) is `skipped` and tried the next day. A release's files are Parquet; the RAPTOR files are CSVs (`SourceFile.format`), read with a header and typed from every row, and fetched from their own address (`SourceFile.url`) on FiveThirtyEight's repository, the one host besides the release store (D54).
 - **Quitting:** closing the worker aborts downloads and interrupts the running statement, and the step is logged `interrupted`. That is not an attempt, so the next run tries it again. Steps a crash left `running` are marked `interrupted` on the next open, and stale temp files are cleared.
 
 Each file is one step, logged as `stats:<source>:<season>` (or `stats:<source>` for a file of all seasons) in the file's own `sync_log`. `source_state` holds what each source has per season: rows, size, etag, when it was fetched and whether it is sealed.
@@ -1152,5 +1152,17 @@ What forces each step:
 - the models: in the colleges, the rebuilt game tables (see "The `stats:models` step"); in every league, `metric_stability`'s version follows the catalogue.
 
 A real refresh adds the downloads on top: the NBA's new `nba_current_impact` release, which this measurement does not fetch, and any file changed since the load. Through it all the screens read the file. A metric whose table or column is not built yet reads "Built at this league's next refresh." until the step that builds it ends (see "A file older than the build").
+
+**With FiveThirtyEight's RAPTOR (D54).** Measured again on 2026-11-24 at commit `4f195b4`, the same way. The four RAPTOR files, which a 1.3.0 file has never fetched, were served from a local copy, so the 11.0 MB download is not in the times.
+
+| League     | Steps rebuilt (seconds)                                              | In all | Peak memory | File before → after |
+| ---------- | -------------------------------------------------------------------- | ------ | ----------- | ------------------- |
+| NCAA Men   | game tables 123.7, attributes 0.8, models 210.3                      | 336 s  | 2.51 GB     | 4.31 GB → 4.44 GB   |
+| NCAA Women | game tables 94.1, attributes 0.5, models 173.5                       | 269 s  | 2.05 GB     | 4.09 GB → 4.11 GB   |
+| WNBA       | attributes 0.2, published 1.8, attributes 0.1, models 10.6           | 13.5 s | 1.15 GB     | 852 MB → 870 MB     |
+| NBA        | RAPTOR's four files 2.4, published 13.2, attributes 0.3, models 39.7 | 63 s   | 2.03 GB     | 5.34 GB → 5.41 GB   |
+
+- **The NBA's 10 seconds more** are RAPTOR: its files load in 2.4 s, and the published step takes 13.2 s against 6.8 s, the link and the table's build among them.
+- **The other leagues** run what they ran before, faster or slower with the machine's load: nothing of theirs changed but the catalogue, which every league's metric stability follows.
 
 **A trap when measuring on a copy:** an app launched on a profile whose `metis.db` lists a league with no stats file creates an empty file for it and starts a first load. Copy every league's file a profile lists, or remove the league from the copy's settings.

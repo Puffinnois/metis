@@ -149,7 +149,11 @@ export async function loadSourceFile(
   season: number,
   path: string
 ): Promise<LoadedFile> {
-  const file = `read_parquet(${sqlString(path)})`
+  // A CSV (D54) is typed from every row, so a column's type never rests on a sample of the file.
+  const file =
+    source.format === 'csv'
+      ? `read_csv(${sqlString(path)}, header = true, sample_size = -1)`
+      : `read_parquet(${sqlString(path)})`
   const columns = await describe(db, `SELECT * FROM ${file}`)
   const notes: string[] = []
   const standard: Record<string, string> = {}

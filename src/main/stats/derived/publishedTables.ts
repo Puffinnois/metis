@@ -14,6 +14,13 @@ import {
   EXPECTED_IMPACT_TABLE,
   expectedImpactSql
 } from './currentImpact'
+import {
+  RAPTOR_COLUMNS,
+  RAPTOR_FIRST_SEASON,
+  RAPTOR_SOURCES,
+  RAPTOR_TABLE,
+  raptorSql
+} from './raptor'
 import type { Have } from './sql'
 
 /**
@@ -758,6 +765,19 @@ export const PUBLISHED_TABLES: readonly PublishedTable[] = [
     minutes: null,
     columns: [...EXPECTED_IMPACT_COLUMNS],
     sql: expectedImpactSql
+  },
+  // FiveThirtyEight's RAPTOR (D54, `derived/raptor.ts`): a row per linked player, season and season
+  // type, from the four files of one release, named by the one that leaving it out is checked on.
+  {
+    table: RAPTOR_TABLE,
+    entity: 'player',
+    source: RAPTOR_SOURCES.historicalTeam,
+    firstSeason: RAPTOR_FIRST_SEASON,
+    games: null,
+    minutes: 'mp',
+    possessions: 'poss',
+    columns: [...RAPTOR_COLUMNS],
+    sql: raptorSql
   },
   // The college leagues' SportsDataverse models (D44): empty in every other league's file.
   ...COLLEGE_PUBLISHED_TABLES

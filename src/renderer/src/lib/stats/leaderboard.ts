@@ -176,6 +176,7 @@ const FAMILIES: MetricFamily[] = [
   'play_types',
   'matchups',
   'impact',
+  'raptor',
   'availability'
 ]
 

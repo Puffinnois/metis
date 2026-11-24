@@ -58,7 +58,8 @@ const NOT_IN_FILE: Record<string, string> = {
   pub_player_current_impact:
     "Not published for the WNBA: SportsDataverse's current-impact file covers the NBA alone.",
   pub_player_expected_impact:
-    "Not published for the WNBA: SportsDataverse's current-impact file covers the NBA alone."
+    "Not published for the WNBA: SportsDataverse's current-impact file covers the NBA alone.",
+  pub_player_raptor: "Not published for the WNBA: FiveThirtyEight's RAPTOR covers the NBA alone."
 }
 
 /**

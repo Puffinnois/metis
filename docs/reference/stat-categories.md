@@ -226,6 +226,13 @@ A saved view holds the board (`LeaderboardBoard`): its kind, tab, columns, sort 
 - **T1701's attributes** (position, height, weight, age, birth date, country, school, draft, jersey, the combine, a college player's class) are **filters, not metrics**: they get no category. The Filters control is its own component beside the category tabs. A metric filter ("at least 5 assists") chooses from the same category picker.
 - **T1703's metrics** each arrive with their categories, and the test of T1702.2 fails a metric with none. Where they fit:
   - **BOBAN** and other published player ratings: Impact › Box-score models or Plus-minus models by how they are fitted, and Predictive › Player projections when they forecast; named as SportsDataverse's.
+  - **FiveThirtyEight's RAPTOR** (D54), by part:
+    - the total and the on/off parts: Impact › Plus-minus models;
+    - the box parts: Box-score models;
+    - WAR: Box-score models, beside SportsDataverse's WAR, which that sub-group's definition names;
+    - PREDATOR, the version weighted to predict: Predictive › Player projections;
+    - pace impact, the team's possessions with the player on the floor: Impact › On court;
+    - each part's offence and defence also go in Offense › Impact and Defense › Impact.
   - **Fantasy points**: Fantasy › Points, one metric a scoring system; ordinary metrics, nothing about rosters (D4).
   - **Computed metrics** go by what they measure, like every other: a new rate of shooting is Shooting, an estimated defensive metric Defense › Impact.
   - **Predictive metrics with no published formula** (T1703.4, Metis's estimates): Predictive › Player projections, or Season forecast for teams; a game forecast would be a new sub-group, Game forecasts.
@@ -245,7 +252,7 @@ A saved view holds the board (`LeaderboardBoard`): its kind, tab, columns, sort 
 
 Generated from `CATALOGUE` at 3ac033b (1.3.0) with the placements as reviewed, the catalogue T1702.2 started from; `node scripts/stat-categories.mjs` prints them for any later commit. Each league is read through `catalogueInfo` (`src/main/stats/engine/registry.ts`) as the screens read it. A metric counts in a league where it is not unavailable there; the games columns (`gp`, `team_gp`) are left out of the screen counts, as `appliesTo` leaves them out of the boards. NCAA Men and NCAA Women have the same metrics.
 
-1622 metrics in the catalogue; 2 stored (`bpm_position`, `bpm_role`), placed nowhere since no screen shows them; 1620 placed; **0 unplaced**.
+1636 metrics in the catalogue; 2 stored (`bpm_position`, `bpm_role`), placed nowhere since no screen shows them; 1634 placed; **0 unplaced**.
 
 1313 metrics sit in more than one category; a metric sits in 1 to 3 categories, 1.90 on average.
 
@@ -257,8 +264,8 @@ Metrics shown in each category; a metric in several categories counts in each, s
 
 | Category             | NBA players | NBA teams | WNBA players | WNBA teams | NCAA Men players | NCAA Men teams | NCAA Women players | NCAA Women teams |
 | -------------------- | ----------: | --------: | -----------: | ---------: | ---------------: | -------------: | -----------------: | ---------------: |
-| Offense              |         564 |       281 |          299 |        277 |              239 |            238 |                239 |              238 |
-| Defense              |         190 |       265 |           50 |        258 |               38 |            237 |                 38 |              237 |
+| Offense              |         567 |       281 |          299 |        277 |              239 |            238 |                239 |              238 |
+| Defense              |         193 |       265 |           50 |        258 |               38 |            237 |                 38 |              237 |
 | Scoring              |          46 |        65 |           33 |         65 |               22 |             58 |                 22 |               58 |
 | Shooting             |         235 |       360 |          194 |        360 |              156 |            304 |                156 |              304 |
 | Playmaking           |          82 |        56 |           37 |         54 |               33 |             57 |                 33 |               57 |
@@ -266,8 +273,8 @@ Metrics shown in each category; a metric in several categories counts in each, s
 | Fouls                |          43 |        63 |           34 |         62 |               21 |             40 |                 21 |               40 |
 | Hustle and movement  |          25 |        15 |            – |          – |                – |              – |                  – |                – |
 | Play types           |         234 |         – |            – |          – |                – |              – |                  – |                – |
-| Impact               |          86 |        11 |           70 |         10 |               49 |              9 |                 49 |                9 |
-| Predictive           |           6 |        11 |            2 |          8 |                – |              – |                  – |                – |
+| Impact               |          97 |        11 |           70 |         10 |               49 |              9 |                 49 |                9 |
+| Predictive           |           9 |        11 |            2 |          8 |                – |              – |                  – |                – |
 | Results and strength |           3 |        88 |            3 |         84 |                3 |             56 |                  3 |               56 |
 | Playing time         |           8 |         – |            6 |          – |                5 |              – |                  5 |                – |
 | Fantasy              |           5 |         – |            5 |          – |                3 |              – |                  3 |                – |
@@ -288,7 +295,7 @@ The most metrics any sub-group shows in one view: players, and teams as the team
 | Offense              | Usage                               |       6 |           – |       6 |           – |       4 |           – |
 | Offense              | Hustle                              |       4 |       4 / – |       – |           – |       – |           – |
 | Offense              | Play types                          | **143** |           – |       – |           – |       – |           – |
-| Offense              | Impact                              |      22 |       2 / – |      17 |       2 / – |      14 |       2 / – |
+| Offense              | Impact                              |      25 |       2 / – |      17 |       2 / – |      14 |       2 / – |
 | Offense              | Ratings                             |       – |       5 / – |       – |       5 / – |       – |       6 / – |
 | Defense              | Steals and blocks                   |      13 |       2 / – |      13 |       2 / – |      16 |       7 / – |
 | Defense              | Defended shots                      |       6 |       3 / – |       – |           – |       – |           – |
@@ -297,7 +304,7 @@ The most metrics any sub-group shows in one view: players, and teams as the team
 | Defense              | Fouls and violations                |      11 |      9 / 12 |      11 |      9 / 12 |       4 |      3 / 11 |
 | Defense              | Hustle                              |       4 |       4 / – |       – |           – |       – |           – |
 | Defense              | Play types                          |  **91** |           – |       – |           – |       – |           – |
-| Defense              | Impact                              |      24 |       1 / 2 |      19 |       1 / 2 |      11 |       1 / 2 |
+| Defense              | Impact                              |      27 |       1 / 2 |      19 |       1 / 2 |      11 |       1 / 2 |
 | Defense              | Scoring allowed                     |       – |      – / 28 |       – |      – / 28 |       – |      – / 31 |
 | Defense              | Shooting allowed                    |       – | – / **168** |       – | – / **168** |       – | – / **141** |
 | Defense              | Playmaking allowed                  |       – |       – / 4 |       – |       – / 4 |       – |       – / 6 |
@@ -361,14 +368,14 @@ The most metrics any sub-group shows in one view: players, and teams as the team
 | Play types           | Spot-up defense                     |      13 |           – |       – |           – |       – |           – |
 | Play types           | Handoff defense                     |      13 |           – |       – |           – |       – |           – |
 | Play types           | Off screen defense                  |      13 |           – |       – |           – |       – |           – |
-| Impact               | On court                            |      31 |           – |      31 |           – |      17 |           – |
-| Impact               | Plus-minus models                   |      13 |           – |       7 |           – |       6 |           – |
-| Impact               | Box-score models                    |      23 |       4 / – |      13 |       3 / – |       8 |       3 / – |
+| Impact               | On court                            |      32 |           – |      31 |           – |      17 |           – |
+| Impact               | Plus-minus models                   |      19 |           – |       7 |           – |       6 |           – |
+| Impact               | Box-score models                    |      27 |       4 / – |      13 |       3 / – |       8 |       3 / – |
 | Impact               | Box-score composites                |       4 |       4 / 2 |       4 |       4 / 2 |       3 |       3 / 2 |
 | Impact               | Individual ratings                  |       7 |       1 / – |       7 |       1 / – |       7 |       1 / – |
 | Impact               | All-around production               |       8 |           – |       8 |           – |       8 |           – |
 | Predictive           | Season forecast                     |       – |      11 / – |       – |       8 / – |       – |           – |
-| Predictive           | Player projections                  |       6 |           – |       2 |           – |       – |           – |
+| Predictive           | Player projections                  |       9 |           – |       2 |           – |       – |           – |
 | Results and strength | Record                              |       3 |      26 / – |       3 |      26 / – |       3 |       3 / – |
 | Results and strength | Margin                              |       – |       2 / – |       – |       2 / – |       – |       2 / – |
 | Results and strength | Ratings                             |       – |      10 / 1 |       – |      10 / 1 |       – |       5 / 2 |

@@ -6,7 +6,7 @@ Plan T1101. What the terms of the dataset, its producers and its upstreams say, 
 
 The same for every source below:
 
-- **Downloads** the dataset's Parquet files from `github.com/sportsdataverse/sportsdataverse-data/releases`, on the user's own machine, with a plain client. That is the only host it fetches data from (`src/main/stats/sources.ts`).
+- **Downloads** the dataset's Parquet files from `github.com/sportsdataverse/sportsdataverse-data/releases`, on the user's own machine, with a plain client. That is the only host it fetches data from (`src/main/stats/sources.ts`), apart from FiveThirtyEight's four archived RAPTOR files, read once from its own GitHub repository (D54, below).
 - **Stores** them locally in a stats file per league (`stats-nba.duckdb`, `stats-wnba.duckdb`, `stats-ncaam.duckdb`, `stats-ncaaw.duckdb`), reshapes them into its own tables and computes stats from them (Stage 10's ratings and composites).
 - **Redistributes nothing.** The installer ships no data (D6, D29); nothing is uploaded or shared.
 - **Shows** the numbers in a free, open-source desktop app (Apache-2.0), with no account, ads or payment.
@@ -116,13 +116,29 @@ No repository speaks for the NCAA's or ESPN's terms. ncaa.com's NET page answere
 
 **Covered?** **Looks covered:** the terms restrict use of the site and its content, not implementing a described formula; the checked values are facts typed by hand to test against, not a database the app reads. The names PER, Win Shares, BPM and VORP are used as the names of the methods.
 
+### FiveThirtyEight's RAPTOR files (D54)
+
+Read on 2026-11-24 with `curl` and its default user agent, from GitHub's raw file host and its REST API:
+
+- the repository's `LICENSE`, https://github.com/fivethirtyeight/data/blob/master/LICENSE: the full text of Creative Commons Attribution 4.0 International;
+- GitHub's licence API for the repository, https://api.github.com/repos/fivethirtyeight/data/license: `CC-BY-4.0`;
+- the repository's README, https://github.com/fivethirtyeight/data/blob/master/README.md;
+- the folder's README, https://github.com/fivethirtyeight/data/blob/master/nba-raptor/README.md: the files and every column described;
+- the folder's last commit, from the commits API: 2022-11-29. The files are no longer updated.
+
+**What the text says.** The repository's README says that, unless otherwise noted, its data sets are under the Creative Commons Attribution 4.0 International License and its code under the MIT License. Nothing in the `nba-raptor` folder notes otherwise. FiveThirtyEight is now part of ABC News; its RAPTOR article and interactive pages redirect to abcnews.com, and the folder's "latest" files, on projects.fivethirtyeight.com, are not read.
+
+**What Metis does.** Each user's app downloads the four archived CSVs (`historical_RAPTOR_by_player`, `historical_RAPTOR_by_team`, `modern_RAPTOR_by_player`, `modern_RAPTOR_by_team`, 11.0 MB together) from `raw.githubusercontent.com/fivethirtyeight/data/master/nba-raptor`, once, with a plain client. It keeps them in the NBA's stats file as published, links their players to the NBA's ids, and shows the values labelled "(FiveThirtyEight)". It redistributes nothing.
+
+**Covered?** **Looks covered:** CC BY 4.0 permits any use, copying and adaptation with credit, a link to the licence and a note of changes. The credit in the app and README names FiveThirtyEight, links the repository and CC BY 4.0, and says Metis reshapes the data. The files hold FiveThirtyEight's own calculations; their inputs (box scores, play by play, tracking) are the NBA's, as SportsDataverse's are.
+
 ### Other methods
 
 FiveThirtyEight's NBA Elo method (T1002), Dean Oliver's ratings (from Basketball-Reference's pages and his book, T1005) and the SRS (T1001) are methods, implemented in Metis's own code with nothing of their authors' data. FiveThirtyEight's method page no longer exists (it redirects to abcnews.com), so its terms could not be read. The dataset no longer publishes DARKO (its fit of Kostya Medvedovsky's model): its impact file has had no `darko_*` columns since the November 2026 load, so the catalogue marks those metrics unavailable and the credit does not name it.
 
 ## The credit given
 
-- **In the app:** the Data screen, reached from the load status in the nav, ends with "Data and credit" (`src/renderer/src/lib/stats/credit.ts`, checked by `tests/renderer/lib/statsCredit.test.ts`): SportsDataverse linked, CC BY 4.0 linked, ESPN and NBA.com linked as the NBA's sources, ESPN and WNBA.com as the WNBA's, ESPN and stats.ncaa.org as NCAA Division I's (ESPN's files under CC BY 4.0, stats.ncaa.org's with no licence stated), what Metis changes, whose each number is, no affiliation or endorsement, names belong to their owners, and Apache-2.0 kept apart from the data's terms.
+- **In the app:** the Data screen, reached from the load status in the nav, ends with "Data and credit" (`src/renderer/src/lib/stats/credit.ts`, checked by `tests/renderer/lib/statsCredit.test.ts`): SportsDataverse linked, CC BY 4.0 linked, ESPN and NBA.com linked as the NBA's sources, ESPN and WNBA.com as the WNBA's, ESPN and stats.ncaa.org as NCAA Division I's (ESPN's files under CC BY 4.0, stats.ncaa.org's with no licence stated), FiveThirtyEight linked as RAPTOR's publisher under CC BY 4.0, what Metis changes, whose each number is, no affiliation or endorsement, names belong to their owners, and Apache-2.0 kept apart from the data's terms.
 - **In the README:** a "Data and credit" section with the same facts, and a "Contact and takedown" paragraph: a rights holder with a concern can open an issue on the repository.
 - **Attribution form:** CC BY 4.0 asks for credit "in any reasonable manner", a licence link and a note of changes; neither the release store nor the producers ask for a set wording. hoopR asks for a citation only in publications.
 
