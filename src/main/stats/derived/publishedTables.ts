@@ -28,6 +28,7 @@ import {
   DARKO_SOURCE,
   darkoDpmSql
 } from './darko'
+import { ROLLING_COLUMNS, ROLLING_FIRST_SEASON, ROLLING_TABLE, rollingSql } from './rollingWindows'
 import type { Have } from './sql'
 
 /**
@@ -801,6 +802,17 @@ export const PUBLISHED_TABLES: readonly PublishedTable[] = [
     columns: [...DARKO_DPM_COLUMNS],
     sql: darkoDpmSql,
     privateReason: DARKO_NOT_LOADED
+  },
+  // SportsDataverse's rolling windows (`derived/rollingWindows.ts`): a row a player-season.
+  {
+    table: ROLLING_TABLE,
+    entity: 'player',
+    source: 'src_nba_rolling_windows',
+    firstSeason: ROLLING_FIRST_SEASON,
+    games: null,
+    minutes: null,
+    columns: [...ROLLING_COLUMNS],
+    sql: rollingSql
   },
   // The college leagues' SportsDataverse models (D44): empty in every other league's file.
   ...COLLEGE_PUBLISHED_TABLES

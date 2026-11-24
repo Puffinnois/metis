@@ -9,6 +9,7 @@ import { TRACKING } from './tracking'
 import { HUSTLE } from './hustle'
 import { AVAILABILITY } from './availability'
 import { IMPACT } from './impact'
+import { ROLLING_METRICS } from './rolling'
 import { DARKO_METRICS } from './darko'
 import { leagueIndexes } from './indexes'
 import { MATCHUPS } from './matchups'
@@ -32,6 +33,7 @@ import { COLLEGE_DEPTH } from './collegeDepth'
 export const CATALOGUE: MetricDef[] = [
   ...TRADITIONAL,
   ...SHOOTING,
+  ...ROLLING_METRICS,
   ...POSSESSIONS,
   ...ON_COURT,
   ...SCORING,
