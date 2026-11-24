@@ -898,6 +898,16 @@ export interface LeaderboardBoard {
    */
   favourites?: boolean
   /**
+   * The category tab (D52, `categories.ts`); absent or empty for Overview, the tab's own columns, as
+   * every view saved before categories opens.
+   */
+  category?: string
+  /**
+   * The preset of the category shown (`categoryViews`): a placement, an umbrella's heading or `key`.
+   * The columns are still the board's own, so a view keeps what the user changed.
+   */
+  view?: string
+  /**
    * Conditions on attributes and metrics (T1701.2, D51), as the engine reads them: a percentage as a
    * fraction, a metric compared in the board's mode. One not yet finished is kept and not asked for.
    * Absent in views saved before them, which open with none.

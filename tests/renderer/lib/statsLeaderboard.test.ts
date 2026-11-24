@@ -247,12 +247,21 @@ describe('the column picker and presets', () => {
     expect(familyOf(board({ columns: ['pts'] }), CATALOGUE, BY_ID)).toBe('custom')
   })
 
-  it('heads the columns by the tab’s groups, and a family for an added one', () => {
+  it('heads the columns by the tab’s groups, and a sub-group for an added one', () => {
     const tab = tabOf('player', 'ALL')
     expect(columnGroups(['min', 'pts', 'ts_pct', 'pie'], tab, BY_ID)).toEqual([
       { label: 'Playing time', span: 1 },
       { label: 'Scoring', span: 2 },
-      { label: 'Composite', span: 1 }
+      { label: 'Box-score composites', span: 1 }
+    ])
+    // A category's columns read their sub-group there; an umbrella's, their specific one.
+    expect(columnGroups(['pts', 'ts_pct', 'dreb'], tab, BY_ID, 'shooting')).toEqual([
+      { label: 'Points', span: 1 },
+      { label: 'Efficiency', span: 1 },
+      { label: 'Defensive', span: 1 }
+    ])
+    expect(columnGroups(['fg3_pct', 'fg3m'], tab, BY_ID, 'offense')).toEqual([
+      { label: 'Threes', span: 2 }
     ])
   })
 })
