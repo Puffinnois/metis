@@ -35,7 +35,7 @@ import {
   type Transform
 } from '@shared/stats/types'
 import { gameTable } from '../derived/gameTables'
-import { PUBLISHED_DIVISORS, publishedTable } from '../derived/published'
+import { PUBLISHED_DIVISORS, publishedRecipe, publishedTable } from '../derived/published'
 import { SPLIT_PLAYER, SPLIT_PLAYER_SQL, SPLIT_TEAM, SPLIT_TEAM_SQL } from '../derived/splits'
 import { PUBLISHED_GAME_TYPES } from '../derived/publishedTables'
 import { leftOutGap } from '../leftOut'
@@ -110,6 +110,18 @@ export interface CompileContext {
    * and the even games of its player or team (`g_half` 1 and 0), each qualified at half the sample.
    */
   internal?: { unlimited?: boolean; halves?: boolean }
+  /**
+   * The seasons of each source table the open file holds a file of, and when the refresh last looked
+   * (`sourceSeasons`): a published metric whose source has no file yet for any season in scope says
+   * so, and the refresh asks for the file again each day. Absent, no such reason is given.
+   */
+  held?: HeldSources
+}
+
+/** What the open file holds of each source: its seasons, and when the refresh last looked. */
+export interface HeldSources {
+  seasons: ReadonlyMap<string, ReadonlySet<number>>
+  checked: string | null
 }
 
 /** The internal dimension the stability measure splits a season by: odd and even games. */
@@ -407,7 +419,9 @@ function validate(q: StatsQuery, ctx: CompileContext): Checked {
     if ((m.published || m.model) && grains.length > 0) continue
     if (!grains.includes(grain)) fail(`"${m.id}" cannot be read at the ${grain} grain`)
   }
-  const gaps = metrics.map((m) => gapOf(m, q, grain, gameTypes, transform, league))
+  const gaps = metrics.map(
+    (m) => gapOf(m, q, grain, gameTypes, transform, league) ?? unpublishedGap(m, q, ctx)
+  )
   // A table adds rows only where a metric reads it with an answer, so a query reading none is the
   // query it was. A published table has whole seasons, so only the season grain; and never for the
   // stability measure, which would only drop them again (they never qualify).
@@ -519,6 +533,25 @@ function gapOf(
     if (part in UNPUBLISHED && !table?.[part]) return UNPUBLISHED[part]
   }
   return null
+}
+
+/**
+ * Why a published metric has nothing for the seasons in scope though they are in its coverage: its
+ * source has published no file for any of them yet (the season under way, before its first file). The
+ * refresh asks for the file again every day, so the value appears without a new version of Metis.
+ */
+function unpublishedGap(m: MetricDef, q: StatsQuery, ctx: CompileContext): string | null {
+  if (!m.published || !ctx.held) return null
+  const table = publishedTable(m.published)
+  if (!table) return null
+  const source = publishedRecipe(ctx.league).sources[table.source] ?? table.source
+  const held = ctx.held.seasons.get(source)
+  // A source the file holds no season of is a left-out or not-yet-loaded source: its own reason.
+  if (!held || held.size === 0) return null
+  const seasons = [...new Set(q.scope.seasons)].sort((a, b) => a - b)
+  if (seasons.some((s) => held.has(s))) return null
+  const date = ctx.held.checked ? ` (last looked for on ${ctx.held.checked.slice(0, 10)})` : ''
+  return `Not published yet for ${seasons.map((s) => seasonLabel(ctx.league, s)).join(', ')}${date}.`
 }
 
 /**
