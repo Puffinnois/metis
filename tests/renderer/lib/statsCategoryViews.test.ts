@@ -4,6 +4,7 @@ import {
   categoryViews,
   hasSides,
   KEY_VIEW,
+  UMBRELLA_KEY_STATS,
   parentOf,
   pickerGroups,
   teamSide,
@@ -87,16 +88,58 @@ describe("a board's category tabs (D52)", () => {
     expect(defense).not.toContain('opp_stl')
   })
 
-  it('opens Offense and Defense on their key stats across the sub-groups', () => {
-    const defense = categoryViews(NBA, players, 'defense')
-    expect(defense[0].key).toBe(KEY_VIEW)
-    expect(defense[0].metrics.length).toBeLessThanOrEqual(12)
-    expect(defense[0].metrics).toEqual(
-      expect.arrayContaining(['stl', 'blk', 'def_rim_fg_pct', 'dreb', 'deflections', 'onc_drtg'])
+  it('opens Offense and Defense on their chosen key stats, as each league has them', () => {
+    // Every id of the lists exists in the catalogue, so none is silently skipped.
+    const ids = new Set(CATALOGUE.map((m) => m.id))
+    for (const end of Object.values(UMBRELLA_KEY_STATS))
+      for (const list of Object.values(end))
+        for (const id of list) expect(ids.has(id), id).toBe(true)
+    const first = {
+      'team offense': [
+        'team_ortg',
+        'team_pts',
+        'team_efg_pct',
+        'team_ts_pct',
+        'team_tov_pct',
+        'team_orb_pct'
+      ],
+      'team defense': [
+        'team_drtg',
+        'opp_pts',
+        'opp_efg_pct',
+        'opp_ts_pct',
+        'opp_tov_pct',
+        'team_drb_pct'
+      ],
+      'player offense': ['pts', 'ts_pct', 'efg_pct', 'fg_pct', 'fg3m', 'fg3_pct'],
+      'player defense': ['stl', 'blk', 'stl_pct', 'blk_pct', 'dreb', 'drb_pct']
+    }
+    for (const id of LEAGUE_IDS) {
+      const catalogue = catalogueInfo(LEAGUES[id])
+      for (const [label, six] of Object.entries(first)) {
+        const [kind, end] = label.split(' ')
+        const key = categoryViews(catalogue, kind === 'team' ? team : players, end)[0]
+        expect(key.key, `${id} ${label}`).toBe(KEY_VIEW)
+        expect(key.metrics.slice(0, 6), `${id} ${label}`).toEqual(six)
+        expect(key.metrics.length).toBeLessThanOrEqual(12)
+      }
+    }
+    // The NBA players' defence: rim FG% allowed, deflections and contests, then the rating and models.
+    expect(categoryViews(NBA, players, 'defense')[0].metrics.slice(6)).toEqual([
+      'def_rim_fg_pct',
+      'deflections',
+      'contested_shots',
+      'onc_drtg',
+      'sdv_d_rapm',
+      'sdv_dbpm'
+    ])
+    // A league without tracking takes the next: the colleges' defensive RAPM and box model.
+    const ncaam = categoryViews(catalogueInfo(LEAGUES.ncaam), players, 'defense')[0].metrics
+    expect(ncaam).not.toContain('def_rim_fg_pct')
+    expect(ncaam).toEqual(expect.arrayContaining(['onc_drtg', 'sdv_ncaa_drapm', 'sdv_box_dbpm']))
+    expect(categoryViews(catalogueInfo(LEAGUES.ncaam), team, 'offense')[0].metrics).toContain(
+      'sdv_adj_o'
     )
-    const offense = categoryViews(NBA, players, 'offense')
-    expect(offense[0].key).toBe(KEY_VIEW)
-    expect(offense[0].metrics).toEqual(expect.arrayContaining(['pts', 'ast', 'tov']))
   })
 
   it('leads a specific category with its key stats, then each sub-group in order', () => {

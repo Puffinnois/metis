@@ -18,6 +18,7 @@ import type {
   Entity,
   MetricFamily,
   MetricInfo,
+  StatsFilter,
   StatsQuery,
   StatsResult,
   StatsRow,
@@ -48,6 +49,11 @@ export interface ChartState {
    * whole field's, so a dot does not move when it is turned on. Absent in a state from before it.
    */
   favourites?: boolean
+  /**
+   * Conditions on attributes and metrics (T1701.3, D51): only the dots that pass are shown, the axes,
+   * means and percentiles staying the whole field's, as for the favourites. Absent before them.
+   */
+  filters?: StatsFilter[]
   search: string
   /** Shift-clicked, up to `MAX_PICKS`: sent to Compare. */
   picks: string[]
@@ -88,6 +94,7 @@ export function resetChart(state: ChartState, next: Partial<ChartState>): ChartS
     size: null,
     colour: null,
     team: null,
+    filters: [],
     search: '',
     picks: [],
     sort: DEFAULT_CHART.sort
@@ -265,6 +272,8 @@ export type ChartView =
       truncated: { shown: number; total: number } | null
       /** With the favourites filter on: the favourites shown, of the rows the filters would show. */
       favourites: { shown: number; of: number } | null
+      /** With conditions (D51): the dots that pass, of the rows the other filters would show. */
+      filtered: { shown: number; of: number } | null
     }
 
 const valueOf = (r: StatsRow, id: string): number | null => r.values[id]?.value ?? null
@@ -286,7 +295,9 @@ export function chartView(
   byId: ReadonlyMap<string, MetricInfo>,
   teams: readonly StatsTeam[] = [],
   /** The league's favourite players or teams, for `state.favourites` (T1601.3). */
-  favourites: ReadonlySet<string> = new Set()
+  favourites: ReadonlySet<string> = new Set(),
+  /** The ids the engine answered under the chart's conditions (D51); null with none. */
+  passing: ReadonlySet<string> | null = null
 ): ChartView {
   const axes = chartAxes(state)
   const missing = missingAxis(result, [axes.x, axes.y], byId)
@@ -338,7 +349,8 @@ export function chartView(
   const inTeam = (r: StatsRow): boolean => !state.team || (isPlayer ? r.team : r.id) === state.team
   const field = plotted.filter(inTeam)
   // The favourites filter keeps only their dots; the domain and means below stay the field's.
-  const shown = (state.favourites ? field.filter((r) => favourites.has(r.id)) : field).map(dot)
+  const kept = state.favourites ? field.filter((r) => favourites.has(r.id)) : field
+  const shown = (passing ? kept.filter((r) => passing.has(r.id)) : kept).map(dot)
   const span = (vs: number[]): [number, number] => [Math.min(...vs), Math.max(...vs)]
   const mean = (vs: number[]): number => vs.reduce((t, v) => t + v, 0) / vs.length
   const sign = (id: string): number => (byId.get(id)?.direction === 'lower' ? -1 : 1)
@@ -362,7 +374,8 @@ export function chartView(
     picks: picked.map((r) => ({ id: r.id, name: r.name })),
     truncated:
       result.total > result.rows.length ? { shown: result.rows.length, total: result.total } : null,
-    favourites: state.favourites ? { shown: shown.length, of: field.length } : null
+    favourites: state.favourites ? { shown: shown.length, of: field.length } : null,
+    filtered: passing ? { shown: shown.length, of: field.length } : null
   }
 }
 

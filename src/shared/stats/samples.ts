@@ -2,6 +2,7 @@ import { MATCHUP_SAMPLE_LABELS } from './catalogue/matchups'
 import { AVAILABILITY_SAMPLE_LABELS } from './availability'
 import { COLLEGE_DEPTH_SAMPLE_LABELS } from './catalogue/collegeDepth'
 import { IMPACT_SAMPLE_LABELS } from './catalogue/impact'
+import { RECORD_SAMPLE_LABELS } from './catalogue/records'
 import { ON_COURT_SAMPLE_LABELS } from './catalogue/onCourt'
 import { playTypeSampleLabels } from './playTypes'
 import { SHOT_SAMPLE_LABELS } from './catalogue/shots'
@@ -54,6 +55,18 @@ export const SAMPLE_LABELS: Readonly<Record<string, string>> = {
   opp_ncaa_pbacka: 'putbacks tried against',
   ncaa_fga_trans: 'transition field-goal attempts',
   opp_ncaa_fga_trans: 'transition field-goal attempts faced',
+  ncaa_mida_trans: 'transition mid-range attempts',
+  opp_ncaa_mida_trans: 'transition mid-range attempts faced',
+  ncaa_fga_half: 'half-court field-goal attempts',
+  opp_ncaa_fga_half: 'half-court field-goal attempts faced',
+  ncaa_rima_half: 'half-court rim attempts',
+  opp_ncaa_rima_half: 'half-court rim attempts faced',
+  ncaa_mida_half: 'half-court mid-range attempts',
+  opp_ncaa_mida_half: 'half-court mid-range attempts faced',
+  ncaa_fg3a_half: 'half-court three-point attempts',
+  opp_ncaa_fg3a_half: 'half-court three-point attempts faced',
+  ncaa_fta_half: 'half-court free-throw attempts',
+  opp_ncaa_fta_half: 'half-court free-throw attempts faced',
   ncaa_poss: 'possessions (stats.ncaa.org)',
   opp_ncaa_poss: 'opponent possessions (stats.ncaa.org)',
   paint_pts: 'points in the paint',
@@ -91,6 +104,7 @@ export const SAMPLE_LABELS: Readonly<Record<string, string>> = {
   ...playTypeSampleLabels(),
   ...MATCHUP_SAMPLE_LABELS,
   ...IMPACT_SAMPLE_LABELS,
+  ...RECORD_SAMPLE_LABELS,
   ...COLLEGE_DEPTH_SAMPLE_LABELS,
   ...ON_COURT_SAMPLE_LABELS,
   ...AVAILABILITY_SAMPLE_LABELS,

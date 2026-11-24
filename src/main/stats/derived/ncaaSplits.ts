@@ -51,7 +51,34 @@ export const NCAA_PLAYER_COLUMNS: Readonly<Record<NcaaSplit, string>> = {
   ncaa_midm_ast: 'b.midm_ast',
   ncaa_pts_ast: 'b.pts_ast',
   // The possessions the player was on the floor for, stats.ncaa.org's estimate.
-  ncaa_poss: 'b.o_poss'
+  ncaa_poss: 'b.o_poss',
+  // The rest of the transition splits, and the half-court ones (T1703.2). Half-court and transition
+  // add up to the line's total on 99.95 % of lines (measured on every line of 2021-22 to 2026-27).
+  // The unassisted splits are not read: each is the total less the assisted, on every line.
+  ncaa_orb_trans: 'b.orb_trans',
+  ncaa_drb_trans: 'b.drb_trans',
+  ncaa_ast_trans: 'b.ast_trans',
+  ncaa_stl_trans: 'b.stl_trans',
+  ncaa_blk_trans: 'b.blk_trans',
+  ncaa_midm_trans: 'b.midm_trans',
+  ncaa_mida_trans: 'b.mida_trans',
+  ncaa_pts_half: 'b.pts_half',
+  ncaa_fgm_half: 'b.fgm_half',
+  ncaa_fga_half: 'b.fga_half',
+  ncaa_fg3m_half: 'b.tpm_half',
+  ncaa_fg3a_half: 'b.tpa_half',
+  ncaa_ftm_half: 'b.ftm_half',
+  ncaa_fta_half: 'b.fta_half',
+  ncaa_rimm_half: 'b.rimm_half',
+  ncaa_rima_half: 'b.rima_half',
+  ncaa_midm_half: 'b.midm_half',
+  ncaa_mida_half: 'b.mida_half',
+  ncaa_orb_half: 'b.orb_half',
+  ncaa_drb_half: 'b.drb_half',
+  ncaa_ast_half: 'b.ast_half',
+  ncaa_stl_half: 'b.stl_half',
+  ncaa_blk_half: 'b.blk_half',
+  ncaa_tov_half: 'b.tov_half'
 }
 
 /** The columns `player_game` and `player_season` carry in the college leagues. */
@@ -71,5 +98,6 @@ export const NCAA_TEAM_SUMS: readonly string[] = [
   ...NCAA_TEAM_OWN.map((c) => `opp_${c}`)
 ]
 
-/** A count kept as a whole number; the possessions are an estimate with decimals. */
-export const isNcaaWhole = (column: string): boolean => column !== 'ncaa_poss'
+/** A count kept as a whole number; the possessions are an estimate, the seconds published to a hundredth. */
+export const isNcaaWhole = (column: string): boolean =>
+  column !== 'ncaa_poss' && column !== 'ncaa_off_seconds'

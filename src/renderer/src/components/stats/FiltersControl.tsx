@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Popover } from 'radix-ui'
 import { Filter, X } from 'lucide-react'
 import { StatsButton, StatsSelect } from '@/components/stats/controls'
@@ -16,10 +16,20 @@ import {
   OP_WORDS,
   OPS_BY_TYPE,
   toShown,
+  valuesShown,
   type FilterItem
 } from '@/lib/stats/filters'
+import { api } from '@/lib/api'
+import { ATTRIBUTE_VALUES_MAX } from '@shared/stats/attributes'
+import { currentLeague } from '@/lib/stats/league'
 import { cn } from '@/lib/utils'
-import type { BoardMode, FilterOp, MetricInfo, StatsFilter } from '@shared/stats/types'
+import type {
+  BoardMode,
+  FilterOp,
+  MetricInfo,
+  StatsAttributeValue,
+  StatsFilter
+} from '@shared/stats/types'
 
 /**
  * The Filters control of a leaderboard (T1701.2, D51): a button that opens the conditions, each
@@ -32,12 +42,18 @@ export function FiltersControl({
   filters,
   byId,
   mode,
+  seasons,
+  align = 'end',
   onChange
 }: {
+  /** Where the panel opens: the board's toolbar is at the right, the chart's at the left. */
+  align?: 'start' | 'end'
   items: readonly FilterItem[]
   filters: readonly StatsFilter[]
   byId: ReadonlyMap<string, MetricInfo>
   mode: BoardMode
+  /** The seasons in scope: the value lists are the values held in them. */
+  seasons: readonly number[]
   onChange: (filters: StatsFilter[]) => void
 }): React.JSX.Element {
   const [search, setSearch] = useState('')
@@ -64,7 +80,7 @@ export function FiltersControl({
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Content
-          align="end"
+          align={align}
           sideOffset={6}
           collisionPadding={12}
           aria-label="Filters"
@@ -79,6 +95,7 @@ export function FiltersControl({
                   item={itemOf.get(conditionKey(f))}
                   metric={f.metric ? byId.get(f.metric) : undefined}
                   mode={mode}
+                  seasons={seasons}
                   onChange={(next) => set(i, next)}
                   onRemove={() => remove(i)}
                 />
@@ -108,28 +125,53 @@ export function FiltersControl({
                 <div className="sticky top-0 bg-panel px-3 pt-2 pb-1 text-[11px] font-medium tracking-[0.06em] text-fg-3 uppercase">
                   {group}
                 </div>
-                {list.map((item) => (
-                  <button
-                    key={itemKey(item)}
-                    type="button"
-                    disabled={full || item.reason !== null}
-                    title={item.reason ?? item.description}
-                    data-filter-item={item.id}
-                    onClick={() => {
-                      onChange([...filters, newCondition(item)])
-                      setSearch('')
-                    }}
-                    className={cn(
-                      'flex w-full cursor-pointer items-baseline gap-2 px-3 py-1 text-left text-[12.5px] hover:bg-hover disabled:cursor-default disabled:hover:bg-transparent',
-                      item.reason ? 'text-fg-3' : 'text-fg'
-                    )}
-                  >
-                    <span className="truncate">{item.label}</span>
-                    <span className="ml-auto shrink-0 truncate text-[11px] text-fg-3">
-                      {item.reason ? 'Not in this league' : (item.subgroup ?? '')}
-                    </span>
-                  </button>
-                ))}
+                {list.map((item) =>
+                  item.reason !== null ? (
+                    // Not in this league: the registry's reason under the label, as a metric's gap
+                    // gives its reason, so it is read without a hover.
+                    <div
+                      key={itemKey(item)}
+                      data-filter-item={item.id}
+                      data-unavailable=""
+                      title={item.description}
+                      className="flex flex-col px-3 py-1 text-[12.5px] text-fg-3"
+                    >
+                      <span className="truncate">{item.label}</span>
+                      {item.byline && (
+                        <span className="text-[11px] leading-snug">{item.byline}</span>
+                      )}
+                      <span className="text-[11px] leading-snug">{item.reason}</span>
+                    </div>
+                  ) : (
+                    <button
+                      key={itemKey(item)}
+                      type="button"
+                      disabled={full}
+                      title={item.description}
+                      data-filter-item={item.id}
+                      onClick={() => {
+                        onChange([...filters, newCondition(item)])
+                        setSearch('')
+                      }}
+                      className={cn(
+                        'flex w-full cursor-pointer items-baseline gap-2 px-3 py-1 text-left text-[12.5px] hover:bg-hover disabled:cursor-default disabled:hover:bg-transparent',
+                        'text-fg'
+                      )}
+                    >
+                      <span className="flex min-w-0 flex-col">
+                        <span className="truncate">{item.label}</span>
+                        {item.byline && (
+                          <span className="truncate text-[11px] text-fg-3" data-byline="">
+                            {item.byline}
+                          </span>
+                        )}
+                      </span>
+                      <span className="ml-auto shrink-0 truncate text-[11px] text-fg-3">
+                        {item.subgroup ?? ''}
+                      </span>
+                    </button>
+                  )
+                )}
               </div>
             ))}
             {groups.length === 0 && (
@@ -148,6 +190,7 @@ function ConditionEditor({
   item,
   metric,
   mode,
+  seasons,
   onChange,
   onRemove
 }: {
@@ -155,6 +198,7 @@ function ConditionEditor({
   item: FilterItem | undefined
   metric: MetricInfo | undefined
   mode: BoardMode
+  seasons: readonly number[]
   onChange: (f: StatsFilter) => void
   onRemove: () => void
 }): React.JSX.Element {
@@ -185,6 +229,7 @@ function ConditionEditor({
         <span className="truncate text-[12.5px] font-semibold text-fg">
           {item?.label ?? conditionId(filter)}
         </span>
+        {item?.byline && <span className="truncate text-[11px] text-fg-3">{item.byline}</span>}
         {item?.reason && <span className="truncate text-[11px] text-bad">{item.reason}</span>}
         <button
           type="button"
@@ -203,7 +248,7 @@ function ConditionEditor({
           onChange={setOp}
           className="h-6 text-[12px]"
         />
-        {item && <ValueInput filter={filter} item={item} onValue={setValue} />}
+        {item && <ValueInput filter={filter} item={item} seasons={seasons} onValue={setValue} />}
       </div>
       <div className="text-[11.5px] text-fg-3">{conditionText(filter, item, metric, mode)}</div>
     </div>
@@ -217,10 +262,12 @@ const inputClass =
 function ValueInput({
   filter,
   item,
+  seasons,
   onValue
 }: {
   filter: StatsFilter
   item: FilterItem
+  seasons: readonly number[]
   onValue: (value: StatsFilter['value'] | undefined) => void
 }): React.JSX.Element | null {
   const v = filter.value as unknown
@@ -327,19 +374,11 @@ function ValueInput({
         )
       }
       return (
-        <input
-          value={words}
-          placeholder="Comma between values"
-          aria-label={`${item.label}, values`}
-          onChange={(e) => {
-            setWords(e.target.value)
-            const list = e.target.value
-              .split(',')
-              .map((x) => x.trim())
-              .filter(Boolean)
-            onValue(list.length > 0 ? list : undefined)
-          }}
-          className={cn(inputClass, 'w-[220px] font-sans')}
+        <ValuePicker
+          item={item}
+          seasons={seasons}
+          chosen={Array.isArray(v) ? (v as string[]) : []}
+          onChosen={(list) => onValue(list.length > 0 ? list : undefined)}
         />
       )
     case 'contains':
@@ -440,6 +479,112 @@ export function FilterChips({
           </span>
         )
       })}
+    </div>
+  )
+}
+
+/**
+ * The values an attribute holds in the seasons in scope, read once a league, attribute and seasons
+ * (a small read through the worker, `attributeValues`); a failed read is not kept, so the next asks
+ * again.
+ */
+const valueReads = new Map<string, Promise<StatsAttributeValue[]>>()
+function readValues(attribute: string, seasons: readonly number[]): Promise<StatsAttributeValue[]> {
+  const league = currentLeague().id
+  const key = `${league}|${attribute}|${[...seasons].sort((a, b) => a - b).join(',')}`
+  let read = valueReads.get(key)
+  if (!read) {
+    read = api.stats.attributeValues(league, attribute, [...seasons]).catch((err: unknown) => {
+      valueReads.delete(key)
+      throw err
+    })
+    valueReads.set(key, read)
+  }
+  return read
+}
+
+/**
+ * "Any of" and "none of" on a text attribute: the values the league holds in scope, most held first,
+ * searchable, each with how many rows hold it; the chosen ones first. A reader picks a country or a
+ * school rather than spelling it.
+ */
+function ValuePicker({
+  item,
+  seasons,
+  chosen,
+  onChosen
+}: {
+  item: FilterItem
+  seasons: readonly number[]
+  chosen: readonly string[]
+  onChosen: (values: string[]) => void
+}): React.JSX.Element {
+  // The list read for this attribute and these seasons; another's reads as not read yet.
+  const [read, setRead] = useState<{ key: string; values: StatsAttributeValue[] } | null>(null)
+  const [failed, setFailed] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
+  const seasonKey = seasons.join(',')
+  const key = `${item.id}|${seasonKey}`
+  useEffect(() => {
+    let live = true
+    readValues(item.id, seasonKey.split(',').map(Number))
+      .then((list) => live && setRead({ key: `${item.id}|${seasonKey}`, values: list }))
+      .catch((err: unknown) => live && setFailed(err instanceof Error ? err.message : String(err)))
+    return () => {
+      live = false
+    }
+  }, [item.id, seasonKey])
+  const values = read && read.key === key ? read.values : null
+  const shown = valuesShown(values ?? [], chosen, search)
+  const toggle = (value: string): void =>
+    onChosen(chosen.includes(value) ? chosen.filter((x) => x !== value) : [...chosen, value])
+  return (
+    <div className="flex w-full flex-col gap-1" data-value-picker={item.id}>
+      <input
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder={
+          values ? `Search ${values.length.toLocaleString('en-US')} values` : 'Reading the values…'
+        }
+        aria-label={`${item.label}, search values`}
+        className={cn(inputClass, 'w-full font-sans')}
+      />
+      <div className="max-h-[150px] overflow-auto rounded-[5px] border border-line-2">
+        {failed && <div className="px-2 py-1.5 text-[12px] text-bad">{failed}</div>}
+        {values && values.length === 0 && (
+          <div className="px-2 py-1.5 text-[12px] text-fg-3">No values in these seasons.</div>
+        )}
+        {values && values.length >= ATTRIBUTE_VALUES_MAX && (
+          <div className="px-2 py-1 text-[11.5px] text-fg-3">
+            The {ATTRIBUTE_VALUES_MAX.toLocaleString('en-US')} most held; “contains” finds any.
+          </div>
+        )}
+        {shown.map((x) => (
+          <button
+            key={x.value}
+            type="button"
+            aria-pressed={x.chosen}
+            onClick={() => toggle(x.value)}
+            className="flex w-full cursor-pointer items-center gap-2 px-2 py-[3px] text-left text-[12px] hover:bg-hover"
+          >
+            <span
+              aria-hidden="true"
+              className={cn(
+                'flex size-3 shrink-0 items-center justify-center rounded-[3px] border text-[9px] leading-none',
+                x.chosen ? 'border-cobalt bg-cobalt text-on-cobalt' : 'border-line'
+              )}
+            >
+              {x.chosen ? '✓' : ''}
+            </span>
+            <span className="truncate text-fg">{x.value}</span>
+            {x.rows !== null && (
+              <span className="ml-auto shrink-0 font-mono text-[11px] text-fg-3">
+                {x.rows.toLocaleString('en-US')}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }

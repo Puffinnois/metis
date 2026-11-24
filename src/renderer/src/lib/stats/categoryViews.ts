@@ -119,71 +119,79 @@ function headline(
 }
 
 /**
- * The headings an umbrella's headline draws on, in turn: what a reader looks for first at that end.
- * Fouls, hustle on offense, play types, matchups and the opponents' passing stay in their own chips.
+ * Offense's and Defense's Key stats, chosen, not derived (the manager's review of T1702.3): how a
+ * team's or a player's end is read, in this order. A metric the league lacks is skipped and the next
+ * taken, 12 at most. A team's rating and four factors lead at both ends.
  */
-const HEADLINE_GROUPS: Readonly<Record<string, readonly string[]>> = {
-  offense: [
-    'scoring',
-    'shooting',
-    'playmaking',
-    'turnovers',
-    'rebounding',
-    'usage',
-    'ratings',
-    'impact'
-  ],
-  defense: [
-    'steals_blocks',
-    'defended_shots',
-    'rebounding',
-    'hustle',
-    'ratings',
-    'impact',
-    'scoring_allowed',
-    'shooting_allowed',
-    'turnovers_forced'
-  ]
-}
-
-/**
- * An umbrella's headline: its core metrics first, one from each of its headline headings a round, then
- * the rest the same way (those read from games first), so Defense opens on steals,
- * blocks, rim defence, defensive rebounds, deflections and the defensive ratings and models rather
- * than twelve of one kind: 12 at most, read in sub-group order.
- */
-function umbrellaHeadline(
-  metrics: readonly (MetricInfo & { categories: readonly Placement[] })[],
-  category: Category
-): string[] {
-  const picked: string[] = []
-  // Core metrics first, one from each heading a round; then the rest the same way, those read from
-  // games before the published dashboards.
-  for (const pass of [
-    (m: MetricInfo): boolean => m.tier === 'core',
-    (m: MetricInfo): boolean => m.tier !== 'core'
-  ]) {
-    const queues = (HEADLINE_GROUPS[category.id] ?? []).map((g) =>
-      metrics
-        .filter((m) => pass(m) && within(m, category.id)?.group.id === g)
-        .map((m, i) => ({ m, i }))
-        .sort(
-          (x, y) =>
-            Number(!x.m.grains.includes('game')) - Number(!y.m.grains.includes('game')) || x.i - y.i
-        )
-        .map(({ m }) => m.id)
-    )
-    for (let round = 0; picked.length < 12 && queues.some((q) => q.length > round); round++)
-      for (const q of queues) if (q[round] && picked.length < 12) picked.push(q[round])
+export const UMBRELLA_KEY_STATS: Readonly<
+  Record<'offense' | 'defense', Readonly<Record<'player' | 'team', readonly string[]>>>
+> = {
+  offense: {
+    team: [
+      'team_ortg',
+      'team_pts',
+      'team_efg_pct',
+      'team_ts_pct',
+      'team_tov_pct',
+      'team_orb_pct',
+      'team_fta_rate',
+      'team_fg_pct',
+      'team_fg3m',
+      'team_fg3_pct',
+      'team_ast',
+      'sdv_adj_o'
+    ],
+    player: [
+      'pts',
+      'ts_pct',
+      'efg_pct',
+      'fg_pct',
+      'fg3m',
+      'fg3_pct',
+      'ft_pct',
+      'ast',
+      'ast_pct',
+      'tov_pct',
+      'usg_pct',
+      // Then the offensive on-court rating or model the league has.
+      'onc_ortg',
+      'sdv_o_rapm',
+      'sdv_ncaa_orapm'
+    ]
+  },
+  defense: {
+    team: [
+      'team_drtg',
+      'opp_pts',
+      'opp_efg_pct',
+      'opp_ts_pct',
+      'opp_tov_pct',
+      'team_drb_pct',
+      'opp_fta_rate',
+      'opp_fg_pct',
+      'opp_fg3_pct',
+      'team_stl',
+      'team_blk',
+      'sdv_adj_d'
+    ],
+    player: [
+      'stl',
+      'blk',
+      'stl_pct',
+      'blk_pct',
+      'dreb',
+      'drb_pct',
+      'def_rim_fg_pct',
+      'deflections',
+      'contested_shots',
+      // Then the defensive on-court rating and the models the league has.
+      'onc_drtg',
+      'sdv_d_rapm',
+      'sdv_dbpm',
+      'sdv_ncaa_drapm',
+      'sdv_box_dbpm'
+    ]
   }
-  const order = (id: string): number => {
-    const m = metrics.find((x) => x.id === id)
-    return m ? category.groups.findIndex((g) => g.id === within(m, category.id)?.group.id) : 0
-  }
-  return picked
-    .map((id, i) => ({ id, i }))
-    .sort((x, y) => order(x.id) - order(y.id) || x.i - y.i)
-    .map((x) => x.id)
 }
 
 /** The placement a metric has in a category, and that placement's parts. */
@@ -212,7 +220,7 @@ function byGroup(
 
 /**
  * A category's presets on a tab. A specific category: its headline, then each sub-group. An umbrella:
- * its headline across its sub-groups (`umbrellaHeadline`), then each of its headings; one over 40
+ * its chosen Key stats (`UMBRELLA_KEY_STATS`), then each of its headings; one over 40
  * metrics holds the specific sub-groups of that end as children, so
  * Offense › Shooting › Corner threes is Shooting's corner threes on offense. Every view is at most 40
  * metrics (the tests hold it in every league).
@@ -235,7 +243,9 @@ export function categoryViews(
   const key: CategoryView = {
     key: KEY_VIEW,
     label: 'Key stats',
-    metrics: umbrellaHeadline(metrics, category)
+    metrics: (UMBRELLA_KEY_STATS[categoryId as 'offense' | 'defense']?.[tab.entity] ?? [])
+      .filter((id) => metrics.some((m) => m.id === id))
+      .slice(0, 12)
   }
   const headings = byGroup(metrics, category).map((view) => {
     if (view.metrics.length <= MAX_COLUMNS) return view

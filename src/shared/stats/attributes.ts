@@ -13,6 +13,12 @@ import type { Entity } from './types'
 
 export type AttributeType = 'number' | 'text' | 'date' | 'enum' | 'flag'
 
+/**
+ * The most values a text attribute's list offers the Filters control (T1701.2), the most held first:
+ * a college's hometowns over every season run past it, and "contains" finds any.
+ */
+export const ATTRIBUTE_VALUES_MAX = 3000
+
 /** How a number reads: a length in inches, pounds, years, seconds, repetitions, a season, seats. */
 export type AttributeUnit =
   'inches' | 'pounds' | 'years' | 'seconds' | 'percent' | 'reps' | 'season' | 'seats' | 'count'
@@ -50,6 +56,12 @@ export interface AttributeGap {
 export interface AttributeDef {
   id: string
   label: string
+  /**
+   * Whose listing it is, in a few words, where the registry holds the same kind of fact from more
+   * than one source or time ("The league's listing", "Where born, from ESPN"): shown under the label
+   * so two of them never read as the same thing.
+   */
+  byline?: string
   /** One sentence, for a person. */
   description: string
   entity: Entity
@@ -167,11 +179,13 @@ const combine = (
   column: string,
   label: string,
   description: string,
-  unit: AttributeUnit
+  unit: AttributeUnit,
+  byline?: string
 ): AttributeDef =>
   player({
     id,
     label,
+    ...(byline ? { byline } : {}),
     description,
     type: 'number',
     unit,
@@ -209,6 +223,7 @@ export const ATTRIBUTES: readonly AttributeDef[] = [
   player({
     id: 'birthCity',
     label: 'Birthplace',
+    byline: 'From ESPN',
     description: 'The city of birth, as ESPN publishes it.',
     type: 'text',
     group: 'Personal',
@@ -219,6 +234,7 @@ export const ATTRIBUTES: readonly AttributeDef[] = [
   player({
     id: 'birthState',
     label: 'Birth state',
+    byline: 'From ESPN',
     description: 'The state or province of birth, as ESPN abbreviates it.',
     type: 'text',
     group: 'Personal',
@@ -229,6 +245,7 @@ export const ATTRIBUTES: readonly AttributeDef[] = [
   player({
     id: 'birthCountry',
     label: 'Birth country',
+    byline: 'Where born, from ESPN',
     description: 'The country of birth, as ESPN names it ("USA", "France").',
     type: 'text',
     group: 'Personal',
@@ -238,7 +255,8 @@ export const ATTRIBUTES: readonly AttributeDef[] = [
   }),
   player({
     id: 'country',
-    label: 'Country',
+    label: 'Listed country',
+    byline: 'The league’s listing, from its bio',
     description:
       'The country the league lists the player under, which can differ from the country of birth.',
     type: 'text',
@@ -282,6 +300,7 @@ export const ATTRIBUTES: readonly AttributeDef[] = [
   player({
     id: 'height',
     label: 'Height',
+    byline: 'As last published',
     description: 'Height in inches as last published: the league’s or college roster, else ESPN.',
     type: 'number',
     unit: 'inches',
@@ -293,6 +312,7 @@ export const ATTRIBUTES: readonly AttributeDef[] = [
   player({
     id: 'weight',
     label: 'Weight',
+    byline: 'As last published',
     description: 'Weight in pounds as last published: the league’s roster, else ESPN.',
     type: 'number',
     unit: 'pounds',
@@ -304,6 +324,7 @@ export const ATTRIBUTES: readonly AttributeDef[] = [
   season({
     id: 'seasonHeight',
     label: 'Height that season',
+    byline: 'As listed for the season',
     description: 'Height in inches as published for the season.',
     type: 'number',
     unit: 'inches',
@@ -315,6 +336,7 @@ export const ATTRIBUTES: readonly AttributeDef[] = [
   season({
     id: 'seasonWeight',
     label: 'Weight that season',
+    byline: 'As listed for the season',
     description: 'Weight in pounds as published for the season.',
     type: 'number',
     unit: 'pounds',
@@ -463,6 +485,7 @@ export const ATTRIBUTES: readonly AttributeDef[] = [
   season({
     id: 'experience',
     label: 'Experience',
+    byline: 'The league’s roster',
     description:
       'Seasons of experience before this one as the league’s roster gives it: 0 for a rookie.',
     type: 'number',
@@ -553,21 +576,24 @@ export const ATTRIBUTES: readonly AttributeDef[] = [
     'combine_height_wo_shoes',
     'Height without shoes',
     'Measured at the combine, in inches.',
-    'inches'
+    'inches',
+    'Measured at the draft combine'
   ),
   combine(
     'heightShoes',
     'combine_height_w_shoes',
     'Height with shoes',
     'Measured at the combine, in inches.',
-    'inches'
+    'inches',
+    'Measured at the draft combine'
   ),
   combine(
     'combineWeight',
     'combine_weight_lb',
     'Combine weight',
     'Weighed at the combine, in pounds.',
-    'pounds'
+    'pounds',
+    'Weighed at the draft combine'
   ),
   combine(
     'wingspan',
@@ -671,6 +697,7 @@ export const ATTRIBUTES: readonly AttributeDef[] = [
   team({
     id: 'city',
     label: 'City',
+    byline: 'The league’s listing',
     description: 'The team’s city, as the league names it.',
     type: 'text',
     group: 'Team',
@@ -723,6 +750,7 @@ export const ATTRIBUTES: readonly AttributeDef[] = [
   team({
     id: 'arenaCity',
     label: 'Arena city',
+    byline: 'Where the arena is, from ESPN',
     description: 'The city of that arena.',
     type: 'text',
     group: 'Arena',
@@ -733,6 +761,7 @@ export const ATTRIBUTES: readonly AttributeDef[] = [
   team({
     id: 'arenaState',
     label: 'Arena state',
+    byline: 'Where the arena is, from ESPN',
     description: 'The state or province of that arena.',
     type: 'text',
     group: 'Arena',

@@ -32,8 +32,9 @@ import { bestPlayerSql, column, modeSql, type Have } from './sql'
 /** Bump when these tables change, so the next refresh builds them with nothing downloaded. */
 // 2: the tables' 128-bit counts narrowed to BIGINT (`narrowCounts`, T1302.9). 3: every pick by a
 // total order, so the same files always give the same rows (T1302.9). 4: a game's lines from one
-// source, not a team-game's (the Stage 13 gate).
-const VERSION = 4
+// source, not a team-game's (the Stage 13 gate). 5: stats.ncaa.org's half-court splits and the rest of
+// its transition splits (T1703.2). 6: the team box's offensive seconds (T1703.2).
+const VERSION = 6
 
 const NCAA_BOX = 'src_ncaa_player_box'
 const NCAA_TEAM_BOX = 'src_ncaa_team_box'
@@ -265,24 +266,24 @@ function teamBox(have: Have, league: League): string {
 
 /**
  * The team's stats.ncaa.org columns for each game: its lines summed, every line of the team's,
- * linked to an ESPN athlete or not, and the team box's possessions.
+ * linked to an ESPN athlete or not, and the team box's possessions and its offence's time on the ball.
  */
 function teamSplits(have: Have): string {
   const possessions = have.tables.has(NCAA_TEAM_BOX)
     ? `SELECT g.game_id, ${sideOf('TRY_CAST(n.team_espn_team_id AS INTEGER)', null, 'n')} AS team_id,
-              min(n.o_poss) AS ncaa_poss
+              min(n.o_poss) AS ncaa_poss, min(n.o_mins) * 60 AS ncaa_off_seconds
        FROM ${NCAA_TEAM_BOX} n
        JOIN game g ON g.ncaa_game_id = n.contest_id AND g.played AND g.forfeit_winner_id IS NULL
        GROUP BY 1, 2`
-    : 'SELECT NULL::VARCHAR AS game_id, NULL::INTEGER AS team_id, NULL::DOUBLE AS ncaa_poss WHERE false'
-  const own = NCAA_TEAM_OWN.filter((c) => c !== 'ncaa_poss').map((c) =>
+    : 'SELECT NULL::VARCHAR AS game_id, NULL::INTEGER AS team_id, NULL::DOUBLE AS ncaa_poss, NULL::DOUBLE AS ncaa_off_seconds WHERE false'
+  const own = NCAA_TEAM_OWN.filter((c) => c !== 'ncaa_poss' && c !== 'ncaa_off_seconds').map((c) =>
     c === 'ncaa_games' ? '1 AS ncaa_games' : `sum(${c}) AS ${c}`
   )
   return `WITH own AS (
       SELECT game_id, team_id, ${own.join(', ')}
       FROM ncaa_lines WHERE team_id IS NOT NULL GROUP BY 1, 2
     ), possessions AS (${possessions})
-    SELECT o.*, p.ncaa_poss FROM own o LEFT JOIN possessions p USING (game_id, team_id)`
+    SELECT o.*, p.ncaa_poss, p.ncaa_off_seconds FROM own o LEFT JOIN possessions p USING (game_id, team_id)`
 }
 
 export const COLLEGE_DERIVED: DerivedRecipe = {

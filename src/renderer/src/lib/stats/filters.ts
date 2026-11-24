@@ -14,6 +14,7 @@ import type {
   LeaderboardBoard,
   MetricInfo,
   StatsFilter,
+  StatsAttributeValue,
   StatsQuery,
   StatsResult
 } from '@shared/stats/types'
@@ -37,6 +38,8 @@ export interface FilterItem {
   label: string
   /** The heading it is listed under: an attribute's group, a metric's primary category. */
   group: string
+  /** Whose listing an attribute is, where two hold the same kind of fact (`AttributeDef.byline`). */
+  byline: string | null
   /** A metric's sub-group within its category; none for an attribute. */
   subgroup: string | null
   description: string
@@ -60,6 +63,7 @@ function attributeItem(a: AttributeDef, league: League): FilterItem {
     id: a.id,
     label: a.label,
     group: a.group,
+    byline: a.byline ?? null,
     subgroup: null,
     description: a.description,
     type: a.type,
@@ -89,6 +93,7 @@ export function metricItems(catalogue: readonly MetricInfo[], tab: TabDef): Filt
           id: m.id,
           label: m.label,
           group: parts?.category.label ?? 'Other',
+          byline: null,
           subgroup: parts?.group.label ?? null,
           description: m.description,
           type: 'number' as const,
@@ -111,7 +116,9 @@ export function filterGroups(
   const needle = searchKey(search.trim())
   const shown = needle
     ? items.filter((i) =>
-        searchKey(`${i.label} ${i.group} ${i.subgroup ?? ''} ${i.description}`).includes(needle)
+        searchKey(
+          `${i.label} ${i.byline ?? ''} ${i.group} ${i.subgroup ?? ''} ${i.description}`
+        ).includes(needle)
       )
     : items
   const groups = new Map<string, FilterItem[]>()
@@ -130,7 +137,7 @@ export const OPS_BY_TYPE: Record<AttributeType, FilterOp[]> = {
   number: ['atLeast', 'atMost', 'between', 'hasValue', 'hasNone'],
   date: ['atLeast', 'atMost', 'between', 'hasValue', 'hasNone'],
   enum: ['anyOf', 'noneOf', 'hasValue', 'hasNone'],
-  text: ['contains', 'anyOf', 'noneOf', 'hasValue', 'hasNone'],
+  text: ['anyOf', 'noneOf', 'contains', 'hasValue', 'hasNone'],
   flag: ['is', 'isNot', 'hasValue', 'hasNone']
 }
 
@@ -292,9 +299,11 @@ export function filteredQuery(
 }
 
 /**
- * The filtered rows, ranked and shaded among the board's own rows (D51: a filtered row keeps its league
- * percentile): the pool is the unfiltered board's fetched rows and any filtered row past them, so a
- * player's shading is the same with or without the filter. The rows returned are the filtered ones.
+ * The filtered rows, shaded as the whole board shades them (D51: a filtered row keeps its league
+ * percentile). The board ranks its percentiles among the rows it fetched (1,000 at most), so a row it
+ * fetched takes that board's percentile and rank, the same with or without the filter. A row past
+ * them (a freshman far down a college board of 5,000) takes the engine's own, ranked among every
+ * qualified row before the filter: never one among the filtered rows alone, never a blank.
  */
 export function rankFiltered(
   filtered: StatsResult,
@@ -302,31 +311,26 @@ export function rankFiltered(
   tab: TabDef
 ): StatsResult {
   const key = (r: StatsResult['rows'][number]): string => `${r.id}|${JSON.stringify(r.group)}`
-  const pool = board?.rows ?? []
-  const inPool = new Set(pool.map(key))
-  const extra = filtered.rows.filter((r) => !inPool.has(key(r)))
-  const ranked = rankWithinTab({ ...filtered, rows: [...pool, ...extra] }, tab)
-  const byKey = new Map(ranked.rows.map((r) => [key(r), r]))
+  const ranked = board ? rankWithinTab(board, tab) : null
+  const byKey = new Map((ranked?.rows ?? []).map((r) => [key(r), r]))
   return {
     ...filtered,
     rows: filtered.rows.map((r) => {
       const shaded = byKey.get(key(r))
-      // The filtered row's own values, with the percentile and rank of the whole board.
-      return shaded
-        ? {
-            ...r,
-            values: Object.fromEntries(
-              Object.entries(r.values).map(([id, v]) => [
-                id,
-                {
-                  ...v,
-                  percentile: shaded.values[id]?.percentile ?? null,
-                  rank: shaded.values[id]?.rank ?? null
-                }
-              ])
-            )
-          }
-        : r
+      if (!shaded) return r
+      return {
+        ...r,
+        values: Object.fromEntries(
+          Object.entries(r.values).map(([id, v]) => [
+            id,
+            {
+              ...v,
+              percentile: shaded.values[id]?.percentile ?? null,
+              rank: shaded.values[id]?.rank ?? null
+            }
+          ])
+        )
+      }
     })
   }
 }
@@ -363,3 +367,26 @@ export function filterNote(
 
 /** The conditions a board keeps when its tab changes: all of them, attributes and metrics alike. */
 export const keptFilters = (board: LeaderboardBoard): StatsFilter[] => board.filters ?? []
+
+/** The most values the picker lists at once; the search narrows the rest. */
+export const VALUES_SHOWN = 200
+
+/**
+ * The values the picker lists for "any of" and "none of": the chosen first, then those the search
+ * finds (letter case and accents ignored), most held first, at most `VALUES_SHOWN`.
+ */
+export function valuesShown(
+  values: readonly StatsAttributeValue[],
+  chosen: readonly string[],
+  search: string
+): { value: string; rows: number | null; chosen: boolean }[] {
+  const picked = new Set(chosen)
+  const held = new Map(values.map((v) => [v.value, v.rows]))
+  const needle = searchKey(search.trim())
+  const first = chosen.map((value) => ({ value, rows: held.get(value) ?? null, chosen: true }))
+  const rest = values
+    .filter((v) => !picked.has(v.value) && (!needle || searchKey(v.value).includes(needle)))
+    .slice(0, VALUES_SHOWN)
+    .map((v) => ({ value: v.value, rows: v.rows, chosen: false }))
+  return [...first, ...rest]
+}

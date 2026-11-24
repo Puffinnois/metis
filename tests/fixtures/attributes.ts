@@ -89,7 +89,8 @@ export async function seedProLeague(db: StatsDb): Promise<void> {
     coach_name VARCHAR, coach_type VARCHAR, sort_sequence BIGINT)`)
   await db.exec(`INSERT INTO src_nba_coaches VALUES
     (10, 2026, 2, 'Second Head', 'Head Coach', 2), (10, 2026, 1, 'First Head', 'Head Coach', 1),
-    (10, 2026, 3, 'An Assistant', 'Assistant Coach', 3)`)
+    (10, 2026, 3, 'An Assistant', 'Assistant Coach', 3),
+    (20, 2026, 4, 'Stand In', 'Interim Head Coach', 1)`)
   await db.exec(`CREATE TABLE src_espn_schedule (season INTEGER, home_id INTEGER, neutral_site BOOLEAN,
     venue_full_name VARCHAR, venue_address_city VARCHAR, venue_address_state VARCHAR,
     venue_capacity DOUBLE, home_location VARCHAR)`)

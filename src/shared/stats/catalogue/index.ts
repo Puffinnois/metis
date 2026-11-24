@@ -4,6 +4,7 @@ import { BOX_COMPOSITES } from './boxComposites'
 import { COMPOSITE } from './composite'
 import { DASHBOARDS } from './dashboards'
 import { FANTASY } from './fantasy'
+import { TEAM_RECORDS } from './records'
 import { TRACKING } from './tracking'
 import { HUSTLE } from './hustle'
 import { AVAILABILITY } from './availability'
@@ -46,6 +47,7 @@ export const CATALOGUE: MetricDef[] = [
   ...RATINGS,
   ...BOX_COMPOSITES,
   ...FANTASY,
+  ...TEAM_RECORDS,
   ...COLLEGE,
   ...COLLEGE_DEPTH
 ]

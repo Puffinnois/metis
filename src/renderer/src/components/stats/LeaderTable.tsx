@@ -170,8 +170,10 @@ export function LeaderTable({
                 onClick={() => onSort(id)}
                 className={cn(
                   'sticky top-6 z-[2] h-7 cursor-pointer border-b border-fg-3 px-2 text-right align-middle font-mono text-[11px] leading-none whitespace-nowrap',
+                  // The sorted head's tint is translucent: painted over the panel, so the rows scrolling
+                  // under the sticky header do not show through it.
                   on
-                    ? 'bg-cobalt-soft font-semibold text-cobalt'
+                    ? 'bg-panel bg-[linear-gradient(var(--cobalt-soft),var(--cobalt-soft))] font-semibold text-cobalt'
                     : 'bg-panel font-medium text-fg-2 hover:text-fg',
                   missing && !on && 'text-fg-3 opacity-60'
                 )}
