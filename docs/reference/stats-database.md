@@ -536,6 +536,19 @@ The one check against the file was at run time, and only for the attribute table
 
 A metric that fails reads null with "Built at this league's next refresh." for that metric alone; the rest of the query answers and sorts as before. An attribute filter whose column the file lacks reads "Age: Attributes are built at the next refresh of this league." and answers no rows, like any other filter gap (D51). The components are the physical column names, so the check needs no list of its own. On files built by the current recipe it gives no reason: none of a college file's components is missing, and a WNBA file lacks only the college-only components, which have coverage reasons already.
 
+**Three reasons of one family.** Each is given for the metric alone, after the catalogue's own gaps:
+
+| Reason                                                           | What it means                                                                       | Read from                                        |
+| ---------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------ |
+| "Built at this league's next refresh."                           | The file holds the source, but the table or column a metric reads is not built yet  | The file's tables and columns (`readFileSchema`) |
+| "Not published yet for 2026-27 (last looked for on 2026-11-24)." | The season under way has no file of the metric's source yet; the refresh asks daily | `source_state` and `sync_log` (`sourceSeasons`)  |
+| "No file published for 2019-20."                                 | A finished season in the metric's stated coverage has no file: none will come       | The same                                         |
+
+- **The published sources only:** the last two are for published metrics. A source the file holds no season of has its own reason (left out, or not loaded yet). A source of one file for every season, and a league with no published tables, get neither.
+- **A release of many files** into one table (play types, hustle, matchup rollups) keeps a `source_state` row per file. Its table holds a season when any of its files does.
+- **A scope of several seasons:** when some seasons hold a file, the metric answers for those, and the query's notes name the others in the same words.
+- **On the real load** (the NBA and the WNBA refreshed on 2026-11-23, `~/.cache/metis-dev/t1703-boban`), every published metric's source matched: 604 NBA metrics and 155 WNBA metrics. No metric has a finished season without a file. Only `nba_current_impact` has no file yet for 2026-27 (9 metrics).
+
 ## Attributes and filters
 
 D51 (Plan T1701.1). What Metis knows about who a player or a team is, in tables of its own, and the conditions a query can put on it or on any metric.

@@ -654,16 +654,23 @@ export async function openStatsService(
 /**
  * The seasons of each source table the file holds a file of (`source_state`, keyed by source id), and
  * when a refresh last finished a step: what a published metric's "not published yet" reason reads.
+ * A release of many files into one table (the play types, hustle, matchup rollups) keeps a row per
+ * file, `nba_play_types/<file>`: its table holds a season when any of its files does.
  */
-async function sourceSeasons(db: StatsDb): Promise<HeldSources> {
+export async function sourceSeasons(db: StatsDb): Promise<HeldSources> {
   const rows = await db.all<{ source: string; seasons: number[] }>(
     'SELECT source, list(season) AS seasons FROM source_state GROUP BY 1'
   )
   const last = await db.get<{ at: string | null }>(
     'SELECT max(finished_at) AS at FROM sync_log WHERE finished_at IS NOT NULL'
   )
-  return {
-    seasons: new Map(rows.map((r) => [`src_${r.source}`, new Set(r.seasons.map(Number))])),
-    checked: last?.at ?? null
+  const seasons = new Map<string, Set<number>>()
+  for (const r of rows) {
+    for (const id of new Set([r.source, r.source.split('/')[0]])) {
+      const held = seasons.get(`src_${id}`) ?? new Set<number>()
+      for (const s of r.seasons) held.add(Number(s))
+      seasons.set(`src_${id}`, held)
+    }
   }
+  return { seasons, checked: last?.at ?? null }
 }

@@ -314,4 +314,49 @@ describe('a published metric before its source has a file of the season', () => 
       ).gaps
     ).toEqual([null])
   })
+
+  it('says no file was published for a finished season, with no promise of one', () => {
+    expect(ask(2024, [2025, 2026])).toEqual(['No file published for 2023-24.', null])
+  })
+
+  it('answers for the seasons held in a scope of several, and names the others in a note', () => {
+    const c = compileQuery(
+      {
+        entity: 'player',
+        metrics: ['sdv_current_impact', 'pts'],
+        scope: { seasons: [2024, 2025, 2027] },
+        // Read one season at a time, so a scope of several is grouped by season.
+        groupBy: ['season']
+      } as StatsQuery,
+      { ...CTX, held: held([2025, 2026]) }
+    )
+    expect(c.gaps).toEqual([null, null])
+    expect(c.notes).toContain(
+      'Expected impact, latest estimate (SportsDataverse): no file published for 2023-24; not published yet for 2026-27 (last looked for on 2026-11-24).'
+    )
+  })
+
+  it('leaves a league that builds no published tables to its own reasons', () => {
+    const c = compileQuery(
+      { entity: 'player', metrics: ['pts', 'sdv_rapm'], scope: { seasons: [2025, 2026] } },
+      { league: LEAGUES.ncaam, currentSeason: 2027, held: held([2026]) }
+    )
+    expect(c.gaps[0]).toBeNull()
+    expect(c.notes.some((n) => /file published|published yet/.test(n))).toBe(false)
+  })
+
+  it('gives no such reason for a source of one file for every season', () => {
+    const c = compileQuery(
+      {
+        entity: 'player',
+        metrics: ['sdv_current_impact'],
+        scope: { seasons: [2027] }
+      } as StatsQuery,
+      {
+        ...CTX,
+        held: { seasons: new Map([['src_nba_current_impact', new Set([0])]]), checked: null }
+      }
+    )
+    expect(c.gaps).toEqual([null])
+  })
 })

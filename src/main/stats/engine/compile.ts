@@ -610,22 +610,57 @@ function ownTable(
 }
 
 /**
- * Why a published metric has nothing for the seasons in scope though they are in its coverage: its
- * source has published no file for any of them yet (the season under way, before its first file). The
- * refresh asks for the file again every day, so the value appears without a new version of Metis.
+ * The seasons in scope, within a published metric's stated coverage, whose source file the open file
+ * does not hold, and whether it holds any season in scope; null when there is nothing to say: no
+ * published metric, nothing known of the file, a source it holds no season of (a left-out or
+ * not-yet-loaded source has its own reason) or a source of one file for every season.
  */
-function unpublishedGap(m: MetricDef, q: StatsQuery, ctx: CompileContext): string | null {
-  if (!m.published || !ctx.held) return null
+function unheldSeasons(
+  m: MetricDef,
+  q: StatsQuery,
+  ctx: CompileContext
+): { unheld: number[]; anyHeld: boolean } | null {
+  // A league that builds no published tables may name no recipe for them (the college leagues).
+  if (!m.published || m.unavailable || !ctx.held || !builds(ctx.league, 'published')) return null
   const table = publishedTable(m.published)
   if (!table) return null
   const source = publishedRecipe(ctx.league).sources[table.source] ?? table.source
   const held = ctx.held.seasons.get(source)
-  // A source the file holds no season of is a left-out or not-yet-loaded source: its own reason.
-  if (!held || held.size === 0) return null
+  if (!held || held.size === 0 || held.has(0)) return null
+  const missing = new Set(m.missingSeasons ?? [])
   const seasons = [...new Set(q.scope.seasons)].sort((a, b) => a - b)
-  if (seasons.some((s) => held.has(s))) return null
-  const date = ctx.held.checked ? ` (last looked for on ${ctx.held.checked.slice(0, 10)})` : ''
-  return `Not published yet for ${seasons.map((s) => seasonLabel(ctx.league, s)).join(', ')}${date}.`
+  return {
+    unheld: seasons.filter((s) => s >= m.firstSeason && !missing.has(s) && !held.has(s)),
+    anyHeld: seasons.some((s) => held.has(s))
+  }
+}
+
+/**
+ * The words for seasons a source has no file of. "Yet" only for the season under way, which the
+ * refresh asks for again every day; a finished season with no file never had one published, or the
+ * load missed it, and nothing will come of waiting.
+ */
+function unheldWords(seasons: number[], ctx: CompileContext): string {
+  const labels = (list: number[]): string => list.map((s) => seasonLabel(ctx.league, s)).join(', ')
+  const finished = seasons.filter((s) => s < ctx.currentSeason)
+  const open = seasons.filter((s) => s >= ctx.currentSeason)
+  const date = ctx.held?.checked ? ` (last looked for on ${ctx.held.checked.slice(0, 10)})` : ''
+  return [
+    ...(finished.length > 0 ? [`no file published for ${labels(finished)}`] : []),
+    ...(open.length > 0 ? [`not published yet for ${labels(open)}${date}`] : [])
+  ].join('; ')
+}
+
+/**
+ * Why a published metric has nothing for the seasons in scope though they are in its coverage: its
+ * source has no file for any of them. A scope with some seasons held answers for those, and the
+ * query's notes name the rest (`notesOf`).
+ */
+function unpublishedGap(m: MetricDef, q: StatsQuery, ctx: CompileContext): string | null {
+  const found = unheldSeasons(m, q, ctx)
+  if (!found || found.anyHeld || found.unheld.length === 0) return null
+  const words = unheldWords(found.unheld, ctx)
+  return `${words[0].toUpperCase()}${words.slice(1)}.`
 }
 
 /**
@@ -1179,10 +1214,15 @@ function leagueCte(q: StatsQuery, c: Checked, params: Params, want: readonly boo
 }
 
 /** The caveats the answer depends on. */
-function notesOf(q: StatsQuery, c: Checked): string[] {
+function notesOf(q: StatsQuery, c: Checked, ctx: CompileContext): string[] {
   const notes = new Set<string>()
   const s = q.scope
   for (const m of c.metrics) {
+    // Some seasons in scope have the source's file and answer; the others are named here.
+    const unheld = unheldSeasons(m, q, ctx)
+    if (unheld?.anyHeld && unheld.unheld.length > 0) {
+      notes.add(`${m.label}: ${unheldWords(unheld.unheld, ctx)}.`)
+    }
     if (s.seasons.some((x) => x < m.firstSeason)) {
       notes.add(`${m.label}: starts in ${seasonLabel(c.league, m.firstSeason)}.`)
     }
@@ -1580,7 +1620,7 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
       if (c.groupBy.includes('month')) return (perSeason / shape.months) * span
       return perSeason * span
     },
-    notes: [...notesOf(q, c), ...shrunkNotes(q, c, shrunk)],
+    notes: [...notesOf(q, c, ctx), ...shrunkNotes(q, c, shrunk)],
     shown: q.metrics.length,
     filterGap: filtering
       ? filterGap(
