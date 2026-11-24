@@ -17,8 +17,8 @@ import type {
   StatsQuery,
   StatsResult
 } from '@shared/stats/types'
-import { primaryGroups } from './categoryViews'
 import { isRescaled } from './format'
+import { pickerGroups } from './categoryViews'
 import { rankWithinTab, searchKey, type TabDef } from './leaderboard'
 
 /**
@@ -74,26 +74,25 @@ function attributeItem(a: AttributeDef, league: League): FilterItem {
 }
 
 /**
- * The metrics a board's tab offers, each under its primary category (D52), its first placement, as the
- * Glossary lists it. Ordered by the categories' order, then the sub-group's, then the label.
+ * The metrics a board's tab offers, as the column picker lists them (`pickerGroups`, D52): under each
+ * category and sub-group a metric sits in, in the registry's order, a team's own side first. A metric
+ * placed in two sub-groups is listed under both, each heading "Category › Sub-group".
  */
 export function metricItems(catalogue: readonly MetricInfo[], tab: TabDef): FilterItem[] {
-  return primaryGroups(catalogue, tab).flatMap((g) =>
-    [...g.metrics]
-      .sort((a, b) => a.label.localeCompare(b.label))
-      .map((m) => ({
-        kind: 'metric' as const,
-        id: m.id,
-        label: m.label,
-        group: g.category.label,
-        byline: null,
-        subgroup: g.group.label,
-        description: m.description,
-        type: 'number' as const,
-        unit: m.unit === 'pct' ? ('pct' as const) : null,
-        values: null,
-        reason: null
-      }))
+  return pickerGroups(catalogue, tab).flatMap(({ category, group, metrics }) =>
+    metrics.map((m) => ({
+      kind: 'metric' as const,
+      id: m.id,
+      label: m.label,
+      group: `${category.label} › ${group.label}`,
+      byline: null,
+      subgroup: null,
+      description: m.description,
+      type: 'number' as const,
+      unit: m.unit === 'pct' ? ('pct' as const) : null,
+      values: null,
+      reason: null
+    }))
   )
 }
 
@@ -297,8 +296,11 @@ export function filteredQuery(
 export function rankFiltered(
   filtered: StatsResult,
   board: StatsResult | null,
-  tab: TabDef
+  tab: TabDef,
+  /** The engine ranked among the tab's qualified rows (`rankAmong`): its figures stand, one pool. */
+  engineRanks = false
 ): StatsResult {
+  if (engineRanks) return filtered
   const key = (r: StatsResult['rows'][number]): string => `${r.id}|${JSON.stringify(r.group)}`
   const ranked = board ? rankWithinTab(board, tab) : null
   const byKey = new Map((ranked?.rows ?? []).map((r) => [key(r), r]))
