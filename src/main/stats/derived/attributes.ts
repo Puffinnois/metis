@@ -24,7 +24,7 @@ import { column, inspect, modeSql, type Have } from './sql'
  */
 
 /** Bump when a table's columns or rules change, so the next refresh builds them with nothing downloaded. */
-export const ATTRIBUTES_VERSION = 1
+export const ATTRIBUTES_VERSION = 2
 
 export const ATTRIBUTE_TABLES = [
   'player_attributes',
@@ -541,7 +541,9 @@ export function teamAttributesSql(have: Have, league: League): string {
     ? `SELECT team_id, season,
               string_agg(${text(have, coaches, 'c', 'coach_name')}, ' / '
                          ORDER BY ${column(have, coaches, 'c', 'sort_sequence')}, coach_id) AS head_coach
-       FROM ${coaches} c WHERE ${text(have, coaches, 'c', 'coach_type')} = 'Head Coach'
+       FROM ${coaches} c
+       -- An interim head coach is the season's head coach too (the NBA's file has one, in 2025-26).
+       WHERE ${text(have, coaches, 'c', 'coach_type')} IN ('Head Coach', 'Interim Head Coach')
        GROUP BY 1, 2`
     : none({ team_id: 'BIGINT', season: 'INTEGER', head_coach: 'VARCHAR' })
   // The league's own city for its teams (the NBA's and WNBA's crosswalk), else ESPN's location; a

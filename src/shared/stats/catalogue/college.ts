@@ -440,6 +440,25 @@ export const COLLEGE: MetricDef[] = [
       opponents: ['offense.shooting', 'shooting.field_goals']
     }
   ),
+  // The offence's time on the ball over its possessions, both stats.ncaa.org's team box (T1703.2).
+  ...teamSides(
+    'ncaa_sec_per_poss',
+    'Seconds per possession (stats.ncaa.org)',
+    'Sec/POSS',
+    `The team's time on the ball over its possessions, as stats.ncaa.org's team box counts both.${OWN}`,
+    {
+      ...split({
+        value: '{ncaa_off_seconds} / nullif({ncaa_poss}, 0)',
+        sample: 'ncaa_poss',
+        unit: 'number',
+        decimals: 1,
+        direction: 'neutral',
+        reads: [NCAA_TEAM_BOX]
+      }),
+      family: 'possessions',
+      categories: ['results.pace']
+    }
+  ),
   // Possessions are the team box's, estimated by stats.ncaa.org from its play by play.
   ...teamSides(
     'ncaa_poss',

@@ -43,8 +43,11 @@ export function FiltersControl({
   byId,
   mode,
   seasons,
+  align = 'end',
   onChange
 }: {
+  /** Where the panel opens: the board's toolbar is at the right, the chart's at the left. */
+  align?: 'start' | 'end'
   items: readonly FilterItem[]
   filters: readonly StatsFilter[]
   byId: ReadonlyMap<string, MetricInfo>
@@ -77,7 +80,7 @@ export function FiltersControl({
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Content
-          align="end"
+          align={align}
           sideOffset={6}
           collisionPadding={12}
           aria-label="Filters"
@@ -134,6 +137,9 @@ export function FiltersControl({
                       className="flex flex-col px-3 py-1 text-[12.5px] text-fg-3"
                     >
                       <span className="truncate">{item.label}</span>
+                      {item.byline && (
+                        <span className="text-[11px] leading-snug">{item.byline}</span>
+                      )}
                       <span className="text-[11px] leading-snug">{item.reason}</span>
                     </div>
                   ) : (
@@ -152,7 +158,14 @@ export function FiltersControl({
                         'text-fg'
                       )}
                     >
-                      <span className="truncate">{item.label}</span>
+                      <span className="flex min-w-0 flex-col">
+                        <span className="truncate">{item.label}</span>
+                        {item.byline && (
+                          <span className="truncate text-[11px] text-fg-3" data-byline="">
+                            {item.byline}
+                          </span>
+                        )}
+                      </span>
                       <span className="ml-auto shrink-0 truncate text-[11px] text-fg-3">
                         {item.subgroup ?? ''}
                       </span>
@@ -216,6 +229,7 @@ function ConditionEditor({
         <span className="truncate text-[12.5px] font-semibold text-fg">
           {item?.label ?? conditionId(filter)}
         </span>
+        {item?.byline && <span className="truncate text-[11px] text-fg-3">{item.byline}</span>}
         {item?.reason && <span className="truncate text-[11px] text-bad">{item.reason}</span>}
         <button
           type="button"

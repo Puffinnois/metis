@@ -38,6 +38,8 @@ export interface FilterItem {
   label: string
   /** The heading it is listed under: an attribute's group, a metric's primary category. */
   group: string
+  /** Whose listing an attribute is, where two hold the same kind of fact (`AttributeDef.byline`). */
+  byline: string | null
   /** A metric's sub-group within its category; none for an attribute. */
   subgroup: string | null
   description: string
@@ -61,6 +63,7 @@ function attributeItem(a: AttributeDef, league: League): FilterItem {
     id: a.id,
     label: a.label,
     group: a.group,
+    byline: a.byline ?? null,
     subgroup: null,
     description: a.description,
     type: a.type,
@@ -90,6 +93,7 @@ export function metricItems(catalogue: readonly MetricInfo[], tab: TabDef): Filt
           id: m.id,
           label: m.label,
           group: parts?.category.label ?? 'Other',
+          byline: null,
           subgroup: parts?.group.label ?? null,
           description: m.description,
           type: 'number' as const,
@@ -112,7 +116,9 @@ export function filterGroups(
   const needle = searchKey(search.trim())
   const shown = needle
     ? items.filter((i) =>
-        searchKey(`${i.label} ${i.group} ${i.subgroup ?? ''} ${i.description}`).includes(needle)
+        searchKey(
+          `${i.label} ${i.byline ?? ''} ${i.group} ${i.subgroup ?? ''} ${i.description}`
+        ).includes(needle)
       )
     : items
   const groups = new Map<string, FilterItem[]>()

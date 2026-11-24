@@ -150,7 +150,7 @@ const halfAndTrans = (k: number): Record<string, number> => ({
   ...{ midm_trans: k, mida_trans: 3 * k, pts_half: 16 * k, fgm_half: 6 * k, fga_half: 15 * k },
   ...{ fg3m_half: k + 1, fg3a_half: 4 * k, ftm_half: 3 * k, fta_half: 4 * k, rimm_half: 3 * k },
   ...{ rima_half: 5 * k, midm_half: 2 * k, mida_half: 5 * k, ast_half: 4 * k, tov_half: 2 * k },
-  ...{ orb_half: k + 3, drb_half: 5 * k, stl_half: k + 4, blk_half: k + 5 }
+  ...{ orb_half: k + 3, drb_half: 5 * k, stl_half: k + 4, blk_half: k + 5, off_seconds: 1150 + k }
 })
 const NCAA_PLAYER: NcaaSide = {
   ...{ fgm: 9, fga: 20, fg3m: 2, rimm: 5, rima: 8, midm: 2, mida: 6, pbackm: 2, pbacka: 3 },
@@ -211,6 +211,7 @@ const NCAA_SHARED: Record<string, (s: NcaaSide) => number> = {
 }
 /** A team's own: its possessions and points per 100 of them, both stats.ncaa.org's. */
 const NCAA_TEAM_ONLY: Record<string, (s: NcaaSide) => number> = {
+  ncaa_sec_per_poss: (s) => s.off_seconds / s.poss,
   ncaa_poss: (s) => s.poss,
   ncaa_rtg: (s) => (100 * s.pts) / s.poss
 }
