@@ -174,6 +174,15 @@ const NBA: SourceFile[] = [
     'player-season-type',
     1997
   ),
+  // SportsDataverse's weekly current impact (T1703.2): one row per player per as-of date, 2006-07 on.
+  source(
+    'src_nba_current_impact',
+    'nba_current_impact',
+    'nba_current_impact',
+    'published',
+    'player-asof',
+    2007
+  ),
   nba('metric_curves', 'metric_curves', 'published', 'entity-metric-bin', 1997),
   nba('rolling_windows', 'rolling_windows', 'published', 'entity-metric-window', 1997),
   nba('combine_stats', 'draftcombinestats', 'published', 'player', 2001, 'draft_combine'),
@@ -391,6 +400,7 @@ const NBA_LABELS: Record<string, string> = {
   nba_stats_shots: 'Shots (NBA)',
   nba_stats_pbp: 'Play by play (NBA)',
   nba_player_impact: 'Impact models (SportsDataverse)',
+  nba_current_impact: 'Current impact (SportsDataverse)',
   nba_stats_metric_curves: 'Shooting by distance (SportsDataverse)',
   nba_stats_rolling_windows: 'Recent shooting (SportsDataverse)',
   nba_stats_possessions: 'Possessions (SportsDataverse)',

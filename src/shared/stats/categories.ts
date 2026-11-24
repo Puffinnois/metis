@@ -244,7 +244,11 @@ export const CATEGORIES = [
         'Individual ratings',
         "Dean Oliver's individual ratings, stops, points produced."
       ),
-      g('all_around', 'All-around games', 'Double-doubles, triple-doubles and beyond.')
+      g(
+        'all_around',
+        'All-around production',
+        'Production across categories: games of 10 in two or more (double-doubles and beyond) and the combined counts (points, rebounds and assists together).'
+      )
     ]
   },
   {
