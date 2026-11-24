@@ -10,6 +10,7 @@ import type {
   StatsResult,
   StatsRow
 } from '@shared/stats/types'
+import { isUmbrella, isUmbrellaCategory, placementParts } from '@shared/stats/categories'
 import { familyLabel, isRescaled } from './format'
 import { queryScope, type StatsScope } from './scope'
 import { shrinkable } from './stability'
@@ -260,17 +261,35 @@ export function familyOf(
   return familiesOf(catalogue, tab).find((f) => same(familyColumns(catalogue, tab, f))) ?? 'custom'
 }
 
-/** The header groups over the columns: the tab's group names, a family for an added column. */
+/** A metric's sub-group in a category, else in its primary one; the family if it has none. */
+function groupLabel(info: MetricInfo, category: string): string {
+  const placed = info.categories ?? []
+  // In an umbrella a column reads its specific sub-group (Threes), the umbrella's heading being the tab.
+  const p =
+    (isUmbrellaCategory(category) ? placed.find((x) => !isUmbrella(x)) : undefined) ??
+    placed.find((x) => category && x.startsWith(`${category}.`)) ??
+    placed[0]
+  return (p && placementParts(p)?.group.label) || familyLabel(info.family)
+}
+
+/**
+ * The header groups over the columns: the tab's group names on Overview's own columns, else each
+ * column's sub-group (D52), in the board's category where it sits there, else its primary one.
+ */
 export function columnGroups(
   columns: readonly string[],
   tab: TabDef,
-  catalogue: ReadonlyMap<string, MetricInfo>
+  catalogue: ReadonlyMap<string, MetricInfo>,
+  category = ''
 ): { label: string; span: number }[] {
-  const named = new Map(tab.groups.flatMap(([label, ids]) => ids.map((id) => [id, label] as const)))
+  // Overview's own columns read the tab's group names; a category's read their sub-groups.
+  const named = new Map(
+    category ? [] : tab.groups.flatMap(([label, ids]) => ids.map((id) => [id, label] as const))
+  )
   const out: { label: string; span: number }[] = []
   for (const id of columns) {
     const info = catalogue.get(id)
-    const label = named.get(id) ?? (info ? familyLabel(info.family) : '')
+    const label = named.get(id) ?? (info ? groupLabel(info, category) : '')
     const last = out[out.length - 1]
     if (last && last.label === label) last.span++
     else out.push({ label, span: 1 })
