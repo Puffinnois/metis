@@ -55,7 +55,9 @@ describe("a board's category tabs (D52)", () => {
       // BOBAN's projections (T1703.2) are the NBA's and the WNBA's first player metrics here.
       'predictive',
       'results',
-      'playing_time'
+      'playing_time',
+      // Fantasy points (T1703.2), as ordinary metrics.
+      'fantasy'
     ])
     // No hustle or play types in the WNBA; teams have no playing time.
     const wnba = ids(boardCategories(WNBA, players))
