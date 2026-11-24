@@ -82,3 +82,24 @@ export const NCAA_TEAM_SPLITS: readonly string[] = [
 /** The source tables they come from, for a build that leaves the `ncaa_*` releases out (D41). */
 export const NCAA_PLAYER_BOX = 'src_ncaa_player_box'
 export const NCAA_TEAM_BOX = 'src_ncaa_team_box'
+
+/**
+ * stats.ncaa.org's counts by situation (T1703.2, part 4c): from its play by play's tags, for players
+ * and teams, and from its possessions, a team's alone. Built by the plays step
+ * (`derived/collegeSituations.ts`), both sides of a team's game.
+ */
+export const NCAA_SITUATION_COUNTS = [
+  'ncaa_pts_fb',
+  'ncaa_pts_offtov',
+  'ncaa_pts_paint',
+  'ncaa_fgm_paint',
+  'ncaa_fga_paint'
+] as const
+export const NCAA_POSSESSION_COUNTS = [
+  'ncaa_poss_n',
+  'ncaa_poss_first3',
+  'ncaa_poss_first_rim',
+  'ncaa_poss_first_two',
+  'ncaa_poss_first_none',
+  'ncaa_poss_ast'
+] as const

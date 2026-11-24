@@ -136,7 +136,11 @@ function rowsCtes(have: Have, season: number, ten: boolean): string {
              coalesce(${c('is_shooting_foul', 'BOOLEAN')}, false) AS shooting_foul,
              coalesce(${c('is_looseball_foul', 'BOOLEAN')}, false) AS looseball_foul,
              coalesce(${c('is_flagrant', 'BOOLEAN')}, false) AS flagrant,
-             ${c('timeout_type')} AS timeout_type`
+             ${c('timeout_type')} AS timeout_type,
+             -- stats.ncaa.org's own tags of a play, which collegeSituations.ts counts.
+             coalesce(${c('is_fastbreak', 'BOOLEAN')}, false) AS fastbreak,
+             coalesce(${c('is_from_turnover', 'BOOLEAN')}, false) AS off_turnover,
+             coalesce(${c('is_paint', 'BOOLEAN')}, false) AS paint`
              }
       FROM ${t} p
       WHERE ${own}
@@ -512,6 +516,33 @@ export function onCourtTables(
     : { units: `${UNIT_GAME}_${source}`, players: `${PLAYER_ON_COURT}_${source}` }
 }
 
+/**
+ * stats.ncaa.org's own tags of a play, beside `play_nba` by its `seq`: on the fast break, off a
+ * turnover, in the paint, as the file sets them (`is_fastbreak`, `is_from_turnover`, `is_paint`, never
+ * empty). Only the plays with a tag are kept (about 15 % of them); the counts read them through the
+ * play table (`collegeSituations.ts`). The file sets fast break and off a turnover on free throws too,
+ * and paint on twos only.
+ */
+export const PLAY_NCAA_FLAGS = 'play_ncaa_flags'
+
+export const PLAY_NCAA_FLAGS_COLUMNS: Columns = [
+  ['season', 'INTEGER'],
+  ['game_id', 'VARCHAR'],
+  ['seq', 'INTEGER'],
+  ['fastbreak', 'BOOLEAN'],
+  ['off_turnover', 'BOOLEAN'],
+  ['paint', 'BOOLEAN']
+]
+
+/** One season's tagged plays, keyed as the play table keys them. */
+export function collegePlayFlagsSql(have: Have, season: number): string {
+  if (!ready(have)) return none(PLAY_NCAA_FLAGS_COLUMNS)
+  return `WITH ${rowsCtes(have, season, false)}
+    SELECT ${Number(season)} AS season, r.game_id, r.seq, r.fastbreak, r.off_turnover, r.paint
+    FROM nb_rows r
+    WHERE r.fastbreak OR r.off_turnover OR r.paint`
+}
+
 /** The play table and the ten beside it, in build order: the play table reads nothing of the ten. */
 export const COLLEGE_PBP_BUILDERS: readonly PlayBuilder[] = [
   {
@@ -528,6 +559,14 @@ export const COLLEGE_PBP_BUILDERS: readonly PlayBuilder[] = [
     columns: PLAY_COLUMNS,
     select: collegePlaysSql,
     order: 'game_id, seq'
+  },
+  {
+    // An intermediate too: only the situation counts read it.
+    table: PLAY_NCAA_FLAGS,
+    columns: PLAY_NCAA_FLAGS_COLUMNS,
+    select: collegePlayFlagsSql,
+    order: 'game_id, seq',
+    intermediate: true
   }
 ]
 

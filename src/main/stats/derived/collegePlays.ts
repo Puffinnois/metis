@@ -87,7 +87,7 @@ const playersByNameSql = (
     WHERE k IS NOT NULL AND k <> '' GROUP BY 1, 2`
 
 /** The game's side a stats.ncaa.org team is, from its own name and its opponent's. */
-const sideSql = (own: string, opp: string): string => `CASE
+export const sideSql = (own: string, opp: string): string => `CASE
       WHEN ${own} = g.home_team_id THEN g.home_team_id WHEN ${own} = g.away_team_id THEN g.away_team_id
       WHEN ${opp} = g.home_team_id THEN g.away_team_id WHEN ${opp} = g.away_team_id THEN g.home_team_id END`
 

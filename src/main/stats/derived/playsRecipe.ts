@@ -160,7 +160,8 @@ export const COLLEGE_PLAYS: PlaysRecipe = {
   // 3: each shot's team and shooter resolved once a season (`shot_key`), a team named by its name
   // where it has no id. 4: the play by play's own tables (T1302.7), the play-credited units beside.
   // 5: every pick by a total order, so the same files always give the same rows (T1302.9).
-  version: 5,
+  // 6: stats.ncaa.org's tags of a play and the possessions' first shots, counted (T1703.2, part 4c).
+  version: 6,
   pbp: 'src_ncaa_pbp',
   shots: 'src_ncaa_shots',
   possessions: 'src_ncaa_possessions',
