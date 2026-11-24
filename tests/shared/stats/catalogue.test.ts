@@ -679,7 +679,13 @@ const IMPACT_COLUMNS = `
   raptor_onoff_offense rp_onoff_off rp_mposs; raptor_onoff_defense rp_onoff_def rp_mposs
   raptor_war rp_war -; raptor_predator rp_pred_total rp_poss
   raptor_predator_offense rp_pred_off rp_poss; raptor_predator_defense rp_pred_def rp_poss
-  raptor_pace_impact rp_pace rp_pace_poss`
+  raptor_pace_impact rp_pace rp_pace_poss
+  darko_dpm dk_dpm dk_rows; darko_o_dpm dk_o_dpm dk_rows; darko_d_dpm dk_d_dpm dk_rows
+  darko_box_dpm dk_box_dpm dk_rows; darko_on_off_dpm dk_on_off_dpm dk_rows
+  darko_x_minutes dk_x_minutes dk_rows; darko_x_pace dk_x_pace dk_rows
+  darko_x_pts_100 dk_x_pts_100 dk_rows; darko_x_ast_100 dk_x_ast_100 dk_rows
+  darko_x_fg_pct dk_x_fg_pct dk_rows; darko_x_fg3_pct dk_x_fg3_pct dk_rows
+  darko_x_ft_pct dk_x_ft_pct dk_rows`
   .split(/[;\n]/)
   .map((line) => line.trim().split(/\s+/))
   .filter((parts) => parts.length === 3)

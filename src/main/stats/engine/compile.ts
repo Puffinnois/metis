@@ -588,6 +588,11 @@ function unbuiltGap(
   const parts = [...componentsOf(m), ...(by ? [...by.matchAll(TOKEN)].map((x) => x[1]) : [])]
   const box = `${q.entity}_${grain === 'season' ? 'season' : 'game'}`
   const own = ownTable(m, grain)
+  // A private source (D55) this copy has never read: not something a refresh will bring.
+  const published = m.published ? publishedTable(m.published) : undefined
+  if (published?.privateReason && !schema.columns.has(published.source)) {
+    return published.privateReason
+  }
   // Its own table, made empty on open, that no build has reached yet. The league has the metric (its
   // coverage was checked first), so an empty table is one its next refresh fills.
   if (own && schema.empty.has(own.table)) return BUILT_AT_NEXT_REFRESH
@@ -666,6 +671,11 @@ function unheldWords(seasons: number[], ctx: CompileContext): string {
 function unpublishedGap(m: MetricDef, q: StatsQuery, ctx: CompileContext): string | null {
   const found = unheldSeasons(m, q, ctx)
   if (!found || found.anyHeld || found.unheld.length === 0) return null
+  // A private source's seasons are the boards its owner imported (D55), not files a release publishes.
+  if (m.published && publishedTable(m.published)?.privateReason) {
+    const labels = found.unheld.map((s) => seasonLabel(ctx.league, s)).join(', ')
+    return `No DARKO board imported on this copy for ${labels}.`
+  }
   const words = unheldWords(found.unheld, ctx)
   return `${words[0].toUpperCase()}${words.slice(1)}.`
 }
@@ -1228,7 +1238,11 @@ function notesOf(q: StatsQuery, c: Checked, ctx: CompileContext): string[] {
     // Some seasons in scope have the source's file and answer; the others are named here.
     const unheld = unheldSeasons(m, q, ctx)
     if (unheld?.anyHeld && unheld.unheld.length > 0) {
-      notes.add(`${m.label}: ${unheldWords(unheld.unheld, ctx)}.`)
+      notes.add(
+        m.published && publishedTable(m.published)?.privateReason
+          ? `${m.label}: no DARKO board imported for ${unheld.unheld.map((s) => seasonLabel(ctx.league, s)).join(', ')}.`
+          : `${m.label}: ${unheldWords(unheld.unheld, ctx)}.`
+      )
     }
     if (s.seasons.some((x) => x < m.firstSeason)) {
       notes.add(`${m.label}: starts in ${seasonLabel(c.league, m.firstSeason)}.`)

@@ -1,0 +1,3 @@
+nba_id,player_name,team_name,tm_id,position,age,season,rookie_season,career_game_num,dpm,o_dpm,d_dpm,box_dpm,on_off_dpm,market_rating,market_as_of,x_minutes,x_pace,x_pts_100,x_ast_100,x_fg_pct,x_fg3_pct,x_ft_pct
+1,Ann Able,Team A,10,G,25.5,2027,2022,300,4.5,3.0,1.5,4.0,0.5,3.9,2026-11-20,34.1,99.5,30.2,8.1,0.48,0.37,0.86
+2,Bea Bell,Team B,20,C,28.0,2027,2019,500,-1.0,-1.5,0.5,-0.8,-0.2,-0.7,2026-11-20,22.0,97.0,18.0,2.0,0.55,0.0,0.65

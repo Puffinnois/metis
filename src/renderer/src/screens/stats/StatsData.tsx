@@ -20,6 +20,7 @@ import {
   STATE_LABELS,
   totals
 } from '@/lib/stats/data'
+import { importLine } from '@/lib/stats/privateImport'
 import { cn, scrollToTop } from '@/lib/utils'
 import { LEAGUES, leagueOf, type League, type LeagueId } from '@shared/leagues'
 import type {
@@ -168,6 +169,47 @@ function LeagueSection({
           </table>
         </div>
       ))}
+      {report?.privateImport && (
+        <div className="mt-4">
+          <h3 className="text-[12.5px] font-medium text-fg-2">
+            Private to this copy: {report.privateImport.label}
+          </h3>
+          <p className="mt-1 text-[12.5px] text-fg-3">
+            Read from {report.privateImport.folder} at each refresh; nothing is downloaded for it.
+          </p>
+          {report.privateImport.files.length === 0 ? (
+            <p className="mt-1.5 text-[12.5px] text-fg-2">No file imported yet.</p>
+          ) : (
+            <table className="mt-1.5 w-full table-fixed text-[12.5px]">
+              <thead className="text-left text-[11px] font-normal text-fg-3">
+                <tr>
+                  <th className="w-[30%] py-1 pr-4 font-normal">File</th>
+                  <th className="w-[24%] py-1 pr-4 font-normal">Taken as</th>
+                  <th className="w-[18%] py-1 pr-4 font-normal">Date from</th>
+                  <th className="w-[10%] py-1 pr-4 text-right font-normal">Rows</th>
+                  <th className="w-[18%] py-1 font-normal">State</th>
+                </tr>
+              </thead>
+              <tbody>
+                {report.privateImport.files.map(importLine).map((f) => (
+                  <tr key={f.file} className="border-t border-line align-top">
+                    <td className="truncate py-1 pr-4" title={f.file}>
+                      {f.file}
+                    </td>
+                    <td className="py-1 pr-4 text-fg-2 tabular-nums">{f.date}</td>
+                    <td className="py-1 pr-4">{f.from}</td>
+                    <td className="py-1 pr-4 text-right text-fg-2 tabular-nums">{f.rows}</td>
+                    <td className={cn('py-1', f.state === 'Refused' && 'text-bad')}>
+                      {f.state}
+                      {f.reason && <div className="text-[11.5px] text-fg-3">{f.reason}</div>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
     </section>
   )
 }

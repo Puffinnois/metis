@@ -21,6 +21,13 @@ import {
   RAPTOR_TABLE,
   raptorSql
 } from './raptor'
+import {
+  DARKO_DPM_COLUMNS,
+  DARKO_DPM_TABLE,
+  DARKO_NOT_LOADED,
+  DARKO_SOURCE,
+  darkoDpmSql
+} from './darko'
 import type { Have } from './sql'
 
 /**
@@ -76,6 +83,11 @@ export interface PublishedTable {
    * SportsDataverse models): read only over every game the league counts, never a part of them.
    */
   everyGame?: true
+  /**
+   * A source read only on the copy whose private setting names it (D55): the reason its metrics give
+   * on a copy that has never read it, in place of "Built at this league's next refresh."
+   */
+  privateReason?: string
 }
 
 /** What a table that adds rows holds about each row's player, beside its counts. */
@@ -778,6 +790,17 @@ export const PUBLISHED_TABLES: readonly PublishedTable[] = [
     possessions: 'poss',
     columns: [...RAPTOR_COLUMNS],
     sql: raptorSql
+  },
+  // DARKO imported by hand (D55, `derived/darko.ts`): a row a player and season, the latest snapshot.
+  {
+    table: DARKO_DPM_TABLE,
+    entity: 'player',
+    source: DARKO_SOURCE,
+    games: null,
+    minutes: null,
+    columns: [...DARKO_DPM_COLUMNS],
+    sql: darkoDpmSql,
+    privateReason: DARKO_NOT_LOADED
   },
   // The college leagues' SportsDataverse models (D44): empty in every other league's file.
   ...COLLEGE_PUBLISHED_TABLES

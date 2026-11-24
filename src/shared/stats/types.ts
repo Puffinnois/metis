@@ -46,6 +46,7 @@ export type MetricFamily =
   | 'matchups'
   | 'impact'
   | 'raptor'
+  | 'darko'
   | 'availability'
   | 'shots'
   | 'plays'
@@ -1138,12 +1139,43 @@ export interface StatsOtherPlayer {
   team: string | null
 }
 
+/**
+ * One file of a source the owner imports by hand (D55), as the Data panel lists it: the date it was
+ * taken as and where that date came from, so a misnamed file shows, and a refused one says why.
+ */
+export interface StatsImportedFile {
+  file: string
+  /** The snapshot's date, YYYY-MM-DD; a file of many dates gives its first and last. */
+  date: string | null
+  lastDate: string | null
+  /** A date column in the file, a YYYY-MM-DD in its name, or its modified time. */
+  dateFrom: 'column' | 'name' | 'modified' | null
+  /** How many dates the file holds: one for a board, many for a history. */
+  dates: number
+  rows: number
+  /** `same`: the same bytes as a file already imported, counted once. */
+  status: 'imported' | 'same' | 'refused'
+  reason: string | null
+  /** When it was read, ISO time. */
+  importedAt: string
+}
+
+/** A private source, listed only on the copy whose setting names it (D55). */
+export interface StatsPrivateImport {
+  label: string
+  /** The folder the setting names, as the owner wrote it. */
+  folder: string
+  files: StatsImportedFile[]
+}
+
 /** What the Data panel shows. */
 export interface StatsDataReport {
   families: StatsFamily[]
   databaseBytes: number
   /** Null when the system will not say. */
   freeBytes: number | null
+  /** DARKO imported by hand, only where the private setting is on (D55). */
+  privateImport?: StatsPrivateImport
 }
 
 /** The games an on-court read covers: the season types, and a date range or the team's last games. */

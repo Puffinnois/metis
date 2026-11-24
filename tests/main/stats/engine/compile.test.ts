@@ -360,3 +360,45 @@ describe('a published metric before its source has a file of the season', () => 
     expect(c.gaps).toEqual([null])
   })
 })
+
+describe('DARKO imported by hand (D55)', () => {
+  const ask = (ctx: Partial<Parameters<typeof compileQuery>[1]>): (string | null)[] =>
+    compileQuery(
+      {
+        entity: 'player',
+        metrics: ['darko_dpm', 'pts'],
+        scope: { seasons: [2026] }
+      } as StatsQuery,
+      { ...CTX, ...ctx }
+    ).gaps
+  const schema = (
+    tables: Record<string, string[]>,
+    empty: string[] = []
+  ): { columns: Map<string, Set<string>>; empty: Set<string> } => ({
+    columns: new Map(Object.entries(tables).map(([t, cs]) => [t, new Set(cs)])),
+    empty: new Set(empty)
+  })
+  const BOX = { player_season: ['pts', 'games', 'minutes'], player_game: ['pts', 'games'] }
+
+  it('says "Not loaded on this copy" where nothing was ever imported, for that metric alone', () => {
+    const gaps = ask({
+      schema: schema({ ...BOX, pub_player_darko_dpm: ['dk_dpm', 'dk_rows'] }, [
+        'pub_player_darko_dpm'
+      ])
+    })
+    expect(gaps[0]).toMatch(/^Not loaded on this copy/)
+    expect(gaps[1]).toBeNull()
+  })
+
+  it('names the season no board was imported for, once something was', () => {
+    const gaps = ask({
+      schema: schema({
+        ...BOX,
+        src_darko: ['nba_id'],
+        pub_player_darko_dpm: ['dk_dpm', 'dk_rows']
+      }),
+      held: { seasons: new Map([['src_darko', new Set([2027])]]), checked: null }
+    })
+    expect(gaps).toEqual(['No DARKO board imported on this copy for 2025-26.', null])
+  })
+})

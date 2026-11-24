@@ -44,8 +44,8 @@ export const NBA_PUBLISHED: PublishedRecipe = {
   // two teams on one report the same way on every build (T1301.8). 15: BOBAN, and the impact file's
   // box prior and REML RAPM (T1703.2). 16: the published fantasy points (T1703.2). 17: the
   // standings' records by situation (T1703.2). 18: SportsDataverse's current impact (T1703.2).
-  // 19: FiveThirtyEight's RAPTOR (D54).
-  version: 19,
+  // 19: FiveThirtyEight's RAPTOR (D54). 20: DARKO imported by hand (D55).
+  version: 20,
   sources: {},
   team: (id) => id
 }
