@@ -176,6 +176,8 @@ export interface Compiled {
   notes: string[]
   /** The metrics the query lists, first in `metrics`; those after are computed for its filters only. */
   shown: number
+  /** Each ranked value carries its pool's size (`n<i>`): the query asked `poolSizes`. */
+  pools: boolean
   /** Why no row can answer the query's filters (D51), or null; nothing is read when there is one. */
   filterGap: string | null
   /** The attribute tables the filters read, which the file must hold. */
@@ -239,7 +241,8 @@ const QUERY_FIELDS = [
   'ranks',
   'places',
   'filters',
-  'rankAmong'
+  'rankAmong',
+  'poolSizes'
 ]
 const SCOPE_FIELDS = [
   'seasons',
@@ -408,6 +411,10 @@ function validate(q: StatsQuery, ctx: CompileContext): Checked {
   if (q.ranks !== undefined && typeof q.ranks !== 'boolean') fail('ranks must be true or false')
   if (q.rankAmong !== undefined && !q.metrics.includes(q.rankAmong)) {
     fail('rankAmong must be one of the metrics')
+  }
+  if (q.poolSizes !== undefined) {
+    flag(q.poolSizes, 'poolSizes')
+    if (q.poolSizes && q.rankAmong === undefined) fail('poolSizes needs rankAmong')
   }
   if (q.ranks === false && transform === 'percentile') fail('percentile needs ranks')
   if (q.shrunk !== undefined) flag(q.shrunk, 'shrunk')
@@ -1366,6 +1373,10 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
           `stddev_samp(v${i}) FILTER (WHERE ${okOf(i)}) OVER (${among}) AS d${i}`
         ]
       : []
+  // Asked with `poolSizes`, each ranked value also carries how many rows its pool holds
+  // (`MetricValue.pool`): what a page writes as "among 1,838 qualified guards". Only a screen that
+  // shows it asks, so a board's query keeps its SQL and its time.
+  const pools = poolOn >= 0 && q.poolSizes === true && q.ranks !== false
   const ranked = c.metrics.flatMap((m, i) => {
     const ok = okOf(i)
     const up = m.direction === 'lower' ? 'DESC' : 'ASC'
@@ -1376,6 +1387,11 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
         ? `CASE WHEN ${ok} THEN 100 * percent_rank() ${over(i, up)} END AS p${i}`
         : `NULL::DOUBLE AS p${i}`,
       ranks ? `CASE WHEN ${ok} THEN rank() ${over(i, best)} END AS r${i}` : `NULL::BIGINT AS r${i}`,
+      ...(pools
+        ? [
+            `CASE WHEN ${ok} THEN count(*) OVER (PARTITION BY ${[...group, `(${ok})`].join(', ')}) END AS n${i}`
+          ]
+        : []),
       ...meansOf(i)
     ]
   })
@@ -1402,15 +1418,15 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
         FROM flagged) WHERE ok)`,
         `rankwide AS (
       SELECT ${keys.join(', ')},
-             ${c.metrics.map((_, i) => `max(p) FILTER (WHERE m = ${i}) AS p${i}, max(r) FILTER (WHERE m = ${i}) AS r${i}`).join(', ')}
-      FROM (SELECT ${keys.join(', ')}, m, 100 * pr AS p, n - round(cd * n)::BIGINT + 1 AS r
+             ${c.metrics.map((_, i) => `max(p) FILTER (WHERE m = ${i}) AS p${i}, max(r) FILTER (WHERE m = ${i}) AS r${i}${pools ? `, max(n) FILTER (WHERE m = ${i}) AS n${i}` : ''}`).join(', ')}
+      FROM (SELECT ${keys.join(', ')}, m, 100 * pr AS p, n - round(cd * n)::BIGINT + 1 AS r${pools ? ', n' : ''}
             FROM (SELECT *, percent_rank() OVER (${pairs} ORDER BY x ASC) AS pr,
                          cume_dist() OVER (${pairs} ORDER BY x ASC) AS cd,
                          count(*) OVER (${pairs}) AS n
                   FROM ranklong))
       GROUP BY ${keys.join(', ')})`,
         `rankjoined AS (
-      SELECT f.*, ${c.metrics.map((_, i) => `rk.p${i}, rk.r${i}`).join(', ')}
+      SELECT f.*, ${c.metrics.map((_, i) => `rk.p${i}, rk.r${i}${pools ? `, rk.n${i}` : ''}`).join(', ')}
       FROM flagged f LEFT JOIN rankwide rk
         ON ${keys.map((k) => `rk.${k} IS NOT DISTINCT FROM f.${k}`).join(' AND ')})`
       ]
@@ -1517,7 +1533,15 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
     'position',
     ...(adding ? ['no_line'] : []),
     'games',
-    ...c.metrics.flatMap((_, i) => [`t${i}`, `v${i}`, `s${i}`, `q${i}`, `p${i}`, `r${i}`])
+    ...c.metrics.flatMap((_, i) => [
+      `t${i}`,
+      `v${i}`,
+      `s${i}`,
+      `q${i}`,
+      `p${i}`,
+      `r${i}`,
+      ...(pools ? [`n${i}`] : [])
+    ])
   ]
   // `places` (T1601.3): only the rows asked for, each with its place in the whole order the other
   // forms list (qualified first, the sort, the name), and among the standing rows. No limit applies:
@@ -1622,6 +1646,7 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
     },
     notes: [...notesOf(q, c, ctx), ...shrunkNotes(q, c, shrunk)],
     shown: q.metrics.length,
+    pools,
     filterGap: filtering
       ? filterGap(
           c.filters,

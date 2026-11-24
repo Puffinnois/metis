@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
+import { setLeague } from '@/lib/stats/league'
 import {
   addCategory,
   addSubjects,
@@ -265,6 +266,25 @@ describe('compareQuery', () => {
     expect(many.sort?.metric).toBe('team_pts')
   })
 
+  it('asks the engine to rank a college season among the tab’s qualified rows, and the NBA as before', () => {
+    const s: CompareState = { ...DEFAULT_COMPARE, slots: ['a', 'b', null] }
+    expect(compareQuery(s, ['pts'], SCOPE, [2026])!.rankAmong).toBeUndefined()
+    setLeague('ncaam')
+    try {
+      expect(compareQuery(s, ['pts'], SCOPE, [2026])!.rankAmong).toBe('min')
+      // Several seasons have no ranks, and teams no qualifier.
+      expect(compareQuery(s, ['pts'], SCOPE, [2026, 2025])!.rankAmong).toBeUndefined()
+      const teams = {
+        ...DEFAULT_COMPARE,
+        entity: 'team' as const,
+        slots: ['1', null, null] as Slots
+      }
+      expect(compareQuery(teams, ['team_pts'], SCOPE, [2026])!.rankAmong).toBeUndefined()
+    } finally {
+      setLeague('nba')
+    }
+  })
+
   it('searches every player of the seasons by minutes', () => {
     const q = candidatesQuery(SCOPE, [2026, 2025])
     expect(q.metrics).toEqual(['min'])
@@ -274,6 +294,8 @@ describe('compareQuery', () => {
 })
 
 describe('ranks', () => {
+  afterEach(() => setLeague('nba'))
+
   const minutes = (n: number): MetricValue => value(n, { qualified: n >= 500 })
   const res = result(
     [
@@ -301,6 +323,25 @@ describe('ranks', () => {
       true
     )
     expect(r.rows[0].values.pts).toMatchObject({ rank: null, percentile: null, value: 25 })
+  })
+
+  it('keeps the engine’s ranks in a league of many rows, where it ranked among every qualified row', () => {
+    setLeague('ncaam')
+    // The engine's figures, from every row the tab qualifies, stand: the 1,000 fetched are not the pool.
+    const engine = result(
+      [
+        row(
+          'a',
+          { min: minutes(2000), pts: value(25, { rank: 359, percentile: 82 }) },
+          { position: 'G' }
+        )
+      ],
+      [column('min'), column('pts')]
+    )
+    expect(rankedResult(engine, 'player', false).rows[0].values.pts).toMatchObject({
+      rank: 359,
+      percentile: 82
+    })
   })
 
   it('takes the leaders from the qualified rows in order', () => {
