@@ -6,6 +6,7 @@ import { COMPONENTS, grainsOf } from '@main/stats/engine/registry'
 import { modelTable } from '@main/stats/models/build'
 import { CATALOGUE, componentsOf, coverageReason, covers, TOKEN } from '@shared/stats/catalogue'
 import { PLAY_TYPE_SIDES } from '@shared/stats/playTypes'
+import { RECORD_COLUMNS, STREAK_COLUMNS } from '@shared/stats/catalogue/records'
 import { SAMPLE_LABELS } from '@shared/stats/samples'
 import { LEAGUES } from '@shared/leagues'
 
@@ -420,6 +421,12 @@ const EXPECTED: Record<string, number> = {
  * what that column is stored over. A rate is stored times its minutes or possessions, so it reads back
  * as the column over that divisor; a count reads as it is.
  */
+/** The standings' records by situation, each wins over its games, and the longest streaks (T1703.2). */
+const RECORD_TEST_COLUMNS: string[][] = [
+  ...RECORD_COLUMNS.map(([k]) => [`team_rec_${k}`, `rec_${k}_w`, `rec_${k}_g`]),
+  ...STREAK_COLUMNS.map(([k]) => [`team_long_${k}_streak`, `streak_${k}`, '-'])
+]
+
 const DASHBOARD_COLUMNS = `
   nba_fantasy_pts nba_fantasy_pts -; nba_wnba_fantasy_pts wnba_fantasy_pts -
   nba_ortg off_rating possessions; nba_drtg def_rating possessions; nba_nrtg net_rating possessions
@@ -665,6 +672,8 @@ const PUBLISHED_ROW: Record<string, number> = {
       ...new Set(
         [
           ...DASHBOARD_COLUMNS,
+          ...RECORD_TEST_COLUMNS,
+          ...RECORD_TEST_COLUMNS,
           ...TRACKING_COLUMNS,
           ...HUSTLE_COLUMNS,
           ...PLAY_TYPE_COLUMNS,
@@ -691,6 +700,7 @@ Object.assign(EXPECTED, {
   ...Object.fromEntries(
     [
       ...DASHBOARD_COLUMNS,
+      ...RECORD_TEST_COLUMNS,
       ...TRACKING_COLUMNS,
       ...HUSTLE_COLUMNS,
       ...PLAY_TYPE_COLUMNS,
