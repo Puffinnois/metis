@@ -1,55 +1,19 @@
 import { seasonLabel } from '@/lib/stats/league'
+import type { RatingHistory, RatingPoint, RatingSeries } from '@shared/stats/types'
 
 /*
  * A player's ratings over time (Plan T1704): every dated series of a rating Metis holds for a player,
- * each named with its maker, drawn by date. The read (`stats.ratingHistory`) is the T1703 worker's;
- * the shapes below follow its description until the shared type lands.
+ * each named with its maker, drawn by date. The read is `stats.ratingHistory` (T1704.1); the chart
+ * takes each series' label, maker and notes from it, so a series added later needs no change here.
  */
-
-/** How often a series has a value: a hand-imported snapshot, a weekly estimate, or every game. */
-export type RatingGrain = 'snapshot' | 'weekly' | 'game'
-
-/** One dated value of a series: the rating and its two ends where the maker splits it. */
-export interface RatingPoint {
-  /** The date the value was made, `YYYY-MM-DD`. */
-  date: string
-  /** The season it belongs to, by its final year. */
-  season: number
-  total: number | null
-  off: number | null
-  def: number | null
-  /** What the value was computed from, where the read says ("Games through Jan 12, 41 games"). */
-  basis?: string | null
-}
-
-/** One maker's rating for one player, every value in date order. */
-export interface RatingSeries {
-  id: string
-  /** The rating's name, without its maker ("Expected impact"). */
-  label: string
-  /** Who makes it ("SportsDataverse", "DARKO", "Metis"). */
-  maker: string
-  /** What a value is ("Points per 100 possessions"). */
-  unit: string
-  grain: RatingGrain
-  points: RatingPoint[]
-  /** What the series covers and lacks, in short sentences. */
-  notes: string[]
-}
-
-/** The read's answer for one player. */
-export interface RatingHistory {
-  series: RatingSeries[]
-  /** Notes on the league's series as a whole: which exist and why one is not here. */
-  notes: string[]
-}
+export type { RatingGrain, RatingHistory, RatingPoint, RatingSeries } from '@shared/stats/types'
 
 /** Which number of a rating the chart draws. */
-export type RatingPart = 'total' | 'off' | 'def'
+export type RatingPart = 'total' | 'offense' | 'defense'
 export const RATING_PARTS: { id: RatingPart; label: string }[] = [
   { id: 'total', label: 'Total' },
-  { id: 'off', label: 'Offence' },
-  { id: 'def', label: 'Defence' }
+  { id: 'offense', label: 'Offense' },
+  { id: 'defense', label: 'Defense' }
 ]
 
 /** The span drawn: the season in scope, or every season the series reach. */
@@ -59,9 +23,12 @@ export const RATING_RANGES: { id: RatingRange; label: string }[] = [
   { id: 'career', label: 'Career' }
 ]
 
-/** A series' name with its maker, as the chart and its legend show it. */
+/**
+ * A series' name as the read gives it, which names its maker ("Expected impact (SportsDataverse)",
+ * "DPM (DARKO)"); a label that does not is given the maker after it, so no series is ever shown unnamed.
+ */
 export const seriesName = (s: Pick<RatingSeries, 'label' | 'maker'>): string =>
-  `${s.label} (${s.maker})`
+  s.label.includes(s.maker) || /\(.+\)$/.test(s.label) ? s.label : `${s.label} (${s.maker})`
 
 export const partValue = (p: RatingPoint, part: RatingPart): number | null => p[part]
 
@@ -197,14 +164,23 @@ export function fmtDate(date: string): string {
   return `${MONTHS[m - 1]} ${d}, ${y}`
 }
 
-/** The hover's lines for one series' point: its name, the date and value, and what it came from. */
+/**
+ * The hover's lines for one series' point: its name with its maker, the date and value, then what it
+ * was computed from where the point says: the games through the last one before it, the possessions.
+ */
 export function pointLines(series: RatingSeries, p: RatingPoint, part: RatingPart): string[] {
   const v = partValue(p, part)
-  const word = part === 'total' ? '' : part === 'off' ? ' offence' : ' defence'
+  const word = part === 'total' ? '' : ` ${part}`
+  const from = [
+    p.lastGame ? `from games through ${fmtDate(p.lastGame)}` : null,
+    p.possessions !== null
+      ? `${Math.round(p.possessions).toLocaleString('en-US')} possessions`
+      : null
+  ].filter((x): x is string => x !== null)
   return [
     seriesName(series),
     `${fmtDate(p.date)}: ${v === null ? '—' : fmtRating(v)}${word}`,
-    ...(p.basis ? [p.basis] : [])
+    ...(from.length ? [from.join(', ').replace(/^./, (c) => c.toUpperCase())] : [])
   ]
 }
 
@@ -228,8 +204,9 @@ export function nearestPoint(
 }
 
 /**
- * The line in place of a chart when there is nothing to draw: which series exist and why none is
- * here. The read's own notes say it best; without them, a line that names the series it looked for.
+ * The line in place of a chart when there is nothing to draw. With no series, the read's reason ("Not
+ * published for the WNBA: …"); with series but none in the season in scope, which they are and where
+ * to look.
  */
 export function emptyLine(
   history: RatingHistory | null,
@@ -240,8 +217,7 @@ export function emptyLine(
     const names = history.series.map(seriesName).join(', ')
     return `No ${names} value for ${seasonLabel(season)}; the career shows every season there is.`
   }
-  if (history && history.notes.length > 0) return history.notes.join(' ')
-  return 'No ratings over time for this player.'
+  return history?.reason ?? 'No rating over time is published for this player.'
 }
 
 /** A season's month labels on its own axis: the first of each month inside its dates drawn. */

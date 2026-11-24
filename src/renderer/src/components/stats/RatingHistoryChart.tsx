@@ -132,7 +132,6 @@ export function RatingHistoryChart({
     const at = (((e.clientX - box.left) / box.width) * W - L) / (W - L - R)
     setHover(at)
   }
-  const unit = shown[0].series.unit
 
   return (
     <section
@@ -140,7 +139,7 @@ export function RatingHistoryChart({
       aria-label={TITLE}
       data-rating-history={shown.map((s) => s.series.id).join(' ')}
     >
-      <SectionHead title={TITLE} note={unit} />
+      <SectionHead title={TITLE} note="Zero is the league's average player" />
       {head}
       <figure className="m-0 flex flex-col gap-2">
         <figcaption className="flex flex-wrap items-center gap-x-5 gap-y-1 px-2 text-[11.5px] text-fg-3">
@@ -340,6 +339,14 @@ export function RatingHistoryChart({
           )}
         </div>
       </figure>
+      {/* What each series covers and lacks, as the read words it. */}
+      <div className="flex flex-col gap-0.5 text-[12px] text-fg-3" data-series-notes="">
+        {shown.map((s) => (
+          <p key={s.series.id} className="m-0">
+            <span className="text-fg-2">{seriesName(s.series)}.</span> {s.series.notes.join(' ')}
+          </p>
+        ))}
+      </div>
     </section>
   )
 }

@@ -1,11 +1,12 @@
-import type { RatingHistory, RatingPoint, RatingSeries } from '@/lib/stats/ratingHistory'
+import type { RatingHistory, RatingPoint, RatingSeries } from '@shared/stats/types'
 
 /**
- * A long career's ratings, made up but shaped like the read: SportsDataverse's weekly expected
- * impact from 2006-07 to 2025-26 (opening night, then every 7 days to early April), and three DARKO
- * snapshots imported in 2026-27. Values walk week to week around an arc over the career.
+ * A long career's ratings, made up but shaped like the read (T1704.1): SportsDataverse's weekly
+ * expected impact from 2006-07 to 2025-26 (opening night, then every 7 days to early April), and
+ * three DARKO snapshots imported in 2026-27. Values walk week to week around an arc over the career.
  */
 const iso = (t: number): string => new Date(t).toISOString().slice(0, 10)
+const DAY = 86_400_000
 
 /** A repeatable pseudo-random step in [-0.5, 0.5). */
 function stepper(seed: number): () => number {
@@ -22,23 +23,22 @@ function weekly(first: number, last: number): RatingPoint[] {
   for (let season = first; season <= last; season++) {
     const open = Date.UTC(season - 1, 9, 24)
     const arc = 6 - Math.abs(season - 2013) * 0.4
-    let off = arc * 0.7
-    let def = arc * 0.3
+    let offense = arc * 0.7
+    let defense = arc * 0.3
     for (let w = 0; w < 24; w++) {
       // Early weeks move most: fewer games behind each estimate.
       const size = w < 6 ? 0.5 : 0.18
-      off += step() * size
-      def += step() * size * 0.6
+      offense += step() * size
+      defense += step() * size * 0.6
       out.push({
-        date: iso(open + w * 7 * 86_400_000),
+        date: iso(open + w * 7 * DAY),
         season,
-        total: Math.round((off + def) * 100) / 100,
-        off: Math.round(off * 100) / 100,
-        def: Math.round(def * 100) / 100,
-        basis:
-          w === 0
-            ? 'Opening night: the seasons before only'
-            : `From games through ${iso(open + (w * 7 - 1) * 86_400_000)}`
+        total: Math.round((offense + defense) * 100) / 100,
+        offense: Math.round(offense * 100) / 100,
+        defense: Math.round(defense * 100) / 100,
+        // Opening night is before the season's first game: no game of the season behind it.
+        possessions: w === 0 ? null : w * 230,
+        lastGame: w === 0 ? null : iso(open + (w * 7 - 1) * DAY)
       })
     }
   }
@@ -46,34 +46,48 @@ function weekly(first: number, last: number): RatingPoint[] {
 }
 
 export const EXPECTED: RatingSeries = {
-  id: 'sdv_current_impact',
-  label: 'Expected impact',
+  id: 'sdv_expected_impact',
+  label: 'Expected impact (SportsDataverse)',
   maker: 'SportsDataverse',
-  unit: 'Points per 100 possessions',
+  unit: 'rating',
   grain: 'weekly',
   points: weekly(2007, 2026),
-  notes: ['Published weekly from 2006-07 to 2025-26.']
+  notes: ['Weekly from 2006-07 to 2025-26.']
 }
+
+const imported = (date: string, total: number, offense: number, defense: number): RatingPoint => ({
+  date,
+  season: 2027,
+  total,
+  offense,
+  defense,
+  possessions: null,
+  lastGame: null
+})
 
 export const DARKO: RatingSeries = {
   id: 'darko_dpm',
-  label: 'DPM',
-  maker: 'DARKO',
-  unit: 'Points per 100 possessions',
+  label: 'DPM (DARKO)',
+  maker: 'Kostya Medvedovsky (DARKO)',
+  unit: 'rating',
   grain: 'snapshot',
   points: [
-    { date: '2026-11-03', season: 2027, total: 2.1, off: 1.8, def: 0.3, basis: 'Imported board' },
-    { date: '2026-11-12', season: 2027, total: 2.4, off: 2.0, def: 0.4, basis: 'Imported board' },
-    { date: '2026-11-24', season: 2027, total: 2.2, off: 2.1, def: 0.1, basis: 'Imported board' }
+    imported('2026-11-03', 2.1, 1.8, 0.3),
+    imported('2026-11-12', 2.4, 2.0, 0.4),
+    imported('2026-11-24', 2.2, 2.1, 0.1)
   ],
   notes: ['From the boards imported by hand, one point an import.']
 }
 
-export const LONG_CAREER: RatingHistory = { series: [EXPECTED, DARKO], notes: [] }
+export const LONG_CAREER: RatingHistory = {
+  playerId: '2544',
+  series: [EXPECTED, DARKO],
+  reason: null
+}
 
 export const NONE_IN_LEAGUE: RatingHistory = {
+  playerId: '1',
   series: [],
-  notes: [
-    'No rating over time for the WNBA: SportsDataverse publishes its expected impact for the NBA only, and no DARKO board has been imported.'
-  ]
+  reason:
+    'Not published for the WNBA: SportsDataverse publishes its expected impact for the NBA only.'
 }

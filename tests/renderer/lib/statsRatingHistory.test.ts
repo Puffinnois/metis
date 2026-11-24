@@ -22,28 +22,32 @@ import {
 import { DARKO, EXPECTED, LONG_CAREER, NONE_IN_LEAGUE } from './ratingHistoryFixture'
 
 describe('a player’s ratings over time', () => {
-  it('names each series with its maker', () => {
+  it('names each series as the read does, with its maker', () => {
     expect(seriesName(EXPECTED)).toBe('Expected impact (SportsDataverse)')
     expect(seriesName(DARKO)).toBe('DPM (DARKO)')
+    // A label without its maker gets it, so no series is shown unnamed.
+    expect(seriesName({ label: 'Estimate', maker: 'Metis' })).toBe('Estimate (Metis)')
   })
 
   it('keeps the season in scope, or every season for the career', () => {
     const season = shownSeries(LONG_CAREER, 'season', 2016, 'total')
-    expect(season.map((s) => s.series.id)).toEqual(['sdv_current_impact'])
+    expect(season.map((s) => s.series.id)).toEqual(['sdv_expected_impact'])
     expect(season[0].points.every((p) => p.season === 2016)).toBe(true)
     const career = shownSeries(LONG_CAREER, 'career', 2016, 'total')
-    expect(career.map((s) => s.series.id)).toEqual(['sdv_current_impact', 'darko_dpm'])
+    expect(career.map((s) => s.series.id)).toEqual(['sdv_expected_impact', 'darko_dpm'])
     expect(seriesSeasons(LONG_CAREER)).toEqual(Array.from({ length: 21 }, (_, i) => 2007 + i))
   })
 
   it('drops a point with no value for the part, and offers only the parts some series has', () => {
     const split: typeof LONG_CAREER = {
-      notes: [],
-      series: [{ ...DARKO, points: DARKO.points.map((p) => ({ ...p, off: null, def: null })) }]
+      ...LONG_CAREER,
+      series: [
+        { ...DARKO, points: DARKO.points.map((p) => ({ ...p, offense: null, defense: null })) }
+      ]
     }
     expect(offeredParts(split)).toEqual(['total'])
-    expect(shownSeries(split, 'career', 2027, 'off')).toEqual([])
-    expect(offeredParts(LONG_CAREER)).toEqual(['total', 'off', 'def'])
+    expect(shownSeries(split, 'career', 2027, 'offense')).toEqual([])
+    expect(offeredParts(LONG_CAREER)).toEqual(['total', 'offense', 'defense'])
   })
 
   it('gives each season of a career an equal stretch with a gap for the summer', () => {
@@ -83,7 +87,7 @@ describe('a player’s ratings over time', () => {
   })
 
   it('puts a season of one date in the middle of its stretch', () => {
-    const one = { notes: [], series: [{ ...DARKO, points: [DARKO.points[0]] }] }
+    const one = { ...LONG_CAREER, series: [{ ...DARKO, points: [DARKO.points[0]] }] }
     const axis = ratingAxis(shownSeries(one, 'career', 2027, 'total'))
     expect(axis.x('2026-11-03', 2027)).toBeCloseTo(0.5)
   })
@@ -110,16 +114,23 @@ describe('a player’s ratings over time', () => {
     expect(stopNote(EXPECTED, null)).toBeNull()
   })
 
-  it('writes a rating signed with one decimal, and the hover’s date, value and basis', () => {
+  it('writes a rating signed with one decimal, and the hover’s date, value and what it came from', () => {
     expect(fmtRating(2.04)).toBe('+2.0')
     expect(fmtRating(-1.26)).toBe('−1.3')
     expect(fmtRating(0.01)).toBe('0.0')
-    expect(pointLines(DARKO, DARKO.points[1], 'off')).toEqual([
+    // An import says nothing of what it came from: the name, the date and the value.
+    expect(pointLines(DARKO, DARKO.points[1], 'offense')).toEqual([
       'DPM (DARKO)',
-      'Nov 12, 2026: +2.0 offence',
-      'Imported board'
+      'Nov 12, 2026: +2.0 offense'
     ])
-    expect(pointLines(EXPECTED, { ...EXPECTED.points[0], basis: null }, 'total')).toHaveLength(2)
+    const week = { ...EXPECTED.points[3], total: 4.25, possessions: 1234.4, lastGame: '2006-11-13' }
+    expect(pointLines(EXPECTED, week, 'total')).toEqual([
+      'Expected impact (SportsDataverse)',
+      'Nov 14, 2006: +4.3',
+      'From games through Nov 13, 2006, 1,234 possessions'
+    ])
+    // Opening night: no game of the season behind it yet.
+    expect(pointLines(EXPECTED, EXPECTED.points[0], 'total')).toHaveLength(2)
   })
 
   it('finds the point nearest the pointer, and none in a summer’s gap', () => {
@@ -133,11 +144,13 @@ describe('a player’s ratings over time', () => {
   })
 
   it('says why there is no chart, in one line', () => {
-    expect(emptyLine(NONE_IN_LEAGUE, 'career', 2027)).toBe(NONE_IN_LEAGUE.notes[0])
+    expect(emptyLine(NONE_IN_LEAGUE, 'career', 2027)).toBe(NONE_IN_LEAGUE.reason)
     expect(emptyLine(LONG_CAREER, 'season', 2005)).toBe(
       'No Expected impact (SportsDataverse), DPM (DARKO) value for 2004-05; the career shows every season there is.'
     )
-    expect(emptyLine(null, 'career', 2027)).toBe('No ratings over time for this player.')
+    expect(emptyLine(null, 'career', 2027)).toBe(
+      'No rating over time is published for this player.'
+    )
   })
 })
 
