@@ -2199,6 +2199,43 @@ out.push(
   )
 )
 
+// The standings' records by situation (T1703.2) against the margins of the games the game table holds:
+// the close-game record (3 points or fewer) and the record in games decided by 10 or more.
+const records = await read(`WITH margins AS (
+    SELECT g.season, g.home_team_id AS team_id, g.home_score - g.away_score AS m
+    FROM game g WHERE g.game_type = 'regular' AND g.played
+    UNION ALL
+    SELECT g.season, g.away_team_id, g.away_score - g.home_score
+    FROM game g WHERE g.game_type = 'regular' AND g.played
+  ), ours AS (
+    SELECT season, team_id,
+           count(*) FILTER (WHERE abs(m) <= 3 AND m > 0) AS close_w, count(*) FILTER (WHERE abs(m) <= 3 AND m < 0) AS close_l,
+           count(*) FILTER (WHERE abs(m) >= 10 AND m > 0) AS ten_w, count(*) FILTER (WHERE abs(m) >= 10 AND m < 0) AS ten_l
+    FROM margins GROUP BY 1, 2
+  ), theirs AS (
+    SELECT season, team_id,
+           TRY_CAST(split_part(trim(three_pts_or_less), '-', 1) AS INTEGER) AS close_w,
+           TRY_CAST(split_part(trim(three_pts_or_less), '-', 2) AS INTEGER) AS close_l,
+           TRY_CAST(split_part(trim(ten_pts_or_more), '-', 1) AS INTEGER) AS ten_w,
+           TRY_CAST(split_part(trim(ten_pts_or_more), '-', 2) AS INTEGER) AS ten_l
+    FROM src_dash_standings WHERE trim(three_pts_or_less) <> ''
+  )
+  SELECT o.season, count(*)::INTEGER AS teams,
+         count(*) FILTER (WHERE o.close_w = t.close_w AND o.close_l = t.close_l)::INTEGER AS close,
+         count(*) FILTER (WHERE o.ten_w = t.ten_w AND o.ten_l = t.ten_l)::INTEGER AS ten
+  FROM ours o JOIN theirs t USING (season, team_id) GROUP BY 1 ORDER BY 1`)
+out.push(
+  '',
+  '## Records by situation',
+  '',
+  "The standings' close-game record (3 points or fewer) and record in games decided by 10 or more (`team_rec_close`, `team_rec_blowout`, T1703.2), against the margins of the regular-season games in Metis's game table. Percentages are of each season's teams. The standings publish these records from 2000-01. In 2005-06 the standings leave out of both teams' close-game records Milwaukee's 88-85 win at Philadelphia on 2005-12-07 (`0020500259`): the NBA's box score, ESPN's schedule and both play-by-plays give 88-85 in regulation, so the standings are the source in error. The season under way differs as files of different days do.",
+  '',
+  table(
+    ['Season', 'Teams', 'Close games %', '10 or more %'],
+    records.map((r) => [label(r.season), r.teams, pct(r.close, r.teams), pct(r.ten, r.teams)])
+  )
+)
+
 // What the Games screen shows: the players' lines and the team's box score against the final score.
 const boxes = await read(`WITH lines AS (
     SELECT game_id, team_id, sum(pts) AS pts, sum(reb) AS reb, sum(ast) AS ast

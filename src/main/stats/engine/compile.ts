@@ -35,7 +35,12 @@ import {
   type Transform
 } from '@shared/stats/types'
 import { gameTable } from '../derived/gameTables'
-import { PUBLISHED_DIVISORS, publishedComponents, publishedTable } from '../derived/published'
+import {
+  PUBLISHED_DIVISORS,
+  publishedComponents,
+  publishedRecipe,
+  publishedTable
+} from '../derived/published'
 import { SPLIT_PLAYER, SPLIT_PLAYER_SQL, SPLIT_TEAM, SPLIT_TEAM_SQL } from '../derived/splits'
 import { PUBLISHED_GAME_TYPES } from '../derived/publishedTables'
 import { leftOutGap } from '../leftOut'
@@ -111,12 +116,24 @@ export interface CompileContext {
    */
   internal?: { unlimited?: boolean; halves?: boolean }
   /**
-   * The open file's tables and their columns (`fileSchema`). A metric whose own table or a column it
+   * The open file's tables and their columns (`readFileSchema`). A metric whose own table or a column it
    * reads the file does not hold yet (a file built before a recipe added it, until the league's next
    * refresh rebuilds it) answers no value with a reason, never an error, and the rest of the query
    * answers. Absent, every table and column is taken as held.
    */
   schema?: FileSchema
+  /**
+   * The seasons of each source table the open file holds a file of, and when the refresh last looked
+   * (`sourceSeasons`): a published metric whose source has no file yet for any season in scope says
+   * so, and the refresh asks for the file again each day. Absent, no such reason is given.
+   */
+  held?: HeldSources
+}
+
+/** What the open file holds of each source: its seasons, and when the refresh last looked. */
+export interface HeldSources {
+  seasons: ReadonlyMap<string, ReadonlySet<number>>
+  checked: string | null
 }
 
 /**
@@ -427,8 +444,11 @@ function validate(q: StatsQuery, ctx: CompileContext): Checked {
     if (!grains.includes(grain)) fail(`"${m.id}" cannot be read at the ${grain} grain`)
   }
   const gaps = metrics.map(
+    // A season with no file yet is not built at the next refresh either, so that reason comes first.
     (m) =>
-      gapOf(m, q, grain, gameTypes, transform, league) ?? unbuiltGap(m, q, grain, transform, ctx)
+      gapOf(m, q, grain, gameTypes, transform, league) ??
+      unpublishedGap(m, q, ctx) ??
+      unbuiltGap(m, q, grain, transform, ctx)
   )
   // A table adds rows only where a metric reads it with an answer, so a query reading none is the
   // query it was. A published table has whole seasons, so only the season grain; and never for the
@@ -587,6 +607,25 @@ function ownTable(
   }
   const table = publishedTable(m.published)
   return table ? { table: table.table, components: publishedComponents(table) } : undefined
+}
+
+/**
+ * Why a published metric has nothing for the seasons in scope though they are in its coverage: its
+ * source has published no file for any of them yet (the season under way, before its first file). The
+ * refresh asks for the file again every day, so the value appears without a new version of Metis.
+ */
+function unpublishedGap(m: MetricDef, q: StatsQuery, ctx: CompileContext): string | null {
+  if (!m.published || !ctx.held) return null
+  const table = publishedTable(m.published)
+  if (!table) return null
+  const source = publishedRecipe(ctx.league).sources[table.source] ?? table.source
+  const held = ctx.held.seasons.get(source)
+  // A source the file holds no season of is a left-out or not-yet-loaded source: its own reason.
+  if (!held || held.size === 0) return null
+  const seasons = [...new Set(q.scope.seasons)].sort((a, b) => a - b)
+  if (seasons.some((s) => held.has(s))) return null
+  const date = ctx.held.checked ? ` (last looked for on ${ctx.held.checked.slice(0, 10)})` : ''
+  return `Not published yet for ${seasons.map((s) => seasonLabel(ctx.league, s)).join(', ')}${date}.`
 }
 
 /**

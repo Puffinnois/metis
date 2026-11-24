@@ -274,7 +274,7 @@ const PRIOR_METRICS: MetricDef[] = [
     'sdv_box_prior',
     sdv('Box prior'),
     head('BoxPrior'),
-    `The points per 100 possessions the player’s box score predicts, which SportsDataverse’s REML RAPM is pulled toward instead of zero. ${PRIOR_OWN} ${REGULAR_ONLY} ${BY_POSS}`,
+    `The points per 100 possessions the player’s box score predicts over the whole regular season, which SportsDataverse’s REML RAPM is pulled toward instead of zero. It differs from the box prior of the latest expected impact, which is as of a date within the season. ${PRIOR_OWN} ${REGULAR_ONLY} ${BY_POSS}`,
     { ...prior('box_prior', 'prior_poss', 4000), categories: ['impact.box_models'] }
   ),
   metric(
@@ -327,6 +327,123 @@ const PRIOR_METRICS: MetricDef[] = [
 ]
 
 /**
+ * SportsDataverse's current impact (`nba_current_impact`, T1703.2): each player's expected offence
+ * and defence per 100 possessions, as of opening night and every 7 days after, from earlier games only:
+ * a box prior with a Kalman-filtered deviation from it. Read one regular season at a time: the season's
+ * last weekly estimate (early April), and the opening-night one, made before the season's first game.
+ */
+const CURRENT_OWN =
+  'SportsDataverse’s own model, published weekly in the dataset’s current-impact file.'
+const ONE_STATE = 'It reads for one regular season at a time, from 2006-07.'
+const current = (
+  column: string,
+  rows: 'ci_rows' | 'ce_rows',
+  table: string,
+  o: Partial<Opts> = {}
+): Opts => ({
+  value: ratio(column, rows),
+  sample: rows,
+  // One estimate a player-season: the minimum is that it exists.
+  minSample: 1,
+  family: 'impact',
+  kind: 'model',
+  unit: 'rating',
+  decimals: 1,
+  sources: SOURCES,
+  firstSeason: 2007,
+  published: table,
+  oneSeason: true,
+  ...o
+})
+const LAST = 'pub_player_current_impact'
+const OPENING = 'pub_player_expected_impact'
+const LAST_WORDS =
+  'its latest weekly estimate of the season, from every game before its date: early April for a finished season, the latest week for the season under way'
+const OPENING_WORDS =
+  'its estimate on opening night, made before the season’s first game from earlier seasons alone'
+
+const CURRENT_METRICS: MetricDef[] = [
+  metric(
+    'sdv_current_impact',
+    sdv('Expected impact, latest estimate'),
+    head('ExpLast'),
+    `The points per 100 possessions SportsDataverse expects the player to add, offence and defence together, as of ${LAST_WORDS}. ${CURRENT_OWN} ${ONE_STATE}`,
+    {
+      ...current('ci_total', 'ci_rows', LAST),
+      categories: ['impact.pm_models', 'predictive.player_projections']
+    }
+  ),
+  metric(
+    'sdv_o_current_impact',
+    sdv('Offensive expected impact, latest estimate'),
+    head('OExpLast'),
+    `The offensive part of the latest expected impact, as of ${LAST_WORDS}. ${CURRENT_OWN} ${ONE_STATE}`,
+    {
+      ...current('ci_off', 'ci_rows', LAST),
+      categories: ['impact.pm_models', 'offense.impact']
+    }
+  ),
+  metric(
+    'sdv_d_current_impact',
+    sdv('Defensive expected impact, latest estimate'),
+    head('DExpLast'),
+    `The defensive part of the latest expected impact, as of ${LAST_WORDS}. ${CURRENT_OWN} ${ONE_STATE}`,
+    {
+      ...current('ci_def', 'ci_rows', LAST),
+      categories: ['impact.pm_models', 'defense.impact']
+    }
+  ),
+  metric(
+    'sdv_expected_impact',
+    sdv('Expected impact, opening night'),
+    head('ExpOpen'),
+    `The points per 100 possessions SportsDataverse expected the player to add before the season began: ${OPENING_WORDS}. A published forecast, not a prediction from Metis. ${CURRENT_OWN} ${ONE_STATE}`,
+    { ...current('ce_total', 'ce_rows', OPENING), categories: ['predictive.player_projections'] }
+  ),
+  metric(
+    'sdv_o_expected_impact',
+    sdv('Offensive expected impact, opening night'),
+    head('OExpOpen'),
+    `The offensive part of the opening-night expected impact: ${OPENING_WORDS}. ${CURRENT_OWN} ${ONE_STATE}`,
+    { ...current('ce_off', 'ce_rows', OPENING), categories: ['predictive.player_projections'] }
+  ),
+  metric(
+    'sdv_d_expected_impact',
+    sdv('Defensive expected impact, opening night'),
+    head('DExpOpen'),
+    `The defensive part of the opening-night expected impact: ${OPENING_WORDS}. ${CURRENT_OWN} ${ONE_STATE}`,
+    { ...current('ce_def', 'ce_rows', OPENING), categories: ['predictive.player_projections'] }
+  ),
+  metric(
+    'sdv_current_prior',
+    sdv('Box prior of the latest estimate'),
+    head('LastPrior'),
+    `The points per 100 possessions the box score predicts, which the expected impact starts from and moves away from as the games come in, as of ${LAST_WORDS}. It differs from the impact file's Box prior (SportsDataverse), which is fitted once on the whole regular season. ${CURRENT_OWN} ${ONE_STATE}`,
+    { ...current('ci_prior', 'ci_rows', LAST), categories: ['impact.box_models'] }
+  ),
+  metric(
+    'sdv_o_current_prior',
+    sdv('Offensive box prior of the latest estimate'),
+    head('OLastPrior'),
+    `The offensive part of the latest estimate's box prior, as of ${LAST_WORDS}. ${CURRENT_OWN} ${ONE_STATE}`,
+    {
+      ...current('ci_o_prior', 'ci_rows', LAST),
+      categories: ['impact.box_models', 'offense.impact']
+    }
+  ),
+  metric(
+    'sdv_d_current_prior',
+    sdv('Defensive box prior of the latest estimate'),
+    head('DLastPrior'),
+    `The defensive part of the latest estimate's box prior, as of ${LAST_WORDS}. ${CURRENT_OWN} ${ONE_STATE}`,
+    {
+      ...current('ci_d_prior', 'ci_rows', LAST),
+      categories: ['impact.box_models', 'defense.impact']
+    }
+  )
+]
+
+/**
  * The family's preset leads with these, so RAPM, BPM, SPM, WAR and BOBAN show before the adjusted
  * RAPM and the parts of SPM, which a label sort would put first. BOBAN's projection is not among them:
  * the preset's first column by label sorts the board, and a board of ratings should not rank by a
@@ -349,6 +466,7 @@ export const IMPACT: MetricDef[] = [
   ...BOX,
   ...BOBAN_METRICS,
   ...PRIOR_METRICS,
+  ...CURRENT_METRICS,
   ...DARKO_METRICS
 ].map((m) => (CORE.has(m.id) ? { ...m, tier: 'core' } : m))
 
@@ -359,5 +477,7 @@ export const IMPACT_SAMPLE_LABELS: Readonly<Record<string, string>> = {
   def_poss: 'defensive possessions',
   prior_poss: 'regular-season possessions on offense and defense',
   prior_off_poss: 'regular-season offensive possessions',
-  prior_def_poss: 'regular-season defensive possessions'
+  prior_def_poss: 'regular-season defensive possessions',
+  ci_rows: 'season-end estimate',
+  ce_rows: 'opening-night estimate'
 }

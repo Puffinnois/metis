@@ -23,6 +23,9 @@ vi.mock('@main/stats/derived/publishedTables', async (actual) => {
       real.PUBLISHED_TABLES.find((t) => t.table === 'pub_player_fantasy')!,
       // A team's record by situation, from the standings' text records.
       real.PUBLISHED_TABLES.find((t) => t.table === 'pub_team_records')!,
+      // SportsDataverse's weekly current impact: the season's last and opening-night rows.
+      real.PUBLISHED_TABLES.find((t) => t.table === 'pub_player_current_impact')!,
+      real.PUBLISHED_TABLES.find((t) => t.table === 'pub_player_expected_impact')!,
       // A play type, read from the one file of them all.
       real.PUBLISHED_TABLES.find((t) => t.table === 'pub_player_pt_d_iso')!,
       // The defenders' matchups: the rollup, with the pair file taking over where it is out.
@@ -400,6 +403,66 @@ describe('the published tables', () => {
         rec_won_reb_g: null,
         streak_win: 16
       }
+    ])
+  })
+
+  it('read the current impact’s last and opening-night rows of each player-season', async () => {
+    // Made-up rows in the weekly file's shape: two players, three as-of dates of 2025-26, one of 2024-25.
+    await db.exec(`CREATE TABLE src_nba_current_impact (player_id BIGINT, as_of DATE, season BIGINT,
+      o_current_impact DOUBLE, d_current_impact DOUBLE, current_impact DOUBLE, o_prior DOUBLE,
+      d_prior DOUBLE, off_poss BIGINT, def_poss BIGINT, last_game_date DATE)`)
+    await db.exec(`INSERT INTO src_nba_current_impact VALUES
+      (1, '2025-10-21', 2026, 1.0, 0.5, 1.5, 0.8, 0.2, 0, 0, NULL),
+      (1, '2025-10-28', 2026, 1.2, 0.4, 1.6, 0.8, 0.2, 300, 310, '2025-10-27'),
+      (1, '2026-04-07', 2026, 2.0, -0.2, 1.8, 0.9, 0.1, 4000, 3990, '2026-04-05'),
+      (2, '2025-10-21', 2026, -0.5, 0.0, -0.5, -0.4, 0.1, 0, 0, NULL),
+      (2, '2025-11-04', 2026, -0.7, 0.1, -0.6, -0.4, 0.1, 150, 140, '2025-11-02'),
+      (1, '2025-04-08', 2025, 0.7, 0.3, 1.0, 0.5, 0.0, 3500, 3480, '2025-04-06')`)
+    await buildPublished(db)
+    expect(
+      await db.all(`SELECT player_id, season, game_type, ci_rows, ci_total, ci_off, ci_def, ci_prior, ci_poss
+        FROM pub_player_current_impact ORDER BY player_id, season`)
+    ).toEqual([
+      {
+        player_id: 1,
+        season: 2025,
+        game_type: 'regular',
+        ci_rows: 1,
+        ci_total: 1.0,
+        ci_off: 0.7,
+        ci_def: 0.3,
+        ci_prior: 0.5,
+        ci_poss: 6980
+      },
+      {
+        player_id: 1,
+        season: 2026,
+        game_type: 'regular',
+        ci_rows: 1,
+        ci_total: 1.8,
+        ci_off: 2.0,
+        ci_def: -0.2,
+        ci_prior: 1.0,
+        ci_poss: 7990
+      },
+      {
+        player_id: 2,
+        season: 2026,
+        game_type: 'regular',
+        ci_rows: 1,
+        ci_total: -0.6,
+        ci_off: -0.7,
+        ci_def: 0.1,
+        ci_prior: -0.30000000000000004,
+        ci_poss: 290
+      }
+    ])
+    expect(
+      await db.all(`SELECT player_id, season, ce_total, ce_off, ce_def FROM pub_player_expected_impact
+        WHERE season = 2026 ORDER BY player_id`)
+    ).toEqual([
+      { player_id: 1, season: 2026, ce_total: 1.5, ce_off: 1.0, ce_def: 0.5 },
+      { player_id: 2, season: 2026, ce_total: -0.5, ce_off: -0.5, ce_def: 0.0 }
     ])
   })
 

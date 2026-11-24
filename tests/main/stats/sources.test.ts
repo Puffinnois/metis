@@ -48,18 +48,22 @@ const LISTINGS: Listing[] = [
   {
     league: 'nba',
     through: 2027,
-    // Playoffs have not been played in the current season, pair matchups are not out yet, and the
-    // 2001-02 catch-and-shoot file does not exist.
+    // Playoffs have not been played in the current season, pair matchups and the weekly current impact
+    // are not out yet, and the 2001-02 catch-and-shoot file does not exist.
     knownAbsent: (path) => {
       if (path === 'nba_stats_leaguedash/player_tracking_catchshoot_2002.parquet') return true
       if (!path.endsWith('_2027.parquet')) return false
-      return path.includes('playoffs') || path.includes('leagueseasonmatchups')
+      return (
+        path.includes('playoffs') ||
+        path.includes('leagueseasonmatchups') ||
+        path.startsWith('nba_current_impact/')
+      )
     },
     skipped: (path) =>
       /^nba_stats_leaguedash\/(player|team|lineups)_master_\d{4}\.parquet$/.test(path),
     skippedCount: 82,
-    listed: 3107,
-    tiers: { core: 828, published: 1991, events: 149, plays: 57 }
+    listed: 3127,
+    tiers: { core: 828, published: 2011, events: 149, plays: 57 }
   },
   {
     league: 'wnba',
