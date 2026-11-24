@@ -38,7 +38,32 @@ export const NCAA_PLAYER_SPLITS = [
   'ncaa_rimm_ast',
   'ncaa_midm_ast',
   'ncaa_pts_ast',
-  'ncaa_poss'
+  'ncaa_poss',
+  // T1703.2: the transition splits Metis did not read, and the half-court ones (D53).
+  'ncaa_orb_trans',
+  'ncaa_drb_trans',
+  'ncaa_ast_trans',
+  'ncaa_stl_trans',
+  'ncaa_blk_trans',
+  'ncaa_midm_trans',
+  'ncaa_mida_trans',
+  'ncaa_pts_half',
+  'ncaa_fgm_half',
+  'ncaa_fga_half',
+  'ncaa_fg3m_half',
+  'ncaa_fg3a_half',
+  'ncaa_ftm_half',
+  'ncaa_fta_half',
+  'ncaa_rimm_half',
+  'ncaa_rima_half',
+  'ncaa_midm_half',
+  'ncaa_mida_half',
+  'ncaa_orb_half',
+  'ncaa_drb_half',
+  'ncaa_ast_half',
+  'ncaa_stl_half',
+  'ncaa_blk_half',
+  'ncaa_tov_half'
 ] as const
 
 export type NcaaSplit = (typeof NCAA_PLAYER_SPLITS)[number]

@@ -32,8 +32,9 @@ import { bestPlayerSql, column, modeSql, type Have } from './sql'
 /** Bump when these tables change, so the next refresh builds them with nothing downloaded. */
 // 2: the tables' 128-bit counts narrowed to BIGINT (`narrowCounts`, T1302.9). 3: every pick by a
 // total order, so the same files always give the same rows (T1302.9). 4: a game's lines from one
-// source, not a team-game's (the Stage 13 gate).
-const VERSION = 4
+// source, not a team-game's (the Stage 13 gate). 5: stats.ncaa.org's half-court splits and the rest of
+// its transition splits (T1703.2).
+const VERSION = 5
 
 const NCAA_BOX = 'src_ncaa_player_box'
 const NCAA_TEAM_BOX = 'src_ncaa_team_box'
