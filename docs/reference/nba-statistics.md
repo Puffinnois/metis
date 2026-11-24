@@ -616,6 +616,9 @@ _In Metis (Plan T1703.2):_ DARKO itself is not held: it has no free bulk source 
 - **DARKO skill projections** — dated forecasts of individual box-score rates/percentages, with learned recency weighting and regression.
 - **Projected minutes** — forecast minutes when playing, not guaranteed availability.
 - **DARKO RAPM / WOWY RAPM** — separately published fitted impact estimates; the latter uses with-or-without information. Preserve source/version rather than equating them with DPM.
+
+_In Metis (D55):_ only on the copy whose owner imports darko.app's boards by hand, by a private setting off for everyone else: `darko_dpm` and its offence, defence, box and on/off parts, and the board's projections (minutes, pace, points and assists per 100, FG%, 3P%, FT%), labelled "(DARKO)", its maker Kostya Medvedovsky named. Each is read at the season's latest imported board, one season at a time; every board is a point of the rating history (T1704). The dataset's own `sdv_darko_*` stay unavailable: it dropped its columns, and they were never Medvedovsky's DARKO.
+
 - **Fair salary / surplus value** — publisher conversion from projected contribution and minutes to financial value; surplus = modeled fair salary minus actual salary. Model-dependent, not a contract appraisal formula.
 
 ### 14.5 Historical or less consistently accessible models

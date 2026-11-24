@@ -154,6 +154,7 @@ describe('the column picker and presets', () => {
       'matchups',
       'impact',
       'raptor',
+      'darko',
       'availability'
     ])
     // Play by play preset to turnovers, fouls, and-ones and assists (Plan T905).

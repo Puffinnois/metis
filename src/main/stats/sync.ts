@@ -14,6 +14,7 @@ import { buildIdentity, canBuildIdentity, identityStale, markIdentityStale } fro
 import { IDENTITY_LATE } from './identityLate'
 import { buildPlays, canBuildPlays, markPlaySeason, playsDue } from './derived/playBuilders'
 import { loadSourceFile } from './load'
+import { DARKO_STEP, importDarko } from './darkoImport'
 import { buildModels, canBuildModels, markModelSeason, modelsDue } from './models/build'
 import type {
   RefreshOptions,
@@ -130,6 +131,12 @@ export interface StatsSyncDeps {
    * league, whose seasons the files are.
    */
   paired?: boolean
+  /**
+   * The folder the owner drops DARKO files in, from their private setting (D55, `privateSources.ts`):
+   * read at the end of the NBA's refresh. Absent everywhere else: nothing is read, and nothing is ever
+   * fetched for it.
+   */
+  darkoFolder?: string | null
 }
 
 /**
@@ -652,8 +659,25 @@ export async function refreshStats(
     try {
       // Again at the end when a late file of the identity recipe came in after they were built.
       if (!built || identityLate) await runBuilds()
+      // DARKO's files the owner dropped in their folder, where their setting names one (D55).
+      let darkoWrote = false
+      if (deps.darkoFolder && deps.league.id === 'nba') {
+        const folder = deps.darkoFolder
+        const entry = await runLogged(deps, DARKO_STEP, async () => {
+          const out = await importDarko(db, folder, nowOf(deps))
+          const refused = out.files.filter((f) => f.status === 'refused').length
+          return {
+            rows: out.rows,
+            message: refused > 0 ? `${refused} file(s) refused: see the Data panel` : null
+          }
+        })
+        log.push(entry)
+        darkoWrote = entry.status === 'ok' && entry.rowsWritten > 0
+      }
       // Once, at the end, however many of the late files came in; then the plays.
-      if (!publishedBuilt || lateWrote) await runPublishedBuild(lateWrote)
+      if (!publishedBuilt || lateWrote || darkoWrote) {
+        await runPublishedBuild(lateWrote || darkoWrote)
+      }
       await runPlaysBuild()
       await runModelsBuild()
       if (!runs('derived') && log.some((e) => e.status === 'ok' && e.rowsWritten > 0)) {

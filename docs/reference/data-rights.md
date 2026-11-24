@@ -132,6 +132,22 @@ Read on 2026-11-24 with `curl` and its default user agent, from GitHub's raw fil
 
 **Covered?** **Looks covered:** CC BY 4.0 permits any use, copying and adaptation with credit, a link to the licence and a note of changes. The credit in the app and README names FiveThirtyEight, links the repository and CC BY 4.0, and says Metis reshapes the data. The files hold FiveThirtyEight's own calculations; their inputs (box scores, play by play, tracking) are the NBA's, as SportsDataverse's are.
 
+### DARKO, imported by hand (D55)
+
+Read on 2026-11-23 and 2026-11-24 with `curl` and its default user agent, nine requests in all, spaced a few minutes apart: the home page, `/robots.txt`, `/about`, a player's page (`/player/2544`) and the pages' own script files. No `/api/` address was called.
+
+- **`robots.txt`:** none. `darko.app` redirects to `www.darko.app`, whose `/robots.txt` answers 404.
+- **Terms:** none found. `/about` states no terms of use, licence or copyright. It names the model's maker, Kostya Medvedovsky, thanks those who helped, and says much of the training data came from Krishna Narsu.
+- **What the site offers a visitor:**
+  - the leaderboard's "Download CSV" control, which writes the board's rows, already in the page, to `darko-dpm-leaderboard.csv` in the browser: the current day's board only, every player's DPM "today", by the site's own words;
+  - on a player's page, "Download" controls that export images of its charts;
+  - a "Time Machine" that sets the date the board shows; whether the board's download then writes that date was not checked, since that needs a browser.
+- **What is not offered as a download:** a player's history from 1996-97, which the player page draws from data embedded in its own HTML and from the site's JSON endpoints (`/api/history/...`).
+
+**What Metis does.** On the copy whose private setting names a folder, it reads the CSVs the owner downloaded there by hand and keeps them in that copy's NBA file. It makes no request to darko.app, reads nothing out of its pages, and redistributes nothing; with the setting off, the default, it reads nothing. The README and the public credit do not name it; the Data panel lists it as a private source where the setting is on.
+
+No verdict is given here: no terms were found to read one against.
+
 ### Other methods
 
 FiveThirtyEight's NBA Elo method (T1002), Dean Oliver's ratings (from Basketball-Reference's pages and his book, T1005) and the SRS (T1001) are methods, implemented in Metis's own code with nothing of their authors' data. FiveThirtyEight's method page no longer exists (it redirects to abcnews.com), so its terms could not be read. The dataset no longer publishes DARKO (its fit of Kostya Medvedovsky's model): its impact file has had no `darko_*` columns since the November 2026 load, so the catalogue marks those metrics unavailable and the credit does not name it.

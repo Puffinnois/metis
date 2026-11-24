@@ -57,6 +57,9 @@ import type {
 import { readAttributeValues } from './attributeReads'
 import { readAvailability, readCoaches, readGameListings } from './availabilityReads'
 import { readRatingHistory } from './ratingReads'
+import { DARKO_LABEL, readDarkoImports } from './darkoImport'
+import { DARKO_DPM_TABLE, DARKO_SOURCE } from './derived/darko'
+import { darkoFolderFor, readPrivateSources } from './privateSources'
 import { readShotChart } from './shotReads'
 import { readAssistNetwork, readGameFlow } from './playReads'
 import type { LineupGroup } from '@shared/stats/lineups'
@@ -328,7 +331,9 @@ export async function openStatsService(
             onProgress: (p) => {
               progress = p
             },
-            cancelled: () => cancelled || paused
+            cancelled: () => cancelled || paused,
+            // Read at every refresh, so the owner turns it on or off without a restart (D55).
+            darkoFolder: darkoFolderFor(league.id, init.dataDir)
           },
           options,
           sources
@@ -413,6 +418,8 @@ export async function openStatsService(
         const attempts = new Map<string, FileAttempt>(
           attemptRows.map((r) => [r.source, { status: r.status, message: r.message }])
         )
+        // DARKO imported by hand, listed only on the copy whose private setting names it (D55).
+        const darko = league.id === 'nba' ? readPrivateSources(init.dataDir).darko : null
         return {
           families: summariseFamilies(
             sources,
@@ -422,7 +429,14 @@ export async function openStatsService(
             LEFT_OUT_RELEASES
           ),
           databaseBytes: databaseBytes(path),
-          freeBytes: free(path)
+          freeBytes: free(path),
+          ...(darko && {
+            privateImport: {
+              label: DARKO_LABEL,
+              folder: darko.written,
+              files: await readDarkoImports(reader)
+            }
+          })
         }
       }),
     async pause() {
@@ -676,6 +690,19 @@ export async function sourceSeasons(db: StatsDb): Promise<HeldSources> {
       const held = seasons.get(`src_${id}`) ?? new Set<number>()
       for (const s of r.seasons) held.add(Number(s))
       seasons.set(`src_${id}`, held)
+    }
+  }
+  // DARKO's imported boards (D55) are not files of a release: the seasons they hold are its table's.
+  const darko = await db.get(
+    "SELECT 1 AS yes FROM duckdb_tables() WHERE schema_name = 'main' AND table_name = ?",
+    [DARKO_DPM_TABLE]
+  )
+  if (darko) {
+    const imported = await db.all<{ season: number }>(
+      `SELECT DISTINCT season FROM ${DARKO_DPM_TABLE} WHERE season IS NOT NULL`
+    )
+    if (imported.length > 0) {
+      seasons.set(DARKO_SOURCE, new Set(imported.map((r) => Number(r.season))))
     }
   }
   return { seasons, checked: last?.at ?? null }

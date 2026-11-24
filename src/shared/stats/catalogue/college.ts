@@ -629,6 +629,7 @@ const NBA_PUBLISHED =
   'Not published for college basketball: no release holds the league dashboards this comes from.'
 const NBA_IMPACT =
   "Not published for college basketball: SportsDataverse's college models are listed under their own names (its RAPM, BPM and team ratings)."
+const DARKO_NBA_ONLY = 'Not published for college basketball: DARKO rates NBA players alone.'
 const RAPTOR_NBA_ONLY =
   "Not published for college basketball: FiveThirtyEight's RAPTOR covers the NBA alone."
 
@@ -694,9 +695,11 @@ export function collegeCoverage(
     const unavailable =
       def.family === 'raptor'
         ? RAPTOR_NBA_ONLY
-        : def.family === 'impact'
-          ? NBA_IMPACT
-          : NBA_PUBLISHED
+        : def.family === 'darko'
+          ? DARKO_NBA_ONLY
+          : def.family === 'impact'
+            ? NBA_IMPACT
+            : NBA_PUBLISHED
     return { firstSeason: FIRST, unavailable }
   }
   if (def.family === 'shots' || def.built?.startsWith('shot_')) {

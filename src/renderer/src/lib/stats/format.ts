@@ -134,6 +134,7 @@ const FAMILY_LABELS: Record<MetricInfo['family'], string> = {
   on_court: 'On court',
   impact: 'Impact (SportsDataverse)',
   raptor: 'RAPTOR (FiveThirtyEight)',
+  darko: 'DARKO (imported by hand)',
   availability: 'Availability'
 }
 
