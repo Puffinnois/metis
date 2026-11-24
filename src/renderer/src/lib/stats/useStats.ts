@@ -299,16 +299,18 @@ export const useWithOrWithout = (
     (league) => api.stats.withOrWithout(league, player ?? '', teammate, season, scope)
   )
 
-/** A team's five-man units with one dashboard's measures; null as the team when there is nothing to read. */
+/** A team's units of a size with one dashboard's measures; null as the team when there is nothing to read. */
 export const useLineups = (
   team: string | null,
   season: number,
   gameType: string,
   group: LineupGroup,
+  size: number,
   version: string | null
 ): ReadState<StatsLineups> =>
-  useRead(team === null ? null : `${version}|${team}|${season}|${gameType}|${group}`, (league) =>
-    api.stats.lineups(league, team ?? '', season, gameType, group)
+  useRead(
+    team === null ? null : `${version}|${team}|${season}|${gameType}|${group}|${size}`,
+    (league) => api.stats.lineups(league, team ?? '', season, gameType, group, size)
   )
 
 /** The shots a chart draws; null as the request when there is nothing to read. */

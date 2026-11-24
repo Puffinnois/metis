@@ -920,12 +920,12 @@ export interface StatsOfficialCareer {
 }
 
 /**
- * One five-man unit of a team's season, as the NBA publishes it. `values` holds the columns of the
+ * One unit of two to five players of a team's season, as the NBA publishes it. `values` holds the columns of the
  * group asked for (`shared/stats/lineups.ts`) and the possessions; a measure the NBA's file for it
  * does not list for this unit is null.
  */
 export interface StatsLineupUnit {
-  /** The five players, by id. */
+  /** The unit's players, by id. */
   players: { id: string; name: string }[]
   games: number | null
   minutes: number | null
@@ -935,8 +935,13 @@ export interface StatsLineupUnit {
 /** A team's published units for a season and season type, most minutes first. */
 export interface StatsLineups {
   units: StatsLineupUnit[]
-  /** The fewest minutes among the units the NBA's base file lists for the season, league-wide. */
+  /**
+   * The fewest minutes among the units of this size the NBA's base file lists for the season,
+   * league-wide, when the file reached its 2,000 units; null when it lists them all.
+   */
   floorMinutes: number | null
+  /** The sizes held for the team's season, largest first: five alone before the smaller groups. */
+  sizes: number[]
 }
 
 /** The totals modes a table offers; a ratio reads the same in each. */

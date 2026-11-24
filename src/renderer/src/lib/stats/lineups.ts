@@ -13,8 +13,8 @@ import { fmtClock, fmtStat } from './format'
 import type { StatsScope } from './scope'
 
 /**
- * The team dashboard's Lineups tab: the NBA's published five-man units, one dashboard's measures at
- * a time. A unit is a whole season of a team's games, so a date range or the last games cannot be
+ * The team dashboard's Lineups tab: the NBA's published units of two to five players, one size and
+ * one dashboard's measures at a time. A unit is a whole season of a team's games, so a date range or the last games cannot be
  * answered, and the dashboard's scope is one season: nothing is added up across seasons.
  */
 
@@ -117,17 +117,35 @@ export interface LineupRow {
 
 export type LineupSort = { by: number; dir: 'asc' | 'desc' }
 
-/** Units of at least `minMinutes`, in the order asked, each with its cells for the group. */
+/** The control's "Anyone": every unit, whoever is in it. */
+export const ANYONE = ''
+
+/** The players the units name, by name, after "Anyone": who a list can be narrowed to. */
+export function lineupPlayers(units: StatsLineupUnit[]): { value: string; label: string }[] {
+  const named = new Map<string, string>()
+  for (const u of units) for (const p of u.players) if (!named.has(p.id)) named.set(p.id, p.name)
+  const players = [...named]
+    .map(([value, label]) => ({ value, label }))
+    .sort((a, b) => a.label.localeCompare(b.label))
+  return [{ value: ANYONE, label: 'Anyone' }, ...players]
+}
+
+/**
+ * Units of at least `minMinutes` that hold `withPlayer` (anyone when empty), in the order asked, each
+ * with its cells for the group.
+ */
 export function lineupRows(
   units: StatsLineupUnit[],
   group: LineupGroup,
   mode: BoardMode,
   minMinutes: number,
-  sort: LineupSort
+  sort: LineupSort,
+  withPlayer: string = ANYONE
 ): LineupRow[] {
   const columns = lineupColumns(group)
   const rows = units
     .filter((u) => (u.minutes ?? 0) >= minMinutes)
+    .filter((u) => withPlayer === ANYONE || u.players.some((p) => p.id === withPlayer))
     .map((u): LineupRow => {
       const values = columns.map((c) => unitValue(u, c, mode))
       return {
@@ -156,17 +174,31 @@ export function lineupRows(
 /** The sort a group opens on: the most minutes first. */
 export const DEFAULT_SORT: LineupSort = { by: 1, dir: 'desc' }
 
-/** "15 of 82 units", or "9 units" when the list shows them all. */
-export function unitCount(shown: number, total: number): string {
-  const units = total === 1 ? 'unit' : 'units'
+/** What a list of a size is called: units of five, groups of fewer, as the derived lists say. */
+const noun = (size: number, n: number): string =>
+  size === 5 ? (n === 1 ? 'unit' : 'units') : n === 1 ? 'group' : 'groups'
+
+/** "15 of 82 units", or "9 units" when the list shows them all; "groups" below five. */
+export function unitCount(shown: number, total: number, size = 5): string {
+  const units = noun(size, total)
   return shown < total ? `${shown} of ${total} ${units}` : `${total} ${units}`
 }
 
-/** What a list says about the units the NBA leaves out. */
+/** The words for a size: "five-man units", "two-man groups". */
+export function sizeWords(size: number): string {
+  const word = ['', '', 'two', 'three', 'four', 'five'][size] ?? String(size)
+  return `${word}-man ${noun(size, 2)}`
+}
+
+/**
+ * What a list says about the units the NBA leaves out. `floorMinutes` is where the league's list of
+ * this size stops when its file reached 2,000 units; null when the file lists them all.
+ */
 export function lineupNotes(
   scope: StatsScope,
   floorMinutes: number | null,
-  mode: BoardMode
+  mode: BoardMode,
+  size = 5
 ): string[] {
   const notes: string[] = []
   // A league whose units are built from a lineup file, not published dashboards (the colleges'):
@@ -180,16 +212,20 @@ export function lineupNotes(
     }
     return notes
   }
-  if (scope.seasonType === 'regular') {
+  const units = noun(size, 2)
+  if (floorMinutes !== null) {
+    const part =
+      scope.seasonType === 'playoffs' ? playoffsWords(currentLeague()) : 'a regular season'
     notes.push(
-      floorMinutes === null
-        ? inLeague(
-            'The {league} lists only the 2,000 units of a regular season with the most minutes, so a team’s list can be short.'
-          )
-        : `The ${currentLeague().name} lists only the 2,000 units of a regular season with the most minutes: this season, ${fmtClock(floorMinutes)} or more, so a team’s list can be short.`
+      `The ${currentLeague().name} lists only the 2,000 ${sizeWords(size)} of ${part} with the most minutes: this season, ${fmtClock(floorMinutes)} or more, so a team’s list can be short.`
     )
     notes.push(
-      'Each file ranks its own 2,000 units, so a unit one file lists can be missing from another: its cells read —.'
+      `Each file ranks its own 2,000 ${units}, so one a file lists can be missing from another: its cells read —.`
+    )
+  }
+  if (size < 5) {
+    notes.push(
+      'A group counts whatever the rest of the floor was, so groups overlap: their minutes add up to more than the team’s.'
     )
   }
   if (mode === 'per100')

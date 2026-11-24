@@ -68,8 +68,8 @@ export function openStatsWorker(folder, options = {}) {
   return {
     read: (sql) => request((id) => ({ id, kind: 'read', sql })),
     query: (query) => request((id) => ({ id, kind: 'query', query })),
-    lineups: (team, season, gameType, group) =>
-      request((id) => ({ id, kind: 'lineups', team, season, gameType, group })),
+    lineups: (team, season, gameType, group, size = 5) =>
+      request((id) => ({ id, kind: 'lineups', team, season, gameType, group, size })),
     // Any other request the worker serves: `call('coaches', { team, season })`.
     call: (kind, args) => request((id) => ({ id, kind, ...args })),
     close: async () => {

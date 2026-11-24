@@ -114,6 +114,7 @@ export type StatsRequest =
       season: number
       gameType: string
       group: LineupGroup
+      size: number
     }
   | { id: number; kind: 'availability'; players: string[] }
   | { id: number; kind: 'ratingHistory'; player: string }

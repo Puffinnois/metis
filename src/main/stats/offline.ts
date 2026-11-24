@@ -89,7 +89,7 @@ export function offlineStats(league: League, reason: string | null = league.noDa
         splits: null,
         reason: reason
       }),
-    lineups: () => Promise.resolve({ units: [], floorMinutes: null }),
+    lineups: () => Promise.resolve({ units: [], floorMinutes: null, sizes: [] }),
     profile: () =>
       Promise.resolve({
         bio: null,

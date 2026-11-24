@@ -5,6 +5,7 @@ import {
   lineupGap,
   lineupGameType,
   lineupNotes,
+  lineupPlayers,
   lineupRows,
   shortName,
   unitCount,
@@ -155,14 +156,68 @@ describe('the list of units', () => {
     expect(lineupRows(units, 'base', 'raw', 0, DEFAULT_SORT)[0].key).toBe('1-2-3-4-5')
     expect(unitCount(15, 82)).toBe('15 of 82 units')
     expect(unitCount(1, 1)).toBe('1 unit')
+    expect(unitCount(15, 40, 2)).toBe('15 of 40 groups')
+    expect(unitCount(1, 1, 3)).toBe('1 group')
+  })
+})
+
+describe('a player’s groups', () => {
+  const pairs = [
+    unit({
+      players: [
+        { id: '1', name: 'Shai Gilgeous-Alexander' },
+        { id: '2', name: 'Jalen Williams' }
+      ]
+    }),
+    unit({
+      players: [
+        { id: '2', name: 'Jalen Williams' },
+        { id: '3', name: 'Chet Holmgren' }
+      ],
+      minutes: 90
+    }),
+    unit({
+      players: [
+        { id: '3', name: 'Chet Holmgren' },
+        { id: '4', name: 'Alex Caruso' }
+      ],
+      minutes: 30
+    })
+  ]
+
+  it('offers anyone, then every player the list names, by name', () => {
+    expect(lineupPlayers(pairs).map((p) => p.label)).toEqual([
+      'Anyone',
+      'Alex Caruso',
+      'Chet Holmgren',
+      'Jalen Williams',
+      'Shai Gilgeous-Alexander'
+    ])
+  })
+
+  it('narrows the list to the groups that hold the player, two names a pair', () => {
+    const rows = lineupRows(pairs, 'base', 'raw', 0, DEFAULT_SORT, '2')
+    expect(rows.map((r) => r.players.map((p) => p.name))).toEqual([
+      ['Jalen Williams', 'Chet Holmgren'],
+      ['Shai Gilgeous-Alexander', 'Jalen Williams']
+    ])
+    expect(lineupRows(pairs, 'base', 'raw', 0, DEFAULT_SORT)).toHaveLength(3)
   })
 })
 
 describe('the notes and the catalogue', () => {
-  it('say the regular season is cut to 2,000 units, and the playoffs are not', () => {
-    expect(lineupNotes(scope(), 11.9, 'raw').join(' ')).toMatch(/2,000 units.*11:54/)
-    expect(lineupNotes(scope({ seasonType: 'playoffs' }), 0, 'raw')).toEqual([])
-    expect(lineupNotes(scope({ seasonType: 'playoffs' }), 0, 'per100')).toHaveLength(1)
+  it('say where a list cut at 2,000 units stops, and nothing of a cut when there is none', () => {
+    expect(lineupNotes(scope(), 11.9, 'raw').join(' ')).toMatch(
+      /2,000 five-man units of a regular season.*11:54/
+    )
+    expect(lineupNotes(scope({ seasonType: 'playoffs' }), null, 'raw')).toEqual([])
+    expect(lineupNotes(scope({ seasonType: 'playoffs' }), null, 'per100')).toHaveLength(1)
+    // The playoffs' three- and four-man lists are cut too, and smaller groups overlap.
+    const threes = lineupNotes(scope({ seasonType: 'playoffs' }), 2.5, 'raw', 3)
+    expect(threes[0]).toMatch(/2,000 three-man groups of the playoffs.*2:30/)
+    expect(threes[1]).toMatch(/^Each file ranks its own 2,000 groups/)
+    expect(threes[2]).toMatch(/groups overlap/)
+    expect(lineupNotes(scope({ seasonType: 'playoffs' }), null, 'raw', 2)).toEqual([threes[2]])
   })
 
   it('shortens a name the way the NBA does', () => {
