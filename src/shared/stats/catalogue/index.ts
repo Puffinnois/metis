@@ -3,6 +3,7 @@ import type { MetricDef } from '../types'
 import { BOX_COMPOSITES } from './boxComposites'
 import { COMPOSITE } from './composite'
 import { DASHBOARDS } from './dashboards'
+import { FANTASY } from './fantasy'
 import { TRACKING } from './tracking'
 import { HUSTLE } from './hustle'
 import { AVAILABILITY } from './availability'
@@ -44,6 +45,7 @@ export const CATALOGUE: MetricDef[] = [
   ...PLAYS,
   ...RATINGS,
   ...BOX_COMPOSITES,
+  ...FANTASY,
   ...COLLEGE,
   ...COLLEGE_DEPTH
 ]

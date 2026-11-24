@@ -303,6 +303,28 @@ const SHARED: Record<string, (s: Side) => number> = {
 const share = (c: keyof Side): number => PLAYER[c] / TEAM[c]
 
 /** What each metric should read on these rows: a worked value for every id in the catalogue. */
+/** Player metrics with no team side: the fantasy scoring and combined counts (T1703.2). */
+const PLAYER_ONLY: Record<string, (s: Side) => number> = {
+  // The NBA's, the WNBA's and DraftKings' scoring, and the combined counts.
+  fp_nba: (s) => s.pts + 1.2 * s.reb + 1.5 * s.ast + 3 * s.stl + 3 * s.blk - s.tov,
+  fp_wnba: (s) => s.pts + s.fg3m + s.reb + s.ast + 2 * s.stl + 2 * s.blk,
+  fp_dk: (s) =>
+    s.pts +
+    0.5 * s.fg3m +
+    1.25 * s.reb +
+    1.5 * s.ast +
+    2 * s.stl +
+    2 * s.blk -
+    0.5 * s.tov +
+    1.5 * PLAYER_ROW.dd2 +
+    3 * PLAYER_ROW.td3,
+  pra: (s) => s.pts + s.reb + s.ast,
+  pts_reb: (s) => s.pts + s.reb,
+  pts_ast: (s) => s.pts + s.ast,
+  reb_ast: (s) => s.reb + s.ast,
+  stocks: (s) => s.stl + s.blk
+}
+
 const EXPECTED: Record<string, number> = {
   ...Object.fromEntries(Object.entries(NCAA_SHARED).map(([id, f]) => [id, f(NCAA_PLAYER)])),
   ...Object.fromEntries(
@@ -312,6 +334,7 @@ const EXPECTED: Record<string, number> = {
     ])
   ),
   ...Object.fromEntries(Object.entries(SHARED).map(([id, f]) => [id, f(PLAYER)])),
+  ...Object.fromEntries(Object.entries(PLAYER_ONLY).map(([id, f]) => [id, f(PLAYER)])),
   ...Object.fromEntries(Object.entries(SHARED).map(([id, f]) => [`team_${id}`, f(TEAM)])),
   ...Object.fromEntries(Object.entries(SHARED).map(([id, f]) => [`opp_${id}`, f(OPP)])),
 
@@ -398,6 +421,7 @@ const EXPECTED: Record<string, number> = {
  * as the column over that divisor; a count reads as it is.
  */
 const DASHBOARD_COLUMNS = `
+  nba_fantasy_pts nba_fantasy_pts -; nba_wnba_fantasy_pts wnba_fantasy_pts -
   nba_ortg off_rating possessions; nba_drtg def_rating possessions; nba_nrtg net_rating possessions
   nba_e_ortg e_off_rating possessions; nba_e_drtg e_def_rating possessions
   nba_e_nrtg e_net_rating possessions; nba_pace pace minutes; nba_e_pace e_pace minutes

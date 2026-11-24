@@ -22,7 +22,7 @@ This replaces what `side` does today. `side` is documented as "which end it meas
 
 ## The categories
 
-Fourteen categories, in the order the screens show them. A category with nothing in a league, or for players or teams, is not shown there (counts below): today Fantasy is empty everywhere, Predictive has no player metric in any league, Hustle and Play types are the NBA's alone.
+Fourteen categories, in the order the screens show them. A category with nothing in a league, or for players or teams, is not shown there (counts below): Predictive has no player metric in the college leagues (BOBAN's projection is the NBA's and WNBA's), Fantasy no team metric, Hustle and Play types are the NBA's alone.
 
 | Category             | Holds, in one sentence                                                                                                                                                            | Sub-groups                                                                                                                                                                                                                                                             |
 | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -187,7 +187,7 @@ The category's tab opens on its **headline preset**: its `core` metrics, then `e
 
 ### Leaderboards
 
-- **Category tabs** replace the family preset menu: Overview, then the categories with metrics for the kind on screen. NBA players see Overview and 12 (no Predictive, no Fantasy today); WNBA players 10; NCAA players 10; NBA teams Overview and 11.
+- **Category tabs** replace the family preset menu: Overview, then the categories with metrics for the kind on screen. NBA players see Overview and all 14 (Predictive and Fantasy since T1703.2); WNBA players 12; NCAA players 11 (no Predictive); NBA teams Overview and 11.
 - **Positions** (All, Guards, Forwards, Centers) stay, as a compact control beside the category tabs, since the two are independent; T1701's filters can later carry position as an attribute, but that is T1701's decision, not this one.
 - **Teams**: the Offense and Defense tabs become the Offense and Defense categories; every other category shows the team's metrics and a switch to its opponents'.
 - **Sub-group presets** under the tabs, as chips; the column groups in the table header name the sub-group (`columnGroups`), not the family.
@@ -249,7 +249,7 @@ A saved view holds the board (`LeaderboardBoard`): its kind, tab, columns, sort 
 
 Generated from `CATALOGUE` at 3ac033b (1.3.0) with the placements as reviewed, the catalogue T1702.2 started from; `node scripts/stat-categories.mjs` prints them for any later commit. Each league is read through `catalogueInfo` (`src/main/stats/engine/registry.ts`) as the screens read it. A metric counts in a league where it is not unavailable there; the games columns (`gp`, `team_gp`) are left out of the screen counts, as `appliesTo` leaves them out of the boards. NCAA Men and NCAA Women have the same metrics.
 
-1524 metrics in the catalogue; 2 stored (`bpm_position`, `bpm_role`), placed nowhere since no screen shows them; 1522 placed; **0 unplaced**.
+1534 metrics in the catalogue; 2 stored (`bpm_position`, `bpm_role`), placed nowhere since no screen shows them; 1532 placed; **0 unplaced**.
 
 1313 metrics sit in more than one category; a metric sits in 1 to 3 categories, 1.90 on average.
 
@@ -262,7 +262,7 @@ Metrics shown in each category; a metric in several categories counts in each, s
 | Category             | NBA players | NBA teams | WNBA players | WNBA teams | NCAA Men players | NCAA Men teams | NCAA Women players | NCAA Women teams |
 | -------------------- | ----------: | --------: | -----------: | ---------: | ---------------: | -------------: | -----------------: | ---------------: |
 | Offense              |         562 |       281 |          299 |        277 |              227 |            220 |                227 |              220 |
-| Defense              |         187 |       265 |           49 |        258 |               31 |            219 |                 31 |              219 |
+| Defense              |         188 |       265 |           50 |        258 |               32 |            219 |                 32 |              219 |
 | Scoring              |          46 |        65 |           33 |         65 |               21 |             56 |                 21 |               56 |
 | Shooting             |         235 |       360 |          194 |        360 |              150 |            290 |                150 |              290 |
 | Playmaking           |          82 |        56 |           37 |         54 |               30 |             49 |                 30 |               49 |
@@ -270,11 +270,11 @@ Metrics shown in each category; a metric in several categories counts in each, s
 | Fouls                |          43 |        63 |           34 |         62 |               21 |             40 |                 21 |               40 |
 | Hustle and movement  |          25 |        15 |            – |          – |                – |              – |                  – |                – |
 | Play types           |         234 |         – |            – |          – |                – |              – |                  – |                – |
-| Impact               |          76 |        11 |           66 |         10 |               45 |              9 |                 45 |                9 |
+| Impact               |          80 |        11 |           70 |         10 |               49 |              9 |                 49 |                9 |
 | Predictive           |           2 |        11 |            2 |          8 |                – |              – |                  – |                – |
 | Results and strength |           3 |        65 |            3 |         61 |                3 |             54 |                  3 |               54 |
 | Playing time         |           8 |         – |            6 |          – |                5 |              – |                  5 |                – |
-| Fantasy              |           – |         – |            – |          – |                – |              – |                  – |                – |
+| Fantasy              |           5 |         – |            5 |          – |                3 |              – |                  3 |                – |
 | Shown in the league  |         821 |       624 |          398 |        604 |              292 |            489 |                292 |              489 |
 
 ### By sub-group
@@ -294,7 +294,7 @@ The most metrics any sub-group shows in one view: players, and teams as the team
 | Offense              | Play types                          | **143** |           – |       – |           – |       – |           – |
 | Offense              | Impact                              |      20 |       2 / – |      17 |       2 / – |      14 |       2 / – |
 | Offense              | Ratings                             |       – |       5 / – |       – |       5 / – |       – |       6 / – |
-| Defense              | Steals and blocks                   |      12 |       2 / – |      12 |       2 / – |      11 |       3 / – |
+| Defense              | Steals and blocks                   |      13 |       2 / – |      13 |       2 / – |      12 |       3 / – |
 | Defense              | Defended shots                      |       6 |       3 / – |       – |           – |       – |           – |
 | Defense              | Matchups                            |      26 |           – |       – |           – |       – |           – |
 | Defense              | Rebounding                          |      15 |       4 / 2 |       7 |       4 / 2 |       5 |       3 / 1 |
@@ -370,7 +370,7 @@ The most metrics any sub-group shows in one view: players, and teams as the team
 | Impact               | Box-score models                    |      20 |       4 / – |      13 |       3 / – |       8 |       3 / – |
 | Impact               | Box-score composites                |       4 |       4 / 2 |       4 |       4 / 2 |       3 |       3 / 2 |
 | Impact               | Individual ratings                  |       7 |       1 / – |       7 |       1 / – |       7 |       1 / – |
-| Impact               | All-around games                    |       4 |           – |       4 |           – |       4 |           – |
+| Impact               | All-around games                    |       8 |           – |       8 |           – |       8 |           – |
 | Predictive           | Season forecast                     |       – |      11 / – |       – |       8 / – |       – |           – |
 | Predictive           | Player projections                  |       2 |           – |       2 |           – |       – |           – |
 | Results and strength | Record                              |       3 |       3 / – |       3 |       3 / – |       3 |       3 / – |
@@ -387,3 +387,4 @@ The most metrics any sub-group shows in one view: players, and teams as the team
 | Playing time         | Games and minutes                   |       3 |           – |       3 |           – |       3 |           – |
 | Playing time         | Possessions                         |       3 |           – |       3 |           – |       2 |           – |
 | Playing time         | Games missed                        |       2 |           – |       – |           – |       – |           – |
+| Fantasy              | Points                              |       5 |           – |       5 |           – |       3 |           – |
