@@ -171,18 +171,27 @@ export function fmtDate(date: string): string {
 export function pointLines(series: RatingSeries, p: RatingPoint, part: RatingPart): string[] {
   const v = partValue(p, part)
   const word = part === 'total' ? '' : ` ${part}`
+  // A point made before the season's first game (opening night) stands on the seasons before: its
+  // last game is months back and it has no possessions of its own season yet.
+  const before = p.lastGame !== null && time(p.date) - time(p.lastGame) > OFF_SEASON_DAYS * DAY
   const from = [
     p.lastGame ? `from games through ${fmtDate(p.lastGame)}` : null,
-    p.possessions !== null
-      ? `${Math.round(p.possessions).toLocaleString('en-US')} possessions`
-      : null
+    p.possessions ? `${Math.round(p.possessions).toLocaleString('en-US')} possessions` : null
   ].filter((x): x is string => x !== null)
+  const basis = from.join(', ')
   return [
     seriesName(series),
     `${fmtDate(p.date)}: ${v === null ? '—' : fmtRating(v)}${word}`,
-    ...(from.length ? [from.join(', ').replace(/^./, (c) => c.toUpperCase())] : [])
+    ...(before
+      ? [`Before the season's first game: ${basis}`]
+      : basis
+        ? [basis.replace(/^./, (c) => c.toUpperCase())]
+        : [])
   ]
 }
+
+/** More days than this between a point and its last game: the summer lies between them. */
+export const OFF_SEASON_DAYS = 60
 
 /** The point of a series nearest an axis position, within a season's stretch; null when far off. */
 export function nearestPoint(
@@ -267,11 +276,11 @@ export function valueDomain(values: readonly number[]): { lo: number; hi: number
 
 /**
  * Whether a series' points are marked: a snapshot's always, so a few imports read as a few points;
- * every series' in a single season, so a reader sees the grain; across a career the straight segments
- * alone, where a mark a week would crowd.
+ * every series' in a single season, the season range or a career of one season, so a reader sees the
+ * grain; across a longer career the straight segments alone, where a mark a week would crowd.
  */
-export const marksPoints = (series: RatingSeries, range: RatingRange): boolean =>
-  series.grain === 'snapshot' || range === 'season'
+export const marksPoints = (series: RatingSeries, range: RatingRange, seasons = 2): boolean =>
+  series.grain === 'snapshot' || range === 'season' || seasons === 1
 
 /**
  * A snapshot series' legend words: one or two imports named by their dates, so a series that short

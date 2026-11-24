@@ -129,8 +129,13 @@ describe('a player’s ratings over time', () => {
       'Nov 14, 2006: +4.3',
       'From games through Nov 13, 2006, 1,234 possessions'
     ])
-    // Opening night: no game of the season behind it yet.
+    // Opening night: no game of the season behind it yet, nor any last game in the fixture.
     expect(pointLines(EXPECTED, EXPECTED.points[0], 'total')).toHaveLength(2)
+    // As the read gives it: the last game months back, no possessions of the season.
+    const opening = { ...EXPECTED.points[0], possessions: 0, lastGame: '2006-04-19' }
+    expect(pointLines(EXPECTED, opening, 'total')[2]).toBe(
+      "Before the season's first game: from games through Apr 19, 2006"
+    )
   })
 
   it('finds the point nearest the pointer, and none in a summer’s gap', () => {
@@ -173,6 +178,8 @@ describe('the chart’s honesty', () => {
     expect(marksPoints(EXPECTED, 'season')).toBe(true)
     expect(marksPoints(EXPECTED, 'career')).toBe(false)
     expect(marksPoints(DARKO, 'career')).toBe(true)
+    // A career of one season shows its weeks, as the season range would.
+    expect(marksPoints(EXPECTED, 'career', 1)).toBe(true)
   })
 
   it('names one or two imports by their dates, and counts more', () => {

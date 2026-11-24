@@ -257,7 +257,7 @@ export function RatingHistoryChart({
             )}
             {shown.map((s, i) => {
               const dots = showsPoints(s.series)
-              const marks = marksPoints(s.series, range)
+              const marks = marksPoints(s.series, range, axis.seasons.length)
               return (
                 <g key={s.series.id} data-series-line={s.series.id}>
                   {seasonRuns(s.points).map((run) => (
