@@ -24,7 +24,6 @@ import {
   scorerRows,
   scorersQuery,
   scoreText,
-  TEAM_SECTIONS,
   teamGames,
   teamIn,
   teamPoolQuery,
@@ -153,7 +152,7 @@ const result = (rows: StatsRow[]): StatsResult => ({
 
 describe('the tabs', () => {
   it('names only team metrics the catalogue has, within a query’s limit', () => {
-    for (const sections of [...Object.values(TEAM_SECTIONS), [RATINGS_SECTION]]) {
+    for (const sections of [[RATINGS_SECTION]]) {
       const metrics = sectionMetrics(sections)
       expect(metrics.length).toBeLessThanOrEqual(40)
       for (const id of metrics) {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { compileQuery, StatsQueryError } from '@main/stats/engine/compile'
+import { BUILT_AT_NEXT_REFRESH, compileQuery, StatsQueryError } from '@main/stats/engine/compile'
 import type { StatsQuery } from '@shared/stats/types'
 import { LEAGUES } from '@shared/leagues'
 
@@ -243,5 +243,120 @@ describe('the on-court table, read through built', () => {
     const c = compileQuery(onCourt({ seasons: [1995] }), CTX)
     expect(c.gaps[0]).toBe('Recorded from 1996-97.')
     expect(c.gaps[2]).toBeNull()
+  })
+})
+
+describe('what the open file holds', () => {
+  const schema = (
+    drop: Record<string, string[] | 'table'>
+  ): { columns: Map<string, Set<string>>; empty: Set<string> } => {
+    const cols = (names: string[]): Set<string> => new Set(names)
+    const all = cols(['games', 'pts', 'plus_minus', 'fgm', 'fga', 'min', 'seconds'])
+    const tables = new Map<string, Set<string>>([
+      ['player_season', new Set(all)],
+      ['player_game', new Set(all)]
+    ])
+    for (const [table, what] of Object.entries(drop)) {
+      if (what === 'table') tables.delete(table)
+      else for (const c of what) tables.get(table)?.delete(c)
+    }
+    return { columns: tables, empty: new Set<string>() }
+  }
+  const gaps = (metrics: string[], s: ReturnType<typeof schema>): (string | null)[] =>
+    compileQuery({ ...base, metrics } as StatsQuery, { ...CTX, schema: s }).gaps
+
+  it('gives a metric whose column the file lacks a reason, and that metric alone', () => {
+    expect(gaps(['pts', 'plus_minus'], schema({ player_season: ['plus_minus'] }))).toEqual([
+      null,
+      BUILT_AT_NEXT_REFRESH
+    ])
+  })
+
+  it('gives every box-score metric the reason when the table is not there', () => {
+    expect(gaps(['pts'], schema({ player_season: 'table' }))).toEqual([BUILT_AT_NEXT_REFRESH])
+  })
+
+  it('reads as before with no schema given', () => {
+    expect(
+      compileQuery({ ...base, metrics: ['pts', 'plus_minus'] } as StatsQuery, CTX).gaps
+    ).toEqual([null, null])
+  })
+})
+
+describe('a published metric before its source has a file of the season', () => {
+  const held = (seasons: number[]): NonNullable<Parameters<typeof compileQuery>[1]['held']> => ({
+    seasons: new Map([['src_nba_current_impact', new Set(seasons)]]),
+    checked: '2026-11-24T05:10:00Z'
+  })
+  const ask = (season: number, have: number[]): (string | null)[] =>
+    compileQuery(
+      {
+        entity: 'player',
+        metrics: ['sdv_current_impact', 'pts'],
+        scope: { seasons: [season] }
+      } as StatsQuery,
+      { ...CTX, held: held(have) }
+    ).gaps
+
+  it('says it is not published yet, and when the refresh last looked, for that metric alone', () => {
+    expect(ask(2027, [2025, 2026])).toEqual([
+      'Not published yet for 2026-27 (last looked for on 2026-11-24).',
+      null
+    ])
+  })
+
+  it('answers once the file is held, and gives no such reason without what the file holds', () => {
+    expect(ask(2026, [2025, 2026])).toEqual([null, null])
+    expect(
+      compileQuery(
+        { ...base, metrics: ['sdv_current_impact'], scope: { seasons: [2027] } } as StatsQuery,
+        CTX
+      ).gaps
+    ).toEqual([null])
+  })
+
+  it('says no file was published for a finished season, with no promise of one', () => {
+    expect(ask(2024, [2025, 2026])).toEqual(['No file published for 2023-24.', null])
+  })
+
+  it('answers for the seasons held in a scope of several, and names the others in a note', () => {
+    const c = compileQuery(
+      {
+        entity: 'player',
+        metrics: ['sdv_current_impact', 'pts'],
+        scope: { seasons: [2024, 2025, 2027] },
+        // Read one season at a time, so a scope of several is grouped by season.
+        groupBy: ['season']
+      } as StatsQuery,
+      { ...CTX, held: held([2025, 2026]) }
+    )
+    expect(c.gaps).toEqual([null, null])
+    expect(c.notes).toContain(
+      'Expected impact, latest estimate (SportsDataverse): no file published for 2023-24; not published yet for 2026-27 (last looked for on 2026-11-24).'
+    )
+  })
+
+  it('leaves a league that builds no published tables to its own reasons', () => {
+    const c = compileQuery(
+      { entity: 'player', metrics: ['pts', 'sdv_rapm'], scope: { seasons: [2025, 2026] } },
+      { league: LEAGUES.ncaam, currentSeason: 2027, held: held([2026]) }
+    )
+    expect(c.gaps[0]).toBeNull()
+    expect(c.notes.some((n) => /file published|published yet/.test(n))).toBe(false)
+  })
+
+  it('gives no such reason for a source of one file for every season', () => {
+    const c = compileQuery(
+      {
+        entity: 'player',
+        metrics: ['sdv_current_impact'],
+        scope: { seasons: [2027] }
+      } as StatsQuery,
+      {
+        ...CTX,
+        held: { seasons: new Map([['src_nba_current_impact', new Set([0])]]), checked: null }
+      }
+    )
+    expect(c.gaps).toEqual([null])
   })
 })

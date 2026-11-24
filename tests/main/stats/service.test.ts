@@ -33,7 +33,8 @@ describe('the stats service', () => {
 
   it('reports what is loaded for the Data panel, every release included', async () => {
     const report = await service!.data()
-    expect(report.families).toHaveLength(44)
+    // 45 with SportsDataverse's current impact (T1703.2).
+    expect(report.families).toHaveLength(45)
     expect(report.families[0]).toMatchObject({ tier: 'core', state: 'waiting', filesLoaded: 0 })
     expect(report.databaseBytes).toBeGreaterThan(0)
   })

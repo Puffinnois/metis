@@ -667,7 +667,12 @@ const IMPACT_COLUMNS = `
   sdv_boban_sd boban_projected_sd games; sdv_box_prior box_prior prior_poss
   sdv_o_box_prior o_box_prior prior_off_poss; sdv_d_box_prior d_box_prior prior_def_poss
   sdv_reml_rapm reml_rapm prior_poss; sdv_o_reml_rapm o_reml_rapm prior_off_poss
-  sdv_d_reml_rapm d_reml_rapm prior_def_poss`
+  sdv_d_reml_rapm d_reml_rapm prior_def_poss
+  sdv_current_impact ci_total ci_rows; sdv_o_current_impact ci_off ci_rows
+  sdv_d_current_impact ci_def ci_rows; sdv_expected_impact ce_total ce_rows
+  sdv_o_expected_impact ce_off ce_rows; sdv_d_expected_impact ce_def ce_rows
+  sdv_current_prior ci_prior ci_rows; sdv_o_current_prior ci_o_prior ci_rows
+  sdv_d_current_prior ci_d_prior ci_rows`
   .split(/[;\n]/)
   .map((line) => line.trim().split(/\s+/))
   .filter((parts) => parts.length === 3)
@@ -1200,7 +1205,8 @@ describe('the metric catalogue', () => {
     const impact = CATALOGUE.filter((m) => m.family === 'impact')
     // The NBA's and WNBA's sixteen, BOBAN's three and the NBA's box prior and REML RAPM (T1703.2),
     // and the college leagues' BPM and two RAPM fits (T1302.6).
-    expect(impact).toHaveLength(34)
+    // And the current impact's nine (T1703.2).
+    expect(impact).toHaveLength(43)
     for (const m of impact) {
       expect(m.short, m.id).toMatch(/ SDV$/)
       expect(m.label, m.id).toMatch(/\(SportsDataverse\)$/)
@@ -1217,6 +1223,9 @@ describe('the metric catalogue', () => {
       ['sdv_boban_skill', 'pub_player_boban'],
       ['sdv_boban_next', 'pub_player_boban'],
       ['sdv_boban_sd', 'pub_player_boban'],
+      ...['', 'o_', 'd_'].map((p) => [`sdv_${p}current_impact`, 'pub_player_current_impact']),
+      ...['', 'o_', 'd_'].map((p) => [`sdv_${p}expected_impact`, 'pub_player_expected_impact']),
+      ...['', 'o_', 'd_'].map((p) => [`sdv_${p}current_prior`, 'pub_player_current_impact']),
       ['sdv_darko_skill', 'pub_player_darko'],
       ['sdv_darko_next', 'pub_player_darko'],
       ['sdv_darko_sd', 'pub_player_darko']

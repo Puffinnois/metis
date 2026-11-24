@@ -4,6 +4,16 @@ import { AVAILABILITY_FIRST_SEASON } from '@shared/stats/availability'
 import type { Entity, GameType } from '@shared/stats/types'
 import { AVAILABILITY_COUNTS, AVAILABILITY_TABLE, availabilitySql } from './availability'
 import { COLLEGE_PUBLISHED_TABLES } from './publishedCollege'
+import {
+  CURRENT_IMPACT_COLUMNS,
+  CURRENT_IMPACT_FIRST_SEASON,
+  CURRENT_IMPACT_SOURCE,
+  CURRENT_IMPACT_TABLE,
+  currentImpactSql,
+  EXPECTED_IMPACT_COLUMNS,
+  EXPECTED_IMPACT_TABLE,
+  expectedImpactSql
+} from './currentImpact'
 import type { Have } from './sql'
 
 /**
@@ -727,6 +737,27 @@ export const PUBLISHED_TABLES: readonly PublishedTable[] = [
     sql: availabilitySql,
     // A player out of every game of a season or a playoff run has no line, and is still listed.
     addsRows: true
+  },
+  // SportsDataverse's current impact (`derived/currentImpact.ts`): one row a player-season each.
+  {
+    table: CURRENT_IMPACT_TABLE,
+    entity: 'player',
+    source: CURRENT_IMPACT_SOURCE,
+    firstSeason: CURRENT_IMPACT_FIRST_SEASON,
+    games: null,
+    minutes: null,
+    columns: [...CURRENT_IMPACT_COLUMNS],
+    sql: currentImpactSql
+  },
+  {
+    table: EXPECTED_IMPACT_TABLE,
+    entity: 'player',
+    source: CURRENT_IMPACT_SOURCE,
+    firstSeason: CURRENT_IMPACT_FIRST_SEASON,
+    games: null,
+    minutes: null,
+    columns: [...EXPECTED_IMPACT_COLUMNS],
+    sql: expectedImpactSql
   },
   // The college leagues' SportsDataverse models (D44): empty in every other league's file.
   ...COLLEGE_PUBLISHED_TABLES

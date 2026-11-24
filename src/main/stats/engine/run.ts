@@ -1,7 +1,14 @@
 import { covers } from '@shared/stats/catalogue'
 import type { GroupBy, MetricValue, StatsQuery, StatsResult } from '@shared/stats/types'
 import type { StatsDb } from '../db'
-import { compileQuery, StatsQueryError, type CompileContext, type Compiled } from './compile'
+import {
+  compileQuery,
+  StatsQueryError,
+  type CompileContext,
+  type Compiled,
+  type FileSchema
+} from './compile'
+import { ATTRIBUTES_NOT_BUILT } from './filters'
 
 /** A query that runs longer is interrupted and reported. */
 export const QUERY_TIMEOUT_MS = 5_000
@@ -142,9 +149,7 @@ async function missingTables(db: StatsDb, tables: string[]): Promise<string | nu
     `SELECT count(*) AS n FROM duckdb_tables()
      WHERE schema_name = 'main' AND table_name IN (${tables.map((t) => `'${t}'`).join(', ')})`
   )
-  return Number(row?.n ?? 0) === tables.length
-    ? null
-    : 'Attributes are built at the next refresh of this league.'
+  return Number(row?.n ?? 0) === tables.length ? null : ATTRIBUTES_NOT_BUILT
 }
 
 /**
@@ -188,4 +193,17 @@ export async function qualificationFactor(
   // Under a split, the split's share of the time scales the sample too.
   const share = num(scope?.share) ?? 1
   return ((compiled.rowGames(scope?.games ?? 0, seasons) * share) / compiled.fullSeason).toFixed(6)
+}
+
+/** The open file's tables in the main schema, each with its columns: `CompileContext.schema`. */
+export async function readFileSchema(db: StatsDb): Promise<FileSchema> {
+  const rows = await db.all<{ table_name: string; cols: string[]; rows: number }>(
+    `SELECT c.table_name, list(c.column_name) AS cols, any_value(t.estimated_size) AS rows
+     FROM duckdb_columns() c JOIN duckdb_tables() t USING (table_oid)
+     WHERE c.schema_name = 'main' GROUP BY 1`
+  )
+  return {
+    columns: new Map(rows.map((r) => [r.table_name, new Set(r.cols)])),
+    empty: new Set(rows.filter((r) => Number(r.rows) === 0).map((r) => r.table_name))
+  }
 }

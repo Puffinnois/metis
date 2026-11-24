@@ -8,7 +8,14 @@ import type { MetricDef } from '../types'
  * from the team's (`opponentsOf`): a team's steals are Defense, its opponents' are its Offense.
  */
 export type Opts = Partial<Omit<MetricDef, 'id' | 'label' | 'short' | 'description'>> &
-  Pick<MetricDef, 'value' | 'sample'> & { opponents?: readonly Placement[] }
+  Pick<MetricDef, 'value' | 'sample'> & {
+    opponents?: readonly Placement[]
+    /**
+     * The opponents' words where "Opponent …" would read from their side, though the metric is the
+     * team's (its shots blocked by them sits in the team's own Shooting).
+     */
+    opponentsWords?: Partial<Pick<MetricDef, 'label' | 'short' | 'description'>>
+  }
 
 /** The opponents' categories of a metric whose team side states `o.categories`. */
 export const opponentCategories = (o: Partial<Opts>): readonly Placement[] | undefined =>
@@ -44,6 +51,7 @@ export function metric(
   // `opponents` is for the helpers that make both sides, not a field of the metric.
   const o = { ...opts }
   delete o.opponents
+  delete o.opponentsWords
   return {
     id,
     label,
@@ -151,9 +159,9 @@ export function teamSides(
     }),
     metric(
       `opp_${id}`,
-      `Opponent ${lowerFirst(label)}`,
-      `Opp ${short}`,
-      `${description} For the team's opponents.`,
+      o.opponentsWords?.label ?? `Opponent ${lowerFirst(label)}`,
+      o.opponentsWords?.short ?? `Opp ${short}`,
+      o.opponentsWords?.description ?? `${description} For the team's opponents.`,
       {
         ...shared,
         categories: opponentCategories(o),

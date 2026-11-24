@@ -1,6 +1,4 @@
-import { playTypeMetricId } from '@shared/stats/catalogue/playTypes'
 import { coverageReason } from '@shared/stats/coverage'
-import { PLAY_TYPE_SIDES } from '@shared/stats/playTypes'
 import { currentLeague, seasonLabel } from '@/lib/stats/league'
 import type {
   BoardMode,
@@ -12,6 +10,7 @@ import type {
   StatsRow,
   StatsSeason
 } from '@shared/stats/types'
+import { OLD_PLAYER_TABS, type CategoryTab } from './categoryPage'
 import type { ChartPoint, ChartSeries, SectionDef } from './dashboard'
 import { cellTitle, fmtClock, fmtStat, heatOf, ordinal, type Heat } from './format'
 import {
@@ -28,315 +27,31 @@ import { queryScope, shortDay, type StatsScope } from './scope'
 
 /** The player dashboard: a rail to pick from, a header, and one set of tabs for every position. */
 
-export type PlayerTab =
-  | 'overview'
-  | 'scoring'
-  | 'shooting'
-  | 'shots'
-  | 'plays'
-  | 'playmaking'
-  | 'rebounding'
-  | 'defense'
-  | 'tracking'
-  | 'play_types'
-  | 'matchups'
-  | 'on_off'
-  | 'log'
-  | 'splits'
-  | 'profile'
+/**
+ * A tab of the player page: Overview, a category (`cat:shooting`, D52), or one of the views of the
+ * player that are no category: the game log, splits, on/off and profile.
+ */
+export type PlayerTab = 'overview' | 'on_off' | 'log' | 'splits' | 'profile' | CategoryTab
 
+/** The page's own tabs; the categories the league has follow in a strip of their own. */
 export const PLAYER_DASH_TABS: { id: PlayerTab; label: string }[] = [
   { id: 'overview', label: 'Overview' },
-  { id: 'scoring', label: 'Scoring' },
-  { id: 'shooting', label: 'Shooting' },
-  { id: 'shots', label: 'Shots' },
-  { id: 'plays', label: 'Play by play' },
-  { id: 'playmaking', label: 'Playmaking' },
-  { id: 'rebounding', label: 'Rebounding' },
-  { id: 'defense', label: 'Defense' },
-  { id: 'tracking', label: 'Tracking' },
-  { id: 'play_types', label: 'Play types' },
-  { id: 'matchups', label: 'Matchups' },
   { id: 'log', label: 'Game log' },
   { id: 'splits', label: 'Splits' },
-  // After the tabs older step files click by place, before the profile, which stays last.
   { id: 'on_off', label: 'On/off' },
   { id: 'profile', label: 'Profile' }
 ]
 
-export const TAB_SECTIONS: Record<
-  Exclude<PlayerTab, 'overview' | 'log' | 'splits' | 'profile'>,
-  SectionDef[]
-> = {
-  // Plan T905: counted from the NBA's play by play, 1996-97 on.
-  plays: [
-    {
-      title: 'Turnovers',
-      note: 'Live-ball: a steal credited',
-      metrics: [
-        'pbp_tov_bad_pass',
-        'pbp_tov_lost_ball',
-        'pbp_tov_off_foul',
-        'pbp_tov_travel',
-        'pbp_tov_live',
-        'pbp_tov_dead',
-        'pbp_tov_live_share'
-      ]
-    },
-    {
-      title: 'Fouls',
-      note: 'Fouls drawn: ESPN’s play by play, {from:pbp_fd} to {to:pbp_fd}',
-      metrics: [
-        'pbp_pf_shooting',
-        'pbp_pf_personal',
-        'pbp_pf_offensive',
-        'pbp_pf_loose_ball',
-        'pbp_tech',
-        'pbp_flagrant',
-        'pbp_fd'
-      ]
-    },
-    {
-      title: 'And-ones and trips',
-      metrics: [
-        'pbp_and1',
-        'pbp_and1_pct',
-        'pbp_and1_rate',
-        'pbp_ft_trip2',
-        'pbp_ft_trip3',
-        'pbp_trip_rate'
-      ]
-    },
-    {
-      title: 'Assists',
-      note: 'Assist points: 2 a two, 3 a three',
-      metrics: [
-        'pbp_ast2',
-        'pbp_ast3',
-        'pbp_ast_pts',
-        'pbp_ast_to3_share',
-        'pbp_ast2_share',
-        'pbp_ast3_share',
-        'pbp_unast_share'
-      ]
-    }
-  ],
-  scoring: [
-    { title: 'Volume', metrics: ['pts', 'fgm', 'fga', 'fg3m', 'ftm', 'fta', 'tsa'] },
-    {
-      title: 'Where the points come from',
-      metrics: ['pts_2pt', 'pts_3pt', 'pts_ft', 'share_pts_2pt', 'share_pts_3pt', 'share_pts_ft']
-    },
-    {
-      title: 'Share of the team',
-      note: 'In the games they played',
-      metrics: ['share_pts', 'share_fgm', 'share_fga', 'share_fg3a', 'share_fta', 'usg_pct']
-    }
-  ],
-  shooting: [
-    {
-      title: 'Efficiency',
-      metrics: [
-        'ts_pct',
-        'efg_pct',
-        'fg_pct',
-        'fg2_pct',
-        'fg3_pct',
-        'ft_pct',
-        'pts_per_tsa',
-        'pts_per_fga',
-        'fg_pts_per_fga'
-      ]
-    },
-    {
-      title: 'Shot profile',
-      metrics: ['fg2a', 'fg3a', 'fta', 'fg3a_rate', 'fg2a_rate', 'fta_rate', 'ftm_per_fga']
-    },
-    { title: 'Makes and misses', metrics: ['fg2m', 'fg3m', 'fg_miss', 'ft_miss'] }
-  ],
-  // Shots by zone, band and type (reference section 7), at the game grain, so any range reads.
-  shots: [
-    {
-      title: 'Profile',
-      note: 'From the {league}’s shot chart file, {shotsFrom}',
-      metrics: [
-        'shot_avg_dist',
-        'shot_ra_freq',
-        'shot_paint_freq',
-        'shot_mid_freq',
-        'shot_c3_freq',
-        'shot_atb3_freq'
-      ]
-    },
-    {
-      title: 'Against the league',
-      note: 'FG% above the league’s rate in each zone that season',
-      metrics: [
-        'shot_ra_fg_rel',
-        'shot_paint_fg_rel',
-        'shot_mid_fg_rel',
-        'shot_c3_fg_rel',
-        'shot_atb3_fg_rel',
-        'shot_pps_above',
-        'shot_pts_above'
-      ]
-    },
-    {
-      title: 'By distance',
-      metrics: [
-        'shot_lt8_fg_pct',
-        'shot_d8_16_fg_pct',
-        'shot_d16_24_fg_pct',
-        'shot_d24p_fg_pct',
-        'shot_lt8_freq',
-        'shot_d24p_freq'
-      ]
-    },
-    {
-      title: 'Shot types',
-      metrics: [
-        'shot_dunk_fga',
-        'shot_layup_fg_pct',
-        'shot_hook_fg_pct',
-        'shot_floater_fg_pct',
-        'shot_jumper_fg_pct',
-        'shot_jumper_freq'
-      ]
-    },
-    {
-      title: 'Assisted',
-      note: 'The share of makes assisted, by the play by play',
-      metrics: ['shot_ra_ast_pct', 'shot_mid_ast_pct', 'shot_c3_ast_pct', 'shot_atb3_ast_pct']
-    }
-  ],
-  playmaking: [
-    { title: 'Passing', metrics: ['ast', 'ast_pct', 'ast_ratio', 'share_ast'] },
-    { title: 'Ball security', metrics: ['tov', 'tov_pct', 'ast_tov', 'share_tov'] }
-  ],
-  rebounding: [
-    { title: 'Rebounds', metrics: ['reb', 'oreb', 'dreb'] },
-    {
-      title: 'Share of those available',
-      note: 'Estimated from the share of the team’s minutes',
-      metrics: ['trb_pct', 'orb_pct', 'drb_pct']
-    },
-    { title: 'Share of the team', metrics: ['share_reb', 'share_oreb', 'share_dreb'] }
-  ],
-  defense: [
-    { title: 'Plays', note: 'From the box score', metrics: ['stl', 'blk', 'pf'] },
-    {
-      title: 'Rates',
-      note: 'Estimated from the share of the team’s minutes',
-      metrics: ['stl_pct', 'blk_pct']
-    },
-    { title: 'Share of the team', metrics: ['share_stl', 'share_blk', 'share_pf'] },
-    { title: 'On the floor', metrics: ['plus_minus', 'win_pct', 'w', 'l'] },
-    {
-      title: 'Hustle',
-      note: 'Tagged from {from:deflections}',
-      metrics: [
-        'deflections',
-        'contested_shots',
-        'charges_drawn',
-        'loose_balls',
-        'box_outs',
-        'screen_assists'
-      ]
-    }
-  ],
-  // The NBA's optical tracking, from 2013-14, for whole seasons only.
-  tracking: [
-    {
-      title: 'Movement',
-      note: 'Tracked from {from:dist_miles}',
-      metrics: ['dist_miles', 'avg_speed', 'avg_speed_off', 'avg_speed_def']
-    },
-    {
-      title: 'On the ball',
-      metrics: ['touches', 'time_of_poss', 'sec_per_touch', 'drib_per_touch', 'pts_per_touch']
-    },
-    {
-      title: 'Drives',
-      metrics: [
-        'drives',
-        'drive_fg_pct',
-        'drive_pts_per_drive',
-        'drive_ast_pct',
-        'drive_tov_pct',
-        'drive_pf_pct'
-      ]
-    },
-    {
-      title: 'Passing',
-      metrics: ['passes_made', 'potential_ast', 'secondary_ast', 'ast_pts_created', 'ast_per_pass']
-    },
-    {
-      title: 'Shot types',
-      metrics: [
-        'catch_shoot_fga',
-        'catch_shoot_efg_pct',
-        'catch_shoot_fg3_pct',
-        'pull_up_fga',
-        'pull_up_efg_pct',
-        'pull_up_fg3_pct'
-      ]
-    },
-    {
-      title: 'Touches by area',
-      metrics: [
-        'elbow_touches',
-        'elbow_touch_pts_per_touch',
-        'post_touches',
-        'post_touch_pts_per_touch',
-        'paint_touches',
-        'paint_touch_pts_per_touch'
-      ]
-    },
-    {
-      title: 'Rebounding',
-      metrics: [
-        'reb_chances',
-        'reb_chance_pct',
-        'reb_chance_pct_adj',
-        'reb_contest_pct',
-        'avg_reb_dist'
-      ]
-    },
-    { title: 'Rim defense', metrics: ['def_rim_fga', 'def_rim_fg_pct'] }
-  ],
-  // The NBA's play types, from 2015-16, for whole seasons only: how often each type ends a play, and
-  // how well it goes. The leaderboards hold every other measure.
-  play_types: [
-    {
-      title: 'How often, on offense',
-      note: 'Tagged from {from:pt_iso_freq}',
-      metrics: PLAY_TYPE_SIDES.filter((s) => s.side === 'offense').map((s) =>
-        playTypeMetricId(s.key, 'freq')
-      )
-    },
-    {
-      title: 'Points per possession, on offense',
-      // From 2023-24 the NBA leaves out a type with fewer than 10 possessions.
-      note: 'Blank under 10 plays, from 2023-24',
-      metrics: PLAY_TYPE_SIDES.filter((s) => s.side === 'offense').map((s) =>
-        playTypeMetricId(s.key, 'ppp')
-      )
-    },
-    {
-      title: 'How often, on defense',
-      note: 'The plays they defended',
-      metrics: PLAY_TYPE_SIDES.filter((s) => s.side === 'defense').map((s) =>
-        playTypeMetricId(s.key, 'freq')
-      )
-    },
-    {
-      title: 'Points allowed per possession, on defense',
-      metrics: PLAY_TYPE_SIDES.filter((s) => s.side === 'defense').map((s) =>
-        playTypeMetricId(s.key, 'ppp')
-      )
-    }
-  ],
-  // The NBA's matchups, from 2017-18: what the players they were assigned to did against them.
+/** A tab as asked for: a category's, or one of the page's own; an old tab id reads as its category. */
+export function playerTabOf(asked: string): PlayerTab {
+  if (asked.startsWith('cat:')) return asked as CategoryTab
+  return OLD_PLAYER_TABS[asked] ?? (asked as PlayerTab)
+}
+
+/** The page's own tab whose metrics are sections: On/off (the categories have their own). */
+type SectionTab = 'on_off'
+
+export const TAB_SECTIONS: Record<SectionTab, SectionDef[]> = {
   on_off: [
     {
       title: 'On and off the floor',
@@ -380,40 +95,6 @@ export const TAB_SECTIONS: Record<
     {
       title: 'The team on the floor',
       metrics: ['onc_efg_pct', 'onc_opp_efg_pct', 'onc_tm_tov_pct', 'onc_tm_orb_pct']
-    }
-  ],
-  matchups: [
-    {
-      title: 'Guarding',
-      note: 'Tracked from {from:matchup_min}',
-      metrics: [
-        'matchup_min',
-        'matchup_poss',
-        'matchup_pts',
-        'matchup_pts_per_100',
-        'matchup_fg_pct',
-        'matchup_fg3_pct'
-      ]
-    },
-    {
-      title: 'What the players guarded did',
-      metrics: ['matchup_ast', 'matchup_tov', 'matchup_blk', 'matchup_sfl', 'matchup_fta']
-    },
-    {
-      title: 'Who they guarded',
-      note: 'By the position the {league} lists',
-      metrics: ['matchup_g_time_pct', 'matchup_f_time_pct', 'matchup_c_time_pct']
-    },
-    {
-      title: 'Against each position',
-      metrics: [
-        'matchup_g_pts_per_100',
-        'matchup_f_pts_per_100',
-        'matchup_c_pts_per_100',
-        'matchup_g_fg_pct',
-        'matchup_f_fg_pct',
-        'matchup_c_fg_pct'
-      ]
     }
   ]
 }

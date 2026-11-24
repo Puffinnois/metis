@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { StatsDb } from '@main/stats/db'
 import { buildDerived } from '@main/stats/derived/build'
-import { StatsQueryError } from '@main/stats/engine/compile'
-import { runQuery } from '@main/stats/engine/run'
+import { BUILT_AT_NEXT_REFRESH, StatsQueryError } from '@main/stats/engine/compile'
+import { readFileSchema, runQuery } from '@main/stats/engine/run'
 import type { StatsQuery, StatsResult, StatsRow } from '@shared/stats/types'
 import {
   addGame,
@@ -621,5 +621,53 @@ describe('places: rows by id, each with its place in the whole order (T1601.3)',
     await expect(bad({ ids: ['1'], standing: null }, { groupBy: ['season'] })).rejects.toThrow(
       'no groupBy'
     )
+  })
+})
+
+describe('a file built before a recipe added a column or a table', () => {
+  // A 1.3.0 user's file between installing a later version and its first rebuild, or for good with the
+  // refresh paused or offline: what the file lacks reads no value with a reason, never an error.
+  const ask = async (metrics: string[], withSchema = true): Promise<StatsResult> =>
+    runQuery(
+      db,
+      { entity: 'player', metrics, scope: { seasons: [2026] } },
+      withSchema ? { ...CTX, schema: await readFileSchema(db) } : CTX
+    )
+
+  it('answers a metric whose column the file lacks with a reason, and the rest of the query', async () => {
+    await db.exec('ALTER TABLE player_season DROP COLUMN plus_minus')
+    await db.exec('ALTER TABLE player_game DROP COLUMN plus_minus')
+    const result = await ask(['pts', 'plus_minus'])
+    expect(result.columns.map((c) => [c.id, c.reason])).toEqual([
+      ['pts', null],
+      ['plus_minus', BUILT_AT_NEXT_REFRESH]
+    ])
+    expect(value(result, '2')).toBeGreaterThan(0)
+    expect(value(result, '2', 'plus_minus')).toBeNull()
+    // Without what the file holds, the engine would name the column and DuckDB refuse the query.
+    await expect(ask(['pts', 'plus_minus'], false)).rejects.toThrow(/plus_minus/)
+  })
+
+  it('answers a metric whose own table the file lacks with a reason', async () => {
+    await db.exec('DROP TABLE IF EXISTS pub_player_impact')
+    const result = await ask(['pts', 'sdv_rapm'])
+    expect(result.columns.map((c) => [c.id, c.reason])).toEqual([
+      ['pts', null],
+      ['sdv_rapm', BUILT_AT_NEXT_REFRESH]
+    ])
+    expect(value(result, '2')).toBeGreaterThan(0)
+  })
+
+  it('answers a metric whose own table is there but no build has filled it with a reason', async () => {
+    // The bootstrap makes a new published table empty on open, before the refresh builds it.
+    await db.exec('DELETE FROM pub_player_impact')
+    await db.exec('CHECKPOINT')
+    const result = await ask(['pts', 'sdv_rapm'])
+    expect(result.columns.map((c) => c.reason)).toEqual([null, BUILT_AT_NEXT_REFRESH])
+  })
+
+  it('reads every metric as before once the file holds them', async () => {
+    const result = await ask(['pts', 'plus_minus'])
+    expect(result.columns.map((c) => c.reason)).toEqual([null, null])
   })
 })

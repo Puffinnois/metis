@@ -195,7 +195,7 @@
     "wait": 800
   },
   {
-    "eval": "tab('Tracking')"
+    "eval": "tab('Hustle and movement')"
   },
   {
     "eval": "'TRACKING Luka 2025-26 ' + JSON.stringify({ dist_miles: M('dist_miles'), avg_speed: M('avg_speed'), expect: 'raw 148.3 mi total, 3.75 mph (64 GP)' })"
@@ -267,7 +267,7 @@
     "wait": 800
   },
   {
-    "eval": "tab('Matchups')"
+    "eval": "tab('Defense')"
   },
   {
     "click": "Totals"
@@ -309,7 +309,7 @@
     "wait": 1200
   },
   {
-    "eval": "tab('Tracking')"
+    "eval": "tab('Hustle and movement')"
   },
   {
     "eval": "'REASON before coverage ' + JSON.stringify({ tracking: L(/Recorded from/i, 3), dist: M('dist_miles') })"
@@ -333,7 +333,7 @@
     "wait": 1500
   },
   {
-    "eval": "tab('Tracking')"
+    "eval": "tab('Hustle and movement')"
   },
   {
     "eval": "'LAST GAMES tracking ' + JSON.stringify(L(/Published for whole seasons only/i, 2))"

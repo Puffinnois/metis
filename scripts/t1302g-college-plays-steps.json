@@ -24,7 +24,7 @@
     "eval": "(async () => {\n  const q = (split) => window.api.stats.query('ncaam', { entity: 'team', metrics: ['team_pts'], scope: { seasons: [2026], teams: ['252'], ...(split ? { split } : {}) }, transform: 'raw', limit: 1 })\n  const whole = await q(null)\n  const parts = await Promise.all(['h1', 'h2', 'ot'].map(q))\n  const v = (r) => r.rows[0]?.values.team_pts?.value ?? 0\n  const sum = parts.reduce((s, r) => s + v(r), 0)\n  return check('the team\\'s halves and overtimes add up to its points through the engine', sum > 0 && Math.abs(sum - v(whole)) < 0.5, { whole: v(whole), parts: parts.map(v) })\n})()"
   },
   {
-    "eval": "(async () => {\n  await tab('Play by play')\n  await sleep(3500)\n  const t = main()\n  return check(\"AJ Dybantsa's Play by play tab reads the play-derived counts, no reason\", !bad(t) && !/Not built/.test(t) && /[0-9]/.test(t), t.slice(0, 400))\n})()"
+    "eval": "(async () => {\n  await tab('Playmaking')\n  await sleep(3500)\n  const t = main()\n  return check(\"AJ Dybantsa's Play by play tab reads the play-derived counts, no reason\", !bad(t) && !/Not built/.test(t) && /[0-9]/.test(t), t.slice(0, 400))\n})()"
   },
   {
     "shot": "t1302g-02-ncaam-plays"
@@ -33,7 +33,7 @@
     "eval": "(async () => {\n  const c = await window.api.stats.catalogue('ncaam')\n  const why = (id) => c.find((x) => x.id === id)?.unavailable ?? null\n  const ok = why('pbp_ejections') !== null && why('pbp_def3') !== null && why('pbp_tov_bad_pass') === null && why('pbp_fd') === null && /stats\\.ncaa\\.org/.test(c.find((x) => x.id === 'pbp_fd')?.description ?? '')\n  return check('what the feed does not record gives its reason; fouls drawn read stats.ncaa.org', ok, { ejections: why('pbp_ejections'), def3: why('pbp_def3'), fd: why('pbp_fd') })\n})()"
   },
   {
-    "eval": "(async () => {\n  await nav('Teams')\n  await chooseSelect('Season', 2026)\n  const o = await openTeam('252')\n  await tab('Play by play')\n  await sleep(3500)\n  const t = main()\n  return check('the team\\'s Play by play tab reads, no reason', !bad(t) && !/Not built/.test(t) && /[0-9]/.test(t), { o, text: t.slice(0, 300) })\n})()"
+    "eval": "(async () => {\n  await nav('Teams')\n  await chooseSelect('Season', 2026)\n  const o = await openTeam('252')\n  await tab('Playmaking')\n  await sleep(3500)\n  const t = main()\n  return check('the team\\'s Play by play tab reads, no reason', !bad(t) && !/Not built/.test(t) && /[0-9]/.test(t), { o, text: t.slice(0, 300) })\n})()"
   },
   {
     "shot": "t1302g-03-ncaam-team-plays"
@@ -69,7 +69,7 @@
     "eval": "(async () => {\n  const q = (split) => window.api.stats.query('ncaaw', { entity: 'team', metrics: ['team_pts'], scope: { seasons: [2026], teams: ['238'], ...(split ? { split } : {}) }, transform: 'raw', limit: 1 })\n  const whole = await q(null)\n  const parts = await Promise.all(['q1', 'q2', 'q3', 'q4', 'ot'].map(q))\n  const v = (r) => r.rows[0]?.values.team_pts?.value ?? 0\n  const sum = parts.reduce((s, r) => s + v(r), 0)\n  return check('the team\\'s quarters and overtimes add up to its points through the engine', sum > 0 && Math.abs(sum - v(whole)) < 0.5, { whole: v(whole), parts: parts.map(v) })\n})()"
   },
   {
-    "eval": "(async () => {\n  await tab('Play by play')\n  await sleep(3500)\n  const t = main()\n  return check(\"Mikayla Blakes's Play by play tab reads the play-derived counts, no reason\", !bad(t) && !/Not built/.test(t) && /[0-9]/.test(t), t.slice(0, 400))\n})()"
+    "eval": "(async () => {\n  await tab('Playmaking')\n  await sleep(3500)\n  const t = main()\n  return check(\"Mikayla Blakes's Play by play tab reads the play-derived counts, no reason\", !bad(t) && !/Not built/.test(t) && /[0-9]/.test(t), t.slice(0, 400))\n})()"
   },
   {
     "shot": "t1302g-02-ncaaw-plays"
@@ -78,7 +78,7 @@
     "eval": "(async () => {\n  const c = await window.api.stats.catalogue('ncaaw')\n  const why = (id) => c.find((x) => x.id === id)?.unavailable ?? null\n  const ok = why('pbp_ejections') !== null && why('pbp_def3') !== null && why('pbp_tov_bad_pass') === null && why('pbp_fd') === null && /stats\\.ncaa\\.org/.test(c.find((x) => x.id === 'pbp_fd')?.description ?? '')\n  return check('what the feed does not record gives its reason; fouls drawn read stats.ncaa.org', ok, { ejections: why('pbp_ejections'), def3: why('pbp_def3'), fd: why('pbp_fd') })\n})()"
   },
   {
-    "eval": "(async () => {\n  await nav('Teams')\n  await chooseSelect('Season', 2026)\n  const o = await openTeam('238')\n  await tab('Play by play')\n  await sleep(3500)\n  const t = main()\n  return check('the team\\'s Play by play tab reads, no reason', !bad(t) && !/Not built/.test(t) && /[0-9]/.test(t), { o, text: t.slice(0, 300) })\n})()"
+    "eval": "(async () => {\n  await nav('Teams')\n  await chooseSelect('Season', 2026)\n  const o = await openTeam('238')\n  await tab('Playmaking')\n  await sleep(3500)\n  const t = main()\n  return check('the team\\'s Play by play tab reads, no reason', !bad(t) && !/Not built/.test(t) && /[0-9]/.test(t), { o, text: t.slice(0, 300) })\n})()"
   },
   {
     "shot": "t1302g-03-ncaaw-team-plays"
@@ -114,7 +114,7 @@
     "eval": "(async () => {\n  const n = await switchTo('WNBA')\n  const c = await window.api.stats.shots('wnba', { entity: 'team', id: '1611661320', seasons: [2005], scope: { gameTypes: ['regular'] } })\n  return check('the WNBA unchanged: Los Angeles 2005 shots, 2,042 attempts, 589 with no location', n === 'WNBA' && c.total === 2042 && c.unlocated === 589, { total: c.total, unlocated: c.unlocated })\n})()"
   },
   {
-    "eval": "(async () => {\n  const n = await switchTo('NBA')\n  await nav('Players')\n  await chooseSelect('Season', 2026)\n  await openPlayer('Nikola Jok')\n  await tab('Shots')\n  await until(() => document.querySelector('section[data-shot-total]'), 15000)\n  const s = document.querySelector('section[data-shot-total]')\n  return check(\"the NBA's shot chart as before\", n === 'NBA' && s && Number(s.dataset.shotTotal) > 300, { total: s?.dataset.shotTotal })\n})()"
+    "eval": "(async () => {\n  const n = await switchTo('NBA')\n  await nav('Players')\n  await chooseSelect('Season', 2026)\n  await openPlayer('Nikola Jok')\n  await tab('Shooting')\n  await until(() => document.querySelector('section[data-shot-total]'), 15000)\n  const s = document.querySelector('section[data-shot-total]')\n  return check(\"the NBA's shot chart as before\", n === 'NBA' && s && Number(s.dataset.shotTotal) > 300, { total: s?.dataset.shotTotal })\n})()"
   },
   {
     "shot": "t1302g-06-nba-shots"

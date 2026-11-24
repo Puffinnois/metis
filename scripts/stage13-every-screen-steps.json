@@ -66,7 +66,7 @@
     "shot": "t1301i-08-wnba-player-shooting"
   },
   {
-    "eval": "(async () => { await tab('Play by play'); return check('the WNBA player Play by play tab reads, naming no NBA source', noNba().length === 0 && !/could not be opened/.test(text()), noNba()) })()"
+    "eval": "(async () => { await tab('Playmaking'); return check('the WNBA player Play by play tab reads, naming no NBA source', noNba().length === 0 && !/could not be opened/.test(text()), noNba()) })()"
   },
   {
     "shot": "t1301i-09-wnba-player-playbyplay"
@@ -108,7 +108,7 @@
     "shot": "t1301i-15-wnba-player-onoff"
   },
   {
-    "eval": "(async () => { await tab('Shots'); const t = text()\n  return check('the WNBA Shots tab: from the WNBA’s shot chart file, located from 2011', t.includes('From the WNBA’s shot chart file, 1997 on, located from 2011'), t.match(/From the [^·]{0,70}/)?.[0]) })()"
+    "eval": "(async () => { await tab('Shooting'); const t = text()\n  return check('the WNBA Shots tab: from the WNBA’s shot chart file, located from 2011', t.includes('From the WNBA’s shot chart file, 1997 on, located from 2011'), t.match(/From the [^·]{0,70}/)?.[0]) })()"
   },
   {
     "shot": "t1301i-16-wnba-player-shots"
@@ -138,7 +138,7 @@
     "shot": "t1301i-20-wnba-team-defense"
   },
   {
-    "eval": "(async () => { await tab('Play by play'); return check('the WNBA team Play by play tab reads, naming no NBA source', noNba().length === 0 && !/could not be opened/.test(text()), noNba()) })()"
+    "eval": "(async () => { await tab('Playmaking'); return check('the WNBA team Play by play tab reads, naming no NBA source', noNba().length === 0 && !/could not be opened/.test(text()), noNba()) })()"
   },
   {
     "shot": "t1301i-21-wnba-team-playbyplay"
@@ -168,7 +168,7 @@
     "shot": "t1301i-25-wnba-team-onoff"
   },
   {
-    "eval": "(async () => { await tab('Shots'); const t = text()\n  return check('9. Las Vegas 2026 shots: 1,463 of 3,008 (raw: the 2026 shot chart file, regular season)', /1,463/.test(t) && /3,008/.test(t), t.match(/[0-9,]+ (of|attempts)[^.]{0,60}/)?.[0]) })()"
+    "eval": "(async () => { await tab('Shooting'); const t = text()\n  return check('9. Las Vegas 2026 shots: 1,463 of 3,008 (raw: the 2026 shot chart file, regular season)', /1,463/.test(t) && /3,008/.test(t), t.match(/[0-9,]+ (of|attempts)[^.]{0,60}/)?.[0]) })()"
   },
   {
     "shot": "t1301i-26-wnba-team-shots"
@@ -315,13 +315,13 @@
     "shot": "t1301i-48-nba-board-ratings"
   },
   {
-    "eval": "(async () => { await nav('Players'); await chooseSelect('Season', 2026); await openPlayer('Nikola Joki'); await tab('Tracking')\n  return check('Nikola Jokić’s dashboard keeps Tracking, Play types and Matchups; the Tracking note from 2013-14', ['Tracking', 'Play types', 'Matchups'].every((t) => tabNames().includes(t)) && text().includes('Tracked from 2013-14'), tabNames()) })()"
+    "eval": "(async () => { await nav('Players'); await chooseSelect('Season', 2026); await openPlayer('Nikola Joki'); await tab('Hustle and movement')\n  return check('Nikola Jokić’s dashboard keeps Tracking, Play types and Matchups; the Tracking note from 2013-14', ['Tracking', 'Play types', 'Matchups'].every((t) => tabNames().includes(t)) && text().includes('Tracked from 2013-14'), tabNames()) })()"
   },
   {
     "shot": "t1301i-49-nba-player-tracking"
   },
   {
-    "eval": "(async () => { await tab('Shots'); return check('the NBA shot note', text().includes('From the NBA’s shot chart file, 1996-97 on'), text().match(/From the [^·]{0,60}/)?.[0]) })()"
+    "eval": "(async () => { await tab('Shooting'); return check('the NBA shot note', text().includes('From the NBA’s shot chart file, 1996-97 on'), text().match(/From the [^·]{0,60}/)?.[0]) })()"
   },
   {
     "shot": "t1301i-50-nba-player-shots"
@@ -405,7 +405,7 @@
     "eval": "(async () => { const g = await tab('Shooting'); return check('NCAA Men player Shooting tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords(), from: text().match(/From [^;]{0,60}/)?.[0] }) })()"
   },
   {
-    "eval": "(async () => { const g = await tab('Play by play'); return check('NCAA Men player Play by play tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords(), from: text().match(/From [^;]{0,60}/)?.[0] }) })()"
+    "eval": "(async () => { const g = await tab('Playmaking'); return check('NCAA Men player Play by play tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords(), from: text().match(/From [^;]{0,60}/)?.[0] }) })()"
   },
   {
     "eval": "(async () => { const g = await tab('Playmaking'); return check('NCAA Men player Playmaking tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords(), from: text().match(/From [^;]{0,60}/)?.[0] }) })()"
@@ -426,7 +426,7 @@
     "eval": "(async () => { const g = await tab('On/off'); return check('NCAA Men player On/off tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords(), from: text().match(/From [^;]{0,60}/)?.[0] }) })()"
   },
   {
-    "eval": "(async () => { const g = await tab('Shots'); return check('NCAA Men player Shots tab reads, no NBA words or rules (stats.ncaa.org’s shot file)', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0 && text().includes('From stats.ncaa.org’s shot file'), { g, noNba: noNba(), words: leagueWords(), from: text().match(/From [^;]{0,60}/)?.[0] }) })()"
+    "eval": "(async () => { const g = await tab('Shooting'); return check('NCAA Men player Shots tab reads, no NBA words or rules (stats.ncaa.org’s shot file)', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0 && text().includes('From stats.ncaa.org’s shot file'), { g, noNba: noNba(), words: leagueWords(), from: text().match(/From [^;]{0,60}/)?.[0] }) })()"
   },
   {
     "eval": "(async () => { const g = await tab('Profile'); return check('NCAA Men player Profile tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords(), from: text().match(/From [^;]{0,60}/)?.[0] }) })()"
@@ -447,7 +447,7 @@
     "eval": "(async () => { const g = await tab('Defense'); return check('NCAA Men team Defense tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords() }) })()"
   },
   {
-    "eval": "(async () => { const g = await tab('Play by play'); return check('NCAA Men team Play by play tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords() }) })()"
+    "eval": "(async () => { const g = await tab('Playmaking'); return check('NCAA Men team Play by play tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords() }) })()"
   },
   {
     "eval": "(async () => { const g = await tab('Players'); return check('NCAA Men team Players tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords() }) })()"
@@ -462,7 +462,7 @@
     "eval": "(async () => { const g = await tab('On/off'); return check('NCAA Men team On/off tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords() }) })()"
   },
   {
-    "eval": "(async () => { const g = await tab('Shots'); return check('NCAA Men team Shots tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords() }) })()"
+    "eval": "(async () => { const g = await tab('Shooting'); return check('NCAA Men team Shots tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords() }) })()"
   },
   {
     "eval": "(async () => { const g = await tab('Lineups'); return check('NCAA Men team Lineups tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords() }) })()"
@@ -543,7 +543,7 @@
     "eval": "(async () => { const g = await tab('Shooting'); return check('NCAA Women player Shooting tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords(), from: text().match(/From [^;]{0,60}/)?.[0] }) })()"
   },
   {
-    "eval": "(async () => { const g = await tab('Play by play'); return check('NCAA Women player Play by play tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords(), from: text().match(/From [^;]{0,60}/)?.[0] }) })()"
+    "eval": "(async () => { const g = await tab('Playmaking'); return check('NCAA Women player Play by play tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords(), from: text().match(/From [^;]{0,60}/)?.[0] }) })()"
   },
   {
     "eval": "(async () => { const g = await tab('Playmaking'); return check('NCAA Women player Playmaking tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords(), from: text().match(/From [^;]{0,60}/)?.[0] }) })()"
@@ -564,7 +564,7 @@
     "eval": "(async () => { const g = await tab('On/off'); return check('NCAA Women player On/off tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords(), from: text().match(/From [^;]{0,60}/)?.[0] }) })()"
   },
   {
-    "eval": "(async () => { const g = await tab('Shots'); return check('NCAA Women player Shots tab reads, no NBA words or rules (stats.ncaa.org’s shot file)', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0 && text().includes('From stats.ncaa.org’s shot file'), { g, noNba: noNba(), words: leagueWords(), from: text().match(/From [^;]{0,60}/)?.[0] }) })()"
+    "eval": "(async () => { const g = await tab('Shooting'); return check('NCAA Women player Shots tab reads, no NBA words or rules (stats.ncaa.org’s shot file)', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0 && text().includes('From stats.ncaa.org’s shot file'), { g, noNba: noNba(), words: leagueWords(), from: text().match(/From [^;]{0,60}/)?.[0] }) })()"
   },
   {
     "eval": "(async () => { const g = await tab('Profile'); return check('NCAA Women player Profile tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords(), from: text().match(/From [^;]{0,60}/)?.[0] }) })()"
@@ -585,7 +585,7 @@
     "eval": "(async () => { const g = await tab('Defense'); return check('NCAA Women team Defense tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords() }) })()"
   },
   {
-    "eval": "(async () => { const g = await tab('Play by play'); return check('NCAA Women team Play by play tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords() }) })()"
+    "eval": "(async () => { const g = await tab('Playmaking'); return check('NCAA Women team Play by play tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords() }) })()"
   },
   {
     "eval": "(async () => { const g = await tab('Players'); return check('NCAA Women team Players tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords() }) })()"
@@ -600,7 +600,7 @@
     "eval": "(async () => { const g = await tab('On/off'); return check('NCAA Women team On/off tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords() }) })()"
   },
   {
-    "eval": "(async () => { const g = await tab('Shots'); return check('NCAA Women team Shots tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords() }) })()"
+    "eval": "(async () => { const g = await tab('Shooting'); return check('NCAA Women team Shots tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords() }) })()"
   },
   {
     "eval": "(async () => { const g = await tab('Lineups'); return check('NCAA Women team Lineups tab reads, no NBA words or rules', !g.startsWith('NO TAB') && reads() && noNba().length === 0 && leagueWords().length === 0, { g, noNba: noNba(), words: leagueWords() }) })()"

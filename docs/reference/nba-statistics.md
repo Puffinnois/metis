@@ -606,6 +606,8 @@ The linked BPM article contains the full coefficient specification; this catalog
 
 **DARKO family — retrieve [DARKO](https://www.darko.app/), [methodology](https://www.darko.app/about).**
 
+_In Metis (Plan T1703.2), beside BOBAN:_ SportsDataverse's **current impact** (`nba_current_impact`, NBA, 2006-07 on), a box prior with a Kalman-filtered deviation from it, published weekly from opening night to early April, each estimate from the games before its date only. Metis reads **Expected impact, latest estimate** (`sdv_current_impact`, offence and defence, and its box prior `sdv_current_prior`, which is as of that date, unlike the impact file's whole-season box prior) and **Expected impact, opening night** (`sdv_expected_impact`, offence and defence), one regular season at a time; every weekly row is kept in the source table. A range of dates within a season reads unavailable: the estimates are read whole seasons only. Before SportsDataverse publishes a season's first file, the season reads "Not published yet" with the date the refresh last looked, and the daily refresh loads the file when it appears.
+
 _In Metis (Plan T1703.2):_ DARKO itself is not held: it has no free bulk source (D24), and the dataset's `darko_*` columns, dropped in November 2026, were SportsDataverse's own engine under DARKO's name (T1205), so `sdv_darko_*` read unavailable. In their place Metis shows **BOBAN** ("Bayesian Online Box-Augmented Net"), SportsDataverse's own model of the same kind, under its own name (`sdv_boban_skill`, `sdv_boban_next`, `sdv_boban_sd`; NBA and WNBA, 1997-98 on, one regular season at a time): a Kalman filter over each player's season-by-season RAPM with an aging curve, giving the end-of-season skill, a next-season projection and that projection's standard deviation, in points per 100 possessions. Its playoff rows repeat the regular season's, so the regular season is read.
 
 - **Daily Plus Minus (`DPM`)** — next-game projected impact in points per 100 possessions; zero is average.
@@ -721,7 +723,44 @@ Combine missingness can mean the player did not attend, declined a drill, or the
 - **Points + rebounds + assists (`PRA`)** — `PTS+REB+AST`.
 - **Points + rebounds (`PR`) / points + assists (`PA`) / rebounds + assists (`RA`)** — respective sums.
 - **Steals + blocks (`stocks`, `STL+BLK`)** — `STL+BLK`; an informal combined count, not an official complete defense metric.
-  - _In Metis (Plan T1703.2):_ every league, players, from the box scores, so any range of games: **Fantasy points (NBA scoring)** (`fp_nba`, the weights above, which FanDuel lists too), **(WNBA scoring)** (`fp_wnba`, `PTS+3PM+REB+AST+2STL+2BLK`, worked out from the WNBA's published column, which it equals on every player-season of its file), **(DraftKings scoring)** (`fp_dk`, the formula above with the double-double bonus on every game of 10 in two of the five counts, a triple-double included, and 3 more for a triple-double; DraftKings' and FanDuel's rules pages refused a plain client on 2026-11-23, so the bonus rule is this reference's reading), and **PRA, P+R, P+A, R+A, STL+BLK** (`pra`, `pts_reb`, `pts_ast`, `reb_ast`, `stocks`). As published, season by season (NBA and WNBA): `nba_fantasy_pts` and `nba_wnba_fantasy_pts` of the league dashboards. The NBA's published column equals its formula over the dashboard's own counts on all 15,043 regular-season rows; over Metis's box scores, measured on every player-season of 1996-97 to 2026-27 (regular season and playoffs), `fp_nba` equals it to a tenth on 98.4 % of 21,141 (99.2 % of the finished seasons, the rest in the season under way, whose files update at different times, and the oldest seasons, where the two counts differ), and on 96.5 % of the WNBA's 7,123 (the gaps in 1997 to 2009). Per game and per minute are the engine's modes; a category z-score is its z-score transform.
+  - _In Metis (Plan T1703.2):_ every league, players, from the box scores, so any range of games: **Fantasy points (NBA scoring)** (`fp_nba`, the weights above, which FanDuel lists too), **(WNBA scoring)** (`fp_wnba`, `PTS+3PM+REB+AST+2STL+2BLK`, worked out from the WNBA's published column, which it equals on every player-season of its file), **(DraftKings scoring)** (`fp_dk`, the formula above with the double-double bonus on every game of 10 in two of the five counts, a triple-double included, and 3 more for a triple-double; DraftKings' and FanDuel's rules pages refused a plain client on 2026-11-23, so the bonus rule is this reference's reading), and **PRA, P+R, P+A, R+A, STL+BLK** (`pra`, `pts_reb`, `pts_ast`, `reb_ast`, `stocks`). As published, season by season (NBA and WNBA): `nba_fantasy_pts` and `nba_wnba_fantasy_pts` of the league dashboards. The NBA's published column equals its formula over the dashboard's own counts on all 15,043 regular-season rows; over Metis's box scores, measured on every player-season of 1996-97 to 2026-27 (regular season and playoffs), `fp_nba` equals it to a tenth on 98.8 % of 21,142 (the gaps in the oldest seasons, where the two counts differ, and in the season under way, whose files update at different times), and on 96.5 % of the WNBA's 7,123 (the gaps in 1997 to 2009). Per game and per minute are the engine's modes; a category z-score is its z-score transform.
+
+    Per season, `fp_nba` against `nba_fantasy_pts`, equal to a tenth (measured 2026-11-24 on a copy of the four-league load after a real refresh; the WNBA's scoring, `fp_wnba` against `nba_wnba_fantasy_pts`, agrees on 99.0 % of the NBA's 21,142 player-seasons and 96.9 % of the WNBA's 7,123 overall). The NBA's season label is shown first, the WNBA's second:
+
+    | Season         | NBA regular season   | NBA playoffs         | WNBA regular season  | WNBA playoffs      |
+    | -------------- | -------------------- | -------------------- | -------------------- | ------------------ |
+    | 1996-97 / 1997 | 393 of 441 (89.1 %)  | 184 of 189 (97.4 %)  | 64 of 97 (66.0 %)    | –                  |
+    | 1997-98 / 1998 | 420 of 439 (95.7 %)  | 190 of 190 (100.0 %) | 105 of 127 (82.7 %)  | –                  |
+    | 1998-99 / 1999 | 427 of 440 (97.0 %)  | 189 of 189 (100.0 %) | 113 of 150 (75.3 %)  | –                  |
+    | 1999-00 / 2000 | 428 of 439 (97.5 %)  | 175 of 181 (96.7 %)  | 192 of 204 (94.1 %)  | –                  |
+    | 2000-01 / 2001 | 435 of 441 (98.6 %)  | 190 of 190 (100.0 %) | 198 of 207 (95.7 %)  | 88 of 88 (100.0 %) |
+    | 2001-02 / 2002 | 417 of 440 (94.8 %)  | 186 of 186 (100.0 %) | 193 of 207 (93.2 %)  | 83 of 83 (100.0 %) |
+    | 2002-03 / 2003 | 425 of 428 (99.3 %)  | 187 of 187 (100.0 %) | 174 of 177 (98.3 %)  | 82 of 83 (98.8 %)  |
+    | 2003-04 / 2004 | 439 of 442 (99.3 %)  | 189 of 189 (100.0 %) | 154 of 164 (93.9 %)  | 84 of 84 (100.0 %) |
+    | 2004-05 / 2005 | 460 of 464 (99.1 %)  | 188 of 188 (100.0 %) | 164 of 168 (97.6 %)  | 81 of 81 (100.0 %) |
+    | 2005-06 / 2006 | 454 of 458 (99.1 %)  | 195 of 195 (100.0 %) | 158 of 182 (86.8 %)  | 83 of 83 (100.0 %) |
+    | 2006-07 / 2007 | 457 of 458 (99.8 %)  | 191 of 191 (100.0 %) | 130 of 173 (75.1 %)  | 87 of 87 (100.0 %) |
+    | 2007-08 / 2008 | 451 of 451 (100.0 %) | 202 of 202 (100.0 %) | 185 of 192 (96.4 %)  | 90 of 90 (100.0 %) |
+    | 2008-09 / 2009 | 445 of 445 (100.0 %) | 199 of 199 (100.0 %) | 151 of 164 (92.1 %)  | 81 of 81 (100.0 %) |
+    | 2009-10 / 2010 | 442 of 442 (100.0 %) | 199 of 199 (100.0 %) | 142 of 143 (99.3 %)  | 81 of 81 (100.0 %) |
+    | 2010-11 / 2011 | 452 of 452 (100.0 %) | 194 of 194 (100.0 %) | 142 of 142 (100.0 %) | 84 of 84 (100.0 %) |
+    | 2011-12 / 2012 | 478 of 478 (100.0 %) | 204 of 204 (100.0 %) | 144 of 146 (98.6 %)  | 80 of 80 (100.0 %) |
+    | 2012-13 / 2013 | 469 of 469 (100.0 %) | 209 of 209 (100.0 %) | 146 of 146 (100.0 %) | 82 of 82 (100.0 %) |
+    | 2013-14 / 2014 | 482 of 482 (100.0 %) | 204 of 204 (100.0 %) | 154 of 154 (100.0 %) | 89 of 89 (100.0 %) |
+    | 2014-15 / 2015 | 492 of 492 (100.0 %) | 208 of 208 (100.0 %) | 157 of 159 (98.7 %)  | 87 of 87 (100.0 %) |
+    | 2015-16 / 2016 | 476 of 476 (100.0 %) | 215 of 215 (100.0 %) | 156 of 158 (98.7 %)  | 82 of 82 (100.0 %) |
+    | 2016-17 / 2017 | 486 of 486 (100.0 %) | 215 of 215 (100.0 %) | 155 of 157 (98.7 %)  | 86 of 86 (100.0 %) |
+    | 2017-18 / 2018 | 540 of 540 (100.0 %) | 210 of 210 (100.0 %) | 154 of 157 (98.1 %)  | 80 of 80 (100.0 %) |
+    | 2018-19 / 2019 | 530 of 530 (100.0 %) | 212 of 212 (100.0 %) | 156 of 157 (99.4 %)  | 87 of 87 (100.0 %) |
+    | 2019-20 / 2020 | 529 of 529 (100.0 %) | 217 of 217 (100.0 %) | 145 of 145 (100.0 %) | 81 of 81 (100.0 %) |
+    | 2020-21 / 2021 | 540 of 540 (100.0 %) | 239 of 239 (100.0 %) | 155 of 155 (100.0 %) | 81 of 81 (100.0 %) |
+    | 2021-22 / 2022 | 605 of 605 (100.0 %) | 217 of 217 (100.0 %) | 165 of 166 (99.4 %)  | 83 of 83 (100.0 %) |
+    | 2022-23 / 2023 | 529 of 539 (98.1 %)  | 217 of 217 (100.0 %) | 156 of 156 (100.0 %) | 76 of 79 (96.2 %)  |
+    | 2023-24 / 2024 | 563 of 572 (98.4 %)  | 214 of 214 (100.0 %) | 157 of 157 (100.0 %) | 89 of 89 (100.0 %) |
+    | 2024-25 / 2025 | 569 of 569 (100.0 %) | 219 of 219 (100.0 %) | 182 of 182 (100.0 %) | 91 of 91 (100.0 %) |
+    | 2025-26 / 2026 | 574 of 582 (98.6 %)  | 230 of 230 (100.0 %) | 238 of 238 (100.0 %) | 91 of 91 (100.0 %) |
+    | 2026-27 / 2027 | 403 of 474 (85.0 %)  | –                    | –                    | –                  |
+
 - **Category z-score / fantasy value** — `z=(x-population_mean)/population_SD`; reverse undesirable categories such as turnovers. Percentage-category value usually needs attempt-volume treatment. Population, weighting, and exclusions make this model-specific.
 
 ### 18.2 Additional published analytics

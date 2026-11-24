@@ -1,4 +1,5 @@
 import { useContext, useEffect, useState } from 'react'
+import { boardForMetric } from '@/lib/stats/categoryViews'
 import { StatsNav } from '@/components/stats/StatsNav'
 import { api } from '@/lib/api'
 import { TURN_ON, useLeague } from '@/lib/stats/league'
@@ -14,6 +15,7 @@ import {
   bestFirst,
   defaultBoard,
   normalizeBoard,
+  tabOf,
   type LeaderboardOpen
 } from '@/lib/stats/leaderboard'
 import { defaultPlayer, railQuery, type PlayerTab } from '@/lib/stats/player'
@@ -277,11 +279,18 @@ export function StatsApp({
       else openTeam(rowId)
       return
     }
-    const base = defaultBoard(b.entity, b.tab, data.byId)
-    const columns = base.columns.includes(b.metric) ? base.columns : [b.metric, ...base.columns]
+    // The board opens on the metric's primary category (D52), on the view that holds it.
+    const at = boardForMetric(data.catalogue, tabOf(b.entity, b.tab), b.metric)
+    const base = defaultBoard(b.entity, at?.tab ?? b.tab, data.byId)
+    const columns = at
+      ? at.view.metrics
+      : base.columns.includes(b.metric)
+        ? base.columns
+        : [b.metric, ...base.columns]
     openBoard(
       {
         ...base,
+        ...(at ? { category: at.category, view: at.view.key } : {}),
         columns,
         mode: perGame ? 'perGame' : 'raw',
         sort: { by: b.metric, dir: bestFirst(data.byId.get(b.metric)) }

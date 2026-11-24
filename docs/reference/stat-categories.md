@@ -35,7 +35,7 @@ Fourteen categories, in the order the screens show them. A category with nothing
 | Fouls                | Fouls and violations: those committed, those drawn, and the flagrants, technicals and ejections.                                                                                  | Committed; Drawn; Violations; Flagrants, technicals and ejections                                                                                                                                                                                                      |
 | Hustle and movement  | Effort and activity: the hustle plays the NBA counts (contests, deflections, loose balls, charges drawn, screen assists, box outs) and how far and how fast a player moved.       | Contests; Loose balls and deflections; Charges; Screens; Box outs; Movement                                                                                                                                                                                            |
 | Play types           | How a player's plays ended, by the kind of play, on offense and on defense: possessions, frequency and results of each.                                                           | One a play type: Isolation, Transition, Pick-and-roll ball handler, Pick-and-roll roll man, Post-up, Spot-up, Handoff, Cut, Off screen, Putbacks, Miscellaneous; then the seven defended, "Isolation defense" to "Off screen defense"                                  |
-| Impact               | How much a player adds to the team's results: the team's margin with them on the floor and off it, and the all-in-one models and composites built from box scores and plus-minus. | On court; Plus-minus models; Box-score models; Box-score composites; Individual ratings; All-around games                                                                                                                                                              |
+| Impact               | How much a player adds to the team's results: the team's margin with them on the floor and off it, and the all-in-one models and composites built from box scores and plus-minus. | On court; Plus-minus models; Box-score models; Box-score composites; Individual ratings; All-around production                                                                                                                                                         |
 | Predictive           | Numbers that look ahead: a season's forecast for a team, a projection for a player, each named as its maker's estimate.                                                           | Season forecast; Player projections                                                                                                                                                                                                                                    |
 | Results and strength | Winning and how strong a team is: record, margin, ratings, pace and possessions, ratings adjusted for opponents, Elo, Pythagorean record, schedule, game flow and forecast.       | Record; Margin; Ratings; Pace and possessions; Adjusted ratings; Elo; Pythagorean; Schedule; Game flow; Forecast; Rankings and seeds                                                                                                                                   |
 | Playing time         | How much a player was on the floor: games, starts, minutes, possessions, and the games they missed.                                                                               | Games and minutes; Possessions; Games missed                                                                                                                                                                                                                           |
@@ -98,7 +98,7 @@ Fourteen categories, in the order the screens show them. A category with nothing
 - _Box-score models_: PER, Win Shares, BPM, VORP, SPM and WAR, Metis's and SportsDataverse's side by side, SportsDataverse's box prior, the NBA's defensive win shares.
 - _Box-score composites_: Efficiency (EFF), Game Score, PIE.
 - _Individual ratings_: Dean Oliver's individual offensive and defensive ratings, points produced, scoring possessions, floor percentage, stops and stop percentage.
-- _All-around games_: double-doubles, triple-doubles, quadruple-doubles, five-by-fives.
+- _All-around production_: double-doubles, triple-doubles, quadruple-doubles, five-by-fives, and the combined counts (points, rebounds and assists together, and their pairs; T1703.2).
 
 **Predictive**: _Season forecast_ (projected wins and losses, playoff, play-in, round and title odds, mean seed, and how many runs the forecast made), _Player projections_ (BOBAN's next season and its spread in the NBA and WNBA; DARKO's, unavailable in every league; T1703 adds more).
 
@@ -131,7 +131,7 @@ How the cases that could go more than one way were decided. The rule behind most
 8. **Play types stay whole**, unlike tracking dashboards: 234 metrics, 13 for each of 18 play types, would swamp Scoring and Shooting, and the NBA, Synergy and every reader treat a play type as one unit. They are in Play types and in Offense › Play types or Defense › Play types.
 9. **Hustle stays a category**, as the NBA names and publishes it, named Hustle and movement since distance and speed join it (the manager's review: "Playing time" does not predict average speed; both are the NBA's alone, so the label holds wherever the tab shows), and each hustle statistic also sits in its own category: contests in Defense › Defended shots, deflections and defensive loose balls in Defense › Hustle, charges drawn in Defense › Hustle and Fouls › Drawn, box outs in Rebounding › Box outs, screen assists in Playmaking › Creation and Offense › Hustle.
 10. **Availability is Playing time › Games missed.** Two metrics, NBA only (games out for injury or illness, and for other reasons), are a part of how much a player played, not a tab.
-11. **Double-doubles and the rest are Impact › All-around games.** They count games of all-round production, which is what "all-in-one" means; they measure no one act.
+11. **Double-doubles and the rest are Impact › All-around production** (named All-around games until T1703.2 added the combined counts). They count games of all-round production, which is what "all-in-one" means; they measure no one act.
 12. **Pace and possessions.** A team's are Results and strength › Pace and possessions, with no end: pace is both ends'. A player's possessions played are Playing time › Possessions; the pace with a player on the floor is Impact › On court.
 13. **Ratings.** A team's offensive rating is Results › Ratings and Offense › Ratings, its defensive rating also Defense › Ratings, its net rating Results alone; the same for the adjusted ratings and SportsDataverse's college ratings. A player's on-court ratings (the NBA's `nba_ortg` and Metis's `onc_ortg`) are Impact › On court with the end.
 14. **Game flow** is Results and strength; best runs and droughts are also Offense › Scoring (the team's) or Defense › Scoring allowed (the opponents'). Largest lead, largest deficit and time leading have no end.
@@ -190,7 +190,7 @@ The category's tab opens on its **headline preset**: its `core` metrics, then `e
 - **Category tabs** replace the family preset menu: Overview, then the categories with metrics for the kind on screen. NBA players see Overview and all 14 (Predictive and Fantasy since T1703.2); WNBA players 12; NCAA players 11 (no Predictive); NBA teams Overview and 11.
 - **Positions** (All, Guards, Forwards, Centers) stay, as a compact control beside the category tabs, since the two are independent; T1701's filters can later carry position as an attribute, but that is T1701's decision, not this one.
 - **Teams**: the Offense and Defense tabs become the Offense and Defense categories, which hold their end whoever's columns hold it; every other category has a Team side and an Opponents side. **Which side a team metric shows on** (the manager's review of T1702.3): in the categories about what a side does with the ball, Scoring, Shooting and Playmaking, the side of the metric's end of the floor, its Offense or Defense placement, so the team's shots blocked (`opp_blk`) and turnovers lost to steals (`opp_stl`) show on the Team side beside its field goals and turnovers, and the opponents' turnovers and FG% (`opp_tov`, `opp_fg_pct`) on the Opponents side; in the categories whose acts happen at both ends (Rebounding, Fouls, Hustle and movement and the rest) the side is whose box score it is. The rule moves three metrics in the catalogue of 1.3.0, `opp_stl`, `opp_blk` and `opp_ncaa_rim_blocks`, and no team metric in those three categories lacks an end, so it has no gap (`teamSide` in `lib/stats/categoryViews.ts`, tested on those four).
-- **Key stats** open every category, Offense and Defense too: a specific category's core metrics, then those read from games, twelve at most; Offense and Defense open on their own, chosen lists (`UMBRELLA_KEY_STATS` in `lib/stats/categoryViews.ts`, the manager's review of T1702.3), a metric the league lacks skipped and the next taken, twelve at most: for teams the rating and the four factors lead at both ends (ORtg, PTS, eFG%, TS%, TOV%, ORB%, FT rate, then FG%, 3PM, 3P%, AST and the adjusted offence where the league has it; DRtg, Opp PTS, Opp eFG%, Opp TS%, Opp TOV%, DRB%, Opp FT rate, then Opp FG%, Opp 3P%, STL, BLK and the adjusted defence); for players PTS, TS%, eFG%, FG%, 3PM, 3P%, FT%, AST, AST%, TOV%, USG%, then the offensive on-court rating or model, and STL, BLK, STL%, BLK%, DREB, DRB%, rim FG% allowed, deflections, contested shots, then the defensive on-court rating and models.
+- **Key stats** open every category, Offense and Defense too: a specific category's core metrics, then those read from games, twelve at most; Offense and Defense open on their own, chosen lists (`UMBRELLA_KEY_STATS` in `lib/stats/categoryViews.ts`, the manager's review of T1702.3), a metric the league lacks skipped and the next taken, twelve at most: for teams the rating and the four factors lead at both ends (ORtg, PTS, eFG%, TS%, TOV%, ORB%, FT rate, then FG%, 3PM, 3P%, AST and the adjusted offence where the league has it; DRtg, Opp PTS, Opp eFG%, Opp TS%, Opp TOV%, DRB%, Opp FT rate, then Opp FG%, Opp 3P%, STL, BLK and the adjusted defence); for players PTS, TS%, eFG%, FG%, 3PM, 3P%, FT%, AST, AST%, TOV%, USG%, then the offensive on-court rating or model, and STL, BLK, STL%, BLK%, DREB, DRB%, rim FG% allowed, deflections, contested shots, then the defensive on-court rating and models. Fouls, a player's Scoring and a team's own Shooting state theirs too (`KEY_STATS`, the review of T1702.4): Fouls opens on personal, shooting and offensive fouls, then fouls drawn, shooting fouls drawn, and-ones and free-throw rate, then technicals and flagrants, for a player, a team and its opponents alike, the offensive-foul turnovers kept in their sub-group; a player's Scoring on points, points from twos, threes and free throws, points by situation (the NBA's paint, fast-break, off-turnover and second-chance points, the colleges' transition points and putbacks), the share of the team's points and one assisted share; a team's Shooting on FG%, threes, 3P%, FT%, free-throw rate, eFG%, TS%, three-point attempt rate and the shot chart's rim and mid-range percentages, its shots blocked by opponents kept in Field goals. A category that states none keeps the derived list; a category the headline would hold whole (a player's Playing time) shows its sub-groups alone, and one with a single sub-group (a player's Results and strength, Fantasy) one section.
 - **Sub-group presets** under the tabs, as chips; the column groups in the table header name the sub-group (`columnGroups`), not the family.
 
 ### Column picker
@@ -203,20 +203,15 @@ By category, then sub-group: each metric described in full under its primary cat
 
 ### Player page
 
-Today's tabs: Overview, Scoring, Shooting, Shots, Play by play, Playmaking, Rebounding, Defense, Tracking, Play types, Matchups, Game log, Splits, On/off, Profile.
-
-- Overview stays. **Scoring, Shooting, Playmaking, Rebounding, Defense, Fouls, Hustle and movement, Play types, Impact, Playing time** become category tabs, each with its sub-groups as sections, every metric of the category reachable. **Offense** is a tab too, its sections the umbrella's sub-groups; long sections start folded.
-- **Shots** goes into Shooting: the shot chart heads its zone sections. **Play by play** and **Tracking** go (sources), their metrics spread by category. **Matchups** goes into Defense, its per-opponent table as the Matchups section.
-- Game log, Splits, On/off and Profile stay: they are views of a player, not categories. Old `drive.mjs` step files click tabs by place (the comment in `PLAYER_DASH_TABS`): T1702.4 rewrites the steps that do.
-- Predictive and Fantasy appear when they have a player metric.
+As built in T1702.4: the page's own row keeps Overview, Game log, Splits, On/off and Profile; under it, "Stats by category", the leaderboard's strip without its Overview, lists the categories the league has for players. A category's tab is the board's views as folding sections, Key stats and each sub-group, an umbrella's long heading as "Heading › sub-group"; each section is one query of at most 40 metrics, read when opened, so every metric of the category is on its tab with no search. Shots went into Shooting (the chart heads the tab), Play by play's assist network ends Playmaking, Matchups' pairs end Defense; Play by play and Tracking are gone as tabs, their metrics under their categories. An old tab id opens the category that holds its metrics; the step files that clicked the removed tabs were rewritten to the categories.
 
 ### Team page
 
-Today's tabs: Overview, Offense, Defense, Shots, Play by play, Players, Lineups, Splits, Schedule, On/off. Overview stays; Offense and Defense become the umbrella categories; **Scoring, Shooting, Playmaking, Rebounding, Fouls, Hustle and movement, Impact, Predictive, Results and strength** are added as category tabs, each with the team's side and the opponents'. Shots goes into Shooting (the chart heads the zones); Play by play goes. Players, Lineups, Splits, Schedule and On/off stay.
+As built: the page's own row keeps Overview, Players, Lineups, Splits, Schedule and On/off, and "Stats by category" lists the categories the league has for teams. A specific category has a Team and an Opponents side (`teamSide`, as the leaderboard); Offense and Defense hold their end. Shooting opens on the shot chart of the side shown, Playmaking ends on who assisted whom.
 
 ### Explore, Compare and Trends
 
-Their metric pickers (`lib/stats/chart.ts`, `compare.ts`, `trends.ts`, which group by family today) group by category: a category select, then the metric select listing every metric of that category for the kind on screen, sub-groups as option groups. Compare's default rows (`DEFAULT_FAMILIES`) become default categories, the same metrics.
+As built in T1702.4: their metric selects, and T1701's filter list, read `pickerGroups` once a metric (`primaryGroups`): one select whose option groups are "Category › Sub-group" in the registry's order, each metric under its primary placement, so a select does not repeat its options about twice (a select a category chose first was the other way, a second control beside each of Explore's four). Compare's rows group the same way, and "Add a category" appends a category's Key stats; its default rows stay the same metrics (`DEFAULT_FAMILIES`).
 
 ### Home
 
@@ -240,7 +235,7 @@ A saved view holds the board (`LeaderboardBoard`): its kind, tab, columns, sort 
 ## Decisions of the manager's review (2026-11-23)
 
 1. **Opponents' defensive acts in Offense** (hard case 4): approved. An opponents' metric's primary category is the team's end, Offense or Defense.
-2. **The list changed from the starting one**: approved. Overview is a preset; Tracking is a source (hard case 7); On court is a sub-group of Impact (hard case 2); Availability is in Playing time (hard case 10); Fouls is added (hard case 5); Results and strength, since players have a record too. With these changes: Movement leaves Playing time for **Hustle and movement** (id `hustle`); Results and strength's "Efficiency and pace" splits into **Ratings** and **Pace and possessions**; free-throw attempt rate is also **Fouls › Drawn** (hard case 20); All-around games stays in Impact. Fourteen categories, of which a screen shows at most 12 today.
+2. **The list changed from the starting one**: approved. Overview is a preset; Tracking is a source (hard case 7); On court is a sub-group of Impact (hard case 2); Availability is in Playing time (hard case 10); Fouls is added (hard case 5); Results and strength, since players have a record too. With these changes: Movement leaves Playing time for **Hustle and movement** (id `hustle`); Results and strength's "Efficiency and pace" splits into **Ratings** and **Pace and possessions**; free-throw attempt rate is also **Fouls › Drawn** (hard case 20); All-around production (then All-around games) stays in Impact. Fourteen categories, of which a screen shows at most 12 today.
 3. **Positions** stay as a control beside the category tabs on the players' board: approved.
 4. **The primary category** is the first listed, with the rule in 1: approved.
 5. **The appendix**, the reviewed list of every metric's placements, was removed by T1702.2: the code is the one source, `scripts/stat-categories.mjs` prints it and the Glossary shows it. The rules, hard cases and counts stay, the counts dated with their commit. It is in this file's history at the merge of T1702.1 (#126).
@@ -250,7 +245,7 @@ A saved view holds the board (`LeaderboardBoard`): its kind, tab, columns, sort 
 
 Generated from `CATALOGUE` at 3ac033b (1.3.0) with the placements as reviewed, the catalogue T1702.2 started from; `node scripts/stat-categories.mjs` prints them for any later commit. Each league is read through `catalogueInfo` (`src/main/stats/engine/registry.ts`) as the screens read it. A metric counts in a league where it is not unavailable there; the games columns (`gp`, `team_gp`) are left out of the screen counts, as `appliesTo` leaves them out of the boards. NCAA Men and NCAA Women have the same metrics.
 
-1613 metrics in the catalogue; 2 stored (`bpm_position`, `bpm_role`), placed nowhere since no screen shows them; 1611 placed; **0 unplaced**.
+1622 metrics in the catalogue; 2 stored (`bpm_position`, `bpm_role`), placed nowhere since no screen shows them; 1620 placed; **0 unplaced**.
 
 1313 metrics sit in more than one category; a metric sits in 1 to 3 categories, 1.90 on average.
 
@@ -262,8 +257,8 @@ Metrics shown in each category; a metric in several categories counts in each, s
 
 | Category             | NBA players | NBA teams | WNBA players | WNBA teams | NCAA Men players | NCAA Men teams | NCAA Women players | NCAA Women teams |
 | -------------------- | ----------: | --------: | -----------: | ---------: | ---------------: | -------------: | -----------------: | ---------------: |
-| Offense              |         562 |       281 |          299 |        277 |              239 |            238 |                239 |              238 |
-| Defense              |         188 |       265 |           50 |        258 |               38 |            237 |                 38 |              237 |
+| Offense              |         564 |       281 |          299 |        277 |              239 |            238 |                239 |              238 |
+| Defense              |         190 |       265 |           50 |        258 |               38 |            237 |                 38 |              237 |
 | Scoring              |          46 |        65 |           33 |         65 |               22 |             58 |                 22 |               58 |
 | Shooting             |         235 |       360 |          194 |        360 |              156 |            304 |                156 |              304 |
 | Playmaking           |          82 |        56 |           37 |         54 |               33 |             57 |                 33 |               57 |
@@ -271,8 +266,8 @@ Metrics shown in each category; a metric in several categories counts in each, s
 | Fouls                |          43 |        63 |           34 |         62 |               21 |             40 |                 21 |               40 |
 | Hustle and movement  |          25 |        15 |            – |          – |                – |              – |                  – |                – |
 | Play types           |         234 |         – |            – |          – |                – |              – |                  – |                – |
-| Impact               |          80 |        11 |           70 |         10 |               49 |              9 |                 49 |                9 |
-| Predictive           |           2 |        11 |            2 |          8 |                – |              – |                  – |                – |
+| Impact               |          86 |        11 |           70 |         10 |               49 |              9 |                 49 |                9 |
+| Predictive           |           6 |        11 |            2 |          8 |                – |              – |                  – |                – |
 | Results and strength |           3 |        88 |            3 |         84 |                3 |             56 |                  3 |               56 |
 | Playing time         |           8 |         – |            6 |          – |                5 |              – |                  5 |                – |
 | Fantasy              |           5 |         – |            5 |          – |                3 |              – |                  3 |                – |
@@ -282,110 +277,110 @@ Metrics shown in each category; a metric in several categories counts in each, s
 
 The most metrics any sub-group shows in one view: players, and teams as the team's own / its opponents' (one side each). NCAA Women equals NCAA Men. Over 40 in bold: only the umbrellas' headings, which open the specific sub-groups.
 
-| Category             | Sub-group                           |   NBA P |       NBA T |  WNBA P |      WNBA T | NCAA P |  NCAA T |
-| -------------------- | ----------------------------------- | ------: | ----------: | ------: | ----------: | -----: | ------: |
-| Offense              | Scoring                             |  **46** |  **43** / – |      33 |  **43** / – |     22 |  33 / – |
-| Offense              | Shooting                            | **226** | **171** / 1 | **185** | **171** / 1 |    147 | 141 / 4 |
-| Offense              | Playmaking                          |  **50** |       7 / – |      15 |       7 / – |     13 |   6 / – |
-| Offense              | Turnovers                           |      31 |      21 / 1 |      23 |      21 / 1 |     21 |  21 / 3 |
-| Offense              | Rebounding                          |      15 |       4 / 1 |       7 |       4 / 1 |      7 |   5 / 3 |
-| Offense              | Fouls drawn                         |      21 |      12 / 9 |      13 |      12 / 9 |     11 |  11 / 3 |
-| Offense              | Usage                               |       6 |           – |       6 |           – |      4 |       – |
-| Offense              | Hustle                              |       4 |       4 / – |       – |           – |      – |       – |
-| Offense              | Play types                          | **143** |           – |       – |           – |      – |       – |
-| Offense              | Impact                              |      20 |       2 / – |      17 |       2 / – |     14 |   2 / – |
-| Offense              | Ratings                             |       – |       5 / – |       – |       5 / – |      – |   6 / – |
-| Defense              | Steals and blocks                   |      13 |       2 / – |      13 |       2 / – |     16 |   7 / – |
-| Defense              | Defended shots                      |       6 |       3 / – |       – |           – |      – |       – |
-| Defense              | Matchups                            |      26 |           – |       – |           – |      – |       – |
-| Defense              | Rebounding                          |      15 |       4 / 2 |       7 |       4 / 2 |      7 |   5 / 3 |
-| Defense              | Fouls and violations                |      11 |      9 / 12 |      11 |      9 / 12 |      4 |  3 / 11 |
-| Defense              | Hustle                              |       4 |       4 / – |       – |           – |      – |       – |
-| Defense              | Play types                          |  **91** |           – |       – |           – |      – |       – |
-| Defense              | Impact                              |      22 |       1 / 2 |      19 |       1 / 2 |     11 |   1 / 2 |
-| Defense              | Scoring allowed                     |       – |      – / 28 |       – |      – / 28 |      – |  – / 31 |
-| Defense              | Shooting allowed                    |       – | – / **168** |       – | – / **168** |      – | – / 141 |
-| Defense              | Playmaking allowed                  |       – |       – / 4 |       – |       – / 4 |      – |   – / 6 |
-| Defense              | Turnovers forced                    |       – |      – / 21 |       – |      – / 21 |      – |  – / 21 |
-| Defense              | Ratings                             |       – |       4 / 1 |       – |       4 / 1 |      – |   4 / 2 |
-| Scoring              | Points                              |       1 |       1 / 1 |       1 |       1 / 1 |      1 |   1 / 1 |
-| Scoring              | Points by shot                      |      10 |      10 / 6 |      10 |      10 / 6 |      6 |   6 / 6 |
-| Scoring              | Points by situation                 |      20 |     13 / 10 |       7 |     13 / 10 |      4 | 10 / 10 |
-| Scoring              | Assisted and unassisted             |      13 |      14 / 8 |      13 |      14 / 8 |     10 | 11 / 11 |
-| Scoring              | Starters and bench                  |       – |       2 / – |       – |       2 / – |      – |   2 / – |
-| Scoring              | Share of team                       |       2 |           – |       2 |           – |      1 |       – |
-| Shooting             | Field goals                         |       6 |       5 / 6 |       6 |       5 / 6 |      7 |  7 / 10 |
-| Shooting             | Twos                                |       4 |       4 / 4 |       4 |       4 / 4 |      4 |   4 / 4 |
-| Shooting             | Threes                              |       4 |       4 / 4 |       4 |       4 / 4 |      5 |   5 / 5 |
-| Shooting             | Free throws                         |      15 |     16 / 16 |      15 |     16 / 16 |     15 | 15 / 15 |
-| Shooting             | Efficiency                          |      13 |     12 / 11 |      12 |     12 / 11 |     10 | 10 / 10 |
-| Shooting             | Shot selection                      |       6 |       6 / 4 |       6 |       6 / 4 |      4 |   4 / 4 |
-| Shooting             | Share of team                       |      13 |           – |      13 |           – |      6 |       – |
-| Shooting             | Restricted area and paint           |      18 |     18 / 18 |      18 |     18 / 18 |     19 | 19 / 20 |
-| Shooting             | Mid-range                           |       9 |       9 / 9 |       9 |       9 / 9 |     11 | 11 / 11 |
-| Shooting             | Corner threes                       |      27 |     27 / 27 |      27 |     27 / 27 |     24 | 24 / 24 |
-| Shooting             | Above the break and backcourt       |      18 |     18 / 18 |      18 |     18 / 18 |     16 | 16 / 16 |
-| Shooting             | Distances                           |      32 |     32 / 32 |      32 |     32 / 32 |     32 | 32 / 32 |
-| Shooting             | Shot types                          |      30 |     30 / 30 |      30 |     30 / 30 |      – |       – |
-| Shooting             | Catch-and-shoot and pull-up         |      16 |           – |       – |           – |      – |       – |
-| Shooting             | Drives and touches                  |      24 |           – |       – |           – |      – |       – |
-| Shooting             | Transition and putbacks             |       – |           – |       – |           – |      3 |   3 / 3 |
-| Playmaking           | Passing                             |      35 |       7 / 4 |      14 |       7 / 4 |     12 |   6 / 6 |
-| Playmaking           | Creation                            |       8 |       3 / 1 |       1 |       1 / 1 |      1 |   1 / 1 |
-| Playmaking           | Ball handling                       |       9 |           – |       – |           – |      – |       – |
-| Playmaking           | Turnovers                           |      30 |     20 / 21 |      22 |     20 / 21 |     20 | 20 / 23 |
-| Rebounding           | Offensive                           |      16 |       5 / 3 |       8 |       5 / 3 |      8 |   6 / 4 |
-| Rebounding           | Defensive                           |      15 |       4 / 1 |       7 |       4 / 1 |      7 |   5 / 3 |
-| Rebounding           | All rebounds                        |      15 |       4 / 1 |       7 |       4 / 1 |      5 |   3 / 1 |
-| Rebounding           | Box outs                            |       8 |       4 / – |       – |           – |      – |       – |
-| Fouls                | Committed                           |      13 |     11 / 11 |      13 |     11 / 11 |      9 |   8 / 8 |
-| Fouls                | Drawn                               |      22 |     13 / 12 |      13 |     12 / 12 |     11 | 11 / 11 |
-| Fouls                | Violations                          |       3 |       3 / 3 |       3 |       3 / 3 |      – |       – |
-| Fouls                | Flagrants, technicals and ejections |       5 |       5 / 5 |       5 |       5 / 5 |      1 |   1 / 1 |
-| Hustle and movement  | Contests                            |       3 |       3 / – |       – |           – |      – |       – |
-| Hustle and movement  | Loose balls and deflections         |       5 |       5 / – |       – |           – |      – |       – |
-| Hustle and movement  | Charges                             |       1 |       1 / – |       – |           – |      – |       – |
-| Hustle and movement  | Screens                             |       2 |       2 / – |       – |           – |      – |       – |
-| Hustle and movement  | Box outs                            |       8 |       4 / – |       – |           – |      – |       – |
-| Hustle and movement  | Movement                            |       6 |           – |       – |           – |      – |       – |
-| Play types           | Isolation                           |      13 |           – |       – |           – |      – |       – |
-| Play types           | Transition                          |      13 |           – |       – |           – |      – |       – |
-| Play types           | Pick-and-roll ball handler          |      13 |           – |       – |           – |      – |       – |
-| Play types           | Pick-and-roll roll man              |      13 |           – |       – |           – |      – |       – |
-| Play types           | Post-up                             |      13 |           – |       – |           – |      – |       – |
-| Play types           | Spot-up                             |      13 |           – |       – |           – |      – |       – |
-| Play types           | Handoff                             |      13 |           – |       – |           – |      – |       – |
-| Play types           | Cut                                 |      13 |           – |       – |           – |      – |       – |
-| Play types           | Off screen                          |      13 |           – |       – |           – |      – |       – |
-| Play types           | Putbacks                            |      13 |           – |       – |           – |      – |       – |
-| Play types           | Miscellaneous                       |      13 |           – |       – |           – |      – |       – |
-| Play types           | Isolation defense                   |      13 |           – |       – |           – |      – |       – |
-| Play types           | Pick-and-roll ball handler defense  |      13 |           – |       – |           – |      – |       – |
-| Play types           | Pick-and-roll roll man defense      |      13 |           – |       – |           – |      – |       – |
-| Play types           | Post-up defense                     |      13 |           – |       – |           – |      – |       – |
-| Play types           | Spot-up defense                     |      13 |           – |       – |           – |      – |       – |
-| Play types           | Handoff defense                     |      13 |           – |       – |           – |      – |       – |
-| Play types           | Off screen defense                  |      13 |           – |       – |           – |      – |       – |
-| Impact               | On court                            |      31 |           – |      31 |           – |     17 |       – |
-| Impact               | Plus-minus models                   |      10 |           – |       7 |           – |      6 |       – |
-| Impact               | Box-score models                    |      20 |       4 / – |      13 |       3 / – |      8 |   3 / – |
-| Impact               | Box-score composites                |       4 |       4 / 2 |       4 |       4 / 2 |      3 |   3 / 2 |
-| Impact               | Individual ratings                  |       7 |       1 / – |       7 |       1 / – |      7 |   1 / – |
-| Impact               | All-around games                    |       8 |           – |       8 |           – |      8 |       – |
-| Predictive           | Season forecast                     |       – |      11 / – |       – |       8 / – |      – |       – |
-| Predictive           | Player projections                  |       2 |           – |       2 |           – |      – |       – |
-| Results and strength | Record                              |       3 |      26 / – |       3 |      26 / – |      3 |   3 / – |
-| Results and strength | Margin                              |       – |       2 / – |       – |       2 / – |      – |   2 / – |
-| Results and strength | Ratings                             |       – |      10 / 1 |       – |      10 / 1 |      – |   5 / 2 |
-| Results and strength | Pace and possessions                |       – |       9 / 1 |       – |       8 / 1 |      – |   6 / 3 |
-| Results and strength | Adjusted ratings                    |       – |       6 / – |       – |       6 / – |      – |  13 / – |
-| Results and strength | Elo                                 |       – |       3 / – |       – |       3 / – |      – |   3 / – |
-| Results and strength | Pythagorean                         |       – |       4 / – |       – |       4 / – |      – |   4 / – |
-| Results and strength | Schedule                            |       – |       2 / – |       – |       2 / – |      – |   2 / – |
-| Results and strength | Game flow                           |       – |       8 / 5 |       – |       8 / 5 |      – |   8 / 5 |
-| Results and strength | Forecast                            |       – |      11 / – |       – |       8 / – |      – |       – |
-| Results and strength | Rankings and seeds                  |       – |           – |       – |           – |      – |       – |
-| Playing time         | Games and minutes                   |       3 |           – |       3 |           – |      3 |       – |
-| Playing time         | Possessions                         |       3 |           – |       3 |           – |      2 |       – |
-| Playing time         | Games missed                        |       2 |           – |       – |           – |      – |       – |
-| Fantasy              | Points                              |       5 |           – |       5 |           – |      3 |       – |
+| Category             | Sub-group                           |   NBA P |       NBA T |  WNBA P |      WNBA T |  NCAA P |      NCAA T |
+| -------------------- | ----------------------------------- | ------: | ----------: | ------: | ----------: | ------: | ----------: |
+| Offense              | Scoring                             |  **46** |  **43** / – |      33 |  **43** / – |      22 |      33 / – |
+| Offense              | Shooting                            | **226** | **171** / 1 | **185** | **171** / 1 | **147** | **141** / 4 |
+| Offense              | Playmaking                          |  **50** |       7 / – |      15 |       7 / – |      13 |       6 / – |
+| Offense              | Turnovers                           |      31 |      21 / 1 |      23 |      21 / 1 |      21 |      21 / 3 |
+| Offense              | Rebounding                          |      15 |       4 / 1 |       7 |       4 / 1 |       7 |       5 / 3 |
+| Offense              | Fouls drawn                         |      21 |      12 / 9 |      13 |      12 / 9 |      11 |      11 / 3 |
+| Offense              | Usage                               |       6 |           – |       6 |           – |       4 |           – |
+| Offense              | Hustle                              |       4 |       4 / – |       – |           – |       – |           – |
+| Offense              | Play types                          | **143** |           – |       – |           – |       – |           – |
+| Offense              | Impact                              |      22 |       2 / – |      17 |       2 / – |      14 |       2 / – |
+| Offense              | Ratings                             |       – |       5 / – |       – |       5 / – |       – |       6 / – |
+| Defense              | Steals and blocks                   |      13 |       2 / – |      13 |       2 / – |      16 |       7 / – |
+| Defense              | Defended shots                      |       6 |       3 / – |       – |           – |       – |           – |
+| Defense              | Matchups                            |      26 |           – |       – |           – |       – |           – |
+| Defense              | Rebounding                          |      15 |       4 / 2 |       7 |       4 / 2 |       7 |       5 / 3 |
+| Defense              | Fouls and violations                |      11 |      9 / 12 |      11 |      9 / 12 |       4 |      3 / 11 |
+| Defense              | Hustle                              |       4 |       4 / – |       – |           – |       – |           – |
+| Defense              | Play types                          |  **91** |           – |       – |           – |       – |           – |
+| Defense              | Impact                              |      24 |       1 / 2 |      19 |       1 / 2 |      11 |       1 / 2 |
+| Defense              | Scoring allowed                     |       – |      – / 28 |       – |      – / 28 |       – |      – / 31 |
+| Defense              | Shooting allowed                    |       – | – / **168** |       – | – / **168** |       – | – / **141** |
+| Defense              | Playmaking allowed                  |       – |       – / 4 |       – |       – / 4 |       – |       – / 6 |
+| Defense              | Turnovers forced                    |       – |      – / 21 |       – |      – / 21 |       – |      – / 21 |
+| Defense              | Ratings                             |       – |       4 / 1 |       – |       4 / 1 |       – |       4 / 2 |
+| Scoring              | Points                              |       1 |       1 / 1 |       1 |       1 / 1 |       1 |       1 / 1 |
+| Scoring              | Points by shot                      |      10 |      10 / 6 |      10 |      10 / 6 |       6 |       6 / 6 |
+| Scoring              | Points by situation                 |      20 |     13 / 10 |       7 |     13 / 10 |       4 |     10 / 10 |
+| Scoring              | Assisted and unassisted             |      13 |      14 / 8 |      13 |      14 / 8 |      10 |     11 / 11 |
+| Scoring              | Starters and bench                  |       – |       2 / – |       – |       2 / – |       – |       2 / – |
+| Scoring              | Share of team                       |       2 |           – |       2 |           – |       1 |           – |
+| Shooting             | Field goals                         |       6 |       5 / 6 |       6 |       5 / 6 |       7 |      7 / 10 |
+| Shooting             | Twos                                |       4 |       4 / 4 |       4 |       4 / 4 |       4 |       4 / 4 |
+| Shooting             | Threes                              |       4 |       4 / 4 |       4 |       4 / 4 |       5 |       5 / 5 |
+| Shooting             | Free throws                         |      15 |     16 / 16 |      15 |     16 / 16 |      15 |     15 / 15 |
+| Shooting             | Efficiency                          |      13 |     12 / 11 |      12 |     12 / 11 |      10 |     10 / 10 |
+| Shooting             | Shot selection                      |       6 |       6 / 4 |       6 |       6 / 4 |       4 |       4 / 4 |
+| Shooting             | Share of team                       |      13 |           – |      13 |           – |       6 |           – |
+| Shooting             | Restricted area and paint           |      18 |     18 / 18 |      18 |     18 / 18 |      19 |     19 / 20 |
+| Shooting             | Mid-range                           |       9 |       9 / 9 |       9 |       9 / 9 |      11 |     11 / 11 |
+| Shooting             | Corner threes                       |      27 |     27 / 27 |      27 |     27 / 27 |      24 |     24 / 24 |
+| Shooting             | Above the break and backcourt       |      18 |     18 / 18 |      18 |     18 / 18 |      16 |     16 / 16 |
+| Shooting             | Distances                           |      32 |     32 / 32 |      32 |     32 / 32 |      32 |     32 / 32 |
+| Shooting             | Shot types                          |      30 |     30 / 30 |      30 |     30 / 30 |       – |           – |
+| Shooting             | Catch-and-shoot and pull-up         |      16 |           – |       – |           – |       – |           – |
+| Shooting             | Drives and touches                  |      24 |           – |       – |           – |       – |           – |
+| Shooting             | Transition and putbacks             |       – |           – |       – |           – |       3 |       3 / 3 |
+| Playmaking           | Passing                             |      35 |       7 / 4 |      14 |       7 / 4 |      12 |       6 / 6 |
+| Playmaking           | Creation                            |       8 |       3 / 1 |       1 |       1 / 1 |       1 |       1 / 1 |
+| Playmaking           | Ball handling                       |       9 |           – |       – |           – |       – |           – |
+| Playmaking           | Turnovers                           |      30 |     20 / 21 |      22 |     20 / 21 |      20 |     20 / 23 |
+| Rebounding           | Offensive                           |      16 |       5 / 3 |       8 |       5 / 3 |       8 |       6 / 4 |
+| Rebounding           | Defensive                           |      15 |       4 / 1 |       7 |       4 / 1 |       7 |       5 / 3 |
+| Rebounding           | All rebounds                        |      15 |       4 / 1 |       7 |       4 / 1 |       5 |       3 / 1 |
+| Rebounding           | Box outs                            |       8 |       4 / – |       – |           – |       – |           – |
+| Fouls                | Committed                           |      13 |     11 / 11 |      13 |     11 / 11 |       9 |       8 / 8 |
+| Fouls                | Drawn                               |      22 |     13 / 12 |      13 |     12 / 12 |      11 |     11 / 11 |
+| Fouls                | Violations                          |       3 |       3 / 3 |       3 |       3 / 3 |       – |           – |
+| Fouls                | Flagrants, technicals and ejections |       5 |       5 / 5 |       5 |       5 / 5 |       1 |       1 / 1 |
+| Hustle and movement  | Contests                            |       3 |       3 / – |       – |           – |       – |           – |
+| Hustle and movement  | Loose balls and deflections         |       5 |       5 / – |       – |           – |       – |           – |
+| Hustle and movement  | Charges                             |       1 |       1 / – |       – |           – |       – |           – |
+| Hustle and movement  | Screens                             |       2 |       2 / – |       – |           – |       – |           – |
+| Hustle and movement  | Box outs                            |       8 |       4 / – |       – |           – |       – |           – |
+| Hustle and movement  | Movement                            |       6 |           – |       – |           – |       – |           – |
+| Play types           | Isolation                           |      13 |           – |       – |           – |       – |           – |
+| Play types           | Transition                          |      13 |           – |       – |           – |       – |           – |
+| Play types           | Pick-and-roll ball handler          |      13 |           – |       – |           – |       – |           – |
+| Play types           | Pick-and-roll roll man              |      13 |           – |       – |           – |       – |           – |
+| Play types           | Post-up                             |      13 |           – |       – |           – |       – |           – |
+| Play types           | Spot-up                             |      13 |           – |       – |           – |       – |           – |
+| Play types           | Handoff                             |      13 |           – |       – |           – |       – |           – |
+| Play types           | Cut                                 |      13 |           – |       – |           – |       – |           – |
+| Play types           | Off screen                          |      13 |           – |       – |           – |       – |           – |
+| Play types           | Putbacks                            |      13 |           – |       – |           – |       – |           – |
+| Play types           | Miscellaneous                       |      13 |           – |       – |           – |       – |           – |
+| Play types           | Isolation defense                   |      13 |           – |       – |           – |       – |           – |
+| Play types           | Pick-and-roll ball handler defense  |      13 |           – |       – |           – |       – |           – |
+| Play types           | Pick-and-roll roll man defense      |      13 |           – |       – |           – |       – |           – |
+| Play types           | Post-up defense                     |      13 |           – |       – |           – |       – |           – |
+| Play types           | Spot-up defense                     |      13 |           – |       – |           – |       – |           – |
+| Play types           | Handoff defense                     |      13 |           – |       – |           – |       – |           – |
+| Play types           | Off screen defense                  |      13 |           – |       – |           – |       – |           – |
+| Impact               | On court                            |      31 |           – |      31 |           – |      17 |           – |
+| Impact               | Plus-minus models                   |      13 |           – |       7 |           – |       6 |           – |
+| Impact               | Box-score models                    |      23 |       4 / – |      13 |       3 / – |       8 |       3 / – |
+| Impact               | Box-score composites                |       4 |       4 / 2 |       4 |       4 / 2 |       3 |       3 / 2 |
+| Impact               | Individual ratings                  |       7 |       1 / – |       7 |       1 / – |       7 |       1 / – |
+| Impact               | All-around production               |       8 |           – |       8 |           – |       8 |           – |
+| Predictive           | Season forecast                     |       – |      11 / – |       – |       8 / – |       – |           – |
+| Predictive           | Player projections                  |       6 |           – |       2 |           – |       – |           – |
+| Results and strength | Record                              |       3 |      26 / – |       3 |      26 / – |       3 |       3 / – |
+| Results and strength | Margin                              |       – |       2 / – |       – |       2 / – |       – |       2 / – |
+| Results and strength | Ratings                             |       – |      10 / 1 |       – |      10 / 1 |       – |       5 / 2 |
+| Results and strength | Pace and possessions                |       – |       9 / 1 |       – |       8 / 1 |       – |       6 / 3 |
+| Results and strength | Adjusted ratings                    |       – |       6 / – |       – |       6 / – |       – |      13 / – |
+| Results and strength | Elo                                 |       – |       3 / – |       – |       3 / – |       – |       3 / – |
+| Results and strength | Pythagorean                         |       – |       4 / – |       – |       4 / – |       – |       4 / – |
+| Results and strength | Schedule                            |       – |       2 / – |       – |       2 / – |       – |       2 / – |
+| Results and strength | Game flow                           |       – |       8 / 5 |       – |       8 / 5 |       – |       8 / 5 |
+| Results and strength | Forecast                            |       – |      11 / – |       – |       8 / – |       – |           – |
+| Results and strength | Rankings and seeds                  |       – |           – |       – |           – |       – |           – |
+| Playing time         | Games and minutes                   |       3 |           – |       3 |           – |       3 |           – |
+| Playing time         | Possessions                         |       3 |           – |       3 |           – |       2 |           – |
+| Playing time         | Games missed                        |       2 |           – |       – |           – |       – |           – |
+| Fantasy              | Points                              |       5 |           – |       5 |           – |       3 |           – |
