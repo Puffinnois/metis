@@ -25,7 +25,7 @@ export const DARKO_TABLE = 'src_darko'
 export const DARKO_IMPORTS = 'darko_imports'
 export const DARKO_STEP = 'stats:darko'
 /** As the Data panel names the private source. */
-export const DARKO_LABEL = 'DARKO, imported by hand (private to this copy)'
+export const DARKO_LABEL = 'DARKO, imported by hand'
 
 /** The columns a file's date is read from, in order. */
 const DATE_COLUMNS = ['date', 'as_of'] as const
@@ -72,12 +72,19 @@ const localDay = (ms: number): string => {
   return `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}`
 }
 
-/** The files the folder holds, by name: CSVs only, hidden files left alone. */
+const NAMED_DATE = /\d{4}-\d{2}-\d{2}/
+
+/**
+ * The files the folder holds: CSVs only, hidden files left alone. Those whose name carries a date come
+ * first, then by name, so where the same bytes lie under two names the dated name is the one kept and
+ * the other counted once (measured on the app: a copy dated by its modified time had won by its name).
+ */
 export function darkoFiles(folder: string): string[] {
   if (!existsSync(folder)) return []
+  const dated = (f: string): number => (NAMED_DATE.test(f) ? 0 : 1)
   return readdirSync(folder)
     .filter((f) => /\.csv$/i.test(f) && !f.startsWith('.'))
-    .sort()
+    .sort((a, b) => dated(a) - dated(b) || (a < b ? -1 : a > b ? 1 : 0))
 }
 
 /** What the imports table holds, by file name. */
@@ -249,7 +256,7 @@ export async function importDarko(
           last_date: fileDates.at(-1) ?? null,
           date_from: from,
           dates: fileDates.length,
-          reason: `Taken as ${clash} from ${words}, the date ${dates.get(clash)} already holds: put the board's own date in the file's name (darko-${clash}.csv) to tell them apart.`
+          reason: `Taken as ${clash} from ${words}, the date ${dates.get(clash)} already holds. Put the day the board is of in this file's name, as darko-YYYY-MM-DD.csv, to tell them apart.`
         })
       )
       continue

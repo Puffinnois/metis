@@ -129,6 +129,16 @@ describe('importing the boards', () => {
     const kept = await db.get<{ n: number }>(`SELECT count(*)::INTEGER AS n FROM ${DARKO_IMPORTS}`)
     expect(kept?.n).toBe(2)
   })
+
+  it('keeps the name that carries a date when the same bytes lie under two names', async () => {
+    // "board copy.csv" sorts first by name, and its modified time is today, not the board's day.
+    put('board-a.csv', 'board copy.csv')
+    put('board-a.csv', 'darko-2026-11-20.csv')
+    const out = await importDarko(db, folder, NOW)
+    const files = Object.fromEntries(out.files.map((f) => [f.file, f]))
+    expect(files['darko-2026-11-20.csv']).toMatchObject({ status: 'imported', date: '2026-11-20' })
+    expect(files['board copy.csv']).toMatchObject({ status: 'same' })
+  })
 })
 
 describe('DARKO’s metrics and history', () => {
