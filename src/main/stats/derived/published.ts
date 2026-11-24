@@ -43,8 +43,8 @@ export const NBA_PUBLISHED: PublishedRecipe = {
   // 13: a NaN as published reads NULL (T1301.7). 14: the availability table breaks a tie between
   // two teams on one report the same way on every build (T1301.8). 15: BOBAN, and the impact file's
   // box prior and REML RAPM (T1703.2). 16: the published fantasy points (T1703.2). 17: the
-  // standings' records by situation (T1703.2).
-  version: 17,
+  // standings' records by situation (T1703.2). 18: SportsDataverse's current impact (T1703.2).
+  version: 18,
   sources: {},
   team: (id) => id
 }

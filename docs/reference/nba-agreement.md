@@ -911,6 +911,40 @@ The Games screen's read of a crew (`readGame`), on every 15th game of 2004-05, 2
 | 2025-26 | 30    | 100.0        | 100.0        | 100.0         | 100.0             | 100.0         | 100.0           |
 | 2026-27 | 30    | 46.7         | 100.0        | 100.0         | 100.0             | 100.0         | 100.0           |
 
+## Records by situation
+
+The standings' close-game record (3 points or fewer) and record in games decided by 10 or more (`team_rec_close`, `team_rec_blowout`, T1703.2), against the margins of the regular-season games in Metis's game table. Percentages are of each season's teams. The standings publish these records from 2000-01. In 2005-06 the standings leave out of both teams' close-game records Milwaukee's 88-85 win at Philadelphia on 2005-12-07 (`0020500259`): the NBA's box score, ESPN's schedule and both play-by-plays give 88-85 in regulation, so the standings are the source in error. The season under way differs as files of different days do.
+
+| Season  | Teams | Close games % | 10 or more % |
+| ------- | ----- | ------------- | ------------ |
+| 2000-01 | 29    | 100.0         | 100.0        |
+| 2001-02 | 29    | 100.0         | 100.0        |
+| 2002-03 | 29    | 100.0         | 100.0        |
+| 2003-04 | 29    | 100.0         | 100.0        |
+| 2004-05 | 30    | 100.0         | 100.0        |
+| 2005-06 | 30    | 93.3          | 100.0        |
+| 2006-07 | 30    | 100.0         | 100.0        |
+| 2007-08 | 30    | 100.0         | 100.0        |
+| 2008-09 | 30    | 100.0         | 100.0        |
+| 2009-10 | 30    | 100.0         | 100.0        |
+| 2010-11 | 30    | 100.0         | 100.0        |
+| 2011-12 | 30    | 100.0         | 100.0        |
+| 2012-13 | 30    | 100.0         | 100.0        |
+| 2013-14 | 30    | 100.0         | 100.0        |
+| 2014-15 | 30    | 100.0         | 100.0        |
+| 2015-16 | 30    | 100.0         | 100.0        |
+| 2016-17 | 30    | 100.0         | 100.0        |
+| 2017-18 | 30    | 100.0         | 100.0        |
+| 2018-19 | 30    | 100.0         | 100.0        |
+| 2019-20 | 30    | 100.0         | 100.0        |
+| 2020-21 | 30    | 100.0         | 100.0        |
+| 2021-22 | 30    | 100.0         | 100.0        |
+| 2022-23 | 30    | 100.0         | 100.0        |
+| 2023-24 | 30    | 100.0         | 100.0        |
+| 2024-25 | 30    | 100.0         | 100.0        |
+| 2025-26 | 30    | 100.0         | 100.0        |
+| 2026-27 | 30    | 80.0          | 86.7         |
+
 ## Box scores against the final score
 
 What the Games screen shows, per team-game with a box score that counts. **Team box:** the team's points against the final score. **Lines:** its players' points summed against the final score, then rebounds and assists against the team's box. **Worst:** the most points a game's lines fall short or over. The screen says so when a game's lines do not add up to its score.

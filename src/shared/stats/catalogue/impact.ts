@@ -327,6 +327,123 @@ const PRIOR_METRICS: MetricDef[] = [
 ]
 
 /**
+ * SportsDataverse's current impact (`nba_current_impact`, T1703.2): each player's expected offence
+ * and defence per 100 possessions, as of opening night and every 7 days after, from earlier games only:
+ * a box prior with a Kalman-filtered deviation from it. Read one regular season at a time: the season's
+ * last weekly estimate (early April), and the opening-night one, made before the season's first game.
+ */
+const CURRENT_OWN =
+  'SportsDataverse’s own model, published weekly in the dataset’s current-impact file.'
+const ONE_STATE = 'It reads for one regular season at a time, from 2006-07.'
+const current = (
+  column: string,
+  rows: 'ci_rows' | 'ce_rows',
+  table: string,
+  o: Partial<Opts> = {}
+): Opts => ({
+  value: ratio(column, rows),
+  sample: rows,
+  // One estimate a player-season: the minimum is that it exists.
+  minSample: 1,
+  family: 'impact',
+  kind: 'model',
+  unit: 'rating',
+  decimals: 1,
+  sources: SOURCES,
+  firstSeason: 2007,
+  published: table,
+  oneSeason: true,
+  ...o
+})
+const LAST = 'pub_player_current_impact'
+const OPENING = 'pub_player_expected_impact'
+const LAST_WORDS =
+  'its last weekly estimate of the regular season, made in early April from every game before it'
+const OPENING_WORDS =
+  'its estimate on opening night, made before the season’s first game from earlier seasons alone'
+
+const CURRENT_METRICS: MetricDef[] = [
+  metric(
+    'sdv_current_impact',
+    sdv('Current impact'),
+    head('CurImp'),
+    `The points per 100 possessions SportsDataverse expects the player to add, offence and defence together: ${LAST_WORDS}. ${CURRENT_OWN} ${ONE_STATE}`,
+    {
+      ...current('ci_total', 'ci_rows', LAST),
+      categories: ['impact.pm_models', 'predictive.player_projections']
+    }
+  ),
+  metric(
+    'sdv_o_current_impact',
+    sdv('Offensive current impact'),
+    head('OCurImp'),
+    `The offensive part of current impact: ${LAST_WORDS}. ${CURRENT_OWN} ${ONE_STATE}`,
+    {
+      ...current('ci_off', 'ci_rows', LAST),
+      categories: ['impact.pm_models', 'offense.impact']
+    }
+  ),
+  metric(
+    'sdv_d_current_impact',
+    sdv('Defensive current impact'),
+    head('DCurImp'),
+    `The defensive part of current impact: ${LAST_WORDS}. ${CURRENT_OWN} ${ONE_STATE}`,
+    {
+      ...current('ci_def', 'ci_rows', LAST),
+      categories: ['impact.pm_models', 'defense.impact']
+    }
+  ),
+  metric(
+    'sdv_expected_impact',
+    sdv('Expected impact entering the season'),
+    head('ExpImp'),
+    `The points per 100 possessions SportsDataverse expected the player to add before the season began: ${OPENING_WORDS}. A published forecast, not a prediction from Metis. ${CURRENT_OWN} ${ONE_STATE}`,
+    { ...current('ce_total', 'ce_rows', OPENING), categories: ['predictive.player_projections'] }
+  ),
+  metric(
+    'sdv_o_expected_impact',
+    sdv('Offensive expected impact entering the season'),
+    head('OExpImp'),
+    `The offensive part of the expected impact entering the season: ${OPENING_WORDS}. ${CURRENT_OWN} ${ONE_STATE}`,
+    { ...current('ce_off', 'ce_rows', OPENING), categories: ['predictive.player_projections'] }
+  ),
+  metric(
+    'sdv_d_expected_impact',
+    sdv('Defensive expected impact entering the season'),
+    head('DExpImp'),
+    `The defensive part of the expected impact entering the season: ${OPENING_WORDS}. ${CURRENT_OWN} ${ONE_STATE}`,
+    { ...current('ce_def', 'ce_rows', OPENING), categories: ['predictive.player_projections'] }
+  ),
+  metric(
+    'sdv_current_prior',
+    sdv('Current-impact box prior'),
+    head('CurPrior'),
+    `The points per 100 possessions the box score predicts, which current impact starts from and moves away from as the games come in: ${LAST_WORDS}. ${CURRENT_OWN} ${ONE_STATE}`,
+    { ...current('ci_prior', 'ci_rows', LAST), categories: ['impact.box_models'] }
+  ),
+  metric(
+    'sdv_o_current_prior',
+    sdv('Offensive current-impact box prior'),
+    head('OCurPrior'),
+    `The offensive part of the current-impact box prior: ${LAST_WORDS}. ${CURRENT_OWN} ${ONE_STATE}`,
+    {
+      ...current('ci_o_prior', 'ci_rows', LAST),
+      categories: ['impact.box_models', 'offense.impact']
+    }
+  ),
+  metric(
+    'sdv_d_current_prior',
+    sdv('Defensive current-impact box prior'),
+    head('DCurPrior'),
+    `The defensive part of the current-impact box prior: ${LAST_WORDS}. ${CURRENT_OWN} ${ONE_STATE}`,
+    {
+      ...current('ci_d_prior', 'ci_rows', LAST),
+      categories: ['impact.box_models', 'defense.impact']
+    }
+  )
+]
+
+/**
  * The family's preset leads with these, so RAPM, BPM, SPM, WAR and BOBAN show before the adjusted
  * RAPM and the parts of SPM, which a label sort would put first. BOBAN's projection is not among them:
  * the preset's first column by label sorts the board, and a board of ratings should not rank by a
@@ -349,6 +466,7 @@ export const IMPACT: MetricDef[] = [
   ...BOX,
   ...BOBAN_METRICS,
   ...PRIOR_METRICS,
+  ...CURRENT_METRICS,
   ...DARKO_METRICS
 ].map((m) => (CORE.has(m.id) ? { ...m, tier: 'core' } : m))
 
@@ -359,5 +477,7 @@ export const IMPACT_SAMPLE_LABELS: Readonly<Record<string, string>> = {
   def_poss: 'defensive possessions',
   prior_poss: 'regular-season possessions on offense and defense',
   prior_off_poss: 'regular-season offensive possessions',
-  prior_def_poss: 'regular-season defensive possessions'
+  prior_def_poss: 'regular-season defensive possessions',
+  ci_rows: 'season-end estimate',
+  ce_rows: 'opening-night estimate'
 }

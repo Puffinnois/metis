@@ -54,7 +54,11 @@ const SAME_AS: Record<string, string> = {
 const NOT_IN_FILE: Record<string, string> = {
   pub_player_darko:
     "Not in the WNBA's impact file: it has no DARKO columns. Its BOBAN columns are SportsDataverse's own model of the same kind, not DARKO: see the BOBAN metrics.",
-  pub_player_impact_prior: "Not in the WNBA's impact file: it publishes no box prior or REML RAPM."
+  pub_player_impact_prior: "Not in the WNBA's impact file: it publishes no box prior or REML RAPM.",
+  pub_player_current_impact:
+    "Not published for the WNBA: SportsDataverse's current-impact file covers the NBA alone.",
+  pub_player_expected_impact:
+    "Not published for the WNBA: SportsDataverse's current-impact file covers the NBA alone."
 }
 
 /**
