@@ -117,7 +117,9 @@ export function statLine(
   byId: ReadonlyMap<string, MetricInfo>,
   mode: BoardMode,
   /** The position group a player is ranked in; null for a team. */
-  position: string | null
+  position: string | null,
+  /** The count the page's line gives, for a metric ranked among another pool (`cellTitle`). */
+  line?: number
 ): StatLine {
   const info = byId.get(metric)
   const v = row?.values[metric]
@@ -131,7 +133,7 @@ export function statLine(
         ? ordinal(v.rank)
         : null,
     missing: result.columns.find((c) => c.id === metric)?.reason ?? null,
-    title: v && info ? cellTitle(v, info, position) : '',
+    title: v && info ? cellTitle(v, info, position, line) : '',
     info
   }
 }
@@ -143,13 +145,14 @@ export function sectionViews(
   id: string,
   byId: ReadonlyMap<string, MetricInfo>,
   mode: BoardMode,
-  position: string | null
+  position: string | null,
+  line?: number
 ): SectionView[] {
   const row = result.rows.find((r) => r.id === id)
   return sections.map((s) => ({
     title: s.title,
     ...(s.note && sectionNote(s.note, byId) ? { note: sectionNote(s.note, byId) } : {}),
-    lines: s.metrics.map((m) => statLine(m, result, row, byId, mode, position))
+    lines: s.metrics.map((m) => statLine(m, result, row, byId, mode, position, line))
   }))
 }
 

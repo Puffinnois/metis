@@ -15,6 +15,7 @@ import type { ChartPoint, ChartSeries, SectionDef } from './dashboard'
 import { cellTitle, fmtClock, fmtStat, heatOf, ordinal, type Heat } from './format'
 import {
   bestFirst,
+  engineRanksFor,
   ownQualifiers,
   qualifies,
   rankWithinTab,
@@ -152,17 +153,39 @@ export function positionQuery(
     },
     transform: mode,
     sort: { metric: 'min', dir: 'desc' },
-    limit: ROW_LIMIT
+    limit: ROW_LIMIT,
+    ...engineRanks(position)
   }
 }
 
-/** The pool ranked among those who qualify. */
-export const rankedPool = (result: StatsResult, position: string | null): StatsResult =>
-  rankWithinTab(result, poolTab(position))
+/**
+ * A college season holds about 5,000 players against a fetch of 1,000, too few to rank among on the
+ * client: the engine ranks among every row the position's qualifier admits (`rankAmong`), as the
+ * boards do, and counts each pool (`poolSizes`) for the page's line. The NBA and WNBA ask as before.
+ */
+const engineRanks = (position: string | null): Partial<StatsQuery> => {
+  const tab = poolTab(position)
+  return engineRanksFor(tab) ? { rankAmong: tab.qualifier, poolSizes: true } : {}
+}
 
-/** How many rows a player is ranked against. */
-export const poolSize = (result: StatsResult, position: string | null): number =>
-  result.rows.filter((r) => qualifies(r, poolTab(position))).length
+/** The pool ranked among those who qualify: the engine's figures where it ranked them. */
+export const rankedPool = (result: StatsResult, position: string | null): StatsResult =>
+  engineRanksFor(poolTab(position)) ? result : rankWithinTab(result, poolTab(position))
+
+/**
+ * How many rows a player is ranked against: those of the position who qualify on the row qualifier.
+ * Where the engine ranked them, its count of that pool, since the fetch holds only some of them.
+ */
+export function poolSize(result: StatsResult, position: string | null): number {
+  const tab = poolTab(position)
+  if (engineRanksFor(tab)) {
+    const ranked = result.rows.find(
+      (r) => r.position === position && typeof r.values[tab.qualifier]?.pool === 'number'
+    )
+    return ranked?.values[tab.qualifier].pool ?? 0
+  }
+  return result.rows.filter((r) => qualifies(r, tab)).length
+}
 
 /** The player in scope: their position that season, team, games and whether they qualify. */
 export function selfQuery(player: string, scope: StatsScope): StatsQuery {
@@ -189,7 +212,9 @@ export function tileViews(
   id: string,
   byId: ReadonlyMap<string, MetricInfo>,
   mode: BoardMode,
-  position: string | null
+  position: string | null,
+  /** The count the page's line gives (`cellTitle`). */
+  line?: number
 ): TileView[] {
   const row = result.rows.find((r) => r.id === id)
   return TILES.map((metric) => {
@@ -202,7 +227,7 @@ export function tileViews(
       value: fmtStat(v?.value ?? null, info ?? { unit: 'number', decimals: 1 }, mode),
       chip: p === null ? null : ordinal(p),
       tone: p === null ? 'mid' : p >= 75 ? 'good' : p <= 25 ? 'bad' : 'mid',
-      title: v && info ? cellTitle(v, info, position) : ''
+      title: v && info ? cellTitle(v, info, position, line) : ''
     }
   })
 }
@@ -245,6 +270,7 @@ export function railQuery(
   mode: BoardMode,
   byId: ReadonlyMap<string, MetricInfo>
 ): StatsQuery {
+  const tab = poolTab(null)
   return {
     entity: 'player',
     metrics: metric === 'min' ? ['min'] : [metric, 'min'],
@@ -255,7 +281,9 @@ export function railQuery(
     },
     transform: mode,
     sort: { metric, dir: bestFirst(byId.get(metric)) },
-    limit: ROW_LIMIT
+    limit: ROW_LIMIT,
+    // The colleges: the shading reads the engine's percentiles among every qualified row (`rankAmong`).
+    ...(engineRanksFor(tab) ? { rankAmong: tab.qualifier } : {})
   }
 }
 
@@ -284,7 +312,8 @@ export function railRows(
   selected: string | null
 ): RailRow[] {
   const tab = poolTab(null)
-  const ranked = rankWithinTab(result, tab)
+  // The places count the qualified rows listed, best first; the shading is the engine's in the colleges.
+  const ranked = engineRanksFor(tab) ? result : rankWithinTab(result, tab)
   const info = byId.get(metric)
   const needle = searchKey(search.trim())
   // A metric with the NBA's minimum lists who qualifies for it, not who has the minutes (D33).

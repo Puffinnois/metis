@@ -82,15 +82,28 @@ export const amongWords = (position: string | null): string =>
 /** A cell's hover: percentile and rank within the position, the sample in words, whether it qualifies. */
 export function cellTitle(
   v: MetricValue,
-  info: Pick<MetricInfo, 'sampleLabel' | 'direction'>,
-  position: string | null
+  info: Pick<MetricInfo, 'sampleLabel' | 'direction'> &
+    Partial<Pick<MetricInfo, 'qualifyBy' | 'qualifyLabel'>>,
+  position: string | null,
+  /**
+   * The count a page's line gives ("among 1,838 qualified guards"). A metric ranked among another
+   * pool (`MetricValue.pool`), such as one with its own minimum, says so in its rank.
+   */
+  line?: number
 ): string {
   const among = position ? (POSITION_WORDS[position] ?? `${position}s`) : 'teams'
   const lines: string[] = []
   if (v.percentile !== null && info.direction !== 'neutral') {
     lines.push(`${ordinal(v.percentile)} percentile among qualified ${among}`)
   }
-  if (v.rank !== null) lines.push(`Rank ${v.rank}${position ? ` among ${among}` : ''}`)
+  const pool = v.pool ?? null
+  if (v.rank !== null && line !== undefined && pool !== null && pool !== line) {
+    const minimum =
+      info.qualifyBy && info.qualifyLabel ? `, on the ${info.qualifyLabel} minimum` : ''
+    lines.push(
+      `Rank ${v.rank} of ${fmtStat(pool, { unit: 'count', decimals: 0 })} ${among}${minimum}`
+    )
+  } else if (v.rank !== null) lines.push(`Rank ${v.rank}${position ? ` among ${among}` : ''}`)
   if (v.sample !== null) {
     lines.push(`${fmtStat(v.sample, { unit: 'count', decimals: 0 })} ${info.sampleLabel}`)
   }
