@@ -685,7 +685,14 @@ const IMPACT_COLUMNS = `
   darko_x_minutes dk_x_minutes dk_rows; darko_x_pace dk_x_pace dk_rows
   darko_x_pts_100 dk_x_pts_100 dk_rows; darko_x_ast_100 dk_x_ast_100 dk_rows
   darko_x_fg_pct dk_x_fg_pct dk_rows; darko_x_fg3_pct dk_x_fg3_pct dk_rows
-  darko_x_ft_pct dk_x_ft_pct dk_rows`
+  darko_x_ft_pct dk_x_ft_pct dk_rows
+  ${['fg50', 'fg200', 'fg3_50', 'fg3_200']
+    .flatMap((w) =>
+      ['cur', 'prev', 'start', 'career', 'dprev', 'dseason', 'dcareer'].map(
+        (v) => `rw_${w}_${v} rw_${w}_${v} rw_${w}_q`
+      )
+    )
+    .join(';')}`
   .split(/[;\n]/)
   .map((line) => line.trim().split(/\s+/))
   .filter((parts) => parts.length === 3)

@@ -500,6 +500,8 @@ Foul, free-throw, and and-one categories overlap. Do not sum their percentages a
 - **Regular season / postseason / play-in / preseason / All-Star / NBA Cup splits** — preserve game-type identity. Avoid treating all these as ordinary regular-season competition.
 - **Career / season / rolling-window / opponent-career totals** — aggregations with explicit date and team scope. For traded players, do not sum an all-team total row together with its team splits.
 
+  _Rolling windows in Metis (T1703.2):_ SportsDataverse's published windows (`nba_stats_rolling_windows`, the WNBA's alike), as of the season's last shot: a player's FG% and 3P% over the last 50 and last 200 attempts (`rw_fg50_cur` and the like), the window before (`_prev`), the season's first (`_start`), the career baseline (`_career`), and the three changes (`_dprev`, `_dseason`, `_dcareer`). Each value is stored times the file's `qualified` flag, so a window the player has not filled reads no value. One season at a time, NBA 1996-97 on and WNBA 1997 on. Every value equals its source on every filled window (`scripts/check-rolling.mjs`).
+
 ## 13. Team strength, standings, and game flow
 
 **Retrieve:** NBA Standings/Base/Live/PBP; BRef team tables; model publisher for ratings. [Standings schema](https://github.com/swar/nba_api/blob/master/docs/nba_api/stats/endpoints/leaguestandingsv3.md), [live game schema](https://github.com/swar/nba_api/blob/master/docs/nba_api/live/endpoints/boxscore.md), [BRef glossary](https://www.basketball-reference.com/about/glossary.html), [historical Elo data](https://github.com/fivethirtyeight/data/tree/master/nba-elo).

@@ -252,7 +252,7 @@ A saved view holds the board (`LeaderboardBoard`): its kind, tab, columns, sort 
 
 Generated from `CATALOGUE` at 3ac033b (1.3.0) with the placements as reviewed, the catalogue T1702.2 started from; `node scripts/stat-categories.mjs` prints them for any later commit. Each league is read through `catalogueInfo` (`src/main/stats/engine/registry.ts`) as the screens read it. A metric counts in a league where it is not unavailable there; the games columns (`gp`, `team_gp`) are left out of the screen counts, as `appliesTo` leaves them out of the boards. NCAA Men and NCAA Women have the same metrics.
 
-1648 metrics in the catalogue; 2 stored (`bpm_position`, `bpm_role`), placed nowhere since no screen shows them; 1646 placed; **0 unplaced**.
+1676 metrics in the catalogue; 2 stored (`bpm_position`, `bpm_role`), placed nowhere since no screen shows them; 1674 placed; **0 unplaced**.
 
 1313 metrics sit in more than one category; a metric sits in 1 to 3 categories, 1.90 on average.
 
@@ -264,10 +264,10 @@ Metrics shown in each category; a metric in several categories counts in each, s
 
 | Category             | NBA players | NBA teams | WNBA players | WNBA teams | NCAA Men players | NCAA Men teams | NCAA Women players | NCAA Women teams |
 | -------------------- | ----------: | --------: | -----------: | ---------: | ---------------: | -------------: | -----------------: | ---------------: |
-| Offense              |         568 |       281 |          299 |        277 |              239 |            238 |                239 |              238 |
+| Offense              |         596 |       281 |          327 |        277 |              239 |            238 |                239 |              238 |
 | Defense              |         194 |       265 |           50 |        258 |               38 |            237 |                 38 |              237 |
 | Scoring              |          46 |        65 |           33 |         65 |               22 |             58 |                 22 |               58 |
-| Shooting             |         235 |       360 |          194 |        360 |              156 |            304 |                156 |              304 |
+| Shooting             |         263 |       360 |          222 |        360 |              156 |            304 |                156 |              304 |
 | Playmaking           |          82 |        56 |           37 |         54 |               33 |             57 |                 33 |               57 |
 | Rebounding           |          54 |        22 |           22 |         18 |               20 |             22 |                 20 |               22 |
 | Fouls                |          43 |        63 |           34 |         62 |               21 |             40 |                 21 |               40 |
@@ -287,7 +287,7 @@ The most metrics any sub-group shows in one view: players, and teams as the team
 | Category             | Sub-group                           |   NBA P |       NBA T |  WNBA P |      WNBA T |  NCAA P |      NCAA T |
 | -------------------- | ----------------------------------- | ------: | ----------: | ------: | ----------: | ------: | ----------: |
 | Offense              | Scoring                             |  **46** |  **43** / – |      33 |  **43** / – |      22 |      33 / – |
-| Offense              | Shooting                            | **226** | **171** / 1 | **185** | **171** / 1 | **147** | **141** / 4 |
+| Offense              | Shooting                            | **254** | **171** / 1 | **213** | **171** / 1 | **147** | **141** / 4 |
 | Offense              | Playmaking                          |  **50** |       7 / – |      15 |       7 / – |      13 |       6 / – |
 | Offense              | Turnovers                           |      31 |      21 / 1 |      23 |      21 / 1 |      21 |      21 / 3 |
 | Offense              | Rebounding                          |      15 |       4 / 1 |       7 |       4 / 1 |       7 |       5 / 3 |
@@ -316,9 +316,9 @@ The most metrics any sub-group shows in one view: players, and teams as the team
 | Scoring              | Assisted and unassisted             |      13 |      14 / 8 |      13 |      14 / 8 |      10 |     11 / 11 |
 | Scoring              | Starters and bench                  |       – |       2 / – |       – |       2 / – |       – |       2 / – |
 | Scoring              | Share of team                       |       2 |           – |       2 |           – |       1 |           – |
-| Shooting             | Field goals                         |       6 |       5 / 6 |       6 |       5 / 6 |       7 |      7 / 10 |
+| Shooting             | Field goals                         |      20 |       5 / 6 |      20 |       5 / 6 |       7 |      7 / 10 |
 | Shooting             | Twos                                |       4 |       4 / 4 |       4 |       4 / 4 |       4 |       4 / 4 |
-| Shooting             | Threes                              |       4 |       4 / 4 |       4 |       4 / 4 |       5 |       5 / 5 |
+| Shooting             | Threes                              |      18 |       4 / 4 |      18 |       4 / 4 |       5 |       5 / 5 |
 | Shooting             | Free throws                         |      15 |     16 / 16 |      15 |     16 / 16 |      15 |     15 / 15 |
 | Shooting             | Efficiency                          |      13 |     12 / 11 |      12 |     12 / 11 |      10 |     10 / 10 |
 | Shooting             | Shot selection                      |       6 |       6 / 4 |       6 |       6 / 4 |       4 |       4 / 4 |
