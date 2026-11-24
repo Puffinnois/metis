@@ -1,10 +1,12 @@
 import { AssistNetwork } from '@/components/stats/AssistNetwork'
+import { CategoryTabs } from '@/components/stats/CategoryBar'
+import { CategorySections } from '@/components/stats/CategorySections'
 import { FavouriteName, FavouriteStar } from '@/components/stats/FavouriteStar'
 import { MetricHead } from '@/components/stats/MetricCard'
 import { ShotChart } from '@/components/stats/ShotChart'
 import { useScreenState } from '@/lib/stats/session'
 import { shotRequest } from '@/lib/stats/shotChart'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Segmented, StatsSelect } from '@/components/stats/controls'
 import { GameChart } from '@/components/stats/GameChart'
@@ -21,11 +23,19 @@ import {
   TABLE_SCROLL
 } from '@/components/stats/parts'
 import { ScopeBar } from '@/components/stats/ScopeBar'
-import { StatSection, StatSections } from '@/components/stats/StatLines'
+import { StatSection } from '@/components/stats/StatLines'
 import { LineupsTab } from './StatsLineups'
 import { TeamOnOff } from './StatsOnCourt'
 import { useNoteContext } from '@/lib/dev/noteContext'
-import { dashboardModes, sectionMetrics, sectionViews } from '@/lib/stats/dashboard'
+import { dashboardModes, sectionViews } from '@/lib/stats/dashboard'
+import {
+  categoryOfTab,
+  categoryTab,
+  pageSections,
+  type PageSection
+} from '@/lib/stats/categoryPage'
+import { boardCategories, hasSides } from '@/lib/stats/categoryViews'
+import { tabOf } from '@/lib/stats/leaderboard'
 import type { ExploreSubject } from '@/lib/stats/explore'
 import { fmtStat } from '@/lib/stats/format'
 import {
@@ -60,7 +70,7 @@ import {
   scorerRows,
   scorersQuery,
   TEAM_DASH_TABS,
-  TEAM_SECTIONS,
+  teamTabOf,
   teamGames,
   teamIn,
   teamPoolQuery,
@@ -88,7 +98,7 @@ import { StatusChip } from '@/components/stats/StatusChip'
 import { coachLines, tagsById } from '@/lib/stats/availability'
 import { useFavourites } from '@/lib/stats/favourites'
 import { cn } from '@/lib/utils'
-import type { BoardMode } from '@shared/stats/types'
+import type { BoardMode, StatsResult } from '@shared/stats/types'
 
 /** The dashboard is about one team: never another team's answers while its own load. */
 const FRESH = { keepLast: false }
@@ -113,7 +123,7 @@ export function StatsTeam({
   onScope,
   team,
   onTeam,
-  tab,
+  tab: asked,
   onTab,
   onOpenLeaderboard,
   onOpenPlayer,
@@ -126,7 +136,7 @@ export function StatsTeam({
   onScope: (scope: StatsScope) => void
   team: string
   onTeam: (team: string) => void
-  tab: TeamTab
+  tab: TeamTab | string
   onTab: (tab: TeamTab) => void
   onOpenLeaderboard: () => void
   onOpenPlayer: (id: string) => void
@@ -141,6 +151,17 @@ export function StatsTeam({
   const [mode, setMode] = useScreenState<BoardMode>('team', 'mode', 'perGame')
   const games = useMemo(() => (all ? teamGames(all, team) : null), [all, team])
   const { code, name, exists } = teamIn(data.seasons, scope.season, team)
+  // The categories the league has for teams (D52), in a strip under the page's own tabs; an old tab
+  // id (Offense, Shots, Play by play) reads as the category that holds those metrics.
+  const categories = useMemo(
+    () => boardCategories(data.catalogue, tabOf('team', 'offense')),
+    [data.catalogue]
+  )
+  const wanted = teamTabOf(asked)
+  const wantedCategory = categoryOfTab(wanted)
+  const tab: TeamTab =
+    wantedCategory && !categories.some((c) => c.id === wantedCategory) ? 'overview' : wanted
+  const category = categoryOfTab(tab)
   useNoteContext('team', { label: code, data: { team, code, tab } })
   const inScope = games ? gamesInScope(games, scope) : []
   const anyPlayed = inScope.some((g) => g.played)
@@ -191,6 +212,15 @@ export function StatsTeam({
           </button>
         </div>
       </TabRow>
+      <div className="-mt-3 border-b border-line">
+        <CategoryTabs
+          categories={categories}
+          value={category ?? ''}
+          withOverview={false}
+          label="Stats by category"
+          onChange={(id) => onTab(categoryTab(id))}
+        />
+      </div>
       {gamesError && <div className="text-[12.5px] text-bad">{gamesError}</div>}
       {games && !anyPlayed && (
         <div className="rounded-[8px] bg-panel-2 px-4 py-3 text-[13px] text-fg-2">
@@ -198,9 +228,7 @@ export function StatsTeam({
         </div>
       )}
       {(tab === 'overview' ||
-        tab === 'offense' ||
-        tab === 'defense' ||
-        tab === 'plays' ||
+        category !== null ||
         tab === 'players' ||
         tab === 'on_off' ||
         tab === 'lineups' ||
@@ -216,11 +244,7 @@ export function StatsTeam({
           </div>
         )}
       {tab === 'overview' && <Overview {...props} anyPlayed={anyPlayed} />}
-      {(tab === 'offense' || tab === 'defense') && anyPlayed && (
-        <LinesTab key={tab} {...props} tab={tab} />
-      )}
-      {tab === 'shots' && anyPlayed && <ShotsTab {...props} />}
-      {tab === 'plays' && anyPlayed && <PlaysTab {...props} />}
+      {category && anyPlayed && <CategoryTab key={category} {...props} category={category} />}
       {tab === 'players' && anyPlayed && <Players {...props} />}
       {tab === 'on_off' && anyPlayed && (
         <TeamOnOff data={data} scope={scope} team={team} onOpenPlayer={onOpenPlayer} />
@@ -571,74 +595,81 @@ function History({
   )
 }
 
-const SHOT_SIDES: { value: 'offense' | 'defense'; label: string }[] = [
-  { value: 'offense', label: 'Their shots' },
-  { value: 'defense', label: 'Shots against' }
-]
-
-/** The team's shot chart, or its opponents' against it, then the shot metrics ranked among teams. */
-function ShotsTab(props: TabProps): React.JSX.Element {
-  const { data, scope, team } = props
+/**
+ * A category's tab (D52): its sections ranked among the league's teams, each folding and reading its
+ * own metrics. A specific category shows the team's side or its opponents' (`teamSide`), as the
+ * leaderboard does; Offense and Defense hold their end. Shooting opens on the shot chart of that side,
+ * and Playmaking ends on who assisted whom, as the Shots and Play by play tabs did.
+ */
+function CategoryTab(props: TabProps & { category: string }): React.JSX.Element {
+  const { data, scope, team, mode, category, onOpenPlayer } = props
   const [side, setSide] = useState<'offense' | 'defense'>('offense')
-  const request = useMemo(() => shotRequest('team', team, scope, side), [team, scope, side])
+  const sided = hasSides(tabOf('team', side), category)
+  const tab = tabOf('team', sided ? side : 'offense')
+  const sections = useMemo(
+    () => pageSections(data.catalogue, tab, category),
+    [data.catalogue, tab, category]
+  )
+  const query = useCallback(
+    (metrics: string[]) => teamPoolQuery(metrics, scope, mode),
+    [scope, mode]
+  )
+  const view = useCallback(
+    (section: PageSection, result: StatsResult) =>
+      sectionViews([section], result, team, data.byId, mode, null),
+    [team, data.byId, mode]
+  )
+  const note = useCallback(
+    (result: StatsResult) => `Percentiles and ranks among the ${result.rows.length} teams.`,
+    []
+  )
+  const shots = useMemo(() => shotRequest('team', team, scope, side), [team, scope, side])
   return (
     <div className="flex flex-col gap-7">
-      <div className="self-start">
-        <Segmented label="Whose shots" value={side} options={SHOT_SIDES} onChange={setSide} />
-      </div>
-      <ShotChart
-        request={request}
-        version={data.version}
-        title={side === 'offense' ? 'Shot chart' : 'Shot chart against'}
-        against={side === 'defense'}
-      />
-      <LinesTab
-        key={side}
-        {...props}
-        tab={side === 'offense' ? 'shots_offense' : 'shots_defense'}
-      />
-    </div>
-  )
-}
-
-/** The play-derived counts ranked among the teams, then who assisted whom. */
-function PlaysTab(props: TabProps): React.JSX.Element {
-  const { data, scope, team, onOpenPlayer } = props
-  return (
-    <div className="flex flex-col gap-7">
-      <LinesTab {...props} tab="plays" />
-      <AssistNetwork
-        entity="team"
-        id={team}
-        scope={scope}
-        version={data.version}
-        onOpenPlayer={onOpenPlayer}
-      />
-    </div>
-  )
-}
-
-/** Offense or Defense: its sections, ranked among the teams. */
-function LinesTab({
-  data,
-  scope,
-  team,
-  mode,
-  tab
-}: TabProps & { tab: keyof typeof TEAM_SECTIONS }): React.JSX.Element {
-  const sections = TEAM_SECTIONS[tab]
-  const q = useMemo(
-    () => teamPoolQuery(sectionMetrics(sections), scope, mode),
-    [sections, scope, mode]
-  )
-  const { result, error } = useStatsQuery(q, data.version, FRESH)
-  if (!result) return <Loading error={error} />
-  return (
-    <div className="flex flex-col gap-5">
-      <StatSections sections={sectionViews(sections, result, team, data.byId, mode, null)} />
-      <Notes
-        notes={[`Percentiles and ranks among the ${result.rows.length} teams.`, ...result.notes]}
-      />
+      {sided && (
+        <div className="self-start">
+          <Segmented
+            label="Team or opponents"
+            value={side}
+            options={[
+              { value: 'offense', label: 'Team' },
+              { value: 'defense', label: 'Opponents' }
+            ]}
+            onChange={setSide}
+          />
+        </div>
+      )}
+      {category === 'shooting' && (
+        <ShotChart
+          request={shots}
+          version={data.version}
+          title={side === 'offense' ? 'Shot chart' : 'Shot chart against'}
+          against={side === 'defense'}
+        />
+      )}
+      {sections.length === 0 ? (
+        <p className="m-0 text-[12.5px] text-fg-3">
+          No {side === 'defense' ? "opponents'" : "team's own"} metrics in this category.
+        </p>
+      ) : (
+        <CategorySections
+          key={`${category}:${tab.id}`}
+          sections={sections}
+          query={query}
+          view={view}
+          note={note}
+          version={data.version}
+        />
+      )}
+      {category === 'playmaking' && (
+        <AssistNetwork
+          entity="team"
+          id={team}
+          scope={scope}
+          version={data.version}
+          onOpenPlayer={onOpenPlayer}
+        />
+      )}
     </div>
   )
 }

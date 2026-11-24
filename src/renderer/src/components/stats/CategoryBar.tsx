@@ -8,16 +8,21 @@ import type { CategoryView } from '@/lib/stats/categoryViews'
 export function CategoryTabs({
   categories,
   value,
-  onChange
+  onChange,
+  withOverview = true,
+  label = 'Categories'
 }: {
   categories: { id: string; label: string }[]
   /** The category on screen; empty for Overview. */
   value: string
   onChange: (id: string) => void
+  /** A page keeps its Overview in its own tab row above. */
+  withOverview?: boolean
+  label?: string
 }): React.JSX.Element {
-  const tabs = [{ id: '', label: 'Overview' }, ...categories]
+  const tabs = withOverview ? [{ id: '', label: 'Overview' }, ...categories] : categories
   return (
-    <div role="tablist" aria-label="Categories" className="flex flex-wrap gap-x-[14px]">
+    <div role="tablist" aria-label={label} className="flex flex-wrap gap-x-[14px]">
       {tabs.map((t) => (
         <button
           key={t.id || 'overview'}

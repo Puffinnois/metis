@@ -12,6 +12,7 @@ import type {
   StatsRow,
   StatsSeason
 } from '@shared/stats/types'
+import { OLD_PLAYER_TABS, type CategoryTab } from './categoryPage'
 import type { ChartPoint, ChartSeries, SectionDef } from './dashboard'
 import { cellTitle, fmtClock, fmtStat, heatOf, ordinal, type Heat } from './format'
 import {
@@ -28,8 +29,29 @@ import { queryScope, shortDay, type StatsScope } from './scope'
 
 /** The player dashboard: a rail to pick from, a header, and one set of tabs for every position. */
 
-export type PlayerTab =
-  | 'overview'
+/**
+ * A tab of the player page: Overview, a category (`cat:shooting`, D52), or one of the views of the
+ * player that are no category: the game log, splits, on/off and profile.
+ */
+export type PlayerTab = 'overview' | 'on_off' | 'log' | 'splits' | 'profile' | CategoryTab
+
+/** The page's own tabs; the categories the league has follow in a strip of their own. */
+export const PLAYER_DASH_TABS: { id: PlayerTab; label: string }[] = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'log', label: 'Game log' },
+  { id: 'splits', label: 'Splits' },
+  { id: 'on_off', label: 'On/off' },
+  { id: 'profile', label: 'Profile' }
+]
+
+/** A tab as asked for: a category's, or one of the page's own; an old tab id reads as its category. */
+export function playerTabOf(asked: string): PlayerTab {
+  if (asked.startsWith('cat:')) return asked as CategoryTab
+  return OLD_PLAYER_TABS[asked] ?? (asked as PlayerTab)
+}
+
+/** The tabs before categories whose sections stay defined: the On/off tab's are still shown. */
+type SectionTab =
   | 'scoring'
   | 'shooting'
   | 'shots'
@@ -41,33 +63,8 @@ export type PlayerTab =
   | 'play_types'
   | 'matchups'
   | 'on_off'
-  | 'log'
-  | 'splits'
-  | 'profile'
 
-export const PLAYER_DASH_TABS: { id: PlayerTab; label: string }[] = [
-  { id: 'overview', label: 'Overview' },
-  { id: 'scoring', label: 'Scoring' },
-  { id: 'shooting', label: 'Shooting' },
-  { id: 'shots', label: 'Shots' },
-  { id: 'plays', label: 'Play by play' },
-  { id: 'playmaking', label: 'Playmaking' },
-  { id: 'rebounding', label: 'Rebounding' },
-  { id: 'defense', label: 'Defense' },
-  { id: 'tracking', label: 'Tracking' },
-  { id: 'play_types', label: 'Play types' },
-  { id: 'matchups', label: 'Matchups' },
-  { id: 'log', label: 'Game log' },
-  { id: 'splits', label: 'Splits' },
-  // After the tabs older step files click by place, before the profile, which stays last.
-  { id: 'on_off', label: 'On/off' },
-  { id: 'profile', label: 'Profile' }
-]
-
-export const TAB_SECTIONS: Record<
-  Exclude<PlayerTab, 'overview' | 'log' | 'splits' | 'profile'>,
-  SectionDef[]
-> = {
+export const TAB_SECTIONS: Record<SectionTab, SectionDef[]> = {
   // Plan T905: counted from the NBA's play by play, 1996-97 on.
   plays: [
     {

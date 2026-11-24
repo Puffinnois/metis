@@ -11,28 +11,26 @@ import type {
 import type { ChartSeries, SectionDef } from './dashboard'
 import { fmtStat } from './format'
 import { typeTag } from './player'
+import { OLD_TEAM_TABS, type CategoryTab } from './categoryPage'
 import { queryScope, scopeLabel, shortDay, type StatsScope } from './scope'
 
 /** The team dashboard: a header with the record and the standing, and tabs. */
 
+/**
+ * A tab of the team page: Overview, a category (`cat:shooting`, D52), or one of the views of the team
+ * that are no category: its players, lineups, splits, schedule and on/off.
+ */
 export type TeamTab =
-  | 'overview'
-  | 'offense'
-  | 'defense'
-  | 'shots'
-  | 'plays'
-  | 'players'
-  | 'lineups'
-  | 'splits'
-  | 'schedule'
-  | 'on_off'
+  'overview' | 'players' | 'lineups' | 'splits' | 'schedule' | 'on_off' | CategoryTab
+
+/** A tab as asked for: a category's, or one of the page's own; an old tab id reads as its category. */
+export function teamTabOf(asked: string): TeamTab {
+  if (asked.startsWith('cat:')) return asked as CategoryTab
+  return OLD_TEAM_TABS[asked] ?? (asked as TeamTab)
+}
 
 export const TEAM_DASH_TABS: { id: TeamTab; label: string }[] = [
   { id: 'overview', label: 'Overview' },
-  { id: 'offense', label: 'Offense' },
-  { id: 'defense', label: 'Defense' },
-  { id: 'shots', label: 'Shots' },
-  { id: 'plays', label: 'Play by play' },
   { id: 'players', label: 'Players' },
   { id: 'lineups', label: 'Lineups' },
   { id: 'splits', label: 'Splits' },

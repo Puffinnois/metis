@@ -1,11 +1,13 @@
 import { AssistNetwork } from '@/components/stats/AssistNetwork'
+import { CategoryTabs } from '@/components/stats/CategoryBar'
+import { CategorySections } from '@/components/stats/CategorySections'
 import { CareerStrip } from '@/components/stats/CareerStrip'
 import { FavouriteName, FavouriteStar } from '@/components/stats/FavouriteStar'
 import { MetricHead } from '@/components/stats/MetricCard'
 import { ShotChart } from '@/components/stats/ShotChart'
 import { useScreenState } from '@/lib/stats/session'
 import { shotRequest } from '@/lib/stats/shotChart'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Segmented } from '@/components/stats/controls'
 import { GameChart } from '@/components/stats/GameChart'
 import {
@@ -34,6 +36,13 @@ import {
   shownTab,
   shownTabs
 } from '@/lib/stats/dashboard'
+import {
+  categoryOfTab,
+  categoryTab,
+  pageSections,
+  type PageSection
+} from '@/lib/stats/categoryPage'
+import { boardCategories } from '@/lib/stats/categoryViews'
 import type { ExploreSubject } from '@/lib/stats/explore'
 import { amongWords, fmtStat } from '@/lib/stats/format'
 import { qualifies, tabOf } from '@/lib/stats/leaderboard'
@@ -52,6 +61,7 @@ import {
   OVERVIEW_SECTION,
   PLAYER_DASH_TABS,
   playerFacts,
+  playerTabOf,
   poolSize,
   positionQuery,
   railQuery,
@@ -117,6 +127,7 @@ import type {
   StatsMatchupPair,
   StatsOtherCareer,
   StatsPlayerInfo,
+  StatsResult,
   StatsRow
 } from '@shared/stats/types'
 import { leagueOf, pairedLeague, type LeagueId } from '@shared/leagues'
@@ -187,7 +198,20 @@ export function StatsPlayer({
   const [mode, setMode] = useScreenState<BoardMode>('player', 'mode', 'perGame')
   // A tab whose every metric the league lacks is not offered; one asked for elsewhere opens the first.
   const tabs = shownTabs(PLAYER_DASH_TABS, TAB_SECTIONS, data.byId)
-  const tab = shownTab(asked, tabs)
+  // The categories the league has for players (D52), in a strip under the page's own tabs; a category
+  // it lacks, or an old tab id (Shots, Tracking), reads as the category that holds those metrics.
+  const categories = useMemo(
+    () => boardCategories(data.catalogue, tabOf('player', 'ALL')),
+    [data.catalogue]
+  )
+  const wanted = playerTabOf(asked)
+  const wantedCategory = categoryOfTab(wanted)
+  const tab: PlayerTab = wantedCategory
+    ? categories.some((c) => c.id === wantedCategory)
+      ? wanted
+      : 'overview'
+    : shownTab(wanted, tabs)
+  const category = categoryOfTab(tab)
   const [railPosition, setRailPosition] = useState<RailPosition>('ALL')
   const [railTeam, setRailTeam] = useState<string | null>(null)
   const [metric, setMetric] = useState('pts')
@@ -347,6 +371,15 @@ export function StatsPlayer({
                 </button>
               </div>
             </TabRow>
+            <div className="-mt-3 border-b border-line">
+              <CategoryTabs
+                categories={categories}
+                value={category ?? ''}
+                withOverview={false}
+                label="Stats by category"
+                onChange={(id) => onTab(categoryTab(id))}
+              />
+            </div>
             {row === null && tab !== 'profile' && (
               <div className="rounded-[8px] bg-panel-2 px-4 py-3 text-[13px] text-fg-2">
                 {info.name} played no games in {scopeLabel(scope)}.
@@ -398,11 +431,63 @@ function TabBody({
   if (!played) return null
   if (tab === 'log') return <GameLog {...props} />
   if (tab === 'splits') return <Splits {...props} />
-  if (tab === 'matchups') return <Matchups {...props} />
-  if (tab === 'shots') return <Shots {...props} />
-  if (tab === 'plays') return <Plays {...props} />
   if (tab === 'on_off') return <OnOff {...props} />
-  return <LinesTab {...props} tab={tab} />
+  const category = categoryOfTab(tab)
+  return category ? <CategoryTab {...props} category={category} /> : null
+}
+
+/**
+ * A category's tab (D52): its sections ranked among the qualified players of the position, each
+ * folding and reading its own metrics. Shooting opens on the shot chart, Playmaking ends on who the
+ * player feeds and who feeds them, Defense on the matchup pairs, as the Shots, Play by play and
+ * Matchups tabs did.
+ */
+function CategoryTab(props: TabProps & { category: string }): React.JSX.Element {
+  const { data, scope, player, position, mode, category, onOpenPlayer } = props
+  const sections = useMemo(
+    () => pageSections(data.catalogue, tabOf('player', 'ALL'), category),
+    [data.catalogue, category]
+  )
+  const query = useCallback(
+    (metrics: string[]) => positionQuery(metrics, position, scope, mode),
+    [position, scope, mode]
+  )
+  const view = useCallback(
+    (section: PageSection, result: StatsResult) =>
+      sectionViews([section], rankedPool(result, position), player, data.byId, mode, position),
+    [position, player, data.byId, mode]
+  )
+  const note = useCallback(
+    (result: StatsResult) =>
+      `Percentiles and ranks among ${poolSize(rankedPool(result, position), position)} qualified ${amongWords(position)}.`,
+    [position]
+  )
+  const shots = useMemo(() => shotRequest('player', player, scope), [player, scope])
+  return (
+    <div className="flex flex-col gap-7">
+      {category === 'shooting' && <ShotChart request={shots} version={data.version} />}
+      <CategorySections
+        key={category}
+        sections={sections}
+        query={query}
+        view={view}
+        note={note}
+        version={data.version}
+      />
+      {category === 'playmaking' && (
+        <AssistNetwork
+          entity="player"
+          id={player}
+          scope={scope}
+          version={data.version}
+          onOpenPlayer={onOpenPlayer}
+        />
+      )}
+      {category === 'defense' && !currentLeague().unpublished.matchups && (
+        <MatchupPairs {...props} />
+      )}
+    </div>
+  )
 }
 
 /** Bio, draft and combine, side by side, then the combine's sections with their percentiles. */
@@ -519,37 +604,8 @@ function OnOff(props: TabProps): React.JSX.Element {
   )
 }
 
-/** The shot chart for the scope, then the shot metrics, ranked among the player's position. */
-function Shots(props: TabProps): React.JSX.Element {
-  const { data, scope, player } = props
-  const request = useMemo(() => shotRequest('player', player, scope), [player, scope])
-  return (
-    <div className="flex flex-col gap-7">
-      <ShotChart request={request} version={data.version} />
-      <LinesTab {...props} tab="shots" />
-    </div>
-  )
-}
-
-/** The play-derived counts, then who the player feeds and who feeds them. */
-function Plays(props: TabProps): React.JSX.Element {
-  const { data, scope, player, onOpenPlayer } = props
-  return (
-    <div className="flex flex-col gap-7">
-      <LinesTab {...props} tab="plays" />
-      <AssistNetwork
-        entity="player"
-        id={player}
-        scope={scope}
-        version={data.version}
-        onOpenPlayer={onOpenPlayer}
-      />
-    </div>
-  )
-}
-
-/** The defender's totals, then the pairs behind them: who they guarded, and who guarded them. */
-function Matchups(props: TabProps): React.JSX.Element {
+/** The pairs behind the matchup totals: who they guarded, and who guarded them. */
+function MatchupPairs(props: TabProps): React.JSX.Element {
   const { data, scope, player, onOpenPlayer } = props
   // A league that publishes no matchups says so here, as each metric of the tab does.
   const gap = currentLeague().unpublished.matchups ?? pairGap(scope)
@@ -561,7 +617,6 @@ function Matchups(props: TabProps): React.JSX.Element {
   )
   return (
     <div className="flex flex-col gap-7">
-      <LinesTab {...props} tab="matchups" />
       {gap ? (
         <section className="flex flex-col gap-2.5">
           <SectionHead title="Pairs" />
