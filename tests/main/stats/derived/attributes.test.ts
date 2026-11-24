@@ -172,7 +172,8 @@ describe('the attribute tables of a professional league', () => {
     const b = await db.get<Row>(
       'SELECT * FROM team_attributes WHERE team_id = 20 AND season = 2026'
     )
-    expect(b).toMatchObject({ arena: null, head_coach: null, city: null })
+    // An interim head coach is the season's head coach.
+    expect(b).toMatchObject({ arena: null, head_coach: 'Stand In', city: null })
   })
 
   it('is what the player page’s header and profile read, not the roster again', async () => {
@@ -293,6 +294,25 @@ describe('the registry', () => {
     expect(ageReferenceDay('nba', 2026)).toBe('2026-01-31')
     expect(ageReferenceDay('ncaaw', 2026)).toBe('2026-01-31')
     expect(ageReferenceDay('wnba', 2020)).toBe('2020-07-01')
+  })
+
+  it('tells apart the attributes it holds from two sources or times, by label and byline', () => {
+    const of = (id: string): (typeof ATTRIBUTES)[number] | undefined =>
+      ATTRIBUTES.find((a) => a.id === id)
+    const pairs = [
+      ['country', 'birthCountry'],
+      ['height', 'seasonHeight'],
+      ['height', 'heightNoShoes'],
+      ['weight', 'seasonWeight'],
+      ['weight', 'combineWeight'],
+      ['city', 'arenaCity']
+    ]
+    for (const [a, b] of pairs) {
+      expect(of(a)?.label, a).not.toBe(of(b)?.label)
+      expect(of(a)?.byline, a).toBeTruthy()
+      expect(of(b)?.byline, b).toBeTruthy()
+      expect(of(a)?.byline).not.toBe(of(b)?.byline)
+    }
   })
 
   it('has unique ids, a description and a coverage in every league', () => {

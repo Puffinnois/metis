@@ -119,7 +119,7 @@ Appendix A lists every source table with its counts and every candidate column, 
 | `position`, `height_wo_shoes`, `wingspan`, `standing_reach`, `hand_length`, `hand_width`, `body_fat_pct` and the drills              | `src_nba_combine_stats`                            | NBA                              | 2000 to 2026 combines                |
 | `is_assistant`                                                                                                                       | `src_nba_coaches`, `src_wnba_coaches`              | NBA, WNBA                        | Every season (for a staff attribute) |
 
-`src_nba_combine_stats` looks like the other four combine tables in one row, with the shots as text. Whether it repeats them is not proven. T1701 or T1703.2 checks this before reading it: a combine figure has to come from one table only.
+`src_nba_combine_stats` repeats the other four combine tables, checked by T1701.3 on the clean load: the same 1,873 attendees, every measurement and drill equal, the shots ("4-5") equal to the spot-up table's made and attempted. It is not read. Each column of this table is answered in `stats-database.md`, "The audit's personal columns".
 
 ### 1.4 Tables loaded and read by nothing
 

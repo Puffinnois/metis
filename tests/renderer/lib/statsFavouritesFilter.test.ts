@@ -236,6 +236,27 @@ describe('the chart filtered to favourites', () => {
     expect(all.favourites).toBeNull()
   })
 
+  it('shows only the dots that pass the conditions (D51), the field kept, with the favourites too', () => {
+    const all = chartView(chartResult, state, BY_ID)
+    const passing = chartView(chartResult, state, BY_ID, [], new Set(), new Set(['2', '3', '4']))
+    if (all.kind !== 'ready' || passing.kind !== 'ready') throw new Error('not ready')
+    expect(passing.dots.map((d) => d.id)).toEqual(['2', '3', '4'])
+    expect(passing.domain).toEqual(all.domain)
+    expect(passing.mean).toEqual(all.mean)
+    expect(passing.filtered).toEqual({ shown: 3, of: 12 })
+    expect(all.filtered).toBeNull()
+    const both = chartView(
+      chartResult,
+      { ...state, favourites: true },
+      BY_ID,
+      [],
+      new Set(['3', '9']),
+      new Set(['2', '3', '4'])
+    )
+    if (both.kind !== 'ready') throw new Error('not ready')
+    expect(both.dots.map((d) => d.id)).toEqual(['3'])
+  })
+
   it('shows none, and says how many it could, with no favourite in the field', () => {
     const none = chartView(chartResult, { ...state, favourites: true }, BY_ID, [], new Set())
     if (none.kind !== 'ready') throw new Error('not ready')
