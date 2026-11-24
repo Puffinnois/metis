@@ -71,6 +71,12 @@ const LAST = 2026
 
 const PCT_TOLERANCE = 0.0005 + 1e-9
 
+/**
+ * A team's id in the files: the WNBA's 2026 Portland Fire is `-1611661327` in `team` and
+ * 1611661327 in every file (T1301.5), so the read's id is turned back.
+ */
+const fileTeam = (id) => String(Math.abs(Number(id)))
+
 /** A BIGINT may arrive as text. */
 
 const num = (x) => (x === null || x === undefined ? null : Number(x))
@@ -178,7 +184,7 @@ for (const t of teams) {
     const seen = new Set()
 
     for (const u of result.units) {
-      const key = `${t.season}|${t.game_type}|${t.team_id}|${u.players
+      const key = `${t.season}|${t.game_type}|${fileTeam(t.team_id)}|${u.players
         .map((p) => p.id)
         .sort((a, b) => a - b)
         .join('-')}`
@@ -247,7 +253,7 @@ for (const t of teams) {
     }
 
     for (const key of raw[g.id].keys()) {
-      if (!key.startsWith(`${t.season}|${t.game_type}|${t.team_id}|`)) continue
+      if (!key.startsWith(`${t.season}|${t.game_type}|${fileTeam(t.team_id)}|`)) continue
 
       c.rows++
 
