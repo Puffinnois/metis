@@ -115,7 +115,10 @@ describe('the recipes', () => {
     expect(NBA_PLAYS.side('s.team_id', 'h', 'a')).toBe('s.team_id')
     expect(NBA_PLAYS.unlocated).toBeNull()
     expect(publishedRecipe(LEAGUES.nba).team('t', 's')).toBe('t')
-    expect(publishedRecipe(wnba).sources).toEqual({ src_nba_impact: 'src_wnba_impact' })
+    expect(publishedRecipe(wnba).sources).toEqual({
+      src_nba_impact: 'src_wnba_impact',
+      src_nba_rolling_windows: 'src_wnba_rolling_windows'
+    })
     expect(IDENTITY_LATE.wnba).toEqual(['src_wnba_pbp'])
     expect(IDENTITY_LATE.nba).toEqual([])
   })
