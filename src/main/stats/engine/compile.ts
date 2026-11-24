@@ -176,7 +176,7 @@ export interface Compiled {
   notes: string[]
   /** The metrics the query lists, first in `metrics`; those after are computed for its filters only. */
   shown: number
-  /** Each ranked value carries its pool's size (`n<i>`): the query asked `rankAmong`. */
+  /** Each ranked value carries its pool's size (`n<i>`): the query asked `poolSizes`. */
   pools: boolean
   /** Why no row can answer the query's filters (D51), or null; nothing is read when there is one. */
   filterGap: string | null
@@ -241,7 +241,8 @@ const QUERY_FIELDS = [
   'ranks',
   'places',
   'filters',
-  'rankAmong'
+  'rankAmong',
+  'poolSizes'
 ]
 const SCOPE_FIELDS = [
   'seasons',
@@ -410,6 +411,10 @@ function validate(q: StatsQuery, ctx: CompileContext): Checked {
   if (q.ranks !== undefined && typeof q.ranks !== 'boolean') fail('ranks must be true or false')
   if (q.rankAmong !== undefined && !q.metrics.includes(q.rankAmong)) {
     fail('rankAmong must be one of the metrics')
+  }
+  if (q.poolSizes !== undefined) {
+    flag(q.poolSizes, 'poolSizes')
+    if (q.poolSizes && q.rankAmong === undefined) fail('poolSizes needs rankAmong')
   }
   if (q.ranks === false && transform === 'percentile') fail('percentile needs ranks')
   if (q.shrunk !== undefined) flag(q.shrunk, 'shrunk')
@@ -1368,9 +1373,10 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
           `stddev_samp(v${i}) FILTER (WHERE ${okOf(i)}) OVER (${among}) AS d${i}`
         ]
       : []
-  // With `rankAmong`, each ranked value also carries how many rows its pool holds (`MetricValue.pool`):
-  // what a page writes as "among 1,838 qualified guards". Without it the SQL is as it was.
-  const pools = poolOn >= 0 && q.ranks !== false
+  // Asked with `poolSizes`, each ranked value also carries how many rows its pool holds
+  // (`MetricValue.pool`): what a page writes as "among 1,838 qualified guards". Only a screen that
+  // shows it asks, so a board's query keeps its SQL and its time.
+  const pools = poolOn >= 0 && q.poolSizes === true && q.ranks !== false
   const ranked = c.metrics.flatMap((m, i) => {
     const ok = okOf(i)
     const up = m.direction === 'lower' ? 'DESC' : 'ASC'

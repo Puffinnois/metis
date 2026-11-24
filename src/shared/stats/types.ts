@@ -355,6 +355,12 @@ export interface StatsQuery {
    * each metric ranks among its own qualified rows, as before.
    */
   rankAmong?: string
+  /**
+   * With `rankAmong`: each ranked value also says how many rows it is ranked among
+   * (`MetricValue.pool`), for a page's "among 1,838 qualified guards". Asked only where a screen
+   * shows the count: it costs a window per metric.
+   */
+  poolSizes?: boolean
 }
 
 /**
@@ -407,8 +413,8 @@ export interface MetricValue {
   percentile: number | null
   rank: number | null
   /**
-   * With `StatsQuery.rankAmong`: how many rows the percentile and rank are among (the metric's pool of
-   * the row's position and group); null when the row is not ranked. Absent otherwise.
+   * With `StatsQuery.poolSizes`: how many rows the percentile and rank are among (the metric's pool
+   * of the row's position and group); null when the row is not ranked. Absent otherwise.
    */
   pool?: number | null
 }
