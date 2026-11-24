@@ -13,6 +13,7 @@ import {
   newCondition,
   rankFiltered,
   toShown,
+  valuesShown,
   type FilterItem
 } from '@/lib/stats/filters'
 import { tabOf } from '@/lib/stats/leaderboard'
@@ -204,10 +205,16 @@ describe('the query and the rows of a filtered board', () => {
     expect(ranked.rows[1].values.pts.percentile).toBe(0)
   })
 
-  it('pools a filtered row the board did not fetch with the board’s rows', () => {
+  it('shades a filtered row the board did not fetch by the engine’s own percentile', () => {
     const board = result([row('a', 30), row('b', 20)])
-    const ranked = rankFiltered(result([row('z', 25)]), board, allPlayers)
-    expect(ranked.rows[0].values.pts.rank).toBe(2)
+    // The engine ranked z among every qualified row before the filter: kept as it came.
+    const z = {
+      ...row('z', 4),
+      values: { pts: { ...v(4), percentile: 12.5, rank: 1201 }, min: v(2000) }
+    }
+    const ranked = rankFiltered(result([z]), board, allPlayers)
+    expect(ranked.rows[0].values.pts.percentile).toBe(12.5)
+    expect(ranked.rows[0].values.pts.rank).toBe(1201)
   })
 
   it('says how many rows were left out for no value, and why none could answer', () => {
@@ -238,5 +245,31 @@ describe('the query and the rows of a filtered board', () => {
         'team'
       )
     ).toBe('1 team in scope left out: no value for Height.')
+  })
+})
+
+describe('the values a picker lists', () => {
+  const values = [
+    { value: 'USA', rows: 400 },
+    { value: 'Canada', rows: 20 },
+    { value: 'Côte d’Ivoire', rows: 2 },
+    { value: 'France', rows: 12 }
+  ]
+
+  it('lists the chosen first, then the rest most held first', () => {
+    expect(valuesShown(values, ['France'], '').map((x) => [x.value, x.chosen])).toEqual([
+      ['France', true],
+      ['USA', false],
+      ['Canada', false],
+      ['Côte d’Ivoire', false]
+    ])
+  })
+
+  it('searches without letter case or accents, and keeps a chosen value it no longer holds', () => {
+    expect(valuesShown(values, [], 'cote').map((x) => x.value)).toEqual(['Côte d’Ivoire'])
+    expect(valuesShown(values, ['Gone'], 'usa')).toEqual([
+      { value: 'Gone', rows: null, chosen: true },
+      { value: 'USA', rows: 400, chosen: false }
+    ])
   })
 })

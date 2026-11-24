@@ -30,6 +30,7 @@ import type {
   StatsProfile,
   StatsAvailability,
   StatsGameListing,
+  StatsAttributeValue,
   StatsCoach,
   StatsStatus
 } from '@shared/stats/types'
@@ -52,6 +53,7 @@ import type {
   StatsSyncResult,
   StatsWorkerInit
 } from './protocol'
+import { readAttributeValues } from './attributeReads'
 import { readAvailability, readCoaches, readGameListings } from './availabilityReads'
 import { readShotChart } from './shotReads'
 import { readAssistNetwork, readGameFlow } from './playReads'
@@ -175,6 +177,8 @@ export interface StatsService {
   availability(players: string[]): Promise<StatsAvailability[]>
   /** The players' listings on the injury report for these games (T1601.4). */
   gameListings(games: string[], players: string[]): Promise<StatsGameListing[]>
+  /** The values a text attribute holds for the seasons in scope, most held first (T1701.2). */
+  attributeValues(attribute: string, seasons: number[]): Promise<StatsAttributeValue[]>
   coaches(team: string, season: number): Promise<StatsCoach[]>
   /** The shots a chart draws, capped, with every shot of the scope counted by zone. */
   shots(request: StatsShotRequest): Promise<StatsShotChart>
@@ -498,6 +502,8 @@ export async function openStatsService(
       read((reader) => readLineups(reader, team, season, gameType, group)),
     availability: (players) => read((reader) => readAvailability(reader, players)),
     gameListings: (games, players) => read((reader) => readGameListings(reader, games, players)),
+    attributeValues: (attribute, seasons) =>
+      read((reader) => readAttributeValues(reader, attribute, seasons, league)),
     coaches: (team, season) => read((reader) => readCoaches(reader, team, season)),
     shots: (request) => read((reader) => readShotChart(reader, request, league)),
     assists: (request) => read((reader) => readAssistNetwork(reader, request, league)),
@@ -604,6 +610,7 @@ export async function openStatsService(
     profile: none.profile,
     availability: none.availability,
     gameListings: none.gameListings,
+    attributeValues: none.attributeValues,
     coaches: none.coaches,
     shots: none.shots,
     assists: none.assists,

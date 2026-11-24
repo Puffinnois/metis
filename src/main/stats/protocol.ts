@@ -117,6 +117,7 @@ export type StatsRequest =
     }
   | { id: number; kind: 'availability'; players: string[] }
   | { id: number; kind: 'gameListings'; games: string[]; players: string[] }
+  | { id: number; kind: 'attributeValues'; attribute: string; seasons: number[] }
   | { id: number; kind: 'coaches'; team: string; season: number }
   | { id: number; kind: 'shots'; request: StatsShotRequest }
   | { id: number; kind: 'assists'; request: StatsAssistRequest }
@@ -154,6 +155,7 @@ export const AT_ONCE_REQUESTS: ReadonlySet<StatsRequest['kind']> = new Set([
   'lineups',
   'availability',
   'gameListings',
+  'attributeValues',
   'coaches',
   'shots',
   'assists',

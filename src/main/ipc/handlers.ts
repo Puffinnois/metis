@@ -37,6 +37,7 @@ import type {
   StatsOtherPlayer,
   StatsAvailability,
   StatsGameListing,
+  StatsAttributeValue,
   StatsCoach,
   StatsIndexedPlayer,
   StatsPlayerInfo,
@@ -195,6 +196,11 @@ export function registerIpcHandlers(ctx: AppContext): void {
     IPC.statsGameListings,
     (_e, league: LeagueId, games: string[], players: string[]): Promise<StatsGameListing[]> =>
       readsFor(ctx, league).gameListings(games, players)
+  )
+  ipcMain.handle(
+    IPC.statsAttributeValues,
+    (_e, league: LeagueId, attribute: string, seasons: number[]): Promise<StatsAttributeValue[]> =>
+      readsFor(ctx, league).attributeValues(attribute, seasons)
   )
   ipcMain.handle(
     IPC.statsAvailability,
