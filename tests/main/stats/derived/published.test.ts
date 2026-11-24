@@ -21,6 +21,8 @@ vi.mock('@main/stats/derived/publishedTables', async (actual) => {
       real.PUBLISHED_TABLES.find((t) => t.table === 'pub_player_catch_shoot')!,
       // The league's published fantasy points, under the NBA's and the WNBA's scoring.
       real.PUBLISHED_TABLES.find((t) => t.table === 'pub_player_fantasy')!,
+      // A team's record by situation, from the standings' text records.
+      real.PUBLISHED_TABLES.find((t) => t.table === 'pub_team_records')!,
       // A play type, read from the one file of them all.
       real.PUBLISHED_TABLES.find((t) => t.table === 'pub_player_pt_d_iso')!,
       // The defenders' matchups: the rollup, with the pair file taking over where it is out.
@@ -369,6 +371,35 @@ describe('the published tables', () => {
     ).toEqual([
       { game_type: 'playoffs', games: 11, nba_fantasy_pts: 701.5, wnba_fantasy_pts: 640 },
       { game_type: 'regular', games: 70, nba_fantasy_pts: 4501.4, wnba_fantasy_pts: 4161 }
+    ])
+  })
+
+  it('store a record by situation as wins, losses and games, trailing spaces and all', async () => {
+    // Cleveland's 2024-25 as the NBA's standings publish it, and a WNBA-style record with trailing
+    // spaces; an empty record reads NULL, never 0-0.
+    await db.exec(`CREATE TABLE src_dash_standings (team_id BIGINT, season INTEGER, season_type VARCHAR,
+      wins BIGINT, losses BIGINT, three_pts_or_less VARCHAR, opp_over500 VARCHAR, ot VARCHAR,
+      long_win_streak BIGINT)`)
+    await db.exec(`INSERT INTO src_dash_standings VALUES
+      (1610612739, 2025, 'Regular Season', 64, 18, '5-4', '29-12 ', '', 16)`)
+    await buildPublished(db)
+    expect(
+      await db.all(`SELECT game_type, games, rec_games, rec_close_w, rec_close_l, rec_close_g,
+        rec_vs_winning_w, rec_vs_winning_g, rec_ot_g, rec_won_reb_g, streak_win FROM pub_team_records`)
+    ).toEqual([
+      {
+        game_type: 'regular',
+        games: 82,
+        rec_games: 82,
+        rec_close_w: 5,
+        rec_close_l: 4,
+        rec_close_g: 9,
+        rec_vs_winning_w: 29,
+        rec_vs_winning_g: 41,
+        rec_ot_g: null,
+        rec_won_reb_g: null,
+        streak_win: 16
+      }
     ])
   })
 

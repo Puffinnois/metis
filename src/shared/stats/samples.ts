@@ -2,6 +2,7 @@ import { MATCHUP_SAMPLE_LABELS } from './catalogue/matchups'
 import { AVAILABILITY_SAMPLE_LABELS } from './availability'
 import { COLLEGE_DEPTH_SAMPLE_LABELS } from './catalogue/collegeDepth'
 import { IMPACT_SAMPLE_LABELS } from './catalogue/impact'
+import { RECORD_SAMPLE_LABELS } from './catalogue/records'
 import { ON_COURT_SAMPLE_LABELS } from './catalogue/onCourt'
 import { playTypeSampleLabels } from './playTypes'
 import { SHOT_SAMPLE_LABELS } from './catalogue/shots'
@@ -91,6 +92,7 @@ export const SAMPLE_LABELS: Readonly<Record<string, string>> = {
   ...playTypeSampleLabels(),
   ...MATCHUP_SAMPLE_LABELS,
   ...IMPACT_SAMPLE_LABELS,
+  ...RECORD_SAMPLE_LABELS,
   ...COLLEGE_DEPTH_SAMPLE_LABELS,
   ...ON_COURT_SAMPLE_LABELS,
   ...AVAILABILITY_SAMPLE_LABELS,

@@ -42,8 +42,9 @@ export interface PublishedRecipe {
 export const NBA_PUBLISHED: PublishedRecipe = {
   // 13: a NaN as published reads NULL (T1301.7). 14: the availability table breaks a tie between
   // two teams on one report the same way on every build (T1301.8). 15: BOBAN, and the impact file's
-  // box prior and REML RAPM (T1703.2). 16: the published fantasy points (T1703.2).
-  version: 16,
+  // box prior and REML RAPM (T1703.2). 16: the published fantasy points (T1703.2). 17: the
+  // standings' records by situation (T1703.2).
+  version: 17,
   sources: {},
   team: (id) => id
 }
@@ -54,7 +55,8 @@ export const NBA_PUBLISHED: PublishedRecipe = {
  */
 export const WNBA_PUBLISHED: PublishedRecipe = {
   // 2: a NaN as published reads NULL. 3: BOBAN (T1703.2). 4: the published fantasy points (T1703.2).
-  version: 4,
+  // 5: the standings' records by situation (T1703.2).
+  version: 5,
   sources: { src_nba_impact: 'src_wnba_impact' },
   team: (id, season) =>
     `(CASE WHEN EXISTS (SELECT 1 FROM team tk WHERE tk.team_id = -(${id}) AND tk.season = ${season})

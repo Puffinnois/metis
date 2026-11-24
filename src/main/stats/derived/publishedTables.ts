@@ -1,4 +1,5 @@
 import { PLAY_TYPE_SIDES, PLAY_TYPES_FIRST_SEASON } from '@shared/stats/playTypes'
+import { RECORD_COLUMNS, STREAK_COLUMNS } from '@shared/stats/catalogue/records'
 import { AVAILABILITY_FIRST_SEASON } from '@shared/stats/availability'
 import type { Entity, GameType } from '@shared/stats/types'
 import { AVAILABILITY_COUNTS, AVAILABILITY_TABLE, availabilitySql } from './availability'
@@ -645,6 +646,29 @@ export const PUBLISHED_TABLES: readonly PublishedTable[] = [
     games: 'gp',
     minutes: 'min',
     columns: ['nba_fantasy_pts', 'wnba_fantasy_pts']
+  },
+  {
+    // A team's record by situation and its longest streaks, as the standings publish them (T1703.2).
+    // A record is text, `5-4`, with trailing spaces in the WNBA's file: stored as wins, losses and
+    // the games of both, so seasons add up.
+    table: 'pub_team_records',
+    entity: 'team',
+    source: 'src_dash_standings',
+    games: '{wins} + {losses}',
+    minutes: null,
+    columns: [
+      { name: 'rec_games', sql: '{wins} + {losses}' },
+      ...RECORD_COLUMNS.flatMap(([key, column]) => {
+        const part = (i: 1 | 2): string =>
+          `TRY_CAST(split_part(trim({${column}:text}), '-', ${i}) AS DOUBLE)`
+        return [
+          { name: `rec_${key}_w`, sql: part(1) },
+          { name: `rec_${key}_l`, sql: part(2) },
+          { name: `rec_${key}_g`, sql: `${part(1)} + ${part(2)}` }
+        ]
+      }),
+      ...STREAK_COLUMNS.map(([key, column]) => ({ name: `streak_${key}`, sql: `{${column}}` }))
+    ]
   },
   {
     table: 'pub_team_misc',

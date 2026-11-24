@@ -249,7 +249,7 @@ A saved view holds the board (`LeaderboardBoard`): its kind, tab, columns, sort 
 
 Generated from `CATALOGUE` at 3ac033b (1.3.0) with the placements as reviewed, the catalogue T1702.2 started from; `node scripts/stat-categories.mjs` prints them for any later commit. Each league is read through `catalogueInfo` (`src/main/stats/engine/registry.ts`) as the screens read it. A metric counts in a league where it is not unavailable there; the games columns (`gp`, `team_gp`) are left out of the screen counts, as `appliesTo` leaves them out of the boards. NCAA Men and NCAA Women have the same metrics.
 
-1534 metrics in the catalogue; 2 stored (`bpm_position`, `bpm_role`), placed nowhere since no screen shows them; 1532 placed; **0 unplaced**.
+1557 metrics in the catalogue; 2 stored (`bpm_position`, `bpm_role`), placed nowhere since no screen shows them; 1555 placed; **0 unplaced**.
 
 1313 metrics sit in more than one category; a metric sits in 1 to 3 categories, 1.90 on average.
 
@@ -272,7 +272,7 @@ Metrics shown in each category; a metric in several categories counts in each, s
 | Play types           |         234 |         – |            – |          – |                – |              – |                  – |                – |
 | Impact               |          80 |        11 |           70 |         10 |               49 |              9 |                 49 |                9 |
 | Predictive           |           2 |        11 |            2 |          8 |                – |              – |                  – |                – |
-| Results and strength |           3 |        65 |            3 |         61 |                3 |             54 |                  3 |               54 |
+| Results and strength |           3 |        88 |            3 |         84 |                3 |             54 |                  3 |               54 |
 | Playing time         |           8 |         – |            6 |          – |                5 |              – |                  5 |                – |
 | Fantasy              |           5 |         – |            5 |          – |                3 |              – |                  3 |                – |
 | Shown in the league  |         821 |       624 |          398 |        604 |              292 |            489 |                292 |              489 |
@@ -373,7 +373,7 @@ The most metrics any sub-group shows in one view: players, and teams as the team
 | Impact               | All-around games                    |       8 |           – |       8 |           – |       8 |           – |
 | Predictive           | Season forecast                     |       – |      11 / – |       – |       8 / – |       – |           – |
 | Predictive           | Player projections                  |       2 |           – |       2 |           – |       – |           – |
-| Results and strength | Record                              |       3 |       3 / – |       3 |       3 / – |       3 |       3 / – |
+| Results and strength | Record                              |       3 |      26 / – |       3 |      26 / – |       3 |       3 / – |
 | Results and strength | Margin                              |       – |       2 / – |       – |       2 / – |       – |       2 / – |
 | Results and strength | Ratings                             |       – |      10 / 1 |       – |      10 / 1 |       – |       5 / 2 |
 | Results and strength | Pace and possessions                |       – |       9 / 1 |       – |       8 / 1 |       – |       5 / 2 |
