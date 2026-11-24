@@ -203,20 +203,15 @@ By category, then sub-group: each metric described in full under its primary cat
 
 ### Player page
 
-Today's tabs: Overview, Scoring, Shooting, Shots, Play by play, Playmaking, Rebounding, Defense, Tracking, Play types, Matchups, Game log, Splits, On/off, Profile.
-
-- Overview stays. **Scoring, Shooting, Playmaking, Rebounding, Defense, Fouls, Hustle and movement, Play types, Impact, Playing time** become category tabs, each with its sub-groups as sections, every metric of the category reachable. **Offense** is a tab too, its sections the umbrella's sub-groups; long sections start folded.
-- **Shots** goes into Shooting: the shot chart heads its zone sections. **Play by play** and **Tracking** go (sources), their metrics spread by category. **Matchups** goes into Defense, its per-opponent table as the Matchups section.
-- Game log, Splits, On/off and Profile stay: they are views of a player, not categories. Old `drive.mjs` step files click tabs by place (the comment in `PLAYER_DASH_TABS`): T1702.4 rewrites the steps that do.
-- Predictive and Fantasy appear when they have a player metric.
+As built in T1702.4: the page's own row keeps Overview, Game log, Splits, On/off and Profile; under it, "Stats by category", the leaderboard's strip without its Overview, lists the categories the league has for players. A category's tab is the board's views as folding sections, Key stats and each sub-group, an umbrella's long heading as "Heading › sub-group"; each section is one query of at most 40 metrics, read when opened, so every metric of the category is on its tab with no search. Shots went into Shooting (the chart heads the tab), Play by play's assist network ends Playmaking, Matchups' pairs end Defense; Play by play and Tracking are gone as tabs, their metrics under their categories. An old tab id opens the category that holds its metrics; the step files that clicked the removed tabs were rewritten to the categories.
 
 ### Team page
 
-Today's tabs: Overview, Offense, Defense, Shots, Play by play, Players, Lineups, Splits, Schedule, On/off. Overview stays; Offense and Defense become the umbrella categories; **Scoring, Shooting, Playmaking, Rebounding, Fouls, Hustle and movement, Impact, Predictive, Results and strength** are added as category tabs, each with the team's side and the opponents'. Shots goes into Shooting (the chart heads the zones); Play by play goes. Players, Lineups, Splits, Schedule and On/off stay.
+As built: the page's own row keeps Overview, Players, Lineups, Splits, Schedule and On/off, and "Stats by category" lists the categories the league has for teams. A specific category has a Team and an Opponents side (`teamSide`, as the leaderboard); Offense and Defense hold their end. Shooting opens on the shot chart of the side shown, Playmaking ends on who assisted whom.
 
 ### Explore, Compare and Trends
 
-Their metric pickers (`lib/stats/chart.ts`, `compare.ts`, `trends.ts`, which group by family today) group by category: a category select, then the metric select listing every metric of that category for the kind on screen, sub-groups as option groups. Compare's default rows (`DEFAULT_FAMILIES`) become default categories, the same metrics.
+As built in T1702.4: their metric selects, and T1701's filter list, read `pickerGroups` once a metric (`primaryGroups`): one select whose option groups are "Category › Sub-group" in the registry's order, each metric under its primary placement, so a select does not repeat its options about twice (a select a category chose first was the other way, a second control beside each of Explore's four). Compare's rows group the same way, and "Add a category" appends a category's Key stats; its default rows stay the same metrics (`DEFAULT_FAMILIES`).
 
 ### Home
 
