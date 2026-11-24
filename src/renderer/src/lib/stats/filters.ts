@@ -302,8 +302,11 @@ export function filteredQuery(
 export function rankFiltered(
   filtered: StatsResult,
   board: StatsResult | null,
-  tab: TabDef
+  tab: TabDef,
+  /** The engine ranked among the tab's qualified rows (`rankAmong`): its figures stand, one pool. */
+  engineRanks = false
 ): StatsResult {
+  if (engineRanks) return filtered
   const key = (r: StatsResult['rows'][number]): string => `${r.id}|${JSON.stringify(r.group)}`
   const ranked = board ? rankWithinTab(board, tab) : null
   const byKey = new Map((ranked?.rows ?? []).map((r) => [key(r), r]))

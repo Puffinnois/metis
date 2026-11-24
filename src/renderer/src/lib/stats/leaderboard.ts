@@ -1,4 +1,4 @@
-import { perMinuteModes, seasonLabel } from '@/lib/stats/league'
+import { currentLeague, perMinuteModes, seasonLabel } from '@/lib/stats/league'
 import type {
   BoardMode,
   Entity,
@@ -332,8 +332,29 @@ export function leaderboardQuery(
     transform: board.mode,
     ...(board.shrunk ? { shrunk: true } : {}),
     sort: engineSort(fixed, catalogue),
-    limit: ROW_LIMIT
+    limit: ROW_LIMIT,
+    // A league of thousands of rows a season (the colleges, `manyRows`): the board fetches 1,000 of
+    // about 5,000, too few to rank among on the client, so the engine ranks among the rows the tab's
+    // qualifier admits (`engineRanks`). The NBA's and WNBA's boards hold every row and ask as before.
+    ...(engineRanksFor(tab) ? { rankAmong: tab.qualifier } : {})
   }
+}
+
+/** Whether a board's percentiles and ranks are the engine's: a tab with a qualifier in a league of many rows. */
+export function engineRanksFor(tab: TabDef): tab is TabDef & { qualifier: string } {
+  return !!currentLeague().manyRows && tab.qualifier !== null && tab.qualifier !== undefined
+}
+
+/**
+ * The board's rows with the percentiles and ranks it shows: the engine's where it ranked among the
+ * tab's qualified rows (`rankAmong`, the colleges), else the board's own over the rows it holds.
+ */
+export function rankedForBoard(
+  result: StatsResult,
+  tab: TabDef,
+  query: StatsQuery | null
+): StatsResult {
+  return query?.rankAmong !== undefined ? result : rankWithinTab(result, tab)
 }
 
 /**
