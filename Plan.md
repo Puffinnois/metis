@@ -414,6 +414,13 @@ Set by the owner on 2026-11-23, as three requests: filter on every attribute of 
 
   A source outside the dataset's releases is the owner's decision (D6, D31): the audit names the candidates and nothing is fetched from one before the owner says so. The owner allowed FiveThirtyEight's RAPTOR files on 2026-11-23 (D54); DARKO's CSV is D55, after a look at darko.app.
 
+- [ ] **T1704 A player's ratings over time (M).** The owner's request of 2026-11-24: each player's DARKO history, game by game where possible, charted over a season and a career. Three parts:
+  - [ ] **T1704.1 The read.** `stats.ratingHistory`, beside the engine, and its shared type: for one player, a list of series, each named with its maker, its unit and grain (snapshot, weekly, game), every point dated, with notes on what it covers and lacks. First series: SportsDataverse's expected impact, every weekly row of `src_nba_current_impact`, 2006-07 to 2025-26.
+  - [ ] **T1704.2 DARKO imported by hand (D55).** Read only from files the owner downloads from darko.app and drops in a folder a private setting names, off for everyone by default, nothing ever requested from the site. Each file kept as a dated snapshot, every column as published; DARKO's own metrics, its maker named, at the latest snapshot of the season in scope; the snapshots a second series.
+  - [ ] **T1704.3 The chart on the player page,** built by the T1702 worker against the read.
+
+  Check: the chart driven on the built app for a player with a long career, each series named with its maker and its gaps. History comes only from honest places: the files the owner imports, SportsDataverse's published weekly series, and Metis's own game-by-game estimate when T1703.4 builds it; the site's history endpoints are never called (D24).
+
 ## Optional
 
 - [ ] **T1201 Fantasy stats.** Fantasy points on players and teams as ordinary metrics: the source's `nba_fantasy_pts` and standard formulas. Nothing else fantasy (D4). Taken up as part of T1703.2 (Stage 17).
