@@ -49,14 +49,14 @@ describe('what a board can be filtered on', () => {
     expect(team).not.toContain('age')
   })
 
-  it('groups metrics by their primary category, as the Glossary does', () => {
-    const pts = item('metric:pts')
-    expect(pts.group).toBe(
-      catalogue
-        .find((m) => m.id === 'pts')
-        ?.categories?.[0]?.split('.')[0]
-        .replace(/^./, (c) => c.toUpperCase())
-    )
+  it('lists metrics as the column picker does, under each category and sub-group', () => {
+    const pts = catalogue.find((m) => m.id === 'pts')!
+    const headings = nbaItems
+      .filter((i) => i.kind === 'metric' && i.id === 'pts')
+      .map((i) => i.group)
+    // Every placement of points, each its own heading, in the registry's order.
+    expect(headings).toHaveLength(pts.categories!.length)
+    expect(headings.every((h) => h.includes(' › '))).toBe(true)
     expect(item('metric:ts_pct').unit).toBe('pct')
   })
 
