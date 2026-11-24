@@ -40,9 +40,9 @@ import { sqlString, StatsDb, type Row } from './db'
 import { databaseBytes, freeBytes, roomNeeded } from './disk'
 import { createDownloads } from './download'
 import { adoptFormerStatsFile, statsFilePath } from './files'
-import { StatsQueryError } from './engine/compile'
+import { StatsQueryError, type FileSchema } from './engine/compile'
 import { catalogueInfo } from './engine/registry'
-import { runQuery } from './engine/run'
+import { readFileSchema, runQuery } from './engine/run'
 import { priorsOf, readStability } from './models/metricStability'
 import { summariseFamilies, type FileAttempt, type HeldFile } from './families'
 import type {
@@ -243,6 +243,17 @@ export async function openStatsService(
     )
     return run
   }
+  // The file's tables and columns, read once and kept until a build step or the refresh ends: a
+  // metric whose table or column the file does not hold yet answers no value with a reason
+  // (`CompileContext.schema`).
+  let schema: Promise<FileSchema> | null = null
+  const schemaOf = (conn: StatsDb): Promise<FileSchema> => {
+    schema ??= readFileSchema(conn).catch((err) => {
+      schema = null
+      throw err
+    })
+    return schema
+  }
   // Every metric's stability (Plan T1006), read once and kept until a refresh ends: it rides with the
   // catalogue, and its priors with each shrunk query, at no cost to either.
   let stability: Promise<Map<string, MetricStability>> | null = null
@@ -293,7 +304,13 @@ export async function openStatsService(
             db,
             league,
             downloads: createDownloads({ dir: init.tempDir, signal: abort.signal }),
-            onStep,
+            onStep: (entry) => {
+              // A build step may have added a column or filled a table: the next query reads the
+              // file's shape again, so a new metric answers once its table is built, not only when
+              // the whole refresh ends.
+              if (!entry.source.startsWith('src_')) schema = null
+              onStep(entry)
+            },
             onProgress: (p) => {
               progress = p
             },
@@ -307,8 +324,9 @@ export async function openStatsService(
       } finally {
         busy = false
         progress = null
-        // The models may have measured stability again.
+        // The models may have measured stability again, and the builds changed the tables.
         stability = null
+        schema = null
       }
     },
     status: async () => {
@@ -418,7 +436,8 @@ export async function openStatsService(
         return runQuery(reader, query, {
           league,
           currentSeason: league.currentSeason(new Date()),
-          priors
+          priors,
+          schema: await schemaOf(reader)
         })
       }),
     catalogue: () => read(async (reader) => catalogueInfo(league, await stabilityOf(reader))),

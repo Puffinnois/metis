@@ -35,7 +35,7 @@ import {
   type Transform
 } from '@shared/stats/types'
 import { gameTable } from '../derived/gameTables'
-import { PUBLISHED_DIVISORS, publishedTable } from '../derived/published'
+import { PUBLISHED_DIVISORS, publishedComponents, publishedTable } from '../derived/published'
 import { SPLIT_PLAYER, SPLIT_PLAYER_SQL, SPLIT_TEAM, SPLIT_TEAM_SQL } from '../derived/splits'
 import { PUBLISHED_GAME_TYPES } from '../derived/publishedTables'
 import { leftOutGap } from '../leftOut'
@@ -110,7 +110,26 @@ export interface CompileContext {
    * and the even games of its player or team (`g_half` 1 and 0), each qualified at half the sample.
    */
   internal?: { unlimited?: boolean; halves?: boolean }
+  /**
+   * The open file's tables and their columns (`fileSchema`). A metric whose own table or a column it
+   * reads the file does not hold yet (a file built before a recipe added it, until the league's next
+   * refresh rebuilds it) answers no value with a reason, never an error, and the rest of the query
+   * answers. Absent, every table and column is taken as held.
+   */
+  schema?: FileSchema
 }
+
+/**
+ * The tables of the open file, each with its columns, and those that hold no row: a model, built or
+ * published table the bootstrap made empty, which no build has filled yet.
+ */
+export interface FileSchema {
+  columns: ReadonlyMap<string, ReadonlySet<string>>
+  empty: ReadonlySet<string>
+}
+
+/** Why a metric the file does not hold yet has no value: its next refresh builds it. */
+export const BUILT_AT_NEXT_REFRESH = "Built at this league's next refresh."
 
 /** The internal dimension the stability measure splits a season by: odd and even games. */
 const HALF = 'half' as GroupBy
@@ -407,7 +426,10 @@ function validate(q: StatsQuery, ctx: CompileContext): Checked {
     if ((m.published || m.model) && grains.length > 0) continue
     if (!grains.includes(grain)) fail(`"${m.id}" cannot be read at the ${grain} grain`)
   }
-  const gaps = metrics.map((m) => gapOf(m, q, grain, gameTypes, transform, league))
+  const gaps = metrics.map(
+    (m) =>
+      gapOf(m, q, grain, gameTypes, transform, league) ?? unbuiltGap(m, q, grain, transform, ctx)
+  )
   // A table adds rows only where a metric reads it with an answer, so a query reading none is the
   // query it was. A published table has whole seasons, so only the season grain; and never for the
   // stability measure, which would only drop them again (they never qualify).
@@ -519,6 +541,52 @@ function gapOf(
     if (part in UNPUBLISHED && !table?.[part]) return UNPUBLISHED[part]
   }
   return null
+}
+
+/**
+ * Why a metric has no answer in this file though the catalogue has it: its own table (a model's, a
+ * built or published one, or the box scores at this grain) is not in the file, or lacks a column it
+ * reads. That is a file built before a recipe added it; the league's next refresh builds it.
+ */
+function unbuiltGap(
+  m: MetricDef,
+  q: StatsQuery,
+  grain: Grain,
+  transform: Transform,
+  ctx: CompileContext
+): string | null {
+  const schema = ctx.schema
+  if (!schema) return null
+  const by = perDivisor(m, transform, q.entity)
+  const parts = [...componentsOf(m), ...(by ? [...by.matchAll(TOKEN)].map((x) => x[1]) : [])]
+  const box = `${q.entity}_${grain === 'season' ? 'season' : 'game'}`
+  const own = ownTable(m, grain)
+  // Its own table, made empty on open, that no build has reached yet. The league has the metric (its
+  // coverage was checked first), so an empty table is one its next refresh fills.
+  if (own && schema.empty.has(own.table)) return BUILT_AT_NEXT_REFRESH
+  for (const part of parts) {
+    const table = own && own.components.includes(part) ? own.table : box
+    if (!schema.columns.get(table)?.has(part)) return BUILT_AT_NEXT_REFRESH
+  }
+  return null
+}
+
+/** A metric's own table and the components it holds; undefined for the box scores alone. */
+function ownTable(
+  m: MetricDef,
+  grain: Grain
+): { table: string; components: readonly string[] } | undefined {
+  const model = modelTable(m.model)
+  if (model) return { table: model.table, components: model.components }
+  const built = gameTable(m.built)
+  if (built) return { table: built.table, components: built.components }
+  if (!m.published) return undefined
+  if (grain === 'game') {
+    const games = gameTable(m.publishedGames)
+    return games ? { table: games.table, components: games.components } : undefined
+  }
+  const table = publishedTable(m.published)
+  return table ? { table: table.table, components: publishedComponents(table) } : undefined
 }
 
 /**
@@ -1476,7 +1544,14 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
     notes: [...notesOf(q, c), ...shrunkNotes(q, c, shrunk)],
     shown: q.metrics.length,
     filterGap: filtering
-      ? filterGap(c.filters, c.league, [...new Set(q.scope.seasons)], c.metrics, c.gaps)
+      ? filterGap(
+          c.filters,
+          c.league,
+          [...new Set(q.scope.seasons)],
+          c.metrics,
+          c.gaps,
+          ctx.schema?.columns
+        )
       : null,
     filterTables: filterTables(c.filters),
     ...(noValueSql ? { noValueSql, noValueParams } : {})

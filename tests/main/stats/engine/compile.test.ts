@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { compileQuery, StatsQueryError } from '@main/stats/engine/compile'
+import { BUILT_AT_NEXT_REFRESH, compileQuery, StatsQueryError } from '@main/stats/engine/compile'
 import type { StatsQuery } from '@shared/stats/types'
 import { LEAGUES } from '@shared/leagues'
 
@@ -243,5 +243,42 @@ describe('the on-court table, read through built', () => {
     const c = compileQuery(onCourt({ seasons: [1995] }), CTX)
     expect(c.gaps[0]).toBe('Recorded from 1996-97.')
     expect(c.gaps[2]).toBeNull()
+  })
+})
+
+describe('what the open file holds', () => {
+  const schema = (
+    drop: Record<string, string[] | 'table'>
+  ): { columns: Map<string, Set<string>>; empty: Set<string> } => {
+    const cols = (names: string[]): Set<string> => new Set(names)
+    const all = cols(['games', 'pts', 'plus_minus', 'fgm', 'fga', 'min', 'seconds'])
+    const tables = new Map<string, Set<string>>([
+      ['player_season', new Set(all)],
+      ['player_game', new Set(all)]
+    ])
+    for (const [table, what] of Object.entries(drop)) {
+      if (what === 'table') tables.delete(table)
+      else for (const c of what) tables.get(table)?.delete(c)
+    }
+    return { columns: tables, empty: new Set<string>() }
+  }
+  const gaps = (metrics: string[], s: ReturnType<typeof schema>): (string | null)[] =>
+    compileQuery({ ...base, metrics } as StatsQuery, { ...CTX, schema: s }).gaps
+
+  it('gives a metric whose column the file lacks a reason, and that metric alone', () => {
+    expect(gaps(['pts', 'plus_minus'], schema({ player_season: ['plus_minus'] }))).toEqual([
+      null,
+      BUILT_AT_NEXT_REFRESH
+    ])
+  })
+
+  it('gives every box-score metric the reason when the table is not there', () => {
+    expect(gaps(['pts'], schema({ player_season: 'table' }))).toEqual([BUILT_AT_NEXT_REFRESH])
+  })
+
+  it('reads as before with no schema given', () => {
+    expect(
+      compileQuery({ ...base, metrics: ['pts', 'plus_minus'] } as StatsQuery, CTX).gaps
+    ).toEqual([null, null])
   })
 })
