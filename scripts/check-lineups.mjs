@@ -2,7 +2,7 @@
 
 // Checks the Lineups tab's read against the NBA's raw lineup files on a real load, through the built
 
-// worker: for every team, season (2007-08 to 2025-26), season type and dashboard, the units the read
+// worker: for every team, season the files hold, season type and dashboard, the units the read
 
 // returns against the file's rows, on every column the tab shows. Also times the read, and compares a
 
@@ -65,7 +65,8 @@ const { read, lineups, close } = openStatsWorker(folder, { league: leagueArg() }
 
 const FIRST = lineupsFromOf(leagueArg())
 
-const LAST = 2026
+// Every season the files hold, the one under way included.
+const LAST = Number((await read('SELECT max(season)::INTEGER AS last FROM pub_lineups'))[0].last)
 
 // The published digits are a/b rounded to three decimals, and a half lands on either side by float error.
 
