@@ -245,6 +245,11 @@ export const CATEGORIES = [
       "How much a player adds to the team's results: the margin with them on the floor and off it, and the all-in-one models and composites.",
     groups: [
       g('on_court', 'On court', 'The team with the player on the floor and off it.'),
+      g(
+        'on_off',
+        'Team rates on and off',
+        "The team's and the opponents' shooting, turnovers and rebounds with the player on the floor, off it, and on less off."
+      ),
       g('pm_models', 'Plus-minus models', 'RAPM and its kin, fitted on possessions.'),
       g('box_models', 'Box-score models', 'PER, Win Shares, BPM, VORP, SPM, WAR.'),
       g('composites', 'Box-score composites', 'Efficiency (EFF), Game Score, PIE.'),

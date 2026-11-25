@@ -3,6 +3,7 @@ import {
   lineNumbers,
   onCourtGap,
   onCourtScope,
+  playsHeldNotes,
   teamOnOffQuery,
   unitRows,
   wowyRows
@@ -112,6 +113,24 @@ describe('on and off the floor, on the screen', () => {
       "Counted from 1996-97, when the NBA's play by play starts."
     )
     expect(onCourtGap(scope())).toBeNull()
+  })
+
+  it('says where the play by play is not the whole of the games read', () => {
+    const held = { pts: 1000, boxPts: 1000, oppPts: 900, boxOppPts: 900, noPlays: 0 }
+    expect(playsHeldNotes(undefined)).toEqual([])
+    expect(playsHeldNotes(held)).toEqual([])
+    // One in a hundred is not said; past it is, on either side.
+    expect(playsHeldNotes({ ...held, pts: 990 })).toEqual([])
+    expect(playsHeldNotes({ ...held, pts: 989 })).toEqual([
+      'The play by play of these games differs from the box score: it counts 989 points for the team and 900 against, where the box score has 1,000 and 900.'
+    ])
+    expect(playsHeldNotes({ ...held, oppPts: 910 })[0]).toContain('910 against')
+    expect(playsHeldNotes({ ...held, noPlays: 1 })).toEqual([
+      'One game with a box score has no play by play, so it is not counted here.'
+    ])
+    expect(playsHeldNotes({ ...held, noPlays: 3 })[0]).toBe(
+      '3 games with a box score have no play by play, so they are not counted here.'
+    )
   })
 
   it('asks the engine for each player’s on/off for one team', () => {

@@ -1,3 +1,4 @@
+import type { Placement } from '../categories'
 import type { MetricDef } from '../types'
 import { metric, ratio, type Opts } from './define'
 
@@ -48,6 +49,246 @@ const net = (side: 'on' | 'off'): string => `${ortg(side)} - ${drtg(side)}`
 
 /** On less off, read as one number: NULL when either side has no possessions. */
 const diff = (on: string, off: string): string => `(${on}) - (${off})`
+
+/** A team's turnovers and rebounds count those credited to a player, on either side of the floor. */
+const PLAYER_TURNOVERS =
+  "Turnovers credited to a player: a team's own, such as a shot clock, are in neither side."
+const PLAYER_REBOUNDS = "Rebounds credited to a player: a team's own are in neither side."
+
+type Floor = 'on' | 'off'
+
+interface LineRate {
+  /** The end of the id: `offc_efg_pct`, `onoff_opp_efg_pct`. */
+  id: string
+  /** The team's own id where it has another one: `tm_tov_pct` beside the opponents' `tov_pct`. */
+  team?: string
+  label: string
+  short: string
+  /** What it is, in a sentence, from the side in the possessive. */
+  what: (side: string) => string
+  /** The formula, from a count of the line and a count of the other team's. */
+  value: (own: (c: string) => string, other: (c: string) => string) => string
+  sample: string
+  minSample: number
+  unit: 'pct' | 'number'
+  decimals: number
+  direction: 'higher' | 'lower' | 'neutral'
+  /** Said after the sentence, where a count needs it. */
+  note?: string
+  /** The team's line alone, where the opponents' would be one less it. */
+  teamOnly?: boolean
+  /** The category beside "On court": offense for the team's line unless it says another. */
+  category?: Placement | null
+}
+
+const LINE_RATES: LineRate[] = [
+  {
+    id: 'efg_pct',
+    label: 'effective field-goal percentage',
+    short: 'eFG%',
+    what: (side) => `${side} effective field-goal percentage`,
+    value: (o) => `(${o('fgm')} + 0.5 * ${o('fg3m')}) / nullif(${o('fga')}, 0)`,
+    sample: 'fga',
+    minSample: 1500,
+    unit: 'pct',
+    decimals: 1,
+    direction: 'higher'
+  },
+  {
+    id: 'ts_pct',
+    label: 'true shooting percentage',
+    short: 'TS%',
+    what: (side) =>
+      `${side} true shooting percentage (points over twice the sum of shots and 0.44 of free throws)`,
+    value: (o) => `${o('pts')} / nullif(2 * (${o('fga')} + 0.44 * ${o('fta')}), 0)`,
+    sample: 'fga',
+    minSample: 1500,
+    unit: 'pct',
+    decimals: 1,
+    direction: 'higher'
+  },
+  {
+    id: 'fg3a_rate',
+    label: 'three-point attempt rate',
+    short: '3PAr',
+    what: (side) => `${side} three-point attempts per field-goal attempt`,
+    value: (o) => `${o('fg3a')} / nullif(${o('fga')}, 0)`,
+    sample: 'fga',
+    minSample: 1500,
+    unit: 'pct',
+    decimals: 1,
+    direction: 'neutral'
+  },
+  {
+    id: 'fta_rate',
+    label: 'free-throw attempt rate',
+    short: 'FTr',
+    what: (side) => `${side} free-throw attempts per field-goal attempt`,
+    value: (o) => `${o('fta')} / nullif(${o('fga')}, 0)`,
+    sample: 'fga',
+    minSample: 1500,
+    unit: 'number',
+    decimals: 3,
+    direction: 'higher'
+  },
+  {
+    id: 'tov_pct',
+    team: 'tm_tov_pct',
+    label: 'turnover percentage',
+    short: 'TOV%',
+    what: (side) => `${side} turnovers per possession`,
+    value: (o) => `${o('tov')} / nullif(${o('poss')}, 0)`,
+    sample: 'poss',
+    minSample: MIN_POSS,
+    unit: 'pct',
+    decimals: 1,
+    direction: 'lower',
+    note: PLAYER_TURNOVERS
+  },
+  {
+    id: 'orb_pct',
+    team: 'tm_orb_pct',
+    label: 'offensive rebound percentage',
+    short: 'ORB%',
+    what: () => "The share of the team's missed shots it rebounded",
+    value: (o, x) => `${o('oreb')} / nullif(${o('oreb')} + ${x('dreb')}, 0)`,
+    sample: 'poss',
+    minSample: MIN_POSS,
+    unit: 'pct',
+    decimals: 1,
+    direction: 'higher',
+    note: PLAYER_REBOUNDS,
+    teamOnly: true
+  },
+  {
+    id: 'drb_pct',
+    team: 'tm_drb_pct',
+    label: 'defensive rebound percentage',
+    short: 'DRB%',
+    what: () => "The share of the opponents' missed shots the team rebounded",
+    value: (o, x) => `${o('dreb')} / nullif(${o('dreb')} + ${x('oreb')}, 0)`,
+    sample: 'poss',
+    minSample: MIN_POSS,
+    unit: 'pct',
+    decimals: 1,
+    direction: 'higher',
+    note: PLAYER_REBOUNDS,
+    teamOnly: true,
+    category: 'defense.impact'
+  },
+  {
+    id: 'trb_pct',
+    team: 'tm_trb_pct',
+    label: 'total rebound percentage',
+    short: 'TRB%',
+    what: () => 'The share of all rebounds the team took',
+    value: (o, x) =>
+      `(${o('oreb')} + ${o('dreb')}) / nullif(${o('oreb')} + ${o('dreb')} + ${x('oreb')} + ${x('dreb')}, 0)`,
+    sample: 'poss',
+    minSample: MIN_POSS,
+    unit: 'pct',
+    decimals: 1,
+    direction: 'higher',
+    note: PLAYER_REBOUNDS,
+    teamOnly: true,
+    category: null
+  }
+]
+
+const flip = (d: LineRate['direction']): LineRate['direction'] =>
+  d === 'higher' ? 'lower' : d === 'lower' ? 'higher' : d
+
+const upperFirst = (s: string): string => s[0].toUpperCase() + s.slice(1)
+
+/**
+ * The team's and the opponents' rates with the player on the floor and off it, and on less off, where
+ * the catalogue lacks them (audit entry 275). Each is worked from the counts `player_on_court` keeps
+ * for both sides of the floor, so the four sides add up to the team's own line exactly.
+ */
+function lineRates(): MetricDef[] {
+  const out: MetricDef[] = []
+  for (const r of LINE_RATES) {
+    for (const whose of r.teamOnly ? (['team'] as const) : (['team', 'opp'] as const)) {
+      const formula = (floor: Floor): string => {
+        const own = whose === 'opp' ? 'opp_' : ''
+        const other = whose === 'opp' ? '' : 'opp_'
+        return r.value(
+          (c) => `{${floor}_${own}${c}}`,
+          (c) => `{${floor}_${other}${c}}`
+        )
+      }
+      const sampleOf = (floor: Floor): string =>
+        `${floor}_${whose === 'opp' ? 'opp_' : ''}${r.sample}`
+      // "Team" where the same words also name the player's own rate.
+      const words =
+        whose === 'opp'
+          ? `Opponent ${r.label}`
+          : r.id === 'efg_pct'
+            ? upperFirst(r.label)
+            : `Team ${r.label}`
+      const shortOf = (tail: string): string =>
+        `${whose === 'opp' || r.id === 'efg_pct' ? '' : 'TM '}${r.short} ${whose === 'opp' ? 'vs ' : ''}${tail}`
+      const what = r.what(whose === 'opp' ? "The opponents'" : "The team's")
+      const direction = whose === 'opp' ? flip(r.direction) : r.direction
+      const category =
+        r.category === undefined
+          ? whose === 'opp'
+            ? 'defense.impact'
+            : 'offense.impact'
+          : r.category
+      const categories: Placement[] = ['impact.on_off', ...(category ? [category] : [])]
+      const note = r.note ? `${r.note} ` : ''
+      const id = whose === 'opp' ? `opp_${r.id}` : (r.team ?? r.id)
+      const make = (
+        key: string,
+        label: string,
+        short: string,
+        text: string,
+        value: string,
+        floor: Floor
+      ): void => {
+        out.push(
+          metric(key, label, short, text, {
+            ...base({
+              value,
+              sample: sampleOf(floor),
+              minSample: r.minSample,
+              unit: r.unit,
+              decimals: r.decimals,
+              direction
+            }),
+            categories
+          })
+        )
+      }
+      make(
+        `onc_${id}`,
+        `${words}, on court`,
+        shortOf('on'),
+        `${what} with the player on the floor. ${note}${DERIVED}`,
+        formula('on'),
+        'on'
+      )
+      make(
+        `offc_${id}`,
+        `${words}, off court`,
+        shortOf('off'),
+        `${what} with the player on the bench. ${note}${OFF_GAMES} ${DERIVED}`,
+        formula('off'),
+        'off'
+      )
+      make(
+        `onoff_${id}`,
+        `${words}, on less off`,
+        shortOf('on-off'),
+        `${what} with the player on the floor less the same with them on the bench. Not adjusted for teammates or opponents. ${note}${OFF_GAMES} ${DERIVED}`,
+        diff(formula('on'), formula('off')),
+        'on'
+      )
+    }
+  }
+  return out
+}
 
 export const ON_COURT: MetricDef[] = [
   metric(
@@ -229,68 +470,7 @@ export const ON_COURT: MetricDef[] = [
       categories: ['impact.on_court']
     }
   ),
-  metric(
-    'onc_efg_pct',
-    'Effective field-goal percentage, on court',
-    'eFG% on',
-    `The team's effective field-goal percentage with the player on the floor. ${DERIVED}`,
-    {
-      ...base({
-        value: '({on_fgm} + 0.5 * {on_fg3m}) / nullif({on_fga}, 0)',
-        sample: 'on_fga',
-        minSample: 1500,
-        unit: 'pct'
-      }),
-      categories: ['impact.on_court', 'offense.impact']
-    }
-  ),
-  metric(
-    'onc_opp_efg_pct',
-    'Opponent effective field-goal percentage, on court',
-    'Opp eFG% on',
-    `The opponents' effective field-goal percentage with the player on the floor. Lower is better. ${DERIVED}`,
-    {
-      ...base({
-        value: '({on_opp_fgm} + 0.5 * {on_opp_fg3m}) / nullif({on_opp_fga}, 0)',
-        sample: 'on_opp_fga',
-        minSample: 1500,
-        unit: 'pct',
-        direction: 'lower'
-      }),
-      categories: ['impact.on_court', 'defense.impact']
-    }
-  ),
-  metric(
-    'onc_tm_tov_pct',
-    'Team turnover percentage, on court',
-    'TM TOV% on',
-    `The team's turnovers per possession with the player on the floor; a player's turnovers, as in the box score. ${DERIVED}`,
-    {
-      ...base({
-        value: ratio('on_tov', 'on_poss'),
-        sample: 'on_poss',
-        minSample: MIN_POSS,
-        unit: 'pct',
-        direction: 'lower'
-      }),
-      categories: ['impact.on_court', 'offense.impact']
-    }
-  ),
-  metric(
-    'onc_tm_orb_pct',
-    'Team offensive rebound percentage, on court',
-    'TM ORB% on',
-    `The share of the team's missed shots it rebounded with the player on the floor; a player's rebounds, as in the box score. ${DERIVED}`,
-    {
-      ...base({
-        value: '{on_oreb} / nullif({on_oreb} + {on_opp_dreb}, 0)',
-        sample: 'on_poss',
-        minSample: MIN_POSS,
-        unit: 'pct'
-      }),
-      categories: ['impact.on_court', 'offense.impact']
-    }
-  ),
+  ...lineRates(),
   metric(
     'onc_usg_pct',
     'Usage, on court',
@@ -371,5 +551,7 @@ export const ON_COURT_SAMPLE_LABELS: Readonly<Record<string, string>> = {
   off_poss: 'possessions off court',
   off_opp_poss: 'opponent possessions off court',
   on_fga: 'team shots on court',
-  on_opp_fga: 'opponent shots on court'
+  on_opp_fga: 'opponent shots on court',
+  off_fga: 'team shots off court',
+  off_opp_fga: 'opponent shots off court'
 }

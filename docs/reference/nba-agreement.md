@@ -1023,3 +1023,38 @@ Every value was equal, none differed, none was missing, and the built tables hel
 - **Challenges:** the team by the timeout of the same moment, named by the team's nickname in the text, equals the built table's on 99.4 % or more of the team-games of each NBA season (17 of 2,800 differ in 2025-26) and 99.4 to 100 % of each WNBA one. 693 of the NBA's 703 replays of 2019-20 have a timeout to place them, 1,926 of 1,963 in 2025-26; the WNBA's 124 of 139 in 2023, 370 of 413 in 2026.
 - **Timeouts:** the same team from the text agrees on 99.0 % or more of the team-games of each NBA season (the 26 that differ in 2000-01 are the most), and 98.3 % or more of each WNBA one.
 - **The bonus:** the periods the feed says a team was in the penalty (`PN`) equal the rule's on 99.2 to 100 % of NBA team-games in 1996-97 to 2009-10 and 99.4 to 100 % in 2021-22 to 2026-27, and 90.6 to 93.2 % in 2010-11 to 2020-21, when the feed counts an offensive charge among the team's fouls (the rule does not). The free throws show the rule right: of non-shooting fouls the feed calls penalty and the rule does not (those charges; measured in 2011-12, 2014-15, 2017-18 and 2019-20), 0 to 6 % were followed by two free throws; of those the rule calls penalty, 98.5 to 99.9 % were. WNBA from 2006: 100 % in 2006 to 2010 and 2022 to 2026, and 91.5 to 98.8 % in 2011 to 2021 for the same reason.
+
+## The team's rates on and off the floor (T1703.3, fourth PR)
+
+Measured 2026-11-25 with `scripts/check-on-off-rates.mjs` on copies of the four leagues' files, every season each holds (NBA 1996-97 to 2026-27, WNBA 1997 to 2026, the colleges 2021-22 to 2026-27; the regular season in the first two, every counted type in the colleges).
+
+**Through the engine.** The 39 rates (13 on court, 13 off, 13 on less off) of every player-season, worked from `unit_game` alone, apart from `player_on_court` and the engine's SQL: **every value equal** to 1e-9, none blank, none missing, in all four leagues.
+
+|                                                             | NBA              | WNBA           | NCAA Men         | NCAA Women       |
+| ----------------------------------------------------------- | ---------------- | -------------- | ---------------- | ---------------- |
+| Player-seasons worked, the fewest and the most of the rates | 15,021 to 15,037 | 4,915 to 4,930 | 54,257 to 55,178 | 43,940 to 44,346 |
+| Player-games of a season type the player has no line in     | 15               | 57             | 1,483            | 1,055            |
+| Player-seasons whose key is too long to ask for (D28)       | 0                | 0              | 46               | 267              |
+
+No screen reads a player-game of the second row: the engine sums the season types a player has a box-score line in.
+
+**On plus off against the box score,** every player-game (the share equal, and the lowest season). Points, shots, threes and free throws of the team and of the opponents against the box score of the game; turnovers and rebounds against the players' own lines summed.
+
+|                                    | NBA            | WNBA           | NCAA Men       | NCAA Women     |
+| ---------------------------------- | -------------- | -------------- | -------------- | -------------- |
+| Player-games                       | 738,557        | 126,554        | 646,143        | 609,971        |
+| Points                             | 99.85 % (99.3) | 99.81 % (96.9) | 99.92 % (99.8) | 99.94 % (99.8) |
+| Field-goal attempts                | 99.97 % (99.6) | 99.94 % (99.2) | 99.83 % (99.3) | 99.74 % (99.0) |
+| Three-point attempts               | 99.99 % (99.8) | 99.96 % (99.2) | 99.89 % (99.5) | 99.83 % (99.2) |
+| Free-throw attempts                | 99.99 % (99.9) | 99.97 % (99.2) | 99.96 % (99.8) | 99.93 % (99.8) |
+| Turnovers, the players' lines      | 99.98 % (99.7) | 99.94 % (99.2) | 99.80 % (99.1) | 99.76 % (99.2) |
+| Offensive rebounds, the same       | 99.97 % (99.6) | 99.94 % (99.2) | 99.86 % (99.2) | 99.81 % (99.3) |
+| Defensive rebounds, the same       | 99.97 % (99.6) | 99.92 % (98.9) | 99.82 % (99.3) | 99.77 % (99.3) |
+| Held of the box score's: turnovers | 100 %          | 95.29 %        | 95.24 %        | 95.46 %        |
+| Held: offensive rebounds           | 100 %          | 100 %          | 84.87 %        | 83.49 %        |
+| Held: defensive rebounds           | 100 %          | 100 %          | 93.48 %        | 91.43 %        |
+
+- **What on and off leave out is what is credited to the team and no player.** On plus off is the players' lines summed (the rows above), and the box score's team line is more than its players' by the same amount. The plays say so too: with the plays that name no player, on plus off equals the team's box on 99.35 % (turnovers), 99.29 % (offensive) and 99.20 % (defensive) of the men's player-games, and 99.27, 99.16 and 99.08 % of the women's. The NBA's box score counts players only, so nothing is out there. The WNBA's counts the team's turnovers too, and with those plays the two agree on 95.77 % of player-games, 66.3 % in 1998, where its team row and the plays count team turnovers differently. So a turnover or rebound percentage on and off is of the events credited to a player, in every league, and its description says it.
+- **Games the play by play lacks.** Regular-season team-games with a box score and no unit: NBA 0 of 71,588, WNBA 8 of 12,990, NCAA Men 474 of 63,238, NCAA Women 466 of 59,310. They are in no on-court number. A team's season is missing a game's points for it: NCAA Men's team 36 in 2025-26 is 79 points short because of one such game (401830826, 2026-02-14).
+- **Games the play by play has wrong.** Over the games with units, the points of a team-season differ from the box score's by more than 1 %, for or against, in 0 of 922 NBA team-seasons, 5 of 380 WNBA, 7 of 4,090 NCAA Men and 6 of 3,620 NCAA Women. They come from games whose plays are partial or wrong: WNBA 1029900189 and 1020000154 (about five minutes of plays), 1029700012 (93 points where the box has 73); men's 401732296 (no points at all) and 401925079 (70 of 84); women's 401491423 (twice the plays: 119 and 123 points where the box has 49 and 57). The rest are teams with one to five games. The numbers are read with a note where this happens (`playsHeldNotes`), since the same games are in every on-court number.
+- **Units against the possessions, not proven.** Counted from the possessions instead of the units, a pair's four sides differ a little in most of the sample (both players on: 4,231 possessions and 4,999 points from the units, 4,217 and 4,986 from the possessions). Read in the code, the two credit a possession and a free throw at a different moment, the play that ends it or the foul that led to it; it was not proven play by play. The units are used because they are what every on-court number reads.

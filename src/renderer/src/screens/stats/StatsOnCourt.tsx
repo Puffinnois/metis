@@ -13,6 +13,7 @@ import {
   MIN_POSSESSIONS,
   onCourtGap,
   onCourtScope,
+  playsHeldNotes,
   teamOnOffQuery,
   TEAM_ON_OFF_METRICS,
   UNIT_SIZES,
@@ -164,7 +165,8 @@ export function DerivedUnits({
           derivedNote(),
           size === '5'
             ? unitsNote()
-            : 'A group counts whatever the rest of the floor was, so groups overlap: their minutes add up to more than the team’s.'
+            : 'A group counts whatever the rest of the floor was, so groups overlap: their minutes add up to more than the team’s.',
+          ...playsHeldNotes(value?.held)
         ]}
       />
     </>
@@ -244,7 +246,13 @@ export function WithOrWithout({
               Open the teammate’s dashboard
             </button>
           )}
-          <Notes notes={[derivedNote()]} />
+          <Notes
+            notes={[
+              derivedNote(),
+              'Counts the games both were on the floor in, by the play by play. A lineup that knows fewer than five players counts for those it knows.',
+              ...playsHeldNotes(value.held)
+            ]}
+          />
         </>
       )}
     </section>
