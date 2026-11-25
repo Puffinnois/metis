@@ -435,7 +435,7 @@ Set by the owner on 2026-11-23, as three requests: filter on every attribute of 
 
 - [x] **T1705 Team search (S).** The owner's words of 2026-11-25: "We need to have a search bar for teams instead of only a scrollable list to choose from." One searchable chooser wherever a team is picked from a list: the same list in the same order, narrowed by name, code and city or school; nothing stored changes. Check: the built app in the NBA, NCAA Men and the WNBA, both themes: the team page's picker by code and by part of a name, the board's filter, Explore's, and the keyboard alone from open to chosen.
 
-  _Done 2026-11-25_ (`stats-screens.md`, "Choosing a team"; `components/stats/TeamChooser.tsx`, `lib/stats/teamSearch.ts`; PRNUM). On the team page, the Players board, the rail, Explore's chart, Compare's team slots and Trends; no plain select of teams is left. What starts with the text is listed before what only holds it. No new dependency: the Radix popover and `searchKey` the app had. `drive.mjs`'s `select` step and the 40 step files and generators that set a select titled Team now drive the chooser; the old step files were not rerun.
+  _Done 2026-11-25_ (`stats-screens.md`, "Choosing a team"; `components/stats/TeamChooser.tsx`, `lib/stats/teamSearch.ts`; #159). On the team page, the Players board, the rail, Explore's chart, Compare's team slots and Trends; no plain select of teams is left. What starts with the text is listed before what only holds it. No new dependency: the Radix popover and `searchKey` the app had. `drive.mjs`'s `select` step and the 40 step files and generators that set a select titled Team now drive the chooser; the old step files were not rerun.
 
 ## Optional
 
