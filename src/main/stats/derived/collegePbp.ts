@@ -536,7 +536,7 @@ export function onCourtTables(
 /**
  * stats.ncaa.org's own tags of a play, beside `play_nba` by its `seq`: on the fast break, off a
  * turnover, in the paint, as the file sets them (`is_fastbreak`, `is_from_turnover`, `is_paint`, never
- * empty). Only the plays with a tag are kept (about 15 % of them); the counts read them through the
+ * empty). Only the plays with a tag are kept (about 16 % of them); the counts read them through the
  * play table (`collegeSituations.ts`). The file sets fast break and off a turnover on free throws too,
  * and paint on twos only.
  */
