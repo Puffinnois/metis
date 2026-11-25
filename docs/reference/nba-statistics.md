@@ -198,9 +198,11 @@ Documented JSON patterns: `https://cdn.nba.com/static/json/liveData/boxscore/box
 - **Usage percentage, BRef (`USG%`)** — `100(P_FGA+0.44P_FTA+P_TOV)×(T_MP/5)/[P_MP×(T_FGA+0.44T_FTA+T_TOV)]`. Estimated finished plays, not possession time, passes, or all creation.
 - **NBA usage / estimated usage (`USG_PCT`, `E_USG_PCT`)** — distinct published used-play-share fields. Retrieve NBA values; the BRef expression must not be asserted to reproduce both. Court-time, free-throw, and team-turnover treatments matter; exact endpoint formulas were not established here.
 - **Relative TS / relative eFG (`rTS%`, `rEFG%`)** — player percentage minus a specified league percentage, in percentage points. Derive with an explicit season/baseline.
+  - _In Metis (Plan T1703.3):_ `rts_pct` and `refg_pct`, players, teams and opponents, every league: the rate less the league's in the same scope, the league's own sums over the same games divided.
 - **Shooting indexes (`TS+`, `eFG+`, `FG+`, `2P+`, `3P+`, `FT+`)** — ratio-to-league convention: `100×player_rate/league_rate`. BRef adjusted shooting. 100 is league average, not 100% accuracy.
 - **True-shooting points added (`TS Add`)** — `2×TSA×(TS_fraction-league_TS_fraction)`. BRef adjusted shooting or derive with matching baselines.
 - **Field-goal points added (`FG Add`)** — `2×FGA×(eFG_fraction-league_eFG_fraction)`.
+  - _In Metis (Plan T1703.3):_ `ts_add` and `fg_add`, players, teams and opponents, every league, against the league of the same scope.
 
 ## 5. Possessions, pace, and efficiency ratings
 
@@ -245,6 +247,7 @@ Documented JSON patterns: `https://cdn.nba.com/static/json/liveData/boxscore/box
 - **Free-throw scoring share (`PCT_PTS_FT`)** — `100FTM/PTS`.
 - **Midrange / paint / fast-break / turnover scoring shares (`PCT_PTS_2PT_MR`, `PCT_PTS_PAINT`, `PCT_PTS_FB`, `PCT_PTS_OFF_TOV`)** — `100×category points/PTS` for each named category.
 - **Second-chance scoring share** — `100×second-chance points/PTS`; derive if not returned.
+  - _In Metis (Plan T1703.3):_ `nba_pts_2_nd_chance_share` and the teams' and opponents', NBA and WNBA, whole seasons: the dashboard's second-chance points over the box score's points.
 - **Assisted made twos / threes / all field goals** — counts of makes with a credited assist, by shot value; derive from PBP or use shooting splits.
 - **Unassisted made twos / threes / all field goals** — corresponding made-shot total minus assisted makes.
 - **Assisted two-point make percentage (`PCT_AST_2PM`)** — `100×assisted_2PM/2PM`.
@@ -781,7 +784,7 @@ Combine missingness can mean the player did not attend, declined a drill, or the
 - **Defensive versatility, matchup concentration** — `sqrt(Σposition_share_k^2)` before normalization, with shares summing to one. Lower raw concentration means more balanced position coverage. Retrieve matchup data and calculate; [creator's method](https://fansided.com/2018/05/31/nba-playoffs-defensive-versatility-cavaliers-warriors-jeff-green/). It measures assignment variety, not success against those assignments.
 - **Cleaning the Glass usage** — creation-adjusted used plays, with half credit shifted from assisted makes to assists: define `U=FGA+TOV+non_and_one_FT_trips-0.5assisted_FGM+0.5AST`; usage = `100U/team_used_plays_on`. Retrieve [CTG Offensive Overview](https://cleaningtheglass.com/stats/guide/player_offensive_overview); distinct from BRef USG%.
 - **CTG points per 100 shot attempts (`PSA`)** — `100×(points excluding technical FTs)/(FGA+eligible_non_and_one_FT_trips)`. Uses actual trips, not the 0.44 FTA approximation. Same [CTG source](https://cleaningtheglass.com/stats/guide/player_offensive_overview).
-- **Assist-to-usage ratio (`AST:Usg`)** — `AST%/usage%`; keep the same provider's definitions. [CTG source](https://cleaningtheglass.com/stats/guide/player_offensive_overview).
+- **Assist-to-usage ratio (`AST:Usg`)** — `AST%/usage%`; keep the same provider's definitions. _In Metis (Plan T1703.3):_ `ast_usg_ratio`, both rates Metis's own estimate from the box score. [CTG source](https://cleaningtheglass.com/stats/guide/player_offensive_overview).
 - **CTG turnover percentage** — `100TOV/U` using its creation-adjusted used-play count above. Same [CTG source](https://cleaningtheglass.com/stats/guide/player_offensive_overview).
 - **BBall Index Perimeter Shooting / Finishing / Playmaking / One-on-One / Post Play / Off-Ball Movement / Screening and Rolling grades** — provider skill estimates for those named capabilities. Retrieve [skill tools](https://www.bball-index.com/skills-application/) and [offensive-grade methodology](https://www.bball-index.com/explaining-offensive-talent-grades/); exact production weights/normalizations are not established here.
 - **BBall Index Perimeter Defense / Interior Defense / Offensive Rebounding / Defensive Rebounding grades** — corresponding role-aware skill evaluations, not the raw box-score rates. Retrieve the same [skill tools](https://www.bball-index.com/skills-application/); model/grade calculations are publisher-specific.
@@ -796,6 +799,7 @@ Combine missingness can mean the player did not attend, declined a drill, or the
 - **Games available / missed / started / inactive / DNP** — count roster/game statuses under a stated eligibility rule. Retrieve NBA rosters, injury reports, game boxes, or commercial feeds. Injury-report entries can repeat; count distinct relevant games rather than reports.
   - _In Metis (Plan T709):_ **games missed to injury or illness** and **games out for other reasons** are available from 2019-20 (`games_out_injury`, `games_out_other`), counted by game from the official injury reports: the last report that lists the player decides, only an Out counts, and only for players with a box-score line that season. **Not available:** games started and games not played for any reason are in the box scores, not these counts; inactive and DNP are not read; before 2019-20 the reports are incomplete.
 - **Minutes share / games-played share** — `100P_MP/(T_MP/5)` and `100P_GP/T_GP`. Specify tenure for traded players.
+  - _In Metis (Plan T1703.3):_ `min_share`, over the team's minutes in the games the player played, and `gp_share`, over the games their team played in scope (the team with more of them for a player who changed teams in a season).
 - **Awards, All-Star selections, All-NBA selections, titles, MVP voting share** — recorded results/counts; voting share = awarded vote points/maximum possible points under that award's rules. Retrieve NBA award releases, BRef awards, or commercial award feeds. These are not box-score performance formulas.
 - **Salary / cap hit / payroll / cost per modeled win** — financial context. Cost per win = selected dollar measure/selected value metric, but salary and cap hit are not interchangeable. Retrieve a licensed salary source and current contract records; no salary database was audited for this document.
 - **Referee foul/FT/challenge tendencies** — event counts or rates conditional on officiating crew. Retrieve officials plus PBP/commercial game data. A difference in raw rates is not evidence of referee bias without accounting for game context.

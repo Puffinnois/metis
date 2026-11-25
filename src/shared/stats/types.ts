@@ -225,6 +225,21 @@ export interface MetricDef {
    * better is mirrored, 100 × (2 − rate / league), so above 100 is still better.
    */
   index?: string
+  /**
+   * How an entry with `index` is read against the league (T1703.3); absent, as a share of it (100 is
+   * the league). `difference`: the rate less the league's rate (`value` is the rate's). `added`: what
+   * `value` counts beyond what its `weight` would bring at the league's rate, `value − weight × league`,
+   * the league's rate being its own `value` over its own `weight` (points above a league-average
+   * shooter: points less 2 × attempts × the league's true shooting).
+   */
+  relative?: 'difference' | 'added'
+  /** The formula an `added` value is over, in the same components (`relative`). */
+  weight?: string
+  /**
+   * The components of a published metric's formula that its published table does not hold and the box
+   * scores do (a published numerator over the box score's points). Read from the rows in scope.
+   */
+  box?: readonly string[]
 }
 
 /**

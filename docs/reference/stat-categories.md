@@ -57,7 +57,7 @@ Fourteen categories, in the order the screens show them. A category with nothing
 **Shooting**
 
 - _Field goals_, _Twos_, _Threes_, _Free throws_: makes, attempts, misses and percentages of each (free throws with the free-throw rate, also in Fouls › Drawn, and the and-ones and shooting-foul trips); the player's own shots blocked (`nba_blka`) are Field goals.
-- _Efficiency_: shooting that counts the three and the free throw: eFG%, TS%, points per attempt, points above the league by location.
+- _Efficiency_: shooting that counts the three and the free throw: eFG%, TS%, points per attempt, points above the league by location, and both rates and the points they bring against the league (`rts_pct`, `ts_add`, `fg_add`, T1703.3).
 - _Shot selection_: where the attempts come from: three- and two-point attempt rates, share of attempts from two and three, average shot distance, and for the colleges how each possession's first shot was taken.
 - _Share of team_: a player's share of the team's makes and attempts.
 - _Restricted area and paint_, _Mid-range_, _Corner threes_, _Above the break and backcourt_: the shot-chart zones, each with attempts, makes, FG%, frequency, eFG%, points per shot, both against the league, and the assisted share; the colleges' rim and mid-range splits sit here.

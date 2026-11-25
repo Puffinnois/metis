@@ -84,6 +84,39 @@ export const ON_COURT: MetricDef[] = [
     }
   ),
   metric(
+    'onc_pts',
+    'Points for, on court',
+    'PTS for on',
+    `Points the team scored with the player on the floor, counted from the plays. ${DERIVED}`,
+    {
+      ...base({
+        value: '{on_pts}',
+        sample: 'games',
+        aggregation: 'sum',
+        unit: 'count',
+        decimals: 0
+      }),
+      categories: ['impact.on_court', 'offense.impact']
+    }
+  ),
+  metric(
+    'onc_opp_pts',
+    'Points against, on court',
+    'PTS vs on',
+    `Points the opponents scored with the player on the floor, counted from the plays. Not points the player gave up alone. ${DERIVED}`,
+    {
+      ...base({
+        value: '{on_opp_pts}',
+        sample: 'games',
+        aggregation: 'sum',
+        unit: 'count',
+        decimals: 0,
+        direction: 'lower'
+      }),
+      categories: ['impact.on_court', 'defense.impact']
+    }
+  ),
+  metric(
     'onc_plus_minus',
     'Plus-minus, from plays',
     '+/- (plays)',

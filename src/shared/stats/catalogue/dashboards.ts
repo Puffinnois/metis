@@ -466,7 +466,70 @@ const ON_COURT_ALLOWED: Placement[] = ['impact.on_court', 'defense.impact']
 
 const lower = (s: string): string => s[0].toLowerCase() + s.slice(1)
 
+/**
+ * Second-chance points over points (reference 111): the NBA publishes the points, not the share, and its
+ * misc dashboard holds no points, so the box score's are under them (`MetricDef.box`).
+ */
+const secondChanceShare = (
+  id: string,
+  table: 'pub_player_misc' | 'pub_team_misc',
+  label: string,
+  short: string,
+  description: string,
+  column: string,
+  pts: 'pts' | 'opp_pts',
+  o: Partial<Opts> = {}
+): MetricDef =>
+  metric(id, label, short, description, {
+    value: ratio(column, pts),
+    box: [pts],
+    sample: pts,
+    unit: 'pct',
+    minSample: table === 'pub_player_misc' ? 500 : undefined,
+    kind: 'derived',
+    family: 'scoring',
+    entity: table === 'pub_player_misc' ? 'player' : 'team',
+    sources: [...SOURCES, "The NBA's box scores"],
+    firstSeason: NBA_FIRST_SEASON,
+    published: table,
+    categories: ['scoring.by_situation', 'offense.scoring'],
+    ...o
+  })
+
 const MISC: MetricDef[] = [
+  secondChanceShare(
+    'nba_pts_2_nd_chance_share',
+    'pub_player_misc',
+    'Second-chance scoring share (NBA)',
+    '2nd PTS%',
+    "The player's second-chance points, as the NBA classifies them, over the points of the box score.",
+    'pts_2_nd_chance',
+    'pts'
+  ),
+  secondChanceShare(
+    'team_nba_pts_2_nd_chance_share',
+    'pub_team_misc',
+    'Second-chance scoring share (NBA)',
+    '2nd PTS%',
+    "The team's second-chance points, as the NBA classifies them, over the points of the box score.",
+    'pts_2_nd_chance',
+    'pts',
+    { side: 'offense' }
+  ),
+  secondChanceShare(
+    'opp_nba_pts_2_nd_chance_share',
+    'pub_team_misc',
+    'Opponent second-chance scoring share (NBA)',
+    'Opp 2nd PTS%',
+    "The opponents' second-chance points, as the NBA classifies them, over their points of the box score.",
+    'opp_pts_2_nd_chance',
+    'opp_pts',
+    {
+      side: 'defense',
+      direction: 'lower',
+      categories: opponentsOf(['scoring.by_situation', 'offense.scoring'])
+    }
+  ),
   ...KINDS.flatMap(([c, label, short, own]) => [
     total('pub_player_misc', c, {
       id: `nba_${c}`,
