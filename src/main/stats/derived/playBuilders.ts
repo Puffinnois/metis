@@ -1,12 +1,13 @@
 import { leagueOf, type League } from '@shared/leagues'
 import type { StatsDb } from '../db'
-import { COLLEGE_PBP_BUILDERS, collegePlayUnitsSql, onCourtTables } from './collegePbp'
+import { COLLEGE_PBP_BUILDERS, collegePlayUnitsSql, onCourtTables, PLAY_LINEUP } from './collegePbp'
 import {
   COLLEGE_LINEUPS_BUILDER,
   COLLEGE_SHOT_KEY_BUILDER,
   collegeEventsSql,
   collegePlayerOnCourtFrom,
-  collegeUnitGameSql
+  collegeUnitGameSql,
+  SHOT_KEYS
 } from './collegePlays'
 import { eventsSql } from './events'
 import { PLAY_DETAIL_BUILDERS } from './playDetail'
@@ -44,6 +45,17 @@ export interface PlayBuilder {
    */
   select: (have: Have, season: number, league: League) => string
   /**
+   * The plays step's tables its SELECT reads (other builders' outputs, intermediates included), so a
+   * rebuild of one table knows which others it reaches. A test scans each builder's SQL against it. A
+   * name no builder of the league fills is ignored, since shared builders read what only one league has.
+   */
+  reads: readonly string[]
+  /**
+   * What decides its rows beside its columns and its SELECT, where two builders fill one name by turns:
+   * the source the on-court tables are read from (`League.onCourtFrom`).
+   */
+  origin?: string
+  /**
    * The order a season's rows are written in, game first. Rows of a game side by side compress
    * better (Plan T907 measured 8 to 26 % on the play, split, unit and on-court tables), and a read
    * of one game skips the row groups of the others.
@@ -69,7 +81,13 @@ export function insertSql(b: PlayBuilder, have: Have, season: number, league: Le
 }
 
 export const PLAY_BUILDERS: PlayBuilder[] = [
-  { table: PLAY_TABLES.nba, columns: PLAY_COLUMNS, select: nbaPlaysSql, order: 'game_id, seq' },
+  {
+    table: PLAY_TABLES.nba,
+    columns: PLAY_COLUMNS,
+    select: nbaPlaysSql,
+    reads: [],
+    order: 'game_id, seq'
+  },
   // ESPN's plays are not stored: `play_espn` is a view (`espnPlaysViewSql`), made after the builders.
   // Shots by zone, band and type (Plan T903): they read the season's `play_nba` for assists.
   ...SHOT_BUILDERS,
@@ -97,31 +115,40 @@ function collegePlayBuilders(league: League): PlayBuilder[] {
   const plays = onCourtTables(league, 'plays')
   return [
     COLLEGE_SHOT_KEY_BUILDER,
-    ...SHOT_BUILDERS,
+    // The colleges' shots name no assist (`PlaysRecipe.assists`), so they read their keys alone.
+    ...SHOT_BUILDERS.map((b) => ({ ...b, reads: [SHOT_KEYS] })),
     ...COLLEGE_PBP_BUILDERS,
     ...SPLIT_BUILDERS,
     {
       table: lineups.units,
       columns: UNIT_GAME_COLUMNS,
       select: collegeUnitGameSql,
+      reads: [],
+      origin: 'lineups',
       order: UNIT_ORDER
     },
     {
       table: plays.units,
       columns: UNIT_GAME_COLUMNS,
       select: collegePlayUnitsSql,
+      reads: [PLAY_LINEUP, PLAY_TABLES.nba],
+      origin: 'plays',
       order: UNIT_ORDER
     },
     {
       table: lineups.players,
       columns: PLAYER_ON_COURT_COLUMNS,
       select: collegePlayerOnCourtFrom(lineups.units),
+      reads: [lineups.units],
+      origin: 'lineups',
       order: PLAYER_ORDER
     },
     {
       table: plays.players,
       columns: PLAYER_ON_COURT_COLUMNS,
       select: playerOnCourtFrom(plays.units),
+      reads: [PLAY_TABLES.nba, plays.units],
+      origin: 'plays',
       order: PLAYER_ORDER
     },
     COLLEGE_LINEUPS_BUILDER,
@@ -148,7 +175,8 @@ export const playBuildersOf = (league?: League): readonly PlayBuilder[] => {
 /**
  * The NBA recipe's version. Each league's recipe keeps its own (`playsRecipe(league).version`): bump
  * the league's when its rows change, every recipe's when a builder's do, so the next refresh rebuilds
- * every season of every table.
+ * every season of every table. A new builder, or one whose columns change, needs no bump: it is rebuilt
+ * alone, with what reads it (`planPlays`).
  */
 export const PLAYS_VERSION = NBA_PLAYS.version
 
@@ -186,9 +214,101 @@ async function pendingSeasons(db: StatsDb): Promise<number[]> {
   return rows.map((r) => Number(r.name.slice(PENDING.length)))
 }
 
-/** Whether a build is due: a new version, or a season waiting. */
+/** What a table's builder fills it from, as one number: its columns, and where it reads them. */
+export function signature(b: PlayBuilder): number {
+  let h = 0x811c9dc5
+  for (const ch of JSON.stringify([b.table, b.columns, b.origin ?? ''])) {
+    h = Math.imul(h ^ ch.charCodeAt(0), 0x01000193)
+  }
+  return h & 0x7fffffff
+}
+
+/** `derived_state` row of a builder's table, as built: its `signature`. Not a season's (`plays:`). */
+const BUILT = 'playtable:'
+
+/**
+ * The tables a file built before the builders' signatures were recorded (T1703.2) holds, if it is at the
+ * recipe's version: the plays step built these, every one, so one is rebuilt only if its columns differ.
+ * A builder not named here is a newer table, whether or not the file already has it: opening a file
+ * creates some play tables empty, so a table that is there is no sign it was built.
+ */
+const BEFORE_SIGNATURES: ReadonlySet<string> = new Set([
+  'play_nba',
+  'shot_player_game',
+  'shot_team_game',
+  'split_team',
+  'split_player',
+  'unit_game',
+  'player_on_court',
+  'play_player_game',
+  'play_team_game',
+  'shot_key',
+  'play_lineup',
+  'unit_game_lineups',
+  'unit_game_plays',
+  'player_on_court_lineups',
+  'player_on_court_plays',
+  'pub_lineups'
+])
+
+/** The builders whose table was not built as it is now: new, reshaped, or filled from another source. */
+async function changedBuilders(
+  db: StatsDb,
+  builders: readonly PlayBuilder[]
+): Promise<PlayBuilder[]> {
+  const rows = await db.all<{ name: string; version: number }>(
+    `SELECT name, version FROM derived_state WHERE name LIKE '${BUILT}%'`
+  )
+  const built = new Map(rows.map((r) => [r.name.slice(BUILT.length), Number(r.version)]))
+  const out: PlayBuilder[] = []
+  for (const b of builders) {
+    const known =
+      built.size > 0 ? built.get(b.table) === signature(b) : BEFORE_SIGNATURES.has(b.table)
+    // An intermediate is not kept, so only its signature says whether its readers hold what it makes.
+    if (!known || (!b.intermediate && !(await shaped(db, b)))) out.push(b)
+  }
+  return out
+}
+
+/**
+ * The builders a rebuild of `changed` reaches, in build order: what reads them, and what reads those; and
+ * the intermediates any of these reads, which are not in the file and so are made again (their other
+ * readers hold what they made, so they are left alone).
+ */
+export function rebuildSet(
+  builders: readonly PlayBuilder[],
+  changed: readonly PlayBuilder[]
+): PlayBuilder[] {
+  const reached = new Set(changed.map((b) => b.table))
+  for (let grown = true; grown;) {
+    grown = false
+    for (const b of builders) {
+      if (!reached.has(b.table) && b.reads.some((t) => reached.has(t))) {
+        reached.add(b.table)
+        grown = true
+      }
+    }
+  }
+  const again = new Set(reached)
+  for (let grown = true; grown;) {
+    grown = false
+    for (const b of builders) {
+      if (!again.has(b.table)) continue
+      for (const t of b.reads) {
+        if (!again.has(t) && builders.some((x) => x.table === t && x.intermediate)) {
+          again.add(t)
+          grown = true
+        }
+      }
+    }
+  }
+  return builders.filter((b) => again.has(b.table))
+}
+
+/** Whether a build is due: a new version, a season waiting, or a builder whose table changed. */
 export async function playsDue(db: StatsDb, league?: League): Promise<boolean> {
-  return (await playsStale(db, league)) || (await pendingSeasons(db)).length > 0
+  if ((await playsStale(db, league)) || (await pendingSeasons(db)).length > 0) return true
+  return (await changedBuilders(db, playBuildersOf(league))).length > 0
 }
 
 /** Whether the table is there with exactly these columns and types, in order. */
@@ -204,40 +324,63 @@ async function shaped(db: StatsDb, b: PlayBuilder): Promise<boolean> {
   )
 }
 
+export interface PlayPlan {
+  /** Every builder of every season played: a new version, a file of every season, or a first build. */
+  all: boolean
+  /** The seasons every builder is rebuilt in: every season played, or those whose files wrote rows. */
+  seasons: number[]
+  /**
+   * The builders rebuilt for every season played beside them: those whose table is new, reshaped or of
+   * another source, what reads them, and the intermediates they read. Empty when `all`.
+   */
+  partial: PlayBuilder[]
+  /** Every season played, newest last. */
+  played: number[]
+}
+
 /**
- * The seasons to rebuild: every season played when the version changed (a new database has none),
- * a table is of another shape, or a file of every season changed; else the seasons whose files
- * wrote rows. A table with no rows is not a reason: a source not loaded leaves one empty for good.
+ * What a build does. A changed recipe version rebuilds every builder's every season; so does a file of
+ * every season. Otherwise a builder whose own table is new or changed is rebuilt alone for every season
+ * played (`partial`) and the seasons whose files wrote rows are rebuilt whole. A table with no rows is
+ * not a reason: a source not loaded leaves one empty for good.
  */
-export async function seasonsToBuild(
-  db: StatsDb,
-  league?: League
-): Promise<{ all: boolean; seasons: number[] }> {
+export async function planPlays(db: StatsDb, league?: League): Promise<PlayPlan> {
   const played = (
     await db.all<{ season: number }>(
       'SELECT DISTINCT season FROM game WHERE played AND season IS NOT NULL ORDER BY season'
     )
   ).map((r) => r.season)
   const pending = await pendingSeasons(db)
-  let all = (await playsStale(db, league)) || pending.includes(ALL)
-  for (const b of playBuildersOf(league)) {
-    if (all) break
-    if (!b.intermediate) all = !(await shaped(db, b))
+  if ((await playsStale(db, league)) || pending.includes(ALL)) {
+    return { all: true, seasons: played, partial: [], played }
   }
-  return { all, seasons: all ? played : played.filter((s) => pending.includes(s)) }
+  const builders = playBuildersOf(league)
+  const changed = await changedBuilders(db, builders)
+  return {
+    all: false,
+    seasons: played.filter((s) => pending.includes(s)),
+    partial: changed.length > 0 ? rebuildSet(builders, changed) : [],
+    played
+  }
 }
 
 /**
  * Rebuilds what is due, season by season, each in one transaction per table, then the views
- * (ESPN's plays first, which are only a view). A
- * table of another shape is created empty first, and a full rebuild drops seasons no longer played.
+ * (ESPN's plays first, which are only a view). What is due is `planPlays`'s: every builder of a season
+ * whose files wrote rows, and for every other season the builders whose table changed. A table of another
+ * shape is created empty first, and a table rebuilt for every season drops seasons no longer played.
  * After each season DuckDB is asked to checkpoint, so the space of the rows it deleted is reused
  * before the next season is written. Returns the rows written.
  */
 export async function buildPlays(db: StatsDb, league: League): Promise<number> {
   const have = await inspect(db)
-  const { all, seasons } = await seasonsToBuild(db, league)
+  const plan = await planPlays(db, league)
   const builders = playBuildersOf(league)
+  /** The builders a season rebuilds: all of them, or those rebuilt for every season. */
+  const inSeason = (season: number): readonly PlayBuilder[] =>
+    plan.all || plan.seasons.includes(season) ? builders : plan.partial
+  const running = plan.all || plan.seasons.length > 0 ? builders : plan.partial
+  const rebuilt = plan.all ? builders : plan.partial
   const college = playsRecipe(league).builders === 'college'
   let rows = 0
   // A database built before Plan T907 holds ESPN's plays as a table: drop it first, and checkpoint,
@@ -260,15 +403,17 @@ export async function buildPlays(db: StatsDb, league: League): Promise<number> {
       await db.exec(`DROP TABLE IF EXISTS ${PLAYER_ON_COURT}_${source}`)
     }
   }
-  for (const b of builders) {
+  for (const b of running) {
     if (b.intermediate || !(await shaped(db, b))) {
       await db.exec(
         `CREATE OR REPLACE TABLE ${b.table} (${b.columns.map(([n, t]) => `${n} ${t}`).join(', ')})`
       )
     }
   }
-  for (const season of seasons) {
-    for (const b of builders) {
+  for (const season of plan.played) {
+    const run = inSeason(season)
+    if (run.length === 0) continue
+    for (const b of run) {
       rows += await db.transaction(async () => {
         await db.exec(`DELETE FROM ${b.table} WHERE season = ?`, [season])
         await db.exec(insertSql(b, have, season, league))
@@ -281,14 +426,14 @@ export async function buildPlays(db: StatsDb, league: League): Promise<number> {
     }
     await checkpoint(db)
   }
-  if (all) {
-    const kept = seasons.length > 0 ? seasons.join(', ') : 'NULL'
-    for (const b of builders) {
+  if (rebuilt.length > 0) {
+    const kept = plan.played.length > 0 ? plan.played.join(', ') : 'NULL'
+    for (const b of rebuilt) {
       if (b.intermediate) continue
       await db.exec(`DELETE FROM ${b.table} WHERE season IS NULL OR season NOT IN (${kept})`)
     }
   }
-  for (const b of builders) {
+  for (const b of running) {
     if (b.intermediate) await db.exec(`DROP TABLE IF EXISTS ${b.table}`)
   }
   if (college) {
@@ -300,6 +445,14 @@ export async function buildPlays(db: StatsDb, league: League): Promise<number> {
   }
   await db.transaction(async () => {
     await db.exec(`DELETE FROM derived_state WHERE name LIKE '${PENDING}%'`)
+    // Recorded only now: an interrupted rebuild leaves its tables as not built, so it is done again.
+    await db.exec(`DELETE FROM derived_state WHERE name LIKE '${BUILT}%'`)
+    for (const b of builders) {
+      await db.exec('INSERT OR REPLACE INTO derived_state VALUES (?, ?)', [
+        `${BUILT}${b.table}`,
+        signature(b)
+      ])
+    }
     await db.exec('INSERT OR REPLACE INTO derived_state VALUES (?, ?)', [
       'plays',
       playsRecipe(league).version

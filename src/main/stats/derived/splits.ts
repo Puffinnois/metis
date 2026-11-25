@@ -9,7 +9,12 @@ import {
 } from '@shared/stats/splits'
 import type { PlayBuilder } from './playBuilders'
 import { BOX_COUNTS } from './game'
-import { collegePossessionsCte, collegeSegmentsCte, collegeStintsCte } from './collegePbp'
+import {
+  collegePossessionsCte,
+  collegeSegmentsCte,
+  collegeStintsCte,
+  PLAY_LINEUP
+} from './collegePbp'
 import { possessionsSql } from './events'
 import { playsRecipe } from './playsRecipe'
 import { column, per, type Have } from './sql'
@@ -484,19 +489,21 @@ const guarded =
 /**
  * The two tables as builders of the play layer (`PLAY_BUILDERS` in `playBuilders.ts`), which
  * replaces a season of each in one transaction after that season's plays. Teams first, then players.
- * Bump `PLAYS_VERSION` there when a rule or a column changes.
+ * Bump `PLAYS_VERSION` there when a rule changes; a column that changes is its own reason to rebuild.
  */
 export const SPLIT_BUILDERS: readonly PlayBuilder[] = [
   {
     table: SPLIT_TEAM,
     columns: SPLIT_TEAM_COLUMNS,
     select: guarded(SPLIT_TEAM_COLUMNS, splitTeamSelect),
+    reads: [PLAY_LINEUP, 'play_nba'],
     order: 'game_id, team_id, split'
   },
   {
     table: SPLIT_PLAYER,
     columns: SPLIT_PLAYER_COLUMNS,
     select: guarded(SPLIT_PLAYER_COLUMNS, splitPlayerSelect),
+    reads: [PLAY_LINEUP, 'play_nba'],
     order: 'game_id, team_id, player_id, split'
   }
 ]

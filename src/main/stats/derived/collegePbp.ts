@@ -502,8 +502,8 @@ export type OnCourtSource = 'lineups' | 'plays'
  * The tables each source's units and player-games are built into: the source the league's entry reads
  * (`League.onCourtFrom`, the lineup file unless it says otherwise) under the names every read uses, the
  * other beside it under its own (`unit_game_plays`, or `unit_game_lineups` once the plays are read), so
- * both are kept and named (policy 5) and switching is that one setting: the next refresh finds the other
- * name missing and rebuilds every season.
+ * both are kept and named (policy 5) and switching is that one setting: the next refresh finds each name
+ * filled from another source (`PlayBuilder.origin`) and rebuilds those tables for every season.
  */
 export function onCourtTables(
   league: League,
@@ -521,6 +521,7 @@ export const COLLEGE_PBP_BUILDERS: readonly PlayBuilder[] = [
     table: PLAY_LINEUP,
     columns: PLAY_LINEUP_COLUMNS,
     select: collegePlayLineupSql,
+    reads: [],
     order: 'game_id, seq',
     // An intermediate (the manager's decision at T1302.7): 104 MB a league kept, a few seconds a
     // season rebuilt on each refresh.
@@ -530,6 +531,7 @@ export const COLLEGE_PBP_BUILDERS: readonly PlayBuilder[] = [
     table: PLAY_TABLES.nba,
     columns: PLAY_COLUMNS,
     select: collegePlaysSql,
+    reads: [],
     order: 'game_id, seq'
   }
 ]

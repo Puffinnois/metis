@@ -21,8 +21,8 @@ import type { Have } from './sql'
  *
  * The NBA's shots are the source (`shot_nba`); ESPN's are another coordinate frame and are not read
  * here. A season before the shots start has no rows, and its metrics read null with their reason.
- * Built season by season through `PLAY_BUILDERS` (`playBuilders.ts`), after the play tables; a change
- * of rule bumps `PLAYS_VERSION` there.
+ * Built season by season through `PLAY_BUILDERS` (`playBuilders.ts`), after the play tables (before
+ * them in the colleges, whose shots read none); a change of rule bumps `PLAYS_VERSION` there.
  */
 
 export const SHOT_PLAYER_GAME = 'shot_player_game'
@@ -228,7 +228,8 @@ function sums(prefix = '', assists = true): string[] {
  * - **Shots:** the SELECT behind `shot_nba`, for this season only. The view itself is created after
  *   the builders have run, so on a new database it would still be empty here.
  * - **Assisted:** the make's row in `play_nba` names the assist; `play_nba` is built for the season
- *   before this builder runs. A make is found there by game, period, clock and shooter, which is
+ *   before this builder runs. A league whose shots name no assist reads nothing of it, so its shots are
+ *   built from their own keys alone (and before the play table, in the colleges' order). A make is found there by game, period, clock and shooter, which is
  *   unique for all but a handful of makes a season; where two makes share them, they pair in order,
  *   and both are the same shooter's at the same moment.
  * - **League rates:** the season's regular-season shots, by bucket: the share made and points per
@@ -236,10 +237,11 @@ function sums(prefix = '', assists = true): string[] {
  *   league's season, not against the few teams left.
  */
 function classifiedSql(have: Have, season: number, league?: League): string {
-  const plays = have.tables.has(PLAY_TABLES.nba)
-    ? `SELECT game_id, period, clock, player_id, seq, assist_id
+  const plays =
+    have.tables.has(PLAY_TABLES.nba) && assistsIn(league)
+      ? `SELECT game_id, period, clock, player_id, seq, assist_id
        FROM ${PLAY_TABLES.nba} WHERE season = ${season} AND fgm = 1`
-    : `SELECT NULL::VARCHAR AS game_id, NULL::INTEGER AS period, NULL::DOUBLE AS clock,
+      : `SELECT NULL::VARCHAR AS game_id, NULL::INTEGER AS period, NULL::DOUBLE AS clock,
               NULL::BIGINT AS player_id, NULL::INTEGER AS seq, NULL::BIGINT AS assist_id WHERE false`
   const key = 'game_id, period, clock, player_id'
   const rates = (dim: string): string => `lg_${dim} AS (
@@ -318,12 +320,14 @@ export const SHOT_BUILDERS: readonly PlayBuilder[] = [
     table: SHOT_PLAYER_GAME,
     columns: SHOT_PLAYER_COLUMNS,
     select: playerGameSql,
+    reads: [PLAY_TABLES.nba],
     order: 'game_id, team_id, player_id'
   },
   {
     table: SHOT_TEAM_GAME,
     columns: SHOT_TEAM_COLUMNS,
     select: teamGameSql,
+    reads: [PLAY_TABLES.nba],
     order: 'game_id, team_id'
   }
 ]
