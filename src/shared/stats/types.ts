@@ -648,6 +648,51 @@ export interface RatingHistory {
   reason: string | null
 }
 
+/** A count of a player's box-score line, as the game table names it. */
+export type GameCount =
+  | 'seconds'
+  | 'fgm'
+  | 'fga'
+  | 'fg3m'
+  | 'fg3a'
+  | 'ftm'
+  | 'fta'
+  | 'oreb'
+  | 'dreb'
+  | 'reb'
+  | 'ast'
+  | 'stl'
+  | 'blk'
+  | 'tov'
+  | 'pf'
+  | 'pts'
+  | 'plus_minus'
+
+/** One game a player has a line in, for their highs, streaks and threshold games (T1703.3). */
+export interface StatsPlayerGame {
+  gameId: string
+  /** YYYY-MM-DD. */
+  date: string
+  season: number
+  gameType: GameType
+  /** The team's code that season, and the opponent's; null for a team the season's list lacks. */
+  team: string | null
+  opponentId: string | null
+  opponent: string | null
+  home: boolean | null
+  won: boolean | null
+  /** The line's counts, in the order of `GAME_COUNTS`; null where the line lacks one. */
+  counts: (number | null)[]
+}
+
+/** Every game a player has a line in, oldest first. */
+export interface StatsPlayerGames {
+  playerId: string
+  games: StatsPlayerGame[]
+  /** Why there is none, where the file cannot say: "Built at this league's next refresh." */
+  reason: string | null
+}
+
 /** One member of a team's staff for a season, from the NBA's coach file. */
 export interface StatsCoach {
   id: string

@@ -30,6 +30,7 @@ import type {
   StatsAvailability,
   StatsCoach,
   StatsIndexedPlayer,
+  StatsPlayerGames,
   StatsPlayerInfo,
   StatsQuery,
   StatsResult,
@@ -366,6 +367,13 @@ export const useRatingHistory = (
   version: string | null
 ): ReadState<RatingHistory> =>
   useRead(`${version}|${player}`, (league) => api.stats.ratingHistory(league, player))
+
+/** Every game a player has a line in, for their highs, streaks and threshold games (T1703.3). */
+export const usePlayerGames = (
+  player: string,
+  version: string | null
+): ReadState<StatsPlayerGames> =>
+  useRead(`${version}|${player}`, (league) => api.stats.playerGames(league, player))
 
 /** A player's bio, draft and combines. */
 export const useProfile = (player: string, version: string | null): ReadState<StatsProfile> =>

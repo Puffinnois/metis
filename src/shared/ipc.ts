@@ -32,6 +32,7 @@ import type {
   StatsAttributeValue,
   StatsCoach,
   StatsIndexedPlayer,
+  StatsPlayerGames,
   StatsPlayerInfo,
   StatsQuery,
   StatsResult,
@@ -205,6 +206,8 @@ export interface Api {
     availability(league: LeagueId, players: string[]): Promise<StatsAvailability[]>
     /** A player's ratings over time, each series named with its maker (Plan T1704). */
     ratingHistory(league: LeagueId, player: string): Promise<RatingHistory>
+    /** Every game a player has a line in, for their highs, streaks and threshold games (T1703.3). */
+    playerGames(league: LeagueId, player: string): Promise<StatsPlayerGames>
     /** The players' listings on the injury report for these games, the last before each (T1601.4). */
     gameListings(league: LeagueId, games: string[], players: string[]): Promise<StatsGameListing[]>
     /**
@@ -283,6 +286,7 @@ export const IPC = {
   statsOtherPlayers: 'stats:other-players',
   statsAvailability: 'stats:availability',
   statsRatingHistory: 'stats:rating-history',
+  statsPlayerGames: 'stats:player-games',
   statsGameListings: 'stats:game-listings',
   statsAttributeValues: 'stats:attribute-values',
   statsCoaches: 'stats:coaches',
