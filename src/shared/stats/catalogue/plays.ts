@@ -552,7 +552,7 @@ const ENTRIES: Entry[] = [
     label: 'Jump balls won',
     short: 'Jumps won',
     description:
-      'Jump balls won, the tips and the held balls. The NBA’s and WNBA’s feed names who won by name: a jump whose winner it does not name, or names by a name of both teams, is not counted (2 to 8 % of a season).',
+      'Jump balls won, the tips and the held balls. The NBA’s and WNBA’s feed names who won by name: a jump whose winner it does not name, or names by a name of both teams, is not counted (6 to 9 % of an NBA season, 7 to 13 % of a WNBA one).',
     opts: { ...countOf('jump_won'), categories: ['results.game_flow'] },
     sides: [PLAYER, TEAM]
   },
@@ -592,7 +592,7 @@ const ENTRIES: Entry[] = [
     label: 'Coach’s challenges',
     short: 'Chall',
     description:
-      'Coach’s challenges, the team taken as the one whose timeout is at the same moment (the replay’s row names no team): a replay with no timeout there is not counted (about 2 % in the NBA, 9 % in the WNBA).',
+      'Coach’s challenges, the team taken as the one whose timeout is at the same moment (the replay’s row names no team): a replay with no timeout there is not counted (about 2 % in the NBA, 10 % in the WNBA).',
     opts: {
       ...countOf('challenges', { direction: 'neutral', firstSeason: 2020 }),
       categories: ['results.game_flow']

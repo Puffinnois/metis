@@ -10,6 +10,8 @@ import { PLAY_TABLES } from '@main/stats/derived/plays'
 import { inspect } from '@main/stats/derived/sql'
 import { bootstrapStatsDb } from '@main/stats/schema'
 import { LEAGUES, type League } from '@shared/leagues'
+import { CATALOGUE } from '@shared/stats/catalogue'
+import type { MetricDef } from '@shared/stats/types'
 import { addGame, addNbaLine, BOS, emptySources, LAL } from '../../../fixtures/boxScores'
 import { openTestDb } from '../../../fixtures/stats'
 
@@ -114,8 +116,8 @@ beforeEach(async () => {
     (2026, ${BOS}, 2, 'BOS', 'Boston Celtics', 'east', 'atlantic'),
     (2026, ${LAL}, 13, 'LAL', 'Los Angeles Lakers', 'west', 'pacific')`)
   await db.exec('CREATE TABLE player (player_id BIGINT, name VARCHAR)')
-  await db.exec(`INSERT INTO player VALUES (1, 'Ana Home'), (2, 'Bea Lively II'), (3, 'Cy Williams'),
-    (4, 'Dí Williams')`)
+  await db.exec(`INSERT INTO player VALUES (1, 'Ana Home'), (2, 'Bea Lívely II'), (3, 'Cy Williams'),
+    (4, 'Dí Williams'), (5, 'Ed Smith'), (6, 'Fi Smith')`)
   await db.exec(
     `INSERT INTO src_nba_rosters VALUES (1, 2026, 'G'), (2, 2026, 'G'), (3, 2026, 'F'), (4, 2026, 'F')`
   )
@@ -124,7 +126,9 @@ beforeEach(async () => {
     [ANA, BOS],
     [CY, BOS],
     [BEA, LAL],
-    [DI, LAL]
+    [DI, LAL],
+    [5, LAL],
+    [6, LAL]
   ]) {
     await addNbaLine(db, 'a', p, t, { position: 'G' })
   }
@@ -199,22 +203,50 @@ describe('the baskets of the last minutes', () => {
   })
 
   it('needs the last period, the last two minutes, a field goal and a lead taken', async () => {
+    const at = (
+      t: number,
+      who: number,
+      p: number,
+      clock: number,
+      pts: number,
+      fg3 = false
+    ): Play => ({
+      p,
+      clock,
+      team: t,
+      player: who,
+      kind: 'field_goal',
+      fgm: true,
+      fg3,
+      pts
+    })
     await put([
       ...scored(90, 90),
-      // The third quarter, and four minutes left in the fourth.
-      { p: 3, clock: 5, team: BOS, player: ANA, kind: 'field_goal', fgm: true, pts: 2 },
-      { p: 4, clock: 240, team: LAL, player: BEA, kind: 'field_goal', fgm: true, pts: 2 },
-      { p: 4, clock: 230, team: LAL, player: BEA, kind: 'field_goal', fgm: true, pts: 2 },
+      // The third quarter: a lead taken and, as it happens, never lost. And four minutes left in the fourth.
+      at(BOS, ANA, 3, 5, 2),
+      at(LAL, BEA, 4, 240, 2),
       // A free throw takes the lead, which is not counted; the next basket only adds to it.
       { p: 4, clock: 60, team: BOS, player: CY, kind: 'free_throw', fta: true, ftm: true, pts: 1 },
-      { p: 4, clock: 55, team: BOS, player: ANA, kind: 'field_goal', fgm: true, pts: 2 },
-      // Overtime counts its last two minutes.
-      { p: 5, clock: 100, team: LAL, player: BEA, kind: 'field_goal', fgm: true, pts: 2 }
+      at(BOS, ANA, 4, 55, 2),
+      at(LAL, DI, 4, 40, 3, true),
+      // Overtime counts its last two minutes, from level.
+      at(LAL, BEA, 5, 100, 2)
     ])
     await build()
-    expect(await player(ANA)).toMatchObject({ go_ahead: 1, game_winner: 0, buzzer: 0 })
-    expect(await player(CY)).toMatchObject({ go_ahead: 0 })
-    expect(await player(BEA)).toMatchObject({ go_ahead: 1 })
+    expect(await player(ANA)).toMatchObject({ go_ahead: 0, game_winner: 0 })
+    expect(await player(CY)).toMatchObject({ go_ahead: 0, game_winner: 0 })
+    expect(await player(DI)).toMatchObject({ go_ahead: 0 })
+    expect(await player(BEA)).toMatchObject({ go_ahead: 1, game_winner: 0 })
+    // A third-quarter basket at the buzzer that the other side never answers is a buzzer-beater, no winner.
+    await db.exec(`DELETE FROM ${PLAY_TABLES.nba}`)
+    await put([...scored(90, 90), at(BOS, ANA, 3, 1, 2)])
+    await build()
+    expect(await player(ANA)).toMatchObject({
+      go_ahead: 0,
+      game_winner: 0,
+      buzzer: 1,
+      buzzer_winner: 0
+    })
   })
 })
 
@@ -305,7 +337,10 @@ describe('blocks recovered', () => {
       missed({ clock: 300 }),
       block,
       { p: 1, clock: 290, team: LAL, player: DI, kind: 'field_goal', fgm: true, pts: 2 },
-      // A dead-ball rebound counts for nobody.
+      // A block that names no blocker, and a dead-ball rebound that counts for nobody.
+      missed({ clock: 250, blocker: undefined }),
+      block,
+      rebound(BOS, CY, false),
       missed({ clock: 200 }),
       { p: 1, clock: 198, team: LAL, kind: 'rebound' }
     ])
@@ -313,6 +348,11 @@ describe('blocks recovered', () => {
     expect(await player(ANA)).toMatchObject({ blk_n: 2, blk_rec: 1 })
     expect(await player(BEA)).toMatchObject({ blk_n: 0 })
     expect(await team(BOS)).toMatchObject({ blk_n: 2, blk_rec: 1, opp_blk_n: 0 })
+    expect(
+      await db.get(
+        `SELECT count(*)::INTEGER AS n FROM ${PLAY_DETAIL_PLAYER_GAME} WHERE player_id IS NULL`
+      )
+    ).toEqual({ n: 0 })
   })
 })
 
@@ -337,14 +377,22 @@ describe('jump balls', () => {
       // No tip named, and a tip to nobody of the game: not counted.
       asRow('Jump Ball Home vs. Lively II: Tip to ', ANA, BOS),
       asRow('Jump Ball Home vs. Lively II: Tip to Nobody', ANA, BOS),
+      // A second name only one of the two teams' players has, among the other team's: Di's, not Cy's.
+      asRow('Jump Ball Home vs. Williams: Tip to Home', ANA, BOS),
+      // Two of the other team with the second name: won by Ana, and nobody's loss.
+      asRow('Jump Ball Home vs. Smith: Tip to Home', ANA, BOS),
       // An initial and a last word.
       asRow('Jump Ball A Home vs. Lively II: Tip to C Williams', ANA, BOS)
     ])
     await build()
-    expect(await player(ANA)).toMatchObject({ jump_n: 3, jump_won: 2, jump_lost: 1 })
+    expect(await player(ANA)).toMatchObject({ jump_n: 5, jump_won: 4, jump_lost: 1 })
+    expect(await player(DI)).toMatchObject({ jump_n: 1, jump_won: 0, jump_lost: 1 })
+    expect(await player(CY)).toMatchObject({ jump_n: 0 })
+    expect(await player(5)).toEqual({})
+    expect(await player(6)).toEqual({})
     expect(await player(BEA)).toMatchObject({ jump_n: 3, jump_won: 1, jump_lost: 2 })
-    expect(await team(BOS)).toMatchObject({ jump_n: 3, jump_won: 2, jump_lost: 1 })
-    expect(await team(LAL)).toMatchObject({ jump_n: 3, jump_won: 1, jump_lost: 2 })
+    expect(await team(BOS)).toMatchObject({ jump_n: 5, jump_won: 4, jump_lost: 1 })
+    expect(await team(LAL)).toMatchObject({ jump_n: 5, jump_won: 1, jump_lost: 4 })
   })
 
   it('reads the college feed’s own rows for the winner and the loser', async () => {
@@ -440,6 +488,8 @@ describe('timeouts, challenges and the bonus', () => {
       foul(BOS, 350, 'Offensive'),
       foul(BOS, 340, 'Technical'),
       foul(BOS, 300, 'Clear Path'),
+      // A sixth, in the same period: still one period of the bonus.
+      foul(BOS, 290),
       // The Lakers' two in the last two minutes of the second.
       foul(LAL, 100, 'Personal', 2),
       foul(LAL, 90, 'Personal', 2),
@@ -453,9 +503,9 @@ describe('timeouts, challenges and the bonus', () => {
       foul(BOS, 170, 'Personal', 5)
     ])
     await build()
-    // Five of Boston's counted in the first, three in overtime.
+    // Six of Boston's counted in the first, three in overtime.
     expect(await team(BOS)).toMatchObject({
-      team_fouls: 8,
+      team_fouls: 9,
       bonus_given: 1,
       opp_bonus_given: 2,
       opp_team_fouls: 6
@@ -463,5 +513,28 @@ describe('timeouts, challenges and the bonus', () => {
     expect(await team(LAL)).toMatchObject({ team_fouls: 6, bonus_given: 2, opp_bonus_given: 1 })
     await build(LEAGUES.ncaam)
     expect(await team(BOS)).toMatchObject({ team_fouls: 0, bonus_given: 0 })
+  })
+})
+
+describe('where the counts are available', () => {
+  const of = (id: string): MetricDef => CATALOGUE.find((m) => m.id === id)!
+
+  it('states each league’s first season, and the reason where college has none', () => {
+    expect(of('team_pbp_challenges').firstSeason).toBe(2020)
+    expect(of('team_pbp_challenge_pct').firstSeason).toBe(2020)
+    expect(of('team_pbp_challenges').leagues?.wnba?.firstSeason).toBe(2023)
+    expect(of('opp_pbp_challenges_won').leagues?.wnba?.firstSeason).toBe(2023)
+    for (const id of ['team_pbp_bonus_given', 'team_pbp_bonus_got', 'opp_pbp_team_fouls']) {
+      expect(of(id).leagues?.wnba?.firstSeason, id).toBe(2006)
+    }
+    expect(of('team_pbp_bonus_given').firstSeason).toBe(1997)
+    for (const league of ['ncaam', 'ncaaw'] as const) {
+      expect(of('team_pbp_challenges').leagues?.[league]?.unavailable).toMatch(/2025-26/)
+      expect(of('opp_pbp_challenges').leagues?.[league]?.unavailable).toMatch(/2025-26/)
+      expect(of('team_pbp_bonus_given').leagues?.[league]?.unavailable).toMatch(/does not say/)
+      expect(of('team_pbp_bonus_got').leagues?.[league]?.unavailable).toMatch(/does not say/)
+      expect(of('pbp_go_ahead').leagues?.[league]?.unavailable).toBeUndefined()
+      expect(of('pbp_psa').leagues?.[league]?.unavailable).toBeUndefined()
+    }
   })
 })

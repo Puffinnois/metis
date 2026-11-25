@@ -568,7 +568,7 @@ Units found in both, by the gap in minutes.
 
 ## Play-derived stats, per season (Plan T905)
 
-Measured 2026-11-13 on a copy of the full load after a real refresh that built every play table with T905's (`~/.cache/metis-dev/t905`), by `scripts/check-play-derived.mjs`, which writes every table below in full. How the tables are built is in [stats-database.md](stats-database.md), "Play-derived stats"; the rules are data in `src/shared/stats/playDetail.ts`; the traps are under "Traps", "Play-derived stats".
+Measured 2026-11-13 on a copy of the full load after a real refresh that built every play table with T905's (`~/.cache/metis-dev/t905`), by `scripts/check-play-derived.mjs`, which writes every table below in full. How the tables are built is in [stats-database.md](stats-database.md), "Play-derived stats"; the rules are data in `src/shared/stats/playDetail.ts`; the traps are under "Traps", "Play-derived stats". The counts of T1703.3's second part are checked in [nba-agreement.md](nba-agreement.md), "Counts from the play by play".
 
 ### Where each entry comes from
 

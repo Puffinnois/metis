@@ -112,7 +112,7 @@ Fourteen categories, in the order the screens show them. A category with nothing
 - _Adjusted ratings_: SRS, strength of schedule, the adjusted ratings and home court, SportsDataverse's adjusted efficiency for the colleges.
 - _Elo_, _Pythagorean_: the rating and the wins it expects; the Pythagorean record and the wins over it.
 - _Schedule_: games left and the strength of schedule left.
-- _Game flow_: lead changes, times tied, time leading or tied, largest lead and deficit, best runs, droughts.
+- _Game flow_: lead changes, times tied, time leading or tied, largest lead and deficit, best runs, droughts, jump balls, timeouts and challenges.
 - _Forecast_: the season forecast, also here.
 - _Rankings and seeds_: NET, quadrants, polls and seeds, listed as unavailable (D44).
 

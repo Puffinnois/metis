@@ -38,7 +38,14 @@ const regulation = (season) =>
           : 4
         : 4
 
-const tally = () => ({ source: 0, equal: 0, differ: 0, absent: 0, off: [] })
+const tally = () => ({ source: 0, equal: 0, differ: 0, absent: 0, extra: 0, off: [] })
+/** A count of the built table that no row of the feed was counted for. */
+function extra(name, key, built) {
+  if (!all.has(name)) all.set(name, tally())
+  const t = all.get(name)
+  t.extra++
+  if (t.off.length < 6) t.off.push(`${key}: built ${built}, worked none`)
+}
 const all = new Map()
 function value(name, key, built, source, hasRow) {
   if (!all.has(name)) all.set(name, tally())
@@ -102,6 +109,12 @@ for (const season of seasons) {
   const built = new Map()
   for (const r of await read(`SELECT * FROM play_player_game WHERE season = ${season}`))
     built.set(`${r.game_id}|${r.player_id}`, r)
+  const builtByGame = new Map()
+  for (const key of built.keys()) {
+    const game = key.split('|')[0]
+    if (!builtByGame.has(game)) builtByGame.set(game, [])
+    builtByGame.get(game).push(key)
+  }
   const teamBuilt = new Map()
   for (const r of await read(`SELECT * FROM play_team_game WHERE season = ${season}`))
     teamBuilt.set(`${r.game_id}|${r.team_id}`, r)
@@ -281,6 +294,14 @@ for (const season of seasons) {
               row !== undefined
             )
       }
+      for (const key of builtByGame.get(game) ?? []) {
+        const id = key.split('|')[1]
+        if (worked.has(id)) continue
+        const row = built.get(key)
+        for (const n of [...LATE, ...(college ? JUMPS : [])]) {
+          if (Number(row[n] ?? 0) !== 0) extra(`player ${n}`, `${season} ${key} ${n}`, row[n])
+        }
+      }
       const g = gp.get(game)
       for (const id of g ? [g.h, g.a] : []) {
         const b = teamCounts.get(String(id)) ?? {}
@@ -338,6 +359,14 @@ for (const season of seasons) {
       `SELECT game_id, description, person_id FROM ${src} WHERE season = ${season} AND action_type ILIKE 'jump%'`
     )
     const teamJumps = new Map()
+    const playerJumps = new Map()
+    const jumped = (game, id, won) => {
+      const k = `${game}|${id}`
+      const c = playerJumps.get(k) ?? { n: 0, won: 0 }
+      c.n++
+      if (won) c.won++
+      playerJumps.set(k, c)
+    }
     for (const r of jumps) {
       const m = /^Jump Ball (.+?) vs\. (.+?)(?:: Tip to (.*))?$/.exec(r.description ?? '')
       const people = roster.get(r.game_id) ?? []
@@ -360,6 +389,11 @@ for (const season of seasons) {
       if (tip.size !== 1 || !a || !g) continue
       w.jumpsCounted++
       const winner = [...tip][0]
+      jumped(r.game_id, a.id, a.team === winner)
+      const other = a.team === String(g.h) ? String(g.a) : String(g.h)
+      const b = find(m[2]).filter((p) => p.team === other)
+      const bs = new Set(b.map((p) => p.id))
+      if (bs.size === 1) jumped(r.game_id, [...bs][0], other === winner)
       for (const t of [String(g.h), String(g.a)]) {
         const k = `${r.game_id}|${t}`
         const c = teamJumps.get(k) ?? { n: 0, won: 0 }
@@ -373,6 +407,20 @@ for (const season of seasons) {
       if (Number(r.jump_n) === c.n && Number(r.jump_won) === c.won) w.jumpEqual++
       else w.jumpDiffer++
     }
+    let pe = 0
+    let pd = 0
+    for (const [k, r] of built) {
+      const c = playerJumps.get(k) ?? { n: 0, won: 0 }
+      if (
+        Number(r.jump_n) === c.n &&
+        Number(r.jump_won) === c.won &&
+        Number(r.jump_lost) === c.n - c.won
+      )
+        pe++
+      else pd++
+    }
+    for (const [k, c] of playerJumps) if (!built.has(k) && c.n > 0) pd++
+    w.jumpPlayers = `${pe} equal, ${pd} differ`
     // Timeouts by the nickname the text names, and challenges by the timeout at their moment.
     const text = await read(
       `SELECT game_id, period, clock, order_index, action_type, sub_type, description FROM ${src} WHERE season = ${season} AND (action_type = 'Timeout' OR (action_type = 'Instant Replay' AND sub_type LIKE 'Coach Challenge%'))`
@@ -520,7 +568,7 @@ for (const season of seasons) {
 }
 for (const [name, t] of all) {
   console.log(
-    `${name}: values ${t.source}: equal ${t.equal}, differ ${t.differ}, no row ${t.absent}`
+    `${name}: values ${t.source}: equal ${t.equal}, differ ${t.differ}, no row ${t.absent}, built with none worked ${t.extra}`
   )
   for (const o of t.off) console.log(`    ${o}`)
 }
