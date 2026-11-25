@@ -71,9 +71,23 @@ describe('a player’s game lines', () => {
     expect(countOf(games[3], 'pts')).toBe(31)
   })
 
+  it('gives the year the draft lists them in, and none in a file without the attributes', async () => {
+    await build()
+    expect((await readPlayerGames(db, '1')).draftYear).toBeNull()
+    await db.exec('CREATE TABLE player_attributes (player_id BIGINT, draft_year INTEGER)')
+    await db.exec('INSERT INTO player_attributes VALUES (1, 1984), (2, NULL)')
+    expect((await readPlayerGames(db, '1')).draftYear).toBe(1984)
+    expect((await readPlayerGames(db, '2')).draftYear).toBeNull()
+  })
+
   it('answers no games for a player with no line, or an id that is no number', async () => {
     await build()
-    expect(await readPlayerGames(db, '7')).toEqual({ playerId: '7', games: [], reason: null })
+    expect(await readPlayerGames(db, '7')).toEqual({
+      playerId: '7',
+      games: [],
+      draftYear: null,
+      reason: null
+    })
     expect((await readPlayerGames(db, 'x')).games).toEqual([])
   })
 
@@ -81,6 +95,7 @@ describe('a player’s game lines', () => {
     expect(await readPlayerGames(db, '1')).toEqual({
       playerId: '1',
       games: [],
+      draftYear: null,
       reason: BUILT_AT_NEXT_REFRESH
     })
   })

@@ -1,5 +1,13 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { against, fmtCount, highsView, type HighsView } from '@/lib/stats/highs'
+import {
+  against,
+  careerName,
+  careerNote,
+  careerStart,
+  fmtCount,
+  highsView,
+  type HighsView
+} from '@/lib/stats/highs'
 import { setLeague } from '@/lib/stats/league'
 import { LEAGUES, type League } from '@shared/leagues'
 import { CATALOGUE, metricIn } from '@shared/stats/catalogue'
@@ -148,6 +156,57 @@ describe('the Highs tab', () => {
     ])
     expect(v.thresholds[1].cells[11]).toMatchObject({ text: '1' })
     expect(v.bySeason[2].cells[0]).toMatchObject({ text: '31' })
+  })
+
+  it('has no game for a high of nothing, and says none did it', () => {
+    n = 0
+    const v = view([game(2026, { blk: 0, plus_minus: 0 }), game(2026, { blk: 0, plus_minus: -4 })])
+    expect(high(v, 'blk').season).toMatchObject({
+      text: '0',
+      gameId: null,
+      title: 'None in these games'
+    })
+    // A plus-minus of 0 is a value like any other.
+    expect(high(v, 'plus_minus').season).toMatchObject({ text: '0', gameId: 'g1' })
+  })
+
+  it('says a career began before the data, by the draft, and names the column for it', () => {
+    n = 0
+    const games = [game(1995, { pts: 55 }), game(2003, { pts: 45 })]
+    // Michael Jordan's case: drafted 1984, the first line in 1994-95 (he sat out 1993-94).
+    expect(careerStart(games, 1984)).toBe('before')
+    expect(careerName('before')).toBe('Since 1993-94')
+    expect(careerNote('before', 1984)).toBe(
+      'Drafted in 1984: the data starts in 1993-94, so the games before it are not here.'
+    )
+    const v = view(games, { career: 'before', draftYear: 1984 })
+    expect(v.career).toBe('Since 1993-94')
+    expect(v.thresholds.at(-1)?.label).toBe('Since 1993-94')
+    // The 1993 draft is the first season's own rookies'.
+    expect(careerStart(games, 1993)).toBe('whole')
+    expect(careerStart(games, 2003)).toBe('whole')
+    expect(careerName('whole')).toBe('Career')
+    expect(careerNote('whole', 2003)).toBeNull()
+  })
+
+  it('says it may have where nothing lists a draft and the first game is in the first season', () => {
+    n = 0
+    expect(careerStart([game(1994, {})], null)).toBe('maybe')
+    expect(careerNote('maybe', null)).toBe(
+      'The data starts in 1993-94: games before it, if any, are not here.'
+    )
+    expect(careerStart([game(1996, {})], null)).toBe('whole')
+    expect(careerStart([], 1984)).toBe('whole')
+    // The WNBA began with its first season in the data.
+    setLeague('wnba')
+    expect(careerStart([game(1997, {})], null)).toBe('whole')
+    // A college player's draft is the professional league's: only the first season tells.
+    setLeague('ncaam')
+    expect(careerStart([game(2022, {})], 2026)).toBe('maybe')
+    expect(careerNote('maybe', null)).toBe(
+      'The data starts in 2021-22: games before it, if any, are not here.'
+    )
+    expect(careerStart([game(2024, {})], 2026)).toBe('whole')
   })
 
   it('writes minutes, a plus-minus and an opponent as a box score does', () => {

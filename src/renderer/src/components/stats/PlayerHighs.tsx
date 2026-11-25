@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { Loading, MiniTable, SectionHead, TABLE_SCROLL } from '@/components/stats/parts'
 import {
+  careerStart,
   highsView,
   SEASON_HIGHS,
   THRESHOLD_HEADS,
@@ -101,7 +102,9 @@ export function PlayerHighs({
         counted: currentLeague().countedTypes,
         season: scope.season,
         latest,
-        byId: data.byId
+        byId: data.byId,
+        career: careerStart(value.games, value.draftYear),
+        draftYear: value.draftYear
       }),
     [value, scope, latest, data.byId]
   )
@@ -154,6 +157,7 @@ export function PlayerHighs({
   )
   return (
     <div className="flex flex-col gap-7" data-highs="">
+      {view.careerNote && <p className="m-0 text-[12.5px] text-fg-3">{view.careerNote}</p>}
       {scope.range.kind !== 'season' && (
         <p className="m-0 text-[12.5px] text-fg-3">
           Whole seasons: the date range and last games do not apply here.
@@ -168,7 +172,7 @@ export function PlayerHighs({
           label="Highs"
           columns="150px minmax(0,1fr) minmax(0,1fr)"
           left={[1, 2]}
-          head={['', season, 'Career']}
+          head={['', season, view.career]}
           rows={view.highs.map((r) => ({
             key: r.id,
             cells: [
@@ -187,7 +191,7 @@ export function PlayerHighs({
           label="Streaks"
           columns="150px repeat(3,minmax(0,1fr))"
           left={[1, 2, 3]}
-          head={['', `Longest in ${season}`, 'Current', 'Longest of the career']}
+          head={['', `Longest in ${season}`, 'Current', `Longest: ${view.career.toLowerCase()}`]}
           rows={view.streaks.map((r) => ({
             key: r.id,
             cells: [

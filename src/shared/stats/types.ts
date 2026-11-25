@@ -704,6 +704,8 @@ export interface StatsPlayerGame {
 export interface StatsPlayerGames {
   playerId: string
   games: StatsPlayerGame[]
+  /** The year they were drafted, where the draft lists them; null for an undrafted player or a file without the tables. */
+  draftYear: number | null
   /** Why there is none, where the file cannot say: "Built at this league's next refresh." */
   reason: string | null
 }

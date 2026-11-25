@@ -102,7 +102,12 @@ export function offlineStats(league: League, reason: string | null = league.noDa
     ratingHistory: (player) =>
       Promise.resolve({ playerId: player, series: [], reason: reason ?? STATS_ARE_OFF }),
     playerGames: (player) =>
-      Promise.resolve({ playerId: player, games: [], reason: reason ?? STATS_ARE_OFF }),
+      Promise.resolve({
+        playerId: player,
+        games: [],
+        draftYear: null,
+        reason: reason ?? STATS_ARE_OFF
+      }),
     gameListings: () => Promise.resolve([]),
     attributeValues: () => Promise.resolve([]),
     coaches: () => Promise.resolve([]),

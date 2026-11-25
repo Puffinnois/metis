@@ -52,6 +52,9 @@ export interface SeasonRow {
 }
 
 export interface HighsView {
+  /** What the career column is called, and what it lacks, where the data starts after it. */
+  career: string
+  careerNote: string | null
   highs: HighRow[]
   streaks: StreakRow[]
   thresholds: SeasonRow[]
@@ -119,6 +122,10 @@ function highCell(
   if (games.length === 0) return { ...BLANK, title: none }
   const high = highOf(games, count)
   if (!high) return { ...BLANK, title: gap([metric], byId, seasonsOf(games)) }
+  // Nothing of it in any game: no game is the best of them.
+  if (high.value === 0 && count !== 'plus_minus') {
+    return { ...BLANK, text: '0', title: `None in these games${lacking(high)}` }
+  }
   return {
     text: fmtCount(high.value, count),
     note: `${dated(high.game)}${high.times > 1 ? ` · ${high.times} times` : ''}`,
@@ -160,6 +167,42 @@ function tallyCell(scope: Scope, feat: Feat, byId: ReadonlyMap<string, MetricInf
   }
 }
 
+/**
+ * Whether a player's games before the data are missing: yes when the draft says they were drafted
+ * before it, maybe when nothing says either way and their first game is in its first season.
+ */
+export function careerStart(
+  games: readonly StatsPlayerGame[],
+  draftYear: number | null
+): 'whole' | 'before' | 'maybe' {
+  const league = currentLeague()
+  if (!league.playedBefore || games.length === 0) return 'whole'
+  // The draft before the first season's is the season's own rookies': 1993 for 1993-94. A college
+  // player's draft is the league they went on to, and says nothing of when they came to college.
+  if (draftYear !== null && !league.loadedWindow) {
+    return draftYear < league.firstSeason - 1 ? 'before' : 'whole'
+  }
+  return games[0].season === league.firstSeason ? 'maybe' : 'whole'
+}
+
+/** What to call the career: a name that says where it starts when the data starts after it. */
+export const careerName = (start: 'whole' | 'before' | 'maybe'): string =>
+  start === 'before' ? `Since ${seasonLabel(currentLeague().firstSeason)}` : 'Career'
+
+/** The line that says which games a career lacks; null when it lacks none. */
+export function careerNote(
+  start: 'whole' | 'before' | 'maybe',
+  draftYear: number | null
+): string | null {
+  const first = seasonLabel(currentLeague().firstSeason)
+  if (start === 'before') {
+    return `Drafted in ${draftYear}: the data starts in ${first}, so the games before it are not here.`
+  }
+  return start === 'maybe'
+    ? `The data starts in ${first}: games before it, if any, are not here.`
+    : null
+}
+
 /** Everything the tab shows, from the player's game lines in date order. */
 export function highsView({
   games,
@@ -167,7 +210,9 @@ export function highsView({
   counted,
   season,
   latest,
-  byId
+  byId,
+  career: start = 'whole',
+  draftYear = null
 }: {
   games: readonly StatsPlayerGame[]
   /** The game types of the page's season type. */
@@ -178,6 +223,9 @@ export function highsView({
   /** The league's latest season in the data. */
   latest: number | null
   byId: ReadonlyMap<string, MetricInfo>
+  /** Whether games before the data are missing (`careerStart`), and the year the draft lists. */
+  career?: ReturnType<typeof careerStart>
+  draftYear?: number | null
 }): HighsView {
   const all = games.filter((g) => types.includes(g.gameType))
   const here: Scope = {
@@ -229,7 +277,13 @@ export function highsView({
         here: s === season
       }
     }),
-    { key: 'career', label: 'Career', games: all.length, cells: cells(career), here: false }
+    {
+      key: 'career',
+      label: careerName(start),
+      games: all.length,
+      cells: cells(career),
+      here: false
+    }
   ]
 
   const notes = HIGHS.flatMap(({ count, metric }) => {
@@ -244,6 +298,8 @@ export function highsView({
   })
 
   return {
+    career: careerName(start),
+    careerNote: careerNote(start, draftYear),
     highs,
     streaks,
     thresholds: rows((scope) => THRESHOLDS.map((f) => tallyCell(scope, f, byId))),

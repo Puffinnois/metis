@@ -427,6 +427,10 @@ Set by the owner on 2026-11-23, as three requests: filter on every attribute of 
         In review: (1) without 428, which waits for (2)'s counted free-throw trips, and without 406 and 407, which are the player page's and wait for (3). 420's z-scores are in the engine already (`transform: 'zScore'`): (3) needs only a display mode for them.
         **Deferred, not out:** entry 24 (team rebounds, the team's less the players') goes with the first change to the game-tables recipe, and if none comes before T1703.4 ends, in a small PR of its own before the gate.
         **Moved to T1703.4:** entry 144 (shot-clock shooting), one of Metis's own estimates, named as one, with its error against a published figure that can be loaded, or stated as unchecked.
+        Highs, streaks and threshold games (entry 443):
+
+    _Done 2026-11-25_ (`stats-screens.md`, "Highs"; `src/shared/stats/highs.ts`, `src/main/stats/highReads.ts`; PRNUM). The player page's Highs tab: season and career highs of 13 counts, ten kinds of streak, threshold games and highs by season, from the game lines when read, with no new table, rebuild or recipe bump. Every high, threshold count and streak recounted from the game rows by a second query and a plain pass (`scripts/check-highs.mjs`): all equal in the four leagues, 866,444 NBA, 136,532 WNBA, 654,650 NCAA Men and 616,505 NCAA Women lines, in the regular season, the playoffs and every counted game. The combine's wingspan and reach over height (406, 407) were already on the profile (T708), equal to the raw tables on every row.
+
   - [ ] **T1703.4 The predictive and impact metrics with no published formula.** T1401, taken up here with its text unchanged. The owner's word of 2026-11-23 answers its first question: they are built and shown, each named as Metis's estimate.
 
   A source outside the dataset's releases is the owner's decision (D6, D31): the audit names the candidates and nothing is fetched from one before the owner says so. The owner allowed FiveThirtyEight's RAPTOR files on 2026-11-23 (D54); DARKO's CSV is D55, after a look at darko.app.

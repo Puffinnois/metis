@@ -3,6 +3,19 @@ import type { GameType, StatsPlayerGame, StatsPlayerGames } from '@shared/stats/
 import type { StatsDb } from './db'
 import { BUILT_AT_NEXT_REFRESH } from './engine/compile'
 
+/** The year the draft lists the player in, from the attributes; null in a file without the table. */
+async function readDraftYear(db: StatsDb, player: string): Promise<number | null> {
+  const has = await db.get(
+    "SELECT 1 AS yes FROM duckdb_columns() WHERE schema_name = 'main' AND table_name = 'player_attributes' AND column_name = 'draft_year'"
+  )
+  if (!has) return null
+  const row = await db.get<{ year: number | null }>(
+    'SELECT max(draft_year)::INTEGER AS year FROM player_attributes WHERE player_id = TRY_CAST(? AS BIGINT)',
+    [player]
+  )
+  return row?.year ?? null
+}
+
 /**
  * Every game a player has a box-score line in, oldest first, with the counts their highs, streaks and
  * threshold games are worked out from (`@shared/stats/highs`, Plan T1703.3): a read of `player_game`,
@@ -17,7 +30,10 @@ export async function readPlayerGames(db: StatsDb, player: string): Promise<Stat
       )
     ).map((r) => r.name)
   )
-  if (!held.has('player_id')) return { playerId: player, games: [], reason: BUILT_AT_NEXT_REFRESH }
+  if (!held.has('player_id')) {
+    return { playerId: player, games: [], draftYear: null, reason: BUILT_AT_NEXT_REFRESH }
+  }
+  const draftYear = await readDraftYear(db, player)
   const counts = GAME_COUNTS.map((c) => (held.has(c) ? `p.${c}::INTEGER` : 'NULL::INTEGER'))
   const rows = await db.all<{
     game_id: string
@@ -54,5 +70,5 @@ export async function readPlayerGames(db: StatsDb, player: string): Promise<Stat
     won: r.won,
     counts: r.counts.map((x) => (x === null ? null : Number(x)))
   }))
-  return { playerId: player, games, reason: null }
+  return { playerId: player, games, draftYear, reason: null }
 }
