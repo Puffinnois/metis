@@ -18,6 +18,7 @@ import {
 } from './onCourt'
 import type { PlayBuilder } from './playBuilders'
 import { COLLEGE_OFFICIALS_VIEW, COLLEGE_PLAYS } from './playsRecipe'
+import { NCAA_SIDE } from '../identityCollege'
 import { bestPlayerSql, column, type Have } from './sql'
 
 /**
@@ -28,9 +29,10 @@ import { bestPlayerSql, column, type Have } from './sql'
  *
  * - **Games:** a file's `contest_id` is `game.ncaa_game_id`. A contest with no game row (a repeat, an
  *   exhibition left out at T1302.4) has no rows here.
- * - **Teams:** stats.ncaa.org names a team in its short form (`Eastern Ill.`), mapped by the season's
- *   team list (`src_ncaa_team_ids`) to its id and so to `team`; a name it does not map is the game's
- *   other side when the opponent's name maps.
+ * - **Teams:** stats.ncaa.org names a team in its short form (`Eastern Ill.`). Its side of the game is the
+ *   identity's decision for that name in that contest (`ncaa_side`), the same for every table. A contest
+ *   with no row there (a forfeit) is read by the season's team list (`src_ncaa_team_ids`) and the names
+ *   the sides were placed by, and a name neither knows is the game's other side when the opponent's is known.
  * - **Players:** through `ncaa_player_ids`, by the file's player id within the season where it has one,
  *   else by name within the team and season. A player no row matches keeps a key of D28's kind (a
  *   negative id), so their lines are kept and counted, never dropped.
@@ -59,9 +61,10 @@ export const fallbackKey = (season: string, team: string, name: string): string 
 
 /**
  * stats.ncaa.org's team names, each with every key in `team` it may be (a season, or every season):
- * the season's team list, and the names `ncaa_player_ids` resolved (T1302.4), which hold the schools
- * the list lacks (FDU, Saint Francis in 2022-23). A name can be two schools' (East Texas A&M's), so
- * each name holds every key it may be (`ids`), and `nameSide` reads it as one of the game's sides.
+ * the season's team list, and the names of the rows the identity placed (`ncaa_side`), which hold the
+ * schools the list lacks (FDU, Saint Francis in 2022-23). A name can be two schools' (East Texas A&M's),
+ * so each name holds every key it may be (`ids`), and `nameSide` reads it as one of the game's sides.
+ * Never the players' map (`ncaa_player_ids`): its teams are decided from the sides, so it cannot decide them.
  */
 export const teamNamesSql = (
   season?: string
@@ -69,7 +72,7 @@ export const teamNamesSql = (
       SELECT i.season, i.team AS name, t.team_id
       FROM src_ncaa_team_ids i JOIN team t ON t.season = i.season AND t.ncaa_team_id = TRY_CAST(i.id AS BIGINT)
       UNION ALL
-      SELECT season, ncaa_team, team_id FROM ncaa_player_ids WHERE team_id IS NOT NULL)
+      SELECT season, team, team_id FROM ${NCAA_SIDE} WHERE team_id IS NOT NULL)
     WHERE name IS NOT NULL${season === undefined ? '' : ` AND season = ${season}`}
     GROUP BY 1, 2`
 
@@ -77,6 +80,10 @@ export const teamNamesSql = (
 export const nameSide = (ids: string): string => `CASE
       WHEN list_contains(${ids}, g.home_team_id) AND NOT list_contains(${ids}, g.away_team_id) THEN g.home_team_id
       WHEN list_contains(${ids}, g.away_team_id) AND NOT list_contains(${ids}, g.home_team_id) THEN g.away_team_id END`
+
+/** A LEFT JOIN to the side the file's `name` stands on in `contest` (`ncaa_side`), as `alias`. */
+export const sideJoin = (alias: string, contest: string, name: string): string =>
+  `LEFT JOIN ${NCAA_SIDE} ${alias} ON ${alias}.contest_id = ${contest} AND ${alias}.team = ${name}`
 
 /** A season's players by name within their team: the row with the most lines where two share one. */
 const playersByNameSql = (
@@ -117,9 +124,10 @@ export const SHOT_KEY_COLUMNS: Columns = [
 ]
 
 /**
- * One season's shot keys, each with its team and player: the team by the file's stats.ncaa.org id, its
- * ESPN id, then its name (`teamNamesSql`), and where none names it (a school outside Division I) the
- * game's other side, when every other shot of the game is one team's; the shooter by the file's id
+ * One season's shot keys, each with its team and player: the team by the side its row stands on
+ * (`ncaa_side`); for a name that file spells otherwise, by its stats.ncaa.org id, its ESPN id, then its
+ * name (`teamNamesSql`), and where none names it (a school outside Division I) the game's other side,
+ * when every other shot of the game is one team's; the shooter by the file's id
  * through `ncaa_player_ids` (D28's negative id where no row names it), else by its code within the
  * team (`AuPace`), else D28's key. Worked out once here, so a read of the shots is equality joins.
  */
@@ -128,7 +136,8 @@ export function collegeShotKeysSql(have: Have, season: number): string {
   if (!have.tables.has(t)) return none(SHOT_KEY_COLUMNS)
   const c = (name: string, type = 'BIGINT'): string => column(have, t, 's', name, type)
   const s = Number(season)
-  const mapped = `CASE WHEN tm.team_id IN (g.home_team_id, g.away_team_id) THEN tm.team_id
+  const mapped = `CASE WHEN sd.team_id IN (g.home_team_id, g.away_team_id) THEN sd.team_id
+                     WHEN tm.team_id IN (g.home_team_id, g.away_team_id) THEN tm.team_id
                      WHEN te.team_id IN (g.home_team_id, g.away_team_id) THEN te.team_id
                      ELSE ${nameSide('tn.ids')} END`
   return `WITH k AS (
@@ -142,6 +151,7 @@ export function collegeShotKeysSql(have: Have, season: number): string {
       LEFT JOIN team tm ON tm.season = g.season AND tm.ncaa_team_id = ${c('ncaa_team_id')}
       LEFT JOIN team te ON te.season = g.season AND te.espn_team_id = ${c('espn_team_id', 'INTEGER')}
       LEFT JOIN (${teamNamesSql(String(s))}) tn ON tn.name = ${c('team_id', 'VARCHAR')}
+      ${sideJoin('sd', c('contest_id', 'VARCHAR'), c('team_id', 'VARCHAR'))}
       WHERE s.season = ${s}
       GROUP BY 1, 2, 3, 4, 5
     ),
@@ -255,8 +265,9 @@ export function collegeUnitGameSql(have: Have, season: number): string {
     pn AS (${playersByNameSql(String(s), nameKeySql("coalesce(name, replace(player, '.', ' '))"))}),
     x AS (
       SELECT l.*, g.game_id, g.season AS g_season, g.game_type, g.game_date, g.home_team_id, g.away_team_id,
-             ${sideSql(nameSide('tt.ids'), nameSide('ot.ids'))} AS team_id
+             coalesce(sd.team_id, ${sideSql(nameSide('tt.ids'), nameSide('ot.ids'))}) AS team_id
       FROM ${t} l JOIN g ON g.ncaa_game_id = ${c('contest_id', 'VARCHAR')}
+      ${sideJoin('sd', 'g.ncaa_game_id', c('team', 'VARCHAR'))}
       LEFT JOIN tn tt ON tt.name = ${c('team', 'VARCHAR')}
       LEFT JOIN tn ot ON ot.name = ${c('opponent', 'VARCHAR')}
       WHERE ${have.columns.get(t)?.has('season') ? `l.season = ${s}` : 'true'}
@@ -416,7 +427,7 @@ export const STINT_COLUMNS: Columns = [
 
 /**
  * The stints: stats.ncaa.org's home and away are its own (a neutral game may list them the other way
- * from ESPN), so each side is placed by its team's name. Players are named as its play by play names
+ * from ESPN), so each side is placed by the side its row stands on (`ncaa_side`). Players are named as its play by play names
  * them (`AJ.DYBANTSA`), `ncaa_player_ids.player`.
  */
 function stintsSql(have: Have): string {
@@ -432,9 +443,11 @@ function stintsSql(have: Have): string {
     WITH tn AS (${teamNamesSql()}),
     x AS (
       SELECT s.*, g.game_id, g.season AS g_season, g.game_type, g.game_date AS g_date,
-             ${sideSql(nameSide('h.ids'), nameSide('a.ids'))} AS h_team,
-             ${sideSql(nameSide('a.ids'), nameSide('h.ids'))} AS a_team
+             coalesce(sh.team_id, ${sideSql(nameSide('h.ids'), nameSide('a.ids'))}) AS h_team,
+             coalesce(sa.team_id, ${sideSql(nameSide('a.ids'), nameSide('h.ids'))}) AS a_team
       FROM ${t} s JOIN game g ON g.ncaa_game_id = ${c('contest_id', 'VARCHAR')}
+      ${sideJoin('sh', c('contest_id', 'VARCHAR'), c('home', 'VARCHAR'))}
+      ${sideJoin('sa', c('contest_id', 'VARCHAR'), c('away', 'VARCHAR'))}
       LEFT JOIN tn h ON h.season = g.season AND h.name = ${c('home', 'VARCHAR')}
       LEFT JOIN tn a ON a.season = g.season AND a.name = ${c('away', 'VARCHAR')}
     )
@@ -515,9 +528,11 @@ function possessionsSql(have: Have): string {
       lineup_source: "'stats.ncaa.org'"
     })}
     FROM ${t} s JOIN game g ON g.ncaa_game_id = ${c('contest_id', 'VARCHAR')}
+    ${sideJoin('sh', c('contest_id', 'VARCHAR'), c('home', 'VARCHAR'))}
+    ${sideJoin('sa', c('contest_id', 'VARCHAR'), c('away', 'VARCHAR'))}
     CROSS JOIN LATERAL (
-      SELECT ${sideSql(team('s.home_ncaa_team_id'), team('s.away_ncaa_team_id'))} AS h,
-             ${sideSql(team('s.away_ncaa_team_id'), team('s.home_ncaa_team_id'))} AS a
+      SELECT coalesce(sh.team_id, ${sideSql(team('s.home_ncaa_team_id'), team('s.away_ncaa_team_id'))}) AS h,
+             coalesce(sa.team_id, ${sideSql(team('s.away_ncaa_team_id'), team('s.home_ncaa_team_id'))}) AS a
     ) x
     WHERE s.poss_team IS NOT NULL`
 }

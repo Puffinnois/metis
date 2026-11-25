@@ -11,7 +11,8 @@ import { hasTables } from './identityShared'
  * measured in `docs/reference/ncaa-data-sources.md` ("Traps") on the first load of T1302.3:
  *
  * - ESPN's ids are the keys: `game_id`, `team_id` and `athlete_id` hold across seasons and transfers.
- *   stats.ncaa.org's ids change every season, so they are never keys; its games join through the
+ *   stats.ncaa.org's ids change every season, so they are never keys. The side of a game each of its
+ *   rows stands on is decided once, here (`ncaa_side`), and every table reads that; its games join through the
  *   ESPN id it or the schedule crosswalk gives, or the same teams and score (`LINK`), and its players
  *   through the player crosswalk, the same box-score lines, or the same name on the same team.
  * - ESPN lacks some games stats.ncaa.org has (334 of the women's 2024-25, of which 16 postseason):
@@ -35,9 +36,10 @@ import { hasTables } from './identityShared'
 
 /**
  * Bump when these tables change, so the next refresh builds them with nothing downloaded. 2: every
- * pick by a total order, so the same files always give the same rows (T1302.9).
+ * pick by a total order, so the same files always give the same rows (T1302.9). 3: the side each
+ * stats.ncaa.org row stands on (`ncaa_side`) is decided here and keys the players' teams (T1703.2).
  */
-const VERSION = 2
+const VERSION = 3
 
 /** ESPN's schedule, its player box scores and the groups file: the keys (D40) and conferences. */
 const NEEDS = ['src_espn_schedule', 'src_espn_player_box', 'src_team_groups']
@@ -417,10 +419,78 @@ const PLAYER_IDS = `CREATE OR REPLACE TABLE player_ids AS
          TRY_CAST(athlete_id AS BIGINT) AS player_id, 'espn' AS method
   FROM src_espn_player_box WHERE TRY_CAST(athlete_id AS BIGINT) IS NOT NULL`
 
+/** Where each team row of stats.ncaa.org's team box stands in its game, and how it was placed. */
+export const NCAA_SIDE = 'ncaa_side'
+
+/**
+ * Each team row of stats.ncaa.org's team box, by its game and the side it stands on (`team_id`, NULL when
+ * none can be told), and how it was placed (`method`), as a link keeps its method (D46). One decision for
+ * every table that reads a stats.ncaa.org file, whose own home and away can be the other way round from
+ * the game's (the women's game 401819784 of 2025-26 is), so neither is ever read:
+ *
+ * - `id`: the ESPN id the row gives is one of the game's two;
+ * - `elimination`: its contest has two rows and only the other is placed, so this one takes the other side;
+ * - `name`: its name is that of rows already placed this season, for one of the game's two teams and not
+ *   the other. It is learned from rows placed by id and elimination alone, never from the players' map,
+ *   which this decides in turn.
+ *
+ * A row left is then eliminated again, against one placed by name. A side two rows of a contest claim is
+ * nobody's. A game not played, a forfeit and a contest the `game` table left out have no row here.
+ */
+const ncaaSideSql = (have: boolean): string => {
+  if (!have) {
+    return `CREATE OR REPLACE TABLE ${NCAA_SIDE} AS
+      SELECT NULL::VARCHAR AS game_id, NULL::INTEGER AS season, NULL::VARCHAR AS contest_id,
+             NULL::VARCHAR AS team, NULL::INTEGER AS team_id, NULL::VARCHAR AS method
+      WHERE false`
+  }
+  const given = 'TRY_CAST(n.team_espn_team_id AS INTEGER)'
+  const other = 'CASE WHEN max(side) OVER c = home THEN away ELSE home END'
+  return `CREATE OR REPLACE TABLE ${NCAA_SIDE} AS
+    WITH seen AS (
+      SELECT g.game_id, g.season, g.home_team_id AS home, g.away_team_id AS away, n.contest_id, n.team,
+             CASE WHEN ${given} IN (g.home_team_id, g.away_team_id) THEN ${given} END AS by_id
+      FROM src_ncaa_team_box n
+      JOIN game g ON g.ncaa_game_id = n.contest_id AND g.played AND g.forfeit_winner_id IS NULL
+    ), by_id AS (
+      SELECT *, CASE WHEN count(*) OVER (PARTITION BY contest_id, by_id) = 1 THEN by_id END AS side
+      FROM seen
+    ), eliminated AS (
+      SELECT * EXCLUDE (side), side AS id_side,
+             coalesce(side, CASE WHEN count(*) OVER c = 2 AND count(by_id) OVER c = 1 AND by_id IS NULL
+                                 THEN ${other} END) AS side
+      FROM by_id WINDOW c AS (PARTITION BY contest_id)
+    ), names AS (
+      SELECT season, team, list(DISTINCT side) AS ids FROM eliminated WHERE side IS NOT NULL GROUP BY 1, 2
+    ), named AS (
+      SELECT e.*,
+             CASE WHEN e.side IS NULL AND e.by_id IS NULL THEN
+               CASE WHEN list_contains(n.ids, home) AND NOT list_contains(n.ids, away) THEN home
+                    WHEN list_contains(n.ids, away) AND NOT list_contains(n.ids, home) THEN away END
+             END AS by_name
+      FROM eliminated e LEFT JOIN names n USING (season, team)
+    ), claimed AS (
+      -- A name that means a side already taken, or that two rows share, places neither of them.
+      SELECT * EXCLUDE (side), side AS placed,
+             CASE WHEN by_name IS NULL OR count(*) OVER (PARTITION BY contest_id, coalesce(side, by_name)) = 1
+                  THEN coalesce(side, by_name) END AS side
+      FROM named
+    ), last AS (
+      SELECT *, coalesce(side, CASE WHEN count(*) OVER c = 2 AND count(side) OVER c = 1 AND by_id IS NULL
+                                      AND by_name IS NULL THEN ${other} END) AS final
+      FROM claimed WINDOW c AS (PARTITION BY contest_id)
+    )
+    SELECT game_id, season, contest_id, team, final::INTEGER AS team_id,
+           CASE WHEN id_side IS NOT NULL THEN 'id' WHEN placed IS NOT NULL THEN 'elimination'
+                WHEN side IS NOT NULL THEN 'name' WHEN final IS NOT NULL THEN 'elimination' END AS method
+    FROM last`
+}
+
 /**
  * stats.ncaa.org's players mapped to ESPN's athletes, one row per player, team and season (its ids
  * last a season, D40). A player is its `player_id` within the season, or, on a line that has none
- * (about 7,000 a season), its printed name on that team. First hit wins:
+ * (about 7,000 a season), its printed name on that team. The team of a line is the side its team row
+ * stands on (`ncaa_side`), the ESPN id it gives where its contest has none. First hit wins:
  *
  * 1. the player crosswalk, by the season's id;
  * 2. the same box-score lines in the same games for the same team (points, rebounds, assists,
@@ -438,12 +508,16 @@ const ncaaPlayerIdsSql = (have: boolean, xwalkPlayer: boolean): string =>
   WITH lines AS (
     SELECT b.season, b.contest_id, l.espn_game_id, nullif(trim(b.player_id::VARCHAR), '') AS ncaa_player_id,
            b.player, nullif(trim(b.clean_name), '') AS clean_name,
-           coalesce(TRY_CAST(b.team_espn_team_id AS INTEGER),
-                    CASE WHEN b.team = b.home THEN n.home_id WHEN b.team = b.away THEN n.away_id END) AS team_id,
+           -- A contest no table reads (a forfeit, a game listed twice) has no side row: its lines only name
+           -- players, so there the file's own home and away are all there is.
+           coalesce(s.team_id, TRY_CAST(b.team_espn_team_id AS INTEGER),
+                    CASE WHEN s.contest_id IS NULL AND b.team = b.home THEN n.home_id
+                         WHEN s.contest_id IS NULL AND b.team = b.away THEN n.away_id END) AS team_id,
            b.team AS ncaa_team, b.pts, coalesce(b.orb, 0) + coalesce(b.drb, 0) AS reb, b.ast, b.fga, b.pf
     FROM src_ncaa_player_box b
     LEFT JOIN college_ncaa n USING (contest_id)
     LEFT JOIN college_link l USING (contest_id)
+    LEFT JOIN ${NCAA_SIDE} s ON s.contest_id = b.contest_id AND s.team = b.team
   ), keyed AS (
     SELECT *, coalesce('id:' || ncaa_player_id, 'name:' || coalesce(team_id::VARCHAR, ncaa_team) || ':' || player) AS who
     FROM lines
@@ -609,6 +683,7 @@ export const COLLEGE_IDENTITY: IdentityRecipe = {
     await db.exec(teamSql(xwalkTeams, await has(['src_xwalk_team'])))
     await db.exec(gameSql(league))
     await db.exec(PLAYER_IDS)
+    await db.exec(ncaaSideSql(await has(NCAA_GAMES)))
     await db.exec(
       ncaaPlayerIdsSql(
         (await has(NCAA_LINES)) && (await has(NCAA_GAMES)),

@@ -1,5 +1,5 @@
 import { elapsedSql, periodLengthSql, periodStartSql, type League } from '@shared/leagues'
-import { fallbackKey, nameSide, teamNamesSql } from './collegePlays'
+import { fallbackKey, nameSide, sideJoin, teamNamesSql } from './collegePlays'
 import { PLAYER_ON_COURT, UNIT_GAME, unitTailSql } from './onCourt'
 import type { PlayBuilder } from './playBuilders'
 import { finalColumns, flag, PLAY_COLUMNS, PLAY_TABLES } from './plays'
@@ -20,9 +20,10 @@ import { bestPlayerSql, column, type Have } from './sql'
  *   order). A play's `seq` is its place in its game by period, then the file's seconds since the tip-off
  *   (`game_seconds`), then the row (DuckDB's `rowid`), which keeps the file's order within a second.
  * - **Games and sides:** `contest_id` is `game.ncaa_game_id`. stats.ncaa.org's home and away are its
- *   own, and a neutral game may list them the other way from ESPN's: its home team is placed by its
- *   stats.ncaa.org id, then its ESPN id, then its name (`teamNamesSql`), then as the side its away team
- *   is not; a game none of them places keeps ESPN's sides. The score and the ten follow the placing.
+ *   own, and a neutral game may list them the other way from ESPN's: its home team is placed by the
+ *   side its row stands on (`ncaa_side`); in a contest with no such row (a forfeit) by its stats.ncaa.org
+ *   id, then its ESPN id, then its name (`teamNamesSql`), then as the side its away team is not; a game
+ *   none of them places keeps ESPN's sides. The score and the ten follow the placing.
  * - **Players:** through `ncaa_player_ids` by the file's player id, else the negative of that id, else
  *   by the play by play's name (`AJ.DYBANTSA`) within the team, else D28's key, as the possessions view
  *   reads them, so the same player has one key in both. A team's own row (`TEAM`) names no player.
@@ -145,10 +146,12 @@ function rowsCtes(have: Have, season: number, ten: boolean): string {
       SELECT s.contest_id, min(g.game_id) AS game_id, min(g.game_type) AS game_type,
              min(g.game_date) AS game_date,
              min(g.home_team_id) AS gh, min(g.away_team_id) AS ga,
-             min(${placed('hn', 'he', 'tnh')}) AS h0,
-             min(${placed('an', 'ae', 'tna')}) AS a0
+             min(coalesce(sh.team_id, ${placed('hn', 'he', 'tnh')})) AS h0,
+             min(coalesce(sa.team_id, ${placed('an', 'ae', 'tna')})) AS a0
       FROM (SELECT DISTINCT contest_id, fh_name, fa_name, fh_ncaa, fh_espn, fa_ncaa, fa_espn FROM nb_src) s
       JOIN nb_g g ON g.ncaa_game_id = s.contest_id
+      ${sideJoin('sh', 's.contest_id', 's.fh_name')}
+      ${sideJoin('sa', 's.contest_id', 's.fa_name')}
       LEFT JOIN team hn ON hn.season = g.season AND hn.ncaa_team_id = s.fh_ncaa
       LEFT JOIN team he ON he.season = g.season AND he.espn_team_id = s.fh_espn
       LEFT JOIN nb_tn tnh ON tnh.name = s.fh_name
@@ -197,7 +200,7 @@ const whoJoin = (alias: string, team: string, id: string, name: string): string 
        AND ${alias}.id IS NOT DISTINCT FROM ${id} AND ${alias}.name = ${name}`
 
 /** What the plays step needs before it can read the play by play. */
-const NEEDS = ['game', 'team', 'ncaa_player_ids', 'src_ncaa_team_ids']
+const NEEDS = ['game', 'team', 'ncaa_player_ids', 'ncaa_side', 'src_ncaa_team_ids']
 
 const ready = (have: Have): boolean =>
   have.tables.has(COLLEGE_PLAYS.pbp) && NEEDS.every((t) => have.tables.has(t))
