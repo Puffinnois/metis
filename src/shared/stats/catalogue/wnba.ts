@@ -32,7 +32,11 @@ const LATER: readonly [readonly string[], number][] = [
       'opp_turnover_pts'
     ],
     2023
-  ]
+  ],
+  // Coach's challenges from 2023, and quarters, whose fifth foul is the bonus, from 2006 (the halves before
+  // had another count).
+  [['challenges', 'challenges_won', 'opp_challenges', 'opp_challenges_won'], 2023],
+  [['team_fouls', 'bonus_given', 'opp_team_fouls', 'opp_bonus_given'], 2006]
 ]
 
 /**

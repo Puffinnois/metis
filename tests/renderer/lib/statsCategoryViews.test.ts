@@ -250,7 +250,10 @@ describe("a board's category tabs (D52)", () => {
   })
 
   it('opens a category on one section when a headline would repeat it whole', () => {
-    expect(categoryViews(NBA, players, 'results').map((v) => v.key)).toEqual(['results.record'])
+    expect(categoryViews(NBA, players, 'results').map((v) => v.key)).toEqual([
+      'results.record',
+      'results.game_flow'
+    ])
     expect(categoryViews(NBA, players, 'playing_time').some((v) => v.key === KEY_VIEW)).toBe(false)
   })
 

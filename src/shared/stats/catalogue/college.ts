@@ -834,6 +834,14 @@ const NOT_IN_PLAYS: readonly [readonly string[], string][] = [
   [
     ['pf_flagrant1', 'pf_flagrant2'],
     "stats.ncaa.org's play by play flags a flagrant foul without its type (1 or 2)."
+  ],
+  [
+    ['challenges', 'challenges_won'],
+    "stats.ncaa.org's play by play names challenges from 2025-26 only, and on some rows not who challenged."
+  ],
+  [
+    ['team_fouls', 'bonus_given'],
+    'Not counted for college: its play by play does not say how many team fouls a team has or when a team is in the bonus, and the rule has changed.'
   ]
 ]
 const ASSIST_PARTS = new RegExp(

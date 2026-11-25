@@ -1003,3 +1003,23 @@ Measured 2026-11-25 with `scripts/check-formulas.mjs` on copies of the four leag
 - **On-court points with no engine row:** player-seasons with a row of `player_on_court` and no line in the box score of that season and type (2 NBA, 3 WNBA, 135 men, 63 women). The differing (1 man, 2 women) have on-court rows of a season type they have no line in, so no row of it is summed. Points against: the same rows, 135 and 63 not there, and 2 of the women's differ.
 - **Colleges:** 46 (men) and 267 (women) player-seasons have a key made for a player in no map (D28), too long for a query's player filter: they are in the league's sums and were not asked.
 - **AST:USG** divides two estimates, so a player with a handful of minutes can read a negative or extreme one where the estimated denominators are: its minimum (1,000 minutes) leaves them unranked.
+
+## Counts from the play by play (T1703.3, second PR)
+
+Measured 2026-11-25 with `scripts/check-play-counts.mjs` on copies of the four leagues' files, every season each holds, each count worked again apart from the builder: player-game and team-game, from the play table's own rows.
+
+| Count                                                                    | NBA player-games / team-games | WNBA            | NCAA Men          | NCAA Women        |
+| ------------------------------------------------------------------------ | ----------------------------- | --------------- | ----------------- | ----------------- |
+| Go-ahead, game winners, buzzer-beaters, blocks, trips, technicals (each) | 291,766 / 79,214              | 40,019 / 14,036 | 192,762 / 63,954  | 157,190 / 60,288  |
+| Timeouts, team fouls, bonus given (each, teams)                          | 79,214                        | 14,036          | 63,954 (timeouts) | 60,288 (timeouts) |
+| Jump balls of the college feed (players / teams)                         | –                             | –               | 192,762 / 63,954  | 157,190 / 60,288  |
+| Through the engine: scoring attempts, points per 100, trips, go-ahead    | 15,028 of 15,028 each         | 4,921           | 55,360            | 44,443            |
+
+Every value was equal, none differed, none was missing, and the built tables held no count that was not worked.
+
+**The league's own words, beside them** (NBA and WNBA, the text of the feed; not a count of the plays):
+
+- **Jump balls:** the teams' counts and the players' equal those worked from the words on every team-game of every season, with 91 to 94 % of an NBA season's jumps and 87 to 93 % of a WNBA one's counted.
+- **Challenges:** the team by the timeout of the same moment, named by the team's nickname in the text, equals the built table's on 99.4 % or more of the team-games of each NBA season (17 of 2,800 differ in 2025-26) and 99.4 to 100 % of each WNBA one. 693 of the NBA's 703 replays of 2019-20 have a timeout to place them, 1,926 of 1,963 in 2025-26; the WNBA's 124 of 139 in 2023, 370 of 413 in 2026.
+- **Timeouts:** the same team from the text agrees on 99.0 % or more of the team-games of each NBA season (the 26 that differ in 2000-01 are the most), and 98.3 % or more of each WNBA one.
+- **The bonus:** the periods the feed says a team was in the penalty (`PN`) equal the rule's on 99.2 to 100 % of NBA team-games in 1996-97 to 2009-10 and 99.4 to 100 % in 2021-22 to 2026-27, and 90.6 to 93.2 % in 2010-11 to 2020-21, when the feed counts an offensive charge among the team's fouls (the rule does not). The free throws show the rule right: of non-shooting fouls the feed calls penalty and the rule does not (those charges; measured in 2011-12, 2014-15, 2017-18 and 2019-20), 0 to 6 % were followed by two free throws; of those the rule calls penalty, 98.5 to 99.9 % were. WNBA from 2006: 100 % in 2006 to 2010 and 2022 to 2026, and 91.5 to 98.8 % in 2011 to 2021 for the same reason.

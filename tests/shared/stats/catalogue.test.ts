@@ -1082,7 +1082,9 @@ const PLAY_ROW: Record<string, number> = {
   fga: 1500,
   fgm: 700,
   opp_fga: 1600,
-  opp_fgm: 750
+  opp_fgm: 750,
+  pts: 1850,
+  opp_pts: 1900
 }
 
 /** Each play-derived metric, written out from its description. */
@@ -1110,6 +1112,23 @@ function playExpected(id: string): number {
       return r('and1') / r('fgm')
     case 'trip_rate':
       return (r('ft_trip2') + r('ft_trip3') + r('and1')) / r('fga')
+    case 'ft_trips':
+      return r('ft_trip2') + r('ft_trip3') + r('ft_front')
+    case 'sa':
+      return r('fga') + r('ft_trip2') + r('ft_trip3') + r('ft_front')
+    case 'psa':
+      return (
+        (100 * (r('pts') - r('ft_techm'))) /
+        (r('fga') + r('ft_trip2') + r('ft_trip3') + r('ft_front'))
+      )
+    case 'blk_rec_pct':
+      return r('blk_rec') / r('blk_n')
+    case 'jump_pct':
+      return r('jump_won') / r('jump_n')
+    case 'challenge_pct':
+      return r('challenges_won') / r('challenges')
+    case 'bonus_got':
+      return shared('opp_bonus_given')
     case 'ast2_share':
       return r('made2_ast') / (r('made2_ast') + r('made2_unast'))
     case 'ast3_share':

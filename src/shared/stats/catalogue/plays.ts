@@ -446,6 +446,217 @@ const ENTRIES: Entry[] = [
       categories: ['fouls.drawn', 'shooting.free_throws', 'offense.fouls_drawn']
     }
   },
+  // Scoring attempts (reference 372 and 428)
+  {
+    key: 'ft_trips',
+    label: 'Possession-ending trips to the line',
+    short: 'FT trips',
+    description:
+      'Two- and three-shot shooting and bonus fouls, counted once a trip, and in college the missed front end of a one-and-one. An and-one is part of its basket, and technical, flagrant and clear-path free throws leave the ball with the shooter, so neither is a trip.',
+    opts: {
+      ...countOf('ft_trip2', { kind: 'derived', value: '{ft_trip2} + {ft_trip3} + {ft_front}' }),
+      categories: ['fouls.drawn', 'shooting.free_throws', 'offense.fouls_drawn']
+    }
+  },
+  {
+    key: 'sa',
+    label: 'Scoring attempts',
+    short: 'SA',
+    description:
+      'Field-goal attempts and possession-ending trips to the line, counted from the plays: a true count where true shooting attempts estimate 0.44 of a free throw.',
+    opts: {
+      ...countOf('fga', {
+        kind: 'derived',
+        value: '{fga} + {ft_trip2} + {ft_trip3} + {ft_front}',
+        direction: 'neutral'
+      }),
+      categories: ['shooting.efficiency', 'offense.shooting']
+    }
+  },
+  {
+    key: 'psa',
+    label: 'Points per 100 scoring attempts',
+    short: 'PSA',
+    description:
+      'Points per 100 scoring attempts, the trips counted, not estimated. Points from technical free throws are left out where the feed tells them apart (not in college).',
+    opts: {
+      value: '100 * ({pts} - {ft_techm}) / nullif({fga} + {ft_trip2} + {ft_trip3} + {ft_front}, 0)',
+      sample: 'fga',
+      aggregation: 'ratio',
+      unit: 'number',
+      decimals: 1,
+      min: 500,
+      categories: ['shooting.efficiency', 'offense.shooting']
+    }
+  },
+  // The last minutes (reference 388)
+  {
+    key: 'go_ahead',
+    label: 'Go-ahead baskets, last two minutes',
+    short: 'Go-ahead',
+    description:
+      'Field goals that take the team from tied or behind to ahead in the last two minutes of the fourth quarter (the second half in men’s college) or overtime. Free throws do not count.',
+    opts: { ...countOf('go_ahead'), categories: ['scoring.by_situation', 'offense.scoring'] }
+  },
+  {
+    key: 'game_winner',
+    label: 'Game winners',
+    short: 'GW',
+    description:
+      'Go-ahead field goals in the last 24 seconds after which the team is never tied or behind. Free throws do not count.',
+    opts: { ...countOf('game_winner'), categories: ['scoring.by_situation', 'offense.scoring'] }
+  },
+  {
+    key: 'buzzer',
+    label: 'Buzzer-beaters',
+    short: 'Buzzer',
+    description:
+      'Field goals made with a second or less on the clock of any period. The feed gives whole seconds in its early years, so a basket with under two seconds can count there.',
+    opts: { ...countOf('buzzer'), categories: ['scoring.by_situation', 'offense.scoring'] }
+  },
+  {
+    key: 'buzzer_winner',
+    label: 'Buzzer-beating game winners',
+    short: 'Buzzer GW',
+    description: 'Game winners made with a second or less left.',
+    opts: { ...countOf('buzzer_winner'), categories: ['scoring.by_situation', 'offense.scoring'] }
+  },
+  // Blocks recovered (reference 376)
+  {
+    key: 'blk_rec',
+    label: 'Blocks recovered',
+    short: 'BLK rec',
+    description:
+      'Blocked shots the blocker’s team rebounded next: the next thing after the block is a rebound of theirs.',
+    opts: {
+      ...countOf('blk_rec'),
+      categories: ['defense.steals_blocks']
+    },
+    sides: [PLAYER, TEAM]
+  },
+  {
+    key: 'blk_rec_pct',
+    label: 'Block recovery rate',
+    short: 'BLK rec%',
+    description:
+      'The share of a player’s or a team’s rebounded blocks that their own side rebounded. Blocks nobody rebounded (out of bounds, a dead ball) are not in it.',
+    opts: {
+      ...shareOf('blk_rec', 'blk_n', 30, { direction: 'higher' }),
+      categories: ['defense.steals_blocks']
+    },
+    sides: [PLAYER, TEAM]
+  },
+  // Jump balls (reference 383)
+  {
+    key: 'jump_won',
+    label: 'Jump balls won',
+    short: 'Jumps won',
+    description:
+      'Jump balls won, the tips and the held balls. The NBA’s and WNBA’s feed names who won by name: a jump whose winner it does not name, or names by a name of both teams, is not counted (6 to 9 % of an NBA season, 7 to 13 % of a WNBA one).',
+    opts: { ...countOf('jump_won'), categories: ['results.game_flow'] },
+    sides: [PLAYER, TEAM]
+  },
+  {
+    key: 'jump_lost',
+    label: 'Jump balls lost',
+    short: 'Jumps lost',
+    description: 'Jump balls lost, counted as the ones won.',
+    opts: { ...countOf('jump_lost', { direction: 'lower' }), categories: ['results.game_flow'] },
+    sides: [PLAYER, TEAM]
+  },
+  {
+    key: 'jump_pct',
+    label: 'Jump ball win rate',
+    short: 'Jump%',
+    description: 'The share of counted jump balls won.',
+    opts: {
+      ...shareOf('jump_won', 'jump_n', 10, { direction: 'higher' }),
+      categories: ['results.game_flow']
+    },
+    sides: [PLAYER, TEAM]
+  },
+  // Timeouts, challenges and the bonus: a team's alone (reference 386, 387 and 36)
+  {
+    key: 'timeouts',
+    label: 'Timeouts taken',
+    short: 'TO taken',
+    description: 'Timeouts the team called, the officials’ and the media’s left out.',
+    opts: {
+      ...countOf('timeouts', { direction: 'neutral' }),
+      categories: ['results.game_flow']
+    },
+    sides: TEAMS
+  },
+  {
+    key: 'challenges',
+    label: 'Coach’s challenges',
+    short: 'Chall',
+    description:
+      'Coach’s challenges, the team taken as the one whose timeout is at the same moment (the replay’s row names no team): a replay with no timeout there is not counted (about 2 % in the NBA, 10 % in the WNBA).',
+    opts: {
+      ...countOf('challenges', { direction: 'neutral', firstSeason: 2020 }),
+      categories: ['results.game_flow']
+    },
+    sides: TEAMS
+  },
+  {
+    key: 'challenges_won',
+    label: 'Challenges won',
+    short: 'Chall won',
+    description: 'Coach’s challenges after which the ruling was overturned.',
+    opts: {
+      ...countOf('challenges_won', { firstSeason: 2020 }),
+      categories: ['results.game_flow']
+    },
+    sides: TEAMS
+  },
+  {
+    key: 'challenge_pct',
+    label: 'Challenge success rate',
+    short: 'Chall%',
+    description: 'The share of coach’s challenges after which the ruling was overturned.',
+    opts: {
+      ...shareOf('challenges_won', 'challenges', 0, { direction: 'higher', firstSeason: 2020 }),
+      categories: ['results.game_flow']
+    },
+    sides: TEAMS
+  },
+  {
+    key: 'team_fouls',
+    label: 'Team fouls toward the bonus',
+    short: 'Team fouls',
+    description:
+      'Personal fouls that count toward the opponent’s bonus: offensive fouls and technicals left out.',
+    opts: {
+      ...countOf('team_fouls', { direction: 'lower' }),
+      categories: ['fouls.committed', 'defense.fouls']
+    },
+    sides: TEAMS
+  },
+  {
+    key: 'bonus_given',
+    label: 'Periods putting the opponent in the bonus',
+    short: 'Bonus given',
+    description:
+      'Periods in which the team’s fouls put the other team in the bonus: the fifth of a quarter (the fourth of an overtime) or the second of its last two minutes.',
+    opts: {
+      ...countOf('bonus_given', { direction: 'lower' }),
+      categories: ['fouls.committed', 'defense.fouls']
+    },
+    sides: [TEAM]
+  },
+  {
+    key: 'bonus_got',
+    label: 'Periods in the bonus',
+    short: 'Bonus got',
+    description:
+      'Periods in which the other team’s fouls put this team in the bonus: the fifth of a quarter (the fourth of an overtime) or the second of its last two minutes.',
+    opts: {
+      ...countOf('opp_bonus_given'),
+      categories: ['fouls.drawn', 'offense.fouls_drawn']
+    },
+    sides: [TEAM]
+  },
   // Assisted and unassisted makes
   {
     key: 'made2_ast',
@@ -756,5 +967,10 @@ export const PLAY_SAMPLE_LABELS: Readonly<Record<string, string>> = {
   ast2: 'assists',
   pf: 'personal fouls',
   opp_pf: 'opponents’ personal fouls',
-  flow_games: 'games with play by play'
+  flow_games: 'games with play by play',
+  blk_n: 'blocks rebounded',
+  opp_blk_n: 'blocks rebounded against',
+  jump_n: 'jump balls',
+  challenges: 'coach’s challenges',
+  opp_challenges: 'opponents’ challenges'
 }
