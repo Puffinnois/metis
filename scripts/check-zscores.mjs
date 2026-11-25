@@ -14,7 +14,19 @@ if (!folder) {
   process.exit(1)
 }
 const { query, close } = openStatsWorker(folder, { league })
-const METRICS = ['min', 'pts', 'reb', 'ast', 'tov', 'stl', 'blk', 'fg_pct', 'ts_pct', 'fg3m', 'usg_pct']
+const METRICS = [
+  'min',
+  'pts',
+  'reb',
+  'ast',
+  'tov',
+  'stl',
+  'blk',
+  'fg_pct',
+  'ts_pct',
+  'fg3m',
+  'usg_pct'
+]
 
 for (const transform of ['perGame', 'raw', 'per40', 'per100']) {
   const base = {
@@ -58,7 +70,8 @@ for (const transform of ['perGame', 'raw', 'per40', 'per100']) {
       else if (Math.abs(v.z.score - want) <= 1e-9 * Math.max(1, Math.abs(want))) c.equal++
       else {
         c.differ++
-        if (worst.length < 4) worst.push(`${row.id} ${metric}: engine ${v.z.score}, recount ${want}`)
+        if (worst.length < 4)
+          worst.push(`${row.id} ${metric}: engine ${v.z.score}, recount ${want}`)
       }
     }
   }
@@ -67,12 +80,15 @@ for (const transform of ['perGame', 'raw', 'per40', 'per100']) {
     `${league} ${season} ${transform}: ${r.rows.length} rows of ${r.total}, ${c.rows} scored, ${c.equal} equal, ${c.differ} differing, ${c.blank} blank`
   )
   for (const w of worst) console.log('  ', w)
-  if (r.rows.length < r.total) console.log('  the board is larger than the fetch: scores are the engine’s')
+  if (r.rows.length < r.total)
+    console.log('  the board is larger than the fetch: scores are the engine’s')
   for (const extra of [{}, { zScores: true }]) {
     const ms = []
     for (let i = 0; i < 9; i++) ms.push((await query({ ...base, limit: 1000, ...extra })).ms)
     ms.sort((a, b) => a - b)
-    console.log(`  1,000-row board ${extra.zScores ? 'with' : 'without'} scores: median ${ms[4]} ms, worst ${ms[8]}`)
+    console.log(
+      `  1,000-row board ${extra.zScores ? 'with' : 'without'} scores: median ${ms[4]} ms, worst ${ms[8]}`
+    )
   }
 }
 await close()
