@@ -341,6 +341,108 @@ describe('the play-derived tables', () => {
     }
   })
 
+  it('puts a player on the team of their own plays, whatever order the rows came in', async () => {
+    // Ana (Boston) and Di (the Lakers) with an assist credited on the other side's basket, as a college
+    // file does, and a player with no play of their own, whose assists are split 2 to 1.
+    const ED = 5
+    const FI = 6
+    const GUS = 7
+    const odd: Play[] = [
+      {
+        period: 1,
+        clock: 100,
+        team: LAL,
+        player: BEA,
+        kind: 'field_goal',
+        pts: 2,
+        fga: true,
+        assist: ANA
+      },
+      {
+        period: 1,
+        clock: 90,
+        team: BOS,
+        player: CY,
+        kind: 'field_goal',
+        pts: 2,
+        fga: true,
+        assist: DI
+      },
+      {
+        period: 1,
+        clock: 80,
+        team: BOS,
+        player: CY,
+        kind: 'field_goal',
+        pts: 2,
+        fga: true,
+        assist: ED
+      },
+      {
+        period: 1,
+        clock: 70,
+        team: LAL,
+        player: BEA,
+        kind: 'field_goal',
+        pts: 2,
+        fga: true,
+        assist: ED
+      },
+      {
+        period: 1,
+        clock: 60,
+        team: LAL,
+        player: BEA,
+        kind: 'field_goal',
+        pts: 2,
+        fga: true,
+        assist: ED
+      }
+    ]
+    const onLakers = (assist: number, clock: number): Play => ({
+      period: 1,
+      clock,
+      team: LAL,
+      player: BEA,
+      kind: 'field_goal',
+      pts: 2,
+      fga: true,
+      assist
+    })
+    odd.push({ period: 1, clock: 50, team: BOS, player: FI, kind: 'field_goal', pts: 2, fga: true })
+    odd.push(onLakers(FI, 40), onLakers(FI, 30), onLakers(FI, 20), onLakers(GUS, 10))
+    odd.push({
+      period: 1,
+      clock: 5,
+      team: BOS,
+      player: CY,
+      kind: 'field_goal',
+      pts: 2,
+      fga: true,
+      assist: GUS
+    })
+    const teams = async (plays: Play[]): Promise<Record<string, number>[]> => {
+      await db.exec(`DELETE FROM ${PLAY_TABLES.nba}`)
+      await createPlays(plays)
+      await build()
+      return db.all(
+        `SELECT player_id, team_id, opponent_id, ast2 FROM ${PLAY_DETAIL_PLAYER_GAME} ORDER BY player_id`
+      )
+    }
+    const one = await teams([...PLAYS, ...odd])
+    const other = await teams([...odd, ...PLAYS])
+    expect(other).toEqual(one)
+    const of = (id: number): Record<string, number> =>
+      one.find((r) => Number(r.player_id) === id) ?? {}
+    expect(of(ANA)).toMatchObject({ team_id: BOS, opponent_id: LAL })
+    expect(of(DI)).toMatchObject({ team_id: LAL, opponent_id: BOS })
+    // One play of their own outweighs three assists; a tie goes to the smaller id.
+    expect(of(FI)).toMatchObject({ team_id: BOS, opponent_id: LAL, ast2: 3 })
+    expect(of(GUS)).toMatchObject({ team_id: Math.min(BOS, LAL) })
+    // Their own plays decide; one with none is on the team most of their assists were for, every one kept.
+    expect(of(ED)).toMatchObject({ team_id: LAL, opponent_id: BOS, ast2: 3 })
+  })
+
   it('counts a team’s own turnovers apart, and its opponents’ side on the same row', async () => {
     const lal = await db.get<Record<string, number>>(
       `SELECT * FROM ${PLAY_DETAIL_TEAM_GAME} WHERE team_id = ${LAL}`

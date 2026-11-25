@@ -318,7 +318,13 @@ const collegeDrawnCte = (): string => `drawn AS (
     WHERE pick = 1 AND trim(coalesce(subtype, '')) NOT IN (${list(NCAA_TECHNICAL_SUBTYPES)})
   )`
 
-/** One season's player-game rows. */
+/**
+ * One season's player-game rows. A player's team is one pick for the whole row, by a total order (T1302.9):
+ * the team of their own plays, then of the assists, then of the fouls they drew, the one on most rows and
+ * then the smaller id. A play can name a player under the other team (a college file puts an assist on the
+ * other side's basket), and an `any_value` over the three took whichever row came first, so the team was
+ * wrong on 16 of the men's 646,865 rows of 2026-11-24's files and 23 of the women's, by the order they came in.
+ */
 export function playDetailPlayerSql(have: Have, season: number, league?: League): string {
   const sp = spellingsOf(league)
   const ACTOR = actorCounts(sp)
@@ -329,22 +335,23 @@ export function playDetailPlayerSql(have: Have, season: number, league?: League)
   const all = PLAY_DETAIL_COUNTS.map((n) => `sum(${n})::UTINYINT AS ${n}`).join(', ')
   return `WITH ${playsCte(season, sp)}, ${drawnCte(have, season, league)},
   credits AS (
-    SELECT game_id, player_id, any_value(team_id) AS team_id, ${actor}, ${zero(PASSER)}, ${zero(DRAWN)}
-    FROM plays WHERE player_id IS NOT NULL GROUP BY 1, 2
+    SELECT game_id, player_id, team_id, 3 AS src, count(*) AS n, ${actor}, ${zero(PASSER)}, ${zero(DRAWN)}
+    FROM plays WHERE player_id IS NOT NULL GROUP BY 1, 2, 3
     UNION ALL
-    SELECT game_id, assist_id, any_value(team_id), ${zero(ACTOR)}, ${passer}, ${zero(DRAWN)}
-    FROM plays WHERE assist_id IS NOT NULL GROUP BY 1, 2
+    SELECT game_id, assist_id, team_id, 2, count(*), ${zero(ACTOR)}, ${passer}, ${zero(DRAWN)}
+    FROM plays WHERE assist_id IS NOT NULL GROUP BY 1, 2, 3
     UNION ALL
-    SELECT game_id, player_id, any_value(team_id), ${zero(ACTOR)}, ${zero(PASSER)}, ${drawn}
-    FROM drawn GROUP BY 1, 2
+    SELECT game_id, player_id, team_id, 1, count(*), ${zero(ACTOR)}, ${zero(PASSER)}, ${drawn}
+    FROM drawn GROUP BY 1, 2, 3
+  ), players AS (
+    SELECT game_id, player_id, arg_max(team_id, (src, n, -team_id)) AS team_id, ${all}
+    FROM credits GROUP BY 1, 2
   )
-  SELECT c.game_id, g.season, g.game_type, g.game_date, c.player_id,
-         any_value(c.team_id) AS team_id,
-         any_value(CASE c.team_id WHEN g.home_team_id THEN g.away_team_id
-                                  WHEN g.away_team_id THEN g.home_team_id END) AS opponent_id,
-         ${all}
-  FROM credits c JOIN game g ON g.game_id = c.game_id
-  GROUP BY c.game_id, g.season, g.game_type, g.game_date, c.player_id
+  SELECT c.game_id, g.season, g.game_type, g.game_date, c.player_id, c.team_id,
+         CASE c.team_id WHEN g.home_team_id THEN g.away_team_id
+                        WHEN g.away_team_id THEN g.home_team_id END AS opponent_id,
+         ${PLAY_DETAIL_COUNTS.map((n) => `c.${n}`).join(', ')}
+  FROM players c JOIN game g ON g.game_id = c.game_id
   ORDER BY c.player_id, g.game_date, c.game_id`
 }
 
