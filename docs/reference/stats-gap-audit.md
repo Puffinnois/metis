@@ -321,7 +321,7 @@ These stay listed with their reason, and in the app as unavailable where the cat
 
 ## 4. A build order for T1703.2 to .4
 
-The order weighs what a reader gains against what it costs: a rebuild, the file's size against D22's 6 GB (the NBA's is at 5.34 GB), and read time. No PR that adds a metric starts before the manager says T1702.2 has merged; each new metric carries its categories (`src/shared/stats/categories.ts`).
+The order weighs what a reader gains against what it costs: a rebuild, the file's size against D22's limit (8 GB since 2026-11-25; the NBA's was at 5.34 GB on 2026-11-23, against 6 GB then), and read time. No PR that adds a metric starts before the manager says T1702.2 has merged; each new metric carries its categories (`src/shared/stats/categories.ts`).
 
 ### 4.1 T1703.2: the unread published columns
 
