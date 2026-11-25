@@ -40,6 +40,9 @@ import {
 import { rangeLabel, scopeLabel, seasonOf, type StatsScope } from '@/lib/stats/scope'
 import { momentsIn } from '@/lib/stats/splits'
 import { useStatsQuery, type StatsData } from '@/lib/stats/useStats'
+import { TeamChooser } from '@/components/stats/TeamChooser'
+import { teamIn } from '@/lib/stats/team'
+import { ALL_TEAMS, teamChoices } from '@/lib/stats/teamSearch'
 import { cn } from '@/lib/utils'
 import { currentLeague, seasonLabel, useLeague } from '@/lib/stats/league'
 import {
@@ -428,13 +431,12 @@ export function StatsLeaderboard({
           Favourites
         </CheckToggle>
         {entity === 'player' && (
-          <StatsSelect
+          <TeamChooser
             title="Team"
             value={board.team ?? ''}
-            options={[
-              { value: '', label: 'All teams' },
-              ...teams.map((t) => ({ value: t.id, label: t.code }))
-            ]}
+            choices={[ALL_TEAMS, ...teamChoices(teams)]}
+            // A team with none that season still narrows the board: it is named, never "All teams".
+            label={board.team ? teamIn(data.seasons, scope.season, board.team).code : undefined}
             onChange={(t) => update({ team: t || null })}
             className="w-[110px]"
           />

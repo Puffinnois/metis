@@ -38,6 +38,8 @@ import { dashboardModes } from '@/lib/stats/dashboard'
 import { boardCategories } from '@/lib/stats/categoryViews'
 import type { StatsScope } from '@/lib/stats/scope'
 import { usePlayerInfo, useStatsQuery, type StatsData } from '@/lib/stats/useStats'
+import { TeamChooser } from '@/components/stats/TeamChooser'
+import { teamChoices } from '@/lib/stats/teamSearch'
 import { cn } from '@/lib/utils'
 import type { Entity, StatsResult } from '@shared/stats/types'
 
@@ -306,18 +308,34 @@ function SlotCard({
   onOpen: () => void
   what: string
 }): React.JSX.Element {
-  const search = (placeholder: string): React.JSX.Element => (
-    <SlotSearch
-      label={`${id ? 'Replace' : 'Add'} the ${ORDINAL[slot]} ${what}`}
-      placeholder={placeholder}
-      entity={entity}
-      candidates={candidates}
-      exclude={exclude}
-      loading={loadingCandidates}
-      onOpen={onSearch}
-      onPick={onPick}
-    />
-  )
+  const search = (placeholder: string): React.JSX.Element => {
+    const label = `${id ? 'Replace' : 'Add'} the ${ORDINAL[slot]} ${what}`
+    return entity === 'team' ? (
+      <TeamChooser
+        title={label}
+        value={null}
+        choices={teamChoices(
+          candidates
+            .filter((c) => !exclude.includes(c.id))
+            .map((c) => ({ id: c.id, code: c.detail, name: c.name }))
+        )}
+        placeholder={placeholder}
+        onChange={onPick}
+        className="w-full bg-paper"
+      />
+    ) : (
+      <SlotSearch
+        label={label}
+        placeholder={placeholder}
+        entity={entity}
+        candidates={candidates}
+        exclude={exclude}
+        loading={loadingCandidates}
+        onOpen={onSearch}
+        onPick={onPick}
+      />
+    )
+  }
   if (!id) {
     return (
       <div

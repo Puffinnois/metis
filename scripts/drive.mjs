@@ -3,7 +3,7 @@
 // example: node scripts/drive.mjs /tmp/metis-profile scripts/smoke-steps.json /tmp/metis-shots
 // usage: node drive.mjs <profile dir> <steps.json> <shots dir>
 // steps: {size:[w,h]} {wait:ms} {click:"text or selector"} {hover:"exact text"} {type:"text"}
-//        {select:["select title", "value"]} {eval:"js"} {shot:"name"}
+//        {select:["select or team chooser title", "value"]} {eval:"js"} {shot:"name"}
 import { spawn } from 'node:child_process'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -180,7 +180,17 @@ for (const s of JSON.parse(readFileSync(stepsFile, 'utf8'))) {
       s.select.join(' = '),
       await evaluate(`(() => {
       const el = [...document.querySelectorAll('select')].find((x) => x.title === ${JSON.stringify(s.select[0])})
-      if (!el) return 'NOT FOUND'
+      if (!el) {
+        // A team is picked from a chooser (T1705): open it and take the option of that value.
+        const t = [...document.querySelectorAll('[data-team-chooser]')].find((x) => x.dataset.teamChooser === ${JSON.stringify(s.select[0])})
+        if (!t) return 'NOT FOUND'
+        t.click()
+        return new Promise((done) => setTimeout(() => {
+          const o = [...document.querySelectorAll('[role=option]')].find((x) => x.dataset.value === ${JSON.stringify(s.select[1])})
+          ;(o ?? t).click()
+          done(o ? 'set' : 'NO OPTION')
+        }, 300))
+      }
       Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(el, ${JSON.stringify(s.select[1])})
       el.dispatchEvent(new Event('change', { bubbles: true }))
       return 'set'

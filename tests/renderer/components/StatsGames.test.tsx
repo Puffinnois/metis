@@ -32,6 +32,8 @@ vi.mock('@/lib/api', () => ({
       games: vi.fn(),
       game: vi.fn(),
       standings: vi.fn(),
+      // A player page opened from here asks for it once its own reads are in.
+      otherCareer: vi.fn(() => new Promise(() => {})),
       availability: vi.fn(() => Promise.resolve([])),
       coaches: vi.fn(() => Promise.resolve([])),
       assists: vi.fn(() => Promise.resolve({ pairs: [], total: 0, reason: null })),
