@@ -156,6 +156,33 @@ describe('the side a stats.ncaa.org row stands on', () => {
   )
 
   it(
+    'keeps a line with no id on its team row’s side, though its player is mapped to the other team',
+    async () => {
+      const { db, c } = await loaded()
+      const q = c.y_team.replaceAll("'", "''")
+      const sums = async (): Promise<number | null> =>
+        (
+          await db.get<{ n: number | null }>(
+            'SELECT (ncaa_pts_half + ncaa_pts_trans)::INTEGER AS n FROM team_game WHERE game_id = ? AND team_id = ?',
+            [c.game_id, c.y]
+          )
+        )?.n ?? null
+      await buildDerived(db, women)
+      const own = await sums()
+      expect(own).toBeGreaterThan(0)
+      // The lines give no id and their players' map holds the other team, as it does in the real files.
+      await db.exec(
+        `UPDATE src_ncaa_player_box SET team_espn_team_id = NULL WHERE contest_id = '${c.contest_id}' AND team = '${q}'`
+      )
+      await db.exec(`UPDATE ncaa_player_ids SET team_id = ${c.x} WHERE ncaa_team = '${q}'`)
+      await buildDerived(db, women)
+      expect(await sums()).toBe(own)
+      db.close()
+    },
+    slow(60_000)
+  )
+
+  it(
     'is nobody’s when neither row is placed, and the teams read no value',
     async () => {
       const { db, c } = await loaded()

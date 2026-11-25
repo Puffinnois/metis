@@ -208,9 +208,10 @@ function ncaaLines(have: Have): string {
     )
     SELECT g.game_id, coalesce(i.player_id, n.player_id) AS player_id,
            CASE WHEN b.given_team IN (g.home_team_id, g.away_team_id) THEN b.given_team
+                WHEN s.team_id IS NOT NULL THEN s.team_id
                 WHEN coalesce(i.team_id, n.team_id) IN (g.home_team_id, g.away_team_id)
                   THEN coalesce(i.team_id, n.team_id)
-                ELSE coalesce(${nameSide('m.ids')}, s.team_id) END AS team_id,
+                ELSE ${nameSide('m.ids')} END AS team_id,
            -- A line of no minutes and no count lists a player who did not play.
            (coalesce(b.mins, 0) > 0 OR ${any} > 0) AS appeared,
            ${[...counts, ...cols].join(', ')}
@@ -218,7 +219,9 @@ function ncaaLines(have: Have): string {
     JOIN game g ON g.ncaa_game_id = b.contest_id AND g.played AND g.forfeit_winner_id IS NULL
     LEFT JOIN by_id i ON i.season = b.season AND i.ncaa_player_id = b.pid
     LEFT JOIN by_name n ON b.pid IS NULL AND n.season = b.season AND n.ncaa_team = b.team AND n.player = b.player
-    -- A line of no id, player or one-sided name stands where its team's row of the contest was placed.
+    -- A line of no id stands where its team's row of the contest was placed, ahead of the team its player
+    -- is mapped to: the map can hold the other side's (the identity step places such a line by the sides
+    -- the file lists). No placed row's points match the other side's score alone (measured, T1703.2).
     LEFT JOIN names m ON m.season = g.season AND m.name = b.team
     LEFT JOIN ${NCAA_SIDE} s ON s.contest_id = b.contest_id AND s.team = b.team`
 }
