@@ -319,6 +319,9 @@ export function catalogueSignature(catalogue: readonly MetricDef[] = CATALOGUE):
       m.perGameBy ?? null,
       m.totalOnly ?? null,
       m.index ?? null,
+      m.relative ?? null,
+      m.weight ?? null,
+      m.box ?? null,
       m.direction
     ])
   )

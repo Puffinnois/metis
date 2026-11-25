@@ -160,6 +160,18 @@ describe('the stability measure, through the engine (Plan T1006)', () => {
       m.id === 'ft_pct' ? { ...m, description: 'Other words.' } : m
     )
     expect(catalogueSignature(changed)).not.toBe(catalogueSignature())
+    // How it is read against the league, over what, and what the box scores hold of it, too.
+    const other = (id: string, o: Partial<MetricDef>): MetricDef[] =>
+      CATALOGUE.map((m) => (m.id === id ? { ...m, ...o } : m))
+    for (const [id, o] of [
+      ['rts_pct', { relative: 'added' }],
+      ['ts_add', { weight: '{fga}' }],
+      ['nba_pts_2_nd_chance_share', { box: ['fga'] }]
+    ] as const) {
+      expect(catalogueSignature(other(id, o as Partial<MetricDef>)), id).not.toBe(
+        catalogueSignature()
+      )
+    }
     expect(catalogueSignature(reworded)).toBe(catalogueSignature())
   })
 })

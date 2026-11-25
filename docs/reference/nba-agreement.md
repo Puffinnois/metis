@@ -985,3 +985,21 @@ What the Games screen shows, per team-game with a box score that counts. **Team 
 | 2024-25 | 2,642      | 100.0      | 100.0   | 100.0      | 100.0     | 0     |
 | 2025-26 | 2,644      | 100.0      | 100.0   | 100.0      | 100.0     | 0     |
 | 2026-27 | 292        | 100.0      | 100.0   | 100.0      | 100.0     | 0     |
+
+## Shooting against the league, shares of a team, and on-court points (T1703.3, first PR)
+
+Measured 2026-11-25 with `scripts/check-formulas.mjs` on copies of the four leagues' files: every player-season and team-season of every season each file holds (NBA 1993-94 to 2026-27, WNBA 1997 to 2026, the colleges 2021-22 to 2026-27; the regular season in the first two, every counted type in the colleges), worked from the game rows apart from the engine's SQL, the league's value from the same rows' own sums (Division I's in the colleges), against the engine's answer. Equal is to 1e-9 of the value. No published figure exists for these in the loaded sources; what is checked is that the engine computes the formula on every row.
+
+| Formula                                            | NBA                   | WNBA                | NCAA Men              | NCAA Women            |
+| -------------------------------------------------- | --------------------- | ------------------- | --------------------- | --------------------- |
+| Player `rts_pct`                                   | 16,217 of 16,217      | 4,892 of 4,892      | 53,599 of 53,599      | 43,535 of 43,535      |
+| Player `refg_pct`                                  | 16,211 of 16,211      | 4,885 of 4,885      | 53,088 of 53,088      | 43,223 of 43,223      |
+| Player `ts_add`, `fg_add`, `min_share`, `gp_share` | 16,282 of 16,282 each | 4,931 of 4,931 each | 56,997 of 56,997 each | 45,565 of 45,565 each |
+| Player `ast_usg_ratio`                             | 16,223 of 16,223      | 4,902 of 4,902      | 54,473 of 54,473      | 44,312 of 44,312      |
+| Team and opponents' four (`team_`, `opp_`)         | 1,005 of 1,005 each   | 380 of 380 each     | 4,121 of 4,121 each   | 3,638 of 3,638 each   |
+| On-court points for                                | 15,037 of 15,039      | 4,930 of 4,933      | 55,206 of 55,342      | 44,358 of 44,423      |
+| Second-chance share over the dashboard's rows      | 14,848 of 14,848      | 4,808 of 4,808      | –                     | –                     |
+
+- **On-court points with no engine row:** player-seasons with a row of `player_on_court` and no line in the box score of that season and type (2 NBA, 3 WNBA, 135 men, 63 women). The differing (1 man, 2 women) have on-court rows of a season type they have no line in, so no row of it is summed. Points against: the same rows, 135 and 63 not there, and 2 of the women's differ.
+- **Colleges:** 46 (men) and 267 (women) player-seasons have a key made for a player in no map (D28), too long for a query's player filter: they are in the league's sums and were not asked.
+- **AST:USG** divides two estimates, so a player with a handful of minutes can read a negative or extreme one where the estimated denominators are: its minimum (1,000 minutes) leaves them unranked.
