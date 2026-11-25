@@ -77,6 +77,13 @@ export const NCAA_SHOT_TYPES: readonly string[] = [
   'Unk'
 ]
 
+/** stats.ncaa.org's tags of a play, as the file names them and as they are kept (`play_ncaa_flags`). */
+const TAGS = [
+  ['is_fastbreak', 'fastbreak'],
+  ['is_from_turnover', 'off_turnover'],
+  ['is_paint', 'paint']
+] as const
+
 /** Foul classes that are technical fouls, which the box score leaves out of PF. */
 export const NCAA_TECHNICAL_CLASSES: readonly string[] = ['technical', 'adminTechnical']
 
@@ -87,12 +94,13 @@ const list = (xs: readonly string[]): string =>
  * The season's rows of the play by play, each placed in its game with its `seq`, its team and the
  * team with the ball as the game's sides, and every person it names resolved once (`nb_who`). Shared
  * by both builders, so a play's `seq` is the same in both tables: the ten's builder reads the ten
- * (`ten`), the play table's the event's columns, so neither carries the other's.
+ * (`ten`), the play table's the event's columns (`plays`), the tags' builder its three tags (`tags`), so none
+ * carries another's.
  *
  * The rows are read again where they are used (`NOT MATERIALIZED`) rather than held: a season is three
  * million rows, and DuckDB keeps a CTE read twice in memory, past the app's 1 GB on 2021-22's men's.
  */
-function rowsCtes(have: Have, season: number, ten: boolean): string {
+function rowsCtes(have: Have, season: number, what: 'ten' | 'plays' | 'tags'): string {
   const t = COLLEGE_PLAYS.pbp
   const s = Number(season)
   const c = (name: string, type = 'VARCHAR'): string => column(have, t, 'p', name, type)
@@ -103,9 +111,10 @@ function rowsCtes(have: Have, season: number, ten: boolean): string {
           ELSE ${nameSide(`${names}.ids`)} END`
   const person = (team: string, id: string, name: string): string =>
     `{'team': ${team}, 'id': ${id}, 'name': ${name}}`
-  const people = ten
-    ? TEN.map((n) => person(n.startsWith('home') ? 'fh' : 'fa', `f_${n}_id`, `f_${n}`))
-    : [person('team_id', 'player_1_id', 'player_1'), person('team_id', 'player_2_id', 'player_2')]
+  const people =
+    what === 'ten'
+      ? TEN.map((n) => person(n.startsWith('home') ? 'fh' : 'fa', `f_${n}_id`, `f_${n}`))
+      : [person('team_id', 'player_1_id', 'player_1'), person('team_id', 'player_2_id', 'player_2')]
   return `nb_g AS (
       SELECT game_id, ncaa_game_id, season, game_type, game_date, home_team_id, away_team_id
       FROM game WHERE season = ${s} AND ncaa_game_id IS NOT NULL
@@ -118,11 +127,15 @@ function rowsCtes(have: Have, season: number, ten: boolean): string {
              ${c('home_ncaa_team_id', 'BIGINT')} AS fh_ncaa, ${c('home_espn_team_id', 'BIGINT')} AS fh_espn,
              ${c('away_ncaa_team_id', 'BIGINT')} AS fa_ncaa, ${c('away_espn_team_id', 'BIGINT')} AS fa_espn,
              ${
-               ten
-                 ? TEN.map((n) => `${c(n)} AS f_${n}, ${c(`${n}_player_id`)} AS f_${n}_id`).join(
-                     ',\n             '
+               what === 'tags'
+                 ? TAGS.map(([n, tag]) => `coalesce(${c(n, 'BOOLEAN')}, false) AS ${tag}`).join(
+                     ', '
                    )
-                 : `${c('clock')} AS clock_text, ${c('poss_num', 'INTEGER')} AS poss_num,
+                 : what === 'ten'
+                   ? TEN.map((n) => `${c(n)} AS f_${n}, ${c(`${n}_player_id`)} AS f_${n}_id`).join(
+                       ',\n             '
+                     )
+                   : `${c('clock')} AS clock_text, ${c('poss_num', 'INTEGER')} AS poss_num,
              ${c('home_score', 'INTEGER')} AS fh_score, ${c('away_score', 'INTEGER')} AS fa_score,
              coalesce(${c('event_type')}, '') AS event_type, ${c('event_result')} AS event_result,
              -- What the plays read of the description: an older row's result and value, a free throw's number.
@@ -175,7 +188,11 @@ function rowsCtes(have: Have, season: number, ten: boolean): string {
              CASE x.event_team WHEN x.fh_name THEN d.fh WHEN x.fa_name THEN d.fa END AS team_id,
              CASE x.poss_team WHEN x.fh_name THEN d.fh WHEN x.fa_name THEN d.fa END AS poss_team_id
       FROM nb_src x JOIN nb_seq q USING (r) JOIN nb_placed d USING (contest_id)
-    ),
+    )${
+      // The tags name no one.
+      what === 'tags'
+        ? ''
+        : `,
     nb_people AS (
       SELECT DISTINCT u.team, u.id, u.name
       FROM (SELECT unnest([${people.join(', ')}]) AS u FROM nb_rows)
@@ -192,6 +209,7 @@ function rowsCtes(have: Have, season: number, ten: boolean): string {
                  WHERE season = ${s} AND player IS NOT NULL GROUP BY 1, 2) n
         ON n.team_id = k.team AND n.player = k.name
     )`
+    }`
 }
 
 /** A LEFT JOIN to `nb_who` for one person a row names: by team, the file's id and the name. */
@@ -213,7 +231,7 @@ export function collegePlayLineupSql(have: Have, season: number): string {
   if (!ready(have)) return none(PLAY_LINEUP_COLUMNS)
   const slot = (side: 'home' | 'away', i: number): string =>
     `${side === 'home' ? 'h' : 'a'}${i}.player_id`
-  return `WITH ${rowsCtes(have, season, true)}
+  return `WITH ${rowsCtes(have, season, 'ten')}
     SELECT ${Number(season)} AS season, r.game_id, r.seq, r.poss_team_id,
            ${SLOTS.map((i) => `CASE WHEN r.flipped THEN ${slot('away', i)} ELSE ${slot('home', i)} END AS home_${i}`).join(', ')},
            ${SLOTS.map((i) => `CASE WHEN r.flipped THEN ${slot('home', i)} ELSE ${slot('away', i)} END AS away_${i}`).join(', ')}
@@ -232,7 +250,7 @@ export function collegePlaysSql(have: Have, season: number): string {
   if (!ready(have)) return none(PLAY_COLUMNS)
   const shots = list(NCAA_SHOT_TYPES)
   const techs = list(NCAA_TECHNICAL_CLASSES)
-  return `WITH ${rowsCtes(have, season, false)},
+  return `WITH ${rowsCtes(have, season, 'plays')},
     nb_read AS (
       SELECT r.* EXCLUDE (fh_name, fa_name, fh_ncaa, fh_espn, fa_ncaa, fa_espn, event_team, poss_team,
                           player_1, player_1_id, player_2, player_2_id),
@@ -515,6 +533,33 @@ export function onCourtTables(
     : { units: `${UNIT_GAME}_${source}`, players: `${PLAYER_ON_COURT}_${source}` }
 }
 
+/**
+ * stats.ncaa.org's own tags of a play, beside `play_nba` by its `seq`: on the fast break, off a
+ * turnover, in the paint, as the file sets them (`is_fastbreak`, `is_from_turnover`, `is_paint`, never
+ * empty). Only the plays with a tag are kept (about 15 % of them); the counts read them through the
+ * play table (`collegeSituations.ts`). The file sets fast break and off a turnover on free throws too,
+ * and paint on twos only.
+ */
+export const PLAY_NCAA_FLAGS = 'play_ncaa_flags'
+
+export const PLAY_NCAA_FLAGS_COLUMNS: Columns = [
+  ['season', 'INTEGER'],
+  ['game_id', 'VARCHAR'],
+  ['seq', 'INTEGER'],
+  ['fastbreak', 'BOOLEAN'],
+  ['off_turnover', 'BOOLEAN'],
+  ['paint', 'BOOLEAN']
+]
+
+/** One season's tagged plays, keyed as the play table keys them. */
+export function collegePlayFlagsSql(have: Have, season: number): string {
+  if (!ready(have)) return none(PLAY_NCAA_FLAGS_COLUMNS)
+  return `WITH ${rowsCtes(have, season, 'tags')}
+    SELECT ${Number(season)} AS season, r.game_id, r.seq, r.fastbreak, r.off_turnover, r.paint
+    FROM nb_rows r
+    WHERE r.fastbreak OR r.off_turnover OR r.paint`
+}
+
 /** The play table and the ten beside it, in build order: the play table reads nothing of the ten. */
 export const COLLEGE_PBP_BUILDERS: readonly PlayBuilder[] = [
   {
@@ -533,6 +578,15 @@ export const COLLEGE_PBP_BUILDERS: readonly PlayBuilder[] = [
     select: collegePlaysSql,
     reads: [],
     order: 'game_id, seq'
+  },
+  {
+    // An intermediate too: only the situation counts read it.
+    table: PLAY_NCAA_FLAGS,
+    columns: PLAY_NCAA_FLAGS_COLUMNS,
+    select: collegePlayFlagsSql,
+    reads: [],
+    order: 'game_id, seq',
+    intermediate: true
   }
 ]
 

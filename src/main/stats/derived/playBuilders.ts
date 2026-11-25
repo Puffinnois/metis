@@ -24,6 +24,7 @@ import { NBA_PLAYS, playsRecipe } from './playsRecipe'
 import { SHOT_BUILDERS } from './shots'
 import { SPLIT_BUILDERS } from './splits'
 import { inspect, type Have } from './sql'
+import { COLLEGE_SITUATION_BUILDERS } from './collegeSituations'
 
 /**
  * The tables built from plays, rebuilt at the end of a refresh, season by season.
@@ -152,7 +153,8 @@ function collegePlayBuilders(league: League): PlayBuilder[] {
       order: PLAYER_ORDER
     },
     COLLEGE_LINEUPS_BUILDER,
-    ...PLAY_DETAIL_BUILDERS
+    ...PLAY_DETAIL_BUILDERS,
+    ...COLLEGE_SITUATION_BUILDERS
   ]
 }
 

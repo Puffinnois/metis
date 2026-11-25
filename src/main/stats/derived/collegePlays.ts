@@ -475,6 +475,26 @@ function stintsSql(have: Have): string {
 }
 
 /**
+ * The possessions file's rows (`s`) in their games (`g`), with the game's sides its own home and away
+ * are (`x.h`, `x.a`): the side each one's row stands on (`ncaa_side`), else, in a contest with no such row
+ * (a forfeit), its stats.ncaa.org id's. Read by the possession view and by the first shots' counts.
+ */
+export function possessionsFrom(have: Have): string {
+  const t = COLLEGE_PLAYS.possessions
+  const c = (name: string, type = 'BIGINT'): string => column(have, t, 's', name, type)
+  const team = (ncaa: string): string =>
+    `(SELECT min(t.team_id) FROM team t WHERE t.season = g.season AND t.ncaa_team_id = TRY_CAST(${ncaa} AS BIGINT))`
+  const [home, away] = [c('home_ncaa_team_id'), c('away_ncaa_team_id')]
+  return `FROM ${t} s JOIN game g ON g.ncaa_game_id = ${c('contest_id', 'VARCHAR')}
+    ${sideJoin('sh', c('contest_id', 'VARCHAR'), c('home', 'VARCHAR'))}
+    ${sideJoin('sa', c('contest_id', 'VARCHAR'), c('away', 'VARCHAR'))}
+    CROSS JOIN LATERAL (
+      SELECT coalesce(sh.team_id, ${sideSql(team(home), team(away))}) AS h,
+             coalesce(sa.team_id, ${sideSql(team(away), team(home))}) AS a
+    ) x`
+}
+
+/**
  * stats.ncaa.org's possessions under the columns the NBA's view has (`POSSESSION_COLUMNS`): each
  * possession's team, points, flags and the ten players by its player ids. It counts no shots or
  * rebounds per possession, so those read NULL; each row is a possession (`counted`).
@@ -485,8 +505,6 @@ function possessionsSql(have: Have): string {
     return `CREATE OR REPLACE VIEW ${POSSESSIONS_VIEW} AS ${none(POSSESSION_COLUMNS)}`
   }
   const c = (name: string, type = 'BIGINT'): string => column(have, t, 's', name, type)
-  const team = (ncaa: string): string =>
-    `(SELECT min(t.team_id) FROM team t WHERE t.season = g.season AND t.ncaa_team_id = TRY_CAST(${ncaa} AS BIGINT))`
   // By the file's player id; else by its play-by-play name within the team (`AJ.DYBANTSA`); else D28's.
   const who = (side: 'home' | 'away', i: number): string => {
     const team = side === 'home' ? 'x.h' : 'x.a'
@@ -529,13 +547,7 @@ function possessionsSql(have: Have): string {
       ),
       lineup_source: "'stats.ncaa.org'"
     })}
-    FROM ${t} s JOIN game g ON g.ncaa_game_id = ${c('contest_id', 'VARCHAR')}
-    ${sideJoin('sh', c('contest_id', 'VARCHAR'), c('home', 'VARCHAR'))}
-    ${sideJoin('sa', c('contest_id', 'VARCHAR'), c('away', 'VARCHAR'))}
-    CROSS JOIN LATERAL (
-      SELECT coalesce(sh.team_id, ${sideSql(team('s.home_ncaa_team_id'), team('s.away_ncaa_team_id'))}) AS h,
-             coalesce(sa.team_id, ${sideSql(team('s.away_ncaa_team_id'), team('s.home_ncaa_team_id'))}) AS a
-    ) x
+    ${possessionsFrom(have)}
     WHERE s.poss_team IS NOT NULL`
 }
 

@@ -76,6 +76,168 @@ function sides(
  */
 const OWN = " stats.ncaa.org's own counts, beside ESPN's box score and never mixed with it."
 
+/**
+ * Counts by situation from stats.ncaa.org's own tags of a play and its possessions (T1703.2, part 4c;
+ * `derived/collegeSituations.ts`), in built tables the plays step makes. Beside ESPN's box-score
+ * points in the paint, on the fast break and off turnovers, which start in 2023-24, never mixed.
+ */
+const SITUATION_PLAYER = 'ncaa_situation_player_game'
+const SITUATION_TEAM = 'ncaa_situation_team_game'
+const PBP_SOURCES = ["stats.ncaa.org's play by play (SportsDataverse's release)"]
+const POSS_SOURCES = ["stats.ncaa.org's possessions (SportsDataverse's release)"]
+const TAGS =
+  " stats.ncaa.org's own tag of each play, counted from its play by play: beside ESPN's box score and never mixed with it."
+
+const situation = (o: Opts): Opts => ({
+  sources: PBP_SOURCES,
+  firstSeason: FIRST,
+  leagues: COLLEGE_ONLY,
+  tier: 'extended',
+  family: 'scoring',
+  ...o
+})
+
+/** A count of the tags, per game. */
+const tagCount = (component: string, o: Partial<Opts> = {}): Opts =>
+  situation({
+    value: `{${component}}`,
+    sample: 'games',
+    kind: 'recorded',
+    aggregation: 'sum',
+    unit: 'count',
+    decimals: 0,
+    ...o
+  })
+
+/** The same metric for players (the player table) and teams and their opponents (the team table). */
+function tagSides(
+  id: string,
+  label: string,
+  short: string,
+  description: string,
+  o: Opts
+): MetricDef[] {
+  return [
+    metric(id, label, short, description, { ...o, built: SITUATION_PLAYER }),
+    ...teamSides(id, label, short, description, { ...o, built: SITUATION_TEAM })
+  ]
+}
+
+/** A share of a team's possessions, from the possessions file. */
+const possessionShare = (component: string, o: Partial<Opts> = {}): Opts =>
+  situation({
+    value: ratio(component, 'ncaa_poss_n'),
+    sample: 'ncaa_poss_n',
+    unit: 'pct',
+    kind: 'derived',
+    family: 'possessions',
+    sources: POSS_SOURCES,
+    built: SITUATION_TEAM,
+    direction: 'neutral',
+    ...o
+  })
+
+const SITUATION_METRICS: MetricDef[] = [
+  ...tagSides(
+    'ncaa_fb_pts',
+    'Fast-break points (stats.ncaa.org)',
+    'FB PTS',
+    `Points scored on plays stats.ncaa.org tags as fast breaks, free throws among them.${TAGS}`,
+    { ...tagCount('ncaa_pts_fb'), categories: ['scoring.by_situation', 'offense.scoring'] }
+  ),
+  ...tagSides(
+    'ncaa_offtov_pts',
+    'Points off turnovers (stats.ncaa.org)',
+    'PTS offTO',
+    `Points scored on plays stats.ncaa.org tags as coming from an opponent's turnover, free throws among them.${TAGS}`,
+    { ...tagCount('ncaa_pts_offtov'), categories: ['scoring.by_situation', 'offense.scoring'] }
+  ),
+  ...tagSides(
+    'ncaa_paint_pts',
+    'Points in the paint (stats.ncaa.org)',
+    'Paint PTS',
+    `Points from twos stats.ncaa.org tags as taken in the paint.${TAGS}`,
+    { ...tagCount('ncaa_pts_paint'), categories: ['scoring.by_situation', 'offense.scoring'] }
+  ),
+  ...tagSides(
+    'ncaa_paint_fga',
+    'Field-goal attempts in the paint (stats.ncaa.org)',
+    'Paint FGA',
+    `Twos stats.ncaa.org tags as taken in the paint.${TAGS}`,
+    {
+      ...tagCount('ncaa_fga_paint', { direction: 'neutral', family: 'shooting' }),
+      categories: ['shooting.rim_paint', 'offense.shooting']
+    }
+  ),
+  ...tagSides(
+    'ncaa_paint_fg_pct',
+    'Field-goal percentage in the paint (stats.ncaa.org)',
+    'Paint FG%',
+    `Twos made in the paint over those taken there, as stats.ncaa.org tags them.${TAGS}`,
+    {
+      ...situation({
+        value: ratio('ncaa_fgm_paint', 'ncaa_fga_paint'),
+        sample: 'ncaa_fga_paint',
+        unit: 'pct',
+        kind: 'derived',
+        family: 'shooting',
+        minSample: 300
+      }),
+      categories: ['shooting.rim_paint', 'offense.shooting']
+    }
+  ),
+  ...teamSides(
+    'ncaa_poss_first3_pct',
+    'Possessions whose first shot is a three (stats.ncaa.org)',
+    '1st 3%',
+    "The share of the team's possessions whose first shot was a three, from stats.ncaa.org's possessions.",
+    {
+      ...possessionShare('ncaa_poss_first3'),
+      categories: ['shooting.selection', 'offense.shooting']
+    }
+  ),
+  ...teamSides(
+    'ncaa_poss_first_rim_pct',
+    'Possessions whose first shot is a layup or dunk (stats.ncaa.org)',
+    '1st rim%',
+    "The share of the team's possessions whose first shot was a layup, a dunk or a tip-in, from stats.ncaa.org's possessions.",
+    {
+      ...possessionShare('ncaa_poss_first_rim'),
+      categories: ['shooting.selection', 'offense.shooting']
+    }
+  ),
+  ...teamSides(
+    'ncaa_poss_first_two_pct',
+    'Possessions whose first shot is a jumper or hook for two (stats.ncaa.org)',
+    '1st 2%',
+    "The share of the team's possessions whose first shot was a two-point jumper or a hook, from stats.ncaa.org's possessions.",
+    {
+      ...possessionShare('ncaa_poss_first_two'),
+      categories: ['shooting.selection', 'offense.shooting']
+    }
+  ),
+  ...teamSides(
+    'ncaa_poss_no_shot_pct',
+    'Possessions with no shot (stats.ncaa.org)',
+    'No shot%',
+    "The share of the team's possessions with no shot taken: a turnover, or the end of a half, from stats.ncaa.org's possessions.",
+    {
+      ...possessionShare('ncaa_poss_first_none', { direction: 'lower' }),
+      categories: ['shooting.selection', 'offense.shooting']
+    }
+  ),
+  ...teamSides(
+    'ncaa_poss_ast_pct',
+    'Possessions ending in an assisted basket (stats.ncaa.org)',
+    'AST POSS%',
+    "The share of the team's possessions that ended in an assisted basket, from stats.ncaa.org's possessions.",
+    {
+      ...possessionShare('ncaa_poss_ast', { direction: 'higher' }),
+      categories: ['scoring.assisted', 'offense.scoring']
+    }
+  )
+]
+
 export const COLLEGE: MetricDef[] = [
   ...sides(
     'ncaa_rim_pct',
@@ -490,7 +652,8 @@ export const COLLEGE: MetricDef[] = [
       kind: 'derived',
       categories: ['results.ratings', 'offense.ratings']
     }
-  )
+  ),
+  ...SITUATION_METRICS
 ]
 
 /** Metrics that say the same as another in a 40-minute league. */
