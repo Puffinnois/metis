@@ -311,7 +311,7 @@ Built by `src/main/stats/derived/playBuilders.ts` from the SQL in `plays.ts` and
 
 ### The same files give the same rows (Plan T1302.9)
 
-Every pick in the college recipes (`identityCollege.ts`, `gameCollege.ts`, `collegePlays.ts`, `collegePbp.ts`) is by a total order, never by the order DuckDB meets the rows: `min()` in place of `any_value()`; each `arg_max` and `arg_min` keyed on its value as well, last; `DISTINCT ON` and `row_number()` ordered last on the whole row's text; the most common value by `modeSql` (`histogram()`, the smallest on a tie) in place of `mode()`; a stats.ncaa.org name spelled two ways under one id read in the spelling on more lines, then the first in order; and of several `ncaa_player_ids` rows for one player or name, an ESPN athlete before D28's key, then more lines, then the larger id (`bestPlayerSql`). stats.ncaa.org's play by play is loaded in its file's order (`SourceFile.ordered`), since a play's place among those of the same second is its row's. Found by T1302.9's refresh with every etag cleared, which moved five players' spellings and the stats.ncaa.org columns of 101 player-games of sealed seasons. Checked by `tests/main/stats/collegeDeterminism.test.ts` (each league's fixtures built twice, the second time with every source table in another order, every table compared) and on both clean loads (two refreshes with every etag cleared, every table of the sealed seasons equal, decimal sums within 10⁻¹²). The NBA's and WNBA's recipes are unchanged.
+Every pick in the college recipes (`identityCollege.ts`, `gameCollege.ts`, `collegePlays.ts`, `collegePbp.ts`) is by a total order, never by the order DuckDB meets the rows: `min()` in place of `any_value()`; each `arg_max` and `arg_min` keyed on its value as well, last; `DISTINCT ON` and `row_number()` ordered last on the whole row's text; the most common value by `modeSql` (`histogram()`, the smallest on a tie) in place of `mode()`; a stats.ncaa.org name spelled two ways under one id read in the spelling on more lines, then the first in order; and of several `ncaa_player_ids` rows for one player or name, an ESPN athlete before D28's key, then more lines, then the larger id (`bestPlayerSql`). A player's team in `play_player_game` (`playDetail.ts`, shared by every league) is the team of their own plays, then of their assists, then of the fouls they drew, the one on most rows, then the smaller id (T1703.2). stats.ncaa.org's play by play is loaded in its file's order (`SourceFile.ordered`), since a play's place among those of the same second is its row's. Found by T1302.9's refresh with every etag cleared, which moved five players' spellings and the stats.ncaa.org columns of 101 player-games of sealed seasons. Checked by `tests/main/stats/collegeDeterminism.test.ts` (each league's fixtures built twice, the second time with every source table in another order, every table compared) and on both clean loads (two refreshes with every etag cleared, every table of the sealed seasons equal, decimal sums within 10⁻¹²). The NBA's and WNBA's recipes are unchanged.
 
 ### The college leagues' recipe (Plan T1302.6)
 
@@ -545,7 +545,7 @@ The one check against the file was at run time, and only for the attribute table
 
 - a component of the metric's own table (its model table, its built game table or its published table) must be a column of that table;
 - every other component must be a column of the entity's box table at the query's grain;
-- an own table with no rows is not built yet either, since opening a file creates the published, play and model tables empty. The league's coverage is checked first, so an empty table never hides a season the league does not have.
+- an own table with no rows is not built yet either, since opening a file creates the published, play and model tables empty. A column a recipe adds to a table the file already holds is added empty when the file opens, so a metric that reads it is blank with the general note, not "Built at this league's next refresh", until the refresh rebuilds the table: that is BOBAN's `state_rows` (#155), and it affects only dev copies built on an earlier `main` of Stage 17, since a 1.3.0 file's BOBAN table is empty and says the refresh builds it. The league's coverage is checked first, so an empty table never hides a season the league does not have.
 
 A metric that fails reads null with "Built at this league's next refresh." for that metric alone; the rest of the query answers and sorts as before. An attribute filter whose column the file lacks reads "Age: Attributes are built at the next refresh of this league." and answers no rows, like any other filter gap (D51). The components are the physical column names, so the check needs no list of its own. On files built by the current recipe it gives no reason: none of a college file's components is missing, and a WNBA file lacks only the college-only components, which have coverage reasons already.
 
@@ -1132,6 +1132,17 @@ A source family can be left out of a build. `LEFT_OUT_RELEASES` in `src/main/sta
 
 ## Measuring a real load
 
+**How a check counts.** A check that compares Metis with a source counts from the source's side:
+
+- it loops over every row the source holds, not over the engine's rows, so a value the source has and Metis does not answer is counted and never skipped;
+- it covers every season the file holds, read from the file and printed, the season under way included;
+- each source value is counted as equal, differing, blank (the engine's row has no value) or with no engine row, and the four add up to the source's values; a value the engine gives where the source is blank is a fifth count. The differing and the missing rows are listed or explained, the tolerance is stated, and a rule that leaves some out (a filled window, a linked player) is said with its count;
+- it says what it skips (a player with no line, a row with no id) and how many;
+- when a run fails, its whole output is kept before anything is rerun, so the cause is read rather than guessed;
+- a check on the floor counts each known player of a unit: a unit of fewer than five named players has fewer seconds than five times its length (`ncaa-data-sources.md`, "Units of fewer than five players").
+
+The checks that count this way: `scripts/check-published.mjs` (BOBAN, the box prior and REML RAPM, the published fantasy columns, the standings' records, the current impact, RAPTOR and the rolling windows), `scripts/check-college-sides.mjs` (where a stats.ncaa.org row stands) and `scripts/check-college-lines.mjs` (each stats.ncaa.org line: which player, attached or not, and the half-court and transition splits). Earlier checks of this stage looped over the engine's rows, so a source value without an engine row was not counted; their notes were corrected on 2026-11-24 (Plan, T1703.2, "Proofs corrected").
+
 Build first, then point these at a scratch folder, never at the app's own data.
 
 ```bash
@@ -1148,44 +1159,48 @@ Each source table against the raw files' own row counts, for a folder of downloa
 node scripts/check-source-rows.mjs /tmp/metis-load ~/.cache/metis-dev/wnba-raw --league=wnba
 ```
 
+The checks from the source's side, on a folder of the league's file (NBA or WNBA for the first; `--league=ncaam` or `ncaaw` for the others):
+
+```bash
+node scripts/check-published.mjs /tmp/metis-load --league=wnba
+```
+
+```bash
+node scripts/check-college-sides.mjs /tmp/metis-load --league=ncaam
+```
+
+```bash
+node scripts/check-college-lines.mjs /tmp/metis-load --league=ncaam
+```
+
 ```bash
 node scripts/stats-sql.mjs /tmp/metis-load statements.sql
 ```
 
 ### The first refresh after the upgrade from 1.3.0
 
-A 1.3.0 file's first refresh on a later build rebuilds what that build's recipes changed. Measured on 2026-11-24 at commit `f2ae113` (the `fix/missing-built-column` branch on `main` at `1e3ef3c`):
+A 1.3.0 file's first refresh on a later build rebuilds what that build's recipes changed. Measured on 2026-11-24:
 
-- each league's file of the four-league 1.3.0 load (`~/.cache/metis-dev/gate13c`) was copied with its refresh paused;
-- each copy had the real refresh run on it with every download answering "unchanged", so only the rebuilds a new version forces ran;
-- peak memory is the process's maximum resident size (`/usr/bin/time`).
+- each league's file of the four-league 1.3.0 load (`~/.cache/metis-dev/gate13c`) was copied, with its refresh not paused;
+- each copy had the real `refreshStats` run on it with the app's own DuckDB settings (1 GB, 2 threads) and every download answering "unchanged", so only the rebuilds a new version forces ran. The NBA's four RAPTOR files, which a 1.3.0 file has never fetched, were served from a local copy, so their 11.0 MB download is not in the times;
+- peak memory is the worker process's, sampled once a second (the men's is the operating system's maximum; the two agree to about a percent). The app's other processes come on top.
 
-| League     | Steps rebuilt (seconds)                                    | In all | Peak memory | File before → after |
-| ---------- | ---------------------------------------------------------- | ------ | ----------- | ------------------- |
-| NCAA Men   | game tables 158.5, attributes 1.0, models 212.8            | 375 s  | 2.24 GB     | 4.31 GB → 4.44 GB   |
-| NCAA Women | game tables 95.4, attributes 0.5, models 201.1             | 298 s  | 2.35 GB     | 4.09 GB → 4.11 GB   |
-| WNBA       | attributes 0.1, published 2.0, attributes 0.1, models 13.3 | 16 s   | 1.15 GB     | 852 MB → 870 MB     |
-| NBA        | attributes 0.3, published 6.8, attributes 0.2, models 41.4 | 53 s   | 2.07 GB     | 5.34 GB → 5.41 GB   |
+| League     | Commit                   | Steps rebuilt (seconds)                                                    | In all | Peak memory            | File before → after |
+| ---------- | ------------------------ | -------------------------------------------------------------------------- | ------ | ---------------------- | ------------------- |
+| NCAA Men   | `94c4eb8` (merged, #156) | identity 29.8, game tables 89.1, attributes 0.9, plays 385.7, models 193.9 | 700 s  | 2.87 GB                | 4.31 GB → 4.48 GB   |
+| NCAA Women | `94c4eb8` (merged, #156) | identity 22.3, game tables 65.1, attributes 0.4, plays 375.9, models 189.8 | 655 s  | 2.88 GB, in the plays  | 4.09 GB → 4.18 GB   |
+| NBA        | `052e983`                | published 7.9, attributes 0.2, models 38.5                                 | 52.5 s | 2.19 GB, in the models | 5.34 GB → 5.47 GB   |
+| WNBA       | `052e983`                | attributes 0.2, published 7.7, attributes 0.1, models 10.4                 | 22.6 s | 1.33 GB                | 852 MB → 944 MB     |
+
+All ended with exit 0 and no error. On the same men's file the build before #156 took 281 s (game tables, attributes and models) at 2.92 GB, so #156 adds about 420 s (the identity and the plays) and no memory. Not measured: the app's whole memory beside the worker (D22's 4 GB), and a refresh that downloads.
 
 What forces each step:
 
-- the colleges' game tables: the college game recipe went from version 4 to 6 (the half-court and transition splits, the seconds per possession);
+- the colleges' identity (recipe 3: the side of a stats.ncaa.org row, the box-score links that hold on half their lines) and so their game tables (8) and plays (6); their models, whose game tables were rebuilt (see "The `stats:models` step");
 - the attributes: new since 1.3.0 (D51), and built again after the published tables;
-- the professional leagues' published tables: the published recipes changed (NBA 18, WNBA 5);
-- the models: in the colleges, the rebuilt game tables (see "The `stats:models` step"); in every league, `metric_stability`'s version follows the catalogue.
+- the professional leagues' published tables: the published recipes changed (NBA 23, WNBA 8);
+- the models: in every league, `metric_stability`'s version follows the catalogue.
 
-A real refresh adds the downloads on top: the NBA's new `nba_current_impact` release, which this measurement does not fetch, and any file changed since the load. Through it all the screens read the file. A metric whose table or column is not built yet reads "Built at this league's next refresh." until the step that builds it ends (see "A file older than the build").
-
-**With FiveThirtyEight's RAPTOR (D54).** Measured again on 2026-11-24 at commit `4f195b4`, the same way. The four RAPTOR files, which a 1.3.0 file has never fetched, were served from a local copy, so the 11.0 MB download is not in the times.
-
-| League     | Steps rebuilt (seconds)                                              | In all | Peak memory | File before → after |
-| ---------- | -------------------------------------------------------------------- | ------ | ----------- | ------------------- |
-| NCAA Men   | game tables 123.7, attributes 0.8, models 210.3                      | 336 s  | 2.51 GB     | 4.31 GB → 4.44 GB   |
-| NCAA Women | game tables 94.1, attributes 0.5, models 173.5                       | 269 s  | 2.05 GB     | 4.09 GB → 4.11 GB   |
-| WNBA       | attributes 0.2, published 1.8, attributes 0.1, models 10.6           | 13.5 s | 1.15 GB     | 852 MB → 870 MB     |
-| NBA        | RAPTOR's four files 2.4, published 13.2, attributes 0.3, models 39.7 | 63 s   | 2.03 GB     | 5.34 GB → 5.41 GB   |
-
-- **The NBA's 10 seconds more** are RAPTOR: its files load in 2.4 s, and the published step takes 13.2 s against 6.8 s, the link and the table's build among them.
-- **The other leagues** run what they ran before, faster or slower with the machine's load: nothing of theirs changed but the catalogue, which every league's metric stability follows.
+The measurements before this one, of the same files: `f2ae113` (before RAPTOR) and `4f195b4` (with RAPTOR), both before #152, #153, #155 and #156; the men's were 375 s and 336 s, the women's 298 s and 269 s, the WNBA's 16 s and 13.5 s, the NBA's 53 s at `f2ae113`.
 
 **A trap when measuring on a copy:** an app launched on a profile whose `metis.db` lists a league with no stats file creates an empty file for it and starts a first load. Copy every league's file a profile lists, or remove the league from the copy's settings.
