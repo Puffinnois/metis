@@ -302,17 +302,16 @@ Built by `src/main/stats/derived/playBuilders.ts` from the SQL in `plays.ts` and
 - **What still rebuilds everything:** the league's recipe version, which must be bumped when a rule changes the values of a column that is already there (the signature does not see a SELECT change), and a file of every season.
 - **Cut short,** the rebuild is done again: signatures are written only when it ends.
 
-Checked on copies, 2026-11-25, a full rebuild of every table beside a selective one after adding a table: in NCAA Men the two game-situation tables and the intermediate they read (an unmerged branch's, the next of T1703.2), in the NBA a stand-in that counts plays and points by team-game from `play_nba` (the NBA has no new table).
+Checked on copies, 2026-11-25, at `000148f`: each league's file was first rebuilt in full without the new tables; then one copy was rebuilt in full with them and one selectively. In NCAA Men the new tables are the two game-situation tables and the intermediate they read (an unmerged branch's, the next of T1703.2); in the NBA, which has no new table, a stand-in that counts plays and points by team-game from `play_nba`.
 
-| League   | Full rebuild                     | Selective                                         | Tables equal, full against selective                             |
-| -------- | -------------------------------- | ------------------------------------------------- | ---------------------------------------------------------------- |
-| NCAA Men | 388.3 s, 46,414,647 rows written | 15.3 s, 3,099,165 rows written, 3 of the builders | 14 of 15 tables; `play_player_game` differs on 3 of 648,704 rows |
-| NBA      | 427.7 s, 35,083,779 rows written | 1.4 s, 79,214 rows written, 1 of the builders     | 11 of 11 tables                                                  |
+| League   | Full rebuild                     | Selective                                    | Equal, full against selective |
+| -------- | -------------------------------- | -------------------------------------------- | ----------------------------- |
+| NCAA Men | 420.8 s, 46,414,647 rows written | 9.7 s, 3,099,165 rows written, by 3 builders | 15 of 15 tables               |
+| NBA      | 441.0 s, 35,083,779 rows written | 3.5 s, 79,214 rows written, by 1 builder     | 11 of 11 tables               |
 
-- "Equal" is the same columns, the same number of rows and the same content hash over every column of every row, with floating-point columns rounded to six places: sums of them differ in their last bits from one run to another (in the NBA 480,214 rows of `split_player`, 157,818 of `split_team`, 833 of `player_on_court` and 181 of `unit_game`; in the men 446 of `player_on_court_lineups`).
-- The three `play_player_game` rows are player-games that name two teams, whose team was picked arbitrarily (the fix is #158); nothing else in those rows differs.
-- **The untouched tables were not rewritten:** every other table of the selective files kept its blocks (`pragma_storage_info`) and its content. The full rebuild rewrote every one it builds. The NBA's `pub_lineups` is the published step's table and kept its blocks in both.
-- The men's file is 4,490,539,008 bytes before and after the selective rebuild (its new tables fit in the file's free blocks) and 4,545,589,248 after the full; the NBA's is 5,612,253,184 in every case.
+- "Equal" is the same columns, the same number of rows and the same hash over every column of every row, with floating-point columns rounded to six places: sums of them differ in their last bits from one run to another, whatever rebuilds them (in the NBA 386,818 rows of `split_player`, 158,324 of `split_team`, 849 of `player_on_court` and 174 of `unit_game`; in the men 581 of `player_on_court_lineups`; every other table is equal to the bit).
+- **The untouched tables were not rewritten:** in the selective copies all 13 other tables of the men's and all 10 of the NBA's kept their blocks (`pragma_storage_info`), their row counts and their content, to the bit. The full rebuild moved every one it builds (the NBA's `pub_lineups` is the published step's).
+- The men's file is 4,522,520,576 bytes before and after the selective rebuild (the new tables fit in blocks that were free) and 4,560,269,312 after the full; the NBA's is 5,612,253,184 before and after both.
 
 **Cost, measured** at Plan T901, with only the play tables and before the later builders were added, on a copy of the full load through a real refresh (`scripts/load-report.mjs`): a full rebuild of 33,327,811 rows takes 94 to 276 seconds (the slowest the first, on a file the one-statement build had left) with the file peaking at 5.13 GB from 5.12 GB in steady state, and 5.42 GB the first time; a rebuild of the current season alone writes 154,413 rows in 1.5 seconds with no growth. Peak memory of the refresh process is 2.2 GB for a full rebuild, 0.5 GB for the current season. With every play table of Stage 9, a full rebuild writes 34.9 million rows in 443 seconds, the file peaking at 5.38 GB ([nba-data-sources.md](nba-data-sources.md), "The first full load").
 
@@ -1220,6 +1219,8 @@ What forces each step:
 - the attributes: new since 1.3.0 (D51), and built again after the published tables;
 - the professional leagues' published tables: the published recipes changed (NBA 23, WNBA 8);
 - the models: in every league, `metric_stability`'s version follows the catalogue.
+
+**With the selective plays rebuild** (2026-11-25; Women at `000148f`, the others at `28a660c`), the same run: NCAA Men 660.7 s (plays 359.0), Women 644.3 s (plays 360.8), NBA 57.2 s, WNBA 21.3 s; peak memory 2.96, 2.93, 1.74 and 1.33 GB; files 4.49, 4.18, 5.48 and 0.94 GB after. Nothing of it is saved on this upgrade: the colleges' recipe changes version, so every play table is rebuilt, and the NBA's and WNBA's plays are still not due, their files having no signatures and being at their recipes' versions. An earlier run of the women's at `28a660c` took 737.9 s, the models (which this does not touch) 233.6 of them for 188.6 here: a step's time can move by about a quarter from one run to another on this machine.
 
 The measurements before this one, of the same files: `f2ae113` (before RAPTOR) and `4f195b4` (with RAPTOR), both before #152, #153, #155 and #156; the men's were 375 s and 336 s, the women's 298 s and 269 s, the WNBA's 16 s and 13.5 s, the NBA's 53 s at `f2ae113`.
 
