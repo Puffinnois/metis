@@ -186,7 +186,8 @@ export interface Api {
       team: string,
       season: number,
       gameType: string,
-      group: LineupGroup
+      group: LineupGroup,
+      size: number
     ): Promise<StatsLineups>
     /** A player's bio, draft and combines; what the data does not hold reads as null or empty. */
     profile(league: LeagueId, player: string): Promise<StatsProfile>

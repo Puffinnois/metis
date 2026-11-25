@@ -1032,26 +1032,32 @@ export async function readMatchups(
   }
 }
 
-/** The names of a unit's five players in the NBA's own file: "D. Sabonis - D. Acuff Jr.". */
-const sourceNames = (names: string | null): string[] => {
+/** The names of a unit's players in the NBA's own file: "D. Sabonis - D. Acuff Jr.". */
+const sourceNames = (names: string | null, size: number): string[] => {
   const parts = names?.split(' - ') ?? []
-  return parts.length === 5 ? parts : []
+  return parts.length === size ? parts : []
 }
 
+/** How many units of a size and season type each of the NBA's files lists at most. */
+const LINEUP_CAP = 2000
+
 /**
- * A team's five-man units for a season and season type, most minutes first, with the measures of one
- * of the NBA's dashboards. Published for whole seasons only, from 2007-08; outside that, or for
- * anything but the regular season and the playoffs, the list is empty. A name comes from the player
- * table, and from the NBA's own file for a player the table does not know.
+ * A team's units of `size` players (two to five) for a season and season type, most minutes first,
+ * with the measures of one of the NBA's dashboards. Published for whole seasons only, from 2007-08;
+ * outside that, or for anything but the regular season and the playoffs, the list is empty. A name
+ * comes from the player table, and from the NBA's own file for a player the table does not know.
+ * `sizes` are the sizes the table holds for the team's season: five alone on a file built before the
+ * smaller groups, and on the colleges', whose table has no `size` column.
  */
 export async function readLineups(
   db: StatsDb,
   team: string,
   season: number,
   gameType: string,
-  group: LineupGroup
+  group: LineupGroup,
+  size = 5
 ): Promise<StatsLineups> {
-  const none: StatsLineups = { units: [], floorMinutes: null }
+  const none: StatsLineups = { units: [], floorMinutes: null, sizes: [] }
   const have = await inspect(db)
   const held = have.columns.get(LINEUPS)
   if (
@@ -1059,25 +1065,35 @@ export async function readLineups(
     !/^-?[0-9]{1,12}$/.test(team) ||
     !Number.isInteger(season) ||
     !['regular', 'playoffs'].includes(gameType) ||
-    !LINEUP_GROUPS.some((g) => g.id === group)
+    !LINEUP_GROUPS.some((g) => g.id === group) ||
+    ![2, 3, 4, 5].includes(size)
   ) {
     return none
   }
+  const sized = held.has('size') ? 'coalesce(size, 5)' : '5'
+  const sizes = (
+    await db.all<{ size: number }>(
+      `SELECT DISTINCT ${sized}::INTEGER AS size FROM ${LINEUPS}
+       WHERE season = $1 AND game_type = $2 AND team_id = $3 ORDER BY 1 DESC`,
+      [season, gameType, Number(team)]
+    )
+  ).map((r) => r.size)
   const ids = [...new Set([...lineupReadIds(group), 'possessions'])].filter((id) => held.has(id))
   const rows = await db.all<Record<string, number | string | null>>(
     `SELECT p1, p2, p3, p4, p5, names, games, minutes${ids.map((id) => `, ${id}`).join('')}
      FROM ${LINEUPS}
-     WHERE season = $1 AND game_type = $2 AND team_id = $3
+     WHERE season = $1 AND game_type = $2 AND team_id = $3 AND ${sized} = $4
      ORDER BY minutes DESC NULLS LAST, p1, p2, p3, p4, p5`,
-    [season, gameType, Number(team)]
+    [season, gameType, Number(team), size]
   )
-  if (rows.length === 0) return none
-  const floor = await db.get<{ floor: number | null }>(
-    `SELECT min(minutes) AS floor FROM ${LINEUPS}
-     WHERE season = $1 AND game_type = $2 AND fgm IS NOT NULL`,
-    [season, gameType]
+  if (rows.length === 0) return { ...none, sizes }
+  // Where the league's list stops, when the base file reached its cap: below it, units are missing.
+  const floor = await db.get<{ floor: number | null; n: number }>(
+    `SELECT min(minutes) AS floor, count(*)::INTEGER AS n FROM ${LINEUPS}
+     WHERE season = $1 AND game_type = $2 AND ${sized} = $3 AND fgm IS NOT NULL`,
+    [season, gameType, size]
   )
-  const slots = ['p1', 'p2', 'p3', 'p4', 'p5']
+  const slots = ['p1', 'p2', 'p3', 'p4', 'p5'].slice(0, size)
   const wanted = [...new Set(rows.flatMap((r) => slots.map((s) => String(r[s]))))]
   const known = new Map<string, string>()
   if (have.tables.has('player') && wanted.length) {
@@ -1087,7 +1103,7 @@ export async function readLineups(
     for (const p of named) if (p.name) known.set(p.id, p.name)
   }
   const units = rows.map((r): StatsLineupUnit => {
-    const fallback = sourceNames(r.names as string | null)
+    const fallback = sourceNames(r.names as string | null, size)
     return {
       players: slots.map((s, i) => {
         const id = String(r[s])
@@ -1098,5 +1114,9 @@ export async function readLineups(
       values: Object.fromEntries(ids.map((id) => [id, r[id] as number | null]))
     }
   })
-  return { units, floorMinutes: floor?.floor ?? null }
+  return {
+    units,
+    floorMinutes: (floor?.n ?? 0) >= LINEUP_CAP ? (floor?.floor ?? null) : null,
+    sizes
+  }
 }

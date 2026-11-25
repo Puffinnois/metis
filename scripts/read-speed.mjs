@@ -33,7 +33,7 @@ async function time(label, run) {
 
 // The team with the most units in the season, and players who have something to show.
 const [{ team_id: team }] = await read(`SELECT team_id, count(*) n FROM pub_lineups
-  WHERE season = ${season} AND game_type = 'regular' GROUP BY 1 ORDER BY 2 DESC LIMIT 1`)
+  WHERE season = ${season} AND game_type = 'regular' AND p5 IS NOT NULL GROUP BY 1 ORDER BY 2 DESC LIMIT 1`)
 const players = (
   await read(`SELECT DISTINCT player_id FROM pub_player_availability WHERE season = 2027 LIMIT 30`)
 ).map((r) => String(r.player_id))

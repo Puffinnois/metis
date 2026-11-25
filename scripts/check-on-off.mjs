@@ -219,7 +219,7 @@ const units = await timed(
           avg((abs(d.poss - p.possessions) <= 0.05 * p.possessions + 1)::INT) AS poss5,
           sum(d.poss) FILTER (WHERE p.possessions > 0) / sum(p.possessions) FILTER (WHERE d.p1 IS NOT NULL) AS poss_ratio
    FROM pub_lineups p LEFT JOIN d USING (season, game_type, team_id, p1, p2, p3, p4, p5)
-   WHERE p.minutes IS NOT NULL AND p.pts IS NOT NULL
+   WHERE p.minutes IS NOT NULL AND p.pts IS NOT NULL AND p.p5 IS NOT NULL
    GROUP BY 1, 2 ORDER BY 2 DESC, 1`
 )
 table(

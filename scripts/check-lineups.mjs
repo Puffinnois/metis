@@ -2,7 +2,7 @@
 
 // Checks the Lineups tab's read against the NBA's raw lineup files on a real load, through the built
 
-// worker: for every team, season (2007-08 to 2025-26), season type and dashboard, the units the read
+// worker: for every team, season the files hold, season type and dashboard, the units the read
 
 // returns against the file's rows, on every column the tab shows. Also times the read, and compares a
 
@@ -19,7 +19,7 @@
 //
 
 // usage: node scripts/check-lineups.mjs <folder holding stats-<league>.duckdb> [out.md]
-// --league=<id> anywhere picks the league (default nba).
+// --league=<id> anywhere picks the league (default nba); --size=<2 to 5> the group size (default 5).
 
 import { readFileSync, writeFileSync } from 'node:fs'
 
@@ -29,11 +29,19 @@ import { fileURLToPath } from 'node:url'
 
 import ts from 'typescript'
 
-import { openStatsWorker, leagueArg, seasonLabelOf } from './lib/stats-worker.mjs'
+import { openStatsWorker, leagueArg, lineupsFromOf, seasonLabelOf } from './lib/stats-worker.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 
-const [folder, mdFile] = process.argv.slice(2).map((p) => resolve(p))
+const [folder, mdFile] = process.argv
+  .slice(2)
+  .filter((a) => !a.startsWith('--'))
+  .map((p) => resolve(p))
+const SIZE = Number(process.argv.find((a) => a.startsWith('--size='))?.slice(7) ?? 5)
+if (![2, 3, 4, 5].includes(SIZE)) {
+  console.error('--size is 2, 3, 4 or 5')
+  process.exit(2)
+}
 
 if (!folder) {
   console.error('usage: node scripts/check-lineups.mjs <folder> [out.md]')
@@ -53,15 +61,22 @@ const { LINEUP_GROUPS, LINEUP_STORED, lineupColumns } = await import(
   `data:text/javascript,${encodeURIComponent(catalogue)}`
 )
 
-const { read, lineups, close } = openStatsWorker(folder)
+const { read, lineups, close } = openStatsWorker(folder, { league: leagueArg() })
 
-const FIRST = 2008
+const FIRST = lineupsFromOf(leagueArg())
 
-const LAST = 2026
+// Every season the files hold, the one under way included.
+const LAST = Number((await read('SELECT max(season)::INTEGER AS last FROM pub_lineups'))[0].last)
 
 // The published digits are a/b rounded to three decimals, and a half lands on either side by float error.
 
 const PCT_TOLERANCE = 0.0005 + 1e-9
+
+/**
+ * A team's id in the files: the WNBA's 2026 Portland Fire is `-1611661327` in `team` and
+ * 1611661327 in every file (T1301.5), so the read's id is turned back.
+ */
+const fileTeam = (id) => String(Math.abs(Number(id)))
 
 /** A BIGINT may arrive as text. */
 
@@ -96,7 +111,7 @@ for (const g of LINEUP_GROUPS) {
 
       ${[...new Set([...cols, ...published])].join(', ')}
 
-    FROM src_dash_lineups_${g.id} WHERE group_quantity = 5 AND season BETWEEN ${FIRST} AND ${LAST}`)
+    FROM src_dash_lineups_${g.id} WHERE group_quantity = ${SIZE} AND season BETWEEN ${FIRST} AND ${LAST}`)
 
   raw[g.id] = new Map(
     rows.map((r) => [
@@ -111,7 +126,7 @@ for (const g of LINEUP_GROUPS) {
 
 const teams = await read(`SELECT DISTINCT season, game_type, team_id FROM pub_lineups
 
-  WHERE season BETWEEN ${FIRST} AND ${LAST} ORDER BY 1, 2, 3`)
+  WHERE coalesce(size, 5) = ${SIZE} AND season BETWEEN ${FIRST} AND ${LAST} ORDER BY 1, 2, 3`)
 
 const per = new Map() // season -> counters
 
@@ -153,7 +168,7 @@ for (const t of teams) {
   for (const g of LINEUP_GROUPS) {
     const at = Date.now()
 
-    const result = await lineups(String(t.team_id), t.season, t.game_type, g.id)
+    const result = await lineups(String(t.team_id), t.season, t.game_type, g.id, SIZE)
 
     const ms = Date.now() - at
 
@@ -170,7 +185,7 @@ for (const t of teams) {
     const seen = new Set()
 
     for (const u of result.units) {
-      const key = `${t.season}|${t.game_type}|${t.team_id}|${u.players
+      const key = `${t.season}|${t.game_type}|${fileTeam(t.team_id)}|${u.players
         .map((p) => p.id)
         .sort((a, b) => a - b)
         .join('-')}`
@@ -239,7 +254,7 @@ for (const t of teams) {
     }
 
     for (const key of raw[g.id].keys()) {
-      if (!key.startsWith(`${t.season}|${t.game_type}|${t.team_id}|`)) continue
+      if (!key.startsWith(`${t.season}|${t.game_type}|${fileTeam(t.team_id)}|`)) continue
 
       c.rows++
 
@@ -261,7 +276,8 @@ for (const type of ['regular', 'playoffs']) {
 
       SELECT season, team_id, sum(minutes) AS unit_minutes, count(*) AS units
 
-      FROM pub_lineups WHERE game_type = '${type}' AND fgm IS NOT NULL GROUP BY 1, 2),
+      FROM pub_lineups WHERE game_type = '${type}' AND fgm IS NOT NULL AND p5 IS NOT NULL
+      GROUP BY 1, 2),
 
     g AS (SELECT season, team_id, sum(seconds) / 60.0 AS player_minutes
 
@@ -292,7 +308,7 @@ const q = (list, p) =>
   [...list].sort((a, b) => a - b)[Math.min(list.length - 1, Math.floor(p * list.length))]
 
 const out = [
-  '# Lineup checks',
+  SIZE === 5 ? '# Lineup checks' : `# Lineup checks: ${SIZE}-man groups`,
 
   '',
 

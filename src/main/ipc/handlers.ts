@@ -177,8 +177,10 @@ export function registerIpcHandlers(ctx: AppContext): void {
       team: string,
       season: number,
       gameType: string,
-      group: LineupGroup
-    ): Promise<StatsLineups> => readsFor(ctx, league).lineups(team, season, gameType, group)
+      group: LineupGroup,
+      size: number
+    ): Promise<StatsLineups> =>
+      readsFor(ctx, league).lineups(team, season, gameType, group, Number(size ?? 5))
   )
   ipcMain.handle(
     IPC.statsShots,

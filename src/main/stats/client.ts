@@ -78,7 +78,13 @@ export interface StatsClient {
     season: number,
     scope: StatsOnCourtScope
   ): Promise<StatsWithOrWithout>
-  lineups(team: string, season: number, gameType: string, group: LineupGroup): Promise<StatsLineups>
+  lineups(
+    team: string,
+    season: number,
+    gameType: string,
+    group: LineupGroup,
+    size: number
+  ): Promise<StatsLineups>
   profile(player: string): Promise<StatsProfile>
   availability(players: string[]): Promise<StatsAvailability[]>
   /** A player's ratings over time, each series named with its maker (Plan T1704). */
@@ -184,8 +190,8 @@ export function startStatsWorker(
         scope
       })),
     profile: (player) => request<StatsProfile>((id) => ({ id, kind: 'profile', player })),
-    lineups: (team, season, gameType, group) =>
-      request<StatsLineups>((id) => ({ id, kind: 'lineups', team, season, gameType, group })),
+    lineups: (team, season, gameType, group, size) =>
+      request<StatsLineups>((id) => ({ id, kind: 'lineups', team, season, gameType, group, size })),
     availability: (players) =>
       request<StatsAvailability[]>((id) => ({ id, kind: 'availability', players })),
     ratingHistory: (player) =>

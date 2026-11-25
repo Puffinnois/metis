@@ -45,8 +45,8 @@ export const NBA_PUBLISHED: PublishedRecipe = {
   // box prior and REML RAPM (T1703.2). 16: the published fantasy points (T1703.2). 17: the
   // standings' records by situation (T1703.2). 18: SportsDataverse's current impact (T1703.2).
   // 19: FiveThirtyEight's RAPTOR (D54). 20: DARKO imported by hand (D55). 21: the rolling windows
-  // (T1703.2).
-  version: 21,
+  // (T1703.2). 22: the dashboards' two-, three- and four-man groups (T1703.2).
+  version: 22,
   sources: {},
   team: (id) => id
 }
@@ -57,8 +57,9 @@ export const NBA_PUBLISHED: PublishedRecipe = {
  */
 export const WNBA_PUBLISHED: PublishedRecipe = {
   // 2: a NaN as published reads NULL. 3: BOBAN (T1703.2). 4: the published fantasy points (T1703.2).
-  // 5: the standings' records by situation (T1703.2). 6: the rolling windows (T1703.2).
-  version: 6,
+  // 5: the standings' records by situation (T1703.2). 6: the rolling windows (T1703.2). 7: the
+  // dashboards' two-, three- and four-man groups (T1703.2).
+  version: 7,
   sources: {
     src_nba_impact: 'src_wnba_impact',
     src_nba_rolling_windows: 'src_wnba_rolling_windows'
