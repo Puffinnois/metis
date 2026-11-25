@@ -46,7 +46,7 @@ export const NBA_PUBLISHED: PublishedRecipe = {
   // standings' records by situation (T1703.2). 18: SportsDataverse's current impact (T1703.2).
   // 19: FiveThirtyEight's RAPTOR (D54). 20: DARKO imported by hand (D55). 21: the rolling windows
   // (T1703.2). 22: the dashboards' two-, three- and four-man groups (T1703.2). 23: two RAPTOR WARs the
-  // by-team file leaves empty (T1703.2).
+  // by-team file leaves empty, and BOBAN where the games are missing (T1703.2).
   version: 23,
   sources: {},
   team: (id) => id
@@ -59,8 +59,8 @@ export const NBA_PUBLISHED: PublishedRecipe = {
 export const WNBA_PUBLISHED: PublishedRecipe = {
   // 2: a NaN as published reads NULL. 3: BOBAN (T1703.2). 4: the published fantasy points (T1703.2).
   // 5: the standings' records by situation (T1703.2). 6: the rolling windows (T1703.2). 7: the
-  // dashboards' two-, three- and four-man groups (T1703.2).
-  version: 7,
+  // dashboards' two-, three- and four-man groups (T1703.2). 8: BOBAN where the games are missing (T1703.2).
+  version: 8,
   sources: {
     src_nba_impact: 'src_wnba_impact',
     src_nba_rolling_windows: 'src_wnba_rolling_windows'

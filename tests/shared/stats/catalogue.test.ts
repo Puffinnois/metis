@@ -661,10 +661,10 @@ const IMPACT_COLUMNS = `
   sdv_adj_rapm adj_rapm impact_poss; sdv_o_adj_rapm o_adj_rapm off_poss
   sdv_d_adj_rapm d_adj_rapm def_poss; sdv_spm spm minutes; sdv_ospm ospm minutes
   sdv_dspm dspm minutes; sdv_bpm bpm minutes; sdv_obpm obpm minutes; sdv_dbpm dbpm minutes
-  sdv_war war -; sdv_darko_skill darko_filtered_skill games
-  sdv_darko_next darko_projected_rating games; sdv_darko_sd darko_projected_sd games
-  sdv_boban_skill boban_filtered_skill games; sdv_boban_next boban_projected_rating games
-  sdv_boban_sd boban_projected_sd games; sdv_box_prior box_prior prior_poss
+  sdv_war war -; sdv_darko_skill darko_filtered_skill state_rows
+  sdv_darko_next darko_projected_rating state_rows; sdv_darko_sd darko_projected_sd state_rows
+  sdv_boban_skill boban_filtered_skill state_rows; sdv_boban_next boban_projected_rating state_rows
+  sdv_boban_sd boban_projected_sd state_rows; sdv_box_prior box_prior prior_poss
   sdv_o_box_prior o_box_prior prior_off_poss; sdv_d_box_prior d_box_prior prior_def_poss
   sdv_reml_rapm reml_rapm prior_poss; sdv_o_reml_rapm o_reml_rapm prior_off_poss
   sdv_d_reml_rapm d_reml_rapm prior_def_poss
