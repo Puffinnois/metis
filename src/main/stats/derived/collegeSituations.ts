@@ -1,4 +1,3 @@
-import type { League } from '@shared/leagues'
 import { NCAA_POSSESSION_COUNTS, NCAA_SITUATION_COUNTS } from '@shared/stats/ncaaSplits'
 import { PLAY_NCAA_FLAGS } from './collegePbp'
 import { possessionsFrom } from './collegePlays'
@@ -14,12 +13,17 @@ import { column, type Have } from './sql'
  * box-score points in the paint, on the fast break and off turnovers (from 2023-24 only), never mixed
  * with them (D40, policy 5).
  *
+ * - **A game with no tag on any play was not tagged.** Both teams' plays carry none there, 161 of the men's
+ *   5,970 games of 2021-22 and fewer since (none in 2025-26): the tag counts are null for it, for the
+ *   teams, and it gives no player row. `ncaa_tag_games` counts the games that are tagged, and a per-game
+ *   count divides by it.
  * - **From the play by play's tags** (`play_ncaa_flags`, read through `play_nba`, so a play counts as
  *   the play table counts it): points on the fast break and off a turnover, free throws among them as
  *   the file tags them; points, makes and attempts in the paint (twos only).
  * - **From the possessions** (`src_ncaa_possessions`, a team's alone): how many there were, how each
  *   one's first shot was taken (a three, a layup, dunk or tip-in, another two, or no shot), and how many
- *   ended in an assisted basket (`is_assisted` above 0: 58 of the 2025-26 men's 878,148 say 2).
+ *   ended in an assisted basket (`is_assisted` above 0: 58 of the 2025-26 men's 878,148 say 2). A possession
+ *   with no shot is a turnover, the end of a period, or free throws without a shot: a third of them score.
  *
  * Left unread, measured: `poss_length`, whose team means equal the team box's seconds per possession
  * (already read, `ncaa_sec_per_poss`) to 0.24 s on average, r 0.98 over the men's 726 teams of 2025-26;
@@ -47,12 +51,8 @@ export const NCAA_SITUATION_TEAM_COMPONENTS: readonly string[] = [
   ...NCAA_POSSESSION_COUNTS.map((c) => `opp_${c}`)
 ]
 
-/**
- * A player or team with no tagged play in a game counted none; a game the possessions file does not
- * hold is not a game of no possessions, so those read null.
- */
-export const isSituationZero = (component: string): boolean =>
-  !(NCAA_POSSESSION_COUNTS as readonly string[]).includes(component.replace(/^opp_/, ''))
+/** The tag counts of the plays, beside the games they are counted in. */
+const TAGGED = NCAA_SITUATION_COUNTS.filter((c) => c !== 'ncaa_tag_games')
 
 const KEY: Columns = [
   ['game_id', 'VARCHAR'],
@@ -97,20 +97,42 @@ const taggedCte = (season: number): string => `tagged AS (
  * The play table and its tags are made by this step before any season is built, after the file's
  * shape (`have`) was read, so only what an earlier step builds is asked for.
  */
-const ready = (have: Have): boolean => have.tables.has('game')
+const ready = (have: Have): boolean => have.tables.has('game') && have.tables.has('player_game')
 
 const none = (columns: Columns): string =>
   `SELECT ${columns.map(([n, t]) => `NULL::${t} AS ${n}`).join(', ')} WHERE false`
 
-/** One season's player-game rows: a player with a tagged play in the game. */
+/** The season's games with a tagged play of either side (a tag is on a game's plays or on none of them). */
+const taggedGamesCte = (season: number): string =>
+  `tagged_games AS (SELECT DISTINCT game_id FROM ${PLAY_NCAA_FLAGS} WHERE season = ${Number(season)})`
+
+/**
+ * One season's player-game rows: every player with a line in a tagged game, or with a tagged play in one
+ * (`player_game` has no line for a few; `ncaa_tag_games` is counted once for the player all the same).
+ */
 export function collegeSituationPlayerSql(have: Have, season: number): string {
   if (!ready(have)) return none(NCAA_SITUATION_PLAYER_COLUMNS)
-  return `WITH ${taggedCte(season)}
-    SELECT p.game_id, p.season, min(p.game_type) AS game_type, min(p.game_date) AS game_date,
-           p.player_id, p.team_id, min(p.opponent_id) AS opponent_id, ${TAG_COUNTS}
-    FROM tagged p
-    WHERE p.player_id IS NOT NULL
-    GROUP BY p.game_id, p.season, p.player_id, p.team_id`
+  const s = Number(season)
+  return `WITH ${taggedCte(s)}, ${taggedGamesCte(s)},
+    counts AS (
+      SELECT p.game_id, p.player_id, p.team_id, ${TAG_COUNTS}
+      FROM tagged p WHERE p.player_id IS NOT NULL GROUP BY 1, 2, 3
+    ),
+    keys AS (
+      SELECT game_id, player_id, team_id FROM counts
+      UNION ALL
+      SELECT b.game_id, b.player_id, min(b.team_id) AS team_id
+      FROM player_game b JOIN tagged_games t ON t.game_id = b.game_id
+      WHERE b.season = ${s}
+        AND NOT EXISTS (SELECT 1 FROM counts c WHERE c.game_id = b.game_id AND c.player_id = b.player_id)
+      GROUP BY 1, 2
+    )
+    SELECT k.game_id, g.season, g.game_type, g.game_date, k.player_id, k.team_id,
+           CASE k.team_id WHEN g.home_team_id THEN g.away_team_id WHEN g.away_team_id THEN g.home_team_id END AS opponent_id,
+           (row_number() OVER (PARTITION BY k.game_id, k.player_id ORDER BY k.team_id) = 1)::USMALLINT AS ncaa_tag_games,
+           ${TAGGED.map((n) => `coalesce(c.${n}, 0)::USMALLINT AS ${n}`).join(', ')}
+    FROM keys k JOIN game g ON g.game_id = k.game_id
+    LEFT JOIN counts c ON c.game_id = k.game_id AND c.player_id = k.player_id AND c.team_id = k.team_id`
 }
 
 /** One season's possessions, each with its offence as the game's side, and its first shot. */
@@ -133,13 +155,18 @@ function possessionsCte(have: Have, season: number): string {
 const list = (xs: readonly string[]): string => xs.map((x) => `'${x}'`).join(', ')
 
 /** One season's team-game rows, each with the other team's side as `opp_*`. */
-export function collegeSituationTeamSql(have: Have, season: number, _league?: League): string {
+export function collegeSituationTeamSql(have: Have, season: number): string {
   if (!ready(have)) return none(NCAA_SITUATION_TEAM_COLUMNS)
   const s = Number(season)
-  const counted = NCAA_SITUATION_COUNTS.map((n) => `coalesce(o.${n}, 0)::USMALLINT AS ${n}`)
+  const counted = [
+    'CASE WHEN t.game_id IS NOT NULL THEN 1 END::USMALLINT AS ncaa_tag_games',
+    ...TAGGED.map(
+      (n) => `CASE WHEN t.game_id IS NOT NULL THEN coalesce(o.${n}, 0) END::USMALLINT AS ${n}`
+    )
+  ]
   const possessions = NCAA_POSSESSION_COUNTS.map((n) => `q.${n}`)
   const opp = [...NCAA_SITUATION_COUNTS, ...NCAA_POSSESSION_COUNTS].map((n) => `x.${n} AS opp_${n}`)
-  return `WITH ${taggedCte(s)}, ${possessionsCte(have, s)},
+  return `WITH ${taggedCte(s)}, ${taggedGamesCte(s)}, ${possessionsCte(have, s)},
   own AS (
     SELECT p.game_id, p.team_id, ${TAG_COUNTS} FROM tagged p GROUP BY 1, 2
   ), shots AS (
@@ -153,7 +180,8 @@ export function collegeSituationTeamSql(have: Have, season: number, _league?: Le
            count(*) FILTER (WHERE assisted > 0)::USMALLINT AS ncaa_poss_ast
     FROM poss WHERE team_id IS NOT NULL GROUP BY 1, 2
   ),
-  -- Both sides of every game the play table holds this season, so a side with no tagged play counts 0.
+  -- Both sides of every game the play table holds this season, so a side of a tagged game with no tagged
+  -- play counts 0, and both sides of a game not tagged count nothing.
   sided AS (
     SELECT g.game_id, g.season, g.game_type, g.game_date,
            CASE WHEN h.home THEN g.home_team_id ELSE g.away_team_id END AS team_id,
@@ -165,6 +193,7 @@ export function collegeSituationTeamSql(have: Have, season: number, _league?: Le
     SELECT l.game_id, l.season, l.game_type, l.game_date, l.team_id, l.opponent_id,
            ${[...counted, ...possessions].join(', ')}
     FROM sided l
+    LEFT JOIN tagged_games t ON t.game_id = l.game_id
     LEFT JOIN own o ON o.game_id = l.game_id AND o.team_id = l.team_id
     LEFT JOIN shots q ON q.game_id = l.game_id AND q.team_id = l.team_id
   )

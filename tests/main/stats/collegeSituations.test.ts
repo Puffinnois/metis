@@ -24,7 +24,10 @@ import { slow } from '../../fixtures/timeouts'
  */
 const FIXTURES = join(__dirname, '../../fixtures')
 
-async function built(league: League): Promise<StatsDb> {
+/** The counts of the tags, beside the games they are counted in. */
+const TAG_COUNTS = NCAA_SITUATION_COUNTS.filter((c) => c !== 'ncaa_tag_games')
+
+async function built(league: League, before?: (db: StatsDb) => Promise<void>): Promise<StatsDb> {
   const db = await openTestDb()
   for (const dir of ['college-identity', 'college-derived', 'college-depth']) {
     for (const file of readdirSync(join(FIXTURES, dir, league.id))) {
@@ -33,6 +36,7 @@ async function built(league: League): Promise<StatsDb> {
       await db.exec(`CREATE TABLE ${table} AS SELECT * FROM read_parquet(${sqlString(path)})`)
     }
   }
+  await before?.(db)
   await buildIdentity(db, league)
   await buildDerived(db, league)
   await buildPublished(db, league)
@@ -102,7 +106,7 @@ describe.each(leagues)('the $name counts by situation', (league) => {
     const table = await db().all<Row>(`SELECT * FROM ${NCAA_SITUATION_TEAM_GAME}`)
     const file = await db().all<Row>(FILE_TAGS)
     expect(table.length).toBeGreaterThan(0)
-    for (const c of NCAA_SITUATION_COUNTS) {
+    for (const c of TAG_COUNTS) {
       const built = pairs(table, 'game_id', c)
       const worked = pairs(file, 'game_id', c)
       for (const [game, values] of built) {
@@ -115,9 +119,9 @@ describe.each(leagues)('the $name counts by situation', (league) => {
     }
     // Something of each kind is there to count.
     const totals = await db().get<Row>(
-      `SELECT ${NCAA_SITUATION_COUNTS.map((c) => `sum(${c}) AS ${c}`).join(', ')} FROM ${NCAA_SITUATION_TEAM_GAME}`
+      `SELECT ${TAG_COUNTS.map((c) => `sum(${c}) AS ${c}`).join(', ')} FROM ${NCAA_SITUATION_TEAM_GAME}`
     )
-    for (const c of NCAA_SITUATION_COUNTS) expect(n(totals?.[c]), c).toBeGreaterThan(0)
+    for (const c of TAG_COUNTS) expect(n(totals?.[c]), c).toBeGreaterThan(0)
   })
 
   it('gives each side the other side’s counts as its opponents’', async () => {
@@ -134,10 +138,10 @@ describe.each(leagues)('the $name counts by situation', (league) => {
   it('adds the players’ counts up to their team’s', async () => {
     const off = await db().all<Row>(
       `SELECT t.game_id, t.team_id FROM ${NCAA_SITUATION_TEAM_GAME} t
-       LEFT JOIN (SELECT game_id, team_id, ${NCAA_SITUATION_COUNTS.map((c) => `sum(${c}) AS ${c}`).join(', ')}
+       LEFT JOIN (SELECT game_id, team_id, ${TAG_COUNTS.map((c) => `sum(${c}) AS ${c}`).join(', ')}
                   FROM ${NCAA_SITUATION_PLAYER_GAME} GROUP BY 1, 2) p
          ON p.game_id = t.game_id AND p.team_id = t.team_id
-       WHERE ${NCAA_SITUATION_COUNTS.map((c) => `coalesce(p.${c}, 0) <> t.${c}`).join(' OR ')}`
+       WHERE ${TAG_COUNTS.map((c) => `coalesce(p.${c}, 0) <> t.${c}`).join(' OR ')}`
     )
     expect(off).toEqual([])
   })
@@ -158,5 +162,79 @@ describe.each(leagues)('the $name counts by situation', (league) => {
        WHERE ncaa_poss_first3 + ncaa_poss_first_rim + ncaa_poss_first_two + ncaa_poss_first_none > ncaa_poss_n`
     )
     expect(over?.n).toBe(0)
+  })
+
+  it('counts a game for every player with a line in it and both its teams, once each', async () => {
+    const off = await db().all<Row>(
+      `SELECT b.game_id, b.player_id FROM player_game b
+       LEFT JOIN (SELECT game_id, player_id, sum(ncaa_tag_games)::INTEGER AS n FROM ${NCAA_SITUATION_PLAYER_GAME} GROUP BY 1, 2) p
+         ON p.game_id = b.game_id AND p.player_id = b.player_id
+       WHERE p.n IS DISTINCT FROM 1 AND EXISTS (SELECT 1 FROM play_nba q WHERE q.game_id = b.game_id)`
+    )
+    expect(off).toEqual([])
+    const teams = await db().get<{ n: number; games: number }>(
+      `SELECT count(*) FILTER (WHERE ncaa_tag_games IS DISTINCT FROM 1)::INTEGER AS n,
+              count(DISTINCT game_id)::INTEGER AS games FROM ${NCAA_SITUATION_TEAM_GAME}`
+    )
+    expect(teams?.n).toBe(0)
+    expect(teams?.games).toBeGreaterThan(1)
+    const zero = await db().get<{ n: number }>(
+      `SELECT count(*)::INTEGER AS n FROM ${NCAA_SITUATION_PLAYER_GAME}
+       WHERE ncaa_tag_games = 1 AND ${TAG_COUNTS.map((c) => `${c} = 0`).join(' AND ')}`
+    )
+    expect(zero?.n).toBeGreaterThan(0)
+  })
+})
+
+describe('a game whose play by play has no tag', () => {
+  const league = LEAGUES.ncaam
+  let db: StatsDb
+  let game: string
+
+  beforeAll(async () => {
+    db = await built(league, async (x) => {
+      const row = await x.get<{ c: string }>(
+        `SELECT min(contest_id) AS c FROM src_ncaa_pbp WHERE is_paint`
+      )
+      game = row!.c
+      await x.exec(
+        `UPDATE src_ncaa_pbp SET is_fastbreak = false, is_from_turnover = false, is_paint = false
+         WHERE contest_id = ${sqlString(game)}`
+      )
+    })
+  }, slow(240_000))
+  afterAll(() => db.close())
+
+  it('counts nothing of its tags, not zero, for either team and no player', async () => {
+    const rows = await db.all<Row>(
+      `SELECT s.* FROM ${NCAA_SITUATION_TEAM_GAME} s JOIN game g USING (game_id) WHERE g.ncaa_game_id = ${sqlString(game)}`
+    )
+    expect(rows).toHaveLength(2)
+    for (const r of rows) {
+      for (const c of [...NCAA_SITUATION_COUNTS, ...NCAA_SITUATION_COUNTS.map((x) => `opp_${x}`)]) {
+        expect(r[c], c).toBeNull()
+      }
+      // Its possessions are another file's, so they are counted.
+      expect(n(r.ncaa_poss_n)).toBeGreaterThan(0)
+    }
+    expect(
+      await db.get<{ n: number }>(
+        `SELECT count(*)::INTEGER AS n FROM ${NCAA_SITUATION_PLAYER_GAME} s JOIN game g USING (game_id)
+         WHERE g.ncaa_game_id = ${sqlString(game)}`
+      )
+    ).toEqual({ n: 0 })
+  })
+
+  it('leaves the other games as they are', async () => {
+    const other = await dbs.get(league.id)!.all<Row>(
+      `SELECT s.* FROM ${NCAA_SITUATION_TEAM_GAME} s JOIN game g USING (game_id)
+       WHERE g.ncaa_game_id <> ${sqlString(game)} ORDER BY game_id, team_id`
+    )
+    expect(
+      await db.all<Row>(
+        `SELECT s.* FROM ${NCAA_SITUATION_TEAM_GAME} s JOIN game g USING (game_id)
+         WHERE g.ncaa_game_id <> ${sqlString(game)} ORDER BY game_id, team_id`
+      )
+    ).toEqual(other)
   })
 })

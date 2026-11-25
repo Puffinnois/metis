@@ -35,28 +35,28 @@ const WINDOWS: Window[] = [
     stat: 'FG%',
     words: 'field-goal percentage',
     window: 50,
-    categories: ['shooting.field_goals', 'offense.shooting']
+    categories: ['shooting.recent_form', 'offense.shooting']
   },
   {
     key: 'fg200',
     stat: 'FG%',
     words: 'field-goal percentage',
     window: 200,
-    categories: ['shooting.field_goals', 'offense.shooting']
+    categories: ['shooting.recent_form', 'offense.shooting']
   },
   {
     key: 'fg3_50',
     stat: '3P%',
     words: 'three-point percentage',
     window: 50,
-    categories: ['shooting.threes', 'offense.shooting']
+    categories: ['shooting.recent_form', 'offense.shooting']
   },
   {
     key: 'fg3_200',
     stat: '3P%',
     words: 'three-point percentage',
     window: 200,
-    categories: ['shooting.threes', 'offense.shooting']
+    categories: ['shooting.recent_form', 'offense.shooting']
   }
 ]
 

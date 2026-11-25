@@ -158,6 +158,7 @@ const halfAndTrans = (k: number): Record<string, number> => ({
  */
 const situationsOf = (k: number): Record<string, number> => ({
   ...{
+    tag_games: 10,
     pts_fb: 3 * k + 2,
     pts_offtov: 4 * k + 1,
     pts_paint: 6 * k,

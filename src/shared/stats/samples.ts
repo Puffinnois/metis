@@ -58,6 +58,8 @@ export const SAMPLE_LABELS: Readonly<Record<string, string>> = {
   ncaa_fga_trans: 'transition field-goal attempts',
   opp_ncaa_fga_trans: 'transition field-goal attempts faced',
   // stats.ncaa.org's tags and possessions (T1703.2, part 4c).
+  ncaa_tag_games: "games with stats.ncaa.org's tags",
+  opp_ncaa_tag_games: "games with stats.ncaa.org's tags",
   ncaa_fga_paint: 'field-goal attempts in the paint',
   opp_ncaa_fga_paint: 'field-goal attempts in the paint faced',
   ncaa_poss_n: 'possessions (stats.ncaa.org)',

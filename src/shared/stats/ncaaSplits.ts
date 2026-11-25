@@ -89,6 +89,9 @@ export const NCAA_TEAM_BOX = 'src_ncaa_team_box'
  * (`derived/collegeSituations.ts`), both sides of a team's game.
  */
 export const NCAA_SITUATION_COUNTS = [
+  // The games whose play by play carries any tag: the divisor of a per-game count, since a game with
+  // none of them was not tagged, not free of fast breaks (322 of 11,940 of the men's team-games of 2021-22).
+  'ncaa_tag_games',
   'ncaa_pts_fb',
   'ncaa_pts_offtov',
   'ncaa_pts_paint',

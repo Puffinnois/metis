@@ -86,7 +86,7 @@ const SITUATION_TEAM = 'ncaa_situation_team_game'
 const PBP_SOURCES = ["stats.ncaa.org's play by play (SportsDataverse's release)"]
 const POSS_SOURCES = ["stats.ncaa.org's possessions (SportsDataverse's release)"]
 const TAGS =
-  " stats.ncaa.org's own tag of each play, counted from its play by play: beside ESPN's box score and never mixed with it."
+  " stats.ncaa.org's own tag of each play, counted from its play by play: beside ESPN's box score and never mixed with it. A game whose play by play carries no tag is not counted."
 
 const situation = (o: Opts): Opts => ({
   sources: PBP_SOURCES,
@@ -97,11 +97,12 @@ const situation = (o: Opts): Opts => ({
   ...o
 })
 
-/** A count of the tags, per game. */
+/** A count of the tags, per game whose play by play carries any. */
 const tagCount = (component: string, o: Partial<Opts> = {}): Opts =>
   situation({
     value: `{${component}}`,
-    sample: 'games',
+    sample: 'ncaa_tag_games',
+    perGameBy: 'ncaa_tag_games',
     kind: 'recorded',
     aggregation: 'sum',
     unit: 'count',
@@ -220,9 +221,9 @@ const SITUATION_METRICS: MetricDef[] = [
     'ncaa_poss_no_shot_pct',
     'Possessions with no shot (stats.ncaa.org)',
     'No shot%',
-    "The share of the team's possessions with no shot taken: a turnover, or the end of a half, from stats.ncaa.org's possessions.",
+    "The share of the team's possessions with no field-goal attempt: a turnover, the end of a half, or free throws without a shot, from stats.ncaa.org's possessions.",
     {
-      ...possessionShare('ncaa_poss_first_none', { direction: 'lower' }),
+      ...possessionShare('ncaa_poss_first_none'),
       categories: ['shooting.selection', 'offense.shooting']
     }
   ),
