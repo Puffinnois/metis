@@ -179,6 +179,8 @@ export interface Compiled {
   shown: number
   /** Each ranked value carries its pool's size (`n<i>`): the query asked `poolSizes`. */
   pools: boolean
+  /** The values carry z-scores (`StatsQuery.zScores`). */
+  zScores: boolean
   /** Why no row can answer the query's filters (D51), or null; nothing is read when there is one. */
   filterGap: string | null
   /** The attribute tables the filters read, which the file must hold. */
@@ -243,7 +245,8 @@ const QUERY_FIELDS = [
   'places',
   'filters',
   'rankAmong',
-  'poolSizes'
+  'poolSizes',
+  'zScores'
 ]
 const SCOPE_FIELDS = [
   'seasons',
@@ -416,6 +419,11 @@ function validate(q: StatsQuery, ctx: CompileContext): Checked {
   if (q.poolSizes !== undefined) {
     flag(q.poolSizes, 'poolSizes')
     if (q.poolSizes && q.rankAmong === undefined) fail('poolSizes needs rankAmong')
+  }
+  if (q.zScores !== undefined) {
+    flag(q.zScores, 'zScores')
+    if (q.zScores && q.rankAmong === undefined) fail('zScores needs rankAmong')
+    if (q.zScores && q.ranks === false) fail('zScores needs ranks')
   }
   if (q.ranks === false && transform === 'percentile') fail('percentile needs ranks')
   if (q.shrunk !== undefined) flag(q.shrunk, 'shrunk')
@@ -1419,6 +1427,17 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
   // (`MetricValue.pool`): what a page writes as "among 1,838 qualified guards". Only a screen that
   // shows it asks, so a board's query keeps its SQL and its time.
   const pools = poolOn >= 0 && q.poolSizes === true && q.ranks !== false
+  // Z-scores are read over the rows a percentile is ranked among: each metric's mean and sample
+  // standard deviation in its pool, on the value ranked.
+  const zScores = poolOn >= 0 && q.zScores === true && q.ranks !== false
+  const zWindows = (i: number): string[] =>
+    zScores
+      ? [
+          `avg(${val(i)}) FILTER (WHERE ${okOf(i)}) OVER (${among}) AS zm${i}`,
+          `stddev_samp(${val(i)}) FILTER (WHERE ${okOf(i)}) OVER (${among}) AS zd${i}`,
+          `count(*) FILTER (WHERE ${okOf(i)}) OVER (${among}) AS zn${i}`
+        ]
+      : []
   const ranked = c.metrics.flatMap((m, i) => {
     const ok = okOf(i)
     const up = m.direction === 'lower' ? 'DESC' : 'ASC'
@@ -1434,6 +1453,7 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
             `CASE WHEN ${ok} THEN count(*) OVER (PARTITION BY ${[...group, `(${ok})`].join(', ')}) END AS n${i}`
           ]
         : []),
+      ...zWindows(i),
       ...meansOf(i)
     ]
   })
@@ -1449,6 +1469,16 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
   // A player's position as a number for the sort (the same groups, NULL one of them): sorting the
   // pairs on a text column cost a tenth of the query.
   const pairs = `PARTITION BY ${['m', ...group.map((g) => (g === 'position' ? 'pos' : g))].join(', ')}`
+  // The pools' means and spreads, one hash over the pairs: a window a metric over 5,000 rows is not
+  // asked for. Values of a lower-is-better column were negated for the order, so its signs turn back.
+  const poolCols = ['m', ...group.map((g) => (g === 'position' ? 'pos' : g))]
+  const zJoin = zScores
+    ? `
+            LEFT JOIN (SELECT ${poolCols.join(', ')}, avg(x) AS mu, stddev_samp(x) AS sd, count(*) AS zn
+                       FROM ranklong GROUP BY ${poolCols.join(', ')}) z
+              ON ${poolCols.map((g) => `z.${g} IS NOT DISTINCT FROM r.${g}`).join(' AND ')}`
+    : ''
+  const zInner = zScores ? ', mu, sd, zn' : ''
   const rankCtes = onePass
     ? [
         `ranklong AS (
@@ -1460,15 +1490,24 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
         FROM flagged) WHERE ok)`,
         `rankwide AS (
       SELECT ${keys.join(', ')},
-             ${c.metrics.map((_, i) => `max(p) FILTER (WHERE m = ${i}) AS p${i}, max(r) FILTER (WHERE m = ${i}) AS r${i}${pools ? `, max(n) FILTER (WHERE m = ${i}) AS n${i}` : ''}`).join(', ')}
-      FROM (SELECT ${keys.join(', ')}, m, 100 * pr AS p, n - round(cd * n)::BIGINT + 1 AS r${pools ? ', n' : ''}
+             ${c.metrics
+               .map(
+                 (m, i) =>
+                   `max(p) FILTER (WHERE m = ${i}) AS p${i}, max(r) FILTER (WHERE m = ${i}) AS r${i}${pools ? `, max(n) FILTER (WHERE m = ${i}) AS n${i}` : ''}${
+                     zScores
+                       ? `, max(${m.direction === 'lower' ? '-mu' : 'mu'}) FILTER (WHERE m = ${i}) AS zm${i}, max(sd) FILTER (WHERE m = ${i}) AS zd${i}, max(zn) FILTER (WHERE m = ${i}) AS zn${i}`
+                       : ''
+                   }`
+               )
+               .join(', ')}
+      FROM (SELECT ${(zScores ? keys.map((k) => `r.${k}`) : keys).join(', ')}, ${zScores ? 'r.m' : 'm'}, 100 * pr AS p, n - round(cd * n)::BIGINT + 1 AS r${pools ? ', n' : ''}${zInner}
             FROM (SELECT *, percent_rank() OVER (${pairs} ORDER BY x ASC) AS pr,
                          cume_dist() OVER (${pairs} ORDER BY x ASC) AS cd,
                          count(*) OVER (${pairs}) AS n
-                  FROM ranklong))
+                  FROM ranklong)${zScores ? ` r${zJoin}` : ''})
       GROUP BY ${keys.join(', ')})`,
         `rankjoined AS (
-      SELECT f.*, ${c.metrics.map((_, i) => `rk.p${i}, rk.r${i}${pools ? `, rk.n${i}` : ''}`).join(', ')}
+      SELECT f.*, ${c.metrics.map((_, i) => `rk.p${i}, rk.r${i}${pools ? `, rk.n${i}` : ''}${zScores ? `, rk.zm${i}, rk.zd${i}, rk.zn${i}` : ''}`).join(', ')}
       FROM flagged f LEFT JOIN rankwide rk
         ON ${keys.map((k) => `rk.${k} IS NOT DISTINCT FROM f.${k}`).join(' AND ')})`
       ]
@@ -1582,7 +1621,8 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
       `q${i}`,
       `p${i}`,
       `r${i}`,
-      ...(pools ? [`n${i}`] : [])
+      ...(pools ? [`n${i}`] : []),
+      ...(zScores ? [`zm${i}`, `zd${i}`, `zn${i}`] : [])
     ])
   ]
   // `places` (T1601.3): only the rows asked for, each with its place in the whole order the other
@@ -1689,6 +1729,7 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
     notes: [...notesOf(q, c, ctx), ...shrunkNotes(q, c, shrunk)],
     shown: q.metrics.length,
     pools,
+    zScores,
     filterGap: filtering
       ? filterGap(
           c.filters,

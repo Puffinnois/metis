@@ -13,7 +13,7 @@ import type {
   StatsRow,
   StatsSeason
 } from '@shared/stats/types'
-import { cellTitle, fmtStat, isRescaled, ordinal } from './format'
+import { cellTitle, fmtStat, isRescaled, ordinal, amongWords } from './format'
 import {
   bestFirst,
   engineRanksFor,
@@ -28,6 +28,7 @@ import {
   type TabDef
 } from './leaderboard'
 import { queryScope, rangeLabel, typeLabel, type StatsScope } from './scope'
+import { fmtZ, zScored, zTitle } from './zScores'
 
 /** Compare: three slots side by side, all players or all teams, one row per metric. */
 
@@ -52,6 +53,8 @@ export interface CompareState {
   mode: BoardMode
   /** The rows chosen for each kind; null for the default families. */
   columns: Record<Entity, string[] | null>
+  /** Each value as its z-score among the pool its rank is among; one season only. */
+  zScores?: boolean
 }
 
 export const DEFAULT_COMPARE: CompareState = {
@@ -301,11 +304,12 @@ export function compareQuery(
       : base,
     transform: state.mode,
     sort: { metric: lead, dir: 'desc' },
-    limit: many ? 3 : entity === 'player' ? ROW_LIMIT : 40,
+    // A score is read over the whole pool, which a college league's 365 teams outnumber 40 of.
+    limit: many ? 3 : entity === 'player' || state.zScores ? ROW_LIMIT : 40,
     // A college season fetches 1,000 of about 5,000 players: the engine ranks among every row the
     // tab qualifies (`rankAmong`), as the boards do; the NBA's and WNBA's ask as before.
     ...(!many && entity === 'player' && engineRanksFor(compareTab('player'))
-      ? { rankAmong: QUALIFIER }
+      ? { rankAmong: QUALIFIER, ...(state.zScores ? { zScores: true } : {}) }
       : {})
   }
 }
@@ -329,7 +333,17 @@ export function candidatesQuery(scope: StatsScope, list: readonly number[]): Sta
  * position, a team among every team. Over several seasons the answer holds the slots alone, so its
  * ranks would be among three: they are dropped.
  */
-export function rankedResult(result: StatsResult, entity: Entity, many: boolean): StatsResult {
+export function rankedResult(
+  result: StatsResult,
+  entity: Entity,
+  many: boolean,
+  zScores = false
+): StatsResult {
+  const ranked = rankedOnce(result, entity, many)
+  return zScores && !many ? zScored(ranked) : ranked
+}
+
+function rankedOnce(result: StatsResult, entity: Entity, many: boolean): StatsResult {
   if (many) {
     return {
       ...result,
@@ -439,7 +453,9 @@ export function compareView(
   /** Each slot's seasons in scope, for coverage over several seasons; null when unknown or one season. */
   slotSeasons: readonly (readonly number[] | null)[] = [],
   /** The default rows read in the reader's order; rows the user chose keep the registry's. */
-  readerOrder = false
+  readerOrder = false,
+  /** Each value as its z-score, where it has one (`rankedResult`). */
+  zScores = false
 ): CompareView {
   const leads = slots.map(() => 0)
   let counted = 0
@@ -501,14 +517,20 @@ export function compareView(
       const position = entity === 'player' ? (row?.position ?? null) : null
       const hover = cellTitle(v, info, position)
       return {
-        text: fmtStat(v.value, f, mode),
+        text: zScores ? fmtZ(v.z?.score) : fmtStat(v.value, f, mode),
         percentile: v.percentile,
         rank:
           v.rank !== null && v.percentile !== null && direction !== 'neutral'
             ? ordinal(v.rank)
             : null,
         lead,
-        title: from ? `${from} only.${hover ? `\n${hover}` : ''}` : hover
+        title: [
+          ...(from ? [`${from} only.`] : []),
+          ...(hover ? [hover] : []),
+          ...(zScores
+            ? [zTitle(v.z, amongWords(position, 'teams'), (x) => fmtStat(x, f, mode))]
+            : [])
+        ].join('\n')
       }
     })
     // Rows group by their primary category's sub-group (D52), as the Glossary lists them.

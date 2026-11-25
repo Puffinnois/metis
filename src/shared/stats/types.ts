@@ -378,6 +378,12 @@ export interface StatsQuery {
    * shows the count: it costs a window per metric.
    */
   poolSizes?: boolean
+  /**
+   * With `rankAmong`: each value in the pool also carries its z-score (`MetricValue.z`), from the mean
+   * and sample standard deviation of the rows its percentile is ranked among. Only a board showing
+   * them asks; without it the SQL is as it was.
+   */
+  zScores?: boolean
 }
 
 /**
@@ -420,6 +426,17 @@ export interface StatsAttributeValue {
   rows: number
 }
 
+/** A value's z-score in the pool its percentile is read among (T1703.3). */
+export interface MetricZ {
+  /** Standard deviations above the pool's mean; null where the pool has no spread. */
+  score: number | null
+  mean: number
+  /** The sample standard deviation. */
+  sd: number
+  /** How many rows are in the pool. */
+  n: number
+}
+
 export interface MetricValue {
   /** After the transform. */
   value: number | null
@@ -434,6 +451,8 @@ export interface MetricValue {
    * of the row's position and group); null when the row is not ranked. Absent otherwise.
    */
   pool?: number | null
+  /** With `StatsQuery.zScores`: the value's z-score; null where it has no percentile. Absent otherwise. */
+  z?: MetricZ
 }
 
 export interface StatsRow {
@@ -975,6 +994,8 @@ export interface LeaderboardBoard {
   qualifiedOnly: boolean
   /** Rates shrunk toward the league by their priors (Plan T1006); absent in views saved before it. */
   shrunk?: boolean
+  /** Each value as its z-score in its pool (T1703.3); absent in views saved before it. */
+  zScores?: boolean
   /** An NBA team id; null for every team. */
   team: string | null
   /**

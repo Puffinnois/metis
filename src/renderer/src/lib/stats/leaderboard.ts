@@ -357,7 +357,9 @@ export function leaderboardQuery(
     // A league of thousands of rows a season (the colleges, `manyRows`): the board fetches 1,000 of
     // about 5,000, too few to rank among on the client, so the engine ranks among the rows the tab's
     // qualifier admits (`engineRanks`). The NBA's and WNBA's boards hold every row and ask as before.
-    ...(engineRanksFor(tab) ? { rankAmong: tab.qualifier } : {})
+    ...(engineRanksFor(tab)
+      ? { rankAmong: tab.qualifier, ...(board.zScores ? { zScores: true } : {}) }
+      : {})
   }
 }
 
@@ -543,6 +545,7 @@ export function leaderboardCsv(
       if (!m) return board.columns[i]
       const per = isRescaled(m, board.mode) ? ` ${MODE_WORDS[board.mode]}` : ''
       const shrunk = board.shrunk && shrinkable(m) ? ' shrunk' : ''
+      if (board.zScores) return `${m.label}${per}${shrunk} z-score`
       return `${m.label}${per}${shrunk}${m.unit === 'pct' ? ' (%)' : ''}`
     })
   ]
@@ -552,6 +555,10 @@ export function leaderboardCsv(
     ...(player ? [r.team, r.position, r.id] : [r.id]),
     r.games,
     ...board.columns.map((id, j) => {
+      if (board.zScores) {
+        const score = r.values[id]?.z?.score ?? null
+        return score === null ? null : Number(score.toFixed(4))
+      }
       const v = r.values[id]?.value ?? null
       if (v === null) return null
       const m = infos[j]

@@ -76,8 +76,8 @@ export function ordinal(n: number): string {
 const POSITION_WORDS: Record<string, string> = { G: 'guards', F: 'forwards', C: 'centers' }
 
 /** What a player is ranked among: "guards", or "players" when no position is known. */
-export const amongWords = (position: string | null): string =>
-  position ? (POSITION_WORDS[position] ?? `${position}s`) : 'players'
+export const amongWords = (position: string | null, none = 'players'): string =>
+  position ? (POSITION_WORDS[position] ?? `${position}s`) : none
 
 /** A cell's hover: percentile and rank within the position, the sample in words, whether it qualifies. */
 export function cellTitle(

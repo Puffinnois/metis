@@ -124,6 +124,49 @@ describe('rankAmong: the rank pool of a board’s tab qualifier', () => {
     expect(() => compileQuery(query({ poolSizes: true }), CTX)).toThrow('poolSizes needs rankAmong')
   })
 
+  it('gives each value in the pool its z-score when asked, worked by hand', async () => {
+    const r = await runQuery(db, query({ rankAmong: 'min', zScores: true }), CTX)
+    const z = (id: string, m: string): MetricValue['z'] =>
+      r.rows.find((x) => x.id === id)?.values[m].z
+    // Free throws a game of the three with enough minutes: 10, 4 and 7. Mean 7, sample standard
+    // deviation 3: (10 - 7) / 3 is 1, (4 - 7) / 3 is -1.
+    expect(z('1', 'ftm')).toMatchObject({ score: 1, mean: 7, sd: 3, n: 3 })
+    expect(z('3', 'ftm')?.score).toBe(-1)
+    expect(z('5', 'ftm')?.score).toBe(0)
+    // Short of the qualifier: no percentile, no score.
+    for (const id of ['2', '4', '6']) expect(z(id, 'ftm')).toBeUndefined()
+    // Equal values: a pool, and no score in it.
+    expect(z('1', 'min')).toMatchObject({ score: null, mean: 30, n: 3 })
+    // Points qualify on games alone, so all six are the pool.
+    expect(z('2', 'pts')?.n).toBe(6)
+  })
+
+  it('reads a score on the value shown, and turns no sign for a lower-is-better metric', async () => {
+    const r = await runQuery(
+      db,
+      query({ rankAmong: 'min', zScores: true, transform: 'raw', metrics: ['tov', 'min', 'pts'] }),
+      CTX
+    )
+    // Turnovers are all 0 here; points are totals of four games.
+    expect(r.rows.find((x) => x.id === '1')?.values.pts.z).toMatchObject({ n: 6 })
+    expect(r.rows.find((x) => x.id === '1')?.values.tov.z).toMatchObject({ score: null, mean: 0 })
+    const values = r.rows.map((x) => x.values.pts).filter((v) => v.z)
+    for (const v of values) {
+      expect(v.z!.mean + v.z!.score! * v.z!.sd).toBeCloseTo(v.value!, 9)
+    }
+  })
+
+  it('gives none unless asked, refuses it without a pool, and leaves the SQL of the rest as it was', async () => {
+    const plain = await runQuery(db, query({ rankAmong: 'min' }), CTX)
+    expect('z' in plain.rows[0].values.ftm).toBe(false)
+    expect(compileQuery(query({ rankAmong: 'min' }), CTX).sql).not.toMatch(/ AS zm0\b/)
+    expect(compileQuery(query({ rankAmong: 'min', zScores: true }), CTX).sql).toMatch(/ AS zm0\b/)
+    expect(() => compileQuery(query({ zScores: true }), CTX)).toThrow('zScores needs rankAmong')
+    expect(() =>
+      compileQuery(query({ rankAmong: 'min', zScores: true, ranks: false }), CTX)
+    ).toThrow('zScores needs ranks')
+  })
+
   it('leaves a query without it as it was, and refuses one it cannot read', () => {
     const plain = compileQuery(query(), CTX).sql
     expect(compileQuery(query({ rankAmong: 'min' }), CTX).sql).not.toBe(plain)

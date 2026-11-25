@@ -145,6 +145,42 @@ describe('a league of many rows', () => {
     expect(await shown(many)).toEqual(await shown(one))
   })
 
+  it.each<[string, Partial<StatsQuery>]>([
+    ['per game', { transform: 'perGame' }],
+    ['totals', {}],
+    ['shrunk', { transform: 'perGame', shrunk: true }],
+    ['by month', { transform: 'perGame', groupBy: ['month'] }]
+  ])('gives the same z-scores with one pass of ranks: %s', async (_, extra) => {
+    const q: StatsQuery = {
+      entity: 'player',
+      metrics: [...METRICS, 'pts'].slice(0, METRICS.length),
+      rankAmong: 'min',
+      zScores: true,
+      ...extra,
+      scope: { seasons: [2026] }
+    }
+    const scored = async (league: League): Promise<unknown> => {
+      const r = strip(await run(league, q), (q.groupBy ?? []).length > 0) as StatsResult
+      return r.rows.map((row) => [
+        row.id,
+        JSON.stringify(row.group),
+        ...METRICS.map((m) => {
+          const z = row.values[m].z
+          // Summed in another order, so the last digits can differ.
+          return z
+            ? [z.score, z.mean, z.sd, z.n].map((x) =>
+                x === null ? null : Number(x.toPrecision(9))
+              )
+            : null
+        })
+      ])
+    }
+    const answer = (await scored(many)) as unknown[][]
+    expect(answer).toEqual(await scored(one))
+    // Some rows have scores and the lower-is-better column (turnovers) is not turned around.
+    expect(answer.some((row) => row.slice(2).some((z) => z !== null))).toBe(true)
+  })
+
   it('gives the same team board', async () => {
     const q: StatsQuery = {
       entity: 'team',

@@ -316,6 +316,42 @@ describe('ranks', () => {
     expect(pts('d').rank).toBeNull()
   })
 
+  it('gives each ranked value its z-score in the pool when asked, and none over several seasons', () => {
+    const r = rankedResult(res, 'player', false, true)
+    const z = (id: string): MetricValue['z'] => r.rows.find((x) => x.id === id)!.values.pts.z
+    // Guards 25 and 20 (the third guard is short of the minutes): mean 22.5, spread 3.54.
+    expect(z('a')).toMatchObject({ mean: 22.5, n: 2 })
+    expect(z('a')?.score).toBeCloseTo(0.7071, 4)
+    expect(z('d')).toBeUndefined()
+    // One center, so no spread to read.
+    expect(z('c')).toBeUndefined()
+    expect(rankedResult(res, 'player', false).rows[0].values.pts.z).toBeUndefined()
+    expect(rankedResult(res, 'player', true, true).rows[0].values.pts.z).toBeUndefined()
+  })
+
+  it('asks the engine for scores where it ranks, and for every team where they are read here', () => {
+    const state: CompareState = { ...DEFAULT_COMPARE, slots: ['1', null, null], zScores: true }
+    const scope: StatsScope = {
+      season: 2026,
+      seasonType: 'regular',
+      range: { kind: 'season' }
+    } as StatsScope
+    expect(compareQuery(state, ['pts'], scope, [2026])).not.toHaveProperty('zScores')
+    expect(
+      compareQuery({ ...state, entity: 'team' }, ['team_pts'], scope, [2026])?.limit
+    ).toBeGreaterThan(365)
+    expect(
+      compareQuery({ ...state, zScores: false, entity: 'team' }, ['team_pts'], scope, [2026])?.limit
+    ).toBe(40)
+    setLeague('ncaam')
+    expect(compareQuery(state, ['pts'], scope, [2026])).toMatchObject({
+      rankAmong: 'min',
+      zScores: true
+    })
+    expect(compareQuery(state, ['pts'], scope, [2025, 2026])).not.toHaveProperty('zScores')
+    setLeague('nba')
+  })
+
   it('drops ranks over several seasons', () => {
     const r = rankedResult(
       result([row('a', { pts: value(25, { rank: 1, percentile: 100 }) })], [column('pts')]),

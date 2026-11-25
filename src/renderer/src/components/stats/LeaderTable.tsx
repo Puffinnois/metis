@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { FavouriteStar } from '@/components/stats/FavouriteStar'
 import { MetricHover, StabilityMark } from '@/components/stats/MetricCard'
 import { favouriteEdge, useFavourites } from '@/lib/stats/favourites'
-import { cellTitle, fmtStat, heatOf, type Heat } from '@/lib/stats/format'
+import { amongWords, cellTitle, fmtStat, heatOf, type Heat } from '@/lib/stats/format'
 import {
   columnGroups,
   ownQualifiers,
@@ -11,6 +11,7 @@ import {
   type TabDef
 } from '@/lib/stats/leaderboard'
 import { rawLine } from '@/lib/stats/stability'
+import { fmtZ, zTitle } from '@/lib/stats/zScores'
 import { cn } from '@/lib/utils'
 import type { LeaderboardBoard, MetricInfo, StatsResultColumn, StatsRow } from '@shared/stats/types'
 
@@ -301,7 +302,17 @@ export function LeaderTable({
                 const heat = ranked ? heatOf(v.percentile, info.direction) : 'n'
                 const reason = resultCol.get(id)?.reason
                 const raw = shrunk ? rawLine(v, info) : null
-                const title = reason ?? cellTitle(v, info, player ? r.position : null)
+                const z = board.zScores === true
+                const title = [
+                  reason ?? cellTitle(v, info, player ? r.position : null),
+                  ...(z && v.value !== null && !reason
+                    ? [
+                        zTitle(v.z, amongWords(player ? r.position : null, 'teams'), (x) =>
+                          fmtStat(x, info, board.mode)
+                        )
+                      ]
+                    : [])
+                ].join('\n')
                 return (
                   <td
                     key={id}
@@ -315,7 +326,7 @@ export function LeaderTable({
                         ((!cellOk && !shrunk) || v.value === null) && 'text-fg-3'
                       )}
                     >
-                      {fmtStat(v.value, info, board.mode)}
+                      {z ? fmtZ(v.z?.score) : fmtStat(v.value, info, board.mode)}
                     </div>
                   </td>
                 )

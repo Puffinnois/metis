@@ -20,6 +20,7 @@ import type {
 import { isRescaled } from './format'
 import { pickerGroups } from './categoryViews'
 import { rankWithinTab, searchKey, type TabDef } from './leaderboard'
+import { zScored } from './zScores'
 
 /**
  * The Filters control of the Players and Teams leaderboards (T1701.2, D51): what can be filtered on,
@@ -298,11 +299,14 @@ export function rankFiltered(
   board: StatsResult | null,
   tab: TabDef,
   /** The engine ranked among the tab's qualified rows (`rankAmong`): its figures stand, one pool. */
-  engineRanks = false
+  engineRanks = false,
+  /** The shaded rows carry z-scores (`zScored`), read in the whole board's pool. */
+  zScores = false
 ): StatsResult {
   if (engineRanks) return filtered
   const key = (r: StatsResult['rows'][number]): string => `${r.id}|${JSON.stringify(r.group)}`
-  const ranked = board ? rankWithinTab(board, tab) : null
+  const shaded0 = board ? rankWithinTab(board, tab) : null
+  const ranked = shaded0 && zScores ? zScored(shaded0) : shaded0
   const byKey = new Map((ranked?.rows ?? []).map((r) => [key(r), r]))
   return {
     ...filtered,
@@ -317,7 +321,8 @@ export function rankFiltered(
             {
               ...v,
               percentile: shaded.values[id]?.percentile ?? null,
-              rank: shaded.values[id]?.rank ?? null
+              rank: shaded.values[id]?.rank ?? null,
+              ...(shaded.values[id]?.z ? { z: shaded.values[id].z } : {})
             }
           ])
         )

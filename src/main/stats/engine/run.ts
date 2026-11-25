@@ -1,5 +1,5 @@
 import { covers } from '@shared/stats/catalogue'
-import type { GroupBy, MetricValue, StatsQuery, StatsResult } from '@shared/stats/types'
+import type { GroupBy, MetricValue, MetricZ, StatsQuery, StatsResult } from '@shared/stats/types'
 import type { StatsDb } from '../db'
 import {
   compileQuery,
@@ -109,7 +109,8 @@ export async function runQuery(
             qualified: r[`q${i}`] === true,
             percentile: num(r[`p${i}`]),
             rank: num(r[`r${i}`]),
-            ...(compiled.pools ? { pool: num(r[`n${i}`]) } : {})
+            ...(compiled.pools ? { pool: num(r[`n${i}`]) } : {}),
+            ...(compiled.zScores ? zOf(r, i) : {})
           }
         ])
       )
@@ -119,6 +120,16 @@ export async function runQuery(
     ...(compiled.noValueSql ? { filtered: { noValue, reason: null } } : {}),
     ms: Date.now() - started
   }
+}
+
+/** A row's z-score in a metric, where it stands in the pool the percentile is ranked among. */
+function zOf(r: Record<string, unknown>, i: number): { z?: MetricZ } {
+  const [value, mean, sd, n] = ['t', 'zm', 'zd', 'zn'].map((k) => num(r[k + i]))
+  // A pool of one row has no spread to read: no score, as no percentile is one row's.
+  if (num(r['p' + i]) === null || value === null || mean === null || sd === null) return {}
+  // Equal values leave no spread, only rounding: no score then either.
+  const score = sd > 1e-9 * Math.max(1, Math.abs(mean)) ? (value - mean) / sd : null
+  return { z: { score, mean, sd, n: n ?? 0 } }
 }
 
 /** The columns of a query with no rows read: each says why it has none, or its own reason. */

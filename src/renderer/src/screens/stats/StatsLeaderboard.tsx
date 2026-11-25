@@ -43,6 +43,7 @@ import { useStatsQuery, type StatsData } from '@/lib/stats/useStats'
 import { TeamChooser } from '@/components/stats/TeamChooser'
 import { teamIn } from '@/lib/stats/team'
 import { ALL_TEAMS, teamChoices } from '@/lib/stats/teamSearch'
+import { Z_SCORE_HELP, zScored } from '@/lib/stats/zScores'
 import { cn } from '@/lib/utils'
 import { currentLeague, seasonLabel, useLeague } from '@/lib/stats/league'
 import {
@@ -148,15 +149,17 @@ export function StatsLeaderboard({
     const all = { ...result, rows: [...result.rows, ...extras] }
     const engineRanks = query?.rankAmong !== undefined
     const merged = fquery
-      ? rankFiltered(all, unfiltered.result, tab, engineRanks)
+      ? rankFiltered(all, unfiltered.result, tab, engineRanks, board.zScores === true)
       : rankedForBoard(all, tab, query)
+    // A filtered board keeps its whole pool's scores (`rankFiltered`); the rest are read in its own.
+    const scored = board.zScores && !fquery ? zScored(merged) : merged
     return boardRows(
-      { ...merged, rows: merged.rows.slice(0, result.rows.length) },
+      { ...scored, rows: scored.rows.slice(0, result.rows.length) },
       board,
       search,
       opened?.selected ?? null,
       board.favourites ? favSet : null,
-      merged.rows.slice(result.rows.length)
+      scored.rows.slice(result.rows.length)
     )
   }, [
     result,
@@ -224,6 +227,7 @@ export function StatsLeaderboard({
       mode: board.mode,
       qualifiedOnly: board.qualifiedOnly,
       shrunk: board.shrunk ?? false,
+      zScores: board.zScores ?? false,
       favourites: board.favourites ?? false,
       team: board.team,
       split: board.split ?? null,
@@ -309,8 +313,9 @@ export function StatsLeaderboard({
           </h1>
           <div className="text-[13px] text-fg-3">
             {scopeLabel(scope, entity)} · {qualifyNote}
-            {board.shrunk ? ' · Shrunk rates (S) rank every row' : ''} · Shading is percentile
-            within {entity === 'player' ? 'position' : 'the league'}
+            {board.shrunk ? ' · Shrunk rates (S) rank every row' : ''}
+            {board.zScores ? ' · Z-scores' : ''} · Shading is percentile within{' '}
+            {entity === 'player' ? 'position' : 'the league'}
           </div>
         </div>
         <ScopeBar scope={scope} seasons={data.seasons} entity={entity} onChange={onScope} />
@@ -422,6 +427,13 @@ export function StatsLeaderboard({
           title="Each rate with a measured prior pulled toward the league by it, so a small sample can rank. Hover a value for its raw figure."
         >
           Shrunk rates
+        </CheckToggle>
+        <CheckToggle
+          on={board.zScores ?? false}
+          onChange={(on) => update({ zScores: on })}
+          title={Z_SCORE_HELP}
+        >
+          Z-scores
         </CheckToggle>
         <CheckToggle
           on={board.favourites ?? false}

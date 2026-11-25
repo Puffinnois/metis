@@ -105,6 +105,15 @@ describe('a view saved with the favourites filter (T1601.3)', () => {
         't3'
       )
     ).toThrow('invalid')
+    expect(() =>
+      saveStatsView(
+        db,
+        'nba',
+        'Bad',
+        { ...board(), zScores: 'yes' } as unknown as LeaderboardBoard,
+        't3'
+      )
+    ).toThrow('invalid')
     const json = (
       db
         .prepare('SELECT board_json FROM stats_views WHERE name = ?')

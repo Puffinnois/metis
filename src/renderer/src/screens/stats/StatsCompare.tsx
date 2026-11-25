@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { X } from 'lucide-react'
 import { ColumnPicker } from '@/components/stats/ColumnPicker'
-import { Segmented, StatsButton, StatsSelect } from '@/components/stats/controls'
+import { CheckToggle, Segmented, StatsButton, StatsSelect } from '@/components/stats/controls'
 import { FavouriteMark, FavouriteName } from '@/components/stats/FavouriteStar'
 import { MetricHover, StabilityMark } from '@/components/stats/MetricCard'
 import { Loading, Notes } from '@/components/stats/parts'
@@ -40,6 +40,7 @@ import type { StatsScope } from '@/lib/stats/scope'
 import { usePlayerInfo, useStatsQuery, type StatsData } from '@/lib/stats/useStats'
 import { TeamChooser } from '@/components/stats/TeamChooser'
 import { teamChoices } from '@/lib/stats/teamSearch'
+import { Z_SCORE_HELP } from '@/lib/stats/zScores'
 import { cn } from '@/lib/utils'
 import type { Entity, StatsResult } from '@shared/stats/types'
 
@@ -89,11 +90,12 @@ export function StatsCompare({
     [state.span, scope, data.seasons]
   )
   const many = list.length > 1
+  const zScores = state.zScores === true && !many
   const q = useMemo(() => compareQuery(state, columns, scope, list), [state, columns, scope, list])
   const { result, error } = useStatsQuery(q, data.version, FRESH)
   const ranked = useMemo(
-    () => (result ? rankedResult(result, entity, many) : null),
-    [result, entity, many]
+    () => (result ? rankedResult(result, entity, many, zScores) : null),
+    [result, entity, many, zScores]
   )
 
   // On the first visit, the open slots take the leaders in scope, once.
@@ -127,7 +129,8 @@ export function StatsCompare({
     mode,
     entity,
     slotSeasons,
-    state.columns[entity] === null
+    state.columns[entity] === null,
+    zScores
   )
   const filled = slots.filter((s) => s !== null).length
 
@@ -177,6 +180,15 @@ export function StatsCompare({
           options={dashboardModes()}
           onChange={(m) => update((s) => ({ ...s, mode: m }))}
         />
+        {!many && (
+          <CheckToggle
+            on={zScores}
+            onChange={(on) => update((s) => ({ ...s, zScores: on }))}
+            title={Z_SCORE_HELP}
+          >
+            Z-scores
+          </CheckToggle>
+        )}
         <div className="ml-auto flex items-center gap-2">
           <StatsSelect
             title="Add a category's key stats"

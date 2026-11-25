@@ -584,6 +584,23 @@ describe('CSV', () => {
     expect(end).toBe('')
   })
 
+  it('writes z-scores instead, and blank where a row has none', () => {
+    const scored = [
+      {
+        ...rows[0],
+        values: {
+          ...rows[0].values,
+          pts: { ...value(25.5), z: { score: 1.23456, mean: 10, sd: 5, n: 9 } },
+          fg_pct: { ...value(0.5), z: { score: null, mean: 0.5, sd: 0, n: 4 } }
+        }
+      }
+    ]
+    const [head, line] = leaderboardCsv(scored, { ...b, zScores: true }, BY_ID).split('\r\n')
+    expect(head).toContain('Points per game z-score,Field-goal percentage z-score')
+    // A pool with no spread and a row with no score are blank, never 0.
+    expect(line).toBe('1,"A, ""Quoted"" Name",BOS,G,2544,70,1.2346,,')
+  })
+
   it('leaves a ratio and a total unlabelled by the mode', () => {
     const [head] = leaderboardCsv(
       [],
