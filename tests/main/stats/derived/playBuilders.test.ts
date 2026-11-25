@@ -182,7 +182,10 @@ describe('a reader during a rebuild', () => {
 describe('a builder rebuilt alone', () => {
   const added: PlayBuilder[] = []
   afterEach(() => {
-    for (const b of added.splice(0)) PLAY_BUILDERS.splice(PLAY_BUILDERS.indexOf(b), 1)
+    // One a test replaced by another is not in the list any more.
+    for (const b of added.splice(0)) {
+      if (PLAY_BUILDERS.includes(b)) PLAY_BUILDERS.splice(PLAY_BUILDERS.indexOf(b), 1)
+    }
   })
   const add = (b: PlayBuilder): PlayBuilder => {
     added.push(b)
@@ -354,12 +357,44 @@ describe('a builder rebuilt alone', () => {
     await db.exec("DELETE FROM derived_state WHERE name LIKE 'playtable:%'")
     expect(await playsDue(db)).toBe(false)
     add(counting('new_counts', []))
+    // Its table made empty by opening the file, as the app does with some: still not built.
+    await db.exec('CREATE TABLE new_counts (season INTEGER, n BIGINT)')
     expect((await planPlays(db)).partial.map((b) => b.table)).toEqual(['new_counts'])
     await db.exec(`ALTER TABLE split_team DROP COLUMN opp_pts`)
     expect((await planPlays(db)).partial.map((b) => b.table).sort()).toEqual([
       'new_counts',
       'split_team'
     ])
+  })
+
+  it('is built again when it left the list for a build and came back', async () => {
+    const b = add(counting('new_counts', []))
+    await buildPlays(db, LEAGUES.nba)
+    PLAY_BUILDERS.splice(PLAY_BUILDERS.indexOf(b), 1)
+    // The build without it may have replaced a season it has not seen.
+    await markPlaySeason(db, 2026)
+    await buildPlays(db, LEAGUES.nba)
+    PLAY_BUILDERS.push(b)
+    expect((await planPlays(db)).partial.map((x) => x.table)).toEqual(['new_counts'])
+  })
+
+  it('loses the seasons no longer played, and the tables left alone keep theirs', async () => {
+    const one = add(counting('source_counts', [], { origin: 'lineups' }))
+    await buildPlays(db, LEAGUES.nba)
+    await sentinel('source_counts', 1990)
+    await sentinel('split_team', 1990)
+    const other = counting('source_counts', [], { origin: 'plays' })
+    PLAY_BUILDERS.splice(PLAY_BUILDERS.indexOf(one), 1, other)
+    added.push(other)
+    await buildPlays(db, LEAGUES.nba)
+    const of1990 = (t: string): Promise<unknown> =>
+      db.get(`SELECT count(*)::INTEGER AS n FROM ${t} WHERE season = 1990`)
+    expect(await of1990('source_counts')).toEqual({ n: 0 })
+    expect(await of1990('split_team')).toEqual({ n: 1 })
+    // A full rebuild drops them everywhere.
+    await db.exec("UPDATE derived_state SET version = 0 WHERE name = 'plays'")
+    await buildPlays(db, LEAGUES.nba)
+    expect(await of1990('split_team')).toEqual({ n: 0 })
   })
 
   it('rebuilds every builder of every season after a new recipe version, and only then', async () => {

@@ -489,7 +489,7 @@ const guarded =
 /**
  * The two tables as builders of the play layer (`PLAY_BUILDERS` in `playBuilders.ts`), which
  * replaces a season of each in one transaction after that season's plays. Teams first, then players.
- * Bump `PLAYS_VERSION` there when a rule or a column changes.
+ * Bump `PLAYS_VERSION` there when a rule changes; a column that changes is its own reason to rebuild.
  */
 export const SPLIT_BUILDERS: readonly PlayBuilder[] = [
   {

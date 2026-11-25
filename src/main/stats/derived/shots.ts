@@ -21,8 +21,8 @@ import type { Have } from './sql'
  *
  * The NBA's shots are the source (`shot_nba`); ESPN's are another coordinate frame and are not read
  * here. A season before the shots start has no rows, and its metrics read null with their reason.
- * Built season by season through `PLAY_BUILDERS` (`playBuilders.ts`), after the play tables; a change
- * of rule bumps `PLAYS_VERSION` there.
+ * Built season by season through `PLAY_BUILDERS` (`playBuilders.ts`), after the play tables (before
+ * them in the colleges, whose shots read none); a change of rule bumps `PLAYS_VERSION` there.
  */
 
 export const SHOT_PLAYER_GAME = 'shot_player_game'
