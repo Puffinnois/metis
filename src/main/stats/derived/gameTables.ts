@@ -15,6 +15,12 @@ import {
   SHOT_TEAM_GAME
 } from './shots'
 import { PLAYER_ON_COURT, PLAYER_ON_COURT_COMPONENTS } from './onCourt'
+import {
+  NCAA_SITUATION_COUNTS,
+  NCAA_SITUATION_PLAYER_GAME,
+  NCAA_SITUATION_TEAM_COMPONENTS,
+  NCAA_SITUATION_TEAM_GAME
+} from './collegeSituations'
 
 /**
  * A built table at game grain that answers published metrics under a filter that splits a season. The
@@ -92,6 +98,22 @@ export const GAME_TABLES: readonly GameTable[] = [
     key: 'team_id',
     components: PLAY_DETAIL_TEAM_COMPONENTS,
     zero: isPlayDetailZero
+  },
+  // The college leagues' counts by situation (`collegeSituations.ts`): empty in every other league. A row
+  // is there for every player and team of a tagged game, so no count is ever read as 0 for want of one.
+  {
+    table: NCAA_SITUATION_PLAYER_GAME,
+    entity: 'player',
+    sources: ['pbp'],
+    key: 'player_id',
+    components: NCAA_SITUATION_COUNTS
+  },
+  {
+    table: NCAA_SITUATION_TEAM_GAME,
+    entity: 'team',
+    sources: ['pbp', 'possessions'],
+    key: 'team_id',
+    components: NCAA_SITUATION_TEAM_COMPONENTS
   }
 ]
 

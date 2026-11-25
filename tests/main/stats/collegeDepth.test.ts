@@ -92,6 +92,7 @@ describe('the recipes', () => {
       // The play by play's own tables (T1302.7, `collegePlaysPbp.test.ts`).
       'play_lineup',
       'play_nba',
+      'play_ncaa_flags',
       'split_team',
       'split_player',
       // The lineup file's units beside the play-credited ones, which the screens read.
@@ -101,7 +102,10 @@ describe('the recipes', () => {
       'player_on_court',
       'pub_lineups',
       'play_player_game',
-      'play_team_game'
+      'play_team_game',
+      // stats.ncaa.org's counts by situation (T1703.2, part 4c, `collegeSituations.test.ts`).
+      'ncaa_situation_player_game',
+      'ncaa_situation_team_game'
     ])
     // The lineups tab's table keeps the shape `lineupsBootstrap` gives it.
     expect(COLLEGE_LINEUP_COLUMNS.slice(9).map(([n]) => n)).toEqual([

@@ -1,5 +1,5 @@
 import { opponentsOf, type Placement } from '../categories'
-import { NCAA_TEAM_SPLITS } from '../ncaaSplits'
+import { NCAA_POSSESSION_COUNTS, NCAA_SITUATION_COUNTS, NCAA_TEAM_SPLITS } from '../ncaaSplits'
 import type { MetricDef } from '../types'
 
 /**
@@ -112,7 +112,9 @@ const TWO_SIDED = new Set([
   'fast_break_pts',
   'turnover_pts',
   // The college leagues' stats.ncaa.org splits, kept for both sides of a team's game.
-  ...NCAA_TEAM_SPLITS
+  ...NCAA_TEAM_SPLITS,
+  ...NCAA_SITUATION_COUNTS,
+  ...NCAA_POSSESSION_COUNTS
 ])
 
 const TOKEN = /\{([a-z0-9_]+)\}/g

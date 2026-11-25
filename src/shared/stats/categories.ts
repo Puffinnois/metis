@@ -159,7 +159,16 @@ export const CATEGORIES = [
         'Drives and touches',
         'Shots off drives and elbow, post and paint touches.'
       ),
-      g('transition_putbacks', 'Transition and putbacks', 'Shooting in transition and on putbacks.')
+      g(
+        'transition_putbacks',
+        'Transition and putbacks',
+        'Shooting in transition and on putbacks.'
+      ),
+      g(
+        'recent_form',
+        'Recent form',
+        'FG% and 3P% over the last 50 and 200 attempts, and their changes.'
+      )
     ]
   },
   {

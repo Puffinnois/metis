@@ -413,6 +413,27 @@ The first and last season through the query engine: each team's lead changes per
 | 2021-22 | 358   | 100.0 %            | 358               | 100.0 %            | 5,000   | 100.0 %               |
 | 2026-27 | 365   | 100.0 %            | 365               | 100.0 %            | 5,000   | 100.0 %               |
 
+### Counts by situation (T1703.2, part 4c)
+
+`node scripts/check-college-situations.mjs` on a copy of the load with the two tables built (2026-11-25), every season both files hold (2021-22 to 2026-27), from the source's side: every play with a tag and every possession read from the files and counted apart from the builder.
+
+| What                                                    |                                       Men |                                               Women |
+| ------------------------------------------------------- | ----------------------------------------: | --------------------------------------------------: |
+| Team-games: five tag counts and the tagged game         |         380,244 of 380,244 equal, 0 blank |                   358,740 of 358,740 equal, 0 blank |
+| Player-games: five tag counts                           |              3,218,750 of 3,218,750 equal |                        3,036,415 of 3,036,415 equal |
+| Team-games: six possession counts                       |                  383,496 of 383,496 equal |                            361,500 of 361,500 equal |
+| Team seasons through the engine: totals and shares      |                    40,780 of 40,780 equal |                              36,100 of 36,100 equal |
+| Opponents' seasons through the engine                   |                    40,780 of 40,780 equal |                              36,100 of 36,100 equal |
+| Team seasons per game of the tagged games               |                      8,144 of 8,144 equal |                                7,208 of 7,208 equal |
+| Player seasons through the engine: totals and paint FG% | 232,640 of 233,076 equal, 436 with no row | 195,692 of 195,913 equal, 4 differ, 217 with no row |
+
+- **No engine row:** players with a tagged play and no line in the box score in that season (so no season row): 436 of the men's values and 217 of the women's. A player whose key was made for want of any map row (D28) cannot be asked by id; they are in the first two rows.
+- **The women's four:** player 5184395 (2023-24), whose 24 tagged games of 27 have no line in ESPN's box score, one of them in the NCAA tournament, where they have no season row. A second such player is 5106193 (2024-25, 10 tagged games and no line). Both are linked by the crosswalk; the rows are the file's, and the link is a finding of its own.
+- **Games with no tag at all** (the tags read null): men 322, 176, 78, 4, 0 and 0 of the team-games of 2021-22 to 2026-27 (11,940, 12,442, 12,486, 12,586, 12,594 and 1,906), women 300, 122, 62, 8, 4 and 2 (11,016, 11,640, 11,794, 11,920, 12,038 and 1,880). The tags are on all of a game's plays or none of them: no game has one untagged side.
+- **Games with no play by play** read no value: men 22, 14, 0, 0, 6 and 464 of the team-games, women 52, 18, 26, 18, 22 and 416; the last season is under way.
+- **Beside ESPN** (its box score from 2023-24; two tags of the same games, so agreement is measured): the share of team-games equal, and within 2 points, for points in the paint / on the fast break / off turnovers: men 2023-24 99.8 / 99.4 / 99.5 % equal (99.9 / 99.7 / 99.8 within 2), 2024-25 99.7 / 99.6 / 99.7 (100 / 99.9 / 100), 2025-26 99.9 / 99.8 / 99.7 (100 / 99.9 / 100), 2026-27 99.7 / 99.7 / 99.4 (99.9 / 99.9 / 99.7); women 99.7 / 99.4 / 99.4 (99.9 / 99.6 / 99.8), 99.9 / 99.8 / 99.7 (100 / 100 / 99.9), 99.9 / 99.8 / 99.8 (100 / 99.9 / 100), 99.7 / 99.6 / 99.5 (99.8 / 99.8 / 99.7). The correlation is 0.998 or more, except the men's fast-break points of 2025-26 (0.657), where ESPN has 854 for one team-game (401828297) and stats.ncaa.org 8, and the women's of 2026-27 (0.985).
+- **Possessions** (`ncaa_poss_n` beside the team box's `ncaa_poss`): within 2 on every team-game of every season, 0.02 to 0.04 more on average.
+
 ## NCAA Division I women's agreement checks
 
 ### Games and teams

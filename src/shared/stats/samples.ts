@@ -57,6 +57,13 @@ export const SAMPLE_LABELS: Readonly<Record<string, string>> = {
   opp_ncaa_pbacka: 'putbacks tried against',
   ncaa_fga_trans: 'transition field-goal attempts',
   opp_ncaa_fga_trans: 'transition field-goal attempts faced',
+  // stats.ncaa.org's tags and possessions (T1703.2, part 4c).
+  ncaa_tag_games: "games with stats.ncaa.org's tags",
+  opp_ncaa_tag_games: "games with stats.ncaa.org's tags",
+  ncaa_fga_paint: 'field-goal attempts in the paint',
+  opp_ncaa_fga_paint: 'field-goal attempts in the paint faced',
+  ncaa_poss_n: 'possessions (stats.ncaa.org)',
+  opp_ncaa_poss_n: "opponents' possessions (stats.ncaa.org)",
   ncaa_mida_trans: 'transition mid-range attempts',
   opp_ncaa_mida_trans: 'transition mid-range attempts faced',
   ncaa_fga_half: 'half-court field-goal attempts',

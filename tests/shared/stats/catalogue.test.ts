@@ -152,23 +152,42 @@ const halfAndTrans = (k: number): Record<string, number> => ({
   ...{ rima_half: 5 * k, midm_half: 2 * k, mida_half: 5 * k, ast_half: 4 * k, tov_half: 2 * k },
   ...{ orb_half: k + 3, drb_half: 5 * k, stl_half: k + 4, blk_half: k + 5, off_seconds: 1150 + k }
 })
+/**
+ * A side's counts by situation from stats.ncaa.org's tags and possessions (T1703.2, part 4c), distinct
+ * for each side by `k`. The possession counts are a team's alone, harmless on a player's row.
+ */
+const situationsOf = (k: number): Record<string, number> => ({
+  ...{
+    tag_games: 10,
+    pts_fb: 3 * k + 2,
+    pts_offtov: 4 * k + 1,
+    pts_paint: 6 * k,
+    fgm_paint: 3 * k,
+    fga_paint: 5 * k
+  },
+  ...{ poss_n: 70 + k, poss_first3: 20 + k, poss_first_rim: 15 + k, poss_first_two: 10 + k },
+  ...{ poss_first_none: 12 + k, poss_ast: 14 + k }
+})
 const NCAA_PLAYER: NcaaSide = {
   ...{ fgm: 9, fga: 20, fg3m: 2, rimm: 5, rima: 8, midm: 2, mida: 6, pbackm: 2, pbacka: 3 },
   ...{ blk_rim: 2, fgm_trans: 3, fga_trans: 5, fg3m_trans: 1, pts_trans: 8, fgm_ast: 4 },
   ...{ fg3m_ast: 2, rimm_ast: 3, pts: 24, poss: 60 },
-  ...halfAndTrans(1)
+  ...halfAndTrans(1),
+  ...situationsOf(1)
 }
 const NCAA_TEAM: NcaaSide = {
   ...{ fgm: 60, fga: 130, fg3m: 18, rimm: 30, rima: 50, midm: 12, mida: 30, pbackm: 9 },
   ...{ pbacka: 14, blk_rim: 7, fgm_trans: 16, fga_trans: 28, fg3m_trans: 5, pts_trans: 40 },
   ...{ fgm_ast: 38, fg3m_ast: 15, rimm_ast: 17, pts: 160, poss: 140 },
-  ...halfAndTrans(7)
+  ...halfAndTrans(7),
+  ...situationsOf(7)
 }
 const NCAA_OPP: NcaaSide = {
   ...{ fgm: 55, fga: 128, fg3m: 15, rimm: 26, rima: 47, midm: 14, mida: 33, pbackm: 7 },
   ...{ pbacka: 12, blk_rim: 5, fgm_trans: 12, fga_trans: 22, fg3m_trans: 3, pts_trans: 30 },
   ...{ fgm_ast: 30, fg3m_ast: 12, rimm_ast: 15, pts: 150, poss: 139 },
-  ...halfAndTrans(6)
+  ...halfAndTrans(6),
+  ...situationsOf(6)
 }
 const ncaaColumns = (s: NcaaSide, prefix: string, games: number): Record<string, number> => ({
   ...Object.fromEntries(Object.entries(s).map(([k, v]) => [`${prefix}ncaa_${k}`, v])),
@@ -207,13 +226,23 @@ const NCAA_SHARED: Record<string, (s: NcaaSide) => number> = {
   ncaa_half_orb: (s) => s.orb_half,
   ncaa_half_drb: (s) => s.drb_half,
   ncaa_half_stl: (s) => s.stl_half,
-  ncaa_half_blk: (s) => s.blk_half
+  ncaa_half_blk: (s) => s.blk_half,
+  ncaa_fb_pts: (s) => s.pts_fb,
+  ncaa_offtov_pts: (s) => s.pts_offtov,
+  ncaa_paint_pts: (s) => s.pts_paint,
+  ncaa_paint_fga: (s) => s.fga_paint,
+  ncaa_paint_fg_pct: (s) => s.fgm_paint / s.fga_paint
 }
 /** A team's own: its possessions and points per 100 of them, both stats.ncaa.org's. */
 const NCAA_TEAM_ONLY: Record<string, (s: NcaaSide) => number> = {
   ncaa_sec_per_poss: (s) => s.off_seconds / s.poss,
   ncaa_poss: (s) => s.poss,
-  ncaa_rtg: (s) => (100 * s.pts) / s.poss
+  ncaa_rtg: (s) => (100 * s.pts) / s.poss,
+  ncaa_poss_first3_pct: (s) => s.poss_first3 / s.poss_n,
+  ncaa_poss_first_rim_pct: (s) => s.poss_first_rim / s.poss_n,
+  ncaa_poss_first_two_pct: (s) => s.poss_first_two / s.poss_n,
+  ncaa_poss_no_shot_pct: (s) => s.poss_first_none / s.poss_n,
+  ncaa_poss_ast_pct: (s) => s.poss_ast / s.poss_n
 }
 
 /** The stored components of a player's row. */
@@ -1323,11 +1352,15 @@ describe('every formula, against a value worked by hand', () => {
                 ? PLAY_ROW
                 : m.family === 'on_court'
                   ? ON_COURT_ROW
-                  : m.built
-                    ? SHOT_ROW
-                    : m.entity === 'player'
+                  : m.built?.startsWith('ncaa_situation_')
+                    ? m.entity === 'player'
                       ? PLAYER_ROW
                       : TEAM_ROW
+                    : m.built
+                      ? SHOT_ROW
+                      : m.entity === 'player'
+                        ? PLAYER_ROW
+                        : TEAM_ROW
         )})::DOUBLE AS "${m.id}"`
     )
     values = (await db.get<Record<string, number | null>>(`SELECT ${columns.join(', ')}`)) ?? {}
