@@ -107,25 +107,37 @@ async function thresholdsBySql(types) {
   return new Map(rows.map((r) => [`${r.player}|${r.season ?? 'career'}`, r]))
 }
 
-/** Each player's games in order, the counts the streaks read as lists. */
+const SEQUENCE_COLUMNS = ['pts', 'reb', 'ast', 'stl', 'blk', 'fg3m']
+const BATCH = 60000
+
+/** Each player's games in order, the counts the streaks read as arrays, from plain ordered rows. */
 async function sequences(types) {
-  const rows = await read(`
-    SELECT player_id::VARCHAR AS player,
-           ${['pts', 'reb', 'ast', 'stl', 'blk', 'fg3m']
-             .map(
-               (c) =>
-                 `string_agg(coalesce(${c}::VARCHAR, 'x'), ',' ORDER BY game_date, game_id) AS ${c}`
-             )
-             .join(', ')},
-           string_agg(season::VARCHAR, ',' ORDER BY game_date, game_id) AS seasons,
-           string_agg(game_id, ',' ORDER BY game_date, game_id) AS games
-    FROM player_game WHERE ${inTypes(types)} GROUP BY player_id`)
-  return new Map(rows.map((r) => [r.player, r]))
+  const out = new Map()
+  for (let offset = 0; ; offset += BATCH) {
+    const rows = await read(`
+      SELECT player_id::VARCHAR AS player, season, game_id, ${SEQUENCE_COLUMNS.join(', ')}
+      FROM player_game WHERE ${inTypes(types)}
+      ORDER BY player_id, game_date, game_id LIMIT ${BATCH} OFFSET ${offset}`)
+    for (const r of rows) {
+      if (!out.has(r.player)) {
+        out.set(r.player, {
+          seasons: [],
+          games: [],
+          ...Object.fromEntries(SEQUENCE_COLUMNS.map((c) => [c, []]))
+        })
+      }
+      const seq = out.get(r.player)
+      seq.seasons.push(num(r.season))
+      seq.games.push(r.game_id)
+      for (const c of SEQUENCE_COLUMNS) seq[c].push(num(r[c]))
+    }
+    if (rows.length < BATCH) return out
+  }
 }
 
 /** One character a game: 1 did it, 0 did not, x cannot say. Written from the streak's name alone. */
 function marks(id, row) {
-  const list = (c) => row[c].split(',')
+  const list = (c) => row[c]
   if (id === 'dd2' || id === 'td3') {
     const n = id === 'dd2' ? 2 : 3
     const columns = TENS.map(list)
@@ -133,14 +145,14 @@ function marks(id, row) {
       let sure = 0
       let blank = 0
       for (const c of columns) {
-        if (c[i] === 'x') blank++
-        else if (Number(c[i]) > 9) sure++
+        if (c[i] === null) blank++
+        else if (c[i] > 9) sure++
       }
       return sure >= n ? '1' : sure + blank >= n ? 'x' : '0'
     })
   }
   const [, column, least] = id.match(/^([a-z]+(?:3m)?)(\d+)$/)
-  return list(column).map((v) => (v === 'x' ? 'x' : Number(v) >= Number(least) ? '1' : '0'))
+  return list(column).map((v) => (v === null ? 'x' : v >= Number(least) ? '1' : '0'))
 }
 
 /** The longest run of ones, its latest place, and the run at the end. */
@@ -292,8 +304,7 @@ for (const [label, types] of SCOPES) {
     }
 
     const seq = bySequence.get(player)
-    const ids = seq.games.split(',')
-    const when = seq.seasons.split(',').map(Number)
+    const { games: ids, seasons: when } = seq
     const keep = ids.map((_, i) => season === 'career' || when[i] === season)
     for (const feat of STREAKS) {
       const plain = runsOf(
