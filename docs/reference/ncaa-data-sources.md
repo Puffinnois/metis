@@ -519,6 +519,7 @@ The NCAA's record books, read with a plain client (below), list each season's in
 
 - Men's scoring, 2025-26: the record book has AJ Dybantsa, BYU, 35 games, 894 points, 25.5 a game. stats.ncaa.org's player box gives the same 35 games and 894 points, ranked first.
 - Women's steals, 2025-26: the record book has Hannah Hidalgo, Notre Dame, 36 games, 202 steals. ESPN's player box gives the same 36 and 202.
+- stats.ncaa.org's tags of a play (`is_fastbreak`, `is_from_turnover`, `is_paint`) are false on every play of some games (161 of the men's 5,970 games of 2021-22, 2 of 2024-25's 6,293, none of 2025-26's; women 150, 61, 31, 4, 2 and 1): those were not tagged, and read null, not zero (T1703.2, part 4c). The fast-break tag is on makes and free throws, hardly ever on misses.
 - ESPN's men's and women's player box scores rank one-game players from non-Division I teams above them (Bloomfield, Briar Cliff and others, 36 and 40 points in one game) unless rows are kept to Division I teams. See "Traps".
 
 Every category of every season, through the app's leaderboards, came with the game and season tables: "Game and season tables, built (T1302.5)" above, and [ncaa-agreement.md](ncaa-agreement.md).
