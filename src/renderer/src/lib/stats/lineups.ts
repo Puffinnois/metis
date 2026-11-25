@@ -127,7 +127,7 @@ export function lineupPlayers(units: StatsLineupUnit[]): { value: string; label:
   const players = [...named]
     .map(([value, label]) => ({ value, label }))
     .sort((a, b) => a.label.localeCompare(b.label))
-  return [{ value: ANYONE, label: 'Anyone' }, ...players]
+  return [{ value: ANYONE, label: 'With anyone' }, ...players]
 }
 
 /**

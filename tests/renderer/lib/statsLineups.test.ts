@@ -187,7 +187,7 @@ describe('a player’s groups', () => {
 
   it('offers anyone, then every player the list names, by name', () => {
     expect(lineupPlayers(pairs).map((p) => p.label)).toEqual([
-      'Anyone',
+      'With anyone',
       'Alex Caruso',
       'Chet Holmgren',
       'Jalen Williams',
