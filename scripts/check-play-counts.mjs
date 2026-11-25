@@ -91,7 +91,6 @@ const LATE = [
   'ft_techm'
 ]
 const JUMPS = ['jump_n', 'jump_won', 'jump_lost']
-const TEAMS = ['timeouts', 'team_fouls', 'bonus_given', 'challenges', 'challenges_won']
 
 const seasons = (await read('SELECT DISTINCT season AS s FROM play_nba ORDER BY 1'))
   .map((r) => Number(r.s))
