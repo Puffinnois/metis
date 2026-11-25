@@ -27,8 +27,11 @@ interface Unit {
   season: number
   game_type: string
   team_id: number
+  size: number
   p1: number
-  p5: number
+  p2: number
+  p3: number | null
+  p5: number | null
   names: string | null
   games: number | null
   minutes: number | null
@@ -37,8 +40,8 @@ interface Unit {
 
 const units = (): Promise<Unit[]> =>
   db.all<Unit>(
-    `SELECT * REPLACE (p1::INTEGER AS p1, p5::INTEGER AS p5) FROM ${LINEUPS}
-     ORDER BY season, game_type, team_id, p1, p5`
+    `SELECT * REPLACE (p1::INTEGER AS p1, p2::INTEGER AS p2, p3::INTEGER AS p3, p5::INTEGER AS p5)
+     FROM ${LINEUPS} ORDER BY season, game_type, team_id, size DESC, p1, p5`
   )
 
 describe('the lineup table', () => {
@@ -85,7 +88,7 @@ describe('the lineup table', () => {
       possessions: 120,
       sc_pct_fga_3_pt: 0.4
     })
-    expect(await units()).toHaveLength(5)
+    expect(await units()).toHaveLength(6)
   })
 
   it('keeps one row for a repeated unit, the one with the most time', async () => {
@@ -122,16 +125,46 @@ describe('the lineup table', () => {
     })
   })
 
-  it('keeps teams, season types and the five-man files apart, and leaves out 2006-07', async () => {
+  it('keeps teams, season types and sizes apart, and leaves out 2006-07', async () => {
     await build()
     const rows = await units()
-    expect(rows.map((u) => [u.season, u.game_type, u.team_id, u.p1, u.p5])).toEqual([
-      [2026, 'playoffs', BOS, 1, 5],
-      [2026, 'regular', BOS, 1, 5],
-      [2026, 'regular', BOS, 1, 6],
-      [2026, 'regular', BOS, 7, 11],
-      [2026, 'regular', OKC, 1, 5]
+    expect(rows.map((u) => [u.season, u.game_type, u.team_id, u.size, u.p1, u.p5])).toEqual([
+      [2026, 'playoffs', BOS, 5, 1, 5],
+      [2026, 'regular', BOS, 5, 1, 5],
+      [2026, 'regular', BOS, 5, 1, 6],
+      [2026, 'regular', BOS, 5, 7, 11],
+      [2026, 'regular', BOS, 2, 1, null],
+      [2026, 'regular', OKC, 5, 1, 5]
     ])
+  })
+
+  it('keeps a pair, its missing players NULL, and pairs it across files', async () => {
+    await db.exec(`INSERT INTO src_dash_lineups_advanced VALUES
+      ('-2-1-', 'B - A', ${BOS}, 4, 99, 297000, 2026, 'Regular Season', 2, 111, 99, 0.5, 200)`)
+    await build()
+    const pair = (await units()).find((u) => u.size === 2)
+    expect(pair).toMatchObject({
+      p1: 1,
+      p2: 2,
+      p3: null,
+      p5: null,
+      names: 'A - B',
+      games: 4,
+      minutes: 99,
+      fgm: 50,
+      adv_off_rating: 111,
+      possessions: 200
+    })
+    expect((await units()).filter((u) => u.size === 2)).toHaveLength(1)
+  })
+
+  it('leaves out a row whose ids do not hold as many players as its group_quantity says', async () => {
+    await db.exec(`INSERT INTO src_dash_lineups_base (group_id, group_name, team_id, gp, min,
+        sum_time_played, season, season_type, group_quantity, fgm) VALUES
+      ('-1-2-3-', 'A - B - C', ${BOS}, 1, 5, 15000, 2026, 'Regular Season', 4, 1),
+      ('-1-', 'A', ${BOS}, 1, 5, 15000, 2026, 'Regular Season', 1, 1)`)
+    await build()
+    expect((await units()).map((u) => u.size).sort()).toEqual([2, 5, 5, 5, 5, 5])
   })
 
   it('builds in a refresh, and builds an empty table when no lineup file is there', async () => {

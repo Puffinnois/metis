@@ -52,7 +52,7 @@ async function readEverything(reads: StatsReads, query = true): Promise<void> {
   const onCourt = { gameTypes: ['regular'] } as never
   await reads.onCourtUnits('1', 2026, onCourt, 5)
   await reads.withOrWithout('1', null, 2026, onCourt)
-  await reads.lineups('1', 2026, 'regular', 'top' as never)
+  await reads.lineups('1', 2026, 'regular', 'top' as never, 5)
   await reads.profile('1')
   await reads.availability(['1'])
   await reads.coaches('1', 2026)

@@ -7,17 +7,21 @@ import {
 import { column, gameType, type Have } from './sql'
 
 /**
- * The NBA's five-man units, one row per team, season, season type and set of five players. The team
- * dashboard's Lineups tab reads it; it is no player or team metric, so the query engine never sees it.
+ * The NBA's units, one row per team, season, season type and set of players: the dashboards' groups
+ * of two, three, four and five (`group_quantity`), each with its `size`, and the players it lacks
+ * NULL (a pair's `p3` to `p5`). The team dashboard's Lineups tab reads it; it is no player or team
+ * metric, so the query engine never sees it.
  *
  * Each of the six lineup dashboards is a list of units. They are not the same list: the NBA publishes
- * the 2,000 units of a regular season that rank first under each file's own sort, so the base, misc
- * and opponent files agree, the advanced and four-factors files differ at the cut-off, and the
- * scoring file lists other units altogether (`nba-data-sources.md`). So the table holds every unit any
- * file lists, and a measure a file does not list for a unit reads NULL.
+ * the 2,000 units of each size and season type that rank first under each file's own sort, so the
+ * base, misc and opponent files agree, the advanced and four-factors files differ at the cut-off, and
+ * the scoring file lists other units altogether (`nba-data-sources.md`). So the table holds every
+ * unit any file lists, and a measure a file does not list for a unit reads NULL.
  *
- * A unit is keyed by its five player ids in ascending order. The sources already write the id that
- * way (checked on every row), but the key is sorted here anyway, so it never depends on that.
+ * A unit is keyed by its size and its player ids in ascending order. The sources already write the
+ * id that way (checked on every row), but the key is sorted here anyway, so it never depends on that.
+ * The college leagues write this table from their own lineups (`collegePlays.ts`), five-man and with
+ * no `size` column: a read takes a missing size as five.
  */
 export const LINEUPS = 'pub_lineups'
 
@@ -43,7 +47,8 @@ export function lineupsBootstrap(): string[] {
 }
 
 /**
- * One dashboard's units, sorted ids and all. A row whose id does not hold five players is left out.
+ * One dashboard's units, sorted ids and all. A row whose id does not hold two to five players, or
+ * not as many as its `group_quantity` says, is left out.
  * What the file lacks (a missing table or column) reads as NULL, and no rows.
  */
 function unitsOf(group: LineupGroup, have: Have, teamKey: TeamKey, from: number): string {
@@ -62,13 +67,15 @@ function unitsOf(group: LineupGroup, have: Have, teamKey: TeamKey, from: number)
     `${gameType(column(have, table, 's', 'season_type', 'VARCHAR'))} IS NOT NULL`,
     `${season} >= ${from}`
   ]
-  // The dashboards also list pairs, triples and fours: T904's, not these.
-  if (have.columns.get(table)?.has('group_quantity')) where.push('s.group_quantity = 5')
+  const quantity = have.columns.get(table)?.has('group_quantity')
+    ? 'TRY_CAST(s.group_quantity AS INTEGER)'
+    : 'len(ids)'
   const type = gameType(column(have, table, 's', 'season_type', 'VARCHAR'))
   const team = teamKey(column(have, table, 's', 'team_id', 'BIGINT'), season)
-  return `SELECT * EXCLUDE (n, broken, rn) FROM (
+  return `SELECT * EXCLUDE (quantity, broken, rn) FROM (
     SELECT ${season} AS season, ${type} AS game_type, ${team} AS team_id,
-           ${PLAYERS.map((p, i) => `ids[${i + 1}] AS ${p}`).join(', ')}, len(ids) AS n,
+           len(ids) AS size, ${PLAYERS.map((p, i) => `ids[${i + 1}] AS ${p}`).join(', ')},
+           ${quantity} AS quantity,
            list_bool_or(list_transform(ids, x -> x IS NULL)) AS broken,
            ${column(have, table, 's', 'group_name', 'VARCHAR')} AS names,
            ${num('gp')} AS games, ${minutes} AS minutes,
@@ -77,14 +84,15 @@ function unitsOf(group: LineupGroup, have: Have, teamKey: TeamKey, from: number)
                               ORDER BY ${num('sum_time_played')} DESC NULLS LAST) AS rn
     FROM (SELECT s.*, ${ids} AS ids FROM ${held ? table : '(SELECT 1)'} s
           WHERE ${held ? where.join(' AND ') : 'false'}) s
-  ) WHERE rn = 1 AND n = 5 AND NOT broken`
+  ) WHERE rn = 1 AND size BETWEEN 2 AND 5 AND size = quantity AND NOT broken`
 }
 
 /** A team's id in the files, in the season `season` names, as its key in `team` (the league's). */
 type TeamKey = (id: string, season: string) => string
 
 /**
- * The table: every unit any of the six files lists, each measure from its own file. The team's key is
+ * The table: every unit any of the six files lists, each measure from its own file. A pair is matched
+ * across files with its missing players NULL on both sides, so the join treats NULL as equal. The team's key is
  * the league's published recipe's: the NBA's ids as they are.
  */
 export function lineupsSql(
@@ -92,10 +100,10 @@ export function lineupsSql(
   teamKey: TeamKey = (id) => id,
   from: number = LINEUPS_FIRST_SEASON
 ): string {
-  const key = ['season', 'game_type', 'team_id', ...PLAYERS]
+  const key = ['season', 'game_type', 'team_id', 'size', ...PLAYERS]
   const alias = (g: LineupGroup): string => `g_${g}`
   const join = (g: LineupGroup): string =>
-    `LEFT JOIN ${alias(g)} ON ${key.map((k) => `${alias(g)}.${k} = k.${k}`).join(' AND ')}`
+    `LEFT JOIN ${alias(g)} ON ${key.map((k) => `${alias(g)}.${k} IS NOT DISTINCT FROM k.${k}`).join(' AND ')}`
   const first = (field: string): string =>
     `coalesce(${PRECEDENCE.map((g) => `${alias(g)}.${field}`).join(', ')})`
   const stored = LINEUP_STORED.map((c) => `${alias(c.group)}.${c.id} AS ${c.id}`)

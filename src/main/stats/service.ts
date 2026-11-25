@@ -176,7 +176,13 @@ export interface StatsService {
     scope: StatsOnCourtScope
   ): Promise<StatsWithOrWithout>
   /** A team's five-man units for a season and season type, with one dashboard's measures. */
-  lineups(team: string, season: number, gameType: string, group: LineupGroup): Promise<StatsLineups>
+  lineups(
+    team: string,
+    season: number,
+    gameType: string,
+    group: LineupGroup,
+    size: number
+  ): Promise<StatsLineups>
   /** A player's bio, draft and combines, each combine measure ranked within its position group. */
   profile(player: string): Promise<StatsProfile>
   availability(players: string[]): Promise<StatsAvailability[]>
@@ -548,8 +554,8 @@ export async function openStatsService(
     withOrWithout: (player, teammate, season, scope) =>
       read((reader) => readWithOrWithout(reader, player, teammate, season, scope, league)),
     profile: (player) => read((reader) => readProfile(reader, player, league)),
-    lineups: (team, season, gameType, group) =>
-      read((reader) => readLineups(reader, team, season, gameType, group)),
+    lineups: (team, season, gameType, group, size) =>
+      read((reader) => readLineups(reader, team, season, gameType, group, size)),
     availability: (players) => read((reader) => readAvailability(reader, players)),
     ratingHistory: (player) => read((reader) => readRatingHistory(reader, player, league)),
     gameListings: (games, players) => read((reader) => readGameListings(reader, games, players)),

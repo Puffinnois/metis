@@ -431,15 +431,53 @@ describe('a team’s lineups', () => {
     ])
   })
 
-  it('reads the playoffs apart, and says where the league’s list floors', async () => {
+  it('reads the playoffs apart, and gives no floor when the league lists every unit', async () => {
     const r = await readLineups(db, String(BOS), 2026, 'playoffs', 'base')
     expect(r.units.map((u) => u.minutes)).toEqual([10])
     const regular = await readLineups(db, String(OKC), 2026, 'regular', 'base')
-    expect(regular.floorMinutes).toBe(50)
+    expect(regular.floorMinutes).toBeNull()
+    // A file built before the smaller groups has no size column: its units are five-man.
+    expect(regular.sizes).toEqual([5])
+    expect((await readLineups(db, String(OKC), 2026, 'regular', 'base', 2)).units).toEqual([])
+  })
+
+  it('says where the league’s list floors once its file reached 2,000 units', async () => {
+    await db.exec(`INSERT INTO pub_lineups (season, game_type, team_id, p1, p2, p3, p4, p5, games,
+        minutes, fgm)
+      SELECT 2026, 'regular', 1610612700 + i % 30, i, i + 1, i + 2, i + 3, i + 4, 1, 100 + i, 1
+      FROM range(1997) t(i)`)
+    // With the three regular-season units above, 2,000 the base file lists: the fewest minutes is
+    // BOS's 50.
+    expect((await readLineups(db, String(OKC), 2026, 'regular', 'base')).floorMinutes).toBe(50)
+  })
+
+  it('reads the groups of a size, their players NULL past the size', async () => {
+    await db.exec('ALTER TABLE pub_lineups ADD COLUMN size INTEGER')
+    await db.exec(`INSERT INTO pub_lineups (season, game_type, team_id, size, p1, p2, names, games,
+        minutes, fgm, fga) VALUES
+      (2026, 'regular', ${BOS}, 2, 1, 2, 'J. Tatum - J. Brown', 6, 300, 90, 180),
+      (2026, 'regular', ${BOS}, 2, 1, 9, 'J. Tatum - Z. Nine', 2, 20, 4, 9)`)
+    await db.exec(`INSERT INTO pub_lineups (season, game_type, team_id, size, p1, p2, p3, names,
+        games, minutes, fgm, fga) VALUES (2026, 'regular', ${BOS}, 3, 1, 2, 3, NULL, 5, 200, 60, 120)`)
+    const pairs = await readLineups(db, String(BOS), 2026, 'regular', 'base', 2)
+    expect(pairs.sizes).toEqual([5, 3, 2])
+    expect(pairs.units.map((u) => u.players.map((p) => p.name))).toEqual([
+      ['Jayson Tatum', 'Jaylen Brown'],
+      // The player table does not know 9: the name is the NBA's own, from the file's two.
+      ['Jayson Tatum', 'Z. Nine']
+    ])
+    expect(pairs.units[0]).toMatchObject({ games: 6, minutes: 300, values: { fgm: 90, fga: 180 } })
+    // Rows written before the size column (the five-man ones above) read as five.
+    const fives = await readLineups(db, String(BOS), 2026, 'regular', 'base', 5)
+    expect(fives.units.map((u) => u.players.length)).toEqual([5, 5])
+    const threes = await readLineups(db, String(BOS), 2026, 'regular', 'base', 3)
+    expect(threes.units[0].players.map((p) => p.id)).toEqual(['1', '2', '3'])
+    // Not a size the NBA publishes.
+    expect((await readLineups(db, String(BOS), 2026, 'regular', 'base', 6)).units).toEqual([])
   })
 
   it('is empty for a team with no units, a season without them, and anything that is not an id', async () => {
-    const none = { units: [], floorMinutes: null }
+    const none = { units: [], floorMinutes: null, sizes: [] }
     await expect(readLineups(db, '99', 2026, 'regular', 'base')).resolves.toEqual(none)
     await expect(readLineups(db, String(BOS), 2007, 'regular', 'base')).resolves.toEqual(none)
     await expect(readLineups(db, 'x; DROP', 2026, 'regular', 'base')).resolves.toEqual(none)

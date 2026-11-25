@@ -236,7 +236,7 @@ describe('season types in the college leagues (D45)', () => {
       expect(unitsNote()).toBe(
         'Every unit of five distinct players the lineups know, in every season from 1996-97.'
       )
-      expect(lineupNotes(scope, null, 'raw')[0]).toMatch(/2,000 units/)
+      expect(lineupNotes(scope, 11.9, 'raw')[0]).toMatch(/2,000 five-man units/)
     }
   })
 })
