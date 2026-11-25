@@ -41,6 +41,7 @@ import type {
   StatsAttributeValue,
   StatsCoach,
   StatsIndexedPlayer,
+  StatsPlayerGames,
   StatsPlayerInfo,
   StatsQuery,
   StatsResult,
@@ -214,6 +215,11 @@ export function registerIpcHandlers(ctx: AppContext): void {
     IPC.statsRatingHistory,
     (_e, league: LeagueId, player: string): Promise<RatingHistory> =>
       readsFor(ctx, league).ratingHistory(player)
+  )
+  ipcMain.handle(
+    IPC.statsPlayerGames,
+    (_e, league: LeagueId, player: string): Promise<StatsPlayerGames> =>
+      readsFor(ctx, league).playerGames(player)
   )
   ipcMain.handle(
     IPC.statsCoaches,

@@ -380,6 +380,11 @@ export interface League {
    */
   loadedWindow?: boolean
   /**
+   * Whether the league played seasons before `firstSeason` that the data does not hold: the NBA's
+   * before 1993-94 (D9), the colleges'. Not the WNBA's, which began with its first season here.
+   */
+  playedBefore?: boolean
+  /**
    * What the Standings screen says its table counts, where it is not the league's own regular season:
    * ESPN's college standings count every game, the postseason with it.
    */
@@ -695,6 +700,7 @@ const NBA: BuiltLeague = {
   typeNames: { 'cup-final': 'NBA Cup final' },
   defaultType: 'regular',
   firstSeason: 1994,
+  playedBefore: true,
   minimumsGames: 82,
   minimumsMinutes: 48,
   gamesRule: { kind: 'scaled' },
@@ -1196,6 +1202,7 @@ const college = (
   gamesRule: { kind: 'share', share: 0.75, perGame: ['pts', 'reb', 'ast', 'stl', 'blk', 'fg3m'] },
   // Nothing before 2021-22 is loaded (D39); Division I teams alone are ranked (D40).
   loadedWindow: true,
+  playedBefore: true,
   divisionIOnly: true,
   manyRows: true,
   noAllStarGame: true,

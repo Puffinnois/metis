@@ -4,6 +4,7 @@ import { CategorySections } from '@/components/stats/CategorySections'
 import { CareerStrip } from '@/components/stats/CareerStrip'
 import { FavouriteName, FavouriteStar } from '@/components/stats/FavouriteStar'
 import { MetricHead } from '@/components/stats/MetricCard'
+import { PlayerHighs } from '@/components/stats/PlayerHighs'
 import { RatingHistoryChart } from '@/components/stats/RatingHistoryChart'
 import { ShotChart } from '@/components/stats/ShotChart'
 import { useScreenState } from '@/lib/stats/session'
@@ -395,6 +396,7 @@ export function StatsPlayer({
             )}
             {tab !== 'log' &&
               tab !== 'profile' &&
+              tab !== 'highs' &&
               (row !== null || tab === 'overview') &&
               rescalesOn(data, tab) && (
                 <div className="self-start">
@@ -440,6 +442,8 @@ function TabBody({
   if (tab === 'overview') return <Overview {...props} played={played} />
   // The profile is about the player, not a season: it shows whatever is in scope.
   if (tab === 'profile') return <Profile {...props} />
+  // A career's highs stand whatever the season in scope; the season's say it had no games.
+  if (tab === 'highs') return <PlayerHighs {...props} />
   if (!played) return null
   if (tab === 'log') return <GameLog {...props} />
   if (tab === 'splits') return <Splits {...props} />

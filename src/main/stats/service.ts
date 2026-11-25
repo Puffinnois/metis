@@ -13,6 +13,7 @@ import type {
   StatsGame,
   StatsGameDetail,
   StatsIndexedPlayer,
+  StatsPlayerGames,
   StatsPlayerInfo,
   StatsQuery,
   StatsResult,
@@ -56,6 +57,7 @@ import type {
 } from './protocol'
 import { readAttributeValues } from './attributeReads'
 import { readAvailability, readCoaches, readGameListings } from './availabilityReads'
+import { readPlayerGames } from './highReads'
 import { readRatingHistory } from './ratingReads'
 import { DARKO_LABEL, readDarkoImports } from './darkoImport'
 import { DARKO_DPM_TABLE, DARKO_SOURCE } from './derived/darko'
@@ -188,6 +190,8 @@ export interface StatsService {
   availability(players: string[]): Promise<StatsAvailability[]>
   /** A player's ratings over time, each series named with its maker (Plan T1704). */
   ratingHistory(player: string): Promise<RatingHistory>
+  /** Every game a player has a line in, for their highs, streaks and threshold games (T1703.3). */
+  playerGames(player: string): Promise<StatsPlayerGames>
   /** The players' listings on the injury report for these games (T1601.4). */
   gameListings(games: string[], players: string[]): Promise<StatsGameListing[]>
   /** The values a text attribute holds for the seasons in scope, most held first (T1701.2). */
@@ -558,6 +562,7 @@ export async function openStatsService(
       read((reader) => readLineups(reader, team, season, gameType, group, size)),
     availability: (players) => read((reader) => readAvailability(reader, players)),
     ratingHistory: (player) => read((reader) => readRatingHistory(reader, player, league)),
+    playerGames: (player) => read((reader) => readPlayerGames(reader, player)),
     gameListings: (games, players) => read((reader) => readGameListings(reader, games, players)),
     attributeValues: (attribute, seasons) =>
       read((reader) => readAttributeValues(reader, attribute, seasons, league)),
@@ -667,6 +672,7 @@ export async function openStatsService(
     profile: none.profile,
     availability: none.availability,
     ratingHistory: none.ratingHistory,
+    playerGames: none.playerGames,
     gameListings: none.gameListings,
     attributeValues: none.attributeValues,
     coaches: none.coaches,

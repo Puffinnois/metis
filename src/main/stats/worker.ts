@@ -78,6 +78,8 @@ async function handle(request: StatsRequest): Promise<unknown> {
       return service.availability(request.players)
     case 'ratingHistory':
       return service.ratingHistory(request.player)
+    case 'playerGames':
+      return service.playerGames(request.player)
     case 'gameListings':
       return service.gameListings(request.games, request.players)
     case 'attributeValues':

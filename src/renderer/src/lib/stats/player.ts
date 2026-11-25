@@ -32,12 +32,13 @@ import { queryScope, shortDay, type StatsScope } from './scope'
  * A tab of the player page: Overview, a category (`cat:shooting`, D52), or one of the views of the
  * player that are no category: the game log, splits, on/off and profile.
  */
-export type PlayerTab = 'overview' | 'on_off' | 'log' | 'splits' | 'profile' | CategoryTab
+export type PlayerTab = 'overview' | 'on_off' | 'log' | 'highs' | 'splits' | 'profile' | CategoryTab
 
 /** The page's own tabs; the categories the league has follow in a strip of their own. */
 export const PLAYER_DASH_TABS: { id: PlayerTab; label: string }[] = [
   { id: 'overview', label: 'Overview' },
   { id: 'log', label: 'Game log' },
+  { id: 'highs', label: 'Highs' },
   { id: 'splits', label: 'Splits' },
   { id: 'on_off', label: 'On/off' },
   { id: 'profile', label: 'Profile' }
