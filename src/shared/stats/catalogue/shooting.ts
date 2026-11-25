@@ -215,6 +215,22 @@ export const SHOOTING: MetricDef[] = [
     }
   ),
   metric(
+    'ast_usg_ratio',
+    'Assist-to-usage ratio',
+    'AST:USG',
+    `Assist percentage over usage percentage: the share of teammates' baskets assisted for the share of the plays finished. Above 1, a player creates for others more than they finish. ${ON_COURT_NOTE}`,
+    {
+      value:
+        '({ast} / nullif({x_ast_den}, 0)) / nullif(({fga} + 0.44 * {fta} + {tov}) / nullif({x_usg_den}, 0), 0)',
+      sample: 'minutes',
+      kind: 'estimated',
+      decimals: 2,
+      minSample: 1000,
+      ...f,
+      categories: ['playmaking.passing', 'offense.playmaking']
+    }
+  ),
+  metric(
     'orb_pct',
     'Offensive rebound percentage',
     'ORB%',

@@ -1,5 +1,5 @@
 import type { League } from '@shared/leagues'
-import { CATALOGUE, componentsOf, metricIn } from '@shared/stats/catalogue'
+import { CATALOGUE, componentsOf, metricIn, TEAM_GAMES } from '@shared/stats/catalogue'
 import { sampleLabel } from '@shared/stats/samples'
 import type { Entity, Grain, MetricDef, MetricInfo, MetricStability } from '@shared/stats/types'
 import { EXTRA_PLAYER_SUMS, EXTRA_TEAM_SUMS, PLAYER_SUMS, TEAM_SUMS } from '../derived/game'
@@ -43,14 +43,20 @@ export function grainsOf(def: MetricDef): Grain[] {
   if (def.published) {
     const table = publishedTable(def.published)
     const held = table ? publishedComponents(table) : []
-    if (table?.entity !== def.entity || !parts.every((c) => held.includes(c))) return []
+    // What the box scores hold of it (`MetricDef.box`), the rest the published table's.
+    const box = (c: string): boolean => !!def.box?.includes(c) && COMPONENTS[def.entity].has(c)
+    if (table?.entity !== def.entity || !parts.every((c) => held.includes(c) || box(c))) return []
     // A game table, where one holds every part, answers what splits a season.
     const games = gameTable(def.publishedGames)
     return games?.entity === def.entity && parts.every((c) => games.components.includes(c))
       ? ['game', 'season']
       : ['season']
   }
-  return parts.every((c) => COMPONENTS[def.entity].has(c)) ? ['game', 'season'] : []
+  return parts.every(
+    (c) => COMPONENTS[def.entity].has(c) || (c === TEAM_GAMES && def.entity === 'player')
+  )
+    ? ['game', 'season']
+    : []
 }
 
 /**

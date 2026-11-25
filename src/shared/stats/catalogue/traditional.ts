@@ -59,6 +59,34 @@ export const TRADITIONAL: MetricDef[] = [
       categories: ['playing_time.games_minutes']
     }
   ),
+  metric(
+    'min_share',
+    'Share of team minutes',
+    'MIN%',
+    "The player's minutes over the team's in the games they played, where the five on the floor make 100 %. A game the team played without them does not count against it: the games share says that.",
+    {
+      value: '{seconds} / nullif({tm_seconds} / 5.0, 0)',
+      sample: 'games',
+      unit: 'pct',
+      direction: 'neutral',
+      ...f,
+      categories: ['playing_time.games_minutes']
+    }
+  ),
+  metric(
+    'gp_share',
+    'Share of team games',
+    'GP%',
+    'Games the player appeared in over the games their team played in scope. A player who changed teams in a season takes the team with more games.',
+    {
+      value: '{games} / nullif({team_games}, 0)',
+      sample: 'games',
+      unit: 'pct',
+      direction: 'neutral',
+      ...f,
+      categories: ['playing_time.games_minutes']
+    }
+  ),
   metric('w', 'Wins', 'W', 'Team wins in games the player appeared in.', {
     ...count('wins', { ...f, totalOnly: true }),
     categories: ['results.record']

@@ -12,6 +12,7 @@ import { IMPACT } from './impact'
 import { ROLLING_METRICS } from './rolling'
 import { DARKO_METRICS } from './darko'
 import { leagueIndexes } from './indexes'
+import { LEAGUE_RELATIVE } from './relative'
 import { MATCHUPS } from './matchups'
 import { ON_COURT } from './onCourt'
 import { PLAY_TYPES } from './playTypes'
@@ -56,16 +57,22 @@ export const CATALOGUE: MetricDef[] = [
   ...COLLEGE_DEPTH
 ]
 // The league indexes read the rates above, so they are added once those are all there.
-CATALOGUE.push(...leagueIndexes(CATALOGUE))
+CATALOGUE.push(...leagueIndexes(CATALOGUE), ...LEAGUE_RELATIVE(CATALOGUE))
+
+/**
+ * A component that is no sum of rows: the games the player's own teams played in scope (the engine's
+ * `ownGamesCte`), for a share of them. A player metric's alone.
+ */
+export const TEAM_GAMES = 'team_games'
 
 /** A component in a formula: `{fga}`. */
 export const TOKEN = /\{([a-z0-9_]+)\}/g
 
 /** Every component a metric reads, its sample, qualifying count and per-game divisor included. */
 export function componentsOf(
-  def: Pick<MetricDef, 'value' | 'sample' | 'perGameBy' | 'qualifyBy'>
+  def: Pick<MetricDef, 'value' | 'sample' | 'perGameBy' | 'qualifyBy' | 'weight'>
 ): string[] {
-  const names = [...def.value.matchAll(TOKEN)].map((m) => m[1])
+  const names = [...`${def.value} ${def.weight ?? ''}`.matchAll(TOKEN)].map((m) => m[1])
   return [
     ...new Set([
       ...names,

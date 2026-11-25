@@ -1,5 +1,6 @@
 import {
   componentsOf,
+  TEAM_GAMES,
   COMPUTED_WHOLE_SEASONS,
   coverageReason,
   METRICS,
@@ -597,6 +598,7 @@ function unbuiltGap(
   // coverage was checked first), so an empty table is one its next refresh fills.
   if (own && schema.empty.has(own.table)) return BUILT_AT_NEXT_REFRESH
   for (const part of parts) {
+    if (part === TEAM_GAMES) continue
     const table = own && own.components.includes(part) ? own.table : box
     if (!schema.columns.get(table)?.has(part)) return BUILT_AT_NEXT_REFRESH
   }
@@ -735,6 +737,15 @@ function gameWhere(q: StatsQuery, params: Params): string[] {
   return where
 }
 
+/** Whether a metric reads the player's teams' games (`TEAM_GAMES`). */
+const readsTeamGames = (q: StatsQuery, c: Checked): boolean =>
+  q.entity === 'player' &&
+  c.metrics.some((m, i) => c.gaps[i] === null && componentsOf(m).includes(TEAM_GAMES))
+
+/** What the league's value of a metric is: for an added count, the rate its weight is multiplied by. */
+const leagueValue = (m: MetricDef): string =>
+  m.relative === 'added' ? `(${m.value}) / nullif(${m.weight}, 0)` : m.value
+
 /** What a sum divides by under a transform; null when the transform leaves it a total. */
 function perDivisor(m: MetricDef, transform: Transform, entity: 'player' | 'team'): string | null {
   if (m.aggregation !== 'sum' || m.totalOnly) return null
@@ -774,15 +785,20 @@ function metricColumns(
       return [
         `NULL::DOUBLE AS v${i}`,
         `NULL::DOUBLE AS s${i}`,
+        ...(m.weight === undefined ? [] : [`NULL::DOUBLE AS w${i}`]),
         ...(qualifyBy ? [`NULL::DOUBLE AS k${i}`] : [])
       ]
     }
     const by = perDivisor(m, c.transform, q.entity)
     const value = by ? `(${m.value}) / nullif(${by}, 0)` : m.value
-    const filled = value.replace(TOKEN, (_, name: string) => sumOf(m, name))
+    const fill = (sql: string): string => sql.replace(TOKEN, (_, name: string) => sumOf(m, name))
+    const weight =
+      m.weight === undefined ? undefined : by ? `(${m.weight}) / nullif(${by}, 0)` : m.weight
     return [
-      `(${filled})::DOUBLE AS v${i}`,
+      `(${fill(value)})::DOUBLE AS v${i}`,
       `(${sumOf(m, m.sample)})::DOUBLE AS s${i}`,
+      // What an `added` value is over, which the league's rate is multiplied by (`relative`).
+      ...(weight === undefined ? [] : [`(${fill(weight)})::DOUBLE AS w${i}`]),
       ...(qualifyBy ? [`(${sumOf(m, qualifyBy)})::DOUBLE AS k${i}`] : [])
     ]
   })
@@ -807,11 +823,15 @@ function neededComponents(q: StatsQuery, c: Checked): Set<string> {
   const needed = new Set(['games'])
   for (const [i, m] of c.metrics.entries()) {
     // A metric with no answer reads NULL, so nothing of it is needed.
-    if (m.published || c.gaps[i] !== null) continue
+    if (c.gaps[i] !== null) continue
+    if (m.published) {
+      for (const part of m.box ?? []) needed.add(part)
+      continue
+    }
     // A built or model table's values are read from it; its divisors still come from here.
     const held = heldBy(m)
     for (const part of partsOf(m, q, c)) {
-      if (!held?.includes(part)) needed.add(part)
+      if (!held?.includes(part) && part !== TEAM_GAMES) needed.add(part)
     }
   }
   return needed
@@ -1036,7 +1056,7 @@ function aggregate(
     WHERE ${where.join(' AND ')} ${lastN})`)
   // A per-game leader in a league whose games rule is a share of the team's games (D43) qualifies
   // on its own team's games in scope, not the scope's average.
-  const own = league === undefined && ownGamesRule(q, c)
+  const own = league === undefined && (ownGamesRule(q, c) || readsTeamGames(q, c))
   if (own) ctes.push(ownGamesCte(`${p}own`, q, c, params, base, split))
   // A table that adds rows lists its players with no line in scope beside the box-score rows; the
   // league's sums never have them (Plan T1206).
@@ -1070,7 +1090,7 @@ function aggregate(
     const parts = published.get(table) ?? new Set<string>()
     const held = heldBy(m)
     for (const part of partsOf(m, q, c)) {
-      if (!held || held.includes(part)) parts.add(part)
+      if (m.box?.includes(part) ? false : !held || held.includes(part)) parts.add(part)
     }
     published.set(table, parts)
   })
@@ -1111,6 +1131,9 @@ function aggregate(
     (t) => `LEFT JOIN ${alias(t)} ON ${alias(t)}.id = s.id${on(alias(t), t)}`
   )
   const sumOf = (m: MetricDef, n: string): string => {
+    // The games of the player's own teams in scope, no sum of rows (`ownGamesCte`).
+    if (n === TEAM_GAMES) return own ? ownGamesOf(q, c, params) : 'NULL'
+    if (m.box?.includes(n)) return `s.${n}`
     const table = tableOf(m)
     if ((m.built || m.model) && table) {
       return heldBy(m)?.includes(n) ? `${alias(table)}.${n}` : `s.${n}`
@@ -1121,7 +1144,9 @@ function aggregate(
     const dims = c.groupBy.map((d) => `s.g_${d}`)
     const values = c.metrics.flatMap((m, i) =>
       league[i]
-        ? [`(${m.value.replace(TOKEN, (_, n: string) => `sum(${sumOf(m, n)})`)})::DOUBLE AS lv${i}`]
+        ? [
+            `(${leagueValue(m).replace(TOKEN, (_, n: string) => `sum(${sumOf(m, n)})`)})::DOUBLE AS lv${i}`
+          ]
         : []
     )
     ctes.push(`${p}league AS (
@@ -1336,9 +1361,12 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
   const dims = c.groupBy
   const leagueDims = dims.filter((d) => d === 'season' || d === 'month')
   if (withLeague) {
-    // An index replaces the value with 100 × value / league (mirrored where lower is better).
+    // An index replaces the value with 100 × value / league (mirrored where lower is better); a relative
+    // rate with the rate less the league's, and an added count with what it is beyond the league's rate.
     const indexed = c.metrics.flatMap((m, i) => {
       if (!want[i] || m.index === undefined) return []
+      if (m.relative === 'difference') return [`a.v${i} - l.lv${i} AS v${i}`]
+      if (m.relative === 'added') return [`a.v${i} - a.w${i} * l.lv${i} AS v${i}`]
       const of = `a.v${i} / nullif(l.lv${i}, 0)`
       const mirrored = METRICS.get(m.index)?.direction === 'lower'
       return [`100.0 * ${mirrored ? `(2 - ${of})` : of} AS v${i}`]
@@ -1357,7 +1385,7 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
     const k = priors[i]
     if (k === undefined) return []
     const pk = params.add(k)
-    const lg = m.index !== undefined ? '100.0' : `lv${i}`
+    const lg = m.relative === 'difference' ? '0.0' : m.index !== undefined ? '100.0' : `lv${i}`
     return [
       `CASE WHEN v${i} IS NULL OR ${lg} IS NULL THEN v${i}
          ELSE (s${i} * v${i} + ${pk} * ${lg}) / nullif(s${i} + ${pk}, 0) END AS u${i}`

@@ -4,7 +4,14 @@ import { OPP_SHOT_COMPONENTS, SHOT_COMPONENTS } from '@main/stats/derived/shots'
 import { PLAY_DETAIL_COUNTS, PLAY_DETAIL_TEAM_COMPONENTS } from '@main/stats/derived/playDetail'
 import { COMPONENTS, grainsOf } from '@main/stats/engine/registry'
 import { modelTable } from '@main/stats/models/build'
-import { CATALOGUE, componentsOf, coverageReason, covers, TOKEN } from '@shared/stats/catalogue'
+import {
+  CATALOGUE,
+  componentsOf,
+  coverageReason,
+  covers,
+  TEAM_GAMES,
+  TOKEN
+} from '@shared/stats/catalogue'
 import { PLAY_TYPE_SIDES } from '@shared/stats/playTypes'
 import { RECORD_COLUMNS, STREAK_COLUMNS } from '@shared/stats/catalogue/records'
 import { SAMPLE_LABELS } from '@shared/stats/samples'
@@ -272,7 +279,9 @@ const PLAYER_ROW: Record<string, number> = {
   x_blk_den: 15,
   x_usg_den: 40,
   on_poss: ON_POSS,
-  x_pie_den: X_PIE_DEN
+  x_pie_den: X_PIE_DEN,
+  // The games of the player's own teams, which the engine counts (`TEAM_GAMES`).
+  [TEAM_GAMES]: 5
 }
 
 /** The stored components of a team's row. */
@@ -420,6 +429,9 @@ const EXPECTED: Record<string, number> = {
   stl_pct: 4 / 22,
   blk_pct: 2 / 15,
   usg_pct: (tsa(PLAYER) + PLAYER.tov) / 40,
+  ast_usg_ratio: 10 / 30 / ((tsa(PLAYER) + PLAYER.tov) / 40),
+  min_share: SECONDS / (TEAM_SECONDS / 5),
+  gp_share: 2 / 5,
   player_on_poss: ON_POSS,
   pie: pieOf(PLAYER) / X_PIE_DEN,
   share_pts: share('pts'),
@@ -514,6 +526,9 @@ const DASHBOARD_COLUMNS = `
   nba_pts_paint pts_paint -; nba_on_opp_pts_off_tov opp_pts_off_tov -
   nba_on_opp_pts_2_nd_chance opp_pts_2_nd_chance -; nba_on_opp_pts_fb opp_pts_fb -
   nba_on_opp_pts_paint opp_pts_paint -; nba_blka blka -; nba_pfd pfd -
+  nba_pts_2_nd_chance_share pts_2_nd_chance pts
+  team_nba_pts_2_nd_chance_share pts_2_nd_chance pts
+  opp_nba_pts_2_nd_chance_share opp_pts_2_nd_chance opp_pts
   team_nba_pts_off_tov pts_off_tov -; team_nba_pts_2_nd_chance pts_2_nd_chance -
   team_nba_pts_fb pts_fb -; team_nba_pts_paint pts_paint -; opp_nba_pts_off_tov opp_pts_off_tov -
   opp_nba_pts_2_nd_chance opp_pts_2_nd_chance -; opp_nba_pts_fb opp_pts_fb -
@@ -864,6 +879,8 @@ const OFF_DRTG = (100 * 1120) / 1010
 Object.assign(EXPECTED, {
   onc_min: 1500,
   onc_poss: 3000,
+  onc_pts: ON_COURT_ROW.on_pts,
+  onc_opp_pts: ON_COURT_ROW.on_opp_pts,
   onc_plus_minus: 150,
   onc_ortg: 115,
   onc_drtg: ON_DRTG,
@@ -1140,9 +1157,22 @@ Object.assign(
 Object.assign(
   EXPECTED,
   Object.fromEntries(
-    CATALOGUE.filter((m) => m.index !== undefined).map((m) => [m.id, EXPECTED[m.index!]])
+    CATALOGUE.filter((m) => m.index !== undefined && m.relative !== 'added').map((m) => [
+      m.id,
+      EXPECTED[m.index!]
+    ])
   )
 )
+
+// What an added count's own row counts, before the league's rate is taken off (engine tests).
+Object.assign(EXPECTED, {
+  ts_add: PLAYER.pts,
+  team_ts_add: TEAM.pts,
+  opp_ts_add: OPP.pts,
+  fg_add: EXPECTED.pts_2pt + EXPECTED.pts_3pt,
+  team_fg_add: EXPECTED.team_pts_2pt + EXPECTED.team_pts_3pt,
+  opp_fg_add: EXPECTED.opp_pts_2pt + EXPECTED.opp_pts_3pt
+})
 
 const fill = (m: MetricDef, row: Record<string, number>): string =>
   m.value.replace(TOKEN, (_, c: string) => {
@@ -1196,7 +1226,10 @@ describe('the metric catalogue', () => {
         continue
       }
       expect(grainsOf(m), m.id).toEqual(['game', 'season'])
-      for (const c of componentsOf(m)) expect(COMPONENTS[m.entity], `${m.id}: ${c}`).toContain(c)
+      for (const c of componentsOf(m)) {
+        // The player's own teams' games are the engine's, no column of the tables.
+        if (c !== TEAM_GAMES) expect(COMPONENTS[m.entity], `${m.id}: ${c}`).toContain(c)
+      }
     }
   })
 
@@ -1247,6 +1280,10 @@ describe('the metric catalogue', () => {
     const m = (id: string): MetricDef => CATALOGUE.find((x) => x.id === id)!
     expect(m('team_ast').perGameBy).toBe('box_games')
     expect(m('team_pts').perGameBy).toBeUndefined()
+    for (const id of ['team_ts_add', 'opp_fg_add']) {
+      expect(m(id), id).toMatchObject({ perGameBy: 'box_games', sample: 'box_games' })
+    }
+    expect(m('ts_add').perGameBy).toBeUndefined()
     expect(m('team_bench_pts').perGameBy).toBe('starts_known')
   })
 
