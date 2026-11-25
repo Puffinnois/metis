@@ -161,7 +161,8 @@ export const COLLEGE_PLAYS: PlaysRecipe = {
   // where it has no id. 4: the play by play's own tables (T1302.7), the play-credited units beside.
   // 5: every pick by a total order, so the same files always give the same rows (T1302.9). 6: each
   // team's side read from the identity's decision (`ncaa_side`), and the player keys it changed (T1703.2).
-  version: 6,
+  // 7: a player's team in `play_player_game` picked by a total order (T1703.2).
+  version: 7,
   pbp: 'src_ncaa_pbp',
   shots: 'src_ncaa_shots',
   possessions: 'src_ncaa_possessions',
