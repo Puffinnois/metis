@@ -121,8 +121,16 @@ describe('the side a stats.ncaa.org row stands on', () => {
         `UPDATE src_ncaa_team_box SET team_espn_team_id = NULL, team = 'Nowhere St.' WHERE contest_id = '${c.contest_id}' AND team = '${q}'`
       )
       await db.exec(
-        `UPDATE src_ncaa_player_box SET team_espn_team_id = NULL, player_id = NULL, player = player || ' zz', team = 'Nowhere St.', home = away, away = home WHERE contest_id = '${c.contest_id}' AND team = '${q}'`
+        `UPDATE src_ncaa_player_box SET home = away, away = home WHERE contest_id = '${c.contest_id}'`
       )
+      await db.exec(
+        `UPDATE src_ncaa_player_box SET team_espn_team_id = NULL, player_id = NULL, player = player || ' zz', team = 'Nowhere St.' WHERE contest_id = '${c.contest_id}' AND team = '${q}'`
+      )
+      // As in the game this was found in: the file's home team is the unnamed one, the game's away.
+      for (const t of ['src_ncaa_team_box', 'src_ncaa_player_box'])
+        await db.exec(
+          `UPDATE ${t} SET home = 'Nowhere St.' WHERE contest_id = '${c.contest_id}' AND home = '${q}'`
+        )
       await buildDerived(db, women)
       const row = (await sides(db, c.contest_id)).find((r) => r.team === 'Nowhere St.')
       expect([row?.method, row?.team_id]).toEqual(['elimination', c.y])
