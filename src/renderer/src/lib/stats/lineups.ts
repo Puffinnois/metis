@@ -191,6 +191,19 @@ export function sizeWords(size: number): string {
 }
 
 /**
+ * The heading's line beside the tab's title: where the list comes from. The league's own files for
+ * the NBA and the WNBA; the colleges' units are built from stats.ncaa.org's lineup file or its play by
+ * play, which no one publishes as units.
+ */
+export function lineupHeading(size: number): string {
+  const league = currentLeague()
+  const words = sizeWords(size)
+  const units = words[0].toUpperCase() + words.slice(1)
+  if (!league.onCourtNote) return inLeague(`${units}, as the {league} publishes them`)
+  return `${units}, from stats.ncaa.org’s ${league.onCourtFrom === 'plays' ? 'play by play' : 'lineup file'}`
+}
+
+/**
  * What a list says about the units the NBA leaves out. `floorMinutes` is where the league's list of
  * this size stops when its file reached 2,000 units; null when the file lists them all.
  */

@@ -9,6 +9,7 @@ import {
   LINEUP_GROUPS,
   lineupGameType,
   lineupGap,
+  lineupHeading,
   lineupNotes,
   lineupPlayers,
   lineupRows,
@@ -21,7 +22,7 @@ import {
   type LineupSort
 } from '@/lib/stats/lineups'
 import type { StatsScope } from '@/lib/stats/scope'
-import { currentLeague, inLeague } from '@/lib/stats/league'
+import { currentLeague } from '@/lib/stats/league'
 import { UNIT_SIZES } from '@/lib/stats/onCourt'
 import { useLineups, type StatsData } from '@/lib/stats/useStats'
 import { lineupColumns } from '@shared/stats/lineups'
@@ -111,16 +112,7 @@ function PublishedLineups({
   const shownWith = players.some((p) => p.value === withPlayer) ? withPlayer : ANYONE
   return (
     <section className="flex flex-col gap-3">
-      <SectionHead
-        title="Lineups"
-        note={
-          gap
-            ? undefined
-            : inLeague(
-                `${sizeWords(Number(size)).replace(/^./, (c) => c.toUpperCase())}, as the {league} publishes them`
-              )
-        }
-      />
+      <SectionHead title="Lineups" note={gap ? undefined : lineupHeading(Number(size))} />
       {gap ? (
         <p className="m-0 text-[12.5px] text-fg-3">{gap}</p>
       ) : (
