@@ -148,6 +148,21 @@ function ncaaLines(have: Have): string {
     LEFT JOIN ${NCAA_SIDE} s ON s.contest_id = b.contest_id AND s.team = b.team`
 }
 
+/** The five counts two sources' lines of one performance are compared on, as the identity compares them. */
+const FIVE = ['pts', 'reb', 'ast', 'fga', 'pf'] as const
+
+/** Whether line `n` is another performance than line `t`: the points differ, or two or more of the five. */
+const otherPerformance = (n: string, t: string): string =>
+  `(${n}.pts IS DISTINCT FROM ${t}.pts OR ${FIVE.map((c) => `(${n}.${c} IS DISTINCT FROM ${t}.${c})::INTEGER`).join(' + ')} >= 2)`
+
+/**
+ * Whether a file line `o` of `n`'s team and game equals the box line `t` on every one of the five, for a
+ * box line that is not all zeros: the line that is `t`'s, standing under another name.
+ */
+const exactLine = (o: string, n: string, t: string): string =>
+  `${o}.game_id = ${n}.game_id AND ${o}.team_id = ${n}.team_id AND ${FIVE.map((c) => `${o}.${c} = ${t}.${c}`).join(' AND ')}
+   AND ${FIVE.map((c) => `${t}.${c}`).join(' + ')} > 0`
+
 /**
  * One line per player per game they appeared in, every line of a game from one source: ESPN's
  * (`espnLines`) where it has lines for every side stats.ncaa.org has, else stats.ncaa.org's for the
@@ -160,7 +175,10 @@ function ncaaLines(have: Have): string {
  * the player's line stands on. Two file lines can resolve to one player in a game (two people of one key,
  * ESPN's or the file's id given to another: 8 in the window). Then the line on their own side is theirs,
  * and of two on that side the one whose counts equal the box's; with none equal, or none on their side,
- * neither is, and the splits read nothing.
+ * neither is, and the splits read nothing. Nor is a line that is another performance than the box's while
+ * another line of the team equals the box's on all five counts: the names of that game stand on the wrong
+ * lines in one of the two sources (LeMoyne-Owen, NCAA Women, 2022-23, has eight), and the splits under a
+ * player's name are another's. The line that is equal is not read in its place.
  */
 const LINES = `CREATE OR REPLACE TEMP TABLE lines AS
   WITH espn_all AS (
@@ -183,21 +201,32 @@ const LINES = `CREATE OR REPLACE TEMP TABLE lines AS
     SELECT n.* FROM ncaa_all n SEMI JOIN ncaa_games g ON g.game_id = n.game_id
   ), together AS (
     SELECT * FROM espn UNION ALL BY NAME SELECT * FROM ncaa
-  ), candidates AS (
-    SELECT t.game_id, t.player_id, ${NCAA_PLAYER_SUMS.map((c) => `n.${c}`).join(', ')},
-           n.team_id IS NOT DISTINCT FROM t.team_id AS own,
-           -- A row's own counts against the box's: the same line, or one of two people.
-           (${BOX_COUNTS.map((c) => `n.${c} IS NOT DISTINCT FROM t.${c}`).join(' AND ')}) AS same,
-           count(*) OVER (PARTITION BY t.game_id, t.player_id) AS lines,
+  ), twice AS (
+    SELECT game_id, player_id FROM ncaa_lines WHERE player_id IS NOT NULL
+    GROUP BY 1, 2 HAVING count(*) > 1
+  ), ranked AS (
+    SELECT n.*, n.team_id IS NOT DISTINCT FROM t.team_id AS own,
+           -- The five counts against the box's: the same line, or one of two people.
+           (${FIVE.map((c) => `n.${c} IS NOT DISTINCT FROM t.${c}`).join(' AND ')}) AS same,
            count(*) FILTER (WHERE n.team_id IS NOT DISTINCT FROM t.team_id)
-             OVER (PARTITION BY t.game_id, t.player_id) AS own_lines,
-           row_number() OVER (PARTITION BY t.game_id, t.player_id
-             ORDER BY (n.team_id IS NOT DISTINCT FROM t.team_id) DESC,
-               (${BOX_COUNTS.map((c) => `n.${c} IS NOT DISTINCT FROM t.${c}`).join(' AND ')}) DESC, n::VARCHAR) AS place
-    FROM together t JOIN ncaa_lines n ON n.game_id = t.game_id AND n.player_id = t.player_id
+             OVER (PARTITION BY n.game_id, n.player_id) AS own_lines,
+           ${otherPerformance('n', 't')} AND EXISTS (
+             SELECT 1 FROM ncaa_lines o WHERE ${exactLine('o', 'n', 't')}) AS moved
+    FROM ncaa_lines n JOIN twice USING (game_id, player_id) JOIN together t USING (game_id, player_id)
+  ), moved AS (
+    SELECT DISTINCT n.game_id, n.player_id
+    FROM ncaa_lines n ANTI JOIN twice USING (game_id, player_id)
+    JOIN together t ON t.game_id = n.game_id AND t.player_id = n.player_id
+    JOIN ncaa_lines o ON ${exactLine('o', 'n', 't')}
+    WHERE ${otherPerformance('n', 't')}
   ), splits AS (
-    SELECT * FROM candidates
-    WHERE place = 1 AND (lines = 1 OR own AND (own_lines = 1 OR same))
+    SELECT game_id, player_id, ${NCAA_PLAYER_SUMS.join(', ')}
+    FROM ncaa_lines ANTI JOIN twice USING (game_id, player_id) ANTI JOIN moved USING (game_id, player_id)
+    WHERE player_id IS NOT NULL
+    UNION ALL
+    SELECT game_id, player_id, ${NCAA_PLAYER_SUMS.join(', ')} FROM ranked
+    WHERE own AND (own_lines = 1 AND NOT moved OR same)
+    QUALIFY row_number() OVER (PARTITION BY game_id, player_id ORDER BY same DESC, ranked::VARCHAR) = 1
   )
   SELECT t.* EXCLUDE (starter),
          CASE WHEN count(*) FILTER (WHERE t.starter) OVER (PARTITION BY t.game_id, t.team_id) = 5

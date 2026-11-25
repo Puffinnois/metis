@@ -346,6 +346,49 @@ describe('players', () => {
     ).toBeGreaterThan(0)
   })
 
+  it('link a player by box-score lines only where at least half of their lines are the athlete’s', async () => {
+    const db = await openTestDb()
+    await load(db, men)
+    // One printed name with no id in four Hawaii games of 2021-22, whose lines ESPN lists under one athlete:
+    // two the same and two another performance (exactly half), and a second line in one of them (under half).
+    const contests = ['2140211', '2148660', '2140135', '2140566']
+    const insert = async (): Promise<void> => {
+      for (const [i, c] of contests.entries()) {
+        const points = 10 + i
+        await db.exec(
+          `INSERT INTO src_ncaa_player_box SELECT * REPLACE ('TEST.MAN' AS player, NULL AS player_id, NULL AS clean_name,
+             ${points} AS pts, 1 AS orb, 2 AS drb, 3 AS ast, 9 AS fga, 2 AS pf)
+           FROM src_ncaa_player_box WHERE contest_id = '${c}' AND team = 'Hawaii' LIMIT 1`
+        )
+        // ESPN's line of the athlete: the same in the first two games, another performance in the others.
+        await db.exec(
+          `INSERT INTO src_espn_player_box SELECT * REPLACE (990001 AS athlete_id, 'Somebody Else' AS athlete_display_name,
+             ${i < 2 ? points : points + 5} AS points, 3 AS rebounds, 3 AS assists, 9 AS field_goals_attempted, 2 AS fouls)
+           FROM src_espn_player_box WHERE game_id = (SELECT espn_game_id FROM game WHERE ncaa_game_id = '${c}')
+             AND team_id = ${HAWAII} LIMIT 1`
+        )
+      }
+    }
+    const link = async (): Promise<{ player_id: number; method: string } | null> =>
+      db.get<{ player_id: number; method: string }>(
+        "SELECT player_id, method FROM ncaa_player_ids WHERE player = 'TEST.MAN' AND season = 2022"
+      )
+    await buildIdentity(db, men)
+    await insert()
+    await buildIdentity(db, men)
+    expect(await link()).toEqual({ player_id: 990001, method: 'box score' })
+    // A second line in one game, another performance again: two of five agree, so the link falls.
+    await db.exec(
+      `INSERT INTO src_ncaa_player_box SELECT * REPLACE (40 AS pts)
+       FROM src_ncaa_player_box WHERE player = 'TEST.MAN' AND contest_id = '2140211'`
+    )
+    await buildIdentity(db, men)
+    const fallen = await link()
+    expect(fallen?.method).toBe('ncaa only')
+    expect(fallen?.player_id).toBeLessThan(0)
+    db.close()
+  })
+
   it("give whoever is left D28's key, negative, and a name", async () => {
     const left = await m.all<{ player_id: number; ncaa_player_id: string | null; name: string }>(
       "SELECT player_id, ncaa_player_id, name FROM ncaa_player_ids WHERE method = 'ncaa only'"

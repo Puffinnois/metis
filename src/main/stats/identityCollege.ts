@@ -495,7 +495,9 @@ const ncaaSideSql = (have: boolean): string => {
  * 1. the player crosswalk, by the season's id;
  * 2. the same box-score lines in the same games for the same team (points, rebounds, assists,
  *    attempts and fouls), with a clear winner and at least two lines that are not all zeros, as for
- *    the NBA's players (`identityShared.ts`);
+ *    the NBA's players (`identityShared.ts`), and at least half of the player's lines in games ESPN
+ *    lists that athlete in the same: one file line that stands for two people (Marvin McGhee III and
+ *    IV, CSU Bakersfield 2024-25) agrees with either of them only when the other did not play;
  * 3. the same name on the same team in the same season, when only one player on either side has it.
  *
  * Whoever is left gets D28's key: the negative of their stats.ncaa.org id, which no ESPN id equals,
@@ -561,9 +563,22 @@ const ncaaPlayerIdsSql = (have: boolean, xwalkPlayer: boolean): string =>
     SELECT *, row_number() OVER (PARTITION BY season, who ORDER BY same DESC, espn_athlete_id) AS place,
            lead(same) OVER (PARTITION BY season, who ORDER BY same DESC, espn_athlete_id) AS next_same
     FROM same_lines
-  ), by_lines AS (
+  ), likely AS (
     SELECT season, who, espn_athlete_id FROM ranked
     WHERE place = 1 AND same >= 2 AND same > 2 * coalesce(next_same, 0)
+  ), espn_box AS (
+    SELECT DISTINCT game_id, TRY_CAST(athlete_id AS BIGINT) AS espn_athlete_id, points, rebounds, assists,
+           field_goals_attempted, fouls
+    FROM src_espn_player_box WHERE points IS NOT NULL
+  ), compared AS (
+    SELECT k.season, k.who, count(*) AS lines,
+           count(*) FILTER (WHERE e.points = o.pts AND e.rebounds = o.reb AND e.assists = o.ast
+                              AND e.field_goals_attempted = o.fga AND e.fouls = o.pf) AS agree
+    FROM likely k JOIN open_lines o USING (season, who)
+    JOIN espn_box e ON e.game_id = o.espn_game_id AND e.espn_athlete_id = k.espn_athlete_id
+    GROUP BY 1, 2
+  ), by_lines AS (
+    SELECT k.* FROM likely k JOIN compared c USING (season, who) WHERE 2 * c.agree >= c.lines
   ), open_players AS (
     SELECT p.* FROM players p
     ANTI JOIN by_crosswalk c USING (season, who)

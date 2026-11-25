@@ -140,6 +140,31 @@ describe('the side a stats.ncaa.org row stands on', () => {
   )
 
   it(
+    'is learned by name from a row placed by elimination too',
+    async () => {
+      const db = await open(men)
+      // Hawaii Hilo gives no id and is placed by elimination, in both of its contests. In one, its opponent's
+      // row loses its id and its name.
+      await db.exec(
+        `UPDATE src_ncaa_team_box SET team_espn_team_id = NULL, team = 'Nowhere Tech' WHERE contest_id = '2140135' AND team = 'Hawaii'`
+      )
+      await db.exec(
+        `UPDATE src_ncaa_player_box SET team_espn_team_id = NULL, team = 'Nowhere Tech' WHERE contest_id = '2140135' AND team = 'Hawaii'`
+      )
+      await build(db, men)
+      expect((await sides(db, '2140218')).find((r) => r.team === 'Hawaii Hilo')?.method).toBe(
+        'elimination'
+      )
+      expect((await sides(db, '2140135')).map((r) => [r.team, r.method])).toEqual([
+        ['Hawaii Hilo', 'name'],
+        ['Nowhere Tech', 'elimination']
+      ])
+      db.close()
+    },
+    slow(60_000)
+  )
+
+  it(
     'is the side its contest leaves when neither id nor name tells, not the home or away it lists',
     async () => {
       const { db, c } = await loaded()
@@ -333,6 +358,24 @@ describe('the splits of a player with two lines in one game', () => {
   )
 
   it(
+    'are the line on their own side though the other side’s line is the box’s',
+    async () => {
+      const t = await setUp()
+      // The copy on the other team equals the box exactly; their own line is one point off it, as scorers are.
+      await copy(t.db, t.pid, t.other, 0)
+      await t.db.exec(
+        `UPDATE src_ncaa_player_box SET pts = pts + 1, pts_half = pts_half + 1 WHERE player_id::VARCHAR = '${t.pid}'
+           AND team = '${t.team.replaceAll("'", "''")}'
+           AND contest_id = (SELECT ncaa_game_id FROM game WHERE game_id = '${GAME}')`
+      )
+      await build(t.db, women)
+      expect((await t.own()).ncaa_pts).toBe(t.pts + 1)
+      t.db.close()
+    },
+    slow(60_000)
+  )
+
+  it(
     'are, of two on one side, the line whose counts are the box’s, and none’s when neither’s are',
     async () => {
       const t = await setUp()
@@ -362,6 +405,112 @@ describe('the splits of a player with two lines in one game', () => {
       )
       await build(t.db, women)
       expect((await t.own()).ncaa_pts).toBe(t.pts + 1)
+      t.db.close()
+    },
+    slow(60_000)
+  )
+})
+
+describe('a line that is another performance than the box’s', () => {
+  const GAME = '401415936'
+  /** A player's one line and their box line, on a fresh build. */
+  const setUp = async (): Promise<{
+    db: StatsDb
+    pid: string
+    player: number
+    team: string
+    pts: number
+    ncaa: () => Promise<number | null>
+    change: (by: number) => Promise<void>
+    exact: (team: string) => Promise<void>
+  }> => {
+    const db = await open(women)
+    await build(db, women)
+    const row = await db.get<{ pid: string; player: number; team: string; pts: number }>(
+      `SELECT b.player_id::VARCHAR AS pid, i.player_id AS player, b.team, b.pts::INTEGER AS pts
+       FROM src_ncaa_player_box b
+       JOIN ncaa_player_ids i ON i.season = b.season AND i.ncaa_player_id = b.player_id::VARCHAR
+       JOIN player_game p ON p.game_id = '${GAME}' AND p.player_id = i.player_id AND p.ncaa_pts = p.pts
+       JOIN game g ON g.game_id = '${GAME}' AND g.ncaa_game_id = b.contest_id
+       WHERE b.pts > 3 ORDER BY b.player_id LIMIT 1`
+    )
+    if (!row) throw new Error('no line in the fixtures')
+    const contest = `(SELECT ncaa_game_id FROM game WHERE game_id = '${GAME}')`
+    const copy = (team: string): Promise<void> =>
+      db.exec(
+        `INSERT INTO src_ncaa_player_box SELECT * REPLACE ('${team.replaceAll("'", "''")}' AS team,
+           (SELECT any_value(t.team_espn_team_id) FROM src_ncaa_player_box t
+            WHERE t.contest_id = b.contest_id AND t.team = '${team.replaceAll("'", "''")}') AS team_espn_team_id,
+           NULL AS player_id, 'SOMEONE.ELSE' AS player, NULL AS clean_name)
+         FROM src_ncaa_player_box b WHERE b.player_id::VARCHAR = '${row.pid}' AND b.contest_id = ${contest}`
+      )
+    return {
+      db,
+      ...row,
+      ncaa: async () =>
+        (
+          await db.get<{ p: number | null }>(
+            'SELECT ncaa_pts AS p FROM player_game WHERE game_id = ? AND player_id = ?',
+            [GAME, row.player]
+          )
+        )?.p ?? null,
+      // The player's own line moved, before or after its exact copy is put beside it.
+      change: (by) =>
+        db.exec(
+          `UPDATE src_ncaa_player_box SET pts = pts + ${by}, fga = fga + ${by}, pts_half = pts_half + ${by}
+           WHERE player_id::VARCHAR = '${row.pid}' AND contest_id = ${contest}`
+        ),
+      exact: copy
+    }
+  }
+
+  it(
+    'is not read when another line of the team is the box’s, and is when none is',
+    async () => {
+      const alone = await setUp()
+      await alone.change(6)
+      await build(alone.db, women)
+      expect(await alone.ncaa()).toBe(alone.pts + 6)
+      alone.db.close()
+
+      const beside = await setUp()
+      await beside.exact(beside.team)
+      await beside.change(6)
+      await build(beside.db, women)
+      expect(await beside.ncaa()).toBeNull()
+      // The exact line is not read in its place, and its own name keeps its own splits.
+      beside.db.close()
+    },
+    slow(60_000)
+  )
+
+  it(
+    'is read when the line that equals the box’s is the other team’s',
+    async () => {
+      const t = await setUp()
+      const other = await t.db.get<{ team: string }>(
+        `SELECT DISTINCT team FROM src_ncaa_player_box WHERE contest_id = (SELECT ncaa_game_id FROM game WHERE game_id = '${GAME}') AND team <> '${t.team.replaceAll("'", "''")}' LIMIT 1`
+      )
+      await t.exact(other?.team ?? '')
+      await t.change(6)
+      await build(t.db, women)
+      expect(await t.ncaa()).toBe(t.pts + 6)
+      t.db.close()
+    },
+    slow(60_000)
+  )
+
+  it(
+    'is read when it differs as two scorers do, by one count of one, though the box’s stands beside it',
+    async () => {
+      const t = await setUp()
+      await t.exact(t.team)
+      await t.db.exec(
+        `UPDATE src_ncaa_player_box SET pf = pf + 1 WHERE player_id::VARCHAR = '${t.pid}'
+           AND contest_id = (SELECT ncaa_game_id FROM game WHERE game_id = '${GAME}')`
+      )
+      await build(t.db, women)
+      expect(await t.ncaa()).toBe(t.pts)
       t.db.close()
     },
     slow(60_000)
