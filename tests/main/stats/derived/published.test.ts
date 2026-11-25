@@ -535,6 +535,36 @@ describe('the published tables', () => {
       ).toEqual([{ game_type: 'regular', games: 60, skill: 2.2, next: 1.9, sd: 1.94 }])
     })
 
+    it('read a one-season state whose games the file leaves empty, and not one of no games', async () => {
+      // The 17 WNBA players of 2026 whose `gp` is empty and who played: the state is read, and the games
+      // it is stored times are left empty. A count of 0 is no reading: 0 games is nothing.
+      await db.exec(`INSERT INTO src_nba_impact (player_id, season, season_type, gp, boban_filtered_skill,
+          boban_projected_rating, boban_projected_sd, darko_filtered_skill) VALUES
+        (10, 2026, 'Regular Season', NULL, 0.42, 0.5, 1.4, 0.3),
+        (11, 2026, 'Regular Season', 0, 0.9, 0.8, 1.4, 0.7),
+        (12, 2026, 'Regular Season', 40, 1.1, 1.0, 1.4, 1.2)`)
+      await buildPublished(db)
+      const rows = await db.all<Record<string, number | null>>(
+        `SELECT b.player_id, b.games, b.state_rows, b.boban_filtered_skill / nullif(b.state_rows, 0) AS skill,
+           b.boban_projected_sd / nullif(b.state_rows, 0) AS sd,
+           d.darko_filtered_skill / nullif(d.state_rows, 0) AS darko
+         FROM pub_player_boban b JOIN pub_player_darko d USING (player_id, season)
+         WHERE b.player_id IN (10, 11, 12) ORDER BY 1`
+      )
+      expect(rows).toEqual([
+        { player_id: 10, games: null, state_rows: 1, skill: 0.42, sd: 1.4, darko: 0.3 },
+        { player_id: 11, games: 0, state_rows: 0, skill: null, sd: null, darko: null },
+        {
+          player_id: 12,
+          games: 40,
+          state_rows: 40,
+          skill: 1.1,
+          sd: expect.closeTo(1.4, 12),
+          darko: 1.2
+        }
+      ])
+    })
+
     it('weight the box prior and REML RAPM by the regular season’s possessions alone', async () => {
       await buildPublished(db)
       const rows = await db.all<Record<string, number | string>>(

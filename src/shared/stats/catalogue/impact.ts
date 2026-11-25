@@ -156,8 +156,9 @@ const BOX: MetricDef[] = [
 ]
 
 /** A DARKO value: one regular season's state, read as published. */
+/** A state read one season at a time, divided by the carrier it is stored times (`state_rows`). */
 const darko = (column: string, o: Partial<Opts> = {}): Opts => ({
-  value: ratio(column, 'games'),
+  value: ratio(column, 'state_rows'),
   sample: 'games',
   family: 'impact',
   kind: 'model',
@@ -216,7 +217,7 @@ const BOBAN_OWN =
 const BOBAN_NOTE = `It reads for one regular season at a time, and from the season after a player’s first: the filter needs a season behind it. ${BOBAN_OWN}`
 
 const boban = (column: string, o: Partial<Opts> = {}): Opts => ({
-  value: ratio(column, 'games'),
+  value: ratio(column, 'state_rows'),
   sample: 'games',
   family: 'impact',
   kind: 'model',

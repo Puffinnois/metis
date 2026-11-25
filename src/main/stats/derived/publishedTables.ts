@@ -544,6 +544,15 @@ export const BOBAN_COLUMNS = [
   'boban_projected_sd'
 ] as const
 /**
+ * What a one-season state (BOBAN, DARKO) is stored times, and divided by when read: its games, or 1 where
+ * the file leaves them empty. The state is read one season at a time (`oneSeason`), so the games carry it
+ * and weigh nothing; a missing count must not blank a published value (the 17 WNBA players of 2026 whose
+ * games the file leaves empty, who played 4 to 212 minutes). A count of 0 is not missing: those rows read
+ * nothing, as any value over nothing does. The `games` of the row stays as published, for its sample.
+ */
+const STATE_CARRIER = 'coalesce({gp}, 1)'
+
+/**
  * SportsDataverse's box-score prior and the RAPM fitted toward it with a ridge chosen by REML. They
  * are published on regular-season rows only, so they are read from those, each part weighted by the
  * possessions of the same rows: a playoff row's possessions would otherwise water the average down.
@@ -590,7 +599,10 @@ const IMPACT_TABLES: PublishedTable[] = [
     match: { season_type: 'regular season' },
     games: 'gp',
     minutes: 'min',
-    columns: DARKO_COLUMNS.map((c) => times(c, '{gp}'))
+    columns: [
+      ...DARKO_COLUMNS.map((c) => times(c, STATE_CARRIER)),
+      { name: 'state_rows', sql: STATE_CARRIER }
+    ]
   },
   {
     // BOBAN is, as DARKO was, the player's state at the season's end and a projection of the next.
@@ -602,7 +614,10 @@ const IMPACT_TABLES: PublishedTable[] = [
     match: { season_type: 'regular season' },
     games: 'gp',
     minutes: 'min',
-    columns: BOBAN_COLUMNS.map((c) => times(c, '{gp}'))
+    columns: [
+      ...BOBAN_COLUMNS.map((c) => times(c, STATE_CARRIER)),
+      { name: 'state_rows', sql: STATE_CARRIER }
+    ]
   },
   {
     table: 'pub_player_impact_prior',
