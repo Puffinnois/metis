@@ -4,11 +4,16 @@ import {
   buildPlays,
   insertSql,
   markPlaySeason,
+  planPlays,
   PLAY_BUILDERS,
+  playBuildersOf,
   playsDue,
-  seasonsToBuild,
+  rebuildSet,
+  signature,
   type PlayBuilder
 } from '@main/stats/derived/playBuilders'
+import { inspect } from '@main/stats/derived/sql'
+import { bootstrapStatsDb } from '@main/stats/schema'
 import { PLAY_TABLES } from '@main/stats/derived/plays'
 import { openTestDb } from '../../../fixtures/stats'
 import { createIdentity, createNbaPbp, GAME, HOU, OKC } from '../../../fixtures/plays'
@@ -31,25 +36,25 @@ beforeEach(async () => {
 
 describe('which seasons are rebuilt', () => {
   it('every season played, on a database never built', async () => {
-    expect(await seasonsToBuild(db)).toEqual({ all: true, seasons: [2025, 2026] })
+    expect(await planPlays(db)).toMatchObject({ all: true, seasons: [2025, 2026], partial: [] })
   })
 
   it('none once built, until a file of a season writes rows', async () => {
     await buildPlays(db, LEAGUES.nba)
     expect(await playsDue(db)).toBe(false)
-    expect(await seasonsToBuild(db)).toEqual({ all: false, seasons: [] })
+    expect(await planPlays(db)).toMatchObject({ all: false, seasons: [], partial: [] })
     await markPlaySeason(db, 2026)
     expect(await playsDue(db)).toBe(true)
-    expect(await seasonsToBuild(db)).toEqual({ all: false, seasons: [2026] })
+    expect(await planPlays(db)).toMatchObject({ all: false, seasons: [2026], partial: [] })
   })
 
   it('every season after a file of every season, or a new version', async () => {
     await buildPlays(db, LEAGUES.nba)
     await markPlaySeason(db, 0)
-    expect(await seasonsToBuild(db)).toEqual({ all: true, seasons: [2025, 2026] })
+    expect(await planPlays(db)).toMatchObject({ all: true, seasons: [2025, 2026] })
     await buildPlays(db, LEAGUES.nba)
     await db.exec("UPDATE derived_state SET version = 0 WHERE name = 'plays'")
-    expect(await seasonsToBuild(db)).toEqual({ all: true, seasons: [2025, 2026] })
+    expect(await planPlays(db)).toMatchObject({ all: true, seasons: [2025, 2026], partial: [] })
   })
 
   it('leaves the other seasons as they are when one season’s files changed', async () => {
@@ -89,7 +94,10 @@ describe('which seasons are rebuilt', () => {
     await buildPlays(db, LEAGUES.nba)
     await db.exec(`ALTER TABLE ${PLAY_TABLES.nba} DROP COLUMN possession`)
     await db.exec(`INSERT INTO ${PLAY_TABLES.nba} (game_id, season, seq) VALUES ('x', 1990, 1)`)
-    expect((await seasonsToBuild(db)).all).toBe(true)
+    // Every builder reads the play table, so all of them are rebuilt for every season, not only it.
+    const plan = await planPlays(db)
+    expect(plan.all).toBe(false)
+    expect(plan.partial.map((b) => b.table)).toEqual(PLAY_BUILDERS.map((b) => b.table))
     await buildPlays(db, LEAGUES.nba)
     expect(await db.all(`SELECT DISTINCT season FROM ${PLAY_TABLES.nba} ORDER BY 1`)).toEqual([
       { season: 2026 }
@@ -117,6 +125,7 @@ describe('a reader during a rebuild', () => {
       ['season', 'INTEGER'],
       ['n', 'BIGINT']
     ],
+    reads: [],
     select: (_, season) => `SELECT ${season} AS season, i AS n FROM range(${size.n}) t(i)`
   })
 
@@ -170,6 +179,280 @@ describe('a reader during a rebuild', () => {
   })
 })
 
+describe('a builder rebuilt alone', () => {
+  const added: PlayBuilder[] = []
+  afterEach(() => {
+    for (const b of added.splice(0)) PLAY_BUILDERS.splice(PLAY_BUILDERS.indexOf(b), 1)
+  })
+  const add = (b: PlayBuilder): PlayBuilder => {
+    added.push(b)
+    PLAY_BUILDERS.push(b)
+    return b
+  }
+  /** A builder of one row a season, named after its table, and what it reads. */
+  const counting = (
+    table: string,
+    reads: string[],
+    extra: Partial<PlayBuilder> = {}
+  ): PlayBuilder => ({
+    table,
+    columns: [
+      ['season', 'INTEGER'],
+      ['n', 'BIGINT']
+    ],
+    reads,
+    select: (_, season) => `SELECT ${season} AS season, 1::BIGINT AS n`,
+    ...extra
+  })
+  /** A sentinel of a season no build would write, so a rewrite of the table shows. */
+  const sentinel = (table: string, season = 2025): Promise<void> =>
+    db.exec(`INSERT INTO ${table} (season) VALUES (${season})`)
+  const sentinels = async (table: string): Promise<number> =>
+    (
+      await db.get<{ n: number }>(
+        `SELECT count(*)::INTEGER AS n FROM ${table} WHERE season = 2025 AND game_id IS NULL`
+      )
+    )?.n ?? 0
+
+  it('is built for every season when it is new, and the rest are not rewritten', async () => {
+    await buildPlays(db, LEAGUES.nba)
+    await sentinel('play_nba')
+    await sentinel('split_team')
+    const fresh = add(counting('new_counts', ['play_nba']))
+    expect(await playsDue(db)).toBe(true)
+    const plan = await planPlays(db)
+    expect(plan).toMatchObject({ all: false, seasons: [] })
+    expect(plan.partial).toEqual([fresh])
+    await buildPlays(db, LEAGUES.nba)
+    expect(await db.all('SELECT season, n FROM new_counts ORDER BY 1')).toEqual([
+      { season: 2025, n: 1 },
+      { season: 2026, n: 1 }
+    ])
+    // The other tables kept their rows, the sentinels among them: nothing was written over.
+    expect(await sentinels('play_nba')).toBe(1)
+    expect(await sentinels('split_team')).toBe(1)
+    expect(await playsDue(db)).toBe(false)
+  })
+
+  it('is found though opening the file made its table, empty', async () => {
+    await buildPlays(db, LEAGUES.nba)
+    add(counting('new_counts', []))
+    await db.exec('CREATE TABLE new_counts (season INTEGER, n BIGINT)')
+    await bootstrapStatsDb(db, new Date(), LEAGUES.nba)
+    expect(await playsDue(db)).toBe(true)
+    expect((await planPlays(db)).partial.map((b) => b.table)).toEqual(['new_counts'])
+  })
+
+  it('takes the builders that read it, and those that read them, in build order', async () => {
+    const a = add(counting('a_counts', []))
+    const b = add(counting('b_counts', ['a_counts']))
+    const c = add(counting('c_counts', ['b_counts']))
+    const other = add(counting('other_counts', ['play_nba']))
+    await buildPlays(db, LEAGUES.nba)
+    await sentinel('other_counts')
+    const reshaped: PlayBuilder = { ...a, columns: [...a.columns, ['more', 'BIGINT']] }
+    reshaped.select = (_, season) => `SELECT ${season} AS season, 1::BIGINT AS n, 2::BIGINT AS more`
+    PLAY_BUILDERS.splice(PLAY_BUILDERS.indexOf(a), 1, reshaped)
+    added.push(reshaped)
+    const plan = await planPlays(db)
+    expect(plan.partial.map((x) => x.table)).toEqual(['a_counts', 'b_counts', 'c_counts'])
+    await buildPlays(db, LEAGUES.nba)
+    expect(await db.all('SELECT season, more FROM a_counts ORDER BY 1')).toEqual([
+      { season: 2025, more: 2 },
+      { season: 2026, more: 2 }
+    ])
+    expect(await db.all('SELECT count(*)::INTEGER AS n FROM other_counts')).toEqual([{ n: 3 }])
+    expect([b, c, other].every((x) => PLAY_BUILDERS.includes(x))).toBe(true)
+  })
+
+  it('makes the intermediate it reads again, and leaves its other readers', async () => {
+    const runs: string[] = []
+    const logged = (b: PlayBuilder): PlayBuilder => {
+      const inner = b.select
+      b.select = (h, season, l) => {
+        runs.push(`${b.table}:${season}`)
+        return inner(h, season, l)
+      }
+      return b
+    }
+    const mid = add(logged(counting('mid', [], { intermediate: true })))
+    add(logged(counting('reader_one', ['mid'])))
+    await buildPlays(db, LEAGUES.nba)
+    runs.length = 0
+    add(logged(counting('reader_two', ['mid'])))
+    const plan = await planPlays(db)
+    expect(plan.partial.map((b) => b.table)).toEqual(['mid', 'reader_two'])
+    await buildPlays(db, LEAGUES.nba)
+    expect(runs.sort()).toEqual(['mid:2025', 'mid:2026', 'reader_two:2025', 'reader_two:2026'])
+    expect(await db.get("SELECT 1 AS yes FROM duckdb_tables() WHERE table_name = 'mid'")).toBeNull()
+    expect(mid.intermediate).toBe(true)
+  })
+
+  it('rebuilds the readers of an intermediate whose columns changed, though it is not in the file', async () => {
+    const mid = add(counting('mid', [], { intermediate: true }))
+    add(counting('reader', ['mid']))
+    await buildPlays(db, LEAGUES.nba)
+    expect(await playsDue(db)).toBe(false)
+    const changed: PlayBuilder = { ...mid, columns: [...mid.columns, ['more', 'BIGINT']] }
+    changed.select = (_, season) => `SELECT ${season} AS season, 1::BIGINT AS n, 2::BIGINT AS more`
+    PLAY_BUILDERS.splice(PLAY_BUILDERS.indexOf(mid), 1, changed)
+    added.push(changed)
+    expect((await planPlays(db)).partial.map((b) => b.table)).toEqual(['mid', 'reader'])
+  })
+
+  it('is filled from another source by its origin, whatever its columns', async () => {
+    const one = add(counting('source_counts', [], { origin: 'lineups' }))
+    await buildPlays(db, LEAGUES.nba)
+    expect(await playsDue(db)).toBe(false)
+    const other = counting('source_counts', [], { origin: 'plays' })
+    PLAY_BUILDERS.splice(PLAY_BUILDERS.indexOf(one), 1, other)
+    added.push(other)
+    expect((await planPlays(db)).partial.map((b) => b.table)).toEqual(['source_counts'])
+  })
+
+  it('runs every builder in a season that waits, and only the changed one in the others', async () => {
+    await buildPlays(db, LEAGUES.nba)
+    await sentinel('split_team')
+    add(counting('new_counts', []))
+    await markPlaySeason(db, 2026)
+    const plan = await planPlays(db)
+    expect(plan).toMatchObject({ all: false, seasons: [2026] })
+    expect(plan.partial.map((b) => b.table)).toEqual(['new_counts'])
+    await buildPlays(db, LEAGUES.nba)
+    expect(await db.all('SELECT season FROM new_counts ORDER BY 1')).toEqual([
+      { season: 2025 },
+      { season: 2026 }
+    ])
+    expect(await sentinels('split_team')).toBe(1)
+  })
+
+  it('is done again when the app closed in the middle', async () => {
+    await buildPlays(db, LEAGUES.nba)
+    const fresh = add(counting('new_counts', []))
+    const good = fresh.select
+    fresh.select = (h, season, l) =>
+      season === 2026 ? 'SELECT no_such_column FROM game' : good(h, season, l)
+    await expect(buildPlays(db, LEAGUES.nba)).rejects.toThrow()
+    // The table is there, half filled, and still not built.
+    expect(
+      await db.get("SELECT 1 AS yes FROM duckdb_tables() WHERE table_name = 'new_counts'")
+    ).toEqual({
+      yes: 1
+    })
+    expect(await playsDue(db)).toBe(true)
+    fresh.select = good
+    await buildPlays(db, LEAGUES.nba)
+    expect(await db.all('SELECT season FROM new_counts ORDER BY 1')).toEqual([
+      { season: 2025 },
+      { season: 2026 }
+    ])
+    expect(await playsDue(db)).toBe(false)
+  })
+
+  it('finds a file from before the signatures built, and a newer builder in it not', async () => {
+    await buildPlays(db, LEAGUES.nba)
+    await db.exec("DELETE FROM derived_state WHERE name LIKE 'playtable:%'")
+    expect(await playsDue(db)).toBe(false)
+    add(counting('new_counts', []))
+    expect((await planPlays(db)).partial.map((b) => b.table)).toEqual(['new_counts'])
+    await db.exec(`ALTER TABLE split_team DROP COLUMN opp_pts`)
+    expect((await planPlays(db)).partial.map((b) => b.table).sort()).toEqual([
+      'new_counts',
+      'split_team'
+    ])
+  })
+
+  it('rebuilds every builder of every season after a new recipe version, and only then', async () => {
+    await buildPlays(db, LEAGUES.nba)
+    await sentinel('split_team')
+    await db.exec("UPDATE derived_state SET version = 0 WHERE name = 'plays'")
+    expect(await planPlays(db)).toMatchObject({ all: true, partial: [] })
+    await buildPlays(db, LEAGUES.nba)
+    expect(await sentinels('split_team')).toBe(0)
+  })
+
+  it('never reaches a table nothing it reads has changed', () => {
+    const b = playBuildersOf(LEAGUES.ncaam)
+    const named = (t: string): PlayBuilder => b.find((x) => x.table === t)!
+    const set = (...t: string[]): string[] => rebuildSet(b, t.map(named)).map((x) => x.table)
+    // A play-derived table is alone; the play table takes everything that reads it, its units with it.
+    expect(set('play_team_game')).toEqual(['play_team_game'])
+    expect(set('shot_key')).toEqual(['shot_key', 'shot_player_game', 'shot_team_game'])
+    // The ten at each play are made again for the splits, not the other way round.
+    expect(set('split_team')).toEqual(['play_lineup', 'split_team'])
+    expect(set('unit_game')).toEqual(['play_lineup', 'unit_game', 'player_on_court', 'pub_lineups'])
+    expect(set('unit_game_lineups')).toEqual(['unit_game_lineups', 'player_on_court_lineups'])
+    const plays = set('play_nba')
+    expect(plays).toContain('split_player')
+    expect(plays).not.toContain('shot_key')
+    expect(plays).not.toContain('unit_game_lineups')
+    expect(plays).not.toContain('shot_player_game')
+  })
+})
+
+describe('what each builder reads', () => {
+  it.each(['nba', 'wnba', 'ncaam', 'ncaaw'] as const)(
+    'is declared on it, all of it and nothing more: %s',
+    async (id) => {
+      const league = LEAGUES[id]
+      // Every table the sources and the identity can have, with every column the builders name.
+      const all = await inspect(db)
+      const have = { tables: new Set(all.tables), columns: new Map(all.columns) }
+      for (const t of [
+        'src_nba_pbp',
+        'src_wnba_pbp',
+        'src_ncaa_pbp',
+        'src_ncaa_lineups',
+        'src_ncaa_shots',
+        'src_ncaa_possessions',
+        'src_ncaa_matchup_stints',
+        'src_nba_game_lineups',
+        'src_nba_possessions',
+        'src_nba_shots',
+        'src_wnba_shots',
+        'src_wnba_game_lineups',
+        'src_wnba_possessions',
+        'src_espn_pbp',
+        'player_ids',
+        'ncaa_player_ids',
+        'src_ncaa_team_ids',
+        'team',
+        'player_game',
+        'game',
+        'ncaa_side',
+        'player'
+      ])
+        have.tables.add(t)
+      const builders = playBuildersOf(league)
+      const names = builders.map((b) => b.table)
+      for (const [i, b] of builders.entries()) {
+        const sql = b.select(have as never, 2026, league)
+        const named = names.filter(
+          (t) => t !== b.table && new RegExp(`(?<![A-Za-z0-9_])${t}(?![A-Za-z0-9_])`).test(sql)
+        )
+        const declared = b.reads.filter((t) => names.includes(t))
+        // All it names is declared; and it is declared no more than the league's builders fill, in order.
+        for (const t of named) expect(declared, `${b.table} reads ${t}`).toContain(t)
+        for (const t of declared) expect(names.indexOf(t), `${b.table} after ${t}`).toBeLessThan(i)
+      }
+      // Nothing is declared that no league reads.
+      const everywhere = new Set(
+        (['nba', 'wnba', 'ncaam', 'ncaaw'] as const).flatMap((l) =>
+          playBuildersOf(LEAGUES[l]).map((b) => b.table)
+        )
+      )
+      for (const b of builders) for (const t of b.reads) expect(everywhere.has(t)).toBe(true)
+    }
+  )
+
+  it('is in its signature: a column or its source changes it, its SELECT or order does not', () => {
+    const b = PLAY_BUILDERS[0]
+    expect(signature(b)).toBe(signature({ ...b, order: 'x' }))
+    expect(signature(b)).not.toBe(signature({ ...b, origin: 'plays' }))
+    expect(signature(b)).not.toBe(signature({ ...b, columns: [...b.columns, ['x', 'INTEGER']] }))
+  })
+})
+
 describe('the order rows are written in', () => {
   it('sorts a season by the builder’s order, and leaves a builder without one as selected', () => {
     const have = { tables: new Set<string>(), columns: new Map() }
@@ -177,6 +460,7 @@ describe('the order rows are written in', () => {
       table: 't',
       columns: [['season', 'INTEGER']],
       select: (_h, s) => `SELECT ${s} AS season`,
+      reads: [],
       order: 'game_id, seq'
     }
     expect(insertSql(sorted, have, 2026, LEAGUES.nba)).toBe(

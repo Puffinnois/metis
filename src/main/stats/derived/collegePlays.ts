@@ -389,6 +389,7 @@ export const COLLEGE_SHOT_KEY_BUILDER: PlayBuilder = {
   table: SHOT_KEYS,
   columns: SHOT_KEY_COLUMNS,
   select: collegeShotKeysSql,
+  reads: [],
   order: 'contest_id, team_name, shooter'
 }
 
@@ -397,6 +398,7 @@ export const COLLEGE_LINEUPS_BUILDER: PlayBuilder = {
   table: LINEUPS,
   columns: COLLEGE_LINEUP_COLUMNS,
   select: collegeLineupsSql,
+  reads: [UNIT_GAME],
   order: 'team_id, game_type, p1, p2, p3, p4, p5'
 }
 

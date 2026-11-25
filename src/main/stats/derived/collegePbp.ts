@@ -521,6 +521,7 @@ export const COLLEGE_PBP_BUILDERS: readonly PlayBuilder[] = [
     table: PLAY_LINEUP,
     columns: PLAY_LINEUP_COLUMNS,
     select: collegePlayLineupSql,
+    reads: [],
     order: 'game_id, seq',
     // An intermediate (the manager's decision at T1302.7): 104 MB a league kept, a few seconds a
     // season rebuilt on each refresh.
@@ -530,6 +531,7 @@ export const COLLEGE_PBP_BUILDERS: readonly PlayBuilder[] = [
     table: PLAY_TABLES.nba,
     columns: PLAY_COLUMNS,
     select: collegePlaysSql,
+    reads: [],
     order: 'game_id, seq'
   }
 ]

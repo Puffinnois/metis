@@ -486,12 +486,14 @@ export const PLAY_DETAIL_BUILDERS: PlayBuilder[] = [
     table: PLAY_DETAIL_PLAYER_GAME,
     columns: PLAY_DETAIL_PLAYER_COLUMNS,
     select: playDetailPlayerSql,
+    reads: [PLAY_TABLES.nba],
     order: 'game_id, team_id, player_id'
   },
   {
     table: PLAY_DETAIL_TEAM_GAME,
     columns: PLAY_DETAIL_TEAM_COLUMNS,
     select: playDetailTeamSql,
+    reads: [PLAY_TABLES.nba],
     order: 'game_id, team_id'
   }
 ]
