@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { ArrowUpDown, Search } from 'lucide-react'
 import { FavouriteMark } from '@/components/stats/FavouriteStar'
-import { CheckToggle, Segmented, StatsSelect } from '@/components/stats/controls'
+import { CheckToggle, Segmented } from '@/components/stats/controls'
 import { Loading, Notes } from '@/components/stats/parts'
 import { PctChip, PickSwatch, Scatter, type DotCard } from '@/components/stats/Scatter'
 import {
@@ -53,6 +53,9 @@ import {
 import { useLeague } from '@/lib/stats/league'
 import { favouriteEdge, favouritesEmpty, useFavourites } from '@/lib/stats/favourites'
 import { currentLeague } from '@/lib/stats/league'
+import { TeamChooser } from '@/components/stats/TeamChooser'
+import { teamIn } from '@/lib/stats/team'
+import { ALL_TEAMS, teamChoices } from '@/lib/stats/teamSearch'
 import { cn } from '@/lib/utils'
 import type { MetricInfo } from '@shared/stats/types'
 
@@ -295,15 +298,24 @@ export function StatsChart({
           </section>
           <section className="flex flex-col gap-2">
             <span className={LABEL}>Filter</span>
-            <StatsSelect
+            <TeamChooser
               title="Team"
               value={state.team ?? ''}
-              options={[
-                { value: '', label: 'All teams' },
-                ...[...teams]
-                  .sort((a, b) => a.code.localeCompare(b.code))
-                  .map((t) => ({ value: isPlayer ? t.code : t.id, label: `${t.code} · ${t.name}` }))
+              choices={[
+                ALL_TEAMS,
+                ...teamChoices(
+                  [...teams].sort((a, b) => a.code.localeCompare(b.code)),
+                  isPlayer ? 'code' : 'id'
+                )
               ]}
+              // A team with none that season still narrows the chart: it is named, never "All teams".
+              label={
+                state.team
+                  ? isPlayer
+                    ? state.team
+                    : teamIn(data.seasons, scope.season, state.team).code
+                  : undefined
+              }
               onChange={(t) => set({ team: t || null })}
               className="w-full"
             />

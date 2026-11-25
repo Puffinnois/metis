@@ -229,10 +229,11 @@ describe('StatsCompare', () => {
     fireEvent.click(screen.getByRole('radio', { name: 'Teams' }))
     expect(within(slot(0)).getByText('Add a first team')).toBeTruthy()
     expect(screen.getByText('Add a team to compare.')).toBeTruthy()
-    const input = within(slot(0)).getByRole('textbox', { name: 'Add the first team' })
-    fireEvent.focus(input)
+    fireEvent.click(within(slot(0)).getByRole('button', { name: /^Add the first team/ }))
+    // The chooser opens over the page, its search first.
+    const input = screen.getByRole('combobox', { name: 'Search: Add the first team' })
     fireEvent.change(input, { target: { value: 'BOS' } })
-    fireEvent.mouseDown(within(slot(0)).getByRole('button', { name: /Boston Celtics/ }))
+    fireEvent.keyDown(input, { key: 'Enter' })
     await waitFor(() => expect(within(slot(0)).getByText('Boston Celtics')).toBeTruthy())
   })
 

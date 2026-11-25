@@ -19,7 +19,7 @@ import {
   poolQueries,
   scopeNote,
   subjectQuery,
-  teamOptions,
+  latestTeams,
   teamsBySeason,
   teamsQuery,
   trendBand,
@@ -36,6 +36,8 @@ import {
   type TrendsState
 } from '@/lib/stats/trends'
 import { useStatsQueries, useStatsQuery, type StatsData } from '@/lib/stats/useStats'
+import { TeamChooser } from '@/components/stats/TeamChooser'
+import { teamChoices } from '@/lib/stats/teamSearch'
 import { cn } from '@/lib/utils'
 import { currentLeague, seasonLabel } from '@/lib/stats/league'
 import { coverageReason } from '@shared/stats/coverage'
@@ -127,7 +129,8 @@ export function StatsTrends({
     isPlayer && data.catalogue.length ? playerSearchQuery(seasons) : null,
     data.version
   )
-  const options = isPlayer ? playerOptions(everyone) : teamOptions(data.seasons)
+  const options = isPlayer ? playerOptions(everyone) : []
+  const franchises = isPlayer ? [] : latestTeams(data.seasons)
 
   const subjectQ = id && metric ? subjectQuery(entity, id, metric, seasons, scope, mode) : null
   const { result: subject, error: subjectError } = useStatsQuery(subjectQ, data.version, FRESH)
@@ -180,7 +183,8 @@ export function StatsTrends({
   const table = trendRows(points, info, mode)
   const name =
     [...(subject?.rows ?? [])].reverse().find((r) => r.name)?.name ??
-    options.find((o) => o.id === id)?.label.split(' · ')[isPlayer ? 0 : 1] ??
+    options.find((o) => o.id === id)?.label.split(' · ')[0] ??
+    franchises.find((t) => t.id === id)?.name ??
     id ??
     ''
   const error = subjectError ?? poolError
@@ -199,11 +203,22 @@ export function StatsTrends({
           ]}
           onChange={(e) => set({ entity: e, subject: null, metric: null, follow: false })}
         />
-        <Search
-          options={options}
-          placeholder={isPlayer ? 'Find a player' : 'Find a team'}
-          onPick={(x) => set({ subject: { entity, id: x } })}
-        />
+        {isPlayer ? (
+          <Search
+            options={options}
+            placeholder="Find a player"
+            onPick={(x) => set({ subject: { entity, id: x } })}
+          />
+        ) : (
+          <TeamChooser
+            title="Team"
+            value={id}
+            choices={teamChoices(franchises)}
+            placeholder="Find a team"
+            onChange={(x) => set({ subject: { entity, id: x } })}
+            className="w-[240px]"
+          />
+        )}
         <select
           aria-label="Metric"
           title="Metric"

@@ -11,6 +11,7 @@ import type {
   StatsResult,
   StatsRow,
   StatsSeason,
+  StatsTeam,
   StatsStatus
 } from '@shared/stats/types'
 import type { ExploreSubject } from './explore'
@@ -623,20 +624,17 @@ export function playerOptions(result: StatsResult | null): SearchOption[] {
     .sort((a, b) => a.label.localeCompare(b.label))
 }
 
-/** Every franchise in the data under its latest name: "LAL · Los Angeles Lakers". */
-export function teamOptions(seasons: readonly StatsSeason[]): SearchOption[] {
-  const latest = new Map<string, { code: string; name: string; season: number }>()
+/** Every franchise in the data under its latest code, name and conference, by code. */
+export function latestTeams(seasons: readonly StatsSeason[]): StatsTeam[] {
+  const latest = new Map<string, { team: StatsTeam; season: number }>()
   for (const s of seasons) {
     for (const t of s.teams) {
       const was = latest.get(t.id)
-      if (!was || s.season > was.season) {
-        latest.set(t.id, { code: t.code, name: t.name, season: s.season })
-      }
+      if (!was || s.season > was.season) latest.set(t.id, { team: t, season: s.season })
     }
   }
-  return [...latest]
-    .map(([id, t]) => ({ id, label: `${t.code} · ${t.name}` }))
-    .sort((a, b) => a.label.localeCompare(b.label))
+  const key = (t: StatsTeam): string => `${t.code} · ${t.name}`
+  return [...latest.values()].map((x) => x.team).sort((a, b) => key(a).localeCompare(key(b)))
 }
 
 /** "Every season · Playoffs": which parts of the scope bar Trends follows. */
