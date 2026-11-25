@@ -25,6 +25,9 @@ interface NamedTeam {
   conference?: string | null
 }
 
+/** The league's files write its conferences small ("west"). */
+const titled = (word: string): string => word.charAt(0).toUpperCase() + word.slice(1)
+
 /** The teams as a chooser lists them, in the order given. */
 export const teamChoices = (teams: readonly NamedTeam[], by: 'id' | 'code' = 'id'): TeamChoice[] =>
   teams.map((t) => ({
@@ -32,7 +35,7 @@ export const teamChoices = (teams: readonly NamedTeam[], by: 'id' | 'code' = 'id
     id: t.id,
     code: t.code,
     name: t.name,
-    conference: t.conference ?? null
+    conference: t.conference ? titled(t.conference) : null
   }))
 
 /** The first row of a filter: every team, in the same list. */
@@ -52,23 +55,28 @@ const wordsKey = (text: string): string =>
 const keysOf = (text: string): string[] => [searchKey(text), wordsKey(text)]
 
 /**
- * The choices a search leaves, in the list's own order: those whose name or code holds what is typed,
- * accents, case and punctuation aside. The "All teams" row is listed while nothing is typed.
+ * The choices a search leaves: those whose name or code holds what is typed, accents, case and
+ * punctuation aside. First those whose code, name or a word of the name starts with it ("mont" for
+ * Montana), then those that only hold it (Belmont), each in the list's own order. With nothing typed
+ * the list is as it was, the "All teams" row included; that row is no team, so no search finds it.
  */
 export function matchTeams(choices: readonly TeamChoice[], search: string): TeamChoice[] {
   if (!search.trim()) return [...choices]
   const needles = keysOf(search.trim()).filter((n) => n !== '')
-  return choices.filter(
-    (c) =>
-      c.id !== null &&
-      keysOf(`${c.code} ${c.name}`).some((key) => needles.some((n) => key.includes(n)))
-  )
+  const starts: TeamChoice[] = []
+  const holds: TeamChoice[] = []
+  for (const c of choices) {
+    if (c.id === null) continue
+    const keys = keysOf(`${c.code} ${c.name}`).map((k) => ` ${k}`)
+    if (keys.some((k) => needles.some((n) => k.includes(` ${n}`)))) starts.push(c)
+    else if (keys.some((k) => needles.some((n) => k.includes(n)))) holds.push(c)
+  }
+  return [...starts, ...holds]
 }
 
 /**
- * The match Enter takes, by its place in the list, which keeps its order: the team of that very code,
- * else the first whose code or a word of whose name starts with what is typed, else the first. With
- * nothing typed, the team chosen now.
+ * The match Enter takes, by its place among them: the team of that very code ("unc" for North Carolina,
+ * though UNC Asheville is listed before it), else the first. With nothing typed, the team chosen now.
  */
 export function bestMatch(
   matches: readonly TeamChoice[],
@@ -76,18 +84,10 @@ export function bestMatch(
   value: string | null
 ): number {
   const needle = wordsKey(search.trim())
-  if (!needle) {
-    return Math.max(
-      matches.findIndex((c) => c.value === value),
-      0
-    )
-  }
-  const code = matches.findIndex((c) => wordsKey(c.code) === needle)
-  if (code >= 0) return code
-  const word = matches.findIndex((c) =>
-    ` ${wordsKey(`${c.code} ${c.name}`)}`.includes(` ${needle}`)
-  )
-  return Math.max(word, 0)
+  const at = needle
+    ? matches.findIndex((c) => wordsKey(c.code) === needle)
+    : matches.findIndex((c) => c.value === value)
+  return Math.max(at, 0)
 }
 
 /** How many rows Page Up and Page Down move. */

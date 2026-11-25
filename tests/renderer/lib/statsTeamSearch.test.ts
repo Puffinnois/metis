@@ -24,7 +24,7 @@ const team = (
 const TEAMS = [
   team('1', 'CARD', 'Montréal Cardinals'),
   team('2', 'MONT', 'Montana Grizzlies', 'Big Sky'),
-  team('3', 'OKC', 'Oklahoma City Thunder', 'West'),
+  team('3', 'OKC', 'Oklahoma City Thunder', 'west'),
   team('4', 'SJSU', 'San José State Spartans', 'MWC'),
   team('5', 'SJU', "St. John's Red Storm", 'Big East'),
   team('6', 'UAPB', 'Arkansas-Pine Bluff Golden Lions', 'SWAC'),
@@ -46,7 +46,23 @@ describe('finding a team by typing', () => {
     expect(matchTeams([ALL_TEAMS, ...choices], 'all')).toEqual([])
   })
 
-  it('matches the name, the code and the city or school, in the list’s order', () => {
+  it('ranks what starts with the search before what only holds it, each in the list’s order', () => {
+    const college = teamChoices([
+      team('1', 'BEL', 'Belmont Bruins'),
+      team('2', 'MONT', 'Montana Grizzlies'),
+      team('3', 'MTST', 'Montana State Bobcats'),
+      team('4', 'UVM', 'Vermont Catamounts')
+    ])
+    const codes = (search: string): string[] => matchTeams(college, search).map((c) => c.code)
+    expect(codes('mont')).toEqual(['MONT', 'MTST', 'BEL', 'UVM'])
+    expect(codes('uvm')[0]).toBe('UVM')
+    // A later word that starts so counts as a start.
+    expect(codes('b')).toEqual(['BEL', 'MTST'])
+    expect(codes('state')).toEqual(['MTST'])
+    expect(codes('')).toEqual(['BEL', 'MONT', 'MTST', 'UVM'])
+  })
+
+  it('matches the name, the code and the city or school', () => {
     expect(found('okc')).toEqual(['OKC'])
     expect(found('oklahoma')).toEqual(['OKC'])
     expect(found('thunder')).toEqual(['OKC'])
@@ -70,12 +86,13 @@ describe('finding a team by typing', () => {
     expect(found('&')).toEqual([])
   })
 
-  it('takes the team of that very code on Enter, else a word that starts so, else the first', () => {
+  it('takes the team of that very code on Enter, else the first', () => {
     expect(enter('unc')).toBe('UNC')
     expect(enter('mont')).toBe('MONT')
     expect(enter('carolina')).toBe('UNC')
     expect(enter('cata')).toBe('UVM')
     expect(enter('ermont')).toBe('UVM')
+    expect(enter('uvm')).toBe('UVM')
   })
 
   it('rests on the team chosen now while nothing is typed, else on the first', () => {

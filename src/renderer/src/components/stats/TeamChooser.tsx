@@ -7,8 +7,8 @@ import { cn, scrollToNearest } from '@/lib/utils'
 
 /**
  * Choosing a team (Plan T1705): the one control wherever a team is picked from a list. It opens on the
- * whole list, in the list's order, with a search at its top; the arrows and Enter choose, Escape closes
- * and leaves the choice. Closed, it looks like the selects beside it, and opens as one does: on a
+ * whole list, in the list's order, with a search at its top that ranks what it finds; the arrows and
+ * Enter choose, Escape closes and leaves the choice. Closed, it looks like the selects beside it, and opens as one does: on a
  * click, an arrow, or a letter, which starts the search.
  */
 export function TeamChooser({
@@ -208,13 +208,15 @@ function TeamList({
           role="option"
           aria-selected={c.value === value}
           data-active={i === at || undefined}
+          data-value={c.value}
           onMouseMove={() => i !== at && onActive(i)}
           // The search keeps the focus.
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => onPick(c)}
           className={cn(
             'flex h-[30px] cursor-pointer items-center gap-2 rounded-[6px] px-2 text-[12.5px]',
-            i === at && 'bg-hover'
+            // The row Enter takes: an edge as well as a shade, since the shade is faint in the dark.
+            i === at && 'bg-panel-2 shadow-[inset_2px_0_0_var(--cobalt)]'
           )}
         >
           {c.id !== null && (
