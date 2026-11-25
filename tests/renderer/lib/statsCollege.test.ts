@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { gamesToQualify, perGameQualifier } from '@/lib/stats/boards'
 import { defaultDay, eloView, noBoxNote } from '@/lib/stats/games'
 import { setLeague } from '@/lib/stats/league'
-import { lineupGap, lineupNotes } from '@/lib/stats/lineups'
+import { lineupGap, lineupHeading, lineupNotes } from '@/lib/stats/lineups'
 import { DERIVED_NOTE, derivedNote, unitsNote } from '@/lib/stats/onCourt'
 import { typeTag } from '@/lib/stats/player'
 import { leaderboardQualifier, leaderRuleWords } from '@/lib/stats/qualifying'
@@ -223,6 +223,8 @@ describe('season types in the college leagues (D45)', () => {
       expect(unitsNote()).toBe(
         'Every unit of five distinct players the play by play names on the floor, from 2021-22.'
       )
+      // The units are built, so the heading says from what, not that the league publishes them.
+      expect(lineupHeading(5)).toBe('Five-man units, from stats.ncaa.org’s play by play')
       expect(lineupNotes(scope, null, 'raw')).toEqual([note])
       expect(lineupNotes(scope, null, 'per100')).toEqual([
         note,
@@ -237,6 +239,8 @@ describe('season types in the college leagues (D45)', () => {
         'Every unit of five distinct players the lineups know, in every season from 1996-97.'
       )
       expect(lineupNotes(scope, 11.9, 'raw')[0]).toMatch(/2,000 five-man units/)
+      expect(lineupHeading(5)).toBe(`Five-man units, as the ${LEAGUES[id].name} publishes them`)
+      expect(lineupHeading(2)).toBe(`Two-man groups, as the ${LEAGUES[id].name} publishes them`)
     }
   })
 })
