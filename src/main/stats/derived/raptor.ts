@@ -186,12 +186,21 @@ export function raptorSql(have: Have): string {
            ${Object.keys(HISTORICAL_RATES)
              .map((n) => `h.${n}`)
              .join(', ')},
-           h.pace_poss AS rp_pace_poss, h.war AS rp_war, mo.mposs::DOUBLE AS rp_mposs,
+           h.pace_poss AS rp_pace_poss, coalesce(h.war, bp.war) AS rp_war, mo.mposs::DOUBLE AS rp_mposs,
            ${Object.keys(MODERN_RATES)
              .map((n) => `mo.${n}`)
              .join(', ')},
            l.bref AS bref_id, l.link
     FROM h JOIN linked l ON l.bref = h.bref AND l.season = h.season
     LEFT JOIN mo ON mo.bref = h.bref AND mo.season = h.season AND mo.game_type = h.game_type
+    -- The by-team file leaves two WARs empty that the by-player file prints as 0 (Malik Newman's 2019-20
+    -- regular season and Tyson Chandler's 2019-20 playoffs): a season type whose team rows have no WAR
+    -- takes the by-player file's for that type.
+    LEFT JOIN (
+      SELECT ${c('player_id', 'VARCHAR')} AS bref, ${c('season', 'INTEGER')} AS season, t.game_type,
+             sum(t.war) AS war
+      FROM ${hp} s CROSS JOIN LATERAL (VALUES ('regular', ${c('war_reg_season')}), ('playoffs', ${c('war_playoffs')})) AS t(game_type, war)
+      GROUP BY 1, 2, 3
+    ) bp ON bp.bref = h.bref AND bp.season = h.season AND bp.game_type = h.game_type
     WHERE h.game_type IS NOT NULL`
 }

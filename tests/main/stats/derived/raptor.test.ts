@@ -136,6 +136,33 @@ describe('the RAPTOR table', () => {
     expect(season?.total).toBeCloseTo(0.5, 12)
   })
 
+  it('takes the by-player file’s WAR for a season type whose team rows have none, a published 0 included', async () => {
+    // As Tyson Chandler's 2019-20 playoffs (Steve Bell's two possessions here) and Malik Newman's 2019-20
+    // regular season (Cal Cole's, its WAR emptied): the by-team file prints none, the by-player file 0.
+    await db.exec(
+      "UPDATE src_raptor_historical_team SET war_total = NULL WHERE player_id = 'cccc02'"
+    )
+    await db.exec(
+      "UPDATE src_raptor_historical_player SET war_total = 0, war_reg_season = 0 WHERE player_id = 'cccc02'"
+    )
+    // A season type the by-team file has a WAR for keeps it, whatever the by-player file prints.
+    await db.exec(
+      "UPDATE src_raptor_historical_player SET war_reg_season = 9 WHERE player_id = 'aaaa01'"
+    )
+    await db.exec(raptorSql(await inspect(db)))
+    const war = await db.all<{ bref_id: string; game_type: string; war: number | null }>(
+      `SELECT bref_id, game_type, rp_war AS war FROM ${RAPTOR_TABLE}
+       WHERE season = 2015 AND bref_id IN ('aaaa01', 'bbbb01', 'cccc02') ORDER BY 1, 2`
+    )
+    expect(war.map((r) => [r.bref_id, r.game_type, r.war])).toEqual([
+      ['aaaa01', 'playoffs', 0.3],
+      ['aaaa01', 'regular', 1.3],
+      ['bbbb01', 'playoffs', 0],
+      ['bbbb01', 'regular', 0.6],
+      ['cccc02', 'regular', 0]
+    ])
+  })
+
   it('is built empty, never failing, when the files are not there', async () => {
     await db.exec('DROP TABLE src_raptor_historical_team')
     await db.exec(raptorSql(await inspect(db)))
