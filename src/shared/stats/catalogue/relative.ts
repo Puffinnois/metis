@@ -65,7 +65,8 @@ function entriesOf(
       id: `${prefix}${b.id}`,
       label: words.label(b.label),
       short: words.short(b.short),
-      description: `${base.label} less the league's in the same scope, in percentage points: 0 is the league, its own totals over the same games divided, not an average of players. ${words.side}`.trim(),
+      description:
+        `${base.label} less the league's in the same scope, in percentage points: 0 is the league, its own totals over the same games divided, not an average of players. ${words.side}`.trim(),
       tier: 'extended',
       index: base.id,
       relative: 'difference'
@@ -75,7 +76,8 @@ function entriesOf(
       id: `${prefix}${b.addId}`,
       label: words.label(b.addLabel),
       short: words.short(b.addShort),
-      description: `The points scored beyond what the league's ${b.words} in the same scope would bring on the same attempts: 2 × attempts × (rate − league's rate), a total. 0 is the league. ${words.side}`.trim(),
+      description:
+        `The points scored beyond what the league's ${b.words} in the same scope would bring on the same attempts: 2 × attempts × (rate − league's rate), a total. 0 is the league. ${words.side}`.trim(),
       value: swap(b.counts),
       weight: swap(b.weight),
       sample: prefix === '' ? 'games' : 'box_games',

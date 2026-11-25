@@ -1280,6 +1280,10 @@ describe('the metric catalogue', () => {
     const m = (id: string): MetricDef => CATALOGUE.find((x) => x.id === id)!
     expect(m('team_ast').perGameBy).toBe('box_games')
     expect(m('team_pts').perGameBy).toBeUndefined()
+    for (const id of ['team_ts_add', 'opp_fg_add']) {
+      expect(m(id), id).toMatchObject({ perGameBy: 'box_games', sample: 'box_games' })
+    }
+    expect(m('ts_add').perGameBy).toBeUndefined()
     expect(m('team_bench_pts').perGameBy).toBe('starts_known')
   })
 

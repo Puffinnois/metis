@@ -1167,7 +1167,7 @@ A source family can be left out of a build. `LEFT_OUT_RELEASES` in `src/main/sta
 - when a run fails, its whole output is kept before anything is rerun, so the cause is read rather than guessed;
 - a check on the floor counts each known player of a unit: a unit of fewer than five named players has fewer seconds than five times its length (`ncaa-data-sources.md`, "Units of fewer than five players").
 
-The checks that count this way: `scripts/check-published.mjs` (BOBAN, the box prior and REML RAPM, the published fantasy columns, the standings' records, the current impact, RAPTOR and the rolling windows), `scripts/check-college-sides.mjs` (where a stats.ncaa.org row stands) `scripts/check-college-lines.mjs` (each stats.ncaa.org line: which player, attached or not, and the half-court and transition splits) and `scripts/check-college-situations.mjs` (the counts by situation: every play with a tag and every possession, by game, by player and through the engine). Earlier checks of this stage looped over the engine's rows, so a source value without an engine row was not counted; their notes were corrected on 2026-11-24 (Plan, T1703.2, "Proofs corrected").
+The checks that count this way: `scripts/check-published.mjs` (BOBAN, the box prior and REML RAPM, the published fantasy columns, the standings' records, the current impact, RAPTOR and the rolling windows), `scripts/check-college-sides.mjs` (where a stats.ncaa.org row stands) `scripts/check-college-lines.mjs` (each stats.ncaa.org line: which player, attached or not, and the half-court and transition splits) `scripts/check-college-situations.mjs` (the counts by situation: every play with a tag and every possession, by game, by player and through the engine) and `scripts/check-formulas.mjs` (T1703.3's first formulas: every player-season and team-season of every season a league's file holds, worked from the game rows apart from the engine's SQL). Earlier checks of this stage looped over the engine's rows, so a source value without an engine row was not counted; their notes were corrected on 2026-11-24 (Plan, T1703.2, "Proofs corrected").
 
 Build first, then point these at a scratch folder, never at the app's own data.
 
@@ -1201,6 +1201,10 @@ node scripts/check-college-lines.mjs /tmp/metis-load --league=ncaam
 
 ```bash
 node scripts/check-college-situations.mjs /tmp/metis-load --league=ncaam
+```
+
+```bash
+node scripts/check-formulas.mjs /tmp/metis-load --league=nba
 ```
 
 ```bash

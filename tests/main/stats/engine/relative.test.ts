@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import type { StatsDb } from '@main/stats/db'
 import { buildDerived } from '@main/stats/derived/build'
-import { runQuery } from '@main/stats/engine/run'
+import { readFileSchema, runQuery } from '@main/stats/engine/run'
 import { bootstrapStatsDb } from '@main/stats/schema'
 import { LEAGUES } from '@shared/leagues'
 import type { StatsQuery, StatsResult } from '@shared/stats/types'
@@ -275,6 +275,17 @@ describe('shares of a team’s games and minutes (T1703.3)', () => {
     // Each game is the team's 240 minutes, 48 for each of the five on the floor; two games for player 2.
     expect(read(r, 2, 'min_share')).toBeCloseTo(54 / (2 * 48), 10)
     expect(read(r, 1, 'min_share')).toBeCloseTo(90 / (3 * 48), 10)
+  })
+
+  it('answers on a file read by its schema, since no table holds the team’s games', async () => {
+    const schema = await readFileSchema(db)
+    const r = await runQuery(
+      db,
+      { entity: 'player', metrics: ['gp_share'], scope: { seasons: [2026], players: ['2'] } },
+      { ...CTX, schema }
+    )
+    expect(r.columns[0].reason ?? null).toBeNull()
+    expect(r.rows[0].values.gp_share.value).toBeCloseTo(2 / 3, 12)
   })
 
   it('reads no share of the box under a split of the game', async () => {
