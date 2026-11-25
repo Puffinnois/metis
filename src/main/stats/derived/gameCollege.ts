@@ -1,5 +1,6 @@
 import type { League } from '@shared/leagues'
 import { BOX_COUNTS, espnLines, type DerivedRecipe } from './game'
+import { nameSide } from './collegePlays'
 import { isNcaaWhole, NCAA_PLAYER_COLUMNS, NCAA_PLAYER_SUMS, NCAA_TEAM_OWN } from './ncaaSplits'
 import { bestPlayerSql, column, modeSql, type Have } from './sql'
 
@@ -33,8 +34,9 @@ import { bestPlayerSql, column, modeSql, type Have } from './sql'
 // 2: the tables' 128-bit counts narrowed to BIGINT (`narrowCounts`, T1302.9). 3: every pick by a
 // total order, so the same files always give the same rows (T1302.9). 4: a game's lines from one
 // source, not a team-game's (the Stage 13 gate). 5: stats.ncaa.org's half-court splits and the rest of
-// its transition splits (T1703.2). 6: the team box's offensive seconds (T1703.2).
-const VERSION = 6
+// its transition splits (T1703.2). 6: the team box's offensive seconds (T1703.2). 7: a stats.ncaa.org
+// row placed on its own side (`ncaa_side`), never by the home or away its file lists (T1703.2).
+const VERSION = 7
 
 const NCAA_BOX = 'src_ncaa_player_box'
 const NCAA_TEAM_BOX = 'src_ncaa_team_box'
@@ -95,17 +97,78 @@ const ESPN_TEAM_COUNTS: Record<(typeof BOX_COUNTS)[number], string> = {
   pts: 'team_score'
 }
 
+/** Where each team row of stats.ncaa.org's team box stands in its game, and how it was placed. */
+export const NCAA_SIDE = 'ncaa_side'
+
 /**
- * The team of a stats.ncaa.org row among the game's two: the ESPN id it gives when that is one of
- * them, else the team its player maps to (`fallback`), else by the name it prints for the home or away
- * side, which is the game's own for a game only stats.ncaa.org has.
+ * The names stats.ncaa.org gives a season's teams, each with the teams it can mean (`ids`): the
+ * files' own ids where they are loaded, and the players' links.
  */
-const sideOf = (given: string, fallback: string | null, row: string): string => `CASE
-    WHEN ${given} IN (g.home_team_id, g.away_team_id) THEN ${given}
-    ${fallback ? `WHEN ${fallback} IN (g.home_team_id, g.away_team_id) THEN ${fallback}` : ''}
-    WHEN ${row}.team = ${row}.home THEN g.home_team_id
-    WHEN ${row}.team = ${row}.away THEN g.away_team_id
-  END`
+function teamNames(have: Have): string {
+  const parts = [
+    have.tables.has('src_ncaa_team_ids')
+      ? `SELECT i.season, i.team AS name, t.team_id FROM src_ncaa_team_ids i
+         JOIN team t ON t.season = i.season AND t.ncaa_team_id = TRY_CAST(i.id AS BIGINT)`
+      : null,
+    have.tables.has('ncaa_player_ids')
+      ? 'SELECT season, ncaa_team AS name, team_id FROM ncaa_player_ids WHERE team_id IS NOT NULL'
+      : null
+  ].filter((p) => p !== null)
+  if (parts.length === 0) {
+    return 'SELECT NULL::INTEGER AS season, NULL::VARCHAR AS name, []::INTEGER[] AS ids WHERE false'
+  }
+  return `SELECT season, name, list(DISTINCT team_id) AS ids FROM (${parts.join(' UNION ALL ')})
+    WHERE name IS NOT NULL GROUP BY 1, 2`
+}
+
+/**
+ * Each team row of the team box, by its game and the side it stands on (`team_id`, NULL when none can
+ * be told), and how it was placed (`method`), as a link keeps its method (D46):
+ *
+ * - `id`: the ESPN id the row gives is one of the game's two;
+ * - `name`: its name means one of the game's two teams and not the other (`nameSide`);
+ * - `elimination`: its contest has two rows and only the other was placed by id or name, so this row
+ *   takes the other side.
+ *
+ * Never by the row's own home or away: a contest can list its sides the other way round from the game
+ * table (the women's game 401819784 of 2025-26 does), which put one team's row on the other. A side two
+ * rows of a contest claim is nobody's.
+ */
+function ncaaSides(have: Have): string {
+  if (!have.tables.has(NCAA_TEAM_BOX)) {
+    return `CREATE OR REPLACE TABLE ${NCAA_SIDE} AS
+      SELECT NULL::VARCHAR AS game_id, NULL::INTEGER AS season, NULL::VARCHAR AS contest_id,
+             NULL::VARCHAR AS team, NULL::INTEGER AS team_id, NULL::VARCHAR AS method
+      WHERE false`
+  }
+  const given = 'TRY_CAST(n.team_espn_team_id AS INTEGER)'
+  return `CREATE OR REPLACE TABLE ${NCAA_SIDE} AS
+    WITH names AS (${teamNames(have)}),
+    seen AS (
+      SELECT g.game_id, g.season, g.home_team_id AS home, g.away_team_id AS away, n.contest_id, n.team,
+             CASE WHEN ${given} IN (g.home_team_id, g.away_team_id) THEN ${given} END AS by_id,
+             ${nameSide('m.ids')} AS by_name
+      FROM ${NCAA_TEAM_BOX} n
+      JOIN game g ON g.ncaa_game_id = n.contest_id AND g.played AND g.forfeit_winner_id IS NULL
+      LEFT JOIN names m ON m.season = g.season AND m.name = n.team
+    ), claimed AS (
+      SELECT *, coalesce(by_id, by_name) AS claim,
+             CASE WHEN by_id IS NOT NULL THEN 'id' WHEN by_name IS NOT NULL THEN 'name' END AS how
+      FROM seen
+    ), placed AS (
+      SELECT *, CASE WHEN count(*) OVER (PARTITION BY contest_id, claim) = 1 THEN claim END AS side
+      FROM claimed
+    ), contest AS (
+      SELECT contest_id, count(*) AS rows, count(claim) AS claims, count(side) AS named, min(side) AS one
+      FROM placed GROUP BY 1
+    )
+    SELECT p.game_id, p.season, p.contest_id, p.team,
+           coalesce(p.side, CASE WHEN c.rows = 2 AND c.claims = 1 AND p.claim IS NULL
+             THEN CASE WHEN c.one = p.home THEN p.away ELSE p.home END END)::INTEGER AS team_id,
+           CASE WHEN p.side IS NOT NULL THEN p.how
+                WHEN c.rows = 2 AND c.claims = 1 AND p.claim IS NULL THEN 'elimination' END AS method
+    FROM placed p JOIN contest c USING (contest_id)`
+}
 
 /**
  * Every stats.ncaa.org player line of a played game that is not a forfeit, with its player's key and
@@ -138,20 +201,26 @@ function ncaaLines(have: Have): string {
       SELECT season, ncaa_team, player, ${bestPlayerSql()} AS player_id,
              ${bestPlayerSql('', 'team_id')} AS team_id
       FROM ncaa_player_ids WHERE ncaa_player_id IS NULL GROUP BY 1, 2, 3
-    ), box AS (
+    ), names AS (${teamNames(have)}), box AS (
       SELECT b.*, nullif(trim(b.player_id::VARCHAR), '') AS pid,
              TRY_CAST(b.team_espn_team_id AS INTEGER) AS given_team
       FROM ${NCAA_BOX} b
     )
     SELECT g.game_id, coalesce(i.player_id, n.player_id) AS player_id,
-           ${sideOf('b.given_team', 'coalesce(i.team_id, n.team_id)', 'b')} AS team_id,
+           CASE WHEN b.given_team IN (g.home_team_id, g.away_team_id) THEN b.given_team
+                WHEN coalesce(i.team_id, n.team_id) IN (g.home_team_id, g.away_team_id)
+                  THEN coalesce(i.team_id, n.team_id)
+                ELSE coalesce(${nameSide('m.ids')}, s.team_id) END AS team_id,
            -- A line of no minutes and no count lists a player who did not play.
            (coalesce(b.mins, 0) > 0 OR ${any} > 0) AS appeared,
            ${[...counts, ...cols].join(', ')}
     FROM box b
     JOIN game g ON g.ncaa_game_id = b.contest_id AND g.played AND g.forfeit_winner_id IS NULL
     LEFT JOIN by_id i ON i.season = b.season AND i.ncaa_player_id = b.pid
-    LEFT JOIN by_name n ON b.pid IS NULL AND n.season = b.season AND n.ncaa_team = b.team AND n.player = b.player`
+    LEFT JOIN by_name n ON b.pid IS NULL AND n.season = b.season AND n.ncaa_team = b.team AND n.player = b.player
+    -- A line of no id, player or one-sided name stands where its team's row of the contest was placed.
+    LEFT JOIN names m ON m.season = g.season AND m.name = b.team
+    LEFT JOIN ${NCAA_SIDE} s ON s.contest_id = b.contest_id AND s.team = b.team`
 }
 
 /**
@@ -240,11 +309,12 @@ function teamBox(have: Have, league: League): string {
     : `SELECT NULL::VARCHAR AS game_id, NULL::INTEGER AS team_id, NULL::INTEGER AS seconds,
               NULL::VARCHAR AS source, ${BOX_COUNTS.map((c) => `NULL::INTEGER AS ${c}`).join(', ')} WHERE false`
   const ncaa = have.tables.has(NCAA_TEAM_BOX)
-    ? `SELECT g.game_id, ${sideOf('TRY_CAST(n.team_espn_team_id AS INTEGER)', null, 'n')} AS team_id,
+    ? `SELECT g.game_id, s.team_id,
               ${seconds} AS seconds, 'ncaa' AS source,
               ${BOX_COUNTS.map((c) => `${NCAA_TEAM_COUNTS[c] ? `TRY_CAST(${NCAA_TEAM_COUNTS[c]} AS INTEGER)` : 'NULL::INTEGER'} AS ${c}`).join(', ')}
        FROM ${NCAA_TEAM_BOX} n
-       JOIN game g ON g.ncaa_game_id = n.contest_id AND g.played AND g.forfeit_winner_id IS NULL`
+       JOIN ${NCAA_SIDE} s ON s.contest_id = n.contest_id AND s.team = n.team AND s.team_id IS NOT NULL
+       JOIN game g ON g.game_id = s.game_id`
     : `SELECT NULL::VARCHAR AS game_id, NULL::INTEGER AS team_id, NULL::INTEGER AS seconds,
               NULL::VARCHAR AS source, ${BOX_COUNTS.map((c) => `NULL::INTEGER AS ${c}`).join(', ')} WHERE false`
   return `WITH line_sources AS (
@@ -270,10 +340,11 @@ function teamBox(have: Have, league: League): string {
  */
 function teamSplits(have: Have): string {
   const possessions = have.tables.has(NCAA_TEAM_BOX)
-    ? `SELECT g.game_id, ${sideOf('TRY_CAST(n.team_espn_team_id AS INTEGER)', null, 'n')} AS team_id,
+    ? `SELECT g.game_id, s.team_id,
               min(n.o_poss) AS ncaa_poss, min(n.o_mins) * 60 AS ncaa_off_seconds
        FROM ${NCAA_TEAM_BOX} n
-       JOIN game g ON g.ncaa_game_id = n.contest_id AND g.played AND g.forfeit_winner_id IS NULL
+       JOIN ${NCAA_SIDE} s ON s.contest_id = n.contest_id AND s.team = n.team AND s.team_id IS NOT NULL
+       JOIN game g ON g.game_id = s.game_id
        GROUP BY 1, 2`
     : 'SELECT NULL::VARCHAR AS game_id, NULL::INTEGER AS team_id, NULL::DOUBLE AS ncaa_poss, NULL::DOUBLE AS ncaa_off_seconds WHERE false'
   const own = NCAA_TEAM_OWN.filter((c) => c !== 'ncaa_poss' && c !== 'ncaa_off_seconds').map((c) =>
@@ -289,7 +360,13 @@ function teamSplits(have: Have): string {
 export const COLLEGE_DERIVED: DerivedRecipe = {
   version: VERSION,
   needs: ['game', 'team', 'player_ids', 'src_espn_player_box'],
-  lines: (have) => [espnLines(have, undefined, true), ncaaLines(have), LINES, positions(have)],
+  lines: (have) => [
+    ncaaSides(have),
+    espnLines(have, undefined, true),
+    ncaaLines(have),
+    LINES,
+    positions(have)
+  ],
   temps: ['espn_lines', 'ncaa_lines'],
   teamBox,
   teamBoxKey: 'game_id',
