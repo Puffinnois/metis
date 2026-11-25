@@ -1218,9 +1218,24 @@ export interface StatsOnCourtUnit {
   line: StatsOnCourtLine
 }
 
+/**
+ * What the play by play holds of the games an on-court read covers, beside the team's box score of the
+ * same games: a game it has only in part, or twice, makes the two differ. `noPlays` are games of the scope
+ * with a box score and no play at all, which the read leaves out.
+ */
+export interface StatsPlaysHeld {
+  pts: number
+  boxPts: number
+  oppPts: number
+  boxOppPts: number
+  noPlays: number
+}
+
 /** A team's groups of one size, most minutes first, or why a season has none. */
 export interface StatsOnCourtUnits {
   units: StatsOnCourtUnit[]
+  /** Absent where there is nothing to read. */
+  held?: StatsPlaysHeld
   reason: string | null
 }
 
@@ -1239,6 +1254,8 @@ export interface StatsWithOrWithout {
     teammateOnly: StatsOnCourtLine | null
     neither: StatsOnCourtLine | null
   } | null
+  /** Absent where there is no split to read. */
+  held?: StatsPlaysHeld
   reason: string | null
 }
 

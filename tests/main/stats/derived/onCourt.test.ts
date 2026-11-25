@@ -13,6 +13,7 @@ import { inspect } from '@main/stats/derived/sql'
 import { readOnCourtUnits, readWithOrWithout } from '@main/stats/onCourtReads'
 import { openTestDb } from '../../../fixtures/stats'
 import { LEAGUES } from '@shared/leagues'
+import type { GameType } from '@shared/stats/types'
 
 /**
  * One small game, home (1) against away (2), every rule of the on-court layer in it:
@@ -401,6 +402,78 @@ describe('the on-court reads', () => {
     const w = await readWithOrWithout(db, '22', '21', 2026, { gameTypes: ['regular'] }, LEAGUES.nba)
     expect(w.splits?.both).toMatchObject({ secs: 720 })
     expect(w.splits?.playerOnly).toMatchObject({ secs: 300, opp_pts: 2 })
+  })
+
+  describe('what the play by play holds of the games read', () => {
+    const scope = { gameTypes: ['regular'] as GameType[] }
+    const unit = async (
+      game: string,
+      date: string,
+      team: number,
+      five: (number | null)[],
+      pts: number,
+      opp: number
+    ): Promise<void> =>
+      db.exec(`INSERT INTO ${UNIT_GAME} (season, game_type, game_id, game_date, team_id, opponent_id, home,
+          p1, p2, p3, p4, p5, complete, secs, pts, opp_pts)
+        VALUES (2026, 'regular', '${game}', DATE '${date}', ${team}, ${team === H ? A : H}, true,
+          ${five.map((p) => p ?? 'NULL').join(', ')}, ${five.every((p) => p !== null)}, 100, ${pts}, ${opp})`)
+
+    beforeEach(async () => {
+      // G1 is the fixture's, its box score a basket short of the plays; a lineup of four scored in it too.
+      await unit('G1', '2026-01-10', H, [11, 12, 13, 14, null], 5, 0)
+      // G2 and G3 have no unit of the team's, G2 one of its opponent's. 11 and 15 both played G2.
+      await unit('G2', '2026-01-12', A, AWAY, 80, 90)
+      // G6: units, with 11 and without 15, and no score in the box. G7: the same, with a score.
+      await unit('G6', '2026-01-16', H, HOME_B, 40, 30)
+      await unit('G7', '2026-01-18', H, HOME_B, 20, 25)
+      await db.exec(`CREATE OR REPLACE TABLE team_game AS SELECT * FROM (VALUES
+        ('G1', ${H}::BIGINT, 2026, 'regular', DATE '2026-01-10', 4, 2),
+        ('G1', ${A}::BIGINT, 2026, 'regular', DATE '2026-01-10', 1000, 1000),
+        ('G2', ${H}::BIGINT, 2026, 'regular', DATE '2026-01-12', 90, 80),
+        ('G3', ${H}::BIGINT, 2026, 'regular', DATE '2026-01-14', 70, 85),
+        ('G4', ${H}::BIGINT, 2026, 'playoffs', DATE '2026-04-20', 99, 85),
+        ('G5', ${H}::BIGINT, 2026, 'regular', DATE '2026-02-01', NULL, NULL),
+        ('G6', ${H}::BIGINT, 2026, 'regular', DATE '2026-01-16', NULL, NULL),
+        ('G7', ${H}::BIGINT, 2026, 'regular', DATE '2026-01-18', 21, 25)
+      ) t(game_id, team_id, season, game_type, game_date, pts, opp_pts)`)
+      await db.exec(`CREATE OR REPLACE TABLE player_game AS SELECT * FROM (VALUES
+        ('G2', ${H}::BIGINT, 11::BIGINT), ('G2', ${H}::BIGINT, 15::BIGINT),
+        ('G3', ${H}::BIGINT, 11::BIGINT)
+      ) t(game_id, team_id, player_id)`)
+    })
+
+    it('sums the points of the games read beside the box score, and counts games with no plays', async () => {
+      // Every unit counts, a lineup of four too; a game with no score in the box is in neither sum.
+      const units = await readOnCourtUnits(db, String(H), 2026, scope, 5, LEAGUES.nba)
+      expect(units.held).toEqual({ pts: 31, boxPts: 25, oppPts: 28, boxOppPts: 27, noPlays: 2 })
+    })
+
+    it('keeps to the games both players have a line in, with and without', async () => {
+      const w = await readWithOrWithout(db, '11', '15', 2026, scope, LEAGUES.nba)
+      expect(w.held).toEqual({ pts: 11, boxPts: 4, oppPts: 3, boxOppPts: 2, noPlays: 1 })
+    })
+
+    it('counts a game with no plays inside the dates only, and none for the last games', async () => {
+      const in12 = await readOnCourtUnits(
+        db,
+        String(H),
+        2026,
+        { ...scope, dates: ['2026-01-10', '2026-01-12'] },
+        5,
+        LEAGUES.nba
+      )
+      expect(in12.held?.noPlays).toBe(1)
+      const last = await readOnCourtUnits(
+        db,
+        String(H),
+        2026,
+        { ...scope, lastN: 1 },
+        5,
+        LEAGUES.nba
+      )
+      expect(last.held).toMatchObject({ pts: 20, boxPts: 21, noPlays: 0 })
+    })
   })
 
   it('refuses what is not an id', async () => {

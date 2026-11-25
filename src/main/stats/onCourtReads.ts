@@ -6,6 +6,7 @@ import {
   type StatsOnCourtScope,
   type StatsOnCourtUnit,
   type StatsOnCourtUnits,
+  type StatsPlaysHeld,
   type StatsWithOrWithout
 } from '@shared/stats/types'
 import type { StatsDb } from './db'
@@ -93,6 +94,51 @@ function gamesWhere(
   return { sql: where.join(' AND '), params }
 }
 
+/**
+ * What the play by play holds of the games read, beside the team's box score (`StatsPlaysHeld`). `rows`
+ * is the SQL of CTEs and the one of them that is the unit rows read; `mates` are the players whose
+ * box-score lines a game without plays must hold to be one of these games. The last games asked for are
+ * the last with plays, so none is missing from them.
+ */
+async function playsHeld(
+  db: StatsDb,
+  c: Checked,
+  team: number,
+  rows: { sql: string; of: string; params: (string | number)[] },
+  mates: number[]
+): Promise<StatsPlaysHeld | undefined> {
+  if (!(await inspect(db)).tables.has('team_game')) return undefined
+  const sums = await db.get<Record<string, number | null>>(
+    `WITH ${rows.sql},
+     g AS (SELECT game_id, sum(pts) AS pts, sum(opp_pts) AS opp FROM ${rows.of} GROUP BY game_id)
+     SELECT sum(g.pts)::DOUBLE AS pts, sum(t.pts)::DOUBLE AS box, sum(g.opp)::DOUBLE AS opp,
+            sum(t.opp_pts)::DOUBLE AS boxopp
+     FROM g JOIN team_game t ON t.game_id = g.game_id AND t.team_id = $2
+     WHERE t.pts IS NOT NULL AND t.opp_pts IS NOT NULL`,
+    rows.params
+  )
+  const types = c.types.map((_, i) => `$${i + 3}`).join(', ')
+  const at = 3 + c.types.length
+  const none =
+    c.lastN === undefined
+      ? await db.get<{ n: number }>(
+          `SELECT count(*)::INTEGER AS n FROM team_game t
+           WHERE t.season = $1 AND t.team_id = $2 AND t.game_type IN (${types}) AND t.pts IS NOT NULL
+             ${c.dates ? `AND t.game_date BETWEEN $${at}::DATE AND $${at + 1}::DATE` : ''}
+             ${mates.map((m) => `AND EXISTS (SELECT 1 FROM player_game b WHERE b.game_id = t.game_id AND b.team_id = t.team_id AND b.player_id = ${m})`).join(' ')}
+             AND NOT EXISTS (SELECT 1 FROM ${UNIT_GAME} u WHERE u.game_id = t.game_id AND u.team_id = t.team_id)`,
+          [c.season, team, ...c.types, ...(c.dates ?? [])]
+        )
+      : undefined
+  return {
+    pts: Number(sums?.pts ?? 0),
+    boxPts: Number(sums?.box ?? 0),
+    oppPts: Number(sums?.opp ?? 0),
+    boxOppPts: Number(sums?.boxopp ?? 0),
+    noPlays: Number(none?.n ?? 0)
+  }
+}
+
 const lineOf = (r: Record<string, unknown>): StatsOnCourtLine =>
   ({
     games: Number(r.games ?? 0),
@@ -147,7 +193,14 @@ export async function readOnCourtUnits(
     players: (r.players as string[]).map((id) => ({ id, name: known.get(id) ?? `Player ${id}` })),
     line: lineOf(r)
   }))
-  return { units, reason: null }
+  const held = await playsHeld(
+    db,
+    c,
+    Number(team),
+    { sql: `u AS (SELECT * FROM ${UNIT_GAME} u WHERE ${sql})`, of: 'u', params },
+    []
+  )
+  return { units, held, reason: null }
 }
 
 /**
@@ -212,12 +265,14 @@ export async function readWithOrWithout(
   const pick = teammate ?? teammates[0]?.id ?? null
   if (pick === null)
     return { teamId: String(teamId), teammate: null, teammates, splits: null, reason: null }
-  const rows = await db.all<Record<string, unknown>>(
-    `WITH ${mine},
+  // The games both were on the floor in, by the units.
+  const shared = `${mine},
      shared AS (
        SELECT * FROM u WHERE u.game_id IN (SELECT game_id FROM ${UNIT_GAME} w
          WHERE w.team_id = $2 AND w.season = $1 AND $${p + 1} IN (w.p1, w.p2, w.p3, w.p4, w.p5))
-     )
+     )`
+  const rows = await db.all<Record<string, unknown>>(
+    `WITH ${shared}
      -- list_contains, not IN: a unit missing a player would read NULL, and drop out of both splits.
      SELECT list_contains([p1, p2, p3, p4, p5], $${p}) AS me_on,
             list_contains([p1, p2, p3, p4, p5], $${p + 1}) AS mate_on,
@@ -229,6 +284,13 @@ export async function readWithOrWithout(
     const r = rows.find((x) => Boolean(x.me_on) === meOn && Boolean(x.mate_on) === mateOn)
     return r ? lineOf(r) : null
   }
+  const held = await playsHeld(
+    db,
+    c,
+    teamId,
+    { sql: shared, of: 'shared', params: [...params, me, Number(pick)] },
+    [me, Number(pick)]
+  )
   return {
     teamId: String(teamId),
     teammate: pick,
@@ -239,6 +301,7 @@ export async function readWithOrWithout(
       teammateOnly: split(false, true),
       neither: split(false, false)
     },
+    held,
     reason: null
   }
 }

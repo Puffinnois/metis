@@ -3,6 +3,7 @@ import type {
   StatsOnCourtLine,
   StatsOnCourtScope,
   StatsOnCourtUnit,
+  StatsPlaysHeld,
   StatsQuery,
   StatsWithOrWithout
 } from '@shared/stats/types'
@@ -30,6 +31,33 @@ export const unitsNote = (): string =>
   currentLeague().onCourtNote
     ? `Every unit of five distinct players the ${currentLeague().onCourtFrom === 'plays' ? 'play by play names on the floor' : 'lineup file knows'}, from ${seasonLabel(currentLeague().firstSeason)}.`
     : 'Every unit of five distinct players the lineups know, in every season from 1996-97.'
+
+/** How far the plays' points may sit from the box score's before a reader is told: one in a hundred. */
+const PLAYS_APART = 0.01
+
+/**
+ * What a reader is told where the play by play is not the whole of the games read: games with a box score
+ * and no play, left out, and points more than 1 % apart from the box score's, for the team or against it.
+ */
+export function playsHeldNotes(held: StatsPlaysHeld | undefined): string[] {
+  if (!held) return []
+  const out: string[] = []
+  if (held.noPlays > 0) {
+    out.push(
+      held.noPlays === 1
+        ? 'One game with a box score has no play by play, so it is not counted here.'
+        : `${held.noPlays} games with a box score have no play by play, so they are not counted here.`
+    )
+  }
+  const apart = (a: number, box: number): boolean => Math.abs(a - box) > PLAYS_APART * box
+  const n = (x: number): string => fmtStat(x, { unit: 'count', decimals: 0 })
+  if (apart(held.pts, held.boxPts) || apart(held.oppPts, held.boxOppPts)) {
+    out.push(
+      `The play by play of these games differs from the box score: it counts ${n(held.pts)} points for the team and ${n(held.oppPts)} against, where the box score has ${n(held.boxPts)} and ${n(held.boxOppPts)}.`
+    )
+  }
+  return out
+}
 
 /** Why a season cannot be answered; null when it can. */
 export function onCourtGap(scope: StatsScope): string | null {

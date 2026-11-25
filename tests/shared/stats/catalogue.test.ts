@@ -858,10 +858,28 @@ const ON_COURT_ROW: Record<string, number> = {
   on_opp_fga: 2550,
   on_opp_fg3m: 380,
   on_opp_fg3a: 1050,
+  on_opp_fta: 650,
+  on_opp_tov: 400,
   off_poss: 1000,
   off_opp_poss: 1010,
   off_pts: 1100,
   off_opp_pts: 1120,
+  off_fgm: 400,
+  off_fga: 900,
+  off_fg3m: 120,
+  off_fg3a: 340,
+  off_fta: 230,
+  off_tov: 150,
+  off_oreb: 95,
+  off_dreb: 310,
+  off_opp_fgm: 410,
+  off_opp_fga: 910,
+  off_opp_fg3m: 130,
+  off_opp_fg3a: 350,
+  off_opp_fta: 220,
+  off_opp_tov: 140,
+  off_opp_oreb: 105,
+  off_opp_dreb: 290,
   p_fgm: 300,
   p_fga: 600,
   p_fta: 200,
@@ -875,6 +893,31 @@ const ON_COURT_ROW: Record<string, number> = {
 
 const ON_DRTG = (100 * 3300) / 2990
 const OFF_DRTG = (100 * 1120) / 1010
+
+/** The rates on and off and on less off, worked from the row by hand: [on, off]. */
+const ON_OFF_RATES: Record<string, [on: number, off: number]> = {
+  efg_pct: [1450 / 2600, 460 / 900],
+  opp_efg_pct: [1390 / 2550, 475 / 910],
+  ts_pct: [3450 / (2 * (2600 + 308)), 1100 / (2 * (900 + 101.2))],
+  opp_ts_pct: [3300 / (2 * (2550 + 286)), 1120 / (2 * (910 + 96.8))],
+  fg3a_rate: [1100 / 2600, 340 / 900],
+  opp_fg3a_rate: [1050 / 2550, 350 / 910],
+  fta_rate: [700 / 2600, 230 / 900],
+  opp_fta_rate: [650 / 2550, 220 / 910],
+  tm_tov_pct: [420 / 3000, 150 / 1000],
+  opp_tov_pct: [400 / 2990, 140 / 1010],
+  tm_orb_pct: [300 / 1250, 95 / 385],
+  tm_drb_pct: [900 / 1180, 310 / 415],
+  tm_trb_pct: [1200 / 2430, 405 / 800]
+}
+
+for (const [id, [on, off]] of Object.entries(ON_OFF_RATES)) {
+  Object.assign(EXPECTED, {
+    [`onc_${id}`]: on,
+    [`offc_${id}`]: off,
+    [`onoff_${id}`]: on - off
+  })
+}
 
 Object.assign(EXPECTED, {
   onc_min: 1500,
@@ -892,10 +935,6 @@ Object.assign(EXPECTED, {
   onoff_drtg: ON_DRTG - OFF_DRTG,
   onoff_net: 115 - ON_DRTG - (110 - OFF_DRTG),
   onc_pace: (2880 * (3000 + 2990)) / 2 / 90000,
-  onc_efg_pct: (1250 + 200) / 2600,
-  onc_opp_efg_pct: (1200 + 190) / 2550,
-  onc_tm_tov_pct: 420 / 3000,
-  onc_tm_orb_pct: 300 / (300 + 950),
   onc_usg_pct: (600 + 0.44 * 200 + 90) / (2600 + 0.44 * 700 + 420),
   onc_ast_pct: 250 / (1250 - 300),
   onc_orb_pct: 40 / (300 + 950),
