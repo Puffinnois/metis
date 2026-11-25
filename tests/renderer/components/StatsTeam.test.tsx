@@ -31,6 +31,8 @@ vi.mock('@/lib/api', () => ({
       games: vi.fn(),
       game: vi.fn(),
       standings: vi.fn(),
+      // A player page opened from here asks for it once its own reads are in.
+      otherCareer: vi.fn(() => new Promise(() => {})),
       availability: vi.fn(() => Promise.resolve([])),
       coaches: vi.fn(() => Promise.resolve([])),
       assists: vi.fn(() => Promise.resolve({ pairs: [], total: 0, reason: null })),
@@ -296,7 +298,10 @@ describe('the team dashboard', () => {
       target: { value: '1995' }
     })
     expect(await screen.findByText('This franchise did not play in 1994-95.')).toBeTruthy()
-    expect(screen.getByRole('combobox', { name: 'Team' })).toHaveProperty('value', FRANCHISE)
+    // The franchise stays chosen, under the code of its nearest season.
+    expect(screen.getByRole('button', { name: /^Team: / }).getAttribute('data-value')).toBe(
+      FRANCHISE
+    )
   })
 
   it('reads a stat tab, and says why one is empty', async () => {

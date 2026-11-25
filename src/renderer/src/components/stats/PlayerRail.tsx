@@ -13,6 +13,8 @@ import {
   type MoreRow,
   type MoreRows
 } from '@/lib/stats/playerSearch'
+import { TeamChooser } from '@/components/stats/TeamChooser'
+import { ALL_TEAMS, teamChoices } from '@/lib/stats/teamSearch'
 import { cn, scrollToNearest } from '@/lib/utils'
 import type { MetricInfo, StatsTeam } from '@shared/stats/types'
 
@@ -218,13 +220,10 @@ export function PlayerRail({
           />
         </label>
         <div className="flex gap-1.5">
-          <StatsSelect
+          <TeamChooser
             title="Team"
             value={team ?? ''}
-            options={[
-              { value: '', label: 'All teams' },
-              ...teams.map((t) => ({ value: t.id, label: t.code }))
-            ]}
+            choices={[ALL_TEAMS, ...teamChoices(teams)]}
             onChange={(t) => {
               setLimit(PAGE)
               onTeam(t || null)

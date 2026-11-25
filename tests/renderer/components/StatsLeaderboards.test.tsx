@@ -24,6 +24,8 @@ vi.mock('@/lib/api', () => ({
       player: vi.fn(),
       games: vi.fn(),
       standings: vi.fn(),
+      // The player page on the way to its leaderboard asks for it once its own reads are in.
+      otherCareer: vi.fn(() => new Promise(() => {})),
       availability: vi.fn(() => Promise.resolve([])),
       coaches: vi.fn(() => Promise.resolve([])),
       assists: vi.fn(() => Promise.resolve({ pairs: [], total: 0, reason: null })),
@@ -313,9 +315,8 @@ describe('the leaderboard', () => {
 
   it('filters by team and finds a name without its accents', async () => {
     await openPlayers()
-    fireEvent.change(screen.getByRole('combobox', { name: 'Team' }), {
-      target: { value: '1610612738' }
-    })
+    fireEvent.click(screen.getByRole('button', { name: 'Team: All teams' }))
+    fireEvent.click(await screen.findByRole('option', { name: /Boston/ }))
     await waitFor(() => expect(lastQuery().scope.teams).toEqual(['1610612738']))
     fireEvent.change(screen.getByLabelText('Search'), { target: { value: 'doncic' } })
     expect(screen.getByText('Luka Dončić')).toBeTruthy()
@@ -378,7 +379,7 @@ describe('the leaderboard', () => {
     await screen.findByRole('heading', { name: /team offense leaderboard/ })
     await screen.findByText('Luka Dončić')
     expect(screen.queryByRole('button', { name: /Qualified only/ })).toBeNull()
-    expect(screen.queryByRole('combobox', { name: 'Team' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Team: / })).toBeNull()
     expect(lastQuery().entity).toBe('team')
     // Overview keeps the two ends it always had.
     fireEvent.click(screen.getByRole('radio', { name: 'Defense' }))

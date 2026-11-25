@@ -8,7 +8,7 @@ import { useScreenState } from '@/lib/stats/session'
 import { shotRequest } from '@/lib/stats/shotChart'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { Segmented, StatsSelect } from '@/components/stats/controls'
+import { Segmented } from '@/components/stats/controls'
 import { GameChart } from '@/components/stats/GameChart'
 import { CompareButton } from '@/screens/stats/StatsCompare'
 import {
@@ -97,6 +97,8 @@ import {
 import { StatusChip } from '@/components/stats/StatusChip'
 import { coachLines, tagsById } from '@/lib/stats/availability'
 import { useFavourites } from '@/lib/stats/favourites'
+import { TeamChooser } from '@/components/stats/TeamChooser'
+import { teamChoices } from '@/lib/stats/teamSearch'
 import { cn } from '@/lib/utils'
 import type { BoardMode, StatsResult } from '@shared/stats/types'
 
@@ -314,14 +316,12 @@ function Header({
             <NavButton title="Previous team" onClick={() => step(-1)}>
               <ChevronLeft className="size-3.5" />
             </NavButton>
-            <StatsSelect
+            <TeamChooser
               title="Team"
               value={team}
-              options={[
-                ...teams.map((t) => ({ value: t.id, label: t.code })),
-                // A franchise with no team that season stays selected, so a move back returns to it.
-                ...(i < 0 ? [{ value: team, label: code }] : [])
-              ]}
+              choices={teamChoices(teams)}
+              // A franchise with no team that season stays selected, so a move back returns to it.
+              label={code}
               onChange={onTeam}
               className="h-[26px] font-mono"
             />

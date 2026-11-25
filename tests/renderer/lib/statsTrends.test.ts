@@ -18,7 +18,7 @@ import {
   scopeNote,
   seasonPool,
   subjectQuery,
-  teamOptions,
+  latestTeams,
   teamsBySeason,
   teamsQuery,
   trendable,
@@ -248,7 +248,9 @@ describe('the seasons and the queries', () => {
       { season: 2008, teams: [{ id: '9', code: 'SEA', name: 'Seattle SuperSonics' }] },
       { season: 2009, teams: [{ id: '9', code: 'OKC', name: 'Oklahoma City Thunder' }] }
     ] as unknown as StatsSeason[]
-    expect(teamOptions(seasons)).toEqual([{ id: '9', label: 'OKC · Oklahoma City Thunder' }])
+    expect(latestTeams(seasons)).toMatchObject([
+      { id: '9', code: 'OKC', name: 'Oklahoma City Thunder' }
+    ])
   })
 })
 
