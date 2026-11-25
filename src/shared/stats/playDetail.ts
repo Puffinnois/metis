@@ -226,6 +226,53 @@ export const AND_ONE_FOULS: readonly string[] = ['Shooting', 'Shooting Block']
 /** A shooting-foul trip of two or three free throws, counted on its first. */
 export const TRIP_FREE_THROWS = { two: 'Free Throw 1 of 2', three: 'Free Throw 1 of 3' } as const
 
+/**
+ * A free throw of a technical foul, whose points the points per scoring attempt leave out (reference 428).
+ * The college feed does not say which free throws are technicals, so there they stay in.
+ */
+export const TECHNICAL_FREE_THROW = 'Free Throw Technical'
+/** The college feed's one-and-one: a front end missed, so the trip ends with one shot. */
+export const NCAA_FRONT_END = '1of1'
+
+/** The seconds left in which a go-ahead basket, a game winner and a buzzer-beater are counted. */
+export const GO_AHEAD_SECONDS = 120
+export const GAME_WINNER_SECONDS = 24
+export const BUZZER_SECONDS = 1
+
+/**
+ * Personal fouls that count toward a team's bonus: every kind but the offensive ones, the technicals and
+ * the defensive three seconds. With these, the count of a team's fouls in a period puts the other team in
+ * the bonus (the fifth of a quarter, the fourth of an overtime, or the second of its last two minutes) in
+ * the same team-periods as the feed's own words (`P4.T3`, `PN`) on 98.3 to 100 % of each season measured.
+ */
+export const TEAM_FOUL_SUBTYPES: readonly string[] = [
+  'Shooting',
+  'Shooting Block',
+  'Personal',
+  'Personal Block',
+  'Loose Ball',
+  'Personal Take',
+  'Transition Take',
+  'Flagrant Type 1',
+  'Flagrant Type 2',
+  'Away From Play',
+  'Clear Path',
+  'Inbound',
+  'Elbow',
+  'Punching'
+]
+export const BONUS_FOUL_QUARTER = 5
+export const BONUS_FOUL_OVERTIME = 4
+export const BONUS_LATE_SECONDS = 120
+export const BONUS_LATE_FOULS = 2
+
+/** A timeout the feed names no team's: the officials' and the media's. */
+export const NOT_A_TEAM_TIMEOUT: readonly string[] = ['Official', 'Official TV']
+
+/** The feed's spelling of a coach's challenge on a replay row, and of one that won. */
+export const CHALLENGE_PREFIX = 'Coach Challenge'
+export const CHALLENGE_WON = 'Overturn'
+
 /** The kind a spelling falls in; `other` when no kind lists it. */
 export function kindOf(kinds: readonly PlayKind[], subtype: string | null): string {
   const s = subtype?.trim() ?? ''

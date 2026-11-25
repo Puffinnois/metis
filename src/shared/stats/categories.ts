@@ -288,7 +288,11 @@ export const CATEGORIES = [
       g('elo', 'Elo', 'The Elo rating and the wins it expects.'),
       g('pythagorean', 'Pythagorean', 'The Pythagorean record and the wins over it.'),
       g('schedule', 'Schedule', 'Games left and their strength.'),
-      g('game_flow', 'Game flow', 'Leads, ties, runs and droughts.'),
+      g(
+        'game_flow',
+        'Game flow',
+        'Leads, ties, runs, droughts, jump balls, timeouts and challenges.'
+      ),
       g('forecast', 'Forecast', 'The season forecast.'),
       g('rankings', 'Rankings and seeds', 'Rankings, quadrants, polls and seeds.')
     ]
